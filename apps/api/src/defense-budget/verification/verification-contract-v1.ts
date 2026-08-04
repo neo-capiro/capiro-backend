@@ -164,15 +164,21 @@ export const verificationDiscrepancyV1Schema = z
 export type VerificationDiscrepancyV1 = z.infer<typeof verificationDiscrepancyV1Schema>;
 
 /* ------------------------------------------------------------------ */
-/* A8. Verification result                                              */
+/* A8. Verification result                                             */
 /* ------------------------------------------------------------------ */
 
 const isoDateTimeString = z
   .string()
   .min(1)
-  .refine((s) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/.test(s), {
-    message: 'expected ISO 8601 datetime string',
-  });
+  .refine(
+    (value) =>
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/.test(
+        value,
+      ),
+    {
+      message: 'expected ISO 8601 datetime string',
+    },
+  );
 
 export const defenseBudgetVerificationResultV1Schema = z
   .object({
@@ -240,14 +246,13 @@ export const verificationRequestV1Schema = z
             artifactLocator: z.string().min(1),
             sourceDocumentId: z.string().min(1),
             /**
-             * R8.2 Workstream D: every reference must name the manifest
-             * document entry that governs its own proof policy. Never
-             * defaulted from the candidate.
+             * Every reference must name the manifest document entry governing
+             * its own proof policy. Never defaulted from the candidate.
              */
             manifestDocumentKey: z.string().min(1),
             /**
-             * R8.2 Workstream D: a reference may be governed by a separate
-             * manifest. Defaults ONLY to the candidate manifest locator.
+             * A reference may be governed by a separate manifest. Defaults
+             * only to the candidate manifest locator.
              */
             manifestLocator: z.string().min(1).optional(),
           })
@@ -257,18 +262,16 @@ export const verificationRequestV1Schema = z
     mode: z.enum(['inspect', 'persist_audit']),
     expectedSourcePdfSha256: sha256Schema.optional(),
     expectedExtractionArtifactSha256: sha256Schema.optional(),
-    /**
-     * R8.1 §5.2: explicit new-attempt identity. When omitted, the run ID is
-     * derived deterministically from the candidate identity + verifier version
-     * + policy SHA (attempt 0), so an exact re-invocation replays the persisted
-     * result. A fresh run is created only when a distinct attemptId is supplied.
-     */
-    attemptId: z.string().min(1).optional(),
   })
   .strict();
 export type VerificationRequestV1 = z.infer<typeof verificationRequestV1Schema>;
 
 /**
+ * Exact immutable identity has exactly one deterministic verification run.
+ * Corrections require a new source, manifest, artifact, policy, or verifier
+ * identity; the public request intentionally exposes no "new attempt" escape
+ * hatch.
+ *
  * The optional expected hashes are TOCTOU/operator confirmation guards only.
  * They do not establish trust.
  *
@@ -307,10 +310,6 @@ import { createHash } from 'node:crypto';
 /**
  * Compute a deterministic check ID from the verifier run identity, code,
  * assertion IDs, evidence IDs, and reference artifact IDs.
- *
- * The ID is `vc1_<sha256>` where the hash covers:
- *   verificationRunId | code | sorted(assertionIds) | sorted(evidenceIds) |
- *   sorted(referenceArtifactIds)
  */
 export function computeVerificationCheckId(input: {
   verificationRunId: string;

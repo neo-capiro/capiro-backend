@@ -1,33 +1,8 @@
 /**
- * Workstream N3 — Report defense-budget verification cycle status V1.
+ * Report defense-budget verification cycle status V1.
  *
- * Usage:
- *   pnpm --filter @capiro/api report:defense-budget-verification-cycle-v1 -- \
- *     --manifest <cycle-manifest.json>
- *
- * Read-only output per document:
- *   not_present
- *   not_verified
- *   verification_passed
- *   needs_review
- *   review_accepted
- *   rejected
- *   superseded
- *
- * Includes:
- *   - required/optional document counts
- *   - passed/review/rejected counts
- *   - missing required documents
- *   - unresolved required comparisons
- *   - blocking discrepancy counts
- *   - source/artifact hash identities
- *
- * This report is not the final annual Program Elements certification
- * from Phase 8.
- *
- * Exit codes:
- *   0 — report generated
- *   1 — execution failure
+ * The report is bound to the exact supplied manifest bytes. A candidate from
+ * another version of the same cycle can never be selected.
  */
 import * as fs from 'node:fs';
 import {
@@ -35,19 +10,12 @@ import {
   type BudgetCycleManifestV1,
   type BudgetCycleManifestDocumentV1,
 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
-
-/* ------------------------------------------------------------------ */
-/* Exit codes                                                          */
-/* ------------------------------------------------------------------ */
+import { sha256Bytes } from '../src/defense-budget/contracts/canonical-json.js';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
 
-/* ------------------------------------------------------------------ */
-/* Types                                                               */
-/* ------------------------------------------------------------------ */
-
-interface DocumentStatusEntry {
+export interface DocumentStatusEntry {
   documentKey: string;
   required: boolean;
   status:
@@ -58,15 +26,23 @@ interface DocumentStatusEntry {
     | 'review_accepted'
     | 'rejected'
     | 'superseded';
+  candidateId: string | null;
+  verificationRunId: string | null;
+  candidateCount: number;
+  selectionWarning?: string;
+  manifestContentSha256: string;
+  policySha256: string | null;
+  verifierVersion: string | null;
   sourceSha256: string | null;
   extractionArtifactSha256: string | null;
   blockingDiscrepancyCount: number;
   unresolvedRequiredComparisons: number;
 }
 
-interface CycleReport {
+export interface CycleReport {
   cycleId: string;
   fiscalYear: number;
+  manifestContentSha256: string;
   generatedAt: string;
   totalDocuments: number;
   requiredDocuments: number;
@@ -82,33 +58,61 @@ interface CycleReport {
     missingRequired: string[];
     totalBlockingDiscrepancies: number;
     totalUnresolvedRequiredComparisons: number;
+    selectionWarnings: number;
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* Argument parsing                                                     */
-/* ------------------------------------------------------------------ */
+interface CandidateLike {
+  id: string;
+  manifestDocumentKey: string;
+  manifestContentSha256: string;
+  status: string;
+  currentRunId: string | null;
+  policySha256: string;
+  verifierVersion: string;
+  sourceSha256: string;
+  extractionArtifactSha256: string;
+  updatedAt: Date | string;
+}
+
+const COMPARISON_CHECK_CODES = new Set([
+  'cross_document_summary_detail',
+  'committee_request_reference',
+  'historical_consistency',
+  'rdte_summary_detail',
+  'project_rollup',
+  'procurement_rollup',
+  'committee_adjustment',
+  'page_only_reconciliation',
+]);
+
+const STATUS_PRIORITY: Readonly<Record<string, number>> = {
+  REVIEW_ACCEPTED: 0,
+  VERIFICATION_PASSED: 1,
+  NEEDS_REVIEW: 2,
+  REJECTED: 3,
+  VALIDATING: 4,
+  STRUCTURALLY_VALIDATED: 5,
+  EXTRACTED: 6,
+  SUPERSEDED: 7,
+};
 
 const KNOWN_FLAGS = new Set(['--manifest', '--offline']);
 
 function parseArgs(argv: string[]): { manifest: string; offline: boolean } {
   let manifest = '';
   let offline = false;
-  let i = 0;
-  while (i < argv.length) {
-    const arg = argv[i];
+  let index = 0;
+  while (index < argv.length) {
+    const arg = argv[index];
     if (arg === undefined) break;
     if (!KNOWN_FLAGS.has(arg)) {
       console.error(`Unknown flag: ${arg}`);
       process.exit(EXIT_ERROR);
     }
-    if (arg === '--manifest') {
-      manifest = argv[++i] ?? '';
-    }
-    if (arg === '--offline') {
-      offline = true;
-    }
-    i++;
+    if (arg === '--manifest') manifest = argv[++index] ?? '';
+    if (arg === '--offline') offline = true;
+    index++;
   }
   if (!manifest) {
     console.error(
@@ -119,11 +123,6 @@ function parseArgs(argv: string[]): { manifest: string; offline: boolean } {
   return { manifest, offline };
 }
 
-/* ------------------------------------------------------------------ */
-/* Report generation                                                   */
-/* ------------------------------------------------------------------ */
-
-/** Map persisted candidate status to report status. */
 function mapCandidateStatus(status: string): DocumentStatusEntry['status'] {
   switch (status) {
     case 'VERIFICATION_PASSED':
@@ -141,66 +140,120 @@ function mapCandidateStatus(status: string): DocumentStatusEntry['status'] {
   }
 }
 
-async function generateReport(manifestPath: string, offline: boolean): Promise<CycleReport> {
+function candidateSort(left: CandidateLike, right: CandidateLike): number {
+  const leftPriority = STATUS_PRIORITY[left.status] ?? 99;
+  const rightPriority = STATUS_PRIORITY[right.status] ?? 99;
+  if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+  const leftHasRun = left.currentRunId ? 0 : 1;
+  const rightHasRun = right.currentRunId ? 0 : 1;
+  if (leftHasRun !== rightHasRun) return leftHasRun - rightHasRun;
+  const updatedDifference =
+    new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  if (updatedDifference !== 0) return updatedDifference;
+  return left.id.localeCompare(right.id);
+}
+
+/** Deterministically select the current exact-manifest candidate. */
+export function selectCandidateForDocument(
+  candidates: readonly CandidateLike[],
+): { candidate: CandidateLike | null; warning?: string } {
+  if (candidates.length === 0) return { candidate: null };
+  const sorted = [...candidates].sort(candidateSort);
+  return {
+    candidate: sorted[0]!,
+    ...(sorted.length > 1
+      ? {
+          warning:
+            `${sorted.length} candidates exist for the same exact manifest/document; ` +
+            `selected ${sorted[0]!.id} deterministically`,
+        }
+      : {}),
+  };
+}
+
+export function isUnresolvedComparisonCheck(check: {
+  code: string;
+  outcome: string;
+  required: boolean;
+}): boolean {
+  return check.required && check.outcome === 'NOT_RUN' && COMPARISON_CHECK_CODES.has(check.code);
+}
+
+export async function generateReport(
+  manifestPath: string,
+  offline: boolean,
+): Promise<CycleReport> {
   if (!fs.existsSync(manifestPath)) {
-    console.error(`manifest file not found: ${manifestPath}`);
-    process.exit(EXIT_ERROR);
+    throw new Error(`manifest file not found: ${manifestPath}`);
   }
 
-  const raw = fs.readFileSync(manifestPath, 'utf8');
-  const json = JSON.parse(raw) as unknown;
-
+  const manifestBytes = fs.readFileSync(manifestPath);
+  const manifestContentSha256 = sha256Bytes(manifestBytes);
   let manifest: BudgetCycleManifestV1;
   try {
-    manifest = parseBudgetCycleManifestV1(json);
+    manifest = parseBudgetCycleManifestV1(JSON.parse(manifestBytes.toString('utf8')) as unknown);
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause);
-    console.error(`Invalid manifest: ${message}`);
-    process.exit(EXIT_ERROR);
+    throw new Error(`Invalid manifest: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
 
-  // In offline mode, all documents are not_verified
   if (offline) {
     const documents: DocumentStatusEntry[] = manifest.documents.map(
-      (doc: BudgetCycleManifestDocumentV1) => ({
-        documentKey: doc.documentKey,
-        required: doc.required ?? true,
-        status: 'not_verified' as const,
+      (document: BudgetCycleManifestDocumentV1) => ({
+        documentKey: document.documentKey,
+        required: document.required ?? true,
+        status: 'not_verified',
+        candidateId: null,
+        verificationRunId: null,
+        candidateCount: 0,
+        manifestContentSha256,
+        policySha256: null,
+        verifierVersion: null,
         sourceSha256: null,
         extractionArtifactSha256: null,
         blockingDiscrepancyCount: 0,
         unresolvedRequiredComparisons: 0,
       }),
     );
-    return buildReport(manifest, documents);
+    return buildReport(manifest, manifestContentSha256, documents);
   }
 
-  // Online mode: query real verification audit tables
   let prisma: any;
   try {
     const { PrismaClient } = await import('@prisma/client');
     prisma = new PrismaClient();
-
-    // Query candidates by cycleId
-    const candidates = await prisma.budgetExtractionCandidateV1.findMany({
-      where: { cycleId: manifest.cycleId ?? '' },
+    const documentKeys = manifest.documents.map((document) => document.documentKey);
+    const candidates: CandidateLike[] = await prisma.budgetExtractionCandidateV1.findMany({
+      where: {
+        cycleId: manifest.cycleId ?? '',
+        manifestContentSha256,
+        manifestDocumentKey: { in: documentKeys },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     });
 
-    const candidateByDocKey = new Map<string, any>();
-    for (const c of candidates) {
-      candidateByDocKey.set(c.manifestDocumentKey, c);
+    const candidatesByDocument = new Map<string, CandidateLike[]>();
+    for (const candidate of candidates) {
+      const group = candidatesByDocument.get(candidate.manifestDocumentKey) ?? [];
+      group.push(candidate);
+      candidatesByDocument.set(candidate.manifestDocumentKey, group);
     }
 
     const documents: DocumentStatusEntry[] = [];
-
-    for (const doc of manifest.documents) {
-      const candidate = candidateByDocKey.get(doc.documentKey);
-
+    for (const document of manifest.documents) {
+      const exactCandidates = candidatesByDocument.get(document.documentKey) ?? [];
+      const selection = selectCandidateForDocument(exactCandidates);
+      const candidate = selection.candidate;
       if (!candidate) {
         documents.push({
-          documentKey: doc.documentKey,
-          required: doc.required ?? true,
-          status: 'not_present',
+          documentKey: document.documentKey,
+          required: document.required ?? true,
+          status: 'not_verified',
+          candidateId: null,
+          verificationRunId: null,
+          candidateCount: 0,
+          manifestContentSha256,
+          policySha256: null,
+          verifierVersion: null,
           sourceSha256: null,
           extractionArtifactSha256: null,
           blockingDiscrepancyCount: 0,
@@ -209,30 +262,34 @@ async function generateReport(manifestPath: string, offline: boolean): Promise<C
         continue;
       }
 
-      // Count blocking discrepancies for the candidate's current run
       let blockingDiscrepancyCount = 0;
       let unresolvedRequiredComparisons = 0;
       if (candidate.currentRunId) {
-        const discrepancies = await prisma.budgetVerificationDiscrepancyV1.findMany({
-          where: { runId: candidate.currentRunId },
-        });
+        const [discrepancies, checks] = await Promise.all([
+          prisma.budgetVerificationDiscrepancyV1.findMany({
+            where: { runId: candidate.currentRunId },
+          }),
+          prisma.budgetVerificationCheckV1.findMany({
+            where: { runId: candidate.currentRunId },
+          }),
+        ]);
         blockingDiscrepancyCount = discrepancies.filter(
-          (d: any) => d.severity === 'blocking',
+          (discrepancy: any) => discrepancy.severity === 'blocking',
         ).length;
-
-        // Count unresolved required comparisons (NOT_RUN checks that are required)
-        const checks = await prisma.budgetVerificationCheckV1.findMany({
-          where: { runId: candidate.currentRunId },
-        });
-        unresolvedRequiredComparisons = checks.filter(
-          (c: any) => c.outcome === 'NOT_RUN' && c.required,
-        ).length;
+        unresolvedRequiredComparisons = checks.filter(isUnresolvedComparisonCheck).length;
       }
 
       documents.push({
-        documentKey: doc.documentKey,
-        required: doc.required ?? true,
+        documentKey: document.documentKey,
+        required: document.required ?? true,
         status: mapCandidateStatus(candidate.status),
+        candidateId: candidate.id,
+        verificationRunId: candidate.currentRunId,
+        candidateCount: exactCandidates.length,
+        ...(selection.warning ? { selectionWarning: selection.warning } : {}),
+        manifestContentSha256,
+        policySha256: candidate.policySha256,
+        verifierVersion: candidate.verifierVersion,
         sourceSha256: candidate.sourceSha256,
         extractionArtifactSha256: candidate.extractionArtifactSha256,
         blockingDiscrepancyCount,
@@ -240,67 +297,72 @@ async function generateReport(manifestPath: string, offline: boolean): Promise<C
       });
     }
 
-    return buildReport(manifest, documents);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`Database query failed: ${message}`);
-    console.error('Use --offline for manifest-only report without database access.');
-    throw err instanceof Error ? err : new Error(message);
+    return buildReport(manifest, manifestContentSha256, documents);
+  } catch (error) {
+    throw new Error(
+      `Database query failed: ${error instanceof Error ? error.message : String(error)}. ` +
+        'Use --offline for a manifest-only report.',
+    );
   } finally {
-    if (prisma) {
-      await prisma.$disconnect().catch(() => {});
-    }
+    if (prisma) await prisma.$disconnect().catch(() => {});
   }
 }
 
 function buildReport(
   manifest: BudgetCycleManifestV1,
+  manifestContentSha256: string,
   documents: DocumentStatusEntry[],
 ): CycleReport {
-  const requiredDocs = documents.filter((d) => d.required);
-  const optionalDocs = documents.filter((d) => !d.required);
-  const missingRequired = requiredDocs
-    .filter((d) => d.status === 'not_present' || d.status === 'not_verified')
-    .map((d) => d.documentKey);
+  const requiredDocuments = documents.filter((document) => document.required);
+  const optionalDocuments = documents.filter((document) => !document.required);
+  const missingRequired = requiredDocuments
+    .filter(
+      (document) => document.status === 'not_present' || document.status === 'not_verified',
+    )
+    .map((document) => document.documentKey);
 
   return {
     cycleId: manifest.cycleId ?? '',
     fiscalYear: manifest.fiscalYear,
+    manifestContentSha256,
     generatedAt: new Date().toISOString(),
     totalDocuments: documents.length,
-    requiredDocuments: requiredDocs.length,
-    optionalDocuments: optionalDocs.length,
+    requiredDocuments: requiredDocuments.length,
+    optionalDocuments: optionalDocuments.length,
     documents,
     summary: {
-      passed: documents.filter((d) => d.status === 'verification_passed').length,
-      needsReview: documents.filter((d) => d.status === 'needs_review').length,
-      reviewAccepted: documents.filter((d) => d.status === 'review_accepted').length,
-      rejected: documents.filter((d) => d.status === 'rejected').length,
-      notVerified: documents.filter((d) => d.status === 'not_verified').length,
-      notPresent: documents.filter((d) => d.status === 'not_present').length,
+      passed: documents.filter((document) => document.status === 'verification_passed').length,
+      needsReview: documents.filter((document) => document.status === 'needs_review').length,
+      reviewAccepted: documents.filter((document) => document.status === 'review_accepted').length,
+      rejected: documents.filter((document) => document.status === 'rejected').length,
+      notVerified: documents.filter((document) => document.status === 'not_verified').length,
+      notPresent: documents.filter((document) => document.status === 'not_present').length,
       missingRequired,
-      totalBlockingDiscrepancies: documents.reduce((s, d) => s + d.blockingDiscrepancyCount, 0),
-      totalUnresolvedRequiredComparisons: documents.reduce(
-        (s, d) => s + d.unresolvedRequiredComparisons,
+      totalBlockingDiscrepancies: documents.reduce(
+        (sum, document) => sum + document.blockingDiscrepancyCount,
         0,
       ),
+      totalUnresolvedRequiredComparisons: documents.reduce(
+        (sum, document) => sum + document.unresolvedRequiredComparisons,
+        0,
+      ),
+      selectionWarnings: documents.filter((document) => document.selectionWarning).length,
     },
   };
 }
-
-/* ------------------------------------------------------------------ */
-/* Main                                                                */
-/* ------------------------------------------------------------------ */
 
 async function main(): Promise<void> {
   const { manifest, offline } = parseArgs(process.argv.slice(2));
   const report = await generateReport(manifest, offline);
   console.log(JSON.stringify(report, null, 2));
-  process.exit(EXIT_OK);
 }
 
-main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error(`Unexpected error: ${message}`);
-  process.exit(EXIT_ERROR);
-});
+const invokedDirectly = process.argv[1]?.includes('report-defense-budget-verification-cycle-v1');
+if (invokedDirectly) {
+  main()
+    .then(() => process.exit(EXIT_OK))
+    .catch((error) => {
+      console.error(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(EXIT_ERROR);
+    });
+}

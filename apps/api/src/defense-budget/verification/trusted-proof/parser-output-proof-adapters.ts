@@ -1,17 +1,8 @@
 /**
- * R8.2 Workstream C — narrow adapters over existing Phase 3 parser
- * infrastructure. Phase 2 only READS immutable parser output and run
- * metadata through these adapters; it never initiates parsing or
- * escalation.
+ * R8.2/R8.3 — narrow adapters over existing Phase 3 parser infrastructure.
  *
- *   - `FilesystemParserOutputProofAdapter` reuses the content-addressed
- *     `FilesystemParserArtifactStore` (findExact + readVerified) to load and
- *     independently verify persisted local parser output;
- *   - `LlamaParseParserOutputProofAdapter` loads the exact persisted parse
- *     job and then fetches + hashes the persisted output object through the
- *     trusted byte locator reader — a row with an output key is not itself
- *     output proof;
- *   - `CompositeParserOutputProofSource` routes by method.
+ * Phase 2 only reads immutable parser output and run metadata through these
+ * adapters; it never initiates parsing or escalation.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -45,13 +36,13 @@ function collectDescriptorPaths(rootDir: string, out: string[] = []): string[] {
   }
   for (const entry of entries) {
     const full = join(rootDir, entry);
-    let st;
+    let stat;
     try {
-      st = statSync(full);
+      stat = statSync(full);
     } catch {
       continue;
     }
-    if (st.isDirectory()) {
+    if (stat.isDirectory()) {
       collectDescriptorPaths(full, out);
     } else if (entry === 'metadata.json') {
       out.push(full);
@@ -60,25 +51,26 @@ function collectDescriptorPaths(rootDir: string, out: string[] = []): string[] {
   return out;
 }
 
+export interface FilesystemParserOutputProofAdapterOptions {
+  /**
+   * Production trust boundary: require the parser-run declaration to name the
+   * exact canonical content SHA of the independently loaded parser result.
+   * Local compatibility tests may leave this false.
+   */
+  requireDeclarationBinding?: boolean;
+}
+
 /**
  * Loads independently persisted local parser output from the Phase 3
  * content-addressed filesystem artifact store.
- *
- * Step 1 (load the persisted parser-run record): scan the store for the
- * descriptor whose `parserRunId` matches, verify its recorded cache key
- * re-derives from its own identity fields (tampered records are rejected).
- * Step 2 (load and verify the content-addressed output bytes): delegate to
- * `FilesystemParserArtifactStore.readVerified` — byte SHA, strict contract
- * parse, content SHA, source/method/version/config/page agreement.
- *
- * Returns `null` when no persisted output exists (legacy). Throws when a
- * persisted output fails independent verification — the resolver converts
- * that into `mismatch`.
  */
 export class FilesystemParserOutputProofAdapter implements ParserOutputProofSource {
   private readonly store: FilesystemParserArtifactStore;
 
-  constructor(private readonly storeRootDir: string) {
+  constructor(
+    private readonly storeRootDir: string,
+    private readonly options: FilesystemParserOutputProofAdapterOptions = {},
+  ) {
     this.store = new FilesystemParserArtifactStore(storeRootDir);
   }
 
@@ -88,13 +80,22 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
     const descriptor = this.findPersistedRunRecord(input);
     if (!descriptor) return null;
 
-    // Independent byte-level verification (byte SHA, strict contract parse,
-    // content SHA, source/method/version/config/page agreement). Throws on
-    // any mismatch — the resolver converts that into `mismatch`.
+    // Independently verifies bytes, strict result contract, canonical content
+    // SHA, source/method/version/config, and requested pages.
     const result = await this.store.readVerified(descriptor);
-
-    // Load the raw output bytes for the proof record.
     const outputBytes = readFileSync(descriptor.resultLocator);
+    const outputByteSha256 = sha256Bytes(outputBytes);
+
+    if (
+      this.options.requireDeclarationBinding &&
+      input.declaredOutputSha256 !== result.contentSha256
+    ) {
+      throw new Error(
+        `parser-run declaration ${input.declaredOutputSha256} does not match ` +
+          `persisted parser output content SHA ${result.contentSha256} ` +
+          `(parserRunId=${input.parserRunId})`,
+      );
+    }
 
     return {
       persistedRunId: descriptor.parserRunId,
@@ -105,7 +106,7 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
       parserConfigSha256: result.parserConfigSha256,
       status: 'succeeded',
       outputContentSha256: result.contentSha256,
-      outputByteSha256: sha256Bytes(outputBytes),
+      outputByteSha256,
       succeededPages: result.succeededPages,
     };
   }
@@ -121,28 +122,22 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
       } catch {
         continue;
       }
-      // Cheap pre-filter before strict parsing.
       const pre = raw as { parserRunId?: unknown };
       if (pre.parserRunId !== input.parserRunId) continue;
 
       let descriptor: ParserArtifactDescriptorV1;
       try {
-        // Strict schema validation — unknown or tampered fields fail closed.
         descriptor = parseParserArtifactDescriptorV1(raw);
       } catch {
         continue;
       }
       if (descriptor.method !== input.method) {
-        // A descriptor claiming the same run ID for a different method is a
-        // tampering indicator — fail closed.
         throw new Error(
-          `persisted parser-run record ${input.parserRunId} method mismatch: record says ${descriptor.method}, request says ${input.method}`,
+          `persisted parser-run record ${input.parserRunId} method mismatch: ` +
+            `record says ${descriptor.method}, request says ${input.method}`,
         );
       }
 
-      // Verify the record's cache key re-derives from its own identity
-      // fields — a tampered record (edited identity without re-hashing) is
-      // rejected as missing rather than trusted.
       const identity: ParserRunIdentityV1 = {
         sourceSha256: descriptor.sourceSha256,
         method: descriptor.method,
@@ -165,18 +160,16 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
 /* ------------------------------------------------------------------ */
 
 export interface LlamaParseParserOutputProofAdapterOptions {
-  /** Client over the persisted document_parse_job rows. */
   parseJobClient: ParseJobClient;
-  /** Reader for the persisted output locator (S3 or filesystem). */
   byteLocatorReader: TrustedByteLocatorReader;
-  /** Bucket holding the persisted LlamaParse output objects. */
   outputBucket: string;
+  /** Require exact declared normalized-result and raw-byte SHA bindings. */
+  requireDeclarationBinding?: boolean;
 }
 
 /**
- * Loads the persisted LlamaParse output object bytes for a parse job.
- * A database row containing an output key is not itself output proof — this
- * adapter fetches and hashes the actual object.
+ * Loads the persisted LlamaParse output object bytes for a parse job. A row
+ * containing an output key is not itself output proof.
  */
 export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSource {
   constructor(private readonly options: LlamaParseParserOutputProofAdapterOptions) {}
@@ -184,7 +177,6 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
   async resolveParserOutput(
     input: ParserOutputProofRequestV1,
   ): Promise<ResolvedParserOutputProof | null> {
-    // Load the exact persisted parse job.
     let job: ParseJobRow | null = null;
     if (input.providerJobId) {
       job = await this.options.parseJobClient.documentParseJob.findFirst({
@@ -196,29 +188,56 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
         where: { sourceDocumentId: input.sourceDocumentId, provider: 'llamaparse' },
       });
     }
-    if (!job) return null;
-
-    // Require terminal success before treating the output as proof.
-    if (job.status !== 'succeeded') {
-      return null;
-    }
+    if (!job || job.status !== 'succeeded') return null;
 
     const outputKey = job.outputJsonS3Key ?? job.outputMarkdownS3Key;
     if (!outputKey) return null;
-
-    // Resolve the persisted locator. Support both full s3:// locators and
-    // bare keys inside the configured output bucket.
     const locator = outputKey.includes('://')
       ? outputKey
       : `s3://${this.options.outputBucket}/${outputKey}`;
-
     const located = await this.options.byteLocatorReader.read(locator);
+    const actualOutputByteSha256 = sha256Bytes(located.bytes);
 
-    // Version metadata recorded on the job (when present).
     const metadata =
       typeof job.metadata === 'object' && job.metadata !== null
         ? ((job as unknown as { metadata: Record<string, unknown> }).metadata ?? {})
         : {};
+    const normalizedResultSha256 =
+      typeof metadata.normalizedResultSha256 === 'string'
+        ? metadata.normalizedResultSha256
+        : undefined;
+    const recordedOutputByteSha256 =
+      typeof metadata.outputByteSha256 === 'string' ? metadata.outputByteSha256 : undefined;
+
+    if (
+      recordedOutputByteSha256 !== undefined &&
+      recordedOutputByteSha256 !== actualOutputByteSha256
+    ) {
+      throw new Error(
+        `persisted LlamaParse output byte SHA ${actualOutputByteSha256} does not match ` +
+          `recorded byte SHA ${recordedOutputByteSha256} (parseJobId=${job.id})`,
+      );
+    }
+
+    if (this.options.requireDeclarationBinding) {
+      if (!normalizedResultSha256) {
+        throw new Error(
+          `persisted LlamaParse parse job ${job.id} is missing normalizedResultSha256 metadata`,
+        );
+      }
+      if (!recordedOutputByteSha256) {
+        throw new Error(
+          `persisted LlamaParse parse job ${job.id} is missing outputByteSha256 metadata`,
+        );
+      }
+      if (input.declaredOutputSha256 !== normalizedResultSha256) {
+        throw new Error(
+          `parser-run declaration ${input.declaredOutputSha256} does not match ` +
+            `persisted normalized result SHA ${normalizedResultSha256} ` +
+            `(parserRunId=${input.parserRunId})`,
+        );
+      }
+    }
 
     return {
       persistedRunId: job.id,
@@ -230,12 +249,13 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
         typeof metadata.parserConfigSha256 === 'string' ? metadata.parserConfigSha256 : '',
       providerJobId: job.providerJobId ?? undefined,
       status: job.status,
-      outputByteSha256: sha256Bytes(located.bytes),
+      outputContentSha256: normalizedResultSha256,
+      outputByteSha256: actualOutputByteSha256,
       succeededPages:
         job.pageStart !== null && job.pageEnd !== null
           ? Array.from(
               { length: job.pageEnd - job.pageStart + 1 },
-              (_, i) => (job.pageStart as number) + i,
+              (_, index) => (job.pageStart as number) + index,
             )
           : undefined,
     };
@@ -251,10 +271,7 @@ export interface CompositeParserOutputProofSourceOptions {
   llamaParseSource?: ParserOutputProofSource | null;
 }
 
-/**
- * Routes parser-output proof requests by extraction method. `manual` runs
- * never load output bytes (they carry a mandatory review trigger instead).
- */
+/** Routes parser-output proof requests by extraction method. */
 export class CompositeParserOutputProofSource implements ParserOutputProofSource {
   constructor(private readonly options: CompositeParserOutputProofSourceOptions) {}
 
@@ -265,9 +282,7 @@ export class CompositeParserOutputProofSource implements ParserOutputProofSource
       if (!this.options.llamaParseSource) return null;
       return this.options.llamaParseSource.resolveParserOutput(input);
     }
-    if (input.method === 'manual') {
-      return null;
-    }
+    if (input.method === 'manual') return null;
     if (!this.options.localSource) return null;
     return this.options.localSource.resolveParserOutput(input);
   }

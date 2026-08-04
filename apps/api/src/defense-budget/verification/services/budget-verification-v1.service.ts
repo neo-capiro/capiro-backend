@@ -1,24 +1,9 @@
 /**
  * Workstream L6/L7 — Budget verification V1 service.
  *
- * BudgetVerificationV1Service.verify() must:
- *   1. parse request;
- *   2. resolve trusted proof;
- *   3. resolve policy;
- *   4. run deterministic verification;
- *   5. produce final result;
- *   6. optionally persist audit in one transaction;
- *   7. return result.
- *
- * The service must not import or call any canonical writer.
- *
- * L7: Inspect mode — resolve proof, run all checks, write nothing,
- * return the same deterministic decision content except DB IDs.
- *
- * R3: Deterministic candidate and run IDs derived from the canonical
- * identity material. Inspect and persist modes produce the same IDs.
- * R3: persist_audit fails loudly when no repository is configured.
- * R3: Unsupported policy decisions are also persisted.
+ * Resolves trusted proof, selects an authority-aware policy, executes
+ * deterministic checks, produces the final decision, and optionally persists
+ * audit evidence. This service never imports or calls a canonical writer.
  */
 import type {
   VerificationRequestV1,
@@ -30,7 +15,6 @@ import type {
   TrustedVerificationProofResolverV1,
   TrustedProofResolutionV1,
 } from '../trusted-proof/trusted-proof-types.js';
-import type { VerificationPolicyV1 } from '../verification-policy-v1.js';
 import type {
   ArtifactVerificationInputV1,
   VerificationContextV1,
@@ -38,7 +22,7 @@ import type {
 import type { BudgetVerificationRepositoryV1 } from '../persistence/verification-repository.js';
 import type { CandidateIdentityV1 } from '../persistence/verification-repository.js';
 import { computePolicySha256, mergeManifestWithPolicy } from '../verification-policy-v1.js';
-import { lookupPolicy } from '../verification-policy-registry.js';
+import { lookupPolicyForManifestDocument } from '../authority-policy-resolution.js';
 import { ALL_VERIFICATION_RULES, validatePolicyRuleCodes } from '../rules/index.js';
 import {
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
@@ -55,10 +39,6 @@ import {
 } from '../persistence/verification-persistence-mappers.js';
 import { defenseBudgetVerificationResultV1Schema } from '../verification-contract-v1.js';
 
-/* ------------------------------------------------------------------ */
-/* Service                                                             */
-/* ------------------------------------------------------------------ */
-
 export interface VerificationClock {
   now(): Date;
 }
@@ -71,8 +51,6 @@ export class BudgetVerificationV1Service {
   ) {}
 
   async verify(request: VerificationRequestV1): Promise<DefenseBudgetVerificationResultV1> {
-    // L6.1: Parse request (already done by Zod at boundary)
-    // L6.2: Resolve trusted proof
     const resolution = await this.proofResolver.resolve({
       manifestLocator: request.manifestLocator,
       manifestDocumentKey: request.manifestDocumentKey,
@@ -83,31 +61,27 @@ export class BudgetVerificationV1Service {
       expectedExtractionArtifactSha256: request.expectedExtractionArtifactSha256,
     });
 
-    // L6.3: Resolve policy
-    const manifestDoc = resolution.manifestDocument;
-    const basePolicy = lookupPolicy(manifestDoc.family, manifestDoc.exhibit);
+    const manifestDocument = resolution.manifestDocument;
+    const basePolicy = lookupPolicyForManifestDocument(manifestDocument);
     if (!basePolicy) {
-      // Unsupported family — honest NEEDS_REVIEW
       return this.buildUnsupportedPolicyResult(request, resolution);
     }
     const policy = mergeManifestWithPolicy(basePolicy, {
-      requiredDataCategories: manifestDoc.requiredDataCategories,
-      requiredFundingFields: manifestDoc.requiredFundingFields,
-      requiredLineKinds: manifestDoc.expectedLineKinds,
+      requiredDataCategories: manifestDocument.requiredDataCategories,
+      requiredFundingFields: manifestDocument.requiredFundingFields,
+      requiredLineKinds: manifestDocument.expectedLineKinds,
     });
 
-    // R8.1 §3.4: reject invalid policy rule-code configuration before running.
     const invalidRuleCodes = validatePolicyRuleCodes(policy);
     if (invalidRuleCodes.length > 0) {
       throw new Error(
         `invalid verification policy rule code(s): ${invalidRuleCodes.join(', ')} ` +
-          `(family=${manifestDoc.family} exhibit=${manifestDoc.exhibit})`,
+          `(family=${manifestDocument.family} exhibit=${manifestDocument.exhibit} ` +
+          `authority=${manifestDocument.authority})`,
       );
     }
 
     const policySha256 = computePolicySha256(policy);
-
-    // R8-E: Compute candidate and run identity BEFORE rule execution
     const startedAt = this.clock.now();
     const candidateIdentity: CandidateIdentityV1 = {
       cycleId: resolution.manifest.cycleId ?? '',
@@ -123,13 +97,8 @@ export class BudgetVerificationV1Service {
       policySha256,
     };
     const candidateId = computeCandidateId(candidateIdentity);
-    // R8.1 §5.2: deterministic default attempt (exact replay); a new attempt
-    // requires an explicit attemptId.
-    const attemptId = request.attemptId ?? '0';
-    const verificationRunId = computeRunId(candidateIdentity, attemptId);
+    const verificationRunId = computeRunId(candidateIdentity, '0');
 
-    // R8.1 §5.1: exact terminal replay — return the persisted snapshot before
-    // running any rules. Only when a repository is available (persist mode).
     if (this.repository) {
       const existing = await this.repository.findTerminalRunByIdentity(candidateIdentity);
       if (existing && existing.run.resultSnapshot) {
@@ -137,7 +106,6 @@ export class BudgetVerificationV1Service {
       }
     }
 
-    // L6.4: Run deterministic verification
     const input: ArtifactVerificationInputV1 = {
       request,
       manifest: resolution.manifest,
@@ -152,7 +120,7 @@ export class BudgetVerificationV1Service {
       referenceArtifactsFindings: resolution.referenceArtifactsFindings,
       startedAt: startedAt.toISOString(),
     };
-    const ctx: VerificationContextV1 = {
+    const context: VerificationContextV1 = {
       input,
       policy,
       policySha256,
@@ -160,49 +128,92 @@ export class BudgetVerificationV1Service {
       candidateId,
     };
 
-    // Run all E-H rules + I comparison rules
-    const allRules = [
+    const rules = [
       ...ALL_VERIFICATION_RULES,
       CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
       COMMITTEE_REQUEST_REFERENCE_RULE,
       HISTORICAL_CONSISTENCY_RULE,
     ];
-    const ruleResults: RuleResultV1[] = allRules.map((rule) => rule.execute(ctx));
+    const ruleResults: RuleResultV1[] = rules.map((rule) => rule.execute(context));
     const checks: VerificationCheckV1[] = ruleResults
-      .map((r) => r.check)
-      .filter((c): c is VerificationCheckV1 => c !== null);
-    const discrepancies: VerificationDiscrepancyV1[] = ruleResults.flatMap((r) => r.discrepancies);
+      .map((result) => result.check)
+      .filter((check): check is VerificationCheckV1 => check !== null);
+    const discrepancies: VerificationDiscrepancyV1[] = ruleResults.flatMap(
+      (result) => result.discrepancies,
+    );
 
-    // R8.1 WS4: page-only evidence reconciliation runs AFTER comparison
-    // rules, so the final determination uses comparison outcomes. One passing
-    // comparison never clears an unrelated page-only assertion.
-    const reconciliation = reconcilePageOnlyEvidence(input, policy, checks);
-    if (reconciliation.discrepancies.length > 0) {
-      discrepancies.push(...reconciliation.discrepancies);
+    const reconciliation = reconcilePageOnlyEvidence(
+      input,
+      policy,
+      checks,
+      verificationRunId,
+    );
+    if (
+      reconciliation.check.outcome === 'PASS' &&
+      reconciliation.pageOnlyAssertionIds.length > 0
+    ) {
+      const pageOnlyIds = new Set(reconciliation.pageOnlyAssertionIds);
+      const moneyEvidenceIndex = checks.findIndex(
+        (check) =>
+          check.code === 'money_evidence_policy' &&
+          check.outcome === 'NOT_RUN' &&
+          check.assertionIds.length > 0 &&
+          check.assertionIds.every((assertionId) => pageOnlyIds.has(assertionId)),
+      );
+      if (moneyEvidenceIndex >= 0) {
+        const provisional = checks[moneyEvidenceIndex]!;
+        checks[moneyEvidenceIndex] = {
+          ...provisional,
+          outcome: 'PASS',
+          required: true,
+          blocking: true,
+          riskPoints: 0,
+          message:
+            'page-only monetary evidence satisfies policy through complete independent reconciliation',
+          details: {
+            ...(provisional.details ?? {}),
+            finalizedBy: 'page_only_reconciliation',
+            reconciledAssertionIds: reconciliation.reconciledAssertionIds,
+          },
+        };
+      }
     }
+    checks.push(reconciliation.check);
+    discrepancies.push(...reconciliation.discrepancies);
 
-    // L6.5: Produce final result via decision engine
-    const hasManualParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'manual');
-    const hasOcrParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'paddleocr');
+    // Congressional and enacted values trigger review only when no passing
+    // independent-reference check explicitly corroborates the assertion.
+    const independentlyCorroboratedAssertionIds = new Set(
+      checks
+        .filter(
+          (check) =>
+            check.outcome === 'PASS' && check.referenceArtifactIds.length > 0,
+        )
+        .flatMap((check) => check.assertionIds),
+    );
+    const hasManualParser = resolution.artifact.parserRuns.some((run) => run.method === 'manual');
+    const hasOcrParser = resolution.artifact.parserRuns.some((run) => run.method === 'paddleocr');
     const hasUncorroboratedCongressionalMoney = resolution.artifact.assertions.some(
-      (a) =>
-        a.assertionKind === 'funding' &&
-        (a.field === 'hascMark' ||
-          a.field === 'sascMark' ||
-          a.field === 'hacDMark' ||
-          a.field === 'sacDMark' ||
-          a.field === 'ndaaConference' ||
-          a.field === 'conference'),
+      (assertion) =>
+        assertion.assertionKind === 'funding' &&
+        (assertion.field === 'hascMark' ||
+          assertion.field === 'sascMark' ||
+          assertion.field === 'hacDMark' ||
+          assertion.field === 'sacDMark' ||
+          assertion.field === 'ndaaConference' ||
+          assertion.field === 'conference') &&
+        !independentlyCorroboratedAssertionIds.has(assertion.assertionId),
     );
     const hasUncorroboratedEnacted = resolution.artifact.assertions.some(
-      (a) => a.assertionKind === 'funding' && a.field === 'enacted',
+      (assertion) =>
+        assertion.assertionKind === 'funding' &&
+        assertion.field === 'enacted' &&
+        !independentlyCorroboratedAssertionIds.has(assertion.assertionId),
     );
 
     const decisionInput: DecisionEngineInputV1 = {
       checks,
       discrepancies,
-      // R8.1 §3.6: reference proof failures are part of the final decision —
-      // a blocking reference proof failure must prevent PASS.
       proofFindings: [...resolution.proofFindings, ...resolution.referenceArtifactsFindings],
       policy,
       hasManualParser,
@@ -211,10 +222,8 @@ export class BudgetVerificationV1Service {
       hasUncorroboratedEnacted,
     };
     const decisionResult = computeDecisionV1(decisionInput);
-
     const completedAt = this.clock.now();
 
-    // R8-E: candidateId and verificationRunId already computed before rule execution
     const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',
       policyVersion: 'defense_budget_verification_policy_v1',
@@ -236,21 +245,17 @@ export class BudgetVerificationV1Service {
       discrepancies: this.sortDiscrepancies(discrepancies),
       acceptedAssertionIds: decisionResult.acceptedAssertionIds,
       rejectedAssertionIds: decisionResult.rejectedAssertionIds,
-      referenceArtifactIds: resolution.referenceArtifacts.map((a) => a.artifactId).sort(),
+      referenceArtifactIds: resolution.referenceArtifacts.map((artifact) => artifact.artifactId).sort(),
       startedAt: startedAt.toISOString(),
       completedAt: completedAt.toISOString(),
     };
 
-    // R3: persist_audit fails loudly when no repository is configured
     if (request.mode === 'persist_audit') {
       if (!this.repository) {
         throw new Error(
           'persist_audit mode requires a repository, but no repository was configured',
         );
       }
-      // R3: Persist all results including unsupported policies.
-      // R8.1 §5.3: use the persisted result — the service return must
-      // identify a real persisted candidate and run.
       const persisted = await this.repository.persistCompletedVerification({
         candidateIdentity,
         result,
@@ -269,17 +274,13 @@ export class BudgetVerificationV1Service {
       };
     }
 
-    // L6.7: Return result
     return result;
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Helpers                                                             */
-  /* ------------------------------------------------------------------ */
-
   private sortChecks(checks: VerificationCheckV1[]): VerificationCheckV1[] {
     return [...checks].sort(
-      (a, b) => a.code.localeCompare(b.code) || a.checkId.localeCompare(b.checkId),
+      (left, right) =>
+        left.code.localeCompare(right.code) || left.checkId.localeCompare(right.checkId),
     );
   }
 
@@ -287,7 +288,9 @@ export class BudgetVerificationV1Service {
     discrepancies: VerificationDiscrepancyV1[],
   ): VerificationDiscrepancyV1[] {
     return [...discrepancies].sort(
-      (a, b) => a.code.localeCompare(b.code) || a.discrepancyId.localeCompare(b.discrepancyId),
+      (left, right) =>
+        left.code.localeCompare(right.code) ||
+        left.discrepancyId.localeCompare(right.discrepancyId),
     );
   }
 
@@ -310,7 +313,6 @@ export class BudgetVerificationV1Service {
         cycleId: resolution.proofBundle.manifest.cycleId,
       },
     });
-
     snapshots.push({
       proofKind: 'extraction_artifact',
       status: 'verified',
@@ -321,7 +323,6 @@ export class BudgetVerificationV1Service {
         byteSha256: resolution.proofBundle.extractionArtifact.byteSha256,
       },
     });
-
     snapshots.push({
       proofKind: 'source_document',
       status: 'verified',
@@ -331,27 +332,24 @@ export class BudgetVerificationV1Service {
         sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
       },
     });
-
     snapshots.push({
       proofKind: 'archive',
       status: resolution.proofBundle.archive.status,
       evidenceJson: { ...resolution.proofBundle.archive },
     });
-
-    for (const ref of resolution.proofBundle.resolvedReferenceArtifacts) {
+    for (const reference of resolution.proofBundle.resolvedReferenceArtifacts) {
       snapshots.push({
         proofKind: 'reference_artifact',
         status: 'verified',
-        referenceArtifactId: ref.artifactId,
-        sourceDocumentId: ref.sourceDocumentId,
+        referenceArtifactId: reference.artifactId,
+        sourceDocumentId: reference.sourceDocumentId,
         evidenceJson: {
-          artifactId: ref.artifactId,
-          contentSha256: ref.contentSha256,
-          sourcePdfSha256: ref.sourcePdfSha256,
+          artifactId: reference.artifactId,
+          contentSha256: reference.contentSha256,
+          sourcePdfSha256: reference.sourcePdfSha256,
         },
       });
     }
-
     return snapshots;
   }
 
@@ -383,8 +381,6 @@ export class BudgetVerificationV1Service {
       highMaterialityThresholdMillions: '0',
       riskThresholds: { automaticPassMax: 0, targetedReextractionMax: 0, paidVerifierMax: 0 },
     });
-
-    // R3: Build candidate identity for unsupported policy too
     const candidateIdentity: CandidateIdentityV1 = {
       cycleId: resolution.manifest.cycleId ?? '',
       manifestContentSha256: resolution.manifestContentSha256,
@@ -398,11 +394,8 @@ export class BudgetVerificationV1Service {
       policyVersion: 'defense_budget_verification_policy_v1',
       policySha256,
     };
-
-    // R3: Deterministic IDs for unsupported policy result
     const candidateId = computeCandidateId(candidateIdentity);
-    const verificationRunId = computeRunId(candidateIdentity, request.attemptId ?? '0');
-
+    const verificationRunId = computeRunId(candidateIdentity, '0');
     const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',
       policyVersion: 'defense_budget_verification_policy_v1',
@@ -429,13 +422,17 @@ export class BudgetVerificationV1Service {
           required: true,
           blocking: false,
           riskPoints: 100,
-          message: `no verification policy implemented for family=${resolution.manifestDocument.family} exhibit=${resolution.manifestDocument.exhibit}`,
+          message:
+            `no verification policy implemented for family=${resolution.manifestDocument.family} ` +
+            `exhibit=${resolution.manifestDocument.exhibit} ` +
+            `authority=${resolution.manifestDocument.authority}`,
           assertionIds: [],
           evidenceIds: [],
           referenceArtifactIds: [],
           details: {
             family: resolution.manifestDocument.family,
             exhibit: resolution.manifestDocument.exhibit,
+            authority: resolution.manifestDocument.authority,
           },
         },
       ],
@@ -447,14 +444,12 @@ export class BudgetVerificationV1Service {
       completedAt: completedAt.toISOString(),
     };
 
-    // R3: persist_audit for unsupported policy also writes audit evidence
     if (request.mode === 'persist_audit') {
       if (!this.repository) {
         throw new Error(
           'persist_audit mode requires a repository, but no repository was configured',
         );
       }
-      // R3: Persist unsupported policy outcome — must not return before recording
       await this.repository.persistCompletedVerification({
         candidateIdentity,
         result,
@@ -467,11 +462,6 @@ export class BudgetVerificationV1Service {
         completedAt: result.completedAt,
       });
     }
-
     return result;
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* Review service — moved to budget-review-v1.service.ts (Workstream M) */
-/* ------------------------------------------------------------------ */
