@@ -1,35 +1,37 @@
 /**
- * R8.1 WS4 — page-only evidence reconciliation (post-rule step).
+ * R8.3 — page-only evidence reconciliation (post-rule step).
  *
- * The money-evidence rule cannot decide whether a page-only money assertion
- * clears, because that depends on comparison-rule outcomes that do not exist
- * until after comparison rules execute. This module performs the final
- * assertion-by-assertion reconciliation AFTER all rules have run.
+ * The money-evidence rule executes before comparison rules, so it cannot know
+ * whether page-only monetary assertions are independently corroborated. This
+ * module runs after all comparison rules and emits a real verification check:
  *
- * For each page-only money assertion:
- *   fully reconciled  -> acceptable (no finding)
- *   unmatched         -> review discrepancy (NEEDS_REVIEW)
- *   failed comparison -> blocking discrepancy (REJECT by policy)
- *   missing comparison-> review discrepancy (NEEDS_REVIEW)
+ *   no page-only money assertions -> SKIPPED
+ *   every page-only assertion independently corroborated -> PASS
+ *   one or more assertions unmatched / unavailable -> NOT_RUN (required)
+ *   a covering comparison failed -> FAIL (blocking)
  *
- * One passing comparison never clears an unrelated page-only assertion: the
- * assertion ID must appear in that comparison's matched assertion IDs.
+ * A passing comparison clears only the exact assertion IDs it reports.
  */
 import type {
   VerificationCheckV1,
   VerificationDiscrepancyV1,
 } from '../verification-contract-v1.js';
-import { computeVerificationDiscrepancyId } from '../verification-contract-v1.js';
+import {
+  computeVerificationCheckId,
+  computeVerificationDiscrepancyId,
+} from '../verification-contract-v1.js';
 import type { ArtifactVerificationInputV1 } from '../verification-input-v1.js';
 import type { VerificationPolicyV1 } from '../verification-policy-v1.js';
 
+const PAGE_ONLY_RECONCILIATION_CODE = 'page_only_reconciliation';
+const PAGE_ONLY_RECONCILIATION_RULE_VERSION = 'defense_budget_verification_rule_v1';
+
 export interface PageOnlyReconciliationResult {
-  /** Additional discrepancies produced by reconciliation. */
+  check: VerificationCheckV1;
   discrepancies: VerificationDiscrepancyV1[];
-  /** Assertion IDs that are fully corroborated page-only money assertions. */
   reconciledAssertionIds: string[];
-  /** Assertion IDs that could not be reconciled. */
   unreconciledAssertionIds: string[];
+  pageOnlyAssertionIds: string[];
 }
 
 function makeReconciliationDiscrepancy(
@@ -58,70 +60,139 @@ function makeReconciliationDiscrepancy(
   };
 }
 
+function makeReconciliationCheck(input: {
+  verificationRunId: string;
+  outcome: VerificationCheckV1['outcome'];
+  required: boolean;
+  blocking: boolean;
+  riskPoints: number;
+  message: string;
+  assertionIds: readonly string[];
+  evidenceIds: readonly string[];
+  referenceArtifactIds: readonly string[];
+  details: Record<string, import('../../contracts/canonical-json.js').JsonValue>;
+}): VerificationCheckV1 {
+  return {
+    checkId: computeVerificationCheckId({
+      verificationRunId: input.verificationRunId,
+      code: PAGE_ONLY_RECONCILIATION_CODE,
+      assertionIds: input.assertionIds,
+      evidenceIds: input.evidenceIds,
+      referenceArtifactIds: input.referenceArtifactIds,
+    }),
+    code: PAGE_ONLY_RECONCILIATION_CODE,
+    ruleVersion: PAGE_ONLY_RECONCILIATION_RULE_VERSION,
+    outcome: input.outcome,
+    required: input.required,
+    blocking: input.blocking,
+    riskPoints: input.riskPoints,
+    message: input.message,
+    assertionIds: [...input.assertionIds],
+    evidenceIds: [...input.evidenceIds],
+    referenceArtifactIds: [...input.referenceArtifactIds],
+    details: input.details,
+  };
+}
+
 /**
  * Reconcile page-only money assertions against executed comparison checks.
- *
- * @param input    the resolved verification input (artifact + references)
- * @param policy   the merged policy
- * @param checks   all checks produced by the rule engine (comparison checks
- *                 carry coverage detail in `details`)
  */
 export function reconcilePageOnlyEvidence(
   input: ArtifactVerificationInputV1,
   policy: VerificationPolicyV1,
   checks: readonly VerificationCheckV1[],
+  verificationRunId: string,
 ): PageOnlyReconciliationResult {
   const discrepancies: VerificationDiscrepancyV1[] = [];
   const reconciledAssertionIds: string[] = [];
   const unreconciledAssertionIds: string[] = [];
-
-  // If the policy does not permit page-only pass at all, the money-evidence
-  // rule already emitted blocking discrepancies; nothing to reconcile here.
-  if (!policy.pageOnlyMayPassWithIndependentReconciliation) {
-    return { discrepancies, reconciledAssertionIds, unreconciledAssertionIds };
-  }
-
   const artifact = input.artifact;
   const evidenceById = new Map(artifact.evidence.map((e) => [e.evidenceId, e]));
-  const referenceArtifactIds = input.referenceArtifacts.map((a) => a.artifactId);
+  const referenceArtifactIds = input.referenceArtifacts.map((a) => a.artifactId).sort();
 
-  // Gather the required + review comparison rule codes from policy.
+  const pageOnlyMoneyAssertions = artifact.assertions.filter((assertion) => {
+    const isMoney =
+      assertion.assertionKind === 'funding' || assertion.assertionKind === 'project_funding';
+    if (!isMoney) return false;
+    return assertion.evidenceIds.some(
+      (evidenceId) => evidenceById.get(evidenceId)?.granularity === 'page_only',
+    );
+  });
+  const pageOnlyAssertionIds = pageOnlyMoneyAssertions
+    .map((assertion) => assertion.assertionId)
+    .sort();
+  const pageOnlyEvidenceIds = pageOnlyMoneyAssertions
+    .flatMap((assertion) => assertion.evidenceIds)
+    .filter((evidenceId) => evidenceById.get(evidenceId)?.granularity === 'page_only')
+    .sort();
+
+  if (pageOnlyMoneyAssertions.length === 0) {
+    return {
+      check: makeReconciliationCheck({
+        verificationRunId,
+        outcome: 'SKIPPED',
+        required: false,
+        blocking: false,
+        riskPoints: 0,
+        message: 'no page-only monetary assertions require reconciliation',
+        assertionIds: [],
+        evidenceIds: [],
+        referenceArtifactIds: [],
+        details: {
+          pageOnlyAssertionCount: 0,
+          reconciledAssertionCount: 0,
+          unreconciledAssertionCount: 0,
+        },
+      }),
+      discrepancies,
+      reconciledAssertionIds,
+      unreconciledAssertionIds,
+      pageOnlyAssertionIds,
+    };
+  }
+
+  if (!policy.pageOnlyMayPassWithIndependentReconciliation) {
+    return {
+      check: makeReconciliationCheck({
+        verificationRunId,
+        outcome: 'SKIPPED',
+        required: false,
+        blocking: false,
+        riskPoints: 0,
+        message: 'policy does not permit page-only reconciliation; money evidence rule governs',
+        assertionIds: pageOnlyAssertionIds,
+        evidenceIds: pageOnlyEvidenceIds,
+        referenceArtifactIds,
+        details: {
+          pageOnlyAssertionCount: pageOnlyAssertionIds.length,
+          reconciledAssertionCount: 0,
+          unreconciledAssertionCount: pageOnlyAssertionIds.length,
+        },
+      }),
+      discrepancies,
+      reconciledAssertionIds,
+      unreconciledAssertionIds: [...pageOnlyAssertionIds],
+      pageOnlyAssertionIds,
+    };
+  }
+
   const comparisonRuleCodes = new Set([
     ...policy.requiredComparisonRules,
     ...policy.reviewComparisonRules,
   ]);
-
-  // Index comparison checks by code for lookup.
-  const comparisonChecks = checks.filter((c) => comparisonRuleCodes.has(c.code));
-
-  // Reference proof independence: a blocking reference finding means the
-  // reference is not independent.
-  const referenceProofIndependent = !input.referenceArtifactsFindings.some(
-    (f) => f.severity === 'blocking',
-  );
-
-  // Collect every page-only money assertion.
-  const pageOnlyMoneyAssertions = artifact.assertions.filter((a) => {
-    const isMoney = a.assertionKind === 'funding' || a.assertionKind === 'project_funding';
-    if (!isMoney) return false;
-    return a.evidenceIds.some((eid) => evidenceById.get(eid)?.granularity === 'page_only');
-  });
+  const comparisonChecks = checks.filter((check) => comparisonRuleCodes.has(check.code));
+  const referenceProofIndependent =
+    referenceArtifactIds.length > 0 &&
+    !input.referenceArtifactsFindings.some((finding) => finding.severity === 'blocking');
 
   for (const assertion of pageOnlyMoneyAssertions) {
-    // 1. Identify applicable required comparison rules (those in policy).
-    // 2. Confirm those rules ran (a check exists for the code).
-    // 3. Confirm each relevant check is PASS.
-    // 4. Confirm the assertion ID appears in the comparison's matched IDs.
-    // 5. Confirm the reference proof is independent.
-    // 6. Confirm no review/blocking discrepancy already targets this assertion.
-
     if (!referenceProofIndependent) {
       unreconciledAssertionIds.push(assertion.assertionId);
       discrepancies.push(
         makeReconciliationDiscrepancy(
           'page_only_reference_proof_failed',
           'review',
-          `page-only assertion "${assertion.assertionId}" cannot be reconciled: reference proof is not independent`,
+          `page-only assertion "${assertion.assertionId}" cannot be reconciled: no independently proved reference is available`,
           assertion.assertionId,
           assertion.evidenceIds,
           referenceArtifactIds,
@@ -136,7 +207,7 @@ export function reconcilePageOnlyEvidence(
         makeReconciliationDiscrepancy(
           'page_only_comparison_missing',
           'review',
-          `page-only assertion "${assertion.assertionId}" has no applicable comparison check — missing comparison`,
+          `page-only assertion "${assertion.assertionId}" has no applicable comparison check`,
           assertion.assertionId,
           assertion.evidenceIds,
           referenceArtifactIds,
@@ -145,20 +216,9 @@ export function reconcilePageOnlyEvidence(
       continue;
     }
 
-    // The assertion is reconciled if ANY applicable comparison check is PASS
-    // and explicitly lists this assertion ID among its matched assertion IDs.
-    const matchingCheck = comparisonChecks.find(
-      (c) => c.outcome === 'PASS' && c.assertionIds.includes(assertion.assertionId),
-    );
-
-    if (matchingCheck) {
-      reconciledAssertionIds.push(assertion.assertionId);
-      continue;
-    }
-
-    // A failed (FAIL) comparison that covers this assertion -> blocking.
     const failedCheck = comparisonChecks.find(
-      (c) => c.outcome === 'FAIL' && c.assertionIds.includes(assertion.assertionId),
+      (check) =>
+        check.outcome === 'FAIL' && check.assertionIds.includes(assertion.assertionId),
     );
     if (failedCheck) {
       unreconciledAssertionIds.push(assertion.assertionId);
@@ -166,7 +226,7 @@ export function reconcilePageOnlyEvidence(
         makeReconciliationDiscrepancy(
           'page_only_comparison_failed',
           'blocking',
-          `page-only assertion "${assertion.assertionId}" covered by failed comparison "${failedCheck.code}"`,
+          `page-only assertion "${assertion.assertionId}" is covered by failed comparison "${failedCheck.code}"`,
           assertion.assertionId,
           assertion.evidenceIds,
           referenceArtifactIds,
@@ -175,13 +235,21 @@ export function reconcilePageOnlyEvidence(
       continue;
     }
 
-    // Otherwise: no comparison matched this exact assertion -> unmatched.
+    const passingCheck = comparisonChecks.find(
+      (check) =>
+        check.outcome === 'PASS' && check.assertionIds.includes(assertion.assertionId),
+    );
+    if (passingCheck) {
+      reconciledAssertionIds.push(assertion.assertionId);
+      continue;
+    }
+
     unreconciledAssertionIds.push(assertion.assertionId);
     discrepancies.push(
       makeReconciliationDiscrepancy(
         'page_only_assertion_unmatched',
         'review',
-        `page-only assertion "${assertion.assertionId}" is not corroborated by any independent reference (unmatched)`,
+        `page-only assertion "${assertion.assertionId}" is not corroborated by an independent reference`,
         assertion.assertionId,
         assertion.evidenceIds,
         referenceArtifactIds,
@@ -189,5 +257,42 @@ export function reconcilePageOnlyEvidence(
     );
   }
 
-  return { discrepancies, reconciledAssertionIds, unreconciledAssertionIds };
+  reconciledAssertionIds.sort();
+  unreconciledAssertionIds.sort();
+  const hasBlocking = discrepancies.some((discrepancy) => discrepancy.severity === 'blocking');
+  const outcome: VerificationCheckV1['outcome'] = hasBlocking
+    ? 'FAIL'
+    : unreconciledAssertionIds.length > 0
+      ? 'NOT_RUN'
+      : 'PASS';
+
+  return {
+    check: makeReconciliationCheck({
+      verificationRunId,
+      outcome,
+      required: true,
+      blocking: true,
+      riskPoints: outcome === 'PASS' ? 0 : outcome === 'FAIL' ? 50 : 35,
+      message:
+        outcome === 'PASS'
+          ? `${reconciledAssertionIds.length} page-only monetary assertions independently corroborated`
+          : outcome === 'FAIL'
+            ? 'page-only monetary reconciliation failed'
+            : `${unreconciledAssertionIds.length} page-only monetary assertions remain unreconciled`,
+      assertionIds: pageOnlyAssertionIds,
+      evidenceIds: pageOnlyEvidenceIds,
+      referenceArtifactIds,
+      details: {
+        pageOnlyAssertionCount: pageOnlyAssertionIds.length,
+        reconciledAssertionCount: reconciledAssertionIds.length,
+        unreconciledAssertionCount: unreconciledAssertionIds.length,
+        reconciledAssertionIds,
+        unreconciledAssertionIds,
+      },
+    }),
+    discrepancies,
+    reconciledAssertionIds,
+    unreconciledAssertionIds,
+    pageOnlyAssertionIds,
+  };
 }
