@@ -1,12 +1,10 @@
 /**
- * R8.1 WS5 — deterministic run identity + exact replay.
+ * R8.3 — deterministic run identity + exact replay.
  *
- *  - default run ID is derived from candidate identity + verifier version +
- *    policy SHA with a fixed attempt identity ("0"), independent of any
- *    timestamp, so an exact re-invocation yields the same run ID;
- *  - an explicit attemptId produces a distinct run ID;
- *  - the service returns the persisted snapshot for an exact terminal replay
- *    before running any rules.
+ * Exact immutable candidate identity has exactly one deterministic run ID,
+ * independent of timestamps. Corrections require changed source, manifest,
+ * artifact, policy, or verifier identity rather than a public retry/attempt
+ * parameter.
  */
 import { describe, it, expect } from '@jest/globals';
 import {
@@ -29,21 +27,26 @@ const identity: CandidateIdentityV1 = {
   policySha256: 'd'.repeat(64),
 };
 
-describe('R8.1 §5.2 — deterministic run identity', () => {
-  it('default attempt run ID does not include a timestamp and is stable', () => {
+describe('R8.3 deterministic run identity', () => {
+  it('uses a fixed internal replay identity and is stable', () => {
     const runId1 = computeRunId(identity, '0');
     const runId2 = computeRunId(identity, '0');
     expect(runId1).toBe(runId2);
-    expect(runId1).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(runId1).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 
-  it('run ID changes only with an explicit new attempt identity', () => {
-    const attempt0 = computeRunId(identity, '0');
-    const attempt1 = computeRunId(identity, '1');
-    expect(attempt0).not.toBe(attempt1);
+  it('candidate and run IDs change when immutable artifact identity changes', () => {
+    const correctedIdentity: CandidateIdentityV1 = {
+      ...identity,
+      extractionArtifactSha256: 'e'.repeat(64),
+    };
+    expect(computeCandidateId(correctedIdentity)).not.toBe(computeCandidateId(identity));
+    expect(computeRunId(correctedIdentity, '0')).not.toBe(computeRunId(identity, '0'));
   });
 
-  it('candidate ID is stable and independent of attempt', () => {
+  it('candidate ID is stable for exact replay', () => {
     expect(computeCandidateId(identity)).toBe(computeCandidateId(identity));
   });
 });
