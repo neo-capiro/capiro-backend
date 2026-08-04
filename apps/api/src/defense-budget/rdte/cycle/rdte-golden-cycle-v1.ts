@@ -291,6 +291,7 @@ export function goldenManifestDocument(key: string): BudgetCycleManifestDocument
     documentType: 'pb_exhibit',
     parserPolicy: 'native_structured',
     requiredDataCategories: ['identity', 'funding'],
+    requiredFundingFields: ['request'],
     expectedLineKinds: ['RDTE_PE'],
     allowEmpty: false,
   };

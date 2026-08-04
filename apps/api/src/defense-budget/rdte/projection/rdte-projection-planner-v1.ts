@@ -305,9 +305,12 @@ export function planRdteCanonicalProjection(
       const firstPage = sortedPages[0];
       const lastPage = sortedPages[sortedPages.length - 1];
       if (firstPage == null || lastPage == null) continue;
+      /* Natural key mirrors the canonical unique constraint
+       * (peCode, docType, sourceUrl, pageNumber). */
+      const sourceUrl = artifact.source.sourceUrl ?? artifact.source.sourceLocator;
       pushCandidate({
         target: 'ProgramElementSource',
-        naturalKey: `${peCode}|R|${provenance.sourcePdfSha256}|${firstPage}`,
+        naturalKey: `${peCode}|R|${sourceUrl}|${firstPage}`,
         ...provenance,
         assertionIds: [],
         evidenceIds: [],
