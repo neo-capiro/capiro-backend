@@ -134,9 +134,7 @@ describe('buildR2aProjectArtifact', () => {
       mission: 'Develop radar.',
     });
 
-    const projectFunding = artifact.assertions.filter(
-      (a) => a.assertionKind === 'project_funding',
-    );
+    const projectFunding = artifact.assertions.filter((a) => a.assertionKind === 'project_funding');
     expect(projectFunding).toHaveLength(1);
     expect(projectFunding[0]).toMatchObject({
       assertionKind: 'project_funding',
@@ -152,15 +150,21 @@ describe('buildR2aProjectArtifact', () => {
 
     /* Contextual value preserved as document fact, never project_funding. */
     const docFacts = artifact.assertions.filter((a) => a.assertionKind === 'document_fact');
-    expect(docFacts.some((f) => (f as { fieldName?: string }).fieldName === 'r2a_prior_actual_context')).toBe(true);
+    expect(
+      docFacts.some((f) => (f as { fieldName?: string }).fieldName === 'r2a_prior_actual_context'),
+    ).toBe(true);
 
     /* Accomplishments narrative preserved as a document fact. */
     expect(
-      docFacts.some((f) => (f as { fieldName?: string }).fieldName === 'r2a_project_narrative_accomplishments'),
+      docFacts.some(
+        (f) => (f as { fieldName?: string }).fieldName === 'r2a_project_narrative_accomplishments',
+      ),
     ).toBe(true);
 
     /* Title alias preserved. */
-    expect(docFacts.some((f) => (f as { fieldName?: string }).fieldName === 'r2a_project_title_alias')).toBe(true);
+    expect(
+      docFacts.some((f) => (f as { fieldName?: string }).fieldName === 'r2a_project_title_alias'),
+    ).toBe(true);
 
     /* Determinism. */
     const again = buildR2aProjectArtifact({

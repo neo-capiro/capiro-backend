@@ -356,10 +356,7 @@ export function buildR2aProjectArtifact(input: {
        * the printing cycle) become project_funding assertions with
        * project_budget_position disposition metadata. Contextual and
        * non-annual values become document_fact assertions. */
-      if (
-        value.disposition === 'project_budget_position' &&
-        value.fiscalYear != null
-      ) {
+      if (value.disposition === 'project_budget_position' && value.fiscalYear != null) {
         builder.addAssertion({
           assertionKind: 'project_funding',
           assertionId: assertionIdV1({

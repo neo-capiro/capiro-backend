@@ -68,12 +68,14 @@ export function buildR4MilestoneArtifact(input: {
       seq += 1;
       const milestone = result.milestones[seq - 1];
       const page = milestone?.page ?? 1;
-      const evidenceId = assertion.evidenceIds[0] ?? evidenceIdV1({
-        peCode: result.peCode,
-        milestoneType: assertion.milestoneType,
-        page,
-        kind: 'r4_milestone',
-      });
+      const evidenceId =
+        assertion.evidenceIds[0] ??
+        evidenceIdV1({
+          peCode: result.peCode,
+          milestoneType: assertion.milestoneType,
+          page,
+          kind: 'r4_milestone',
+        });
       builder.addEvidence({
         evidenceId,
         sourcePdfSha256: source.sourcePdfSha256,
