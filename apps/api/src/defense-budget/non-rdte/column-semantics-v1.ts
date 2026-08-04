@@ -142,7 +142,18 @@ export function bindHeaders(input: {
 
     const binding = classifyHeader(text, header.columnIndex, input.cycleFiscalYear);
     if (binding == null) {
-      unresolvedColumnIndices.push(header.columnIndex);
+      // Label columns (BLIN, Title, Line, Code, etc.) are not unresolved
+      // data columns — they are identity/label columns that don't need
+      // FY/unit classification. Only flag as unresolved when the header
+      // looks like it should carry data but couldn't be classified.
+      const labelWords = new Set([
+        'blin', 'line', 'title', 'code', 'pe', 'li', 'line item',
+        'description', 'item', 'name', 'type', 'category', 'service',
+        'component', 'account', 'appropriation', 'activity',
+      ]);
+      if (!labelWords.has(text.toLowerCase())) {
+        unresolvedColumnIndices.push(header.columnIndex);
+      }
     } else {
       bindings.push(binding);
     }
