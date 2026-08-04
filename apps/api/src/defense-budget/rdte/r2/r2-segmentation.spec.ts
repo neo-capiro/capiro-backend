@@ -172,6 +172,34 @@ describe('r2-exhibit-segmenter', () => {
     );
   });
 
+  it('does not merge an evidence-less continuation page into the adjacent R-2 segment', () => {
+    /* Boundary: a page whose only exhibit marker is a bare R-2 volume header
+     * (no PE code, no explicit "continued" marker) is classified as an R-2
+     * continuation candidate but carries NO deterministic continuation
+     * evidence. It must become an explicit unresolved finding, not silently
+     * inherit the adjacent PE segment. */
+    const pages = [
+      makePage({ page: 1, blocks: r2PeHeader('0601101A', 'Research Project') }),
+      makePage({
+        page: 2,
+        blocks: [makeBlock(0, 'header', 'RDT&E Budget Item Justification')],
+      }),
+    ];
+    const result = segmentR2ExhibitPages(pages);
+
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0]?.kind).toBe('r2_pe_summary');
+    expect(result.segments[0]?.pages).toEqual([1]);
+    expect(result.segments[1]?.kind).toBe('unresolved');
+    expect(result.segments[1]?.unresolvedReason).toContain(
+      'no deterministic continuation evidence',
+    );
+    /* And the resolver must not assign the orphan page a PE context. */
+    const resolution = resolveR2Contexts(result);
+    expect(resolution.pages[1]?.peCode).toBeUndefined();
+    expect(resolution.unresolvedPages).toHaveLength(1);
+  });
+
   it('marks conflicting PE headers as unresolved', () => {
     const pages = [
       makePage({

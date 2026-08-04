@@ -387,10 +387,22 @@ export function buildR4MilestoneAssertions(input: {
   actualDate?: string;
   status?: string;
   notes?: string;
+  metadata?: Record<string, unknown>;
 }> {
   return input.milestones.map((m, i) => {
     const plannedDate = exactDateString(m.plannedPeriod);
     const actualDate = m.actualPeriod != null ? exactDateString(m.actualPeriod) : undefined;
+    /* Structured schedule fidelity travels in metadata: the strict milestone
+     * schema only carries exact ISO dates, so quarter/month/year/text periods
+     * would otherwise be lost to downstream consumers (WS M projection). */
+    const metadata: Record<string, unknown> = {
+      plannedPeriod: m.plannedPeriod,
+      ...(m.actualPeriod != null ? { actualPeriod: m.actualPeriod } : {}),
+      physicalPage: m.page,
+      ...(m.printedPage != null ? { printedPage: m.printedPage } : {}),
+      tableIndex: m.tableIndex,
+      rowIndex: m.rowIndex,
+    };
     return {
       assertionId: `${input.assertionIdPrefix}_${i}`,
       sourceFactIds: [`${input.sourceFactIdPrefix}_${i}`],
@@ -398,11 +410,13 @@ export function buildR4MilestoneAssertions(input: {
       confidence: Math.min(m.plannedPeriod.confidence, m.actualPeriod?.confidence ?? 1),
       assertionKind: 'milestone' as const,
       parentPeCode: m.parentPeCode,
+      ...(m.projectCode != null ? { projectCode: m.projectCode } : {}),
       milestoneType: m.milestoneType,
       ...(plannedDate != null ? { plannedDate } : {}),
       ...(actualDate != null ? { actualDate } : {}),
       ...(m.status != null ? { status: m.status } : {}),
       ...(m.notes != null ? { notes: m.notes } : {}),
+      metadata,
     };
   });
 }

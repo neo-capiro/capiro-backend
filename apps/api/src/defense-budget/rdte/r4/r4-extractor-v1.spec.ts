@@ -456,6 +456,44 @@ describe('buildR4MilestoneAssertions', () => {
     expect(assertions[0]?.plannedDate).toBe('2027-01-15');
     expect(assertions[0]?.actualDate).toBeUndefined(); // FY 2027 is not exact
   });
+
+  it('retains project code and structured period metadata on assertions', () => {
+    const assertions = buildR4MilestoneAssertions({
+      milestones: [
+        {
+          parentPeCode: PE,
+          projectCode: 'A1',
+          milestoneType: 'CDR',
+          plannedPeriod: parseR4SchedulePeriod('3Q FY2028'),
+          page: 4,
+          printedPage: 'R-4-12',
+          tableIndex: 0,
+          rowIndex: 3,
+          rawCells: [],
+        },
+      ],
+      assertionIdPrefix: 'test_assert',
+      sourceFactIdPrefix: 'test_fact',
+      evidenceIdPrefix: 'test_ev',
+    });
+
+    const a = assertions[0]!;
+    /* Project linkage survives onto the assertion. */
+    expect((a as Record<string, unknown>)['projectCode']).toBe('A1');
+    /* No fabricated exact date for a fiscal quarter. */
+    expect(a.plannedDate).toBeUndefined();
+    /* Structured period fidelity travels in metadata. */
+    const metadata = a.metadata as Record<string, unknown>;
+    expect(metadata).toBeDefined();
+    const planned = metadata['plannedPeriod'] as Record<string, unknown>;
+    expect(planned['kind']).toBe('fiscal_quarter');
+    expect(planned['fiscalYear']).toBe(2028);
+    expect(planned['fiscalQuarter']).toBe(3);
+    expect(planned['rawText']).toBe('3Q FY2028');
+    expect(metadata['physicalPage']).toBe(4);
+    expect(metadata['printedPage']).toBe('R-4-12');
+    expect(metadata['rowIndex']).toBe(3);
+  });
 });
 
 /* ------------------------------------------------------------------ */

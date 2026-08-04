@@ -327,16 +327,16 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
     CONTINUATION_RE.test(allHeaderFooter) || CONTINUATION_RE.test(headingTexts.join(' '));
 
   /* Continuation evidence: repeated header/footer patterns that match the
-   * prior page's segment, or explicit "continued" markers. */
+   * prior page's segment, or explicit "continued" markers. A bare R-2 volume
+   * header on its own is NOT continuation evidence — a page with no PE code
+   * and no explicit continuation marker must become an unresolved finding
+   * rather than silently merge into the adjacent PE segment. */
   const continuationEvidence: string[] = [];
   if (hasContinuationMarker) {
     continuationEvidence.push('explicit continuation marker');
   }
   if (allPeCodes.length > 0) {
     continuationEvidence.push(`repeated PE header: ${allPeCodes.join(', ')}`);
-  }
-  if (isR2 && !isR2A && !isR3 && !isR4) {
-    continuationEvidence.push('R-2 header present');
   }
 
   /* Determine kind. */

@@ -761,4 +761,49 @@ describe('r2-pe-funding-builder', () => {
     expect(artifactA.artifactId).toBe(artifactB.artifactId);
     expect(artifactA.contentSha256).toBe(artifactB.contentSha256);
   });
+
+  it('builds an artifact from a multi-row table without duplicate-ID collisions', () => {
+    /* Regression: two data rows on one page (pe_total + project) must produce
+     * distinct evidence/fact/assertion IDs even when their role buckets match. */
+    const cells: Cell[] = [
+      { rowIndex: 0, columnIndex: 0, text: 'Program Element Cost' },
+      { rowIndex: 0, columnIndex: 1, text: 'FY 2027 Request' },
+      { rowIndex: 0, columnIndex: 2, text: 'FY 2028' },
+      { rowIndex: 1, columnIndex: 0, text: 'Total Program Element' },
+      { rowIndex: 1, columnIndex: 1, text: '100.0' },
+      { rowIndex: 1, columnIndex: 2, text: '110.0' },
+      { rowIndex: 2, columnIndex: 0, text: 'A1' },
+      { rowIndex: 2, columnIndex: 1, text: '60.0' },
+      { rowIndex: 2, columnIndex: 2, text: '66.0' },
+    ];
+    const page = makePage([makeTable(cells)], 1, '$ in Millions');
+    const extraction = extractR2PeFunding({
+      pages: [page],
+      peContext: peContext(1, 1),
+      cycleFiscalYear: CYCLE_FY,
+    });
+    expect(extraction.values).toHaveLength(4);
+
+    const artifact = buildR2PeFundingArtifact({
+      source: makeSource(),
+      parserRuns: [],
+      extractions: [extraction],
+      cycleFiscalYear: CYCLE_FY,
+    });
+
+    /* pe_total request + project request = 2 funding assertions; the two
+     * outyear positions = 2 document facts. */
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
+    expect(fundingAssertions).toHaveLength(2);
+    const docFacts = artifact.assertions.filter((a) => a.assertionKind === 'document_fact');
+    expect(docFacts).toHaveLength(2);
+
+    /* All IDs unique across the artifact. */
+    const assertionIds = artifact.assertions.map((a) => a.assertionId);
+    expect(new Set(assertionIds).size).toBe(assertionIds.length);
+    const evidenceIds = artifact.evidence.map((e) => e.evidenceId);
+    expect(new Set(evidenceIds).size).toBe(evidenceIds.length);
+    const factIds = artifact.sourceFacts.map((f) => f.factId);
+    expect(new Set(factIds).size).toBe(factIds.length);
+  });
 });
