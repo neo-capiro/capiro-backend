@@ -240,9 +240,7 @@ describe('rdte-cycle-bundle-v1', () => {
 
   it('rejects invalid fiscal years', () => {
     const bundle = makeBundle({ fiscalYear: 1799 });
-    expect(() =>
-      rdteCycleBundleV1Schema.parse({ ...bundle, contentSha256: SHA }),
-    ).toThrow();
+    expect(() => rdteCycleBundleV1Schema.parse({ ...bundle, contentSha256: SHA })).toThrow();
   });
 
   it('produces deterministic IDs independent of input key order', () => {

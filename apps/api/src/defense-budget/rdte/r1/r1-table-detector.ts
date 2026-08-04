@@ -33,7 +33,8 @@ export interface R1DetectedTable {
 }
 
 const PE_CODE_CELL_RE = /^[0-9]{7}[A-Z][A-Z0-9]*$/;
-const HEADER_HINT_RE = /\b(pe|program\s*element|title|fy|fiscal|year|budget|request|actual|enacted|base|oco|total|cost)\b/i;
+const HEADER_HINT_RE =
+  /\b(pe|program\s*element|title|fy|fiscal|year|budget|request|actual|enacted|base|oco|total|cost)\b/i;
 
 /**
  * Detect R-1 tables on one page.
@@ -129,8 +130,5 @@ function groupCellsByRow(
   }
   return [...byRow.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([rowIndex, cells]) => [
-      rowIndex,
-      cells.sort((a, b) => a.columnIndex - b.columnIndex),
-    ]);
+    .map(([rowIndex, cells]) => [rowIndex, cells.sort((a, b) => a.columnIndex - b.columnIndex)]);
 }

@@ -249,7 +249,9 @@ export function buildR1Artifact(input: {
   return builder.finalize();
 }
 
-function mapOmissionReason(reason: string):
+function mapOmissionReason(
+  reason: string,
+):
   | 'unsupported_field'
   | 'missing_value'
   | 'invalid_number'

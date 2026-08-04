@@ -15,14 +15,8 @@
  *   - zero values;
  *   - column-order permutation.
  */
-import {
-  classifyRdteColumn,
-  classifyRdteHeader,
-} from './rdte-column-classifier.js';
-import {
-  normalizeRdteHeader,
-  type RawHeaderRowV1,
-} from './rdte-header-normalizer.js';
+import { classifyRdteColumn, classifyRdteHeader } from './rdte-column-classifier.js';
+import { normalizeRdteHeader, type RawHeaderRowV1 } from './rdte-header-normalizer.js';
 import { resolveRdteUnit } from './rdte-unit-resolver.js';
 import {
   exactAbsDifference,

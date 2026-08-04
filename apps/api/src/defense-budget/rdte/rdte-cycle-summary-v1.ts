@@ -6,10 +6,7 @@
  * a stored summary without recomputation.
  */
 import { z } from 'zod';
-import {
-  rdteCoverageStatusV1Schema,
-  type RdteCoverageStatusV1,
-} from './rdte-column-role-v1.js';
+import { rdteCoverageStatusV1Schema, type RdteCoverageStatusV1 } from './rdte-column-role-v1.js';
 import type {
   RdteCycleCoverageEntryV1,
   RdteCycleSourceDocumentV1,

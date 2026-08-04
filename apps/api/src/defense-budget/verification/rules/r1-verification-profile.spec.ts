@@ -185,7 +185,9 @@ describe('R1_SPECIFIC_RULE', () => {
     const result = R1_SPECIFIC_RULE.execute(makeContext(artifact));
     expect(result.check?.outcome).toBe('FAIL');
     expect(
-      result.discrepancies.some((d) => d.code === 'r1_zero_pe_identities' && d.severity === 'blocking'),
+      result.discrepancies.some(
+        (d) => d.code === 'r1_zero_pe_identities' && d.severity === 'blocking',
+      ),
     ).toBe(true);
   });
 
@@ -193,7 +195,9 @@ describe('R1_SPECIFIC_RULE', () => {
     const artifact = makeArtifact([identityAssertion('O6O11O1A')]);
     const result = R1_SPECIFIC_RULE.execute(makeContext(artifact));
     expect(
-      result.discrepancies.some((d) => d.code === 'r1_invalid_pe_identity' && d.severity === 'blocking'),
+      result.discrepancies.some(
+        (d) => d.code === 'r1_invalid_pe_identity' && d.severity === 'blocking',
+      ),
     ).toBe(true);
   });
 

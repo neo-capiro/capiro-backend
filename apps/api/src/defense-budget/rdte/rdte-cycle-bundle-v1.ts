@@ -10,10 +10,7 @@
 import { z } from 'zod';
 import { sha256Schema } from '../contracts/extraction-artifact-v1.js';
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
-import {
-  rdteCoverageStatusV1Schema,
-  rdteExhibitRoleV1Schema,
-} from './rdte-column-role-v1.js';
+import { rdteCoverageStatusV1Schema, rdteExhibitRoleV1Schema } from './rdte-column-role-v1.js';
 
 export const RDTE_CYCLE_BUNDLE_SCHEMA_VERSION = 'rdte_cycle_bundle_v1' as const;
 

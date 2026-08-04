@@ -171,10 +171,7 @@ export const R1_SPECIFIC_RULE: VerificationRuleV1 = {
       const metadata = assertion.metadata as Record<string, unknown> | undefined;
       const columnRole = metadata?.['columnRole'];
       const disposition = metadata?.['disposition'];
-      if (
-        disposition === 'canonical_request_candidate' &&
-        columnRole !== 'budget_year_request'
-      ) {
+      if (disposition === 'canonical_request_candidate' && columnRole !== 'budget_year_request') {
         discrepancies.push(
           makeDiscrepancy(
             'r1_contextual_or_outyear_marked_canonical',

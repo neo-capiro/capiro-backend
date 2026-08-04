@@ -63,12 +63,7 @@ export const HEADER_FISCAL_LABEL_KIND_V1_VALUES = [
 export const headerFiscalLabelKindV1Schema = z.enum(HEADER_FISCAL_LABEL_KIND_V1_VALUES);
 export type HeaderFiscalLabelKindV1 = z.infer<typeof headerFiscalLabelKindV1Schema>;
 
-export const HEADER_COMPONENT_LABEL_V1_VALUES = [
-  'base',
-  'oco',
-  'total',
-  'none',
-] as const;
+export const HEADER_COMPONENT_LABEL_V1_VALUES = ['base', 'oco', 'total', 'none'] as const;
 export const headerComponentLabelV1Schema = z.enum(HEADER_COMPONENT_LABEL_V1_VALUES);
 export type HeaderComponentLabelV1 = z.infer<typeof headerComponentLabelV1Schema>;
 

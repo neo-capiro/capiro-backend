@@ -27,7 +27,9 @@ import type { ExtractionSourceV1 } from '../../contracts/extraction-artifact-v1.
 const CYCLE_FY = 2027;
 const SHA = 'd'.repeat(64);
 
-function makeTable(cells: Array<{ rowIndex: number; columnIndex: number; text: string }>): ParsedTableV1 {
+function makeTable(
+  cells: Array<{ rowIndex: number; columnIndex: number; text: string }>,
+): ParsedTableV1 {
   const rowCount = Math.max(...cells.map((c) => c.rowIndex)) + 1;
   const columnCount = Math.max(...cells.map((c) => c.columnIndex)) + 1;
   return {
@@ -285,8 +287,7 @@ describe('r1-extractor-v1', () => {
 
     const sortFunding = (r: typeof resultA) =>
       [...r.funding].sort(
-        (a, b) =>
-          a.peCode.localeCompare(b.peCode) || (a.fiscalYear ?? 0) - (b.fiscalYear ?? 0),
+        (a, b) => a.peCode.localeCompare(b.peCode) || (a.fiscalYear ?? 0) - (b.fiscalYear ?? 0),
       );
     expect(sortFunding(resultA)).toEqual(sortFunding(resultB));
   });

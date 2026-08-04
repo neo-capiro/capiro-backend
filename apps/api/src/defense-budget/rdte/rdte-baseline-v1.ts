@@ -128,9 +128,7 @@ export function computeRdteBaselineReport(input: {
     const projectKeys = new Set(
       artifact.assertions
         .filter((a) => a.assertionKind === 'project')
-        .map((a) =>
-          a.assertionKind === 'project' ? `${a.parentPeCode}/${a.projectCode}` : '',
-        )
+        .map((a) => (a.assertionKind === 'project' ? `${a.parentPeCode}/${a.projectCode}` : ''))
         .filter((k) => k.length > 0),
     );
     const fundedProjectKeys = new Set(
@@ -158,8 +156,7 @@ export function computeRdteBaselineReport(input: {
       .filter((a) => a.assertionKind === 'performer')
       .filter(
         (a) =>
-          a.assertionKind === 'performer' &&
-          (a.performerRole === 'UNKNOWN' || a.totalCost == null),
+          a.assertionKind === 'performer' && (a.performerRole === 'UNKNOWN' || a.totalCost == null),
       )
       .map((a) => (a.assertionKind === 'performer' ? a.performerName : ''))
       .filter((k) => k.length > 0)

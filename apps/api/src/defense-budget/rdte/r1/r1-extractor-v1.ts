@@ -14,7 +14,10 @@
  */
 import type { ParserPageResultV1 } from '../../parser-router/parser-runtime-contract-v1.js';
 import { isValidPeCode } from '../../extractors/types.js';
-import { moneyToMillionsString, parseCanonicalDecimalString } from '../../contracts/decimal-string.js';
+import {
+  moneyToMillionsString,
+  parseCanonicalDecimalString,
+} from '../../contracts/decimal-string.js';
 import type { MoneyUnitV1 } from '../../contracts/decimal-string.js';
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
@@ -169,10 +172,7 @@ export function extractR1FromPages(input: {
 
       const columnRoles = new Map<number, ReturnType<typeof classifyRdteColumn>>();
       for (const column of header.columns) {
-        columnRoles.set(
-          column.columnIndex,
-          classifyRdteColumn({ column, cycleFiscalYear }),
-        );
+        columnRoles.set(column.columnIndex, classifyRdteColumn({ column, cycleFiscalYear }));
       }
 
       /* Process PE rows. */
@@ -294,8 +294,7 @@ export function extractR1FromPages(input: {
             valueMillions: moneyToMillionsString(canonical, unitResolution.unit),
             columnIndex: cell.columnIndex,
             headerText:
-              header.columns.find((c) => c.columnIndex === cell.columnIndex)?.normalizedText ??
-              '',
+              header.columns.find((c) => c.columnIndex === cell.columnIndex)?.normalizedText ?? '',
             direct: true,
           };
           funding.push(value);
