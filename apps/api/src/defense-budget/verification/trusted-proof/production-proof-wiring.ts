@@ -15,6 +15,7 @@ import {
 } from './trusted-byte-locator-reader.js';
 import { SdkS3ProofClient } from './s3-proof-adapters.js';
 import type { ParserOutputProofSource } from './parser-output-proof-source.js';
+import { DeclaredParserOutputProofSource } from './declared-parser-output-proof-source.js';
 import {
   CompositeParserOutputProofSource,
   FilesystemParserOutputProofAdapter,
@@ -35,11 +36,7 @@ export interface ProductionProofWiringOptions {
   approvedFilesystemPrefixes?: readonly string[];
   s3ProofClient?: SdkS3ProofClient;
   skipDatabaseProbe?: boolean;
-  /**
-   * Explicit shared/persistent parser artifact root. Production no longer
-   * defaults to a process-relative directory because parser and verification
-   * commonly run in different or ephemeral containers.
-   */
+  /** Explicit shared/persistent parser artifact root. */
   parserArtifactStoreRootDir?: string;
   llamaParseOutputBucket?: string;
   parserOutputProofSource?: ParserOutputProofSource;
@@ -83,16 +80,16 @@ export async function wireProductionProofBoundary(
     process.env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT?.trim() ??
     '';
 
-  // R8.3: no implicit process-relative local parser store in production.
-  // An explicit shared/persistent root may be supplied; otherwise local parser
-  // runs fail closed while LlamaParse output remains provable through S3.
+  // No implicit process-relative parser store in production. An explicitly
+  // configured shared root may be used; otherwise local parser runs fail
+  // closed while LlamaParse output remains provable from object storage.
   const localParserSource = configuredParserRoot
     ? new FilesystemParserOutputProofAdapter(configuredParserRoot, {
         requireDeclarationBinding: true,
       })
     : null;
 
-  const parserOutputProofSource: ParserOutputProofSource =
+  const rawParserOutputProofSource: ParserOutputProofSource =
     options.parserOutputProofSource ??
     new CompositeParserOutputProofSource({
       localSource: localParserSource,
@@ -106,6 +103,13 @@ export async function wireProductionProofBoundary(
         requireDeclarationBinding: true,
       }),
     });
+
+  // Central wrapper protects even custom/injected proof sources: independently
+  // loaded output must expose the exact canonical content SHA declared by the
+  // parser run before it can satisfy production proof.
+  const parserOutputProofSource = new DeclaredParserOutputProofSource(
+    rawParserOutputProofSource,
+  );
 
   const proofResolver = new CompositeProofResolver({
     mode: 'production_proof',
@@ -122,9 +126,7 @@ export async function wireProductionProofBoundary(
     compositeResolver: proofResolver,
     repository,
     async dispose(): Promise<void> {
-      if (!options.s3ProofClient) {
-        await s3ProofClient.destroy();
-      }
+      if (!options.s3ProofClient) await s3ProofClient.destroy();
     },
   };
 }
