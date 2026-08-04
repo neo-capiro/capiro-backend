@@ -1,9 +1,11 @@
 /**
- * R-1 ↔ R-2 summary/detail arithmetic rule.
+ * Bidirectional R-1 ↔ R-2 summary/detail arithmetic rule.
  *
- * Required comparisons demand complete candidate coverage. The PASS check
- * carries every matched candidate assertion ID so page-only reconciliation
- * can clear only the exact corroborated assertions.
+ * R-1 and R-2 policies both require this comparison. The candidate may be
+ * either exhibit and must be compared against independently proved artifacts
+ * from the opposite exhibit. Required comparisons demand complete candidate
+ * funding coverage. PASS checks carry every matched candidate assertion ID so
+ * page-only reconciliation can clear only exact corroborated assertions.
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
 import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
@@ -44,17 +46,24 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
       };
     }
 
-    if (artifact.source.exhibit !== 'R-1') {
+    const candidateExhibit = artifact.source.exhibit;
+    if (candidateExhibit !== 'R-1' && candidateExhibit !== 'R-2') {
       return {
-        check: skippedCheck(RDTE_SUMMARY_DETAIL_RULE, runId, 'not an R-1 artifact', overrides),
+        check: skippedCheck(
+          RDTE_SUMMARY_DETAIL_RULE,
+          runId,
+          'candidate is neither R-1 nor R-2',
+          overrides,
+        ),
         discrepancies: [],
       };
     }
 
-    const r2References = referenceArtifacts.filter(
-      (reference) => reference.source.exhibit === 'R-2',
+    const requiredReferenceExhibit = candidateExhibit === 'R-1' ? 'R-2' : 'R-1';
+    const oppositeReferences = referenceArtifacts.filter(
+      (reference) => reference.source.exhibit === requiredReferenceExhibit,
     );
-    if (r2References.length === 0) {
+    if (oppositeReferences.length === 0) {
       return {
         check: notRunCheck(
           RDTE_SUMMARY_DETAIL_RULE,
@@ -62,8 +71,11 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           [],
           [],
-          'no independently proved R-2 reference artifact available',
-          undefined,
+          `no independently proved ${requiredReferenceExhibit} reference artifact available`,
+          {
+            candidateExhibit,
+            requiredReferenceExhibit,
+          },
           overrides,
         ),
         discrepancies: [],
@@ -76,7 +88,7 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         { assertionKind: 'funding' }
       > => assertion.assertionKind === 'funding',
     );
-    const referenceFunding = r2References.flatMap((reference) =>
+    const referenceFunding = oppositeReferences.flatMap((reference) =>
       reference.assertions
         .filter(
           (assertion): assertion is Extract<
@@ -86,7 +98,9 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         )
         .map((assertion) => ({ assertion, artifactId: reference.artifactId })),
     );
-    const referenceArtifactIds = r2References.map((reference) => reference.artifactId).sort();
+    const referenceArtifactIds = oppositeReferences
+      .map((reference) => reference.artifactId)
+      .sort();
     const matchedAssertionIds: string[] = [];
     const matchedEvidenceIds: string[] = [];
     const unmatchedAssertionIds: string[] = [];
@@ -100,12 +114,13 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         fiscalYear: candidate.fiscalYear,
         field: candidate.field,
       });
-      const matches = referenceFunding.filter(({ assertion }) =>
-        JSON.stringify({
-          identity: assertion.identity,
-          fiscalYear: assertion.fiscalYear,
-          field: assertion.field,
-        }) === key,
+      const matches = referenceFunding.filter(
+        ({ assertion }) =>
+          JSON.stringify({
+            identity: assertion.identity,
+            fiscalYear: assertion.fiscalYear,
+            field: assertion.field,
+          }) === key,
       );
 
       if (matches.length === 0) {
@@ -130,9 +145,10 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           makeDiscrepancy(
             'rdte_summary_detail_mismatch',
             'blocking',
-            `R-1/R-2 mismatch for ${candidate.assertionId}: ` +
-              `candidate=${candidateValue}M reference=${referenceValue}M ` +
-              `tolerance=${tolerance}M difference=${difference}M`,
+            `${candidateExhibit}/${requiredReferenceExhibit} mismatch for ` +
+              `${candidate.assertionId}: candidate=${candidateValue}M ` +
+              `reference=${referenceValue}M tolerance=${tolerance}M ` +
+              `difference=${difference}M`,
             [candidate.assertionId, match.assertion.assertionId],
             [...candidate.evidenceIds, ...match.assertion.evidenceIds],
             [match.artifactId],
@@ -148,6 +164,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         ? 0
         : Math.round((matchedAssertionCount / candidateAssertionCount) * 100);
     const details = {
+      candidateExhibit,
+      requiredReferenceExhibit,
       candidateAssertionCount,
       matchedAssertionCount,
       unmatchedAssertionIds,
@@ -165,7 +183,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           ambiguousAssertionIds,
           [],
           referenceArtifactIds,
-          'multiple R-2 assertions match one or more R-1 assertions',
+          `multiple ${requiredReferenceExhibit} assertions match one or more ` +
+            `${candidateExhibit} assertions`,
           details,
           overrides,
         ),
@@ -175,7 +194,7 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
             makeDiscrepancy(
               'rdte_summary_detail_ambiguous',
               'blocking',
-              `multiple R-2 assertions match candidate assertion ${assertionId}`,
+              `multiple ${requiredReferenceExhibit} assertions match candidate assertion ${assertionId}`,
               [assertionId],
               [],
               referenceArtifactIds,
@@ -234,7 +253,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           makeDiscrepancy(
             'rdte_summary_detail_unmatched',
             'review',
-            `required comparison has no R-2 match for candidate assertion ${assertionId}`,
+            `required comparison has no ${requiredReferenceExhibit} match for ` +
+              `candidate assertion ${assertionId}`,
             [assertionId],
             [],
             referenceArtifactIds,
