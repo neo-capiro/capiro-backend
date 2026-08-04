@@ -1,24 +1,18 @@
 /**
- * Workstream H3 — R-1 ↔ R-2 summary/detail arithmetic rule.
+ * R-1 ↔ R-2 summary/detail arithmetic rule.
  *
- * When an R-1 and R-2 reference artifact are available:
- * - compare same PE + FY + request field
- * - require identity and fiscal-year match
- * - use exact tolerance
- * - preserve both source artifact IDs and evidence IDs
+ * Required comparisons demand complete candidate coverage. The PASS check
+ * carries every matched candidate assertion ID so page-only reconciliation
+ * can clear only the exact corroborated assertions.
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
 import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
 import {
-  sumDecimals,
   compareWithTolerance,
   printedUnitToleranceMillions,
   absDifference,
 } from './exact-arithmetic.js';
-import type {
-  DefenseBudgetExtractionArtifactV1,
-  DefenseBudgetAssertionV1,
-} from '../../../contracts/extraction-artifact-v1.js';
+import type { DefenseBudgetAssertionV1 } from '../../../contracts/extraction-artifact-v1.js';
 
 export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
   code: 'rdte_summary_detail',
@@ -32,35 +26,35 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
     const { input, policy } = ctx;
     const runId = ctx.verificationRunId;
     const { artifact, referenceArtifacts } = input;
-
-    // R8.1 §3.1: required when policy lists it as a required comparison.
     const isRequired = policy.requiredComparisonRules.includes('rdte_summary_detail');
-    const ov = { required: isRequired, blocking: isRequired || RDTE_SUMMARY_DETAIL_RULE.blocking };
+    const overrides = {
+      required: isRequired,
+      blocking: isRequired || RDTE_SUMMARY_DETAIL_RULE.blocking,
+    };
 
-    // Only run when arithmeticRules includes this rule
     if (!policy.arithmeticRules.includes('rdte_summary_detail')) {
       return {
         check: skippedCheck(
           RDTE_SUMMARY_DETAIL_RULE,
           runId,
           'rdte_summary_detail not in policy.arithmeticRules',
-          ov,
+          overrides,
         ),
         discrepancies: [],
       };
     }
 
-    // Only run for R-1 artifacts
     if (artifact.source.exhibit !== 'R-1') {
       return {
-        check: skippedCheck(RDTE_SUMMARY_DETAIL_RULE, runId, 'not an R-1 artifact', ov),
+        check: skippedCheck(RDTE_SUMMARY_DETAIL_RULE, runId, 'not an R-1 artifact', overrides),
         discrepancies: [],
       };
     }
 
-    // Find R-2 reference artifacts
-    const r2Refs = referenceArtifacts.filter((a) => a.source.exhibit === 'R-2');
-    if (r2Refs.length === 0) {
+    const r2References = referenceArtifacts.filter(
+      (reference) => reference.source.exhibit === 'R-2',
+    );
+    if (r2References.length === 0) {
       return {
         check: notRunCheck(
           RDTE_SUMMARY_DETAIL_RULE,
@@ -68,102 +62,184 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           [],
           [],
-          'no R-2 reference artifact available',
+          'no independently proved R-2 reference artifact available',
           undefined,
-          ov,
+          overrides,
         ),
         discrepancies: [],
       };
     }
 
+    const candidateFunding = artifact.assertions.filter(
+      (assertion): assertion is Extract<
+        DefenseBudgetAssertionV1,
+        { assertionKind: 'funding' }
+      > => assertion.assertionKind === 'funding',
+    );
+    const referenceFunding = r2References.flatMap((reference) =>
+      reference.assertions
+        .filter(
+          (assertion): assertion is Extract<
+            DefenseBudgetAssertionV1,
+            { assertionKind: 'funding' }
+          > => assertion.assertionKind === 'funding',
+        )
+        .map((assertion) => ({ assertion, artifactId: reference.artifactId })),
+    );
+    const referenceArtifactIds = r2References.map((reference) => reference.artifactId).sort();
+    const matchedAssertionIds: string[] = [];
+    const matchedEvidenceIds: string[] = [];
+    const unmatchedAssertionIds: string[] = [];
+    const ambiguousAssertionIds: string[] = [];
+    const mismatchAssertionIds: string[] = [];
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
-    const failingIds: string[] = [];
-    const refIds: string[] = r2Refs.map((r) => r.artifactId);
 
-    // For each R-1 funding assertion, find matching R-2 funding assertion
-    const r1Funding = artifact.assertions.filter(
-      (a): a is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
-        a.assertionKind === 'funding',
-    );
-    const r2Funding = r2Refs.flatMap((r) =>
-      r.assertions.filter(
-        (a): a is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
-          a.assertionKind === 'funding',
-      ),
-    );
-
-    let matched = 0;
-    let mismatched = 0;
-
-    for (const r1Assertion of r1Funding) {
-      // Match by identity + fiscalYear + field
+    for (const candidate of candidateFunding) {
       const key = JSON.stringify({
-        identity: r1Assertion.identity,
-        fiscalYear: r1Assertion.fiscalYear,
-        field: r1Assertion.field,
+        identity: candidate.identity,
+        fiscalYear: candidate.fiscalYear,
+        field: candidate.field,
       });
-      const r2Match = r2Funding.find((a) => {
-        const r2Key = JSON.stringify({
-          identity: a.identity,
-          fiscalYear: a.fiscalYear,
-          field: a.field,
-        });
-        return r2Key === key;
-      });
+      const matches = referenceFunding.filter(({ assertion }) =>
+        JSON.stringify({
+          identity: assertion.identity,
+          fiscalYear: assertion.fiscalYear,
+          field: assertion.field,
+        }) === key,
+      );
 
-      if (!r2Match) continue;
+      if (matches.length === 0) {
+        unmatchedAssertionIds.push(candidate.assertionId);
+        continue;
+      }
+      if (matches.length > 1) {
+        ambiguousAssertionIds.push(candidate.assertionId);
+        continue;
+      }
 
-      matched++;
-      const r1Val = r1Assertion.money.valueMillions;
-      const r2Val = r2Match.money.valueMillions;
+      const match = matches[0]!;
+      matchedAssertionIds.push(candidate.assertionId);
+      matchedEvidenceIds.push(...candidate.evidenceIds);
+      const candidateValue = candidate.money.valueMillions;
+      const referenceValue = match.assertion.money.valueMillions;
       const tolerance = printedUnitToleranceMillions(1);
-      const cmp = compareWithTolerance(r1Val, r2Val, tolerance);
-      if (cmp !== 0) {
-        mismatched++;
-        const diff = absDifference(r1Val, r2Val);
+      if (compareWithTolerance(candidateValue, referenceValue, tolerance) !== 0) {
+        mismatchAssertionIds.push(candidate.assertionId);
+        const difference = absDifference(candidateValue, referenceValue);
         discrepancies.push(
           makeDiscrepancy(
             'rdte_summary_detail_mismatch',
             'blocking',
-            `R-1/R-2 mismatch: PE ${JSON.stringify(r1Assertion.identity)} FY ${r1Assertion.fiscalYear} field ${r1Assertion.field}: R-1=${r1Val}M, R-2=${r2Val}M, diff=${diff}M`,
-            [r1Assertion.assertionId, r2Match.assertionId],
-            [],
-            refIds,
+            `R-1/R-2 mismatch for ${candidate.assertionId}: ` +
+              `candidate=${candidateValue}M reference=${referenceValue}M ` +
+              `tolerance=${tolerance}M difference=${difference}M`,
+            [candidate.assertionId, match.assertion.assertionId],
+            [...candidate.evidenceIds, ...match.assertion.evidenceIds],
+            [match.artifactId],
           ),
         );
-        failingIds.push(r1Assertion.assertionId);
       }
     }
 
-    if (mismatched > 0) {
+    const candidateAssertionCount = candidateFunding.length;
+    const matchedAssertionCount = matchedAssertionIds.length;
+    const coveragePercent =
+      candidateAssertionCount === 0
+        ? 0
+        : Math.round((matchedAssertionCount / candidateAssertionCount) * 100);
+    const details = {
+      candidateAssertionCount,
+      matchedAssertionCount,
+      unmatchedAssertionIds,
+      ambiguousAssertionIds,
+      mismatchAssertionIds,
+      referenceAssertionCount: referenceFunding.length,
+      coveragePercent,
+    };
+
+    if (ambiguousAssertionIds.length > 0) {
       return {
         check: failCheck(
           RDTE_SUMMARY_DETAIL_RULE,
           runId,
-          [...new Set(failingIds)],
+          ambiguousAssertionIds,
           [],
-          refIds,
-          `${mismatched} R-1/R-2 mismatches out of ${matched} matched`,
-          undefined,
-          ov,
+          referenceArtifactIds,
+          'multiple R-2 assertions match one or more R-1 assertions',
+          details,
+          overrides,
+        ),
+        discrepancies: [
+          ...discrepancies,
+          ...ambiguousAssertionIds.map((assertionId) =>
+            makeDiscrepancy(
+              'rdte_summary_detail_ambiguous',
+              'blocking',
+              `multiple R-2 assertions match candidate assertion ${assertionId}`,
+              [assertionId],
+              [],
+              referenceArtifactIds,
+            ),
+          ),
+        ],
+      };
+    }
+
+    if (mismatchAssertionIds.length > 0) {
+      return {
+        check: failCheck(
+          RDTE_SUMMARY_DETAIL_RULE,
+          runId,
+          mismatchAssertionIds,
+          matchedEvidenceIds,
+          referenceArtifactIds,
+          `${mismatchAssertionIds.length} R-1/R-2 value mismatches found`,
+          details,
+          overrides,
         ),
         discrepancies,
       };
     }
 
-    if (matched === 0) {
+    if (candidateAssertionCount === 0 || matchedAssertionCount === 0) {
       return {
         check: notRunCheck(
           RDTE_SUMMARY_DETAIL_RULE,
           runId,
           [],
           [],
-          refIds,
+          referenceArtifactIds,
           'no matching R-1/R-2 assertion pairs found',
-          undefined,
-          ov,
+          details,
+          overrides,
         ),
         discrepancies: [],
+      };
+    }
+
+    if (isRequired && unmatchedAssertionIds.length > 0) {
+      return {
+        check: notRunCheck(
+          RDTE_SUMMARY_DETAIL_RULE,
+          runId,
+          matchedAssertionIds,
+          matchedEvidenceIds,
+          referenceArtifactIds,
+          `required R-1/R-2 coverage incomplete: ` +
+            `${matchedAssertionCount}/${candidateAssertionCount} assertions matched`,
+          details,
+          overrides,
+        ),
+        discrepancies: unmatchedAssertionIds.map((assertionId) =>
+          makeDiscrepancy(
+            'rdte_summary_detail_unmatched',
+            'review',
+            `required comparison has no R-2 match for candidate assertion ${assertionId}`,
+            [assertionId],
+            [],
+            referenceArtifactIds,
+          ),
+        ),
       };
     }
 
@@ -171,12 +247,12 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
       check: passCheck(
         RDTE_SUMMARY_DETAIL_RULE,
         runId,
-        [],
-        [],
-        refIds,
-        `${matched} R-1/R-2 assertion pairs match within tolerance`,
-        undefined,
-        ov,
+        matchedAssertionIds,
+        [...new Set(matchedEvidenceIds)],
+        referenceArtifactIds,
+        `${matchedAssertionCount} R-1/R-2 assertion pairs match within tolerance`,
+        details,
+        overrides,
       ),
       discrepancies: [],
     };
