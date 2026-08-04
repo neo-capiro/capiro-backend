@@ -7,10 +7,20 @@
  *     --document <document-key> \
  *     --artifact <artifact.extraction-v1.json> \
  *     --source-document-id <uuid> \
- *     [--reference-artifact <path>]... \
+ *     [--reference-file <references.json>] \
  *     [--expected-source-sha256 <sha>] \
  *     [--expected-artifact-sha256 <sha>] \
  *     [--persist-audit]
+ *
+ * --reference-file is a JSON array of structured reference descriptors:
+ *   [
+ *     {
+ *       "artifactLocator": "/artifacts/r2.json",
+ *       "sourceDocumentId": "<uuid>",
+ *       "manifestDocumentKey": "r2_army_fy2027"
+ *     }
+ *   ]
+ * Every reference carries its own explicit SourceDocument identity.
  *
  * Behavior:
  *   - Default is inspect/read-only.
@@ -44,12 +54,18 @@ const EXIT_ERROR = 4;
 /* Argument parsing (refuses unknown arguments)                        */
 /* ------------------------------------------------------------------ */
 
+interface ReferenceDescriptor {
+  artifactLocator: string;
+  sourceDocumentId: string;
+  manifestDocumentKey?: string;
+}
+
 interface VerifyArgs {
   manifest: string;
   document: string;
   artifact: string;
   sourceDocumentId: string;
-  referenceArtifacts: string[];
+  referenceFile?: string;
   expectedSourceSha256?: string;
   expectedExtractionArtifactSha256?: string;
   persistAudit: boolean;
@@ -60,7 +76,7 @@ const KNOWN_FLAGS = new Set([
   '--document',
   '--artifact',
   '--source-document-id',
-  '--reference-artifact',
+  '--reference-file',
   '--expected-source-sha256',
   '--expected-artifact-sha256',
   '--persist-audit',
@@ -72,7 +88,6 @@ function parseArgs(argv: string[]): VerifyArgs {
     document: '',
     artifact: '',
     sourceDocumentId: '',
-    referenceArtifacts: [],
     persistAudit: false,
   };
 
@@ -103,8 +118,8 @@ function parseArgs(argv: string[]): VerifyArgs {
       case '--source-document-id':
         args.sourceDocumentId = argv[++i] ?? '';
         break;
-      case '--reference-artifact':
-        args.referenceArtifacts.push(argv[++i] ?? '');
+      case '--reference-file':
+        args.referenceFile = argv[++i] ?? '';
         break;
       case '--expected-source-sha256':
         args.expectedSourceSha256 = argv[++i];
@@ -141,6 +156,70 @@ function parseArgs(argv: string[]): VerifyArgs {
 }
 
 /* ------------------------------------------------------------------ */
+/* Reference descriptor file loading                                   */
+/* ------------------------------------------------------------------ */
+
+function loadReferenceDescriptors(referenceFile: string): ReferenceDescriptor[] {
+  if (!fs.existsSync(referenceFile)) {
+    console.error(`reference file not found: ${referenceFile}`);
+    process.exit(EXIT_ERROR);
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(fs.readFileSync(referenceFile, 'utf8'));
+  } catch (err) {
+    console.error(
+      `malformed reference JSON in ${referenceFile}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    process.exit(EXIT_ERROR);
+  }
+  if (!Array.isArray(json)) {
+    console.error(`reference file must contain a JSON array: ${referenceFile}`);
+    process.exit(EXIT_ERROR);
+  }
+  const descriptors: ReferenceDescriptor[] = [];
+  for (const [idx, entry] of json.entries()) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      console.error(`reference[${idx}] must be an object`);
+      process.exit(EXIT_ERROR);
+    }
+    const rec = entry as Record<string, unknown>;
+    const allowedKeys = new Set(['artifactLocator', 'sourceDocumentId', 'manifestDocumentKey']);
+    for (const key of Object.keys(rec)) {
+      if (!allowedKeys.has(key)) {
+        console.error(`reference[${idx}] has unknown property: ${key}`);
+        process.exit(EXIT_ERROR);
+      }
+    }
+    if (typeof rec.artifactLocator !== 'string' || rec.artifactLocator.length === 0) {
+      console.error(`reference[${idx}].artifactLocator is required (non-empty string)`);
+      process.exit(EXIT_ERROR);
+    }
+    if (typeof rec.sourceDocumentId !== 'string' || rec.sourceDocumentId.length === 0) {
+      console.error(`reference[${idx}].sourceDocumentId is required (non-empty string)`);
+      process.exit(EXIT_ERROR);
+    }
+    if (
+      rec.manifestDocumentKey !== undefined &&
+      (typeof rec.manifestDocumentKey !== 'string' || rec.manifestDocumentKey.length === 0)
+    ) {
+      console.error(
+        `reference[${idx}].manifestDocumentKey must be a non-empty string when present`,
+      );
+      process.exit(EXIT_ERROR);
+    }
+    descriptors.push({
+      artifactLocator: rec.artifactLocator,
+      sourceDocumentId: rec.sourceDocumentId,
+      ...(rec.manifestDocumentKey !== undefined
+        ? { manifestDocumentKey: rec.manifestDocumentKey }
+        : {}),
+    });
+  }
+  return descriptors;
+}
+
+/* ------------------------------------------------------------------ */
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -157,9 +236,13 @@ async function main(): Promise<void> {
       process.exit(EXIT_ERROR);
     }
   }
-  for (const ref of args.referenceArtifacts) {
-    if (!fs.existsSync(ref)) {
-      console.error(`reference artifact file not found: ${ref}`);
+  // Load structured reference descriptors (each with its own SourceDocument ID)
+  const referenceDescriptors: ReferenceDescriptor[] = args.referenceFile
+    ? loadReferenceDescriptors(args.referenceFile)
+    : [];
+  for (const ref of referenceDescriptors) {
+    if (!fs.existsSync(ref.artifactLocator)) {
+      console.error(`reference artifact file not found: ${ref.artifactLocator}`);
       process.exit(EXIT_ERROR);
     }
   }
@@ -178,8 +261,8 @@ async function main(): Promise<void> {
   if (args.expectedExtractionArtifactSha256) {
     requestInput.expectedExtractionArtifactSha256 = args.expectedExtractionArtifactSha256;
   }
-  if (args.referenceArtifacts.length > 0) {
-    requestInput.referenceArtifactLocators = args.referenceArtifacts;
+  if (referenceDescriptors.length > 0) {
+    requestInput.referenceArtifacts = referenceDescriptors;
   }
 
   // Validate with Zod
@@ -203,7 +286,9 @@ async function main(): Promise<void> {
         await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
       const prisma = new PrismaClient();
       repository = createPrismaBudgetVerificationRepository(prisma);
-      console.error('--persist-audit enabled: verification result will be persisted to the database');
+      console.error(
+        '--persist-audit enabled: verification result will be persisted to the database',
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`--persist-audit requires a configured database: ${message}`);

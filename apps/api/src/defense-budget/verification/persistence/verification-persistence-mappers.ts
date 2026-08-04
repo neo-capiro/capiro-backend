@@ -102,11 +102,13 @@ export function computeCandidateId(identity: CandidateIdentityV1): string {
 }
 
 /**
- * Compute a deterministic run UUID from the candidate ID and run-attempt
- * identity. The run-attempt identity includes the candidate identity plus
- * startedAt timestamp so re-runs get different IDs.
+ * Compute a deterministic run UUID from the candidate identity and an
+ * attempt identity. R8.1 §5.2: the default (exact) verification uses a
+ * fixed attempt identity ("0") so the run ID is stable across invocations
+ * and an exact replay returns the persisted run. A new attempt must be
+ * explicit — pass a distinct attemptId to force a fresh run ID.
  */
-export function computeRunId(identity: CandidateIdentityV1, startedAt: string): string {
+export function computeRunId(identity: CandidateIdentityV1, attemptId: string): string {
   const material = [
     identity.cycleId,
     identity.manifestContentSha256,
@@ -118,7 +120,7 @@ export function computeRunId(identity: CandidateIdentityV1, startedAt: string): 
     identity.verifierVersion,
     identity.policyVersion,
     identity.policySha256,
-    startedAt,
+    attemptId,
   ].join('|');
   return deterministicUuid(material);
 }

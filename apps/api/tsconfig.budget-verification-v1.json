@@ -69,6 +69,7 @@
     "scripts/verify-defense-budget-extraction-v1.ts",
     "scripts/review-defense-budget-verification-v1.ts",
     "scripts/report-defense-budget-verification-cycle-v1.ts",
+    "scripts/rehearse-budget-verification-v1.ts",
     "src/defense-budget/verification/index.ts"
   ]
 }

@@ -16,6 +16,7 @@
  */
 import {
   BudgetReviewV1Service,
+  ReviewAlreadyCompletedError,
   ReviewEligibilityError,
   hasNonWaivableBlockingFailure,
   hasNonWaivableBlockingProofFinding,
@@ -87,7 +88,9 @@ class FakeReviewRepo implements BudgetVerificationRepositoryV1 {
     if (this.candidate) {
       const currentStatus = this.concurrentStatusChange ?? this.candidate.status;
       if (currentStatus !== 'NEEDS_REVIEW') {
-        throw new Error('candidate is not in NEEDS_REVIEW state');
+        const error = new Error('candidate is not in NEEDS_REVIEW state');
+        error.name = 'VerificationConcurrencyError';
+        throw error;
       }
     }
     this.persistedReview = {
@@ -619,18 +622,76 @@ describe('BudgetReviewV1Service', () => {
     expect(result.limitationFindings).toHaveLength(0);
   });
 
-  // M7: concurrent double review prevented
-  it('second review fails after first review changes status (M7)', async () => {
+  // R8.1 §6.1: dry-run exercises the same eligibility pipeline but writes nothing.
+  it('dry-run evaluates acceptance eligibility and returns evidence without persisting a decision', async () => {
+    const repo = new FakeReviewRepo();
+    repo.candidate = makeCandidate();
+    repo.run = makeRun();
+    repo.checks = [makeCheck({ evidenceIds: ['check-evidence'] })];
+    repo.discrepancies = [makeDiscrepancy({ evidenceIds: ['discrepancy-evidence'] })];
+    repo.proofSnapshots = [makeProofSnapshot({ proofKind: 'source', status: 'verified' })];
+    const service = new BudgetReviewV1Service(repo);
+
+    const result = await service.review(makeReviewInput({ evidenceIds: ['check-evidence'] }), {
+      commit: false,
+    });
+
+    expect(result).toMatchObject({
+      candidateStatus: 'NEEDS_REVIEW',
+      runStatus: 'NEEDS_REVIEW',
+      runDecision: 'REVIEW',
+      priorReviewDecisions: 0,
+      eligible: true,
+    });
+    expect(result.evidenceIdsInspected).toEqual(
+      expect.arrayContaining(['check-evidence', 'discrepancy-evidence']),
+    );
+    expect(result.proofSnapshotStatuses).toEqual([{ proofKind: 'source', status: 'verified' }]);
+    expect(repo.persistCallCount).toBe(0);
+    expect(repo.persistedReview).toBeNull();
+    expect(repo.candidate.status).toBe('NEEDS_REVIEW');
+    expect(repo.reviewDecisions).toHaveLength(0);
+  });
+
+  it('dry-run refuses a blocked acceptance and still performs no write', async () => {
+    const repo = new FakeReviewRepo();
+    repo.candidate = makeCandidate();
+    repo.run = makeRun();
+    repo.checks = [makeCheck({ code: 'identity_validation', outcome: 'FAIL', blocking: true })];
+    const service = new BudgetReviewV1Service(repo);
+
+    await expect(service.review(makeReviewInput(), { commit: false })).rejects.toMatchObject({
+      code: 'blocking_finding_present',
+    });
+    expect(repo.persistCallCount).toBe(0);
+    expect(repo.candidate.status).toBe('NEEDS_REVIEW');
+    expect(repo.reviewDecisions).toHaveLength(0);
+  });
+
+  // M7/R8.1 §6.3: exactly one of simultaneous accept/reject reviews can persist.
+  it('allows exactly one concurrent terminal decision and returns a controlled outcome to the loser', async () => {
     const repo = new FakeReviewRepo();
     repo.candidate = makeCandidate();
     repo.run = makeRun();
     const service = new BudgetReviewV1Service(repo);
 
-    // First review succeeds
-    await service.review(makeReviewInput());
+    const [accept, reject] = await Promise.allSettled([
+      service.review(makeReviewInput({ decision: 'accept', reviewerId: 'reviewer-accept' })),
+      service.review(makeReviewInput({ decision: 'reject', reviewerId: 'reviewer-reject' })),
+    ]);
 
-    // Second review should fail — candidate is now REVIEW_ACCEPTED
-    await expect(service.review(makeReviewInput())).rejects.toThrow(ReviewEligibilityError);
+    expect(accept.status).toBe('fulfilled');
+    if (accept.status !== 'fulfilled') throw accept.reason;
+    expect(accept.value.decision).toBe('accept');
+
+    expect(reject.status).toBe('rejected');
+    if (reject.status !== 'rejected') throw new Error('second review unexpectedly succeeded');
+    expect(reject.reason).toBeInstanceOf(ReviewAlreadyCompletedError);
+    // Both callers may reach persistence before the first terminal state is
+    // visible; the repository's locked/conditional write admits only one.
+    expect(repo.persistCallCount).toBe(2);
+    expect(repo.reviewDecisions).toHaveLength(1);
+    expect(repo.candidate.status).toBe('REVIEW_ACCEPTED');
   });
 
   // M7: concurrent modification simulated — candidate status changes between read and persist
@@ -641,8 +702,8 @@ describe('BudgetReviewV1Service', () => {
     repo.concurrentStatusChange = 'REVIEW_ACCEPTED'; // simulate concurrent modification
     const service = new BudgetReviewV1Service(repo);
 
-    await expect(service.review(makeReviewInput())).rejects.toThrow(
-      'candidate is not in NEEDS_REVIEW state',
+    await expect(service.review(makeReviewInput())).rejects.toBeInstanceOf(
+      ReviewAlreadyCompletedError,
     );
   });
 

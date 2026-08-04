@@ -8,7 +8,7 @@
  * - preserve both source artifact IDs and evidence IDs
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
-import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from '../rule-types.js';
+import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
 import {
   sumDecimals,
   compareWithTolerance,
@@ -30,25 +30,22 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact, referenceArtifacts } = input;
+
+    // R8.1 §3.1: required when policy lists it as a required comparison.
+    const isRequired = policy.requiredComparisonRules.includes('rdte_summary_detail');
+    const ov = { required: isRequired, blocking: isRequired || RDTE_SUMMARY_DETAIL_RULE.blocking };
 
     // Only run when arithmeticRules includes this rule
     if (!policy.arithmeticRules.includes('rdte_summary_detail')) {
       return {
-        check: {
-          checkId: '',
-          code: RDTE_SUMMARY_DETAIL_RULE.code,
-          ruleVersion: RDTE_SUMMARY_DETAIL_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'rdte_summary_detail not in policy.arithmeticRules',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(
+          RDTE_SUMMARY_DETAIL_RULE,
+          runId,
+          'rdte_summary_detail not in policy.arithmeticRules',
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -56,19 +53,7 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
     // Only run for R-1 artifacts
     if (artifact.source.exhibit !== 'R-1') {
       return {
-        check: {
-          checkId: '',
-          code: RDTE_SUMMARY_DETAIL_RULE.code,
-          ruleVersion: RDTE_SUMMARY_DETAIL_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'not an R-1 artifact',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(RDTE_SUMMARY_DETAIL_RULE, runId, 'not an R-1 artifact', ov),
         discrepancies: [],
       };
     }
@@ -77,19 +62,16 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
     const r2Refs = referenceArtifacts.filter((a) => a.source.exhibit === 'R-2');
     if (r2Refs.length === 0) {
       return {
-        check: {
-          checkId: '',
-          code: RDTE_SUMMARY_DETAIL_RULE.code,
-          ruleVersion: RDTE_SUMMARY_DETAIL_RULE.version,
-          outcome: 'NOT_RUN',
-          required: false,
-          blocking: false,
-          riskPoints: 10,
-          message: 'no R-2 reference artifact available',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: notRunCheck(
+          RDTE_SUMMARY_DETAIL_RULE,
+          runId,
+          [],
+          [],
+          [],
+          'no R-2 reference artifact available',
+          undefined,
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -162,6 +144,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           refIds,
           `${mismatched} R-1/R-2 mismatches out of ${matched} matched`,
+          undefined,
+          ov,
         ),
         discrepancies,
       };
@@ -176,6 +160,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           refIds,
           'no matching R-1/R-2 assertion pairs found',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -189,6 +175,8 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         [],
         refIds,
         `${matched} R-1/R-2 assertion pairs match within tolerance`,
+        undefined,
+        ov,
       ),
       discrepancies: [],
     };

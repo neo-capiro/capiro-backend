@@ -16,6 +16,7 @@
 import { sha256Bytes } from '../../contracts/canonical-json.js';
 import type { TrustedArchiveProofV1, ProofFindingV1 } from './trusted-proof-types.js';
 import { blockingFinding, reviewFinding } from './trusted-proof-types.js';
+import type { VerificationPolicyV1 } from '../verification-policy-v1.js';
 
 export interface ArchiveProofResolverInput {
   /** SourceDocument archive fields (nullable for legacy rows). */
@@ -27,6 +28,12 @@ export interface ArchiveProofResolverInput {
   archivedAt?: Date | null;
   /** Expected SHA (from source document or artifact). */
   expectedSourceSha256: string;
+  /**
+   * Policy: does this verification require an immutable archive?
+   * When true, absence of archive metadata / VersionId / bytes is BLOCKING
+   * (never a review-only finding). When false, absence may be review.
+   */
+  requireImmutableArchive?: boolean;
 }
 
 export interface S3ObjectReader {
@@ -56,16 +63,22 @@ export class ArchiveProofResolver {
   constructor(private readonly s3Reader: S3ObjectReader) {}
 
   async resolve(input: ArchiveProofResolverInput): Promise<ArchiveProofResolverResult> {
-    const findings: ProofFindingV1[] = [];
+    const required = input.requireImmutableArchive === true;
+    // When the policy requires an immutable archive, any non-verified outcome
+    // is a blocking finding (the policy table treats missing / not_applicable /
+    // mismatch all as FAIL). When not required, absence may be review.
+    const absenceFinding = required ? blockingFinding : reviewFinding;
 
-    // If no archive metadata exists, return missing (not_applicable for legacy)
+    // If no archive metadata exists, the archive is absent.
     if (!input.archiveBucket || !input.archiveS3Key) {
       return {
         archive: { status: 'missing' },
         findings: [
-          reviewFinding(
+          absenceFinding(
             'archive_version_missing',
-            'source PDF has no archive metadata; legacy artifact',
+            required
+              ? 'policy requires immutable archive but source PDF has no archive metadata'
+              : 'source PDF has no archive metadata; legacy artifact',
           ),
         ],
       };
@@ -74,7 +87,7 @@ export class ArchiveProofResolver {
     // Require exact VersionId for immutable archive proof
     if (!input.archiveVersionId) {
       return {
-        archive: { status: 'mismatch', bucket: input.archiveBucket, key: input.archiveS3Key },
+        archive: { status: 'missing', bucket: input.archiveBucket, key: input.archiveS3Key },
         findings: [
           blockingFinding(
             'archive_version_missing',
@@ -175,4 +188,51 @@ export class ArchiveProofResolver {
       findings: [],
     };
   }
+}
+
+/**
+ * R8.1 §2.5 — Evaluate a resolved archive proof against policy.
+ *
+ *   requireImmutableArchive = true
+ *     verified       -> []           (PASS)
+ *     missing        -> blocking FAIL
+ *     mismatch       -> blocking FAIL
+ *     not_applicable -> blocking FAIL
+ *
+ *   requireImmutableArchive = false
+ *     verified       -> []           (PASS)
+ *     missing        -> review (absence reviewable)
+ *     not_applicable -> []           (SKIPPED)
+ *     mismatch       -> blocking FAIL
+ */
+export function evaluateArchiveProofForPolicy(
+  archive: TrustedArchiveProofV1,
+  policy: Pick<VerificationPolicyV1, 'requireImmutableArchive'>,
+): ProofFindingV1[] {
+  if (policy.requireImmutableArchive) {
+    if (archive.status === 'verified') return [];
+    return [
+      blockingFinding(
+        archive.status === 'mismatch' ? 'archive_sha_mismatch' : 'archive_version_missing',
+        `policy requires an immutable archive but archive proof status is "${archive.status}"`,
+      ),
+    ];
+  }
+  // Archive not required
+  if (archive.status === 'verified' || archive.status === 'not_applicable') return [];
+  if (archive.status === 'missing') {
+    return [
+      reviewFinding(
+        'archive_version_missing',
+        'archive not required by policy; archive absence is reviewable',
+      ),
+    ];
+  }
+  // mismatch
+  return [
+    blockingFinding(
+      'archive_sha_mismatch',
+      'archive bytes/metadata mismatch (blocking even when archive not required)',
+    ),
+  ];
 }

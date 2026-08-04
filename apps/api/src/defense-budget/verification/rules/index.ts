@@ -91,3 +91,50 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
 ];
+
+import { CROSS_DOCUMENT_SUMMARY_DETAIL_RULE } from './comparison/comparison.rules.js';
+import { COMMITTEE_REQUEST_REFERENCE_RULE } from './comparison/comparison.rules.js';
+import { HISTORICAL_CONSISTENCY_RULE } from './comparison/comparison.rules.js';
+
+/**
+ * Every rule code the engine can execute — base rules plus the comparison
+ * rules the service appends. Used to validate policy rule-code configuration
+ * (R8.1 §3.4): a policy must never name a rule code that has no
+ * implementation.
+ */
+export const ALL_EXECUTABLE_RULES: readonly VerificationRuleV1[] = [
+  ...ALL_VERIFICATION_RULES,
+  CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+  COMMITTEE_REQUEST_REFERENCE_RULE,
+  HISTORICAL_CONSISTENCY_RULE,
+];
+
+const EXECUTABLE_RULE_CODES = new Set(ALL_EXECUTABLE_RULES.map((r) => r.code));
+
+/** True when a rule code maps to an implemented, executable rule. */
+export function isExecutableRuleCode(code: string): boolean {
+  return EXECUTABLE_RULE_CODES.has(code);
+}
+
+/**
+ * R8.1 §3.4 — Validate every policy-configured rule code against the
+ * implemented rule set. Returns the list of invalid codes (empty = valid).
+ * Throws nothing; callers decide how to surface invalid configuration.
+ */
+export function validatePolicyRuleCodes(policy: {
+  requiredComparisonRules: readonly string[];
+  reviewComparisonRules: readonly string[];
+  arithmeticRules: readonly string[];
+}): string[] {
+  const invalid: string[] = [];
+  for (const code of [
+    ...policy.requiredComparisonRules,
+    ...policy.reviewComparisonRules,
+    ...policy.arithmeticRules,
+  ]) {
+    if (!EXECUTABLE_RULE_CODES.has(code) && !invalid.includes(code)) {
+      invalid.push(code);
+    }
+  }
+  return invalid;
+}

@@ -45,7 +45,7 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact } = input;
 
     // Determine if this comparison is required or optional for this policy
@@ -62,6 +62,13 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
       };
     }
 
+    // R8.1 §3.1: persist the policy-resolved required/blocking, never the
+    // static rule-level optional flag.
+    const ov = {
+      required: isRequired,
+      blocking: isRequired || CROSS_DOCUMENT_SUMMARY_DETAIL_RULE.blocking,
+    };
+
     // Check reference artifacts are proved
     const refFindings = input.referenceArtifactsFindings;
     const hasBlockingRefFinding = refFindings.some((f) => f.severity === 'blocking');
@@ -74,6 +81,8 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           input.referenceArtifacts.map((a) => a.artifactId),
           'reference artifact proof failed — comparison cannot run',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -91,6 +100,8 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           isRequired
             ? 'no reference artifacts available for required comparison'
             : 'no reference artifacts available',
+          undefined,
+          ov,
         ),
         discrepancies: isRequired
           ? [
@@ -118,6 +129,8 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           input.referenceArtifacts.map((a) => a.artifactId),
           'reference artifact proof failed — comparison cannot run',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -135,6 +148,7 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
           runId,
           'no funding assertions to compare',
+          ov,
         ),
         discrepancies: [],
       };
@@ -142,25 +156,34 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
     const mismatches: ComparisonMismatchDetailV1[] = [];
     const matchedAssertionIds: string[] = [];
+    const unmatchedAssertionIds: string[] = [];
+    const ambiguousAssertionIds: string[] = [];
     const refIds: string[] = input.referenceArtifacts.map((a) => a.artifactId);
-    let ambiguous = false;
+    let referenceAssertionCount = 0;
 
     for (const candidate of fundingAssertions) {
       const idKey = identityNaturalKey(candidate);
       const match = provider.lookupFunding(idKey, candidate.fiscalYear, candidate.field);
-      if (match.kind === 'zero') continue;
+      if (match.kind === 'zero') {
+        unmatchedAssertionIds.push(candidate.assertionId);
+        continue;
+      }
 
       if (match.kind === 'multiple') {
-        ambiguous = true;
+        ambiguousAssertionIds.push(candidate.assertionId);
         continue;
       }
 
       // One match
       const ref = match.value;
-      matchedAssertionIds.push(candidate.assertionId);
+      referenceAssertionCount++;
       const candidateVal = candidate.money.valueMillions;
       const refVal = ref.valueMillions ?? '';
-      if (!refVal) continue;
+      if (!refVal) {
+        unmatchedAssertionIds.push(candidate.assertionId);
+        continue;
+      }
+      matchedAssertionIds.push(candidate.assertionId);
 
       const tolerance = printedUnitToleranceMillions(1);
       const cmp = compareWithTolerance(candidateVal, refVal, tolerance);
@@ -179,7 +202,23 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
       }
     }
 
-    if (ambiguous) {
+    // R8.1 §3.3: assertion coverage accounting.
+    const candidateAssertionCount = fundingAssertions.length;
+    const matchedCount = matchedAssertionIds.length;
+    const coveragePercent =
+      candidateAssertionCount === 0
+        ? 0
+        : Math.round((matchedCount / candidateAssertionCount) * 100);
+    const coverageDetails = {
+      candidateAssertionCount,
+      matchedAssertionCount: matchedCount,
+      unmatchedAssertionIds,
+      ambiguousAssertionIds,
+      referenceAssertionCount,
+      coveragePercent,
+    };
+
+    if (ambiguousAssertionIds.length > 0) {
       return {
         check: failCheck(
           CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
@@ -188,13 +227,15 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           [],
           refIds,
           'ambiguous reference matches — multiple reference assertions match the same natural key',
+          coverageDetails,
+          ov,
         ),
         discrepancies: [
           makeDiscrepancy(
             'cross_document_summary_detail_ambiguous',
             isRequired ? 'blocking' : 'review',
             'multiple reference assertions match the same natural key — cannot select one',
-            matchedAssertionIds,
+            ambiguousAssertionIds,
             [],
             refIds,
           ),
@@ -211,7 +252,8 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           mismatches.map((m) => m.candidateEvidenceId),
           mismatches.map((m) => m.referenceArtifactId),
           `${mismatches.length} cross-document summary/detail mismatches found`,
-          { mismatches: JSON.parse(JSON.stringify(mismatches)) },
+          { ...coverageDetails, mismatches: JSON.parse(JSON.stringify(mismatches)) },
+          ov,
         ),
         discrepancies: mismatches.map((m) =>
           makeDiscrepancy(
@@ -230,6 +272,49 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
       };
     }
 
+    // R8.1 §3.2: a required comparison cannot pass with zero or partial coverage.
+    if (isRequired && matchedCount < candidateAssertionCount) {
+      return {
+        check: notRunCheck(
+          CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+          runId,
+          matchedAssertionIds,
+          [],
+          refIds,
+          `required comparison coverage incomplete: ${matchedCount}/${candidateAssertionCount} candidate assertions matched (${coveragePercent}%)`,
+          coverageDetails,
+          ov,
+        ),
+        discrepancies: unmatchedAssertionIds.map((id) =>
+          makeDiscrepancy(
+            'cross_document_summary_detail_unmatched',
+            'review',
+            `required comparison: candidate assertion ${id} has no matching reference assertion`,
+            [id],
+            [],
+            refIds,
+          ),
+        ),
+      };
+    }
+
+    // A review (optional) comparison with zero matches is NOT_RUN, never PASS.
+    if (!isRequired && matchedCount === 0) {
+      return {
+        check: notRunCheck(
+          CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+          runId,
+          [],
+          [],
+          refIds,
+          'no candidate assertions matched any reference assertion',
+          coverageDetails,
+          ov,
+        ),
+        discrepancies: [],
+      };
+    }
+
     return {
       check: passCheck(
         CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
@@ -238,6 +323,8 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
         [],
         refIds,
         `${matchedAssertionIds.length} funding assertions matched reference artifacts`,
+        coverageDetails,
+        ov,
       ),
       discrepancies: [],
     };
@@ -258,7 +345,7 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
 
     const isRequired = policy.requiredComparisonRules.includes('committee_request_reference');
     const isReview = policy.reviewComparisonRules.includes('committee_request_reference');
@@ -273,6 +360,12 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
       };
     }
 
+    // R8.1 §3.1: policy-resolved required/blocking.
+    const ov = {
+      required: isRequired,
+      blocking: isRequired || COMMITTEE_REQUEST_REFERENCE_RULE.blocking,
+    };
+
     if (input.referenceArtifacts.length === 0) {
       return {
         check: notRunCheck(
@@ -284,6 +377,8 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
           isRequired
             ? 'no reference artifacts for required committee_request_reference'
             : 'no reference artifacts available',
+          undefined,
+          ov,
         ),
         discrepancies: isRequired
           ? [
@@ -311,6 +406,8 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
           [],
           input.referenceArtifacts.map((a) => a.artifactId),
           'reference proof failed',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -327,6 +424,7 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
           COMMITTEE_REQUEST_REFERENCE_RULE,
           runId,
           'no request funding assertions to compare',
+          ov,
         ),
         discrepancies: [],
       };
@@ -334,40 +432,32 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
 
     const mismatches: ComparisonMismatchDetailV1[] = [];
     const matchedIds: string[] = [];
+    const unmatchedIds: string[] = [];
+    const ambiguousIds: string[] = [];
     const refIds = input.referenceArtifacts.map((a) => a.artifactId);
+    let referenceAssertionCount = 0;
 
     for (const candidate of requestFunding) {
       const idKey = identityNaturalKey(candidate);
       const match = provider.lookupFunding(idKey, candidate.fiscalYear, 'request');
-      if (match.kind === 'zero') continue;
+      if (match.kind === 'zero') {
+        unmatchedIds.push(candidate.assertionId);
+        continue;
+      }
       if (match.kind === 'multiple') {
-        return {
-          check: failCheck(
-            COMMITTEE_REQUEST_REFERENCE_RULE,
-            runId,
-            [candidate.assertionId],
-            candidate.evidenceIds,
-            refIds,
-            'ambiguous reference matches',
-          ),
-          discrepancies: [
-            makeDiscrepancy(
-              'committee_request_reference_ambiguous',
-              'review',
-              'multiple matches',
-              [candidate.assertionId],
-              candidate.evidenceIds,
-              refIds,
-            ),
-          ],
-        };
+        ambiguousIds.push(candidate.assertionId);
+        continue;
       }
 
       const ref = match.value;
-      matchedIds.push(candidate.assertionId);
+      referenceAssertionCount++;
       const candidateVal = candidate.money.valueMillions;
       const refVal = ref.valueMillions ?? '';
-      if (!refVal) continue;
+      if (!refVal) {
+        unmatchedIds.push(candidate.assertionId);
+        continue;
+      }
+      matchedIds.push(candidate.assertionId);
 
       const tolerance = printedUnitToleranceMillions(1);
       const cmp = compareWithTolerance(candidateVal, refVal, tolerance);
@@ -386,6 +476,47 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
       }
     }
 
+    // R8.1 §3.3: coverage accounting.
+    const candidateAssertionCount = requestFunding.length;
+    const matchedCount = matchedIds.length;
+    const coveragePercent =
+      candidateAssertionCount === 0
+        ? 0
+        : Math.round((matchedCount / candidateAssertionCount) * 100);
+    const coverageDetails = {
+      candidateAssertionCount,
+      matchedAssertionCount: matchedCount,
+      unmatchedAssertionIds: unmatchedIds,
+      ambiguousAssertionIds: ambiguousIds,
+      referenceAssertionCount,
+      coveragePercent,
+    };
+
+    if (ambiguousIds.length > 0) {
+      return {
+        check: failCheck(
+          COMMITTEE_REQUEST_REFERENCE_RULE,
+          runId,
+          ambiguousIds,
+          [],
+          refIds,
+          'ambiguous reference matches',
+          coverageDetails,
+          ov,
+        ),
+        discrepancies: [
+          makeDiscrepancy(
+            'committee_request_reference_ambiguous',
+            isRequired ? 'blocking' : 'review',
+            'multiple matches',
+            ambiguousIds,
+            [],
+            refIds,
+          ),
+        ],
+      };
+    }
+
     if (mismatches.length > 0) {
       return {
         check: failCheck(
@@ -395,12 +526,13 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
           mismatches.map((m) => m.candidateEvidenceId),
           mismatches.map((m) => m.referenceArtifactId),
           `${mismatches.length} committee request mismatches`,
-          { mismatches: JSON.parse(JSON.stringify(mismatches)) },
+          { ...coverageDetails, mismatches: JSON.parse(JSON.stringify(mismatches)) },
+          ov,
         ),
         discrepancies: mismatches.map((m) =>
           makeDiscrepancy(
             'committee_request_reference_mismatch',
-            'review',
+            isRequired ? 'blocking' : 'review',
             `candidate ${m.candidateValue} vs reference ${m.referenceValue}`,
             [m.candidateAssertionId],
             [m.candidateEvidenceId],
@@ -414,6 +546,32 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
       };
     }
 
+    // R8.1 §3.2: required comparison cannot pass with zero or partial coverage.
+    if (isRequired && matchedCount < candidateAssertionCount) {
+      return {
+        check: notRunCheck(
+          COMMITTEE_REQUEST_REFERENCE_RULE,
+          runId,
+          matchedIds,
+          [],
+          refIds,
+          `required comparison coverage incomplete: ${matchedCount}/${candidateAssertionCount} request assertions matched (${coveragePercent}%)`,
+          coverageDetails,
+          ov,
+        ),
+        discrepancies: unmatchedIds.map((id) =>
+          makeDiscrepancy(
+            'committee_request_reference_unmatched',
+            'review',
+            `required comparison: request assertion ${id} has no matching reference assertion`,
+            [id],
+            [],
+            refIds,
+          ),
+        ),
+      };
+    }
+
     return {
       check: passCheck(
         COMMITTEE_REQUEST_REFERENCE_RULE,
@@ -422,6 +580,8 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
         [],
         refIds,
         `${matchedIds.length} request assertions matched`,
+        coverageDetails,
+        ov,
       ),
       discrepancies: [],
     };
@@ -442,7 +602,7 @@ export const HISTORICAL_CONSISTENCY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
 
     const isRequired = policy.requiredComparisonRules.includes('historical_consistency');
     const isReview = policy.reviewComparisonRules.includes('historical_consistency');

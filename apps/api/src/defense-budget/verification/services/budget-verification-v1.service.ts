@@ -39,7 +39,7 @@ import type { BudgetVerificationRepositoryV1 } from '../persistence/verification
 import type { CandidateIdentityV1 } from '../persistence/verification-repository.js';
 import { computePolicySha256, mergeManifestWithPolicy } from '../verification-policy-v1.js';
 import { lookupPolicy } from '../verification-policy-registry.js';
-import { ALL_VERIFICATION_RULES } from '../rules/index.js';
+import { ALL_VERIFICATION_RULES, validatePolicyRuleCodes } from '../rules/index.js';
 import {
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
   COMMITTEE_REQUEST_REFERENCE_RULE,
@@ -48,10 +48,12 @@ import {
 import type { RuleResultV1 } from '../rules/rule-types.js';
 import { computeDecisionV1 } from '../decision/decision-engine-v1.js';
 import type { DecisionEngineInputV1 } from '../decision/decision-engine-v1.js';
+import { reconcilePageOnlyEvidence } from '../rules/page-only-reconciliation.js';
 import {
   computeCandidateId,
   computeRunId,
 } from '../persistence/verification-persistence-mappers.js';
+import { defenseBudgetVerificationResultV1Schema } from '../verification-contract-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Service                                                             */
@@ -76,7 +78,7 @@ export class BudgetVerificationV1Service {
       manifestDocumentKey: request.manifestDocumentKey,
       extractionArtifactLocator: request.extractionArtifactLocator,
       sourceDocumentId: request.sourceDocumentId,
-      referenceArtifactLocators: request.referenceArtifactLocators ?? [],
+      referenceArtifacts: request.referenceArtifacts ?? [],
       expectedSourcePdfSha256: request.expectedSourcePdfSha256,
       expectedExtractionArtifactSha256: request.expectedExtractionArtifactSha256,
     });
@@ -93,6 +95,16 @@ export class BudgetVerificationV1Service {
       requiredFundingFields: manifestDoc.requiredFundingFields,
       requiredLineKinds: manifestDoc.expectedLineKinds,
     });
+
+    // R8.1 §3.4: reject invalid policy rule-code configuration before running.
+    const invalidRuleCodes = validatePolicyRuleCodes(policy);
+    if (invalidRuleCodes.length > 0) {
+      throw new Error(
+        `invalid verification policy rule code(s): ${invalidRuleCodes.join(', ')} ` +
+          `(family=${manifestDoc.family} exhibit=${manifestDoc.exhibit})`,
+      );
+    }
+
     const policySha256 = computePolicySha256(policy);
 
     // R8-E: Compute candidate and run identity BEFORE rule execution
@@ -111,7 +123,19 @@ export class BudgetVerificationV1Service {
       policySha256,
     };
     const candidateId = computeCandidateId(candidateIdentity);
-    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
+    // R8.1 §5.2: deterministic default attempt (exact replay); a new attempt
+    // requires an explicit attemptId.
+    const attemptId = request.attemptId ?? '0';
+    const verificationRunId = computeRunId(candidateIdentity, attemptId);
+
+    // R8.1 §5.1: exact terminal replay — return the persisted snapshot before
+    // running any rules. Only when a repository is available (persist mode).
+    if (this.repository) {
+      const existing = await this.repository.findTerminalRunByIdentity(candidateIdentity);
+      if (existing && existing.run.resultSnapshot) {
+        return defenseBudgetVerificationResultV1Schema.parse(existing.run.resultSnapshot);
+      }
+    }
 
     // L6.4: Run deterministic verification
     const input: ArtifactVerificationInputV1 = {
@@ -149,6 +173,14 @@ export class BudgetVerificationV1Service {
       .filter((c): c is VerificationCheckV1 => c !== null);
     const discrepancies: VerificationDiscrepancyV1[] = ruleResults.flatMap((r) => r.discrepancies);
 
+    // R8.1 WS4: page-only evidence reconciliation runs AFTER comparison
+    // rules, so the final determination uses comparison outcomes. One passing
+    // comparison never clears an unrelated page-only assertion.
+    const reconciliation = reconcilePageOnlyEvidence(input, policy, checks);
+    if (reconciliation.discrepancies.length > 0) {
+      discrepancies.push(...reconciliation.discrepancies);
+    }
+
     // L6.5: Produce final result via decision engine
     const hasManualParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'manual');
     const hasOcrParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'paddleocr');
@@ -169,7 +201,9 @@ export class BudgetVerificationV1Service {
     const decisionInput: DecisionEngineInputV1 = {
       checks,
       discrepancies,
-      proofFindings: resolution.proofFindings,
+      // R8.1 §3.6: reference proof failures are part of the final decision —
+      // a blocking reference proof failure must prevent PASS.
+      proofFindings: [...resolution.proofFindings, ...resolution.referenceArtifactsFindings],
       policy,
       hasManualParser,
       hasOcrParser,
@@ -214,8 +248,10 @@ export class BudgetVerificationV1Service {
           'persist_audit mode requires a repository, but no repository was configured',
         );
       }
-      // R3: Persist all results including unsupported policies
-      await this.repository.persistCompletedVerification({
+      // R3: Persist all results including unsupported policies.
+      // R8.1 §5.3: use the persisted result — the service return must
+      // identify a real persisted candidate and run.
+      const persisted = await this.repository.persistCompletedVerification({
         candidateIdentity,
         result,
         proofBundle: resolution.proofBundle,
@@ -226,6 +262,11 @@ export class BudgetVerificationV1Service {
         startedAt: result.startedAt,
         completedAt: result.completedAt,
       });
+      return {
+        ...result,
+        candidateId: persisted.candidate.id,
+        verificationRunId: persisted.run.id,
+      };
     }
 
     // L6.7: Return result
@@ -360,7 +401,7 @@ export class BudgetVerificationV1Service {
 
     // R3: Deterministic IDs for unsupported policy result
     const candidateId = computeCandidateId(candidateIdentity);
-    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
+    const verificationRunId = computeRunId(candidateIdentity, request.attemptId ?? '0');
 
     const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',

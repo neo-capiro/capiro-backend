@@ -9,7 +9,7 @@
  * - absence of a required child set is truthful NOT_RUN
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
-import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from '../rule-types.js';
+import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
 import {
   sumDecimals,
   multiplyByInteger,
@@ -29,24 +29,21 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact } = input;
+
+    // R8.1 §3.1: policy-resolved required/blocking.
+    const isRequired = policy.requiredComparisonRules.includes('procurement_rollup');
+    const ov = { required: isRequired, blocking: isRequired || PROCUREMENT_ROLLUP_RULE.blocking };
 
     if (!policy.arithmeticRules.includes('procurement_rollup')) {
       return {
-        check: {
-          checkId: '',
-          code: PROCUREMENT_ROLLUP_RULE.code,
-          ruleVersion: PROCUREMENT_ROLLUP_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'procurement_rollup not in policy.arithmeticRules',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(
+          PROCUREMENT_ROLLUP_RULE,
+          runId,
+          'procurement_rollup not in policy.arithmeticRules',
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -54,19 +51,7 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
     // Only run for P-doc artifacts
     if (artifact.source.family !== 'procurement') {
       return {
-        check: {
-          checkId: '',
-          code: PROCUREMENT_ROLLUP_RULE.code,
-          ruleVersion: PROCUREMENT_ROLLUP_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'not a procurement artifact',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(PROCUREMENT_ROLLUP_RULE, runId, 'not a procurement artifact', ov),
         discrepancies: [],
       };
     }
@@ -89,6 +74,8 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           'no procurement line assertions',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -209,6 +196,8 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           `procurement rollup mismatches: ${discrepancies.filter((d) => d.severity === 'blocking').length}`,
+          undefined,
+          ov,
         ),
         discrepancies,
       };
@@ -223,6 +212,8 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           `${discrepancies.length} procurement review findings`,
+          undefined,
+          ov,
         ),
         discrepancies,
       };
@@ -236,6 +227,8 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
         [],
         [],
         'all procurement rollups match within tolerance',
+        undefined,
+        ov,
       ),
       discrepancies: [],
     };

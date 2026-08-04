@@ -55,7 +55,7 @@ export const COMPLETENESS_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact, manifest, manifestDocumentKey } = input;
     const doc = manifest.documents.find((d) => d.documentKey === manifestDocumentKey);
     const assertions = artifact.assertions;

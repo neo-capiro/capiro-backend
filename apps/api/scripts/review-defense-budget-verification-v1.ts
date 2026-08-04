@@ -251,35 +251,29 @@ async function main(): Promise<void> {
       console.log(JSON.stringify(output, null, 2));
       console.error('Review committed successfully.');
     } else {
-      // Dry-run mode: read real persisted data, perform eligibility checks, write nothing
-      const candidate = await repository.readCandidate(args.candidateId);
-      if (!candidate) {
-        console.error(`candidate not found: ${args.candidateId}`);
-        process.exit(EXIT_ERROR);
-      }
-      const run = await repository.readRun(args.runId);
-      if (!run) {
-        console.error(`run not found: ${args.runId}`);
-        process.exit(EXIT_ERROR);
-      }
-      const checks = await repository.readChecks(args.runId);
-      const discrepancies = await repository.readDiscrepancies(args.runId);
-      const priorDecisions = await repository.readReviewDecisions(args.candidateId);
-
+      // R8.1 §6.1: dry-run uses the REAL review service — full eligibility
+      // logic, no partial CLI-side reimplementation, no writes.
+      const report = await service.review(reviewInput, { commit: false });
       const dryRunOutput = {
         mode: 'dry-run',
-        candidateId: candidate.id,
-        candidateStatus: candidate.status,
-        runId: run.id,
-        runDecision: run.decision,
-        runStatus: run.status,
-        checkCount: checks.length,
-        blockingFailCount: checks.filter(c => c.outcome === 'FAIL' && c.blocking).length,
-        requiredNotRunCount: checks.filter(c => c.outcome === 'NOT_RUN' && c.required).length,
-        discrepancyCount: discrepancies.length,
-        blockingDiscrepancyCount: discrepancies.filter(d => d.severity === 'blocking').length,
-        priorReviewDecisions: priorDecisions.length,
+        candidateId: args.candidateId,
+        candidateStatus: report.candidateStatus,
+        runId: args.runId,
+        runStatus: report.runStatus,
+        runDecision: report.runDecision,
+        blockingCheckCount: report.blockingChecks.length,
+        blockingChecks: report.blockingChecks.map((c) => ({ code: c.code, message: c.message })),
+        blockingDiscrepancyCount: report.blockingDiscrepancies.length,
+        blockingDiscrepancies: report.blockingDiscrepancies.map((d) => ({
+          code: d.code,
+          description: d.description,
+        })),
+        proofSnapshotStatuses: report.proofSnapshotStatuses,
+        priorReviewDecisions: report.priorReviewDecisions,
+        evidenceIdsInspected: report.evidenceIdsInspected,
         proposedDecision: args.decision,
+        eligible: report.eligible,
+        limitationFindings: report.limitationFindings,
         committed: false,
       };
       console.log(JSON.stringify(dryRunOutput, null, 2));

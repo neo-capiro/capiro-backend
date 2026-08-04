@@ -45,15 +45,13 @@ export class SourceDocumentProofResolver {
    * Load SourceDocument row without comparing SHAs. Used by the composite
    * resolver to obtain the row before reading actual bytes.
    */
-  async resolveWithRow(
-    input: {
-      sourceDocumentId: string;
-      actualSourcePdfSha256?: string;
-      artifactSourcePdfSha256?: string;
-      fiscalYear?: number;
-      sourceKey?: string;
-    },
-  ): Promise<SourceDocumentProofResolverResult> {
+  async resolveWithRow(input: {
+    sourceDocumentId: string;
+    actualSourcePdfSha256?: string;
+    artifactSourcePdfSha256?: string;
+    fiscalYear?: number;
+    sourceKey?: string;
+  }): Promise<SourceDocumentProofResolverResult> {
     const findings: ProofFindingV1[] = [];
     const row = await this.client.sourceDocument.findFirst({
       where: { id: input.sourceDocumentId },
@@ -61,7 +59,10 @@ export class SourceDocumentProofResolver {
 
     if (!row) {
       findings.push(
-        blockingFinding('source_document_not_found', `SourceDocument ${input.sourceDocumentId} not found`),
+        blockingFinding(
+          'source_document_not_found',
+          `SourceDocument ${input.sourceDocumentId} not found`,
+        ),
       );
       return {
         sourceDocument: {

@@ -233,10 +233,27 @@ export const verificationRequestV1Schema = z
     manifestDocumentKey: z.string().min(1),
     extractionArtifactLocator: z.string().min(1),
     sourceDocumentId: z.string().min(1),
-    referenceArtifactLocators: z.array(z.string().min(1)).optional(),
+    referenceArtifacts: z
+      .array(
+        z
+          .object({
+            artifactLocator: z.string().min(1),
+            sourceDocumentId: z.string().min(1),
+            manifestDocumentKey: z.string().min(1).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
     mode: z.enum(['inspect', 'persist_audit']),
     expectedSourcePdfSha256: sha256Schema.optional(),
     expectedExtractionArtifactSha256: sha256Schema.optional(),
+    /**
+     * R8.1 §5.2: explicit new-attempt identity. When omitted, the run ID is
+     * derived deterministically from the candidate identity + verifier version
+     * + policy SHA (attempt 0), so an exact re-invocation replays the persisted
+     * result. A fresh run is created only when a distinct attemptId is supplied.
+     */
+    attemptId: z.string().min(1).optional(),
   })
   .strict();
 export type VerificationRequestV1 = z.infer<typeof verificationRequestV1Schema>;

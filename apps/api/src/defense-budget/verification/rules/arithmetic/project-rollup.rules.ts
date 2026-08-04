@@ -9,7 +9,7 @@
  * - a mismatched rollup is blocking for automatic pass
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
-import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from '../rule-types.js';
+import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
 import {
   sumDecimals,
   compareWithTolerance,
@@ -28,24 +28,21 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact } = input;
+
+    // R8.1 §3.1: policy-resolved required/blocking.
+    const isRequired = policy.requiredComparisonRules.includes('project_rollup');
+    const ov = { required: isRequired, blocking: isRequired || PROJECT_ROLLUP_RULE.blocking };
 
     if (!policy.arithmeticRules.includes('project_rollup')) {
       return {
-        check: {
-          checkId: '',
-          code: PROJECT_ROLLUP_RULE.code,
-          ruleVersion: PROJECT_ROLLUP_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'project_rollup not in policy.arithmeticRules',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(
+          PROJECT_ROLLUP_RULE,
+          runId,
+          'project_rollup not in policy.arithmeticRules',
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -53,19 +50,7 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
     // Only run for R-2A artifacts
     if (artifact.source.exhibit !== 'R-2A') {
       return {
-        check: {
-          checkId: '',
-          code: PROJECT_ROLLUP_RULE.code,
-          ruleVersion: PROJECT_ROLLUP_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'not an R-2A artifact',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(PROJECT_ROLLUP_RULE, runId, 'not an R-2A artifact', ov),
         discrepancies: [],
       };
     }
@@ -89,6 +74,8 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           'no project_funding assertions to roll up',
+          undefined,
+          ov,
         ),
         discrepancies: [],
       };
@@ -166,6 +153,8 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           `project rollup mismatches: ${discrepancies.filter((d) => d.severity === 'blocking').length}`,
+          undefined,
+          ov,
         ),
         discrepancies,
       };
@@ -180,6 +169,8 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
           [],
           [],
           `${discrepancies.length} project rollup groups lack parent totals`,
+          undefined,
+          ov,
         ),
         discrepancies,
       };
@@ -193,6 +184,8 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
         [],
         [],
         'all project rollups match parent PE totals within tolerance',
+        undefined,
+        ov,
       ),
       discrepancies: [],
     };

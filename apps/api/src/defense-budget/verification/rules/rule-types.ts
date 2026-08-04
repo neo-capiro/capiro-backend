@@ -59,6 +59,20 @@ export interface VerificationRuleV1 {
 /* Check builders                                                       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * R8.1 §3.1 — Policy-resolved check attribute overrides.
+ *
+ * A rule's static `required`/`blocking` flags describe the rule in isolation.
+ * The POLICY decides whether a given check is required for this document.
+ * Builders must persist the policy-resolved value, never a bare
+ * `required: false` merely because the static rule definition is optional.
+ */
+export interface CheckOverrides {
+  required?: boolean;
+  blocking?: boolean;
+  riskPoints?: number;
+}
+
 export function passCheck(
   rule: VerificationRuleV1,
   verificationRunId: string,
@@ -67,6 +81,7 @@ export function passCheck(
   referenceArtifactIds: readonly string[],
   message?: string,
   details?: Record<string, JsonValue>,
+  overrides?: CheckOverrides,
 ): VerificationCheckV1 {
   return {
     checkId: computeVerificationCheckId({
@@ -79,9 +94,9 @@ export function passCheck(
     code: rule.code,
     ruleVersion: rule.version,
     outcome: 'PASS',
-    required: rule.required,
-    blocking: rule.blocking,
-    riskPoints: 0,
+    required: overrides?.required ?? rule.required,
+    blocking: overrides?.blocking ?? rule.blocking,
+    riskPoints: overrides?.riskPoints ?? 0,
     message: message ?? `${rule.name}: passed`,
     assertionIds: [...assertionIds],
     evidenceIds: [...evidenceIds],
@@ -98,6 +113,7 @@ export function failCheck(
   referenceArtifactIds: readonly string[],
   message: string,
   details?: Record<string, JsonValue>,
+  overrides?: CheckOverrides,
 ): VerificationCheckV1 {
   return {
     checkId: computeVerificationCheckId({
@@ -110,9 +126,9 @@ export function failCheck(
     code: rule.code,
     ruleVersion: rule.version,
     outcome: 'FAIL',
-    required: rule.required,
-    blocking: rule.blocking,
-    riskPoints: rule.riskPoints,
+    required: overrides?.required ?? rule.required,
+    blocking: overrides?.blocking ?? rule.blocking,
+    riskPoints: overrides?.riskPoints ?? rule.riskPoints,
     message,
     assertionIds: [...assertionIds],
     evidenceIds: [...evidenceIds],
@@ -129,6 +145,7 @@ export function notRunCheck(
   referenceArtifactIds: readonly string[],
   message: string,
   details?: Record<string, JsonValue>,
+  overrides?: CheckOverrides,
 ): VerificationCheckV1 {
   return {
     checkId: computeVerificationCheckId({
@@ -141,9 +158,9 @@ export function notRunCheck(
     code: rule.code,
     ruleVersion: rule.version,
     outcome: 'NOT_RUN',
-    required: rule.required,
-    blocking: rule.blocking,
-    riskPoints: rule.riskPoints,
+    required: overrides?.required ?? rule.required,
+    blocking: overrides?.blocking ?? rule.blocking,
+    riskPoints: overrides?.riskPoints ?? rule.riskPoints,
     message,
     assertionIds: [...assertionIds],
     evidenceIds: [...evidenceIds],
@@ -156,6 +173,7 @@ export function skippedCheck(
   rule: VerificationRuleV1,
   verificationRunId: string,
   message: string,
+  overrides?: CheckOverrides,
 ): VerificationCheckV1 {
   return {
     checkId: computeVerificationCheckId({
@@ -168,9 +186,9 @@ export function skippedCheck(
     code: rule.code,
     ruleVersion: rule.version,
     outcome: 'SKIPPED',
-    required: rule.required,
-    blocking: rule.blocking,
-    riskPoints: 0,
+    required: overrides?.required ?? rule.required,
+    blocking: overrides?.blocking ?? rule.blocking,
+    riskPoints: overrides?.riskPoints ?? 0,
     message,
     assertionIds: [],
     evidenceIds: [],

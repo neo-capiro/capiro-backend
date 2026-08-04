@@ -24,24 +24,29 @@ import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extracti
 import { sha256Hex } from '../../contracts/canonical-json.js';
 import type { SourceDocumentClient } from '../../../program-element/source-document/source-document-registry.js';
 import type {
-    TrustedProofResolveInputV1,
-    TrustedProofResolutionV1,
-    ProofFindingV1,
-    ProofResolverMode,
-    TrustedVerificationProofBundleV1,
-    TrustedManifestProofV1,
-    TrustedExtractionArtifactProofV1,
-    TrustedSourceDocumentProofV1,
-    TrustedArchiveProofV1,
-    TrustedParserRunProofV1,
-    TrustedReferenceArtifactProofV1,
-  } from './trusted-proof-types.js';
+  TrustedProofResolveInputV1,
+  TrustedProofResolutionV1,
+  ProofFindingV1,
+  ProofResolverMode,
+  TrustedVerificationProofBundleV1,
+  TrustedManifestProofV1,
+  TrustedExtractionArtifactProofV1,
+  TrustedSourceDocumentProofV1,
+  TrustedArchiveProofV1,
+  TrustedParserRunProofV1,
+  TrustedReferenceArtifactProofV1,
+} from './trusted-proof-types.js';
 import { blockingFinding, reviewFinding } from './trusted-proof-types.js';
 import { SourceDocumentProofResolver } from './source-document-proof-resolver.js';
 import { ArchiveProofResolver, type S3ObjectReader } from './archive-proof-resolver.js';
 import { ParserRunProofResolver, type ParseJobClient } from './parser-run-proof-resolver.js';
-import type { TrustedByteLocatorReader, TrustedLocatedBytes } from './trusted-byte-locator-reader.js';
+import type {
+  TrustedByteLocatorReader,
+  TrustedLocatedBytes,
+} from './trusted-byte-locator-reader.js';
 import { sha256Bytes } from './trusted-byte-locator-reader.js';
+import { TrustedProofResolutionError } from './trusted-proof-types.js';
+import { lookupPolicy } from '../verification-policy-registry.js';
 
 export interface CompositeProofResolverOptions {
   sourceDocumentClient?: SourceDocumentClient;
@@ -76,13 +81,16 @@ export class CompositeProofResolver {
   }
 
   async resolve(input: TrustedProofResolveInputV1): Promise<TrustedProofResolutionV1> {
-    // Validate mode requirements
+    // R8.1 §2.2: production_proof requires all mandatory dependencies before
+    // any proof bundle is produced.
     if (this.mode === 'production_proof') {
       if (!this.options.sourceDocumentClient) {
-        throw new Error('production_proof mode requires sourceDocumentClient');
+        throw new TrustedProofResolutionError(
+          'production_proof mode requires sourceDocumentClient',
+        );
       }
       if (!this.options.byteLocatorReader) {
-        throw new Error('production_proof mode requires byteLocatorReader');
+        throw new TrustedProofResolutionError('production_proof mode requires byteLocatorReader');
       }
     }
 
@@ -95,7 +103,9 @@ export class CompositeProofResolver {
       JSON.parse(manifestLocated.bytes.toString('utf8')),
     );
     for (const f of validateBudgetCycleManifestV1(manifest).filter((f) => f.severity === 'error')) {
-      findings.push(blockingFinding('manifest_sha_mismatch', `manifest error at ${f.path}: ${f.message}`));
+      findings.push(
+        blockingFinding('manifest_sha_mismatch', `manifest error at ${f.path}: ${f.message}`),
+      );
     }
 
     const manifestDocument = manifest.documents.find(
@@ -103,6 +113,26 @@ export class CompositeProofResolver {
     );
     if (!manifestDocument) {
       throw new Error(`document key "${input.manifestDocumentKey}" not found in manifest`);
+    }
+
+    // R8.1 §2.2/§2.5: resolve the policy so archive/parser dependency
+    // requirements are known before proof resolution completes.
+    const resolvedPolicy = lookupPolicy(manifestDocument.family, manifestDocument.exhibit);
+    const requireImmutableArchive = resolvedPolicy?.requireImmutableArchive ?? false;
+    const requireParserRunProof = resolvedPolicy?.requireParserRunProof ?? false;
+
+    // R8.1 §2.2: policy-required dependencies must exist in production mode.
+    if (this.mode === 'production_proof') {
+      if (requireParserRunProof && !this.options.parseJobClient) {
+        throw new TrustedProofResolutionError(
+          `production_proof mode requires parseJobClient (policy ${manifestDocument.family}/${manifestDocument.exhibit} requires parser-run proof)`,
+        );
+      }
+      if (requireImmutableArchive && !this.options.s3Reader) {
+        throw new TrustedProofResolutionError(
+          `production_proof mode requires s3Reader (policy ${manifestDocument.family}/${manifestDocument.exhibit} requires immutable archive)`,
+        );
+      }
     }
 
     // 2. Read and hash artifact bytes
@@ -123,7 +153,8 @@ export class CompositeProofResolver {
 
     // 3. Load SourceDocument in production mode
     let sourceDocumentProof: TrustedSourceDocumentProofV1;
-    let sourceDocRow: Awaited<ReturnType<SourceDocumentClient['sourceDocument']['findFirst']>> = null;
+    let sourceDocRow: Awaited<ReturnType<SourceDocumentClient['sourceDocument']['findFirst']>> =
+      null;
     let sourcePdfLocated: TrustedLocatedBytes | null = null;
 
     if (this.sourceDocResolver) {
@@ -162,7 +193,10 @@ export class CompositeProofResolver {
           sourcePdfLocated = await this.readBytesWithReader(manifestDocument.sourceLocator);
         } catch {
           findings.push(
-            reviewFinding('source_sha_mismatch', `source PDF not found at: ${manifestDocument.sourceLocator}`),
+            reviewFinding(
+              'source_sha_mismatch',
+              `source PDF not found at: ${manifestDocument.sourceLocator}`,
+            ),
           );
         }
       }
@@ -183,14 +217,87 @@ export class CompositeProofResolver {
         sourcePdfLocated = await this.readBytesWithReader(manifestDocument.sourceLocator);
       } catch {
         findings.push(
-          reviewFinding('source_sha_mismatch', `source PDF not found at: ${manifestDocument.sourceLocator}`),
+          reviewFinding(
+            'source_sha_mismatch',
+            `source PDF not found at: ${manifestDocument.sourceLocator}`,
+          ),
         );
       }
+    }
+
+    // R8.1 §2.1: production_proof must never fall back to the artifact-asserted
+    // source SHA. If authoritative source bytes could not be resolved, fail.
+    if (this.mode === 'production_proof' && !sourcePdfLocated) {
+      throw new TrustedProofResolutionError(
+        'authoritative source bytes could not be resolved for production proof ' +
+          `(sourceDocumentId=${input.sourceDocumentId})`,
+      );
     }
 
     const actualSourceSha256 = sourcePdfLocated
       ? sha256Bytes(sourcePdfLocated.bytes)
       : artifact.source.sourcePdfSha256;
+
+    // R8.1 §2.4: SourceDocument metadata must agree with manifest + artifact.
+    if (this.mode === 'production_proof' && sourceDocRow) {
+      const row = sourceDocRow as Record<string, unknown>;
+      if (row.sourceKey != null && row.sourceKey !== manifestDocument.sourceLocator) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument sourceKey "${String(row.sourceKey)}" does not match manifest sourceLocator "${manifestDocument.sourceLocator}"`,
+          ),
+        );
+      }
+      if (row.fiscalYear != null && row.fiscalYear !== manifest.fiscalYear) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument fiscalYear ${String(row.fiscalYear)} does not match manifest fiscalYear ${manifest.fiscalYear}`,
+          ),
+        );
+      }
+      if (row.component != null && row.component !== manifestDocument.component) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument component "${String(row.component)}" does not match manifest component "${manifestDocument.component}"`,
+          ),
+        );
+      }
+      if (row.budgetCycle != null && row.budgetCycle !== manifestDocument.budgetCycle) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument budgetCycle "${String(row.budgetCycle)}" does not match manifest budgetCycle "${manifestDocument.budgetCycle}"`,
+          ),
+        );
+      }
+      if (row.documentType != null && row.documentType !== manifestDocument.documentType) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument documentType "${String(row.documentType)}" does not match manifest documentType "${manifestDocument.documentType}"`,
+          ),
+        );
+      }
+      if (row.sha256 != null && sourcePdfLocated && row.sha256 !== actualSourceSha256) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument stored SHA ${String(row.sha256)} does not match resolved source bytes SHA ${actualSourceSha256}`,
+          ),
+        );
+      }
+      if (row.id !== input.sourceDocumentId) {
+        findings.push(
+          blockingFinding(
+            'source_metadata_mismatch',
+            `SourceDocument row id "${String(row.id)}" does not match requested sourceDocumentId "${input.sourceDocumentId}"`,
+          ),
+        );
+      }
+    }
 
     // Re-resolve source document with actual SHA if we have bytes
     if (this.sourceDocResolver && sourceDocRow && sourcePdfLocated) {
@@ -219,18 +326,38 @@ export class CompositeProofResolver {
     let archiveProof: TrustedArchiveProofV1 = { status: 'not_applicable' };
     if (this.archiveResolver && sourceDocRow) {
       const archiveInput = {
-        archiveBucket: (sourceDocRow as Record<string, unknown>).archiveBucket as string | null | undefined,
-        archiveS3Key: (sourceDocRow as Record<string, unknown>).archiveS3Key as string | null | undefined,
-        archiveVersionId: (sourceDocRow as Record<string, unknown>).archiveVersionId as string | null | undefined,
-        archiveKmsKeyArn: (sourceDocRow as Record<string, unknown>).archiveKmsKeyArn as string | null | undefined,
-        retainUntil: (sourceDocRow as Record<string, unknown>).retainUntil as Date | null | undefined,
+        archiveBucket: (sourceDocRow as Record<string, unknown>).archiveBucket as
+          | string
+          | null
+          | undefined,
+        archiveS3Key: (sourceDocRow as Record<string, unknown>).archiveS3Key as
+          | string
+          | null
+          | undefined,
+        archiveVersionId: (sourceDocRow as Record<string, unknown>).archiveVersionId as
+          | string
+          | null
+          | undefined,
+        archiveKmsKeyArn: (sourceDocRow as Record<string, unknown>).archiveKmsKeyArn as
+          | string
+          | null
+          | undefined,
+        retainUntil: (sourceDocRow as Record<string, unknown>).retainUntil as
+          | Date
+          | null
+          | undefined,
         archivedAt: (sourceDocRow as Record<string, unknown>).archivedAt as Date | null | undefined,
         expectedSourceSha256: actualSourceSha256,
+        requireImmutableArchive,
       };
       const archiveResult = await this.archiveResolver.resolve(archiveInput);
       archiveProof = archiveResult.archive;
       for (const f of archiveResult.findings) {
-        findings.push({ ...f, artifactId: artifact.artifactId, sourceDocumentId: input.sourceDocumentId });
+        findings.push({
+          ...f,
+          artifactId: artifact.artifactId,
+          sourceDocumentId: input.sourceDocumentId,
+        });
       }
     } else if (this.archiveResolver) {
       // No source document row but archive resolver exists — check if source is in S3
@@ -241,11 +368,16 @@ export class CompositeProofResolver {
           archiveVersionId: sourcePdfLocated.versionId,
           archiveKmsKeyArn: sourcePdfLocated.kmsKeyArn,
           expectedSourceSha256: actualSourceSha256,
+          requireImmutableArchive,
         };
         const archiveResult = await this.archiveResolver.resolve(archiveInput);
         archiveProof = archiveResult.archive;
         for (const f of archiveResult.findings) {
-          findings.push({ ...f, artifactId: artifact.artifactId, sourceDocumentId: input.sourceDocumentId });
+          findings.push({
+            ...f,
+            artifactId: artifact.artifactId,
+            sourceDocumentId: input.sourceDocumentId,
+          });
         }
       }
     }
@@ -260,6 +392,7 @@ export class CompositeProofResolver {
       parserRuns = prResult.parserRuns;
       findings.push(...prResult.findings);
     } else {
+      // No parser-run resolver — proof not independently established.
       parserRuns = artifact.parserRuns.map((run) => ({
         parserRunId: run.parserRunId,
         method: run.method,
@@ -269,6 +402,21 @@ export class CompositeProofResolver {
         outputArtifactSha256: run.outputArtifactSha256,
         proofStatus: 'not_applicable' as const,
       }));
+      // R8.1 §2.2/§2.6: when policy requires parser-run proof, a resolver is
+      // mandatory — never silently mark not_applicable.
+      if (requireParserRunProof) {
+        if (this.mode === 'production_proof') {
+          throw new TrustedProofResolutionError(
+            'policy requires parser-run proof but no parser-run resolver could run',
+          );
+        }
+        findings.push(
+          blockingFinding(
+            'parse_job_missing',
+            'policy requires parser-run proof but no parser-run resolver is configured',
+          ),
+        );
+      }
     }
 
     // 7. Expected hash TOCTOU guards
@@ -280,7 +428,10 @@ export class CompositeProofResolver {
         ),
       );
     }
-    if (input.expectedExtractionArtifactSha256 && input.expectedExtractionArtifactSha256 !== extractionArtifactByteSha256) {
+    if (
+      input.expectedExtractionArtifactSha256 &&
+      input.expectedExtractionArtifactSha256 !== extractionArtifactByteSha256
+    ) {
       findings.push(
         blockingFinding(
           'artifact_byte_sha_mismatch',
@@ -311,13 +462,9 @@ export class CompositeProofResolver {
     const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
     const referenceArtifactsFindings: ProofFindingV1[] = [];
 
-    // Build reference descriptors from new format or deprecated flat list
-    const refDescriptors = input.referenceArtifacts ?? (
-      input.referenceArtifactLocators?.map((loc) => ({
-        artifactLocator: loc,
-        sourceDocumentId: input.sourceDocumentId, // Backward compat: reuse candidate source doc ID
-      })) ?? []
-    );
+    // References must use the structured descriptor form; every reference
+    // carries its own explicit SourceDocument identity.
+    const refDescriptors = input.referenceArtifacts ?? [];
 
     for (const refDesc of refDescriptors) {
       try {
@@ -345,8 +492,11 @@ export class CompositeProofResolver {
         let refArchiveProof: TrustedArchiveProofV1 = { status: 'not_applicable' };
         let refParserRuns: TrustedParserRunProofV1[] = [];
 
-        if (this.sourceDocResolver && refDesc.sourceDocumentId !== input.sourceDocumentId) {
-          // Independently resolve reference source document
+        if (this.sourceDocResolver) {
+          // Independently resolve the reference's own source document. A
+          // reference may identify the same official document as the
+          // candidate, but it still executes the proof process against that
+          // document independently — never reusing the candidate's proof.
           const refSdResult = await this.sourceDocResolver.resolveWithRow({
             sourceDocumentId: refDesc.sourceDocumentId,
             actualSourcePdfSha256: '', // Will be filled
@@ -376,9 +526,18 @@ export class CompositeProofResolver {
                 // Archive proof for reference
                 if (this.archiveResolver) {
                   const refArchiveResult = await this.archiveResolver.resolve({
-                    archiveBucket: (refSdRow as Record<string, unknown>).archiveBucket as string | null | undefined,
-                    archiveS3Key: (refSdRow as Record<string, unknown>).archiveS3Key as string | null | undefined,
-                    archiveVersionId: (refSdRow as Record<string, unknown>).archiveVersionId as string | null | undefined,
+                    archiveBucket: (refSdRow as Record<string, unknown>).archiveBucket as
+                      | string
+                      | null
+                      | undefined,
+                    archiveS3Key: (refSdRow as Record<string, unknown>).archiveS3Key as
+                      | string
+                      | null
+                      | undefined,
+                    archiveVersionId: (refSdRow as Record<string, unknown>).archiveVersionId as
+                      | string
+                      | null
+                      | undefined,
                     expectedSourceSha256: refSourceSha,
                   });
                   refArchiveProof = refArchiveResult.archive;
@@ -417,10 +576,28 @@ export class CompositeProofResolver {
             }
           }
         } else {
-          // Reuse candidate source proof for backward compat
-          refSourceProof = sourceDocumentProof;
-          refArchiveProof = archiveProof;
-          refParserRuns = [];
+          // No SourceDocument client (local_inspect): build an independent
+          // reference proof from the reference artifact's own claims. Never
+          // reuse the candidate's source/archive/parser proof.
+          refSourceProof = {
+            id: refDesc.sourceDocumentId,
+            sourceKey: manifestDocument.sourceLocator,
+            sourceSha256: refArtifact.source.sourcePdfSha256,
+            fiscalYear: manifest.fiscalYear,
+            budgetCycle: manifestDocument.budgetCycle,
+            component: manifestDocument.component,
+            documentType: manifestDocument.documentType,
+          };
+          refArchiveProof = { status: 'not_applicable' };
+          refParserRuns = refArtifact.parserRuns.map((run) => ({
+            parserRunId: run.parserRunId,
+            method: run.method,
+            parserVersion: run.parserVersion,
+            parserConfigSha256: run.parserConfigSha256,
+            inputSourceSha256: run.inputSourceSha256,
+            outputArtifactSha256: run.outputArtifactSha256,
+            proofStatus: 'not_applicable' as const,
+          }));
         }
 
         referenceArtifacts.push(refArtifact);
@@ -451,13 +628,15 @@ export class CompositeProofResolver {
     }
 
     // Build resolved reference artifact list with correct locators
-    const resolvedRefs: TrustedReferenceArtifactProofV1[] = referenceArtifactsProofBundles.map((bundle, i) => ({
-      artifactId: bundle.extractionArtifact.artifactId,
-      contentSha256: bundle.extractionArtifact.contentSha256,
-      sourceDocumentId: bundle.sourceDocument.id,
-      sourcePdfSha256: bundle.sourceDocument.sourceSha256,
-      locator: bundle.extractionArtifact.locator, // Uses reference's own locator, not candidate's
-    }));
+    const resolvedRefs: TrustedReferenceArtifactProofV1[] = referenceArtifactsProofBundles.map(
+      (bundle, i) => ({
+        artifactId: bundle.extractionArtifact.artifactId,
+        contentSha256: bundle.extractionArtifact.contentSha256,
+        sourceDocumentId: bundle.sourceDocument.id,
+        sourcePdfSha256: bundle.sourceDocument.sourceSha256,
+        locator: bundle.extractionArtifact.locator, // Uses reference's own locator, not candidate's
+      }),
+    );
 
     const proofBundle: TrustedVerificationProofBundleV1 = {
       manifest: manifestProof,
@@ -504,26 +683,32 @@ export class CompositeProofResolver {
   }
 
   /**
-   * Resolve the authoritative locator from a SourceDocument row.
-   * Prefers S3 archive locator over filesystem artifact path.
+   * R8.1 §2.3 — Resolve the authoritative locator from a SourceDocument row
+   * using an explicit priority, with no silent fallback:
+   *   1. versioned S3 archive locator;
+   *   2. approved immutable artifact path;
+   *   3. approved source URL handled by a dedicated trusted reader.
+   * Returns a discriminated result so the caller can fail closed when the
+   * selected source is unavailable rather than dropping to a weaker source.
    */
   private resolveAuthoritativeLocator(row: Record<string, unknown>): string | null {
     const bucket = row.archiveBucket as string | null | undefined;
     const key = row.archiveS3Key as string | null | undefined;
     const versionId = row.archiveVersionId as string | null | undefined;
 
-    if (bucket && key) {
-      // Build S3 locator
-      let s3Loc = `s3://${bucket}/${key}`;
-      if (versionId) {
-        s3Loc += `?versionId=${encodeURIComponent(versionId)}`;
-      }
-      return s3Loc;
+    // Priority 1: versioned S3 archive locator
+    if (bucket && key && versionId) {
+      return `s3://${bucket}/${key}?versionId=${encodeURIComponent(versionId)}`;
     }
 
-    // Fall back to artifact path
+    // Priority 2: approved immutable artifact path
     const artifactPath = row.artifactPath as string | null | undefined;
     if (artifactPath) return artifactPath;
+
+    // Priority 3: approved source URL — only when the configured byte reader
+    // can handle it (the reader fails closed on unsupported schemes).
+    const sourceUrl = row.sourceUrl as string | null | undefined;
+    if (sourceUrl && this.options.byteLocatorReader) return sourceUrl;
 
     return null;
   }

@@ -9,7 +9,7 @@
  * adjustments.
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
-import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from '../rule-types.js';
+import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
 import {
   addDecimals,
   subtractDecimals,
@@ -29,24 +29,21 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact } = input;
+
+    // R8.1 §3.1: policy-resolved required/blocking.
+    const isRequired = policy.requiredComparisonRules.includes('committee_adjustment');
+    const ov = { required: isRequired, blocking: isRequired || COMMITTEE_ADJUSTMENT_RULE.blocking };
 
     if (!policy.arithmeticRules.includes('committee_adjustment')) {
       return {
-        check: {
-          checkId: '',
-          code: COMMITTEE_ADJUSTMENT_RULE.code,
-          ruleVersion: COMMITTEE_ADJUSTMENT_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'committee_adjustment not in policy.arithmeticRules',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(
+          COMMITTEE_ADJUSTMENT_RULE,
+          runId,
+          'committee_adjustment not in policy.arithmeticRules',
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -54,19 +51,12 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
     // Only run for committee report artifacts
     if (artifact.source.family !== 'committee') {
       return {
-        check: {
-          checkId: '',
-          code: COMMITTEE_ADJUSTMENT_RULE.code,
-          ruleVersion: COMMITTEE_ADJUSTMENT_RULE.version,
-          outcome: 'SKIPPED',
-          required: false,
-          blocking: false,
-          riskPoints: 0,
-          message: 'not a committee report artifact',
-          assertionIds: [],
-          evidenceIds: [],
-          referenceArtifactIds: [],
-        },
+        check: skippedCheck(
+          COMMITTEE_ADJUSTMENT_RULE,
+          runId,
+          'not a committee report artifact',
+          ov,
+        ),
         discrepancies: [],
       };
     }
@@ -78,7 +68,16 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
 
     if (funding.length === 0) {
       return {
-        check: notRunCheck(COMMITTEE_ADJUSTMENT_RULE, runId, [], [], [], 'no funding assertions'),
+        check: notRunCheck(
+          COMMITTEE_ADJUSTMENT_RULE,
+          runId,
+          [],
+          [],
+          [],
+          'no funding assertions',
+          undefined,
+          ov,
+        ),
         discrepancies: [],
       };
     }

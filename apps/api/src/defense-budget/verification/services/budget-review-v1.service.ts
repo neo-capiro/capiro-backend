@@ -88,6 +88,37 @@ export interface ReviewResultV1 {
   limitationFindings: string[];
 }
 
+/**
+ * R8.1 §6.1 — Dry-run eligibility report. Produced by review(input,
+ * { commit: false }) after running the FULL eligibility pipeline; no write
+ * is performed.
+ */
+export interface ReviewEligibilityReportV1 {
+  candidateStatus: string;
+  runStatus: string;
+  runDecision: string;
+  blockingChecks: ReadCheckV1[];
+  blockingDiscrepancies: ReadDiscrepancyV1[];
+  proofSnapshotStatuses: Array<{ proofKind: string; status: string }>;
+  priorReviewDecisions: number;
+  evidenceIdsInspected: string[];
+  eligible: boolean;
+  limitationFindings: string[];
+}
+
+/** Options for review(). commit defaults to true. */
+export interface ReviewOptionsV1 {
+  commit?: boolean;
+}
+
+/** Typed error raised when a concurrent review already completed. */
+export class ReviewAlreadyCompletedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReviewAlreadyCompletedError';
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Blocking finding codes (M2)                                        */
 /* ------------------------------------------------------------------ */
@@ -199,13 +230,25 @@ export class BudgetReviewV1Service {
    * Review a verification candidate.
    *
    * R4: Governed, non-waivable review.
+   * R8.1 §6.1: review(input, { commit: false }) runs the FULL eligibility
+   * pipeline and returns an eligibility report without performing the final
+   * database write. Dry-run and commit share the same eligibility logic.
    *
    * Steps 1–11 per the R4 specification.
    *
-   * Returns the review decision result.
-   * Throws ReviewEligibilityError if the review is not permitted.
+   * Returns the review decision result (commit) or eligibility report
+   * (dry-run). Throws ReviewEligibilityError if the review is not permitted.
    */
-  async review(input: ReviewInputV1): Promise<ReviewResultV1> {
+  async review(input: ReviewInputV1): Promise<ReviewResultV1>;
+  async review(
+    input: ReviewInputV1,
+    options: ReviewOptionsV1 & { commit: false },
+  ): Promise<ReviewEligibilityReportV1>;
+  async review(
+    input: ReviewInputV1,
+    options: ReviewOptionsV1 = {},
+  ): Promise<ReviewResultV1 | ReviewEligibilityReportV1> {
+    const commit = options.commit !== false;
     // Step 6: Reject blank notes (checked first — no DB access needed)
     if (!input.notes.trim()) {
       throw new ReviewEligibilityError('notes must not be blank', 'blank_notes');
@@ -381,6 +424,30 @@ export class BudgetReviewV1Service {
       }
     }
 
+    // R8.1 §6.1: dry-run — full eligibility has passed; skip only the write.
+    if (!commit) {
+      const blockingChecks = checks.filter((c) => c.outcome === 'FAIL' && c.blocking);
+      const blockingDiscrepancies = discrepancies.filter((d) => d.severity === 'blocking');
+      const knownEvidence: string[] = [];
+      for (const c of checks) knownEvidence.push(...c.evidenceIds);
+      for (const d of discrepancies) knownEvidence.push(...d.evidenceIds);
+      return {
+        candidateStatus: candidate.status,
+        runStatus: run.status,
+        runDecision: run.decision,
+        blockingChecks,
+        blockingDiscrepancies,
+        proofSnapshotStatuses: proofSnapshots.map((s) => ({
+          proofKind: s.proofKind,
+          status: s.status,
+        })),
+        priorReviewDecisions: priorReviews.length,
+        evidenceIdsInspected: [...new Set(knownEvidence)],
+        eligible: true,
+        limitationFindings,
+      };
+    }
+
     // Step 10 + 11: Persist immutable decision atomically.
     // The repository handles the transaction, append-only insert, and
     // optimistic state check (candidate must still be NEEDS_REVIEW).
@@ -396,8 +463,25 @@ export class BudgetReviewV1Service {
       expectedManifestContentSha256: input.expectedManifestContentSha256,
     };
 
-    const persisted: PersistedReviewDecisionV1 =
-      await this.repository.persistReviewDecision(persistInput);
+    let persisted: PersistedReviewDecisionV1;
+    try {
+      persisted = await this.repository.persistReviewDecision(persistInput);
+    } catch (err) {
+      // R8.1 §6.3: translate the unique terminal-decision conflict / lost
+      // status race into a typed "review already completed" error.
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        ((err as { code?: string }).code === 'P2002' ||
+          (err instanceof Error && err.name === 'VerificationConcurrencyError') ||
+          (err instanceof Error && /already has a terminal review/i.test(err.message)))
+      ) {
+        throw new ReviewAlreadyCompletedError(
+          `candidate ${input.candidateId} already has a terminal review decision`,
+        );
+      }
+      throw err;
+    }
 
     const finalStatus: 'REVIEW_ACCEPTED' | 'REJECTED' =
       input.decision === 'accept' ? 'REVIEW_ACCEPTED' : 'REJECTED';

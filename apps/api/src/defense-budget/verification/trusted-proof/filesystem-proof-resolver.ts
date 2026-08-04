@@ -242,7 +242,8 @@ export class FilesystemProofResolver {
     const referenceArtifacts: DefenseBudgetExtractionArtifactV1[] = [];
     const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
     const referenceArtifactsFindings: ProofFindingV1[] = [];
-    for (const refLocator of input.referenceArtifactLocators ?? []) {
+    for (const refDesc of input.referenceArtifacts ?? []) {
+      const refLocator = refDesc.artifactLocator;
       try {
         const refBytes = await this.readBytes(refLocator);
         const refArtifact = parseDefenseBudgetExtractionArtifactV1(
@@ -263,9 +264,9 @@ export class FilesystemProofResolver {
         }
 
         // R1.6: Independent source document proof for the reference artifact.
-        // Use the reference artifact's own sourceDocumentId and sourcePdfSha256,
-        // NOT the candidate's. The reference may have a different SourceDocument.
-        const refSourceDocId = refArtifact.source.sourceDocumentId ?? input.sourceDocumentId;
+        // The structured descriptor carries the reference's own explicit
+        // SourceDocument identity — never substituted from the candidate.
+        const refSourceDocId = refDesc.sourceDocumentId;
         const refSourceSha = refArtifact.source.sourcePdfSha256;
 
         // Try to read the reference's source PDF if available locally
@@ -341,12 +342,12 @@ export class FilesystemProofResolver {
       sourceDocument: sourceDocumentProof,
       archive: archiveProof,
       parserRuns: parserRunProofs,
-      resolvedReferenceArtifacts: referenceArtifacts.map((ra) => ({
-        artifactId: ra.artifactId,
-        contentSha256: ra.contentSha256,
-        sourceDocumentId: ra.source.sourceDocumentId ?? input.sourceDocumentId,
-        sourcePdfSha256: ra.source.sourcePdfSha256,
-        locator: input.extractionArtifactLocator,
+      resolvedReferenceArtifacts: referenceArtifactsProofBundles.map((bundle) => ({
+        artifactId: bundle.extractionArtifact.artifactId,
+        contentSha256: bundle.extractionArtifact.contentSha256,
+        sourceDocumentId: bundle.sourceDocument.id,
+        sourcePdfSha256: bundle.sourceDocument.sourceSha256,
+        locator: bundle.extractionArtifact.locator,
       })),
     };
 

@@ -92,7 +92,9 @@ export interface S3HeadResult {
  * Parse an S3 locator of the form:
  *   s3://bucket/key?versionId=...&other=ignored
  */
-function parseS3Locator(locator: string): { bucket: string; key: string; versionId?: string } | null {
+function parseS3Locator(
+  locator: string,
+): { bucket: string; key: string; versionId?: string } | null {
   try {
     const url = new URL(locator);
     if (url.protocol !== 's3:') return null;
@@ -123,14 +125,10 @@ export class S3ByteLocatorReader implements TrustedByteLocatorReader {
     // Read exact bytes
     const bytes = await this.deps.getObjectBytes(bucket, key, versionId);
     if (!bytes) {
-      throw new Error(
-        `S3 object not found: ${bucket}/${key}${versionId ? `@${versionId}` : ''}`,
-      );
+      throw new Error(`S3 object not found: ${bucket}/${key}${versionId ? `@${versionId}` : ''}`);
     }
 
-    const checksumSha256 =
-      head?.checksumSha256 ??
-      createHash('sha256').update(bytes).digest('hex');
+    const checksumSha256 = head?.checksumSha256 ?? createHash('sha256').update(bytes).digest('hex');
 
     return {
       locator,

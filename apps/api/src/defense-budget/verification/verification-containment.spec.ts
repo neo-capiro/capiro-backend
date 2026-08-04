@@ -191,6 +191,9 @@ describe('verification scaffold containment', () => {
       'verify-defense-budget-extraction-v1.ts',
       'review-defense-budget-verification-v1.ts',
       'report-defense-budget-verification-cycle-v1.ts',
+      // Disposable local-only migration/rehearsal utility. It is not wired to
+      // the operational entrypoint and cannot target canonical writers.
+      'rehearse-budget-verification-v1.ts',
     ]);
     const real = offenders.filter((s) => !approvedV1.has(s));
     expect(real).toEqual([]);

@@ -43,7 +43,7 @@ export const EVIDENCE_BINDING_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact, proofBundle } = input;
     const trustedSourceSha = proofBundle.sourceDocument.sourceSha256;
     const evidenceById = new Map(artifact.evidence.map((e) => [e.evidenceId, e]));
@@ -242,7 +242,7 @@ export const MONEY_EVIDENCE_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact, proofBundle } = input;
     const evidenceById = new Map(artifact.evidence.map((e) => [e.evidenceId, e]));
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
@@ -429,7 +429,7 @@ export const WARNING_POLICY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const runId = ctx.verificationRunId;;
+    const runId = ctx.verificationRunId;
     const { artifact } = input;
     const warnings = artifact.warnings;
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
@@ -538,8 +538,14 @@ export const ARCHIVE_PROOF_RULE: VerificationRuleV1 = {
     // Archive verified → PASS
     if (archive.status === 'verified') {
       return {
-        check: passCheck(ARCHIVE_PROOF_RULE, runId, [], [], [],
-          `archive verified: ${archive.bucket}/${archive.key}@${archive.versionId ?? 'latest'}`),
+        check: passCheck(
+          ARCHIVE_PROOF_RULE,
+          runId,
+          [],
+          [],
+          [],
+          `archive verified: ${archive.bucket}/${archive.key}@${archive.versionId ?? 'latest'}`,
+        ),
         discrepancies: [],
       };
     }
@@ -555,26 +561,60 @@ export const ARCHIVE_PROOF_RULE: VerificationRuleV1 = {
     // Archive missing and policy requires immutable archive → FAIL
     if (archive.status === 'missing' && policy.requireImmutableArchive) {
       return {
-        check: failCheck(ARCHIVE_PROOF_RULE, runId, [], [], [],
-          'archive proof required by policy but archive is missing'),
-        discrepancies: [makeDiscrepancy('archive_proof_missing', 'blocking',
-          'immutable archive required by policy but no archive metadata exists', [], [], [])],
+        check: failCheck(
+          ARCHIVE_PROOF_RULE,
+          runId,
+          [],
+          [],
+          [],
+          'archive proof required by policy but archive is missing',
+        ),
+        discrepancies: [
+          makeDiscrepancy(
+            'archive_proof_missing',
+            'blocking',
+            'immutable archive required by policy but no archive metadata exists',
+            [],
+            [],
+            [],
+          ),
+        ],
       };
     }
 
     // Archive mismatch → FAIL
     if (archive.status === 'mismatch') {
       return {
-        check: failCheck(ARCHIVE_PROOF_RULE, runId, [], [], [],
-          `archive SHA mismatch for ${archive.bucket}/${archive.key}@${archive.versionId}`),
-        discrepancies: [makeDiscrepancy('archive_sha_mismatch', 'blocking',
-          `archive object SHA does not match expected source SHA`, [], [], [])],
+        check: failCheck(
+          ARCHIVE_PROOF_RULE,
+          runId,
+          [],
+          [],
+          [],
+          `archive SHA mismatch for ${archive.bucket}/${archive.key}@${archive.versionId}`,
+        ),
+        discrepancies: [
+          makeDiscrepancy(
+            'archive_sha_mismatch',
+            'blocking',
+            `archive object SHA does not match expected source SHA`,
+            [],
+            [],
+            [],
+          ),
+        ],
       };
     }
 
     return {
-      check: notRunCheck(ARCHIVE_PROOF_RULE, runId, [], [], [],
-        `archive proof status: ${archive.status}`),
+      check: notRunCheck(
+        ARCHIVE_PROOF_RULE,
+        runId,
+        [],
+        [],
+        [],
+        `archive proof status: ${archive.status}`,
+      ),
       discrepancies: [],
     };
   },
@@ -602,10 +642,24 @@ export const PARSER_RUN_PROOF_RULE: VerificationRuleV1 = {
     if (parserRuns.length === 0) {
       if (policy.requireParserRunProof) {
         return {
-          check: failCheck(PARSER_RUN_PROOF_RULE, runId, [], [], [],
-            'parser-run proof required by policy but no parser runs found'),
-          discrepancies: [makeDiscrepancy('parser_proof_missing', 'blocking',
-            'policy requires parser-run proof but artifact has no parser runs', [], [], [])],
+          check: failCheck(
+            PARSER_RUN_PROOF_RULE,
+            runId,
+            [],
+            [],
+            [],
+            'parser-run proof required by policy but no parser runs found',
+          ),
+          discrepancies: [
+            makeDiscrepancy(
+              'parser_proof_missing',
+              'blocking',
+              'policy requires parser-run proof but artifact has no parser runs',
+              [],
+              [],
+              [],
+            ),
+          ],
         };
       }
       return {
@@ -621,37 +675,72 @@ export const PARSER_RUN_PROOF_RULE: VerificationRuleV1 = {
         case 'not_applicable':
           if (policy.requireParserRunProof && pr.method !== 'manual') {
             failingIds.push(pr.parserRunId);
-            discrepancies.push(makeDiscrepancy('parser_proof_not_applicable', 'blocking',
-              `parser run ${pr.parserRunId} (${pr.method}) proof status is not_applicable but policy requires proof`,
-              [], [], []));
+            discrepancies.push(
+              makeDiscrepancy(
+                'parser_proof_not_applicable',
+                'blocking',
+                `parser run ${pr.parserRunId} (${pr.method}) proof status is not_applicable but policy requires proof`,
+                [],
+                [],
+                [],
+              ),
+            );
           }
           break;
         case 'missing':
           if (policy.requireParserRunProof) {
             failingIds.push(pr.parserRunId);
-            discrepancies.push(makeDiscrepancy('parser_proof_missing', 'blocking',
-              `parser run ${pr.parserRunId} (${pr.method}) proof is missing`, [], [], []));
+            discrepancies.push(
+              makeDiscrepancy(
+                'parser_proof_missing',
+                'blocking',
+                `parser run ${pr.parserRunId} (${pr.method}) proof is missing`,
+                [],
+                [],
+                [],
+              ),
+            );
           }
           break;
         case 'mismatch':
           failingIds.push(pr.parserRunId);
-          discrepancies.push(makeDiscrepancy('parser_proof_mismatch', 'blocking',
-            `parser run ${pr.parserRunId} (${pr.method}) proof SHA mismatch`, [], [], []));
+          discrepancies.push(
+            makeDiscrepancy(
+              'parser_proof_mismatch',
+              'blocking',
+              `parser run ${pr.parserRunId} (${pr.method}) proof SHA mismatch`,
+              [],
+              [],
+              [],
+            ),
+          );
           break;
       }
     }
 
     if (failingIds.length > 0) {
       return {
-        check: failCheck(PARSER_RUN_PROOF_RULE, runId, [], [], [],
-          `${failingIds.length} parser runs have proof failures`),
+        check: failCheck(
+          PARSER_RUN_PROOF_RULE,
+          runId,
+          [],
+          [],
+          [],
+          `${failingIds.length} parser runs have proof failures`,
+        ),
         discrepancies,
       };
     }
 
     return {
-      check: passCheck(PARSER_RUN_PROOF_RULE, runId, [], [], [],
-        `all ${parserRuns.length} parser runs verified or acceptable`),
+      check: passCheck(
+        PARSER_RUN_PROOF_RULE,
+        runId,
+        [],
+        [],
+        [],
+        `all ${parserRuns.length} parser runs verified or acceptable`,
+      ),
       discrepancies: [],
     };
   },

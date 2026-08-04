@@ -129,7 +129,11 @@ const R2A_POLICY: VerificationPolicyV1 = {
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
   requireParserRunProof: true,
-  requiredComparisonRules: ['project_rollup_reference'],
+  // R8.1 §3.4: required comparison must map to an implemented rule.
+  // R-2A project rollup is validated against the R-2 PE total by the
+  // project_rollup arithmetic rule; the cross-document reference form is
+  // cross_document_summary_detail.
+  requiredComparisonRules: ['project_rollup', 'cross_document_summary_detail'],
   reviewComparisonRules: ['historical_consistency'],
   arithmeticRules: ['project_rollup'],
   manualAlwaysReview: true,
@@ -276,7 +280,11 @@ const PDOC_POLICY: VerificationPolicyV1 = {
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
   requireParserRunProof: true,
-  requiredComparisonRules: ['procurement_summary_detail'],
+  // R8.1 §3.4: required comparison must map to an implemented rule.
+  // Procurement summary/detail rollup is validated by the procurement_rollup
+  // arithmetic rule; the cross-document reference form is
+  // cross_document_summary_detail.
+  requiredComparisonRules: ['procurement_rollup', 'cross_document_summary_detail'],
   reviewComparisonRules: ['historical_consistency'],
   arithmeticRules: ['procurement_rollup'],
   manualAlwaysReview: true,

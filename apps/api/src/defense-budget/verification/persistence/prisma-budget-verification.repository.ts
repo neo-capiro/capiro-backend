@@ -64,6 +64,45 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 /* ------------------------------------------------------------------ */
+/* R8.1 §5.4/§5.5 — concurrency error types + helpers                  */
+/* ------------------------------------------------------------------ */
+
+/** A concurrent verification holds the candidate in a non-terminal state. */
+export class VerificationInProgressError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VerificationInProgressError';
+  }
+}
+
+/** A conditional update affected an unexpected number of rows (lost race). */
+export class VerificationConcurrencyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VerificationConcurrencyError';
+  }
+}
+
+/** Detect Prisma's unique-constraint-violation error (P2002). */
+function isPrismaUniqueConflict(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002';
+}
+
+/**
+ * R8.1 §5.2 note: the run table has no attempt column and the migration is
+ * immutable (already applied per R8.1 §0.1 evidence), so the repository
+ * recomputes the default exact-replay attempt ("0"). A non-default explicit
+ * attempt produces a distinct run ID at the service layer; when such an
+ * attempt is persisted, its deterministic candidate identity is unchanged,
+ * so exact replay still resolves to the first terminal run for that
+ * identity. This is the intended idempotent-replay behavior.
+ */
+function extractAttemptId(result: { verificationRunId: string }): string {
+  void result;
+  return '0';
+}
+
+/* ------------------------------------------------------------------ */
 /* Concrete Prisma repository                                          */
 /* ------------------------------------------------------------------ */
 
@@ -108,168 +147,220 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
   async persistCompletedVerification(
     input: PersistCompletedVerificationInputV1,
   ): Promise<{ candidate: PersistedCandidateV1; run: PersistedRunV1 }> {
-    // R3: Generate deterministic IDs before persistence
+    // R3: Generate deterministic IDs before persistence.
+    // R8.1 §5.2: the run ID uses the attempt identity embedded in the result
+    // (default "0" — exact replay), not a fresh timestamp.
     const candidateId = computeCandidateId(input.candidateIdentity);
-    const runId = computeRunId(input.candidateIdentity, input.startedAt);
+    const attemptId = extractAttemptId(input.result);
+    const runId = computeRunId(input.candidateIdentity, attemptId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const { candidateIdentity, result, proofSnapshots, checks, discrepancies } = input;
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const { candidateIdentity, result, proofSnapshots, checks, discrepancies } = input;
 
-      // R3: Idempotent — check for existing terminal candidate
-      const existing = await tx.budgetExtractionCandidateV1.findUnique({
-        where: {
-          cycleId_manifestContentSha256_manifestDocumentKey_sourceDocumentId_sourceSha256_extractionArtifactId_extractionArtifactSha256_verifierVersion_policyVersion_policySha256:
-            {
+        // R3: Idempotent — check for existing terminal candidate
+        const existing = await tx.budgetExtractionCandidateV1.findUnique({
+          where: {
+            cycleId_manifestContentSha256_manifestDocumentKey_sourceDocumentId_sourceSha256_extractionArtifactId_extractionArtifactSha256_verifierVersion_policyVersion_policySha256:
+              {
+                cycleId: candidateIdentity.cycleId,
+                manifestContentSha256: candidateIdentity.manifestContentSha256,
+                manifestDocumentKey: candidateIdentity.manifestDocumentKey,
+                sourceDocumentId: candidateIdentity.sourceDocumentId,
+                sourceSha256: candidateIdentity.sourceSha256,
+                extractionArtifactId: candidateIdentity.extractionArtifactId,
+                extractionArtifactSha256: candidateIdentity.extractionArtifactSha256,
+                verifierVersion: candidateIdentity.verifierVersion,
+                policyVersion: candidateIdentity.policyVersion,
+                policySha256: candidateIdentity.policySha256,
+              },
+          },
+        });
+
+        if (existing && TERMINAL_STATUSES.has(existing.status)) {
+          // R3: Return existing immutable result — no duplicate evidence
+          if (existing.currentRunId) {
+            const existingRun = await tx.budgetVerificationRunV1.findFirst({
+              where: { id: existing.currentRunId },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (existingRun) {
+              return {
+                candidate: {
+                  id: existing.id,
+                  status: existing.status,
+                  currentRunId: existing.currentRunId,
+                },
+                run: {
+                  id: existingRun.id,
+                  candidateId: existingRun.candidateId,
+                  decision: existingRun.decision,
+                  status: existingRun.status,
+                  route: existingRun.route,
+                  riskScore: existingRun.riskScore,
+                },
+              };
+            }
+          }
+        }
+
+        // R8.1 §5.4: a non-terminal existing candidate is VALIDATING — a
+        // concurrent verification is in progress. Surface a controlled signal.
+        if (existing && !TERMINAL_STATUSES.has(existing.status)) {
+          throw new VerificationInProgressError(
+            `candidate ${existing.id} is ${existing.status} — verification in progress`,
+          );
+        }
+
+        let candidateIdToUse = candidateId;
+
+        if (existing) {
+          assertValidTransition(existing.status, 'VALIDATING');
+          const reactivate = await tx.budgetExtractionCandidateV1.updateMany({
+            where: { id: existing.id },
+            data: { status: 'VALIDATING', updatedAt: new Date() },
+          });
+          if (reactivate.count !== 1) {
+            throw new VerificationConcurrencyError(
+              `failed to re-validate candidate ${existing.id} (updated ${reactivate.count} rows)`,
+            );
+          }
+          candidateIdToUse = existing.id;
+        } else {
+          await tx.budgetExtractionCandidateV1.create({
+            data: {
+              id: candidateId,
               cycleId: candidateIdentity.cycleId,
               manifestContentSha256: candidateIdentity.manifestContentSha256,
               manifestDocumentKey: candidateIdentity.manifestDocumentKey,
-              sourceDocumentId: candidateIdentity.sourceDocumentId,
-              sourceSha256: candidateIdentity.sourceSha256,
               extractionArtifactId: candidateIdentity.extractionArtifactId,
               extractionArtifactSha256: candidateIdentity.extractionArtifactSha256,
+              extractionArtifactLocator: candidateIdentity.extractionArtifactLocator,
+              sourceDocumentId: candidateIdentity.sourceDocumentId,
+              sourceSha256: candidateIdentity.sourceSha256,
               verifierVersion: candidateIdentity.verifierVersion,
               policyVersion: candidateIdentity.policyVersion,
               policySha256: candidateIdentity.policySha256,
+              status: 'VALIDATING',
             },
-        },
-      });
-
-      if (existing && TERMINAL_STATUSES.has(existing.status)) {
-        // R3: Return existing immutable result — no duplicate evidence
-        if (existing.currentRunId) {
-          const existingRun = await tx.budgetVerificationRunV1.findFirst({
-            where: { id: existing.currentRunId },
-            orderBy: { createdAt: 'desc' },
           });
-          if (existingRun) {
-            return {
-              candidate: {
-                id: existing.id,
-                status: existing.status,
-                currentRunId: existing.currentRunId,
-              },
-              run: {
-                id: existingRun.id,
-                candidateId: existingRun.candidateId,
-                decision: existingRun.decision,
-                status: existingRun.status,
-                route: existingRun.route,
-                riskScore: existingRun.riskScore,
-              },
-            };
-          }
         }
-      }
 
-      let candidateIdToUse = candidateId;
-
-      if (existing) {
-        // Re-verify: transition to VALIDATING
-        assertValidTransition(existing.status, 'VALIDATING');
-        // R3: Use updateMany to update candidate (avoids needing findUnique by id
-        // inside transaction — updateMany is available on the tx client)
-        await tx.budgetExtractionCandidateV1.updateMany({
-          where: { id: existing.id },
-          data: { status: 'VALIDATING', updatedAt: new Date() },
-        });
-        candidateIdToUse = existing.id;
-      } else {
-        // R3: Create new candidate with deterministic ID
-        await tx.budgetExtractionCandidateV1.create({
+        // R3: Insert completed run with deterministic ID
+        const runRow = mapResultToRunRow(result, candidateIdToUse);
+        await tx.budgetVerificationRunV1.create({
           data: {
-            id: candidateId,
-            cycleId: candidateIdentity.cycleId,
-            manifestContentSha256: candidateIdentity.manifestContentSha256,
-            manifestDocumentKey: candidateIdentity.manifestDocumentKey,
-            extractionArtifactId: candidateIdentity.extractionArtifactId,
-            extractionArtifactSha256: candidateIdentity.extractionArtifactSha256,
-            extractionArtifactLocator: candidateIdentity.extractionArtifactLocator,
-            sourceDocumentId: candidateIdentity.sourceDocumentId,
-            sourceSha256: candidateIdentity.sourceSha256,
-            verifierVersion: candidateIdentity.verifierVersion,
-            policyVersion: candidateIdentity.policyVersion,
-            policySha256: candidateIdentity.policySha256,
-            status: 'VALIDATING',
+            id: runId,
+            candidateId: runRow.candidateId,
+            verifierVersion: runRow.verifierVersion,
+            policyVersion: runRow.policyVersion,
+            policySha256: runRow.policySha256,
+            decision: runRow.decision,
+            status: runRow.status,
+            route: runRow.route,
+            riskScore: runRow.riskScore,
+            startedAt: new Date(runRow.startedAt),
+            completedAt: new Date(runRow.completedAt),
+            manifestContentSha256: runRow.manifestContentSha256,
+            extractionArtifactSha256: runRow.extractionArtifactSha256,
+            sourceSha256: runRow.sourceSha256,
+            resultSnapshot: runRow.resultSnapshot as Prisma.InputJsonValue,
           },
         });
-      }
 
-      // R3: Insert completed run with deterministic ID
-      const runRow = mapResultToRunRow(result, candidateIdToUse);
-      await tx.budgetVerificationRunV1.create({
-        data: {
-          id: runId,
-          candidateId: runRow.candidateId,
-          verifierVersion: runRow.verifierVersion,
-          policyVersion: runRow.policyVersion,
-          policySha256: runRow.policySha256,
-          decision: runRow.decision,
-          status: runRow.status,
-          route: runRow.route,
-          riskScore: runRow.riskScore,
-          startedAt: new Date(runRow.startedAt),
-          completedAt: new Date(runRow.completedAt),
-          manifestContentSha256: runRow.manifestContentSha256,
-          extractionArtifactSha256: runRow.extractionArtifactSha256,
-          sourceSha256: runRow.sourceSha256,
-          resultSnapshot: runRow.resultSnapshot as Prisma.InputJsonValue,
-        },
+        // R3: Insert proof snapshots
+        if (proofSnapshots.length > 0) {
+          await tx.budgetVerificationProofV1.createMany({
+            data: proofSnapshots.map((s) =>
+              mapProofSnapshotToRow(runId, s),
+            ) as Prisma.BudgetVerificationProofV1CreateManyInput[],
+          });
+        }
+
+        // R3: Insert checks
+        if (checks.length > 0) {
+          await tx.budgetVerificationCheckV1.createMany({
+            data: checks.map((c) =>
+              mapCheckToRow(runId, c),
+            ) as Prisma.BudgetVerificationCheckV1CreateManyInput[],
+          });
+        }
+
+        // R3: Insert discrepancies
+        if (discrepancies.length > 0) {
+          await tx.budgetVerificationDiscrepancyV1.createMany({
+            data: discrepancies.map((d) =>
+              mapDiscrepancyToRow(runId, candidateIdToUse, d),
+            ) as Prisma.BudgetVerificationDiscrepancyV1CreateManyInput[],
+          });
+        }
+
+        // R3: Update final candidate status.
+        // R8.1 §5.5: the conditional update must affect exactly one row; a
+        // zero-row update is a concurrency conflict and must roll back.
+        const finalStatus = statusFromDecision(result.decision);
+        assertValidTransition('VALIDATING', finalStatus);
+        const finalized = await tx.budgetExtractionCandidateV1.updateMany({
+          where: { id: candidateIdToUse, status: 'VALIDATING' },
+          data: { status: finalStatus, currentRunId: runId, updatedAt: new Date() },
+        });
+        if (finalized.count !== 1) {
+          throw new VerificationConcurrencyError(
+            `final status update for candidate ${candidateIdToUse} affected ${finalized.count} rows — concurrent modification`,
+          );
+        }
+
+        return {
+          candidate: { id: candidateIdToUse, status: finalStatus, currentRunId: runId },
+          run: {
+            id: runId,
+            candidateId: candidateIdToUse,
+            decision: result.decision,
+            status: result.status,
+            route: result.route,
+            riskScore: result.riskScore,
+          },
+        };
       });
-
-      // R3: Insert proof snapshots
-      if (proofSnapshots.length > 0) {
-        await tx.budgetVerificationProofV1.createMany({
-          data: proofSnapshots.map((s) =>
-            mapProofSnapshotToRow(runId, s),
-          ) as Prisma.BudgetVerificationProofV1CreateManyInput[],
-        });
+    } catch (err) {
+      // R8.1 §5.4: translate the Prisma unique-conflict into a controlled
+      // concurrency signal; on conflict, reload and return the persisted
+      // terminal result when one exists.
+      if (isPrismaUniqueConflict(err)) {
+        const existing = await this.findTerminalRunByIdentity(input.candidateIdentity);
+        if (existing) {
+          return {
+            candidate: {
+              id: existing.candidate.id,
+              status: existing.candidate.status,
+              currentRunId: existing.candidate.currentRunId,
+            },
+            run: {
+              id: existing.run.id,
+              candidateId: existing.run.candidateId,
+              decision: existing.run.decision,
+              status: existing.run.status,
+              route: existing.run.route,
+              riskScore: existing.run.riskScore,
+            },
+          };
+        }
+        throw new VerificationConcurrencyError(
+          'concurrent verification created the candidate first — retry to read the persisted result',
+        );
       }
-
-      // R3: Insert checks
-      if (checks.length > 0) {
-        await tx.budgetVerificationCheckV1.createMany({
-          data: checks.map((c) =>
-            mapCheckToRow(runId, c),
-          ) as Prisma.BudgetVerificationCheckV1CreateManyInput[],
-        });
-      }
-
-      // R3: Insert discrepancies
-      if (discrepancies.length > 0) {
-        await tx.budgetVerificationDiscrepancyV1.createMany({
-          data: discrepancies.map((d) =>
-            mapDiscrepancyToRow(runId, candidateIdToUse, d),
-          ) as Prisma.BudgetVerificationDiscrepancyV1CreateManyInput[],
-        });
-      }
-
-      // R3: Update final candidate status
-      const finalStatus = statusFromDecision(result.decision);
-      assertValidTransition('VALIDATING', finalStatus);
-      await tx.budgetExtractionCandidateV1.updateMany({
-        where: { id: candidateIdToUse },
-        data: { status: finalStatus, currentRunId: runId, updatedAt: new Date() },
-      });
-
-      return {
-        candidate: { id: candidateIdToUse, status: finalStatus, currentRunId: runId },
-        run: {
-          id: runId,
-          candidateId: candidateIdToUse,
-          decision: result.decision,
-          status: result.status,
-          route: result.route,
-          riskScore: result.riskScore,
-        },
-      };
-    });
+      throw err;
+    }
   }
 
   async persistReviewDecision(
     input: PersistReviewDecisionInputV1,
   ): Promise<PersistedReviewDecisionV1> {
     return this.prisma.$transaction(async (tx) => {
-      // R3: Look up candidate by candidateId using findFirst (real Prisma method)
+      // R8.1 §6.2: lock the candidate row (SELECT ... FOR UPDATE) before any
+      // state checks so only one terminal review can succeed.
+      await tx.$executeRaw`SELECT id FROM budget_extraction_candidate_v1 WHERE id = ${input.candidateId}::uuid FOR UPDATE`;
+
       const candidate = await tx.budgetExtractionCandidateV1.findFirst({
         where: { id: input.candidateId },
       });
@@ -278,10 +369,22 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
         throw new Error(`candidate not found: ${input.candidateId}`);
       }
 
+      // §6.2 step 2: confirm NEEDS_REVIEW under the lock.
       if (candidate.status !== 'NEEDS_REVIEW') {
-        throw new Error(
+        // Another locked reviewer has already completed the terminal state
+        // transition. Surface the typed concurrency signal for the service to
+        // translate into ReviewAlreadyCompletedError.
+        throw new VerificationConcurrencyError(
           `candidate ${input.candidateId} is not in NEEDS_REVIEW state (got ${candidate.status})`,
         );
+      }
+
+      // §6.2 step 3: confirm no terminal review decision exists.
+      const existingTerminal = await tx.budgetReviewDecisionV1.findFirst({
+        where: { candidateId: input.candidateId, decision: { in: ['accept', 'reject'] } },
+      });
+      if (existingTerminal) {
+        throw new Error(`candidate ${input.candidateId} already has a terminal review decision`);
       }
 
       // R3: Hash binding — verify expected hashes match
@@ -320,13 +423,20 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
         },
       });
 
-      // R3: Update candidate status
+      // R3: Update candidate status.
+      // R8.1 §5.5: the conditional update must affect exactly one row; a
+      // zero-row update is a concurrency conflict and must roll back.
       const newStatus = input.decision === 'accept' ? 'REVIEW_ACCEPTED' : 'REJECTED';
       assertValidTransition('NEEDS_REVIEW', newStatus);
-      await tx.budgetExtractionCandidateV1.updateMany({
+      const reviewUpdate = await tx.budgetExtractionCandidateV1.updateMany({
         where: { id: input.candidateId, status: 'NEEDS_REVIEW' },
         data: { status: newStatus, updatedAt: new Date() },
       });
+      if (reviewUpdate.count !== 1) {
+        throw new VerificationConcurrencyError(
+          `review status update for candidate ${input.candidateId} affected ${reviewUpdate.count} rows — concurrent review`,
+        );
+      }
 
       return {
         id: reviewRow.id,

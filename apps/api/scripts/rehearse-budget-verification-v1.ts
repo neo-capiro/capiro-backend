@@ -11,6 +11,11 @@
  * No AWS, no LlamaParse, no canonical writes, no shared database.
  */
 import { PrismaClient } from '@prisma/client';
+import { createPrismaBudgetVerificationRepository } from '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js';
+import {
+  BudgetReviewV1Service,
+  ReviewAlreadyCompletedError,
+} from '../src/defense-budget/verification/services/budget-review-v1.service.js';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -102,17 +107,9 @@ async function main(): Promise<void> {
   const proofId = '00000000-0000-0000-0000-0000000000b2';
   const discrepancyId = 'vd1_test_discrepancy_001';
 
-  // Clean any leftover from prior runs
-  await prisma.$executeRaw`DELETE FROM "budget_review_decision_v1" WHERE candidate_id = ${candidateId}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "budget_verification_discrepancy_v1" WHERE run_id = ${runId}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "budget_verification_proof" WHERE run_id = ${runId}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "budget_verification_check_v1" WHERE run_id = ${runId}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "budget_verification_run_v1" WHERE id = ${runId}::uuid`;
-  await prisma.$executeRaw`DELETE FROM "budget_extraction_candidate_v1" WHERE id = ${candidateId}::uuid`;
-
-  // Delete will fail due to RESTRICT FKs — but the delete trigger only blocks UPDATE, not DELETE.
-  // We need to clean in the right order. Use raw SQL with CASCADE disable.
-  // Actually the triggers only prevent UPDATE, not DELETE. So we can delete in FK order.
+  // The audit rows are intentionally immutable, including DELETE. A rehearsal
+  // is therefore always run against a fresh disposable database rather than
+  // deleting terminal evidence left by a prior run.
 
   try {
     await prisma.$transaction([
@@ -311,8 +308,78 @@ async function main(): Promise<void> {
     `;
   });
 
-  // 15. No canonical table changes
-  console.log('\n--- 15. No canonical table changes ---');
+  // 15. Concurrent service review — the PostgreSQL lock and conditional
+  // status update must admit exactly one terminal decision. The losing caller
+  // receives the controlled ReviewAlreadyCompletedError, not a raw DB error.
+  console.log('\n--- 15. Concurrent review persistence ---');
+  const concurrentCandidateId = '00000000-0000-0000-0000-000000000031';
+  const concurrentRunId = '00000000-0000-0000-0000-000000000032';
+  await prisma.$transaction([
+    prisma.$executeRaw`
+      INSERT INTO "budget_extraction_candidate_v1"
+      ("id", "cycle_id", "manifest_content_sha256", "manifest_document_key",
+       "extraction_artifact_id", "extraction_artifact_sha256", "extraction_artifact_locator",
+       "source_document_id", "source_sha256", "verifier_version", "policy_version", "policy_sha256",
+       "status", "current_run_id", "created_at", "updated_at")
+      VALUES (${concurrentCandidateId}::uuid, 'fy2027', ${VALID_SHA}, 'r1_concurrent_review',
+       'art-concurrent-review', ${VALID_SHA}, '/test/concurrent-review.json',
+       ${sourceDocId}::uuid, ${VALID_SHA}, 'defense_budget_verifier_v1', 'defense_budget_verification_policy_v1', ${VALID_SHA},
+       'NEEDS_REVIEW', ${concurrentRunId}::uuid, now(), now())
+    `,
+    prisma.$executeRaw`
+      INSERT INTO "budget_verification_run_v1"
+      ("id", "candidate_id", "verifier_version", "policy_version", "policy_sha256",
+       "decision", "status", "route", "risk_score", "started_at", "completed_at",
+       "manifest_content_sha256", "extraction_artifact_sha256", "source_sha256", "result_snapshot_jsonb", "created_at")
+      VALUES (${concurrentRunId}::uuid, ${concurrentCandidateId}::uuid,
+       'defense_budget_verifier_v1', 'defense_budget_verification_policy_v1', ${VALID_SHA},
+       'REVIEW', 'NEEDS_REVIEW', 'human_review', 0,
+       '2026-01-01T00:00:00Z', '2026-01-01T00:00:01Z',
+       ${VALID_SHA}, ${VALID_SHA}, ${VALID_SHA}, '{}', now())
+    `,
+  ]);
+  const reviewService = new BudgetReviewV1Service(createPrismaBudgetVerificationRepository(prisma));
+  const concurrentOutcomes = await Promise.allSettled([
+    reviewService.review({
+      candidateId: concurrentCandidateId,
+      verificationRunId: concurrentRunId,
+      reviewerId: 'concurrent-reviewer-accept',
+      decision: 'accept',
+      notes: 'Concurrent accept rehearsal.',
+      evidenceIds: [],
+      expectedSourceSha256: VALID_SHA,
+      expectedExtractionArtifactSha256: VALID_SHA,
+      expectedManifestContentSha256: VALID_SHA,
+    }),
+    reviewService.review({
+      candidateId: concurrentCandidateId,
+      verificationRunId: concurrentRunId,
+      reviewerId: 'concurrent-reviewer-reject',
+      decision: 'reject',
+      notes: 'Concurrent reject rehearsal.',
+      evidenceIds: [],
+      expectedSourceSha256: VALID_SHA,
+      expectedExtractionArtifactSha256: VALID_SHA,
+      expectedManifestContentSha256: VALID_SHA,
+    }),
+  ]);
+  const completedReviews = concurrentOutcomes.filter((outcome) => outcome.status === 'fulfilled');
+  const alreadyCompleted = concurrentOutcomes.filter(
+    (outcome) =>
+      outcome.status === 'rejected' && outcome.reason instanceof ReviewAlreadyCompletedError,
+  );
+  const terminalReviewCount = await prisma.budgetReviewDecisionV1.count({
+    where: { candidateId: concurrentCandidateId },
+  });
+  check('concurrent review has exactly one fulfilled caller', completedReviews.length === 1);
+  check(
+    'concurrent review loser receives ReviewAlreadyCompletedError',
+    alreadyCompleted.length === 1,
+  );
+  check('concurrent review persists exactly one terminal decision', terminalReviewCount === 1);
+
+  // 16. No canonical table changes
+  console.log('\n--- 16. No canonical table changes ---');
   const peRowCount = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint as count FROM "program_element"
   `;
@@ -322,8 +389,8 @@ async function main(): Promise<void> {
   `;
   check('program_element_year table unchanged (empty)', Number(peYearCount[0]?.count) === 0);
 
-  // 16. Re-run migration deploy confirms stable state
-  console.log('\n--- 16. Migration state stable ---');
+  // 17. Re-run migration deploy confirms stable state
+  console.log('\n--- 17. Migration state stable ---');
   const pendingMigrations = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint as count FROM _prisma_migrations WHERE finished_at IS NULL
   `;

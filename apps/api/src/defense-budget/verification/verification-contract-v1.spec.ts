@@ -133,6 +133,103 @@ describe('verificationRequestV1Schema', () => {
     };
     expect(() => verificationRequestV1Schema.parse(request)).toThrow();
   });
+
+  it('rejects the removed flat referenceArtifactLocators field', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifactLocators: ['/ref.json'],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('accepts structured referenceArtifacts with explicit sourceDocumentId', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [
+        {
+          artifactLocator: '/ref1.json',
+          sourceDocumentId: 'ref-src-1',
+          manifestDocumentKey: 'r2_army_fy2027',
+        },
+        { artifactLocator: '/ref2.json', sourceDocumentId: 'ref-src-2' },
+      ],
+    };
+    const parsed = verificationRequestV1Schema.parse(request);
+    expect(parsed.referenceArtifacts).toHaveLength(2);
+    expect(parsed.referenceArtifacts?.[0]?.sourceDocumentId).toBe('ref-src-1');
+    expect(parsed.referenceArtifacts?.[1]?.sourceDocumentId).toBe('ref-src-2');
+  });
+
+  it('rejects a reference without sourceDocumentId', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [{ artifactLocator: '/ref.json' }],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('rejects a reference without artifactLocator', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [{ sourceDocumentId: 'ref-src' }],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('rejects unknown properties on a reference descriptor (strict)', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [
+        {
+          artifactLocator: '/ref.json',
+          sourceDocumentId: 'ref-src',
+          archiveProof: {},
+        },
+      ],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('multiple references preserve correct source-document pairing', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'candidate-src',
+      mode: 'inspect',
+      referenceArtifacts: [
+        { artifactLocator: '/r1.json', sourceDocumentId: 'src-r1' },
+        { artifactLocator: '/r2.json', sourceDocumentId: 'src-r2' },
+      ],
+    };
+    const parsed = verificationRequestV1Schema.parse(request);
+    expect(parsed.sourceDocumentId).toBe('candidate-src');
+    expect(parsed.referenceArtifacts?.map((r) => r.sourceDocumentId)).toEqual(['src-r1', 'src-r2']);
+    // Candidate ID is never substituted into a reference
+    expect(parsed.referenceArtifacts?.every((r) => r.sourceDocumentId !== 'candidate-src')).toBe(
+      true,
+    );
+  });
 });
 
 describe('verificationCheckV1Schema', () => {

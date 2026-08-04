@@ -126,12 +126,18 @@ function parseArgs(argv: string[]): { manifest: string; offline: boolean } {
 /** Map persisted candidate status to report status. */
 function mapCandidateStatus(status: string): DocumentStatusEntry['status'] {
   switch (status) {
-    case 'VERIFICATION_PASSED': return 'verification_passed';
-    case 'NEEDS_REVIEW': return 'needs_review';
-    case 'REVIEW_ACCEPTED': return 'review_accepted';
-    case 'REJECTED': return 'rejected';
-    case 'SUPERSEDED': return 'superseded';
-    default: return 'not_verified';
+    case 'VERIFICATION_PASSED':
+      return 'verification_passed';
+    case 'NEEDS_REVIEW':
+      return 'needs_review';
+    case 'REVIEW_ACCEPTED':
+      return 'review_accepted';
+    case 'REJECTED':
+      return 'rejected';
+    case 'SUPERSEDED':
+      return 'superseded';
+    default:
+      return 'not_verified';
   }
 }
 
@@ -239,13 +245,11 @@ async function generateReport(manifestPath: string, offline: boolean): Promise<C
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Database query failed: ${message}`);
     console.error('Use --offline for manifest-only report without database access.');
-    process.exit(EXIT_ERROR);
-    return buildReport(manifest, []);
+    throw err instanceof Error ? err : new Error(message);
   } finally {
     if (prisma) {
       await prisma.$disconnect().catch(() => {});
     }
-    return buildReport(manifest, []);
   }
 }
 
@@ -277,7 +281,8 @@ function buildReport(
       missingRequired,
       totalBlockingDiscrepancies: documents.reduce((s, d) => s + d.blockingDiscrepancyCount, 0),
       totalUnresolvedRequiredComparisons: documents.reduce(
-        (s, d) => s + d.unresolvedRequiredComparisons, 0,
+        (s, d) => s + d.unresolvedRequiredComparisons,
+        0,
       ),
     },
   };

@@ -115,8 +115,24 @@ export const PROOF_FINDING_V1_VALUES = [
   'parse_output_sha_mismatch',
   'parser_method_mismatch',
   'reference_artifact_proof_failed',
+  'source_bytes_unresolved',
+  'source_metadata_mismatch',
+  'production_dependency_missing',
 ] as const;
 export type ProofFindingCodeV1 = (typeof PROOF_FINDING_V1_VALUES)[number];
+
+/**
+ * Raised when production proof resolution cannot produce a trustworthy proof
+ * bundle (missing authoritative bytes, missing required dependencies, or
+ * SourceDocument metadata disagreement). Execution must stop before any
+ * result is constructed.
+ */
+export class TrustedProofResolutionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TrustedProofResolutionError';
+  }
+}
 
 export interface ProofFindingV1 {
   code: ProofFindingCodeV1;
@@ -153,8 +169,6 @@ export interface TrustedProofResolveInputV1 {
     sourceDocumentId: string;
     manifestDocumentKey?: string;
   }>;
-  /** @deprecated Use referenceArtifacts instead. */
-  referenceArtifactLocators?: readonly string[];
   expectedSourcePdfSha256?: string;
   expectedExtractionArtifactSha256?: string;
 }
