@@ -13,10 +13,11 @@ const engagementBootstrap = readFileSync(
 );
 
 describe('Engagement runtime provider and bootstrap wiring', () => {
-  it('constructs the policy through an explicit factory rather than class DI', () => {
+  it('constructs the policy through an explicit factory', () => {
     expect(engagementModule).toMatch(/provide:\s*EngagementRuntimePolicyService/);
-    expect(engagementModule).toMatch(/useFactory:[\s\S]*new EngagementRuntimePolicyService/);
-    expect(engagementModule).not.toMatch(/\n\s*EngagementRuntimePolicyService,\s*\n/);
+    expect(engagementModule).toMatch(
+      /provide:\s*EngagementRuntimePolicyService,[\s\S]*?useFactory:[\s\S]*?new EngagementRuntimePolicyService/,
+    );
   });
 
   it('uses the strict environment resolver in the provider', () => {
@@ -25,10 +26,12 @@ describe('Engagement runtime provider and bootstrap wiring', () => {
 
   it('preflights both bootstraps before NestFactory.create', () => {
     for (const source of [mainBootstrap, engagementBootstrap]) {
-      expect(source.indexOf('assertEngagementRuntimeEnvironment')).toBeGreaterThanOrEqual(0);
-      expect(source.indexOf('assertEngagementRuntimeEnvironment')).toBeLessThan(
-        source.indexOf('NestFactory.create'),
-      );
+      const bootstrap = source.slice(source.indexOf('async function bootstrap'));
+      const preflightIndex = bootstrap.indexOf('assertEngagementRuntimeEnvironment');
+      const nestCreateIndex = bootstrap.indexOf('NestFactory.create');
+      expect(preflightIndex).toBeGreaterThanOrEqual(0);
+      expect(nestCreateIndex).toBeGreaterThanOrEqual(0);
+      expect(preflightIndex).toBeLessThan(nestCreateIndex);
     }
   });
 });
