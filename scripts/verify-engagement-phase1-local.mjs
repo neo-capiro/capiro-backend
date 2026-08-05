@@ -21,6 +21,7 @@ const evidence = path.resolve(
   ROOT,
   parsed.evidenceDir ?? `.artifacts/engagement-phase1-${sha}`,
 );
+const summary = path.join(evidence, 'local-runner-summary.json');
 
 await run('Phase 1 full local closeout', [
   path.join(ROOT, 'scripts', 'run-engagement-phase1-local.mjs'),
@@ -33,10 +34,17 @@ await rm(path.join(evidence, 'logs', 'engagement-api-strict-background.log'), {
 });
 await rm(path.join(evidence, 'strict-background-failure.json'), { force: true });
 
-await run('Phase 1 strict background digest closeout', [
-  path.join(ROOT, 'scripts', 'verify-engagement-phase1-background-final.mjs'),
-  ...args,
-]);
+try {
+  await run('Phase 1 strict background digest closeout', [
+    path.join(ROOT, 'scripts', 'verify-engagement-phase1-background-final.mjs'),
+    ...args,
+  ]);
+} catch (error) {
+  // The primary runner emits a provisional success summary. It is not valid
+  // unless the mandatory strict stage also passes.
+  await rm(summary, { force: true }).catch(() => undefined);
+  throw error;
+}
 
 console.log('ENGAGEMENT_PHASE1_AUTHORITATIVE_LOCAL_COMPLETE');
 
