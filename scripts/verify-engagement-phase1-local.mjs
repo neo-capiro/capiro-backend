@@ -3,11 +3,12 @@
  * Authoritative Phase 1 local command.
  *
  * The primary runner proves the full two-process/API/browser/image contract.
- * A mandatory second process then re-proves background containment with
- * JSON-encoded PostgreSQL digests. Arguments are passed to both stages.
+ * A mandatory authenticated post-pass proves successful browser responses and
+ * real seeded-record parity. A final fresh process then re-proves background
+ * containment with JSON-encoded PostgreSQL digests.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,20 +29,44 @@ await run('Phase 1 full local closeout', [
   ...args,
 ]);
 
-// A previous local attempt must not satisfy the strict log assertions.
-await rm(path.join(evidence, 'logs', 'engagement-api-strict-background.log'), {
-  force: true,
-});
-await rm(path.join(evidence, 'strict-background-failure.json'), { force: true });
-
 try {
+  await run('Phase 1 successful-response and real-record parity closeout', [
+    path.join(ROOT, 'apps', 'web', 'scripts', 'engagement-phase1-post-acceptance.mjs'),
+    ...args,
+  ]);
+
+  // A previous local attempt must not satisfy the strict log assertions.
+  await rm(path.join(evidence, 'logs', 'engagement-api-strict-background.log'), {
+    force: true,
+  });
+  await rm(path.join(evidence, 'strict-background-failure.json'), { force: true });
+
   await run('Phase 1 strict background digest closeout', [
     path.join(ROOT, 'scripts', 'verify-engagement-phase1-background-final.mjs'),
     ...args,
   ]);
+
+  const finalSummary = JSON.parse(await readFile(summary, 'utf8'));
+  if (
+    finalSummary.sha !== sha ||
+    finalSummary.actualHeadSha !== sha ||
+    finalSummary.browserResponsesVerified !== true ||
+    finalSummary.realSeededReadParity !== true ||
+    finalSummary.strictBackgroundContainment !== true
+  ) {
+    throw new Error(
+      `Final Phase 1 summary is incomplete: ${JSON.stringify({
+        sha: finalSummary.sha,
+        actualHeadSha: finalSummary.actualHeadSha,
+        browserResponsesVerified: finalSummary.browserResponsesVerified,
+        realSeededReadParity: finalSummary.realSeededReadParity,
+        strictBackgroundContainment: finalSummary.strictBackgroundContainment,
+      })}`,
+    );
+  }
 } catch (error) {
-  // The primary runner emits a provisional success summary. It is not valid
-  // unless the mandatory strict stage also passes.
+  // Every earlier marker is provisional. Any post-pass or strict-stage failure
+  // removes the merge-authorizing summary so stale success cannot survive.
   await rm(summary, { force: true }).catch(() => undefined);
   throw error;
 }
