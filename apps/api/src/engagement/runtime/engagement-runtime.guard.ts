@@ -2,7 +2,6 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -11,24 +10,14 @@ import {
   type EngagementRuntimeActionMetadata,
 } from './engagement-runtime-action.decorator.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
+import {
+  runtimePolicyForHandler,
+  sameRuntimeMetadata,
+} from './engagement-runtime-route-policy.js';
 
-/**
- * Global guard for the EngagementApiAppModule.
- *
- * Reads @EngagementRuntimeAction metadata from the handler and calls
- * EngagementRuntimePolicyService before the controller body executes.
- *
- * - Routes without action metadata are allowed (ordinary DB-local reads/writes).
- * - Routes with requiresCallbacks also get assertCallbacksEnabled.
- * - The guard does not depend on tenant context and is safe on OAuth
- *   callbacks that have no Clerk token.
- *
- * Registered as a global guard ONLY in EngagementApiAppModule, never in AppModule.
- */
+/** Global only in EngagementApiAppModule; AppModule behavior is unchanged. */
 @Injectable()
 export class EngagementRuntimeGuard implements CanActivate {
-  private readonly logger = new Logger(EngagementRuntimeGuard.name);
-
   constructor(
     private readonly reflector: Reflector,
     private readonly policy: EngagementRuntimePolicyService,
@@ -36,24 +25,36 @@ export class EngagementRuntimeGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const handler = context.getHandler();
-    const metadata = this.reflector.get<EngagementRuntimeActionMetadata>(
+    const controllerName = context.getClass().name;
+    const handlerName = handler.name;
+
+    const decorated = this.reflector.get<EngagementRuntimeActionMetadata>(
       ENGAGEMENT_RUNTIME_ACTION_KEY,
       handler,
     );
+    const registered = runtimePolicyForHandler(controllerName, handlerName);
 
-    // No action metadata — this is a DB-local route, allow through.
-    if (!metadata) return true;
-
-    // Callback routes (OAuth callbacks, Microsoft notifications) require
-    // callbacks to be enabled in addition to the external-action check.
-    if (metadata.requiresCallbacks) {
-      this.policy.assertCallbacksEnabled(metadata.action);
+    if (decorated && registered && !sameRuntimeMetadata(decorated, registered)) {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_RUNTIME_POLICY_MISMATCH',
+        action: registered.action,
+        message: 'The engagement-api route policy is inconsistent and has been disabled.',
+      });
     }
 
-    // Assert the external action is allowed. Throws 503 if not.
+    const metadata = registered ?? decorated;
+    if (!metadata) return true;
+
+    // Preserve the stable shadow error contract. When both controls are off,
+    // external-action denial wins; callback denial remains effective in a
+    // future active runtime with callbacks independently disabled.
     this.policy.assertExternalAction(metadata.action, {
       testMode: metadata.testMode,
     });
+    if (metadata.requiresCallbacks) {
+      this.policy.assertCallbacksEnabled(metadata.action);
+    }
 
     return true;
   }
