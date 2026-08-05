@@ -1,3 +1,4 @@
+import { ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 import type { EngagementAiService } from '../engagement-ai.service.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
@@ -31,7 +32,7 @@ describe('Engagement AI runtime boundary', () => {
 
   it.each(Object.keys(guardedEngagementAiMethods()))(
     'blocks %s before the underlying implementation runs',
-    async (methodName) => {
+    (methodName) => {
       const implementation = jest.fn(async () => ({ ok: true }));
       const raw = {
         [methodName]: implementation,
@@ -41,8 +42,16 @@ describe('Engagement AI runtime boundary', () => {
         (...args: unknown[]) => Promise<unknown>
       >;
 
-      await expect(guarded[methodName]?.({})).rejects.toMatchObject({
-        status: 503,
+      let caught: unknown;
+      try {
+        void guarded[methodName]?.({});
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ServiceUnavailableException);
+      expect((caught as ServiceUnavailableException).getStatus()).toBe(503);
+      expect((caught as ServiceUnavailableException).getResponse()).toMatchObject({
+        code: 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED',
       });
       expect(implementation).not.toHaveBeenCalled();
     },
