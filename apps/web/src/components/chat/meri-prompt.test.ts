@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { clearChatSession, setActiveConversation, setChatOpen, setGlobalClientFilter } = vi.hoisted(
-  () => ({
-    clearChatSession: vi.fn(),
-    setActiveConversation: vi.fn(),
-    setChatOpen: vi.fn(),
-    setGlobalClientFilter: vi.fn(),
-  }),
-);
+const clearChatSession = vi.fn();
+const setActiveConversation = vi.fn();
+const setChatOpen = vi.fn();
+const setGlobalClientFilter = vi.fn();
 
 vi.mock('./chat-store.js', () => ({
   clearChatSession,
