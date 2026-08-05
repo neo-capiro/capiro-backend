@@ -109,17 +109,34 @@ export const rdteCycleVerificationRefV1Schema = z
   });
 export type RdteCycleVerificationRefV1 = z.infer<typeof rdteCycleVerificationRefV1Schema>;
 
+/**
+ * Convert a Phase 2 result into a cycle reference without relabeling its
+ * canonical content SHA as a serialized-byte SHA. The exact byte SHA is used
+ * when the caller supplies it. Older callers that already passed the byte hash
+ * into Phase 2's expectedExtractionArtifactSha256 guard use the content SHA as
+ * an explicit sentinel; the certifier does not re-compare that sentinel.
+ */
 export function rdteVerificationRefFromResult(input: {
   result: DefenseBudgetVerificationResultV1;
   artifactContentSha256: string;
+  artifactByteSha256?: string;
 }): RdteCycleVerificationRefV1 {
   const result = defenseBudgetVerificationResultV1Schema.parse(input.result);
+  const artifactContentSha256 = sha256Schema.parse(input.artifactContentSha256);
+  const artifactByteSha256 = sha256Schema.parse(
+    input.artifactByteSha256 ?? artifactContentSha256,
+  );
+  if (result.extractionArtifactSha256 !== artifactContentSha256) {
+    throw new Error(
+      `Phase 2 result content SHA ${result.extractionArtifactSha256} does not match artifact ${artifactContentSha256}`,
+    );
+  }
   return rdteCycleVerificationRefV1Schema.parse({
     manifestDocumentKey: result.manifestDocumentKey,
     manifestContentSha256: result.manifestContentSha256,
     artifactId: result.extractionArtifactId,
-    artifactContentSha256: input.artifactContentSha256,
-    artifactByteSha256: result.extractionArtifactSha256,
+    artifactContentSha256,
+    artifactByteSha256,
     candidateId: result.candidateId,
     verificationRunId: result.verificationRunId,
     policySha256: result.policySha256,

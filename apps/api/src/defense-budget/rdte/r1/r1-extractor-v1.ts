@@ -23,11 +23,10 @@ import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
 import {
-  isDispositionAllowedForRole,
   type RdteColumnRoleV1,
   type RdteValueDispositionV1,
 } from '../rdte-column-role-v1.js';
-import { detectR1TablesOnPage, type R1DetectedRow } from './r1-table-detector.js';
+import { detectR1TablesOnPage } from './r1-table-detector.js';
 
 /* ------------------------------------------------------------------ */
 /* Output types                                                        */
@@ -42,6 +41,10 @@ export interface R1FundingValue {
   originalValue: string;
   originalUnit: MoneyUnitV1;
   valueMillions: string;
+  page: number;
+  printedPage?: string;
+  tableIndex: number;
+  rowIndex: number;
   columnIndex: number;
   headerText: string;
   direct: boolean;
@@ -146,16 +149,16 @@ export function extractR1FromPages(input: {
       const headerRows: RawHeaderRowV1[] = table.headerRowIndices.map((rowIndex) => {
         const rowCells =
           page.tables
-            .find((t) => t.tableIndex === table.tableIndex)
-            ?.cells.filter((c) => c.rowIndex === rowIndex) ?? [];
+            .find((value) => value.tableIndex === table.tableIndex)
+            ?.cells.filter((cell) => cell.rowIndex === rowIndex) ?? [];
         return {
           rowIndex,
-          cells: rowCells.map((c) => ({
-            text: c.text,
-            rowIndex: c.rowIndex,
-            columnIndex: c.columnIndex,
-            colSpan: c.colSpan,
-            rowSpan: c.rowSpan,
+          cells: rowCells.map((cell) => ({
+            text: cell.text,
+            rowIndex: cell.rowIndex,
+            columnIndex: cell.columnIndex,
+            colSpan: cell.colSpan,
+            rowSpan: cell.rowSpan,
           })),
         };
       });
@@ -292,9 +295,14 @@ export function extractR1FromPages(input: {
             originalValue: canonical,
             originalUnit: unitResolution.unit,
             valueMillions: moneyToMillionsString(canonical, unitResolution.unit),
+            page: peRow.page,
+            ...(peRow.printedPage != null ? { printedPage: peRow.printedPage } : {}),
+            tableIndex: peRow.tableIndex,
+            rowIndex: peRow.rowIndex,
             columnIndex: cell.columnIndex,
             headerText:
-              header.columns.find((c) => c.columnIndex === cell.columnIndex)?.normalizedText ?? '',
+              header.columns.find((column) => column.columnIndex === cell.columnIndex)
+                ?.normalizedText ?? '',
             direct: true,
           };
           funding.push(value);
@@ -335,7 +343,7 @@ export function extractR1FromPages(input: {
   }
 
   /* Only true conflicts (multiple distinct values) are reported. */
-  const conflicts = [...conflictMap.values()].filter((c) => c.values.length > 1);
+  const conflicts = [...conflictMap.values()].filter((conflict) => conflict.values.length > 1);
 
   return {
     identities,

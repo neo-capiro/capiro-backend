@@ -78,7 +78,7 @@ export class ArtifactBuilderV1 {
   }
 
   addEvidence(evidence: SourceEvidenceV1): this {
-    this.evidence.push(evidence);
+    this.evidence.push(this.bindEvidenceToCoveringParserRun(evidence));
     return this;
   }
 
@@ -100,6 +100,33 @@ export class ArtifactBuilderV1 {
   addOmission(omission: ExtractionOmissionV1): this {
     this.omissions.push(omission);
     return this;
+  }
+
+  /**
+   * Phase 3 may compose selected pages from several parser runs. Semantic
+   * builders historically supplied the first parser-run ID for every evidence
+   * item, which corrupted lineage on later pages. When exactly one registered
+   * run covers the evidence page, the builder binds the evidence to that run.
+   *
+   * When ranges overlap, an already-correct explicit run is retained. An
+   * ambiguous or uncovered page remains unchanged so strict semantic and Phase
+   * 2 proof validation can fail closed rather than choosing a winner.
+   */
+  private bindEvidenceToCoveringParserRun(evidence: SourceEvidenceV1): SourceEvidenceV1 {
+    if (evidence.page == null) return evidence;
+    const covering = this.parserRuns.filter((run) =>
+      run.pageRanges.some(
+        (range) => evidence.page! >= range.startPage && evidence.page! <= range.endPage,
+      ),
+    );
+    if (covering.length === 1) {
+      const parserRunId = covering[0]!.parserRunId;
+      return evidence.parserRunId === parserRunId ? evidence : { ...evidence, parserRunId };
+    }
+    if (covering.length > 1 && covering.some((run) => run.parserRunId === evidence.parserRunId)) {
+      return evidence;
+    }
+    return evidence;
   }
 
   /**

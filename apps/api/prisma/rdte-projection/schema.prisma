@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/rdte-projection-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Phase 4/7 projection-only client. It exposes the exact forward schema added
+// by the Phase 4 migrations without changing the primary application client or
+// authorizing canonical writes.
+model ProgramElementProjectBudgetPosition {
+  id                              String   @id @default(uuid()) @db.Uuid
+  peCode                          String   @map("pe_code") @db.VarChar(16)
+  projectCode                     String   @map("project_code") @db.VarChar(32)
+  positionCycle                   String   @map("position_cycle")
+  assertedFy                      Int      @map("asserted_fy")
+  amount                          Decimal  @db.Decimal(20, 6)
+  quantity                        Decimal? @db.Decimal(20, 6)
+  valueKind                       String   @map("value_kind")
+  sourceUrl                       String?  @map("source_url")
+  pageNumber                      Int?     @map("page_number")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  sourceDocumentId                String?  @map("source_document_id") @db.Uuid
+  originalValue                   String?  @map("original_value")
+  originalUnit                    String?  @map("original_unit") @db.VarChar(16)
+  extractionArtifactId            String?  @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String?  @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String?  @map("assertion_id")
+  verificationCandidateId         String?  @map("verification_candidate_id")
+  verificationRunId               String?  @map("verification_run_id")
+  verificationPolicySha256        String?  @map("verification_policy_sha256") @db.Char(64)
+  sourcePdfSha256                 String?  @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @default("[]") @map("evidence_ids_jsonb")
+
+  @@unique([peCode, projectCode, positionCycle, assertedFy, valueKind], map: "program_element_project_budget_position_natural_key")
+  @@index([peCode, projectCode], map: "program_element_project_budget_position_pe_project_idx")
+  @@index([peCode, assertedFy], map: "program_element_project_budget_position_pe_fy_idx")
+  @@index([positionCycle], map: "program_element_project_budget_position_cycle_idx")
+  @@index([sourceDocumentId], map: "program_element_project_budget_position_source_document_idx")
+  @@index([extractionArtifactId], map: "program_element_project_budget_position_artifact_idx")
+  @@index([verificationRunId], map: "program_element_project_budget_position_verification_run_idx")
+  @@map("program_element_project_budget_position")
+}
+
+model ProgramElementProjectMilestone {
+  id                              String    @id @default(uuid()) @db.Uuid
+  peCode                          String    @map("pe_code") @db.VarChar(16)
+  projectCode                     String    @map("project_code") @db.VarChar(32)
+  milestoneType                   String    @map("milestone_type")
+  plannedDate                     DateTime? @map("planned_date") @db.Date
+  actualDate                      DateTime? @map("actual_date") @db.Date
+  status                          String?
+  source                          String
+  notes                           String?   @db.Text
+  metadata                        Json      @default("{}") @map("metadata_jsonb")
+  lastSyncedAt                    DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  sourceDocumentId                String?   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String?   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String?   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String?   @map("assertion_id")
+  verificationCandidateId         String?   @map("verification_candidate_id")
+  verificationRunId               String?   @map("verification_run_id")
+  verificationPolicySha256        String?   @map("verification_policy_sha256") @db.Char(64)
+  sourcePdfSha256                 String?   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json      @default("[]") @map("evidence_ids_jsonb")
+
+  periods ProgramElementProjectMilestoneSchedulePeriod[]
+
+  @@unique([peCode, projectCode, milestoneType], map: "program_element_project_milestone_natural_key")
+  @@index([peCode, projectCode], map: "program_element_project_milestone_pe_project_idx")
+  @@index([status], map: "program_element_project_milestone_status_idx")
+  @@index([extractionArtifactId], map: "program_element_project_milestone_artifact_idx")
+  @@index([verificationRunId], map: "program_element_project_milestone_verification_run_idx")
+  @@map("program_element_project_milestone")
+}
+
+model ProgramElementProjectMilestoneSchedulePeriod {
+  id                              String    @id @default(uuid()) @db.Uuid
+  milestoneId                     String    @map("milestone_id") @db.Uuid
+  peCode                          String    @map("pe_code") @db.VarChar(16)
+  projectCode                     String    @map("project_code") @db.VarChar(32)
+  milestoneType                   String    @map("milestone_type")
+  periodRole                      String    @map("period_role")
+  rawText                         String    @map("raw_text") @db.Text
+  periodKind                      String    @map("period_kind")
+  fiscalYear                      Int?      @map("fiscal_year")
+  fiscalQuarter                   Int?      @map("fiscal_quarter")
+  calendarYear                    Int?      @map("calendar_year")
+  calendarQuarter                 Int?      @map("calendar_quarter")
+  calendarMonth                   Int?      @map("calendar_month")
+  exactDate                       DateTime? @map("exact_date") @db.Date
+  rangeStart                      DateTime? @map("range_start") @db.Date
+  rangeEnd                        DateTime? @map("range_end") @db.Date
+  sourceUrl                       String?   @map("source_url")
+  pageNumber                      Int?      @map("page_number")
+  metadata                        Json      @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  sourceDocumentId                String?   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String?   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String?   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String?   @map("assertion_id")
+  verificationCandidateId         String?   @map("verification_candidate_id")
+  verificationRunId               String?   @map("verification_run_id")
+  verificationPolicySha256        String?   @map("verification_policy_sha256") @db.Char(64)
+  sourcePdfSha256                 String?   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json      @default("[]") @map("evidence_ids_jsonb")
+
+  milestone ProgramElementProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([milestoneId, periodRole, rawText], map: "program_element_project_milestone_schedule_period_natural_key")
+  @@index([peCode, projectCode], map: "program_element_project_milestone_period_pe_project_idx")
+  @@index([periodKind], map: "program_element_project_milestone_period_kind_idx")
+  @@index([extractionArtifactId], map: "program_element_project_milestone_period_artifact_idx")
+  @@index([verificationRunId], map: "program_element_project_milestone_period_verification_run_idx")
+  @@map("program_element_project_milestone_schedule_period")
+}

@@ -1,13 +1,14 @@
 /** File-envelope client for the isolated Python parser runtime. */
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import {
   parseParserRuntimeJobV1,
   parseParserRuntimeResultV1,
   type ParserRuntimeJobV1,
   type ParserRuntimeResultV1,
 } from './parser-runtime-contract-v1.js';
+import { parseParserProfileJobV1 } from './profile-runtime-contract-v1.js';
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 
 export interface LocalParserRuntimeClientOptions {
@@ -90,8 +91,30 @@ export class LocalParserRuntimeClient {
     return { valid: result.exitCode === 0, ...result };
   }
 
+  /**
+   * Normalize legacy Node-side profiler envelopes into the dedicated
+   * cross-language profile contract before invoking Python. Parser execution
+   * jobs remain nonempty and are never overloaded with profile-all semantics.
+   */
   async profileJob(jobPath: string, resultPath: string) {
-    return this.invokeRuntime(['profile', '--job', jobPath, '--out', resultPath]);
+    const raw = JSON.parse(readFileSync(jobPath, 'utf8')) as Record<string, unknown>;
+    const requestedPages = Array.isArray(raw.requestedPages)
+      ? raw.requestedPages.filter((value): value is number => Number.isInteger(value))
+      : [];
+    const profileJob = parseParserProfileJobV1(
+      raw.schemaVersion === 'defense_budget_profile_job_v1'
+        ? raw
+        : {
+            ...raw,
+            schemaVersion: 'defense_budget_profile_job_v1',
+            allPages: requestedPages.length === 0,
+            requestedPages,
+          },
+    );
+    const safeName = basename(jobPath).replace(/[^A-Za-z0-9_.-]/g, '_');
+    const normalizedJobPath = join(this.options.workDir, `${safeName}.profile-v1.json`);
+    writeFileSync(normalizedJobPath, `${JSON.stringify(profileJob, null, 2)}\n`, 'utf8');
+    return this.invokeRuntime(['profile', '--job', normalizedJobPath, '--out', resultPath]);
   }
 
   async getVersionInfo(): Promise<ParserRuntimeVersionInfoV1> {

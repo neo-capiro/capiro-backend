@@ -1,6 +1,45 @@
 /** Deterministically merge semantic artifacts built from the same source PDF. */
 import { ArtifactBuilderV1 } from '../../contracts/artifact-builders.js';
-import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
+import { canonicalJsonStringify, type JsonValue } from '../../contracts/canonical-json.js';
+import type {
+  DefenseBudgetExtractionArtifactV1,
+  ParserRunV1,
+  SourceEvidenceV1,
+  SourceFactV1,
+  DefenseBudgetAssertionV1,
+  ExtractionWarningV1,
+  ExtractionOmissionV1,
+} from '../../contracts/extraction-artifact-v1.js';
+
+type MergeableValue =
+  | ParserRunV1
+  | SourceEvidenceV1
+  | SourceFactV1
+  | DefenseBudgetAssertionV1
+  | ExtractionWarningV1
+  | ExtractionOmissionV1;
+
+function addOrRejectConflict<T extends MergeableValue>(input: {
+  seen: Map<string, T>;
+  id: string;
+  value: T;
+  label: string;
+  add(value: T): void;
+}): void {
+  const existing = input.seen.get(input.id);
+  if (!existing) {
+    input.seen.set(input.id, input.value);
+    input.add(input.value);
+    return;
+  }
+  const prior = canonicalJsonStringify(existing as unknown as JsonValue);
+  const current = canonicalJsonStringify(input.value as unknown as JsonValue);
+  if (prior !== current) {
+    throw new Error(
+      `RDT&E artifact merge conflict: ${input.label} ${input.id} has different payloads`,
+    );
+  }
+}
 
 export function mergeRdteArtifactsV1(
   artifacts: readonly DefenseBudgetExtractionArtifactV1[],
@@ -19,49 +58,67 @@ export function mergeRdteArtifactsV1(
   }
 
   const builder = new ArtifactBuilderV1(first.source);
-  const parserRunIds = new Set<string>();
-  const evidenceIds = new Set<string>();
-  const sourceFactIds = new Set<string>();
-  const assertionIds = new Set<string>();
-  const warningIds = new Set<string>();
-  const omissionIds = new Set<string>();
+  const parserRuns = new Map<string, ParserRunV1>();
+  const evidence = new Map<string, SourceEvidenceV1>();
+  const sourceFacts = new Map<string, SourceFactV1>();
+  const assertions = new Map<string, DefenseBudgetAssertionV1>();
+  const warnings = new Map<string, ExtractionWarningV1>();
+  const omissions = new Map<string, ExtractionOmissionV1>();
 
   for (const artifact of artifacts) {
     for (const value of artifact.parserRuns) {
-      if (!parserRunIds.has(value.parserRunId)) {
-        parserRunIds.add(value.parserRunId);
-        builder.addParserRun(value);
-      }
+      addOrRejectConflict({
+        seen: parserRuns,
+        id: value.parserRunId,
+        value,
+        label: 'parserRunId',
+        add: (item) => builder.addParserRun(item),
+      });
     }
     for (const value of artifact.evidence) {
-      if (!evidenceIds.has(value.evidenceId)) {
-        evidenceIds.add(value.evidenceId);
-        builder.addEvidence(value);
-      }
+      addOrRejectConflict({
+        seen: evidence,
+        id: value.evidenceId,
+        value,
+        label: 'evidenceId',
+        add: (item) => builder.addEvidence(item),
+      });
     }
     for (const value of artifact.sourceFacts) {
-      if (!sourceFactIds.has(value.factId)) {
-        sourceFactIds.add(value.factId);
-        builder.addSourceFact(value);
-      }
+      addOrRejectConflict({
+        seen: sourceFacts,
+        id: value.factId,
+        value,
+        label: 'factId',
+        add: (item) => builder.addSourceFact(item),
+      });
     }
     for (const value of artifact.assertions) {
-      if (!assertionIds.has(value.assertionId)) {
-        assertionIds.add(value.assertionId);
-        builder.addAssertion(value);
-      }
+      addOrRejectConflict({
+        seen: assertions,
+        id: value.assertionId,
+        value,
+        label: 'assertionId',
+        add: (item) => builder.addAssertion(item),
+      });
     }
     for (const value of artifact.warnings) {
-      if (!warningIds.has(value.warningId)) {
-        warningIds.add(value.warningId);
-        builder.addWarning(value);
-      }
+      addOrRejectConflict({
+        seen: warnings,
+        id: value.warningId,
+        value,
+        label: 'warningId',
+        add: (item) => builder.addWarning(item),
+      });
     }
     for (const value of artifact.omissions) {
-      if (!omissionIds.has(value.omissionId)) {
-        omissionIds.add(value.omissionId);
-        builder.addOmission(value);
-      }
+      addOrRejectConflict({
+        seen: omissions,
+        id: value.omissionId,
+        value,
+        label: 'omissionId',
+        add: (item) => builder.addOmission(item),
+      });
     }
   }
   return builder.finalize();

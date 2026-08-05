@@ -28,20 +28,11 @@ import {
   type JsonValue,
 } from '../contracts/canonical-json.js';
 
-/* ------------------------------------------------------------------ */
-/* A1. Schema version constants                                        */
-/* ------------------------------------------------------------------ */
-
 export const DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION = 'defense_budget_parser_job_v1' as const;
 export const DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION =
   'defense_budget_parser_result_v1' as const;
 export const DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION = 'defense_budget_parse_plan_v1' as const;
 
-/* ------------------------------------------------------------------ */
-/* A2. Parser runtime engine vocabulary                                */
-/* ------------------------------------------------------------------ */
-
-/** Engines the Python runtime can execute (excludes llamaparse/manual). */
 export const PARSER_RUNTIME_ENGINE_V1_VALUES = [
   'deterministic_pdfplumber',
   'camelot',
@@ -50,10 +41,6 @@ export const PARSER_RUNTIME_ENGINE_V1_VALUES = [
 ] as const;
 export const parserRuntimeEngineV1Schema = z.enum(PARSER_RUNTIME_ENGINE_V1_VALUES);
 export type ParserRuntimeEngineV1 = z.infer<typeof parserRuntimeEngineV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* A3. Layout block contract                                           */
-/* ------------------------------------------------------------------ */
 
 export const layoutBlockV1Schema = z
   .object({
@@ -84,10 +71,6 @@ export const layoutBlockV1Schema = z
   })
   .strict();
 export type LayoutBlockV1 = z.infer<typeof layoutBlockV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* A4. Parsed table contract                                           */
-/* ------------------------------------------------------------------ */
 
 export const parsedTableCellV1Schema = z
   .object({
@@ -132,10 +115,6 @@ export const parsedTableV1Schema = z
   .strict();
 export type ParsedTableV1 = z.infer<typeof parsedTableV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A5. Parsed image region contract                                    */
-/* ------------------------------------------------------------------ */
-
 export const parsedImageRegionV1Schema = z
   .object({
     imageIndex: z.number().int().nonnegative(),
@@ -155,17 +134,9 @@ export const parsedImageRegionV1Schema = z
   .strict();
 export type ParsedImageRegionV1 = z.infer<typeof parsedImageRegionV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A6. Evidence precision vocabulary                                   */
-/* ------------------------------------------------------------------ */
-
 export const EVIDENCE_PRECISION_V1_VALUES = ['page_only', 'text_span', 'cell_bbox'] as const;
 export const evidencePrecisionV1Schema = z.enum(EVIDENCE_PRECISION_V1_VALUES);
 export type EvidencePrecisionV1 = z.infer<typeof evidencePrecisionV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* A7. Page result contract                                            */
-/* ------------------------------------------------------------------ */
 
 export const parserPageResultV1Schema = z
   .object({
@@ -185,10 +156,6 @@ export const parserPageResultV1Schema = z
   })
   .strict();
 export type ParserPageResultV1 = z.infer<typeof parserPageResultV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* A8. Page failure contract                                           */
-/* ------------------------------------------------------------------ */
 
 export const PARSER_PAGE_FAILURE_CODE_V1_VALUES = [
   'no_embedded_text',
@@ -213,10 +180,6 @@ export const parserPageFailureV1Schema = z
   .strict();
 export type ParserPageFailureV1 = z.infer<typeof parserPageFailureV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A9. Runtime warning contract                                        */
-/* ------------------------------------------------------------------ */
-
 export const parserRuntimeWarningV1Schema = z
   .object({
     code: z.string().min(1),
@@ -225,10 +188,6 @@ export const parserRuntimeWarningV1Schema = z
   })
   .strict();
 export type ParserRuntimeWarningV1 = z.infer<typeof parserRuntimeWarningV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* A10. Runtime metrics contract                                       */
-/* ------------------------------------------------------------------ */
 
 export const parserRuntimeMetricsV1Schema = z
   .object({
@@ -242,17 +201,13 @@ export const parserRuntimeMetricsV1Schema = z
   .strict();
 export type ParserRuntimeMetricsV1 = z.infer<typeof parserRuntimeMetricsV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A11. Job contract                                                   */
-/* ------------------------------------------------------------------ */
-
 const sortedUniquePositivePages = z
   .array(z.number().int().positive())
   .min(1)
   .refine(
     (pages) => {
       const sorted = [...pages].sort((a, b) => a - b);
-      return pages.every((p, i) => p === sorted[i]);
+      return pages.every((page, index) => page === sorted[index]);
     },
     { message: 'pages must be sorted ascending' },
   )
@@ -275,10 +230,6 @@ export const parserRuntimeJobV1Schema = z
   .strict();
 export type ParserRuntimeJobV1 = z.infer<typeof parserRuntimeJobV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A12. Result contract                                                */
-/* ------------------------------------------------------------------ */
-
 export const parserRuntimeResultV1Schema = z
   .object({
     schemaVersion: z.literal(DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION),
@@ -298,10 +249,6 @@ export const parserRuntimeResultV1Schema = z
   .strict();
 export type ParserRuntimeResultV1 = z.infer<typeof parserRuntimeResultV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A13. Document execution state machine                              */
-/* ------------------------------------------------------------------ */
-
 export const PARSER_DOCUMENT_STATE_V1_VALUES = [
   'PLANNED',
   'RUNNING_LOCAL',
@@ -319,8 +266,8 @@ export const parserDocumentStateV1Schema = z.enum(PARSER_DOCUMENT_STATE_V1_VALUE
 export type ParserDocumentStateV1 = z.infer<typeof parserDocumentStateV1Schema>;
 
 /**
- * Allowed state transitions. No terminal state may transition back to a
- * running state within the same execution ID.
+ * Authoritative operational state machine. Local escalation is a legal move
+ * after verification; there is no second competing transition table.
  */
 export const PARSER_STATE_TRANSITIONS: Record<
   ParserDocumentStateV1,
@@ -336,7 +283,13 @@ export const PARSER_STATE_TRANSITIONS: Record<
     'TERMINAL_REJECTED',
     'FAILED',
   ],
-  ESCALATION_PLANNED: ['RUNNING_PAID', 'TERMINAL_REVIEW', 'TERMINAL_REJECTED', 'FAILED'],
+  ESCALATION_PLANNED: [
+    'RUNNING_LOCAL',
+    'RUNNING_PAID',
+    'TERMINAL_REVIEW',
+    'TERMINAL_REJECTED',
+    'FAILED',
+  ],
   RUNNING_PAID: ['PAID_COMPLETE', 'FAILED'],
   PAID_COMPLETE: ['VERIFYING', 'FAILED'],
   TERMINAL_PASSED: [],
@@ -352,19 +305,15 @@ const TERMINAL_STATES: ReadonlySet<ParserDocumentStateV1> = new Set([
   'FAILED',
 ]);
 
-/** Returns true if the state is terminal (no outgoing transitions). */
 export function isTerminalState(state: ParserDocumentStateV1): boolean {
   return TERMINAL_STATES.has(state);
 }
 
-/** Returns true if the transition from → to is allowed. */
 export function isValidTransition(from: ParserDocumentStateV1, to: ParserDocumentStateV1): boolean {
   if (isTerminalState(from)) return false;
-  const allowed = PARSER_STATE_TRANSITIONS[from];
-  return allowed.includes(to);
+  return PARSER_STATE_TRANSITIONS[from].includes(to);
 }
 
-/** Assert the transition is valid, throw on invalid. */
 export function assertValidTransition(
   from: ParserDocumentStateV1,
   to: ParserDocumentStateV1,
@@ -373,10 +322,6 @@ export function assertValidTransition(
     throw new Error(`invalid parser document state transition: ${from} -> ${to}`);
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* A14. Parser-run identity (cache key)                                */
-/* ------------------------------------------------------------------ */
 
 export interface ParserRunIdentityV1 {
   sourceSha256: string;
@@ -387,58 +332,33 @@ export interface ParserRunIdentityV1 {
   runtimeContractVersion: string;
 }
 
-/**
- * Compute a deterministic cache key from the parser-run identity tuple.
- * The cache key is the canonical-JSON SHA-256 of the identity fields.
- */
 export function computeParserRunCacheKey(identity: ParserRunIdentityV1): string {
   const canonical: JsonValue = {
     sourceSha256: identity.sourceSha256,
     method: identity.method,
     parserVersion: identity.parserVersion,
     parserConfigSha256: identity.parserConfigSha256,
-    pages: identity.pages.slice().sort((a, b) => a - b),
+    pages: identity.pages.slice().sort((left, right) => left - right),
     runtimeContractVersion: identity.runtimeContractVersion,
   };
   return sha256CanonicalJson(canonical);
 }
 
-/**
- * Compute a deterministic parser-run ID from the identity tuple.
- * Uses a different prefix than cache key to distinguish ID from key.
- */
 export function computeParserRunId(identity: ParserRunIdentityV1): string {
   const canonical: JsonValue = {
     sourceSha256: identity.sourceSha256,
     method: identity.method,
     parserVersion: identity.parserVersion,
     parserConfigSha256: identity.parserConfigSha256,
-    pages: identity.pages.slice().sort((a, b) => a - b),
+    pages: identity.pages.slice().sort((left, right) => left - right),
   };
   return `pr1_${sha256CanonicalJson(canonical)}`;
 }
 
-/* ------------------------------------------------------------------ */
-/* A15. Helper: compute config SHA from config JSON                    */
-/* ------------------------------------------------------------------ */
-
-/**
- * Compute the canonical config SHA-256 from a parser config JSON value.
- * The same config must produce the same SHA in TypeScript and Python.
- */
 export function computeParserConfigSha256(config: JsonValue): string {
   return sha256CanonicalJson(config);
 }
 
-/* ------------------------------------------------------------------ */
-/* A16. Helper: compute result content SHA                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * Compute the content SHA-256 of a parser runtime result.
- * Excludes the contentSha256 field itself and metrics.durationMillis
- * (runtime timing) from the hash to ensure determinism.
- */
 export function computeResultContentSha256(
   result: Omit<ParserRuntimeResultV1, 'contentSha256'>,
 ): string {
@@ -447,9 +367,6 @@ export function computeResultContentSha256(
   return sha256CanonicalJson({ ...rest, metrics: stableMetrics } as unknown as JsonValue);
 }
 
-/**
- * Validate a complete result, compute content SHA, and return the sealed result.
- */
 export function sealParserRuntimeResult(
   result: Omit<ParserRuntimeResultV1, 'contentSha256'>,
 ): ParserRuntimeResultV1 {
@@ -458,41 +375,28 @@ export function sealParserRuntimeResult(
     ...(result as ParserRuntimeResultV1),
     contentSha256,
   };
-  // Validate the sealed result
   return parserRuntimeResultV1Schema.parse(sealed);
 }
 
-/* ------------------------------------------------------------------ */
-/* A17. Helper: page-range key for cache paths                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Produce a deterministic page-range key for cache directory naming.
- * E.g. [1,2,3] -> "1-3", [1,3,5] -> "1,3,5", [1,2,3,7,8] -> "1-3,7-8"
- */
 export function pageRangeKey(pages: readonly number[]): string {
   if (pages.length === 0) return 'none';
-  const sorted = [...pages].sort((a, b) => a - b);
+  const sorted = [...pages].sort((left, right) => left - right);
   const parts: string[] = [];
   let start = sorted[0]!;
   let end = sorted[0]!;
-  for (let i = 1; i < sorted.length; i++) {
-    const p = sorted[i]!;
-    if (p === end + 1) {
-      end = p;
+  for (let index = 1; index < sorted.length; index += 1) {
+    const page = sorted[index]!;
+    if (page === end + 1) {
+      end = page;
     } else {
       parts.push(start === end ? `${start}` : `${start}-${end}`);
-      start = p;
-      end = p;
+      start = page;
+      end = page;
     }
   }
   parts.push(start === end ? `${start}` : `${start}-${end}`);
   return parts.join(',');
 }
-
-/* ------------------------------------------------------------------ */
-/* A18. Parser artifact descriptor (metadata sidecar)                  */
-/* ------------------------------------------------------------------ */
 
 export const parserArtifactDescriptorV1Schema = z
   .object({
@@ -513,36 +417,25 @@ export const parserArtifactDescriptorV1Schema = z
   .strict();
 export type ParserArtifactDescriptorV1 = z.infer<typeof parserArtifactDescriptorV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* A19. Validation helpers                                             */
-/* ------------------------------------------------------------------ */
-
-/** Parse and validate a parser runtime job. Throws ZodError on failure. */
 export function parseParserRuntimeJobV1(input: unknown): ParserRuntimeJobV1 {
   return parserRuntimeJobV1Schema.parse(input);
 }
 
-/** Parse and validate a parser runtime result. Throws ZodError on failure. */
 export function parseParserRuntimeResultV1(input: unknown): ParserRuntimeResultV1 {
   return parserRuntimeResultV1Schema.parse(input);
 }
 
-/** Parse and validate a parser artifact descriptor. Throws ZodError on failure. */
 export function parseParserArtifactDescriptorV1(input: unknown): ParserArtifactDescriptorV1 {
   return parserArtifactDescriptorV1Schema.parse(input);
 }
 
-/**
- * Verify that a result's contentSha256 matches a recomputed hash.
- * Returns true if the hash is valid, false otherwise.
- */
 export function verifyResultContentSha256(result: ParserRuntimeResultV1): boolean {
   try {
-    // Strip contentSha256, recompute (excluding durationMillis), compare
     const { contentSha256: _ignored, ...rest } = result;
-    const recomputed = computeResultContentSha256(rest);
-    return recomputed === result.contentSha256;
+    return computeResultContentSha256(rest) === result.contentSha256;
   } catch {
     return false;
   }
 }
+
+export { canonicalJsonStringify, sha256Hex, jsonMetadataSchema };

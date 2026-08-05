@@ -19,6 +19,7 @@ import {
 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
 import type { ExtractionSourceV1 } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
 import { sha256Bytes } from '../src/defense-budget/contracts/canonical-json.js';
+import type { FetchLike } from '../src/defense-budget/llamaparse.client.js';
 import {
   DEFAULT_PROFILING_THRESHOLDS,
   computeProfilingConfigSha256,
@@ -27,7 +28,9 @@ import {
 import { LocalParserRuntimeClient } from '../src/defense-budget/parser-router/local-parser-runtime-client.js';
 import { FilesystemParserArtifactStore } from '../src/defense-budget/parser-router/parser-artifact-store.js';
 import { ParserRouterV1Service } from '../src/defense-budget/parser-router/parser-router-v1.service.js';
+import { CumulativePaidPageLlamaParseClient } from '../src/defense-budget/parser-router/cumulative-paid-parse-client-v1.js';
 import { FilesystemProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.js';
+import { FilesystemParserArtifactProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-parser-artifact-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../src/defense-budget/verification/services/budget-verification-v1.service.js';
 import type { VerificationRequestV1 } from '../src/defense-budget/verification/verification-contract-v1.js';
 import {
@@ -96,7 +99,7 @@ interface ParsedDocumentResult {
 function parseArgs(argv: string[]): CommandArgs {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
-  for (let index = 0; index < argv.length; index++) {
+  for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]!;
     if (BOOLEAN_FLAGS.has(flag)) {
       booleans.add(flag);
@@ -229,16 +232,12 @@ function resolveDocuments(input: {
         throw new Error(`source file not found for ${document.documentKey}: ${resolved.sourcePath}`);
       }
       const sourceSha256 = sha256File(resolved.sourcePath);
-      if (
-        document.expectedSourceSha256 &&
-        document.expectedSourceSha256 !== sourceSha256
-      ) {
+      if (document.expectedSourceSha256 && document.expectedSourceSha256 !== sourceSha256) {
         throw new Error(
           `source SHA mismatch for ${document.documentKey}: expected ${document.expectedSourceSha256}, got ${sourceSha256}`,
         );
       }
-      const sourceDocumentId =
-        resolved.sourceDocumentId?.trim() || `local-${sourceSha256}`;
+      const sourceDocumentId = resolved.sourceDocumentId?.trim() || `local-${sourceSha256}`;
       return [
         {
           original: document,
@@ -349,6 +348,15 @@ async function profileDocument(input: {
   return profile;
 }
 
+function createLocalVerificationService(
+  artifactStore: FilesystemParserArtifactStore,
+): BudgetVerificationV1Service {
+  return new BudgetVerificationV1Service(
+    new FilesystemParserArtifactProofResolver(new FilesystemProofResolver(), artifactStore),
+    null,
+  );
+}
+
 async function parseDocument(input: {
   args: CommandArgs;
   executionManifest: BudgetCycleManifestV1;
@@ -360,6 +368,7 @@ async function parseDocument(input: {
     sourceDocumentId: string;
   }[];
   sharedArtifactStore: FilesystemParserArtifactStore;
+  paidClient?: CumulativePaidPageLlamaParseClient;
   outDir: string;
 }): Promise<ParsedDocumentResult> {
   if (input.document.local.parserPolicy === 'native_structured') {
@@ -399,7 +408,6 @@ async function parseDocument(input: {
     source,
     fiscalYear: input.executionManifest.fiscalYear,
   });
-  const delegate = new BudgetVerificationV1Service(new FilesystemProofResolver(), null);
   const referenceArtifacts: VerificationRequestV1['referenceArtifacts'] = input.priorArtifacts.map(
     (artifact) => ({
       artifactLocator: artifact.artifactLocator,
@@ -409,9 +417,10 @@ async function parseDocument(input: {
     }),
   );
   const verification = createRdtePhase2VerificationAdapter({
-    delegate,
+    delegate: createLocalVerificationService(input.sharedArtifactStore),
     referenceArtifacts,
   });
+  const remainingPaidPages = input.paidClient?.getFreshPaidPagesRemaining() ?? 0;
   const router = new ParserRouterV1Service(
     {
       executionId: `${input.document.local.documentKey}-${input.document.sourceSha256.slice(0, 16)}`,
@@ -436,7 +445,7 @@ async function parseDocument(input: {
       title: input.document.local.title,
       maxEscalationRounds: input.args.maxEscalationRounds,
       allowPaidParse: input.args.allowPaidParse,
-      maxPaidPages: input.args.maxPaidPages,
+      maxPaidPages: remainingPaidPages,
       ...(input.args.paidMode ? { paidMode: input.args.paidMode } : {}),
       persistVerificationAudit: false,
       workDir: documentWorkDir,
@@ -449,25 +458,10 @@ async function parseDocument(input: {
       artifactFactory: semantic.factory,
       llamaparseAuthorization: {
         allowPaidParse: input.args.allowPaidParse,
-        maxPaidPages: input.args.maxPaidPages,
+        maxPaidPages: remainingPaidPages,
         ...(input.args.paidMode ? { paidMode: input.args.paidMode } : {}),
       },
-      ...(input.args.allowPaidParse
-        ? {
-            llamaparseClientConfig: {
-              apiKey:
-                process.env.LLAMAPARSE_API_KEY ??
-                (() => {
-                  throw new Error('LLAMAPARSE_API_KEY is required for paid parsing');
-                })(),
-              baseUrl:
-                process.env.LLAMAPARSE_BASE_URL ??
-                (() => {
-                  throw new Error('LLAMAPARSE_BASE_URL is required for paid parsing');
-                })(),
-            },
-          }
-        : {}),
+      ...(input.paidClient ? { llamaparseClient: input.paidClient } : {}),
     },
   );
   const terminal = await router.execute(profile.pages, requestedPages);
@@ -492,8 +486,9 @@ async function runFinalVerifications(input: {
   build: ReturnType<typeof buildRdteCycleArtifacts>;
   manifestLocator: string;
   artifactDirectory: string;
+  artifactStore: FilesystemParserArtifactStore;
 }): Promise<RdteCycleVerificationRefV1[]> {
-  const delegate = new BudgetVerificationV1Service(new FilesystemProofResolver(), null);
+  const delegate = createLocalVerificationService(input.artifactStore);
   const sourceDocumentIdByKey = new Map(
     input.build.documents.map((document) => [
       document.document.documentKey,
@@ -503,10 +498,7 @@ async function runFinalVerifications(input: {
   const artifactPathByKey = new Map<string, string>();
   fs.mkdirSync(input.artifactDirectory, { recursive: true });
   for (const built of input.build.artifacts) {
-    const locator = path.join(
-      input.artifactDirectory,
-      `${built.documentKey}.extraction-v1.json`,
-    );
+    const locator = path.join(input.artifactDirectory, `${built.documentKey}.extraction-v1.json`);
     fs.writeFileSync(locator, built.serializedArtifact, 'utf8');
     artifactPathByKey.set(built.documentKey, locator);
   }
@@ -560,6 +552,7 @@ function writeOutputs(input: {
   result: ReturnType<typeof finalizeRdteCycle>;
   executionManifestLocator: string;
   parsedDocuments: readonly ParsedDocumentResult[];
+  paidClient?: CumulativePaidPageLlamaParseClient;
 }): void {
   const outputDirectory = path.resolve(input.args.out);
   fs.writeFileSync(
@@ -584,12 +577,13 @@ function writeOutputs(input: {
         reason: input.result.reason,
         counts: input.result.counts,
         bundleContentSha256: input.result.bundle.contentSha256,
-        projectionPlanContentSha256:
-          input.result.projectionPlan?.contentSha256 ?? null,
+        projectionPlanContentSha256: input.result.projectionPlan?.contentSha256 ?? null,
         executionManifestLocator: input.executionManifestLocator,
         paidAuthorization: {
           allowed: input.args.allowPaidParse,
           maxPaidPages: input.args.maxPaidPages,
+          freshPaidPagesUsed: input.paidClient?.getFreshPaidPagesUsed() ?? 0,
+          freshPaidPagesRemaining: input.paidClient?.getFreshPaidPagesRemaining() ?? 0,
           mode: input.args.paidMode ?? null,
         },
         parserExecutions: input.parsedDocuments.map((document) => ({
@@ -603,6 +597,19 @@ function writeOutputs(input: {
       2,
     )}\n`,
     'utf8',
+  );
+}
+
+function createPaidClient(args: CommandArgs): CumulativePaidPageLlamaParseClient | undefined {
+  if (!args.allowPaidParse) return undefined;
+  const apiKey = process.env.LLAMAPARSE_API_KEY;
+  const baseUrl = process.env.LLAMAPARSE_BASE_URL;
+  if (!apiKey) throw new Error('LLAMAPARSE_API_KEY is required for paid parsing');
+  if (!baseUrl) throw new Error('LLAMAPARSE_BASE_URL is required for paid parsing');
+  return new CumulativePaidPageLlamaParseClient(
+    { apiKey, baseUrl },
+    globalThis.fetch as FetchLike,
+    args.maxPaidPages,
   );
 }
 
@@ -646,6 +653,7 @@ async function main(): Promise<void> {
     const sharedArtifactStore = new FilesystemParserArtifactStore(
       path.join(outDir, 'parser-artifacts'),
     );
+    const paidClient = createPaidClient(args);
     const parsedDocuments: ParsedDocumentResult[] = [];
     const priorArtifacts: Array<{
       documentKey: string;
@@ -660,6 +668,7 @@ async function main(): Promise<void> {
         document,
         priorArtifacts,
         sharedArtifactStore,
+        ...(paidClient ? { paidClient } : {}),
         outDir,
       });
       parsedDocuments.push(parsed);
@@ -680,6 +689,7 @@ async function main(): Promise<void> {
       build,
       manifestLocator: executionManifest.locator,
       artifactDirectory: path.join(outDir, 'artifacts'),
+      artifactStore: sharedArtifactStore,
     });
     const result = finalizeRdteCycle({
       cycleIdIdentity: {
@@ -695,6 +705,7 @@ async function main(): Promise<void> {
       result,
       executionManifestLocator: executionManifest.locator,
       parsedDocuments,
+      ...(paidClient ? { paidClient } : {}),
     });
     console.log(
       JSON.stringify({

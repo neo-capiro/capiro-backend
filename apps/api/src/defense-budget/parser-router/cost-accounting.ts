@@ -113,7 +113,10 @@ export class CostAccumulator {
   }
 
   buildReport(): ParserCostReportV1 {
-    const paidPagesUsed = this.executed.llamaparse + this.reused.llamaparse;
+    /* A proven cached LlamaParse result incurs no new provider call and must
+     * not consume the operator's fresh-call page budget. Reused pages remain
+     * visible in their own metric. */
+    const freshPaidPagesUsed = this.executed.llamaparse;
     return {
       sourcePages: this.sourcePages,
       profiledPages: this.profiledPages,
@@ -129,7 +132,7 @@ export class CostAccumulator {
       llamaparsePagesReused: this.reused.llamaparse,
       providerCreditsUsed: this.providerCreditsUsed,
       paidPageCap: this.paidPageCap,
-      paidPagesRemaining: Math.max(0, this.paidPageCap - paidPagesUsed),
+      paidPagesRemaining: Math.max(0, this.paidPageCap - freshPaidPagesUsed),
       localRuntimeDurationsMillis: this.localRuntimeDurationsMillis,
       parserFailures: this.parserFailures,
       finalVerificationDecision: this.finalVerificationDecision,

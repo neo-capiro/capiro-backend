@@ -8,6 +8,8 @@ import {
 } from '../../contracts/artifact-builders.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
 import { sha256Bytes } from '../../contracts/canonical-json.js';
+import { buildR4MilestoneArtifact } from '../r4/r4-artifact-builder-v1.js';
+import type { R4ExtractionResult } from '../r4/r4-extractor-v1.js';
 import {
   computeRdteCycleBundleContentSha256,
   rdteCycleBundleV1Schema,
@@ -74,6 +76,79 @@ function artifact(): DefenseBudgetExtractionArtifactV1 {
   return builder.finalize();
 }
 
+function projectMilestoneArtifact(): DefenseBudgetExtractionArtifactV1 {
+  const extraction: R4ExtractionResult = {
+    peCode: PE,
+    milestones: [
+      {
+        parentPeCode: PE,
+        projectCode: 'AA1',
+        milestoneType: 'Flight Test',
+        plannedPeriod: {
+          kind: 'fiscal_year',
+          rawText: 'FY2028',
+          fiscalYear: 2028,
+          confidence: 0.95,
+        },
+        page: 1,
+        tableIndex: 0,
+        rowIndex: 1,
+        rawCells: [
+          { columnIndex: 0, text: 'Flight Test' },
+          { columnIndex: 1, text: 'FY2028' },
+        ],
+      },
+      {
+        parentPeCode: PE,
+        projectCode: 'BB2',
+        milestoneType: 'Flight Test',
+        plannedPeriod: {
+          kind: 'fiscal_year',
+          rawText: 'FY2029',
+          fiscalYear: 2029,
+          confidence: 0.95,
+        },
+        page: 2,
+        tableIndex: 0,
+        rowIndex: 1,
+        rawCells: [
+          { columnIndex: 0, text: 'Flight Test' },
+          { columnIndex: 1, text: 'FY2029' },
+        ],
+      },
+    ],
+    omissions: [],
+    tableDetected: true,
+  };
+  return buildR4MilestoneArtifact({
+    source: {
+      manifestDocumentKey: 'r4',
+      sourceDocumentId: 'source-r4',
+      sourcePdfSha256: SOURCE_SHA,
+      sourceLocator: '/sources/r4.pdf',
+      fiscalYear: 2027,
+      family: 'rdte',
+      exhibit: 'R-4',
+      authority: 'dod-comptroller',
+      component: 'ARMY',
+      budgetCycle: 'pb_fy2027',
+      documentType: 'r4',
+    },
+    parserRuns: [
+      {
+        parserRunId: parserRunIdV1({ key: 'r4' }),
+        method: 'deterministic_pdfplumber',
+        parserVersion: 'test-v1',
+        parserConfigSha256: 'd'.repeat(64),
+        inputSourceSha256: SOURCE_SHA,
+        outputArtifactSha256: 'e'.repeat(64),
+        pageRanges: [{ startPage: 1, endPage: 2 }],
+      },
+    ],
+    extractions: [extraction],
+  });
+}
+
 function bundle(input: {
   artifact: DefenseBudgetExtractionArtifactV1;
   acceptedAssertionIds: string[];
@@ -81,29 +156,33 @@ function bundle(input: {
   const byteSha = sha256Bytes(
     Buffer.from(`${JSON.stringify(input.artifact, null, 2)}\n`, 'utf8'),
   );
-  const candidateId = 'candidate-r1';
-  const runId = 'verification-run-r1';
+  const documentKey = input.artifact.source.manifestDocumentKey;
+  const sourceDocumentId = input.artifact.source.sourceDocumentId;
+  if (!sourceDocumentId) throw new Error('test artifact requires sourceDocumentId');
+  const candidateId = `candidate-${documentKey}`;
+  const runId = `verification-run-${documentKey}`;
+  const exhibitRole = input.artifact.source.exhibit === 'R-4' ? 'r4_schedule' : 'r1_catalog';
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
-    cycleId: 'rdte-cycle-accepted-assertion-test',
+    cycleId: `rdte-cycle-${documentKey}-test`,
     fiscalYear: 2027,
     manifestContentSha256: MANIFEST_SHA,
     sourceDocuments: [
       {
-        manifestDocumentKey: 'r1',
-        sourceDocumentId: 'source-r1',
-        exhibitRole: 'r1_catalog' as const,
+        manifestDocumentKey: documentKey,
+        sourceDocumentId,
+        exhibitRole,
         required: true,
         sourcePdfSha256: SOURCE_SHA,
-        sourceLocator: '/sources/r1.pdf',
-        pageCount: 1,
+        sourceLocator: input.artifact.source.sourceLocator,
+        pageCount: 2,
         parserRunIds: input.artifact.parserRuns.map((value) => value.parserRunId),
         unresolvedPages: [],
       },
     ],
     artifacts: [
       {
-        manifestDocumentKey: 'r1',
+        manifestDocumentKey: documentKey,
         artifactId: input.artifact.artifactId,
         artifactContentSha256: input.artifact.contentSha256,
         artifactByteSha256: byteSha,
@@ -111,7 +190,7 @@ function bundle(input: {
     ],
     verifications: [
       {
-        manifestDocumentKey: 'r1',
+        manifestDocumentKey: documentKey,
         manifestContentSha256: MANIFEST_SHA,
         artifactId: input.artifact.artifactId,
         artifactContentSha256: input.artifact.contentSha256,
@@ -119,7 +198,7 @@ function bundle(input: {
         candidateId,
         verificationRunId: runId,
         policySha256: POLICY_SHA,
-        sourceDocumentId: 'source-r1',
+        sourceDocumentId,
         sourcePdfSha256: SOURCE_SHA,
         phase2Decision: 'PASS' as const,
         status: 'VERIFICATION_PASSED' as const,
@@ -161,6 +240,47 @@ describe('proof-bound projection assertion ledger', () => {
         bundle: bundle({ artifact: value, acceptedAssertionIds: [] }),
         artifacts: [value],
       }),
-    ).toThrow(/no accepted Phase 2 assertion basis|not accepted by Phase 2/);
+    ).toThrow(
+      /no accepted Phase 2 assertion basis|not accepted by Phase 2|did not pass the required Phase 2 checks/,
+    );
+  });
+
+  it('keeps same-label milestones distinct across projects and classifies both as inserts', () => {
+    const value = projectMilestoneArtifact();
+    const accepted = value.assertions.map((assertion) => assertion.assertionId);
+    const result = planProofBoundRdteCanonicalProjection({
+      bundle: bundle({ artifact: value, acceptedAssertionIds: accepted }),
+      artifacts: [value],
+      canonicalRows: {
+        milestones: [
+          {
+            peCode: PE,
+            milestoneType: 'Flight Test',
+            plannedDate: null,
+            actualDate: null,
+          },
+        ],
+      },
+    });
+
+    const milestones = result.plan.candidates.filter(
+      (candidate) => candidate.target === 'ProgramElementProjectMilestone',
+    );
+    expect(milestones).toHaveLength(2);
+    expect(milestones.map((candidate) => candidate.operation)).toEqual(['insert', 'insert']);
+    expect(milestones.map((candidate) => candidate.naturalKey).sort()).toEqual([
+      `${PE}|AA1|Flight Test`,
+      `${PE}|BB2|Flight Test`,
+    ]);
+
+    const periods = result.plan.candidates.filter(
+      (candidate) =>
+        candidate.target === 'ProgramElementProjectMilestoneSchedulePeriod',
+    );
+    expect(periods).toHaveLength(2);
+    expect(periods.map((candidate) => candidate.operation)).toEqual(['insert', 'insert']);
+    expect(
+      result.plan.exclusions.filter((exclusion) => exclusion.reason === 'duplicate_conflict'),
+    ).toHaveLength(0);
   });
 });

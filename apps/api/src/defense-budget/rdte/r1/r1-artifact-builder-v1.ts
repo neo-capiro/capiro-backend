@@ -74,6 +74,7 @@ export function buildR1Artifact(input: {
     const factId = factIdV1({
       peCode: identity.peCode,
       page: identity.page,
+      tableIndex: identity.tableIndex,
       rowIndex: identity.rowIndex,
       kind: 'r1_identity_fact',
     });
@@ -91,6 +92,7 @@ export function buildR1Artifact(input: {
       assertionId: assertionIdV1({
         peCode: identity.peCode,
         page: identity.page,
+        tableIndex: identity.tableIndex,
         rowIndex: identity.rowIndex,
         kind: 'r1_identity',
       }),
@@ -116,12 +118,19 @@ export function buildR1Artifact(input: {
     });
   }
 
-  /* Funding values. */
+  /* Funding values. Each value retains its exact physical source cell. */
   for (const value of extraction.funding) {
-    const evidenceId = evidenceIdV1({
+    const sourceCellIdentity = {
       peCode: value.peCode,
       fiscalYear: value.fiscalYear ?? null,
+      columnRole: value.columnRole,
+      page: value.page,
+      tableIndex: value.tableIndex,
+      rowIndex: value.rowIndex,
       columnIndex: value.columnIndex,
+    } as const;
+    const evidenceId = evidenceIdV1({
+      ...sourceCellIdentity,
       kind: 'r1_funding',
     });
     builder.addEvidence({
@@ -129,20 +138,20 @@ export function buildR1Artifact(input: {
       sourcePdfSha256: source.sourcePdfSha256,
       parserRunId: defaultParserRunId,
       granularity: 'page_only',
-      page: extraction.identities.find((i) => i.peCode === value.peCode)?.page ?? 1,
+      page: value.page,
+      ...(value.printedPage != null ? { printedPage: value.printedPage } : {}),
+      tableLabel: `table_${value.tableIndex}`,
+      rowLabel: `row_${value.rowIndex}`,
       columnLabel: value.headerText,
     });
 
     const factId = factIdV1({
-      peCode: value.peCode,
-      fiscalYear: value.fiscalYear ?? null,
-      columnRole: value.columnRole,
-      columnIndex: value.columnIndex,
+      ...sourceCellIdentity,
       kind: 'r1_funding_fact',
     });
     builder.addSourceFact({
       factId,
-      sourcePath: `pe:${value.peCode}/fy:${value.fiscalYear ?? 'non_annual'}/col:${value.columnIndex}`,
+      sourcePath: `pe:${value.peCode}/fy:${value.fiscalYear ?? 'non_annual'}/page:${value.page}/table:${value.tableIndex}/row:${value.rowIndex}/col:${value.columnIndex}`,
       category: 'money',
       requiredForCompleteness: true,
       rawValue: value.originalValue,
@@ -156,9 +165,7 @@ export function buildR1Artifact(input: {
       builder.addAssertion({
         assertionKind: 'funding',
         assertionId: assertionIdV1({
-          peCode: value.peCode,
-          fiscalYear: value.fiscalYear,
-          columnRole: value.columnRole,
+          ...sourceCellIdentity,
           kind: 'r1_funding',
         }),
         sourceFactIds: [factId],
@@ -179,15 +186,17 @@ export function buildR1Artifact(input: {
           headerText: value.headerText,
           cycleFiscalYear,
           direct: value.direct,
+          physicalPage: value.page,
+          tableIndex: value.tableIndex,
+          rowIndex: value.rowIndex,
+          columnIndex: value.columnIndex,
         },
       });
     } else {
       builder.addAssertion({
         assertionKind: 'document_fact',
         assertionId: assertionIdV1({
-          peCode: value.peCode,
-          fiscalYear: value.fiscalYear ?? null,
-          columnRole: value.columnRole,
+          ...sourceCellIdentity,
           kind: 'r1_document_fact',
         }),
         sourceFactIds: [factId],
@@ -204,28 +213,43 @@ export function buildR1Artifact(input: {
           valueMillions: value.valueMillions,
           positionCycle: `pb_fy${cycleFiscalYear}`,
           headerText: value.headerText,
+          physicalPage: value.page,
+          tableIndex: value.tableIndex,
+          rowIndex: value.rowIndex,
+          columnIndex: value.columnIndex,
         },
       });
     }
   }
 
-  /* Omissions. */
+  /* Omissions must reference real registered source facts. */
+  const seenOmissionFacts = new Set<string>();
   for (const omission of extraction.omissions) {
+    const omissionIdentity = {
+      peCode: omission.peCode ?? null,
+      page: omission.page,
+      rowIndex: omission.rowIndex ?? null,
+      columnIndex: omission.columnIndex ?? null,
+      reason: omission.reason,
+      rawText: omission.rawText,
+    } as const;
+    const sourceFactId = factIdV1({ ...omissionIdentity, kind: 'r1_omission_fact' });
+    if (!seenOmissionFacts.has(sourceFactId)) {
+      seenOmissionFacts.add(sourceFactId);
+      builder.addSourceFact({
+        factId: sourceFactId,
+        sourcePath: `omitted:${omission.reason}/page:${omission.page}${
+          omission.rowIndex != null ? `/row:${omission.rowIndex}` : ''
+        }${omission.columnIndex != null ? `/col:${omission.columnIndex}` : ''}`,
+        category: omission.columnIndex != null ? 'money' : 'metadata',
+        requiredForCompleteness: false,
+        rawValue: omission.rawText,
+        evidenceIds: [],
+      });
+    }
     builder.addOmission({
-      omissionId: omissionIdV1({
-        peCode: omission.peCode ?? null,
-        page: omission.page,
-        rowIndex: omission.rowIndex ?? null,
-        columnIndex: omission.columnIndex ?? null,
-        reason: omission.reason,
-      }),
-      sourceFactId: factIdV1({
-        peCode: omission.peCode ?? null,
-        page: omission.page,
-        rowIndex: omission.rowIndex ?? null,
-        columnIndex: omission.columnIndex ?? null,
-        kind: 'r1_omission_fact',
-      }),
+      omissionId: omissionIdV1({ ...omissionIdentity, kind: 'r1_omission' }),
+      sourceFactId,
       reason: mapOmissionReason(omission.reason),
       severity: omission.reason === 'missing_unit' ? 'blocking' : 'review',
       message: `R-1 omission: ${omission.reason} at page ${omission.page}${

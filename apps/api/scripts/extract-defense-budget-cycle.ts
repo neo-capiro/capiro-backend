@@ -14,6 +14,7 @@ import {
   type BudgetCycleManifestDocumentV1,
   type BudgetCycleManifestV1,
 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
+import type { FetchLike } from '../src/defense-budget/llamaparse.client.js';
 import {
   DEFAULT_PROFILING_THRESHOLDS,
   computeProfilingConfigSha256,
@@ -26,9 +27,11 @@ import {
   type ParserRunRecorderV1,
 } from '../src/defense-budget/parser-router/parser-artifact-store.js';
 import { ParserRouterV1Service } from '../src/defense-budget/parser-router/parser-router-v1.service.js';
+import { CumulativePaidPageLlamaParseClient } from '../src/defense-budget/parser-router/cumulative-paid-parse-client-v1.js';
 import { verifyNativeStructuredCompanion } from '../src/defense-budget/parser-router/native-structured-companion.js';
 import { createProductionParserVerificationContext } from '../src/defense-budget/parser-router/production-parser-verification-context.js';
 import { FilesystemProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.js';
+import { FilesystemParserArtifactProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-parser-artifact-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../src/defense-budget/verification/services/budget-verification-v1.service.js';
 
 const EXIT_OK = 0;
@@ -106,7 +109,7 @@ function strongerExit(current: number, candidate: number): number {
 function parseArgs(argv: string[]): CommandArgs {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
-  for (let index = 0; index < argv.length; index++) {
+  for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]!;
     if (BOOLEAN_FLAGS.has(flag)) {
       booleans.add(flag);
@@ -248,7 +251,10 @@ async function createVerificationContext(input: {
     const artifactStore = new FilesystemParserArtifactStore(input.parserArtifactRoot);
     return {
       service: new BudgetVerificationV1Service(
-        new FilesystemProofResolver({ sourcePdfPath: input.sourcePdfPath }),
+        new FilesystemParserArtifactProofResolver(
+          new FilesystemProofResolver({ sourcePdfPath: input.sourcePdfPath }),
+          artifactStore,
+        ),
         null,
       ),
       artifactStore,
@@ -278,6 +284,19 @@ function parserArtifactRoot(args: CommandArgs): string {
     );
   }
   return configured;
+}
+
+function createPaidClient(args: CommandArgs): CumulativePaidPageLlamaParseClient | undefined {
+  if (!args.allowPaidParse) return undefined;
+  const apiKey = process.env.LLAMAPARSE_API_KEY;
+  const baseUrl = process.env.LLAMAPARSE_BASE_URL;
+  if (!apiKey) throw new Error('LLAMAPARSE_API_KEY is required for paid parsing');
+  if (!baseUrl) throw new Error('LLAMAPARSE_BASE_URL is required for paid parsing');
+  return new CumulativePaidPageLlamaParseClient(
+    { apiKey, baseUrl },
+    globalThis.fetch as FetchLike,
+    args.maxPaidPages,
+  );
 }
 
 async function processNativeStructured(input: {
@@ -358,6 +377,7 @@ async function processParsedDocument(input: {
   manifestPath: string;
   document: BudgetCycleManifestDocumentV1;
   sourcePath: string;
+  paidClient?: CumulativePaidPageLlamaParseClient;
 }) {
   const { args, document, manifest } = input;
   const sourceSha256 = sha256File(input.sourcePath);
@@ -378,11 +398,12 @@ async function processParsedDocument(input: {
   if (!pdfplumberVersion) throw new Error('runtime did not report pdfplumber version');
 
   const profileJob = {
-    schemaVersion: 'defense_budget_parser_job_v1' as const,
+    schemaVersion: 'defense_budget_profile_job_v1' as const,
     jobId: `profile-${document.documentKey}`,
     sourcePath: input.sourcePath,
     sourceSha256,
     engine: 'deterministic_pdfplumber' as const,
+    allPages: true,
     requestedPages: [],
     parserVersion: pdfplumberVersion,
     parserConfig: DEFAULT_PROFILING_THRESHOLDS,
@@ -421,6 +442,7 @@ async function processParsedDocument(input: {
     allowPaidParse: args.allowPaidParse,
   });
   try {
+    const remainingPaidPages = input.paidClient?.getFreshPaidPagesRemaining() ?? 0;
     const router = new ParserRouterV1Service(
       {
         executionId: `${document.documentKey}-${sourceSha256.slice(0, 16)}`,
@@ -443,7 +465,7 @@ async function processParsedDocument(input: {
         title: document.title,
         maxEscalationRounds: args.maxEscalationRounds,
         allowPaidParse: args.allowPaidParse,
-        maxPaidPages: args.maxPaidPages,
+        maxPaidPages: remainingPaidPages,
         ...(args.paidMode ? { paidMode: args.paidMode } : {}),
         persistVerificationAudit: args.persistVerificationAudit,
         workDir: documentWorkDir,
@@ -458,25 +480,10 @@ async function processParsedDocument(input: {
           : {}),
         llamaparseAuthorization: {
           allowPaidParse: args.allowPaidParse,
-          maxPaidPages: args.maxPaidPages,
+          maxPaidPages: remainingPaidPages,
           ...(args.paidMode ? { paidMode: args.paidMode } : {}),
         },
-        ...(args.allowPaidParse
-          ? {
-              llamaparseClientConfig: {
-                apiKey:
-                  process.env.LLAMAPARSE_API_KEY ??
-                  (() => {
-                    throw new Error('LLAMAPARSE_API_KEY is required for paid parsing');
-                  })(),
-                baseUrl:
-                  process.env.LLAMAPARSE_BASE_URL ??
-                  (() => {
-                    throw new Error('LLAMAPARSE_BASE_URL is required for paid parsing');
-                  })(),
-              },
-            }
-          : {}),
+        ...(input.paidClient ? { llamaparseClient: input.paidClient } : {}),
       },
     );
     const terminal = await router.execute(profile.pages, requestedPages);
@@ -505,6 +512,7 @@ async function processDocument(input: {
   manifestPath: string;
   document: BudgetCycleManifestDocumentV1;
   sourcePath: string;
+  paidClient?: CumulativePaidPageLlamaParseClient;
 }) {
   if (!fs.existsSync(input.sourcePath)) {
     throw new Error(`source file not found: ${input.sourcePath}`);
@@ -543,6 +551,7 @@ async function main(): Promise<void> {
   fs.mkdirSync(args.workDir, { recursive: true });
   let finalExit = EXIT_OK;
   const reports: Array<Record<string, unknown>> = [];
+  const paidClient = createPaidClient(args);
   for (const document of selected) {
     try {
       const result = await processDocument({
@@ -551,6 +560,7 @@ async function main(): Promise<void> {
         manifestPath: path.resolve(args.manifest),
         document,
         sourcePath: sourcePathForDocument(document, args),
+        ...(paidClient ? { paidClient } : {}),
       });
       reports.push({ documentKey: document.documentKey, ...result });
       if (result.decision === 'REJECT') finalExit = strongerExit(finalExit, EXIT_REJECTED);
@@ -570,7 +580,21 @@ async function main(): Promise<void> {
       }
     }
   }
-  console.log(JSON.stringify({ manifest: path.resolve(args.manifest), documents: reports }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        manifest: path.resolve(args.manifest),
+        paidPageBudget: {
+          authorized: args.maxPaidPages,
+          freshUsed: paidClient?.getFreshPaidPagesUsed() ?? 0,
+          freshRemaining: paidClient?.getFreshPaidPagesRemaining() ?? 0,
+        },
+        documents: reports,
+      },
+      null,
+      2,
+    ),
+  );
   process.exit(finalExit);
 }
 

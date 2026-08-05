@@ -58,9 +58,7 @@ function run(step: Step): void {
     env: { ...process.env },
     shell: step.shell === true,
   });
-  if (result.error) {
-    throw result.error;
-  }
+  if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`${step.name} failed with exit ${result.status ?? 'null'}`);
   }
@@ -91,7 +89,31 @@ const steps: Step[] = [
     '--noEmit',
   ]),
   pnpmStep('Prisma generation', ['--filter', '@capiro/api', 'prisma:generate']),
-  pnpmStep('Prisma schema validation', ['--dir', 'apps/api', 'exec', 'prisma', 'validate']),
+  pnpmStep('Primary Prisma schema validation', [
+    '--dir',
+    'apps/api',
+    'exec',
+    'prisma',
+    'validate',
+  ]),
+  pnpmStep('RDT&E projection Prisma schema validation', [
+    '--dir',
+    'apps/api',
+    'exec',
+    'prisma',
+    'validate',
+    '--schema',
+    'prisma/rdte-projection/schema.prisma',
+  ]),
+  pnpmStep('RDT&E projection client generation', [
+    '--dir',
+    'apps/api',
+    'exec',
+    'prisma',
+    'generate',
+    '--schema',
+    'prisma/rdte-projection/schema.prisma',
+  ]),
   pnpmStep('Twenty Phase 4 mutate-fail-restore controls', [
     '--dir',
     'apps/api',
@@ -100,22 +122,34 @@ const steps: Step[] = [
     'scripts/verify-pe-budget-phase-4-negative-controls.ts',
   ]),
   {
-    name: 'Disposable PostgreSQL 16 fresh and upgrade rehearsal',
+    name: 'Disposable PostgreSQL 16 fresh and ordered-upgrade rehearsal',
     command: 'bash',
     args: ['scripts/rdte-phase-4-migration-rehearsal.sh'],
     cwd: API_ROOT,
   },
-  pnpmStep('Phase 4 formatting', [
+  pnpmStep('Phase 4 and audit-repair formatting', [
     'exec',
     'prettier',
     '--check',
     'apps/api/src/defense-budget/rdte',
+    'apps/api/src/defense-budget/parser-router/cumulative-paid-parse-client-v1.ts',
+    'apps/api/src/defense-budget/parser-router/profile-runtime-contract-v1.ts',
+    'apps/api/src/defense-budget/parser-router/local-parser-runtime-client.ts',
+    'apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts',
+    'apps/api/src/defense-budget/parser-router/router-state-machine.ts',
+    'apps/api/src/defense-budget/verification/trusted-proof/filesystem-parser-artifact-proof-resolver.ts',
+    'apps/api/src/defense-budget/verification/trusted-proof/filesystem-parser-artifact-proof-resolver.spec.ts',
+    'apps/api/src/defense-budget/verification/decision/decision-engine-v1.ts',
+    'apps/api/src/defense-budget/verification/decision/decision-engine-assertion-ledger.spec.ts',
+    'apps/api/src/defense-budget/verification/rules/contract-integrity.rules.ts',
     'apps/api/scripts/build-rdte-cycle.ts',
+    'apps/api/scripts/extract-defense-budget-cycle.ts',
     'apps/api/scripts/report-rdte-cycle.ts',
     'apps/api/scripts/plan-rdte-canonical-projection.ts',
     'apps/api/scripts/verify-rdte-phase-4-safety.ts',
     'apps/api/scripts/verify-pe-budget-phase-4-negative-controls.ts',
     'apps/api/scripts/verify-pe-budget-phase-4-closeout.ts',
+    'apps/api/tsconfig.budget-verification-v1.json',
     'apps/api/tsconfig.rdte-phase-4.json',
     'docs/program-elements/enrichment/RDTE-PHASE-4-FINAL-CLOSEOUT.md',
     'docs/runbooks/rdte-phase-4-annual-build.md',
@@ -136,6 +170,7 @@ try {
         ok: true,
         phase: 4,
         containersIncluded: includeContainers,
+        projectionClientGenerated: true,
         canonicalWritesPerformed: false,
         paidCallsPerformedByCloseout: false,
         sharedMigrationsApplied: false,

@@ -142,7 +142,12 @@ export function certifyRdteCycle(input: RdteCycleCertifyInput): RdteCycleCertifi
     if (verification.artifactContentSha256 !== artifact.artifactContentSha256) {
       mismatches.push('artifactContentSha256');
     }
-    if (verification.artifactByteSha256 !== artifact.artifactByteSha256) {
+    const verificationCarriesExactByteSha =
+      verification.artifactByteSha256 !== verification.artifactContentSha256;
+    if (
+      verificationCarriesExactByteSha &&
+      verification.artifactByteSha256 !== artifact.artifactByteSha256
+    ) {
       mismatches.push('artifactByteSha256');
     }
     if (verification.sourceDocumentId !== source.sourceDocumentId) {
@@ -227,8 +232,6 @@ export function certifyRdteCycle(input: RdteCycleCertifyInput): RdteCycleCertifi
     reason =
       'All required source, artifact, verification, reconciliation, and projection gates passed';
   } else if (hasRejected) {
-    // Explicit Phase 2 rejection outranks the synthetic projection-planning
-    // incomplete marker that is always present until projection succeeds.
     certification = 'REJECTED';
     reason = `Cycle rejected: ${blockingFindings.length} blocking finding(s)`;
   } else if (hasIncomplete) {

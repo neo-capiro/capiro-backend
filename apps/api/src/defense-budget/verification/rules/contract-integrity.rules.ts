@@ -29,15 +29,13 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
     const runId = ctx.verificationRunId;
     const { artifact } = input;
 
-    // The artifact is already parsed by the proof resolver, but we
-    // re-validate here to prove integrity independently.
     let parseOk = true;
     let parseError = '';
     try {
       parseDefenseBudgetExtractionArtifactV1(input.artifact);
-    } catch (e) {
+    } catch (error) {
       parseOk = false;
-      parseError = (e as Error).message;
+      parseError = (error as Error).message;
     }
 
     if (!parseOk) {
@@ -63,7 +61,6 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
       };
     }
 
-    // Recompute content SHA
     const recomputedSha = computeArtifactContentSha256(input.artifact);
     if (recomputedSha !== input.artifact.contentSha256) {
       return {
@@ -88,7 +85,6 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
       };
     }
 
-    // Require artifact ID match
     const expectedId = `dbx1_${recomputedSha}`;
     if (input.artifact.artifactId !== expectedId) {
       return {
@@ -113,11 +109,8 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
       };
     }
 
-    // Recompute summary
     const recomputedSummary = computeArtifactSummary(input.artifact);
-    const summaryMismatch =
-      JSON.stringify(recomputedSummary) !== JSON.stringify(input.artifact.summary);
-    if (summaryMismatch) {
+    if (JSON.stringify(recomputedSummary) !== JSON.stringify(input.artifact.summary)) {
       return {
         check: failCheck(
           CONTRACT_INTEGRITY_RULE,
@@ -140,11 +133,12 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
       };
     }
 
-    // Run semantic validation
     const semanticFindings = validateDefenseBudgetExtractionArtifactV1(input.artifact);
-    const semanticErrors = semanticFindings.filter((f) => f.severity === 'error');
+    const semanticErrors = semanticFindings.filter((finding) => finding.severity === 'error');
     if (semanticErrors.length > 0) {
-      const messages = semanticErrors.map((f) => `${f.code} at ${f.path}: ${f.message}`);
+      const messages = semanticErrors.map(
+        (finding) => `${finding.code} at ${finding.path}: ${finding.message}`,
+      );
       return {
         check: failCheck(
           CONTRACT_INTEGRITY_RULE,
@@ -154,11 +148,11 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
           [],
           `semantic validation errors: ${messages.join('; ')}`,
         ),
-        discrepancies: semanticErrors.map((f) =>
+        discrepancies: semanticErrors.map((finding) =>
           makeDiscrepancy(
-            `contract_integrity_${f.code}`,
+            `contract_integrity_${finding.code}`,
             'blocking',
-            `${f.code} at ${f.path}: ${f.message}`,
+            `${finding.code} at ${finding.path}: ${finding.message}`,
             [],
             [],
             [],
@@ -171,8 +165,8 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
       check: passCheck(
         CONTRACT_INTEGRITY_RULE,
         runId,
-        [],
-        [],
+        artifact.assertions.map((assertion) => assertion.assertionId).sort(),
+        artifact.evidence.map((evidence) => evidence.evidenceId).sort(),
         [],
         'artifact schema, content SHA, artifact ID, summary, and semantic validation all passed',
       ),

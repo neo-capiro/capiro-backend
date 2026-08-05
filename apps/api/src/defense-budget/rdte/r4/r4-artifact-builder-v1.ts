@@ -55,7 +55,6 @@ export function buildR4MilestoneArtifact(input: {
   }
   const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
 
-  let seq = 0;
   for (const result of input.extractions) {
     const assertions = buildR4MilestoneAssertions({
       milestones: result.milestones,
@@ -64,16 +63,23 @@ export function buildR4MilestoneArtifact(input: {
       evidenceIdPrefix: `ev_r4_${result.peCode}`,
     });
 
-    for (const assertion of assertions) {
-      seq += 1;
-      const milestone = result.milestones[seq - 1];
-      const page = milestone?.page ?? 1;
+    for (let milestoneIndex = 0; milestoneIndex < assertions.length; milestoneIndex += 1) {
+      const assertion = assertions[milestoneIndex]!;
+      const milestone = result.milestones[milestoneIndex];
+      if (!milestone) {
+        throw new Error(
+          `R-4 assertion/milestone alignment failed for PE ${result.peCode} at index ${milestoneIndex}`,
+        );
+      }
+      const page = milestone.page;
       const evidenceId =
         assertion.evidenceIds[0] ??
         evidenceIdV1({
           peCode: result.peCode,
           milestoneType: assertion.milestoneType,
           page,
+          tableIndex: milestone.tableIndex,
+          rowIndex: milestone.rowIndex,
           kind: 'r4_milestone',
         });
       builder.addEvidence({
@@ -82,9 +88,9 @@ export function buildR4MilestoneArtifact(input: {
         parserRunId: defaultParserRunId,
         granularity: 'page_only',
         page,
-        ...(milestone?.printedPage != null ? { printedPage: milestone.printedPage } : {}),
-        tableLabel: `table_${milestone?.tableIndex ?? 0}`,
-        rowLabel: `row_${milestone?.rowIndex ?? 0}`,
+        ...(milestone.printedPage != null ? { printedPage: milestone.printedPage } : {}),
+        tableLabel: `table_${milestone.tableIndex}`,
+        rowLabel: `row_${milestone.rowIndex}`,
       });
 
       const factId =
@@ -93,14 +99,16 @@ export function buildR4MilestoneArtifact(input: {
           peCode: result.peCode,
           milestoneType: assertion.milestoneType,
           page,
+          tableIndex: milestone.tableIndex,
+          rowIndex: milestone.rowIndex,
           kind: 'r4_milestone_fact',
         });
       builder.addSourceFact({
         factId,
-        sourcePath: `pe:${result.peCode}/milestone:${assertion.milestoneType}/page:${page}`,
+        sourcePath: `pe:${result.peCode}/milestone:${assertion.milestoneType}/page:${page}/table:${milestone.tableIndex}/row:${milestone.rowIndex}`,
         category: 'milestone',
         requiredForCompleteness: true,
-        rawValue: assertion.milestoneType,
+        rawValue: milestone.rawCells,
         evidenceIds: [evidenceId],
       });
 
@@ -122,6 +130,9 @@ export function buildR4MilestoneArtifact(input: {
         metadata: {
           ...metadata,
           exhibit: 'R-4',
+          physicalPage: page,
+          tableIndex: milestone.tableIndex,
+          rowIndex: milestone.rowIndex,
         },
       });
     }
@@ -133,6 +144,7 @@ export function buildR4MilestoneArtifact(input: {
         page: omission.page,
         rowIndex: omission.rowIndex ?? null,
         reason: omission.reason,
+        rawText: omission.rawText,
         kind: 'r4_omission_fact',
       });
       builder.addSourceFact({

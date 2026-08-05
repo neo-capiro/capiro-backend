@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from . import __version__
 from .contracts import ParserRuntimeJobV1
 from .engine_versions import ENGINE_VERSIONS
+from .profile_contract import ParserProfileJobV1
 
 EXIT_SUCCESS = 0
 EXIT_CONTRACT = 2
@@ -30,14 +31,12 @@ def _load_json(path: str | Path) -> dict[str, Any]:
     return value
 
 
-def _load_validated_job(path: str | Path, *, allow_empty_pages: bool = False) -> dict[str, Any]:
-    raw = _load_json(path)
-    if allow_empty_pages and raw.get('requestedPages') == []:
-        probe = dict(raw)
-        probe['requestedPages'] = [1]
-        ParserRuntimeJobV1.model_validate(probe)
-        return raw
-    return ParserRuntimeJobV1.model_validate(raw).model_dump()
+def _load_validated_job(path: str | Path) -> dict[str, Any]:
+    return ParserRuntimeJobV1.model_validate(_load_json(path)).model_dump()
+
+
+def _load_validated_profile_job(path: str | Path) -> dict[str, Any]:
+    return ParserProfileJobV1.model_validate(_load_json(path)).model_dump()
 
 
 def _write_result(result: Any, output_path: str | Path) -> None:
@@ -139,14 +138,17 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_SUCCESS
 
         if args.command == 'profile':
-            job = _load_validated_job(args.job, allow_empty_pages=True)
+            job = _load_validated_profile_job(args.job)
             from .pdf_profile import profile_document, profile_pages
 
-            requested_pages = job['requestedPages']
             result = (
                 profile_document(job['sourcePath'], job['sourceSha256'])
-                if len(requested_pages) == 0
-                else profile_pages(job['sourcePath'], job['sourceSha256'], requested_pages)
+                if job['allPages']
+                else profile_pages(
+                    job['sourcePath'],
+                    job['sourceSha256'],
+                    job['requestedPages'],
+                )
             )
             _write_result(result, args.out)
             return EXIT_SUCCESS

@@ -23,6 +23,8 @@ export const RDTE_PROJECTION_TARGET_V1_VALUES = [
   'ProgramElementPerformer',
   'ProgramElementMilestone',
   'ProgramElementMilestoneSchedulePeriod',
+  'ProgramElementProjectMilestone',
+  'ProgramElementProjectMilestoneSchedulePeriod',
   'ProgramElementSource',
 ] as const;
 export const rdteProjectionTargetV1Schema = z.enum(RDTE_PROJECTION_TARGET_V1_VALUES);
@@ -91,14 +93,43 @@ export const rdteProjectionCandidateV1Schema = z
   .strict();
 export type RdteProjectionCandidateV1 = z.infer<typeof rdteProjectionCandidateV1Schema>;
 
-/** Final production candidate; every trusted Phase 2 field is mandatory. */
-export const proofBoundRdteProjectionCandidateV1Schema = z
+/**
+ * Exact assertion-level provenance. A projection candidate may combine source
+ * semantics from more than one official artifact (for example R-1 identity and
+ * R-2 narrative). Each assertion therefore keeps its own immutable Phase 2
+ * proof rather than inheriting an unrelated document-level acceptance.
+ */
+export const proofBoundRdteAssertionBindingV1Schema = z
   .object({
-    ...candidateBaseShape,
+    assertionId: nonBlank,
+    evidenceIds: z.array(nonBlank).min(1),
+    manifestDocumentKey: nonBlank,
+    artifactId: nonBlank,
+    artifactContentSha256: sha256Schema,
+    verificationCandidateId: nonBlank,
+    verificationRunId: nonBlank,
     verificationDecision: verificationDecisionV1Schema,
     verificationStatus: verificationCandidateStatusV1Schema,
     verificationPolicySha256: sha256Schema,
     sourceDocumentId: nonBlank,
+    sourcePdfSha256: sha256Schema,
+  })
+  .strict();
+export type ProofBoundRdteAssertionBindingV1 = z.infer<
+  typeof proofBoundRdteAssertionBindingV1Schema
+>;
+
+/** Final production candidate; every trusted Phase 2 field is mandatory. */
+export const proofBoundRdteProjectionCandidateV1Schema = z
+  .object({
+    ...candidateBaseShape,
+    assertionIds: z.array(nonBlank).min(1),
+    evidenceIds: z.array(nonBlank).min(1),
+    verificationDecision: verificationDecisionV1Schema,
+    verificationStatus: verificationCandidateStatusV1Schema,
+    verificationPolicySha256: sha256Schema,
+    sourceDocumentId: nonBlank,
+    assertionBindings: z.array(proofBoundRdteAssertionBindingV1Schema).min(1),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -123,6 +154,27 @@ export const proofBoundRdteProjectionCandidateV1Schema = z
         path: ['verificationStatus'],
         message: `verification decision ${value.verificationDecision} is inconsistent with ${value.verificationStatus}`,
       });
+    }
+    const assertionIds = [...new Set(value.assertionIds)].sort();
+    const bindingIds = [...new Set(value.assertionBindings.map((binding) => binding.assertionId))].sort();
+    if (assertionIds.join('|') !== bindingIds.join('|')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assertionBindings'],
+        message: 'assertionBindings must cover every candidate assertion exactly',
+      });
+    }
+    const evidenceIds = new Set(value.evidenceIds);
+    for (const binding of value.assertionBindings) {
+      for (const evidenceId of binding.evidenceIds) {
+        if (!evidenceIds.has(evidenceId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['evidenceIds'],
+            message: `candidate evidence ledger is missing ${evidenceId}`,
+          });
+        }
+      }
     }
   });
 export type ProofBoundRdteProjectionCandidateV1 = z.infer<
