@@ -36,11 +36,10 @@ export class EngagementRuntimeGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const handler = context.getHandler();
-    const metadata = Reflect.getMetadata(
+    const metadata = this.reflector.get<EngagementRuntimeActionMetadata>(
       ENGAGEMENT_RUNTIME_ACTION_KEY,
-      handler.constructor,
-      handler.name,
-    ) as EngagementRuntimeActionMetadata | undefined;
+      handler,
+    );
 
     // No action metadata — this is a DB-local route, allow through.
     if (!metadata) return true;
