@@ -95,8 +95,8 @@ async function main(): Promise<void> {
       VALUES ('${USER_ID}'::uuid, '${userEmail}', '${clerkUserId}', now(), now())
     `);
     await prisma.$executeRawUnsafe(`
-      INSERT INTO tenant_memberships (tenant_id, user_id, role, status, created_at, updated_at)
-      VALUES ('${TENANT_ID}'::uuid, '${USER_ID}'::uuid, 'user_admin', 'active', now(), now())
+      INSERT INTO tenant_memberships (id, tenant_id, user_id, role, status, joined_at, created_at, updated_at)
+      VALUES (gen_random_uuid(), '${TENANT_ID}'::uuid, '${USER_ID}'::uuid, 'user_admin', 'active', now(), now(), now())
     `);
 
     // Clients
@@ -146,9 +146,9 @@ async function main(): Promise<void> {
           INSERT INTO outreach_records (id, tenant_id, client_id, type, status, title, subject, created_by_user_id, created_at, updated_at)
           VALUES
             ('${OUTREACH_DRAFT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-             'email', 'draft', 'Phase 0 — Draft Outreach', 'Phase 0 — Draft Outreach', '${USER_ID}'::uuid, now(), now()),
+             'campaign', 'draft', 'Phase 0 — Draft Outreach', 'Phase 0 — Draft Outreach', '${USER_ID}'::uuid, now(), now()),
             ('${OUTREACH_SENT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-             'email', 'sent', 'Phase 0 — Sent Outreach', 'Phase 0 — Sent Outreach', '${USER_ID}'::uuid, now(), now())
+             'campaign', 'sent', 'Phase 0 — Sent Outreach', 'Phase 0 — Sent Outreach', '${USER_ID}'::uuid, now(), now())
         `);
 
         // Audiences
