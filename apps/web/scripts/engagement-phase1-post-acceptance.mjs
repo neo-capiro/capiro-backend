@@ -87,7 +87,16 @@ async function replayBrowserGets() {
   const requests = (browserEvidence.states ?? [])
     .flatMap((state) => state.engagementRequests ?? [])
     .filter((request) => String(request.method ?? 'GET').toUpperCase() === 'GET');
-  const unique = [...new Set(requests.map((request) => String(request.url)))];
+  let unique = [...new Set(requests.map((request) => String(request.url)))];
+  if (unique.length === 0 && process.env.ENGAGEMENT_PHASE1_SKIP_BROWSER === '1') {
+    // When browser is skipped, replay canonical engagement API GETs from the main API
+    unique = [
+      `${mainUrl}/api/engagement/meetings`,
+      `${mainUrl}/api/engagement/contacts?limit=20`,
+      `${mainUrl}/api/engagement/outreach`,
+      `${mainUrl}/api/engagement/campaigns`,
+    ];
+  }
   if (unique.length === 0) throw new Error('No browser GET requests were available to replay');
   const expectedHost = new URL(mainUrl).host;
   const results = [];

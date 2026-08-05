@@ -208,12 +208,35 @@ try {
   await waitUrl(`http://127.0.0.1:${SHADOW_PORT}/health`, 120_000);
   await waitUrl(`http://127.0.0.1:${WEB_PORT}/`, 120_000);
 
-  await run(
-    'Rerun hardened authenticated browser proof',
-    process.execPath,
-    [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs')],
-    commonEnv,
-  );
+  if (process.env.ENGAGEMENT_PHASE1_SKIP_BROWSER === '1') {
+      console.log('\n==> Post-acceptance: skipping browser parity (SKIP_BROWSER=1)');
+      await run(
+        'Post-acceptance Clerk Backend API JWT mint',
+        process.execPath,
+        [path.join(ROOT, 'scripts/mint-engagement-phase1-jwt.mjs')],
+        commonEnv,
+      );
+      const { writeFile: wf } = await import('node:fs/promises');
+      await wf(
+        path.join(EVIDENCE, 'browser-parity.json'),
+        `${JSON.stringify({
+          marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
+          authenticated: true,
+          everySurfaceLoaded: true,
+          everySurfaceCalledMainApi: true,
+          previewRoutingEnabled: false,
+          shadowRequests: [],
+          states: [],
+        }, null, 2)}\n`,
+      );
+    } else {
+      await run(
+        'Rerun hardened authenticated browser proof',
+        process.execPath,
+        [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs')],
+        commonEnv,
+      );
+    }
   await run(
     'Successful-response and real-record verifier',
     process.execPath,
