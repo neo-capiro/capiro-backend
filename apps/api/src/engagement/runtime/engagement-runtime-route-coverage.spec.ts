@@ -49,6 +49,7 @@ const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
 ]);
 const LOCAL_SAFE_OAUTH_HANDLERS = new Set(['capabilities']);
 const LOCAL_SAFE_SEND_HANDLERS = new Set(['getSendIntent', 'cancelSendIntent']);
+const LOCAL_SAFE_NOTETAKER_HANDLERS = new Set(['meetingNotetaker']);
 
 function externallySensitive(route: RouteEntry): boolean {
   if (route.controller === 'RecallWebhookController') return false;
@@ -57,7 +58,9 @@ function externallySensitive(route: RouteEntry): boolean {
     return !LOCAL_SAFE_SEND_HANDLERS.has(route.handler);
   }
   if (route.classification === 'sync') return true;
-  if (route.classification === 'notetaker') return true;
+  if (route.classification === 'notetaker') {
+    return !LOCAL_SAFE_NOTETAKER_HANDLERS.has(route.handler);
+  }
   if (route.classification === 'webhook') return true;
   if (route.classification === 'generation') {
     return !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler);
@@ -139,7 +142,8 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
       route.classification !== 'write' &&
       !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler) &&
       !LOCAL_SAFE_ATTACHMENT_HANDLERS.has(route.handler) &&
-      !LOCAL_SAFE_SEND_HANDLERS.has(route.handler)
+      !LOCAL_SAFE_SEND_HANDLERS.has(route.handler) &&
+      !LOCAL_SAFE_NOTETAKER_HANDLERS.has(route.handler)
     ) {
       findings.push(
         `unclassified mutating route: ${route.method} ${route.path} (${route.controller}.${route.handler})`,
