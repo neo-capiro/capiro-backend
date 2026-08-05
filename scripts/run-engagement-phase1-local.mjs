@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Authoritative local Phase 1 closeout. GitHub Actions are not part of the
- * acceptance decision. Completion is emitted only after DB-free validation,
- * authenticated two-process/API/browser proof, background containment, and
- * host/ARM64 image inspection all pass on one exact clean SHA.
+ * Authoritative local Phase 1 closeout. GitHub Actions are intentionally not
+ * part of the acceptance decision. Completion is emitted only after DB-free
+ * verification, authenticated browser/API parity, strict route denials,
+ * background containment, and host/ARM64 image inspection pass on one exact,
+ * clean, current-main SHA.
  */
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -14,12 +15,18 @@ import { resolveSpawn } from './lib/resolve-tool.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(process.argv.slice(2));
-const SHA = args.sha ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
+const ACTUAL_SHA = (await capture('git', ['rev-parse', 'HEAD'])).trim();
+const SHA = args.sha ?? ACTUAL_SHA;
 if (!/^[0-9a-f]{40}$/i.test(SHA)) {
   throw new Error('Phase 1 requires an exact 40-character SHA');
 }
+if (SHA !== ACTUAL_SHA) {
+  throw new Error(`--sha ${SHA} does not match the checked-out HEAD ${ACTUAL_SHA}`);
+}
 const STATUS = (await capture('git', ['status', '--short'])).trim();
 if (STATUS) throw new Error(`Phase 1 requires a clean checkout before validation:\n${STATUS}`);
+await assertCurrentMainAncestor();
+await assertScopeBoundaries();
 
 const EVIDENCE = path.resolve(ROOT, args.evidenceDir ?? `.artifacts/engagement-phase1-${SHA}`);
 const LOGS = path.join(EVIDENCE, 'logs');
@@ -33,6 +40,7 @@ const CONTAINER = `engagement-phase1-${process.pid}`;
 const IMAGE = `capiro-engagement-api:phase1-${SHA.slice(0, 12)}`;
 const ARM64_OCI = path.join(EVIDENCE, 'engagement-api-arm64.oci.tar');
 const DOCKER = process.platform === 'win32' ? 'docker.exe' : 'docker';
+const BACKGROUND_OBSERVE_MS = Math.max(Number(args.backgroundObserveMs ?? 65_000), 65_000);
 const children = [];
 
 const clerkOrgId = requiredAny(
@@ -47,21 +55,16 @@ const clerkUserEmail = requiredAny(
   'ENGAGEMENT_PHASE1_USER_EMAIL',
   'ENGAGEMENT_PHASE0_USER_EMAIL',
 );
-const clerkCookie = (
-  process.env.ENGAGEMENT_PHASE1_USER_COOKIE ||
-  process.env.ENGAGEMENT_PHASE0_USER_COOKIE ||
-  ''
-).trim();
-// Cookie is optional when CLERK_SECRET_KEY can mint a backend session JWT
-// (Clerk browser UI on localhost is skipped by operator request).
-const canMintBackendJwt = Boolean(process.env.CLERK_SECRET_KEY?.trim());
-if (!clerkCookie && !canMintBackendJwt) {
-  throw new Error(
-    'ENGAGEMENT_PHASE1_USER_COOKIE or CLERK_SECRET_KEY is required for authenticated local acceptance',
-  );
-}
+const clerkCookie = requiredAny(
+  'ENGAGEMENT_PHASE1_USER_COOKIE',
+  'ENGAGEMENT_PHASE0_USER_COOKIE',
+);
 required('CLERK_SECRET_KEY');
 required('CLERK_JWT_ISSUER');
+const clerkPublishableKey = requiredAny(
+  'VITE_CLERK_PUBLISHABLE_KEY',
+  'CLERK_PUBLISHABLE_KEY',
+);
 
 const commonEnv = {
   ...process.env,
@@ -87,6 +90,8 @@ const commonEnv = {
   ENGAGEMENT_PHASE0_EVIDENCE_DIR: EVIDENCE,
   ENGAGEMENT_PHASE0_BASE_URL: 'http://127.0.0.1:5173',
   ENGAGEMENT_PHASE1_CLERK_ORG_ID: clerkOrgId,
+  ENGAGEMENT_PHASE1_USER_CLERK_ID: clerkUserId,
+  ENGAGEMENT_PHASE1_USER_EMAIL: clerkUserEmail,
   ENGAGEMENT_PHASE1_USER_COOKIE: clerkCookie,
   ENGAGEMENT_PHASE1_FIXTURE_FILE: FIXTURES,
   ENGAGEMENT_PHASE1_EVIDENCE_DIR: EVIDENCE,
@@ -95,11 +100,10 @@ const commonEnv = {
   ENGAGEMENT_PHASE1_ENGAGEMENT_URL: 'http://127.0.0.1:4500',
   ENGAGEMENT_PHASE1_TOKEN_FILE: TOKEN_FILE,
   VITE_API_BASE_URL: 'http://127.0.0.1:4000',
-  ENGAGEMENT_PHASE1_SKIP_WEB_SUITE: process.env.ENGAGEMENT_PHASE1_SKIP_WEB_SUITE ?? '',
-  VITE_CLERK_PUBLISHABLE_KEY:
-    process.env.VITE_CLERK_PUBLISHABLE_KEY ?? process.env.CLERK_PUBLISHABLE_KEY ?? '',
-  CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? '',
+  VITE_CLERK_PUBLISHABLE_KEY: clerkPublishableKey,
+  CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? clerkPublishableKey,
 };
+
 const mainEnv = {
   ...commonEnv,
   CAPIRO_SERVICE_NAME: 'api',
@@ -111,6 +115,7 @@ const mainEnv = {
   ENGAGEMENT_CALLBACKS_ENABLED: 'false',
   ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
 };
+
 const engagementEnv = {
   ...commonEnv,
   CAPIRO_SERVICE_NAME: 'engagement-api',
@@ -198,15 +203,8 @@ async function main() {
       ['--filter', '@capiro/api', 'run', 'build'],
       mainEnv,
     );
-    // Boot compiled entrypoints (not tsx). Nest DI requires emitDecoratorMetadata
-    // from the production build; shell-less pnpm exec tsx is also brittle on Windows.
     children.push(
-      start(
-        'main-api',
-        process.execPath,
-        ['apps/api/dist/main.js'],
-        mainEnv,
-      ),
+      start('main-api', process.execPath, ['apps/api/dist/main.js'], mainEnv),
       start(
         'engagement-api',
         process.execPath,
@@ -232,18 +230,19 @@ async function main() {
       throw new Error(`Recall route must be absent; got ${recall.status}`);
     }
 
-    // Clerk browser UI is skipped: mint a real Clerk session JWT via Backend API
-    // (works on sk_test_ instances) and prove browser network never hits :4500.
-    const bearerToken = await mintClerkBearerToken();
-    await writeFile(TOKEN_FILE, bearerToken, { mode: 0o600 });
     await run(
-      'Clerk-free browser network proof (no :4500 traffic)',
+      'Authenticated browser routing and current-UI parity',
       process.execPath,
-      ['scripts/engagement-phase1-browser-network-only.mjs'],
+      ['apps/web/scripts/engagement-phase1-browser-parity.mjs'],
       mainEnv,
     );
+    const bearerToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
+    if (bearerToken.length < 20) {
+      throw new Error('Authenticated browser token handoff failed');
+    }
+
     await run(
-      'Manifest-driven API/auth/write/denial parity',
+      'Manifest-driven API/auth/write/per-route denial parity',
       'pnpm',
       [
         '--filter',
@@ -255,29 +254,33 @@ async function main() {
       { ...mainEnv, ENGAGEMENT_PHASE1_BEARER_TOKEN: bearerToken },
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
     await proveBackgroundContainment();
     await buildAndInspectImages();
+    await writeNegativeControlEvidence();
+    await assertRequiredEvidence();
 
     const summary = {
       marker: 'ENGAGEMENT_PHASE1_LOCAL_COMPLETE',
       sha: SHA,
+      actualHeadSha: ACTUAL_SHA,
       evidenceDir: EVIDENCE,
       phase0Accepted: true,
       dbFreeCloseout: true,
-      authenticatedBrowser: 'backend_jwt_mint',
-      browserNetworkProof: true,
-      clerkBrowserUi: 'skipped',
+      authenticatedBrowser: true,
+      clerkAuthentication: 'existing_session_cookie',
+      browserMainApiTrafficObserved: true,
       manifestReadParity: true,
-      authTenantOwnershipParity: true,
+      authTenantOwnershipDenials: true,
       localWriteInteroperability: true,
-      externalActionDenials: true,
+      everyRuntimeRegistryRouteDenied: true,
       backgroundContainment: true,
+      negativeControls: 'NC1-NC8',
       hostImage: IMAGE,
       arm64Artifact: ARM64_OCI,
       sharedDatabaseTouched: false,
       awsMutation: false,
-      externalProviderAction: false,
+      externalBusinessProviderAction: false,
+      clerkSessionCreatedByRunner: false,
       githubActionsRequired: false,
     };
     await writeFile(
@@ -287,6 +290,49 @@ async function main() {
     console.log(JSON.stringify(summary));
   } finally {
     await cleanup();
+  }
+}
+
+async function assertCurrentMainAncestor() {
+  const remoteMain = (await capture('git', ['rev-parse', 'origin/main'])).trim();
+  if (!/^[0-9a-f]{40}$/i.test(remoteMain)) {
+    throw new Error('origin/main is unavailable; run git fetch origin first');
+  }
+  const ancestorCode = await run(
+    'Verify current origin/main is contained in HEAD',
+    'git',
+    ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'],
+    process.env,
+    true,
+  );
+  if (ancestorCode !== 0) {
+    throw new Error('Branch is behind or diverged from origin/main; synchronize before acceptance');
+  }
+  const counts = (await capture('git', ['rev-list', '--left-right', '--count', 'origin/main...HEAD']))
+    .trim()
+    .split(/\s+/)
+    .map(Number);
+  const behind = counts[0] ?? Number.NaN;
+  if (behind !== 0) throw new Error(`Branch is ${behind} commit(s) behind origin/main`);
+}
+
+async function assertScopeBoundaries() {
+  const files = (await capture('git', ['diff', '--name-only', 'origin/main...HEAD']))
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const violations = files.filter(
+    (filename) =>
+      filename.startsWith('apps/api/prisma/migrations/') ||
+      filename.startsWith('infra/') ||
+      filename.startsWith('apps/web/src/'),
+  );
+  if (violations.length > 0) {
+    throw new Error(
+      `Phase 1 scope boundary contains migration, infrastructure, or product UI changes:\n${violations.join(
+        '\n',
+      )}`,
+    );
   }
 }
 
@@ -304,6 +350,7 @@ async function collectHealth() {
       body,
     };
   }
+  if (output.main.status !== 200) throw new Error('main API health failed');
   if (output.engagement.status !== 200) throw new Error('engagement-api health failed');
   if (output.engagement.serviceHeader !== 'engagement-api') {
     throw new Error('engagement-api service header missing');
@@ -318,25 +365,37 @@ async function collectHealth() {
   ) {
     throw new Error(`engagement-api health posture is armed: ${JSON.stringify(runtime)}`);
   }
-  await writeFile(
-    path.join(EVIDENCE, 'health.json'),
-    `${JSON.stringify(output, null, 2)}\n`,
-  );
+  await writeFile(path.join(EVIDENCE, 'health.json'), `${JSON.stringify(output, null, 2)}\n`);
 }
 
 async function proveBackgroundContainment() {
-  const source = await readFile(path.join(LOGS, 'engagement-api.log'), 'utf8');
-  const disabledLines = source
-    .split(/\r?\n/)
-    .filter((line) => /disabled by engagement runtime policy/i.test(line));
-  const startedLines = source
-    .split(/\r?\n/)
-    .filter((line) => /worker started|scheduler started|sweep started/i.test(line));
-  if (disabledLines.length < 4) {
+  const before = await databaseDigest();
+  await new Promise((resolve) => setTimeout(resolve, BACKGROUND_OBSERVE_MS));
+  const after = await databaseDigest();
+  if (JSON.stringify(before) !== JSON.stringify(after)) {
     throw new Error(
-      `Expected background-disable evidence for all worker classes; found ${disabledLines.length}`,
+      `Background observation changed Engagement-owned tables: ${JSON.stringify({ before, after })}`,
     );
   }
+
+  const source = await readFile(path.join(LOGS, 'engagement-api.log'), 'utf8');
+  const requiredDisabledMarkers = [
+    'engagement-sync-scheduler disabled by runtime policy',
+    'outreach-job-worker disabled by runtime policy',
+    'outreach-send-intent-worker disabled by runtime policy',
+    'notetaker-reconcile disabled by runtime policy',
+  ];
+  const missingMarkers = requiredDisabledMarkers.filter((marker) => !source.includes(marker));
+  if (missingMarkers.length > 0) {
+    throw new Error(`Missing background-disable log markers: ${missingMarkers.join(', ')}`);
+  }
+  const startedLines = source
+    .split(/\r?\n/)
+    .filter((line) =>
+      /engagement auto-sync started|outreach job worker started|outreach send-intent worker started|reconciliation sweep started/i.test(
+        line,
+      ),
+    );
   if (startedLines.length > 0) {
     throw new Error(
       `A background worker reported starting in shadow mode: ${startedLines.join('\n')}`,
@@ -344,8 +403,63 @@ async function proveBackgroundContainment() {
   }
   await writeFile(
     path.join(EVIDENCE, 'background-containment.json'),
-    `${JSON.stringify({ disabledLines, startedLines, contained: true }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        observedMs: BACKGROUND_OBSERVE_MS,
+        requiredDisabledMarkers,
+        missingMarkers,
+        startedLines,
+        tableDigests: { before, after, unchanged: true },
+        contained: true,
+      },
+      null,
+      2,
+    )}\n`,
   );
+}
+
+async function databaseDigest() {
+  const tableList = await capture(
+    DOCKER,
+    [
+      'exec',
+      CONTAINER,
+      'psql',
+      '-U',
+      'capiro',
+      '-d',
+      'capiro',
+      '-At',
+      '-c',
+      `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND (table_name LIKE 'engagement_%' OR table_name LIKE 'outreach_%' OR table_name LIKE 'meeting_%' OR table_name LIKE 'mail_%' OR table_name='meetings') ORDER BY table_name`,
+    ],
+    commonEnv,
+  );
+  const output = {};
+  for (const table of tableList.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)) {
+    if (!/^[a-z0-9_]+$/.test(table)) throw new Error(`Unsafe PostgreSQL table name: ${table}`);
+    const value = await capture(
+      DOCKER,
+      [
+        'exec',
+        CONTAINER,
+        'psql',
+        '-U',
+        'capiro',
+        '-d',
+        'capiro',
+        '-At',
+        '-F',
+        '\t',
+        '-c',
+        `SELECT COUNT(*)::text, COALESCE(md5(string_agg(to_jsonb(t)::text, '|' ORDER BY to_jsonb(t)::text)), md5('')) FROM "${table}" AS t`,
+      ],
+      commonEnv,
+    );
+    const [count, digest] = value.trim().split('\t');
+    output[table] = { count: Number(count), digest };
+  }
+  return output;
 }
 
 async function buildAndInspectImages() {
@@ -355,7 +469,7 @@ async function buildAndInspectImages() {
     ['build', '-f', 'apps/engagement-api/Dockerfile', '-t', IMAGE, '.'],
     commonEnv,
   );
-  const rawInspect = await capture(DOCKER, ['image', 'inspect', IMAGE]);
+  const rawInspect = await capture(DOCKER, ['image', 'inspect', IMAGE], commonEnv);
   const inspect = JSON.parse(rawInspect)[0];
   const config = inspect?.Config ?? {};
   const hostInspection = {
@@ -429,6 +543,9 @@ async function buildAndInspectImages() {
   if (arm64.architecture !== 'arm64') {
     throw new Error(`ARM64 artifact architecture is ${arm64.architecture}`);
   }
+  if (!arm64.user || arm64.user === '0' || arm64.user === 'root') {
+    throw new Error('ARM64 artifact runs as root');
+  }
   await writeFile(
     path.join(EVIDENCE, 'image-inspection.json'),
     `${JSON.stringify(
@@ -439,22 +556,84 @@ async function buildAndInspectImages() {
   );
 }
 
+async function writeNegativeControlEvidence() {
+  const browser = JSON.parse(await readFile(path.join(EVIDENCE, 'browser-parity.json'), 'utf8'));
+  const denials = JSON.parse(
+    await readFile(path.join(EVIDENCE, 'external-action-denials.json'), 'utf8'),
+  );
+  const background = JSON.parse(
+    await readFile(path.join(EVIDENCE, 'background-containment.json'), 'utf8'),
+  );
+  const image = JSON.parse(await readFile(path.join(EVIDENCE, 'image-inspection.json'), 'utf8'));
+  const controls = {
+    marker: 'ENGAGEMENT_PHASE1_NEGATIVE_CONTROLS_COMPLETE',
+    sha: SHA,
+    NC1: { passed: true, proof: 'EngagementApiAppModule static import-safety test' },
+    NC2: { passed: true, proof: 'strict armed-shadow environment rejection tests' },
+    NC3: { passed: true, proof: 'exact missing-route registry negative-control test' },
+    NC4: {
+      passed: background.contained === true,
+      proof: 'worker containment tests, disabled logs, and stable table digests',
+    },
+    NC5: {
+      passed: denials.passed === true,
+      proof: 'every send route returned 503 before protected-data mutation',
+    },
+    NC6: {
+      passed: denials.passed === true,
+      proof: 'every generation route returned 503 before protected-data mutation',
+    },
+    NC7: {
+      passed: image.migrateExit === 64,
+      proof: 'serve-only image refused migrate',
+    },
+    NC8: {
+      passed:
+        browser.previewRoutingEnabled === false &&
+        Array.isArray(browser.shadowRequests) &&
+        browser.shadowRequests.length === 0,
+      proof: 'authenticated browser and static routing checks observed no shadow traffic',
+    },
+  };
+  if (Object.values(controls).some((value) => value?.passed === false)) {
+    throw new Error(`A Phase 1 negative control failed: ${JSON.stringify(controls)}`);
+  }
+  await writeFile(
+    path.join(EVIDENCE, 'negative-controls.json'),
+    `${JSON.stringify(controls, null, 2)}\n`,
+  );
+}
+
+async function assertRequiredEvidence() {
+  const requiredFiles = [
+    'health.json',
+    'read-parity.json',
+    'auth-parity.json',
+    'local-write-interoperability.json',
+    'external-action-denials.json',
+    'background-containment.json',
+    'browser-parity.json',
+    'image-inspection.json',
+    'negative-controls.json',
+  ];
+  for (const filename of requiredFiles) {
+    const content = await readFile(path.join(EVIDENCE, filename), 'utf8');
+    if (!content.trim()) throw new Error(`Required evidence file is empty: ${filename}`);
+    if (/Bearer\s+[A-Za-z0-9._-]{20,}|__session=|CLERK_SECRET_KEY|DATABASE_URL/i.test(content)) {
+      throw new Error(`Required evidence file appears to contain a secret: ${filename}`);
+    }
+  }
+}
+
 async function inspectOci(filename) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'capiro-engagement-oci-'));
   try {
-    await run(
-      'Extract ARM64 OCI metadata',
-      'tar',
-      ['-xf', filename, '-C', directory],
-      commonEnv,
-    );
+    await run('Extract ARM64 OCI metadata', 'tar', ['-xf', filename, '-C', directory], commonEnv);
     const index = JSON.parse(await readFile(path.join(directory, 'index.json'), 'utf8'));
     const manifestDigest = index.manifests?.[0]?.digest;
     if (!manifestDigest) throw new Error('OCI index has no manifest');
     const manifest = JSON.parse(await readFile(blobPath(directory, manifestDigest), 'utf8'));
-    const config = JSON.parse(
-      await readFile(blobPath(directory, manifest.config.digest), 'utf8'),
-    );
+    const config = JSON.parse(await readFile(blobPath(directory, manifest.config.digest), 'utf8'));
     return {
       architecture: config.architecture,
       os: config.os,
@@ -469,6 +648,7 @@ async function inspectOci(filename) {
     await rm(directory, { recursive: true, force: true });
   }
 }
+
 function blobPath(directory, digest) {
   const [algorithm, hash] = String(digest).split(':', 2);
   return path.join(directory, 'blobs', algorithm, hash);
@@ -480,6 +660,7 @@ function resolveCommand(command, commandArgs) {
   if (command === 'docker' || command === 'docker.exe') return resolveSpawn('docker', commandArgs);
   return { command, args: commandArgs };
 }
+
 function start(label, command, commandArgs, env) {
   const logFile = path.join(LOGS, `${label}.log`);
   const resolved = resolveCommand(command, commandArgs);
@@ -523,11 +704,11 @@ async function run(label, command, commandArgs, env, allowFailure = false) {
   return code;
 }
 
-async function capture(command, commandArgs) {
+async function capture(command, commandArgs, env = process.env) {
   const resolved = resolveCommand(command, commandArgs);
   const child = spawn(resolved.command, resolved.args, {
     cwd: ROOT,
-    env: process.env,
+    env,
     shell: false,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -562,47 +743,6 @@ async function waitDatabase() {
   throw new Error('Disposable PostgreSQL did not become ready');
 }
 
-async function mintClerkBearerToken() {
-  const secret = process.env.CLERK_SECRET_KEY?.trim();
-  const userId = (
-    process.env.ENGAGEMENT_PHASE1_USER_CLERK_ID ||
-    process.env.ENGAGEMENT_PHASE0_USER_CLERK_ID ||
-    ''
-  ).trim();
-  if (!secret || !userId) {
-    throw new Error('CLERK_SECRET_KEY and user clerk id required to mint bearer token');
-  }
-  const sessionRes = await fetch('https://api.clerk.com/v1/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ user_id: userId }),
-  });
-  const session = await sessionRes.json();
-  if (!sessionRes.ok || !session?.id) {
-    throw new Error(`Clerk session create failed status=${sessionRes.status}`);
-  }
-  // Prefer the configured JWT template used by the product, fall back to default.
-  for (const path of [`/tokens/capiro`, '/tokens']) {
-    const tokenRes = await fetch(`https://api.clerk.com/v1/sessions/${session.id}${path}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'Content-Type': 'application/json',
-      },
-      body: '{}',
-    });
-    const body = await tokenRes.json();
-    const jwt = body?.jwt || body?.token;
-    if (tokenRes.ok && typeof jwt === 'string' && jwt.length > 20) {
-      return jwt;
-    }
-  }
-  throw new Error('Clerk session token mint failed');
-}
-
 async function waitUrl(url, timeout) {
   const deadline = Date.now() + timeout;
   let last = '';
@@ -630,6 +770,7 @@ async function cleanup() {
   ).catch(() => undefined);
   await rm(TOKEN_DIR, { recursive: true, force: true }).catch(() => undefined);
 }
+
 async function terminate(child) {
   if (!child || child.exitCode !== null) return;
   if (process.platform === 'win32') {
@@ -648,11 +789,13 @@ async function terminate(child) {
     ]);
   }
 }
+
 function required(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required for authenticated local closeout`);
   return value;
 }
+
 function requiredAny(...names) {
   for (const name of names) {
     const value = process.env[name]?.trim();
@@ -660,6 +803,7 @@ function requiredAny(...names) {
   }
   throw new Error(`One of ${names.join(', ')} is required for authenticated local closeout`);
 }
+
 function parse(values) {
   const output = {};
   for (let index = 0; index < values.length; index += 1) {
@@ -679,10 +823,12 @@ main().catch(async (error) => {
   const payload = {
     marker: 'ENGAGEMENT_PHASE1_LOCAL_FAILED',
     sha: SHA,
+    actualHeadSha: ACTUAL_SHA,
     error: error instanceof Error ? error.stack ?? error.message : String(error),
     sharedDatabaseTouched: false,
     awsMutation: false,
-    externalProviderAction: false,
+    externalBusinessProviderAction: false,
+    clerkSessionCreatedByRunner: false,
   };
   await writeFile(
     path.join(EVIDENCE, 'runner-failure.json'),
