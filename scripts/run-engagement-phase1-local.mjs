@@ -179,17 +179,25 @@ async function main() {
       mainEnv,
     );
 
+    await run(
+      'Rebuild API entrypoints before process boot',
+      'pnpm',
+      ['--filter', '@capiro/api', 'run', 'build'],
+      mainEnv,
+    );
+    // Boot compiled entrypoints (not tsx). Nest DI requires emitDecoratorMetadata
+    // from the production build; shell-less pnpm exec tsx is also brittle on Windows.
     children.push(
       start(
         'main-api',
-        'pnpm',
-        ['--filter', '@capiro/api', 'exec', 'tsx', 'src/main.ts'],
+        process.execPath,
+        ['apps/api/dist/main.js'],
         mainEnv,
       ),
       start(
         'engagement-api',
-        'pnpm',
-        ['--filter', '@capiro/api', 'exec', 'tsx', 'src/engagement-main.ts'],
+        process.execPath,
+        ['apps/api/dist/engagement-main.js'],
         engagementEnv,
       ),
       start(
