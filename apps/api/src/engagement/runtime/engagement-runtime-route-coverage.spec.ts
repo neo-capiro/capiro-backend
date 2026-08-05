@@ -1,144 +1,206 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import * as path from 'node:path';
+import * as ts from 'typescript';
+import type { EngagementRuntimeActionMetadata } from './engagement-runtime-action.decorator.js';
+import {
+  ENGAGEMENT_RUNTIME_ROUTE_POLICY,
+  type EngagementRuntimeRoutePolicy,
+  registryEntries,
+  runtimePolicyForHandler,
+  sameRuntimeMetadata,
+} from './engagement-runtime-route-policy.js';
 
-// Route coverage verifier: loads the Phase 0 route manifest and side-effect
-// registry, then verifies that every route classified as an external side
-// effect has an @EngagementRuntimeAction decorator in the controller source.
+interface RouteEntry {
+  method: string;
+  path: string;
+  controller: string;
+  handler: string;
+  sourceFile: string;
+  classification:
+    | 'read'
+    | 'write'
+    | 'generation'
+    | 'external_send'
+    | 'oauth'
+    | 'webhook'
+    | 'internal_secret'
+    | 'sync'
+    | 'notetaker'
+    | 'attachment';
+}
 
-const FIXTURES_DIR = join(__dirname, '..', '__fixtures__');
+const REPO_ROOT = path.resolve(__dirname, '../../../../..');
 const ROUTE_MANIFEST = JSON.parse(
-  readFileSync(join(FIXTURES_DIR, 'engagement-route-manifest.v1.json'), 'utf-8'),
-);
-const SIDE_EFFECT_REGISTRY = JSON.parse(
-  readFileSync(join(FIXTURES_DIR, 'engagement-side-effect-registry.v1.json'), 'utf-8'),
-);
+  readFileSync(
+    path.join(REPO_ROOT, 'apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json'),
+    'utf8',
+  ),
+) as { routes: RouteEntry[] };
 
-// Controller source files to inspect for decorator metadata.
-const CONTROLLER_FILES = [
-  join(__dirname, '..', 'engagement.controller.ts'),
-  join(__dirname, '..', 'microsoft', 'microsoft-oauth.controller.ts'),
-  join(__dirname, '..', 'google', 'google-oauth.controller.ts'),
-  join(__dirname, '..', 'internal-ai-credentials.controller.ts'),
-  join(__dirname, '..', 'outcome', 'outcome.controller.ts'),
-];
-
-// Read all controller sources at module load time.
-const controllerSources = new Map<string, string>();
-for (const file of CONTROLLER_FILES) {
-  try {
-    const src = readFileSync(file, 'utf-8');
-    controllerSources.set(file, src);
-  } catch {
-    // File may not exist.
-  }
-}
-
-const allSource = Array.from(controllerSources.values()).join('\n');
-
-function allSourceFor(filename: string): string {
-  for (const [file, src] of controllerSources) {
-    if (file.includes(filename)) return src;
-  }
-  return '';
-}
-
-// Known external action names (must match engagement-runtime.types.ts).
-const KNOWN_ACTIONS = new Set<string>([
-  'outreach_generate',
-  'outreach_send',
-  'outreach_test_send',
-  'meeting_prep_generate',
-  'meeting_debrief_generate',
-  'integration_oauth_start',
-  'integration_oauth_callback',
-  'integration_disconnect',
-  'integration_sync',
-  'integration_subscription',
-  'integration_notification',
-  'notetaker_dispatch',
-  'notetaker_remove',
-  'attachment_external_read',
-  'attachment_external_write',
+const LOCAL_SAFE_GENERATION_HANDLERS = new Set([
+  'listDraftArtifacts',
+  'getDraftVersion',
+  'acceptCandidateVersion',
 ]);
+const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
+  'attachments',
+  'approveMeetingAttachment',
+]);
+const LOCAL_SAFE_OAUTH_HANDLERS = new Set(['capabilities']);
+
+function externallySensitive(route: RouteEntry): boolean {
+  if (route.controller === 'RecallWebhookController') return false;
+  if (route.classification === 'internal_secret') return true;
+  if (route.classification === 'external_send') return true;
+  if (route.classification === 'sync') return true;
+  if (route.classification === 'notetaker') return true;
+  if (route.classification === 'webhook') return true;
+  if (route.classification === 'generation') {
+    return !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler);
+  }
+  if (route.classification === 'attachment') {
+    return !LOCAL_SAFE_ATTACHMENT_HANDLERS.has(route.handler);
+  }
+  if (route.classification === 'oauth') {
+    return !LOCAL_SAFE_OAUTH_HANDLERS.has(route.handler);
+  }
+  return false;
+}
+
+function decoratorMetadata(route: RouteEntry): EngagementRuntimeActionMetadata | undefined {
+  const filename = path.join(REPO_ROOT, route.sourceFile);
+  const source = readFileSync(filename, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    filename,
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.TS,
+  );
+  let result: EngagementRuntimeActionMetadata | undefined;
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isClassDeclaration(node) && node.name?.text === route.controller) {
+      for (const member of node.members) {
+        if (!ts.isMethodDeclaration(member) || member.name.getText(sourceFile) !== route.handler) {
+          continue;
+        }
+        for (const decorator of ts.getDecorators(member) ?? []) {
+          const expression = decorator.expression;
+          if (!ts.isCallExpression(expression) || !ts.isIdentifier(expression.expression)) continue;
+          if (expression.expression.text !== 'EngagementRuntimeAction') continue;
+          const [actionNode, optionsNode] = expression.arguments;
+          if (!actionNode || !ts.isStringLiteral(actionNode)) continue;
+          let requiresCallbacks = false;
+          let testMode = false;
+          if (optionsNode && ts.isObjectLiteralExpression(optionsNode)) {
+            for (const property of optionsNode.properties) {
+              if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name)) continue;
+              const value = property.initializer.kind === ts.SyntaxKind.TrueKeyword;
+              if (property.name.text === 'requiresCallbacks') requiresCallbacks = value;
+              if (property.name.text === 'testMode') testMode = value;
+            }
+          }
+          result = {
+            action: actionNode.text as EngagementRuntimeActionMetadata['action'],
+            requiresCallbacks,
+            testMode,
+          };
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return result;
+}
+
+function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
+  const findings: string[] = [];
+  const routeKeys = new Set(
+    ROUTE_MANIFEST.routes.map((route) => `${route.controller}.${route.handler}`),
+  );
+
+  for (const route of ROUTE_MANIFEST.routes) {
+    const metadata = runtimePolicyForHandler(route.controller, route.handler, registry);
+    if (externallySensitive(route) && !metadata) {
+      findings.push(
+        `missing runtime policy: ${route.method} ${route.path} (${route.controller}.${route.handler})`,
+      );
+    }
+    if (
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.method) &&
+      !metadata &&
+      route.classification !== 'write' &&
+      !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler) &&
+      !LOCAL_SAFE_ATTACHMENT_HANDLERS.has(route.handler)
+    ) {
+      findings.push(
+        `unclassified mutating route: ${route.method} ${route.path} (${route.controller}.${route.handler})`,
+      );
+    }
+    const decorated = decoratorMetadata(route);
+    if (decorated && !metadata) {
+      findings.push(`decorator is outside exact registry: ${route.controller}.${route.handler}`);
+    }
+    if (decorated && metadata && !sameRuntimeMetadata(decorated, metadata)) {
+      findings.push(`decorator/registry mismatch: ${route.controller}.${route.handler}`);
+    }
+    if (
+      metadata?.requiresCallbacks &&
+      !['integration_oauth_callback', 'integration_notification'].includes(metadata.action)
+    ) {
+      findings.push(`requiresCallbacks used on non-callback action: ${route.controller}.${route.handler}`);
+    }
+  }
+
+  for (const entry of registryEntries(registry)) {
+    if (!routeKeys.has(`${entry.controller}.${entry.handler}`)) {
+      findings.push(`registry entry has no manifest route: ${entry.controller}.${entry.handler}`);
+    }
+  }
+  return findings;
+}
 
 describe('Engagement runtime route coverage', () => {
-  describe('Phase 0 fixtures exist', () => {
-    it('route manifest has routes', () => {
-      expect(ROUTE_MANIFEST.routes).toBeDefined();
-      expect(ROUTE_MANIFEST.routes.length).toBeGreaterThan(0);
-    });
-
-    it('side-effect registry has entries', () => {
-      expect(SIDE_EFFECT_REGISTRY.entries).toBeDefined();
-      expect(SIDE_EFFECT_REGISTRY.entries.length).toBeGreaterThan(0);
-    });
-
-    it('side-effect registry has on_module_init timers', () => {
-      const timers = SIDE_EFFECT_REGISTRY.entries.filter(
-        (e: { trigger: string }) => e.trigger === 'on_module_init',
-      );
-      expect(timers.length).toBeGreaterThan(0);
-    });
+  it('has a nonempty accepted route manifest', () => {
+    expect(ROUTE_MANIFEST.routes.length).toBeGreaterThan(0);
   });
 
-  describe('every external route has @EngagementRuntimeAction', () => {
-    const actions: string[] = [
-      'outreach_generate',
-      'outreach_send',
-      'outreach_test_send',
-      'meeting_prep_generate',
-      'meeting_debrief_generate',
-      'integration_oauth_start',
-      'integration_oauth_callback',
-      'integration_disconnect',
-      'integration_sync',
-      'integration_subscription',
-      'integration_notification',
-      'notetaker_dispatch',
-      'notetaker_remove',
-      'attachment_external_read',
-      'attachment_external_write',
-    ];
-
-    it.each(actions)('action %s is used in controller sources', (action: string) => {
-      expect(allSource).toContain(`'${action}'`);
-    });
-
-    it('all action names used in decorators are known', () => {
-      // Extract all @EngagementRuntimeAction('...') usages from source.
-      const regex = /EngagementRuntimeAction\(\s*['"]([^'"]+)['"]/g;
-      const matches = allSource.matchAll(regex);
-      const usedActions = new Set<string>();
-      for (const match of matches) {
-        usedActions.add(match[1] ?? '');
-      }
-      for (const action of usedActions) {
-        expect(KNOWN_ACTIONS.has(action)).toBe(true);
-      }
-    });
-
-    it('no external route is unguarded (missing decorator)', () => {
-      // This is a heuristic check: every external route handler name should
-      // have a nearby @EngagementRuntimeAction decorator. A full static
-      // analysis would parse the AST; here we verify the decorator count
-      // matches the expected number of external routes.
-      const decoratorCount = (allSource.match(/@EngagementRuntimeAction\(/g) || []).length;
-      expect(decoratorCount).toBeGreaterThanOrEqual(15);
-    });
+  it('covers every externally sensitive route exactly', () => {
+    expect(validateRegistry(ENGAGEMENT_RUNTIME_ROUTE_POLICY)).toEqual([]);
   });
 
-  describe('callbacks are marked with requiresCallbacks', () => {
-    it('OAuth callback routes have requiresCallbacks: true', () => {
-      expect(allSourceFor('microsoft-oauth.controller.ts')).toMatch(
-        /EngagementRuntimeAction\(\s*['"]integration_oauth_callback['"]\s*,\s*\{\s*requiresCallbacks:\s*true/,
+  it('registers every callback with requiresCallbacks', () => {
+    const callbacks = ROUTE_MANIFEST.routes
+      .map((route) => ({
+        route,
+        metadata: runtimePolicyForHandler(route.controller, route.handler),
+      }))
+      .filter(
+        ({ metadata }) =>
+          metadata &&
+          ['integration_oauth_callback', 'integration_notification'].includes(metadata.action),
       );
-    });
+    expect(callbacks.length).toBeGreaterThan(0);
+    for (const { metadata } of callbacks) {
+      expect(metadata?.requiresCallbacks).toBe(true);
+    }
+  });
 
-    it('Microsoft notification routes have requiresCallbacks: true', () => {
-      expect(allSourceFor('microsoft-oauth.controller.ts')).toMatch(
-        /EngagementRuntimeAction\(\s*['"]integration_notification['"]\s*,\s*\{\s*requiresCallbacks:\s*true/,
-      );
-    });
+  it('names the exact route when one registry entry is removed', () => {
+    const clone: Record<string, Record<string, EngagementRuntimeActionMetadata>> = {};
+    for (const [controller, handlers] of Object.entries(ENGAGEMENT_RUNTIME_ROUTE_POLICY)) {
+      clone[controller] = { ...handlers };
+    }
+    delete clone.EngagementController.generateBatchEmails;
+    expect(validateRegistry(clone)).toContain(
+      'missing runtime policy: POST /api/engagement/outreach/generate-batch (EngagementController.generateBatchEmails)',
+    );
+  });
+
+  it('keeps Recall outside the Phase 1 application runtime', () => {
+    expect(runtimePolicyForHandler('RecallWebhookController', 'handle')).toBeUndefined();
   });
 });
