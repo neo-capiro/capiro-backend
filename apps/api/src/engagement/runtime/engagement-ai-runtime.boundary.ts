@@ -2,14 +2,14 @@ import type { EngagementAiService } from '../engagement-ai.service.js';
 import type { EngagementExternalAction } from './engagement-runtime.types.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
 
-const AI_ACTION_BY_METHOD = {
+const AI_ACTION_BY_METHOD: Readonly<Record<string, EngagementExternalAction>> = {
   generateMeetingPrep: 'meeting_prep_generate',
   generateMeetingDebrief: 'meeting_debrief_generate',
   generateOutreachDraft: 'outreach_generate',
   generateTalkingPoints: 'outreach_generate',
   generateCampaignEmail: 'outreach_generate',
   resolveOutreachCredentials: 'outreach_generate',
-} as const satisfies Readonly<Record<string, EngagementExternalAction>>;
+};
 
 /**
  * Wrap the existing Engagement AI implementation with a service-boundary guard.
