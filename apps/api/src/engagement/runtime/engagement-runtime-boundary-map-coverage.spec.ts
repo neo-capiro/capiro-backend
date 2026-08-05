@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import * as ts from 'typescript';
 import { guardedEngagementAiMethods } from './engagement-ai-runtime.boundary.js';
@@ -82,6 +82,41 @@ const TARGETS: BoundaryTarget[] = [
   },
 ];
 
+const RAW_TOKEN_ALLOWED_FILES: Readonly<Record<string, ReadonlySet<string>>> = {
+  RAW_MEETING_BOT_PROVIDER: new Set([
+    'apps/api/src/engagement/notetaker/notetaker.module.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_GOOGLE_TOKEN_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_MICROSOFT_GRAPH_SYNC_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_MICROSOFT_OAUTH_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_GOOGLE_SYNC_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_GOOGLE_OAUTH_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_GMAIL_SEND_SERVICE: new Set([
+    'apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+  RAW_ENGAGEMENT_SERVICE: new Set([
+    'apps/api/src/engagement/governed-engagement.factory.ts',
+    'apps/api/src/engagement/engagement.module.ts',
+  ]),
+};
+
 function publicMethodNames(target: BoundaryTarget): Set<string> {
   const absolute = path.join(REPO_ROOT, target.sourceFile);
   const source = readFileSync(absolute, 'utf8');
@@ -114,6 +149,22 @@ function publicMethodNames(target: BoundaryTarget): Set<string> {
   return names;
 }
 
+function productionTypeScriptFiles(directory: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...productionTypeScriptFiles(absolute));
+    else if (
+      entry.isFile() &&
+      entry.name.endsWith('.ts') &&
+      !entry.name.endsWith('.spec.ts')
+    ) {
+      files.push(absolute);
+    }
+  }
+  return files;
+}
+
 describe('Engagement runtime boundary map coverage', () => {
   it.each(TARGETS.map((target) => [target.className, target] as const))(
     '%s map references only real public methods',
@@ -127,16 +178,7 @@ describe('Engagement runtime boundary map coverage', () => {
   it('wires every raw provider token to a guarded public provider in EngagementModule', () => {
     const moduleFile = path.join(REPO_ROOT, 'apps/api/src/engagement/engagement.module.ts');
     const source = readFileSync(moduleFile, 'utf8');
-    for (const token of [
-      'RAW_MEETING_BOT_PROVIDER',
-      'RAW_GOOGLE_TOKEN_SERVICE',
-      'RAW_MICROSOFT_GRAPH_SYNC_SERVICE',
-      'RAW_MICROSOFT_OAUTH_SERVICE',
-      'RAW_GOOGLE_SYNC_SERVICE',
-      'RAW_GOOGLE_OAUTH_SERVICE',
-      'RAW_GMAIL_SEND_SERVICE',
-      'RAW_ENGAGEMENT_SERVICE',
-    ]) {
+    for (const token of Object.keys(RAW_TOKEN_ALLOWED_FILES)) {
       expect(source).toContain(token);
     }
     for (const factory of [
@@ -153,5 +195,20 @@ describe('Engagement runtime boundary map coverage', () => {
     ]) {
       expect(source).toContain(factory);
     }
+  });
+
+  it('allows no production raw-token injection outside the approved factories', () => {
+    const files = productionTypeScriptFiles(path.join(REPO_ROOT, 'apps/api/src'));
+    const violations: string[] = [];
+    for (const filename of files) {
+      const relative = path.relative(REPO_ROOT, filename).replace(/\\/g, '/');
+      const source = readFileSync(filename, 'utf8');
+      for (const [token, allowedFiles] of Object.entries(RAW_TOKEN_ALLOWED_FILES)) {
+        if (source.includes(token) && !allowedFiles.has(relative)) {
+          violations.push(`${token} used by ${relative}`);
+        }
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });
