@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
@@ -9,6 +10,10 @@ import { FederalSpendingModule } from '../federal-spending/federal-spending.modu
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { NotetakerModule } from './notetaker/notetaker.module.js';
+import {
+  MEETING_BOT_PROVIDER,
+  type MeetingBotProvider,
+} from './notetaker/meeting-bot.provider.js';
 import { EngagementController } from './engagement.controller.js';
 import { InternalAiCredentialsController } from './internal-ai-credentials.controller.js';
 import { AiCredentialResolverService } from './ai-credential-resolver.service.js';
@@ -69,6 +74,7 @@ import {
   RAW_MICROSOFT_GRAPH_SYNC_SERVICE,
   RAW_MICROSOFT_OAUTH_SERVICE,
 } from './runtime/engagement-integration-runtime.boundary.js';
+import { guardNotetakerService } from './runtime/engagement-notetaker-runtime.boundary.js';
 
 @Module({
   imports: [
@@ -143,9 +149,29 @@ import {
         EngagementRuntimePolicyService,
       ],
     },
+    {
+      provide: NotetakerService,
+      useFactory: (
+        prisma: PrismaService,
+        bot: MeetingBotProvider,
+        engagement: EngagementService,
+        config: ConfigService<AppConfig, true>,
+        runtime: EngagementRuntimePolicyService,
+      ) =>
+        guardNotetakerService(
+          new NotetakerService(prisma, bot, engagement, config, runtime),
+          runtime,
+        ),
+      inject: [
+        PrismaService,
+        MEETING_BOT_PROVIDER,
+        EngagementService,
+        ConfigService,
+        EngagementRuntimePolicyService,
+      ],
+    },
     { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
     OutcomeService,
-    NotetakerService,
     ClientAssociationService,
     {
       provide: EngagementAiService,
