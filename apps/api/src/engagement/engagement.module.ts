@@ -56,7 +56,11 @@ import { GenerationGatewayService } from './generation/generation-gateway.servic
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
-import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
+import {
+  guardAiCredentialResolverService,
+  guardEngagementAiService,
+  RAW_AI_CREDENTIAL_RESOLVER_SERVICE,
+} from './runtime/engagement-ai-runtime.boundary.js';
 import {
   guardGmailSendService,
   guardGoogleOAuthService,
@@ -94,6 +98,15 @@ import {
         new EngagementRuntimePolicyService(
           resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
         ),
+    },
+    { provide: RAW_AI_CREDENTIAL_RESOLVER_SERVICE, useClass: AiCredentialResolverService },
+    {
+      provide: AiCredentialResolverService,
+      useFactory: (
+        raw: AiCredentialResolverService,
+        runtime: EngagementRuntimePolicyService,
+      ) => guardAiCredentialResolverService(raw, runtime),
+      inject: [RAW_AI_CREDENTIAL_RESOLVER_SERVICE, EngagementRuntimePolicyService],
     },
     { provide: RAW_MICROSOFT_GRAPH_SYNC_SERVICE, useClass: MicrosoftGraphSyncService },
     {
@@ -168,7 +181,6 @@ import {
         EngagementRuntimePolicyService,
       ],
     },
-    AiCredentialResolverService,
     MeetingNotesCryptoService,
     EngagementSyncSchedulerService,
     GoogleTokenService,
