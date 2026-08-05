@@ -108,74 +108,87 @@ async function main(): Promise<void> {
     `);
 
     // Contacts
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO engagement_contacts (id, tenant_id, first_name, last_name, email, created_at, updated_at)
-      VALUES
-        ('${CONTACT_A_ID}'::uuid, '${TENANT_ID}'::uuid, 'Jane', 'Smith', 'jane.smith@example.gov', now(), now()),
-        ('${CONTACT_B_ID}'::uuid, '${TENANT_ID}'::uuid, 'John', 'Doe', 'john.doe@example.gov', now(), now())
-    `);
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO engagement_contacts (id, tenant_id, full_name, email, created_at, updated_at)
+          VALUES
+            ('${CONTACT_A_ID}'::uuid, '${TENANT_ID}'::uuid, 'Jane Smith', 'jane.smith@example.gov', now(), now()),
+            ('${CONTACT_B_ID}'::uuid, '${TENANT_ID}'::uuid, 'John Doe', 'john.doe@example.gov', now(), now())
+        `);
 
-    // Meetings (past, current window, future)
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO meetings (id, tenant_id, client_id, subject, starts_at, ends_at, status, visibility, created_by_user_id, created_at, updated_at)
-      VALUES
-        ('${MEETING_PAST_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-         'Phase 0 — Past Strategy Review',
-         '${PAST.toISOString()}', '${new Date(PAST.getTime() + 3600000).toISOString()}',
-         'completed', 'private', '${USER_ID}'::uuid, now(), now()),
-        ('${MEETING_CURRENT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-         'Phase 0 — Current Policy Briefing',
-         '${NOW.toISOString()}', '${new Date(NOW.getTime() + 3600000).toISOString()}',
-         'scheduled', 'private', '${USER_ID}'::uuid, now(), now()),
-        ('${MEETING_FUTURE_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_B_ID}'::uuid,
-         'Phase 0 — Future Appropriations Prep',
-         '${FUTURE.toISOString()}', '${new Date(FUTURE.getTime() + 7200000).toISOString()}',
-         'scheduled', 'private', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Meetings (past, current window, future)
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO meetings (id, tenant_id, client_id, subject, starts_at, ends_at, status, visibility, created_by_user_id, created_at, updated_at)
+          VALUES
+            ('${MEETING_PAST_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
+             'Phase 0 — Past Strategy Review',
+             '${PAST.toISOString()}', '${new Date(PAST.getTime() + 3600000).toISOString()}',
+             'scheduled', 'private', '${USER_ID}'::uuid, now(), now()),
+            ('${MEETING_CURRENT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
+             'Phase 0 — Current Policy Briefing',
+             '${NOW.toISOString()}', '${new Date(NOW.getTime() + 3600000).toISOString()}',
+             'scheduled', 'private', '${USER_ID}'::uuid, now(), now()),
+            ('${MEETING_FUTURE_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_B_ID}'::uuid,
+             'Phase 0 — Future Appropriations Prep',
+             '${FUTURE.toISOString()}', '${new Date(FUTURE.getTime() + 7200000).toISOString()}',
+             'scheduled', 'private', '${USER_ID}'::uuid, now(), now())
+        `);
 
-    // Attendees
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO meeting_attendees (id, tenant_id, meeting_id, contact_id, email, name, created_at)
-      VALUES
-        (gen_random_uuid(), '${TENANT_ID}'::uuid, '${MEETING_PAST_ID}'::uuid, '${CONTACT_A_ID}'::uuid, 'jane.smith@example.gov', 'Jane Smith', now()),
-        (gen_random_uuid(), '${TENANT_ID}'::uuid, '${MEETING_CURRENT_ID}'::uuid, '${CONTACT_B_ID}'::uuid, 'john.doe@example.gov', 'John Doe', now())
-    `);
+        // Attendees
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO meeting_attendees (id, tenant_id, meeting_id, contact_id, email, name, created_at)
+          VALUES
+            (gen_random_uuid(), '${TENANT_ID}'::uuid, '${MEETING_PAST_ID}'::uuid, '${CONTACT_A_ID}'::uuid, 'jane.smith@example.gov', 'Jane Smith', now()),
+            (gen_random_uuid(), '${TENANT_ID}'::uuid, '${MEETING_CURRENT_ID}'::uuid, '${CONTACT_B_ID}'::uuid, 'john.doe@example.gov', 'John Doe', now())
+        `);
 
-    // Outreach records
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO outreach_records (id, tenant_id, client_id, status, subject, created_by_user_id, created_at, updated_at)
-      VALUES
-        ('${OUTREACH_DRAFT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-         'draft', 'Phase 0 — Draft Outreach', '${USER_ID}'::uuid, now(), now()),
-        ('${OUTREACH_SENT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
-         'sent', 'Phase 0 — Sent Outreach', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Outreach records (type is required)
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO outreach_records (id, tenant_id, client_id, type, status, title, subject, created_by_user_id, created_at, updated_at)
+          VALUES
+            ('${OUTREACH_DRAFT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
+             'email', 'draft', 'Phase 0 — Draft Outreach', 'Phase 0 — Draft Outreach', '${USER_ID}'::uuid, now(), now()),
+            ('${OUTREACH_SENT_ID}'::uuid, '${TENANT_ID}'::uuid, '${CLIENT_A_ID}'::uuid,
+             'email', 'sent', 'Phase 0 — Sent Outreach', 'Phase 0 — Sent Outreach', '${USER_ID}'::uuid, now(), now())
+        `);
 
-    // Audiences
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO outreach_audiences (id, tenant_id, name, kind, created_by_user_id, created_at, updated_at)
-      VALUES
-        ('${AUDIENCE_LIST_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — House Armed Services List', 'list', '${USER_ID}'::uuid, now(), now()),
-        ('${AUDIENCE_GROUP_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Appropriations Group', 'group', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Audiences
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO outreach_audiences (id, tenant_id, name, kind, created_by_user_id, created_at, updated_at)
+          VALUES
+            ('${AUDIENCE_LIST_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — House Armed Services List', 'list', '${USER_ID}'::uuid, now(), now()),
+            ('${AUDIENCE_GROUP_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Appropriations Group', 'group', '${USER_ID}'::uuid, now(), now())
+        `);
 
-    // Campaign
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO engagement_campaigns (id, tenant_id, name, status, created_by_user_id, created_at, updated_at)
-      VALUES ('${CAMPAIGN_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Q3 Outreach Campaign', 'draft', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Campaign
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO engagement_campaigns (id, tenant_id, name, status, created_by_user_id, created_at, updated_at)
+          VALUES ('${CAMPAIGN_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Q3 Outreach Campaign', 'draft', '${USER_ID}'::uuid, now(), now())
+        `);
 
-    // Task
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO engagement_tasks (id, tenant_id, title, status, created_by_user_id, created_at, updated_at)
-      VALUES ('${TASK_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Follow up with committee staff', 'open', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Task (status enum: todo|in_progress|done|blocked|canceled)
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO engagement_tasks (id, tenant_id, title, status, created_by_user_id, created_at, updated_at)
+          VALUES ('${TASK_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — Follow up with committee staff', 'todo', '${USER_ID}'::uuid, now(), now())
+        `);
 
-    // Report target office
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO engagement_report_target_offices (id, tenant_id, name, created_by_user_id, created_at, updated_at)
-      VALUES ('${REPORT_OFFICE_ID}'::uuid, '${TENANT_ID}'::uuid, 'Phase 0 — House Armed Services Committee', '${USER_ID}'::uuid, now(), now())
-    `);
+        // Report target office (scope_key/office_key/member_principal required)
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO engagement_report_target_offices (
+            id, tenant_id, client_id, scope_key, office_key, member_principal, committee, created_by_user_id, created_at, updated_at
+          )
+          VALUES (
+            '${REPORT_OFFICE_ID}'::uuid,
+            '${TENANT_ID}'::uuid,
+            '${CLIENT_A_ID}'::uuid,
+            'phase0-baseline',
+            'hasc-majority',
+            'Phase 0 Member',
+            'House Armed Services Committee',
+            '${USER_ID}'::uuid,
+            now(),
+            now()
+          )
+        `);
 
     // Write fixture IDs for the acceptance script
     const fixtures = {
