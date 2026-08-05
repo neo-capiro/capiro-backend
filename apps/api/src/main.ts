@@ -6,16 +6,18 @@ import {
   configureApiHttpApp,
   configureApiHttpServerTimeouts,
 } from './bootstrap/configure-api-http-app.js';
+import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
 
 async function bootstrap() {
+  // Fail before Nest constructs providers, connects to the database, or starts
+  // an OnModuleInit hook when an Engagement runtime control is malformed.
+  assertEngagementRuntimeEnvironment(process.env as Record<string, unknown>);
+
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = new Logger('Bootstrap');
 
-  // Shared HTTP pipeline — global prefix, CORS, parsers, ValidationPipe,
-  // Prisma filter. Extracted to configureApiHttpApp so both the main API
-  // and engagement-api use identical pipeline ordering and limits.
   configureApiHttpApp(app, {
-    serviceHeader: undefined, // Main API does not add X-Capiro-Service in Phase 1
+    serviceHeader: undefined,
     includeClerkRawBody: true,
     includeRecallRawBody: true,
     includeEmailSignatureLargeBody: true,
@@ -25,15 +27,11 @@ async function bootstrap() {
   const port = Number.parseInt(process.env.API_PORT ?? '4000', 10);
   const host = process.env.API_BIND_HOST ?? '0.0.0.0';
   await app.listen(port, host);
-
-  // Shared server timeout configuration.
   configureApiHttpServerTimeouts(app.getHttpServer());
-
   logger.log(`Capiro API listening on http://${host}:${port}`);
 }
 
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('Fatal bootstrap error', err);
   process.exit(1);
 });
