@@ -36,7 +36,7 @@ describe('AiCredentialResolverService runtime ownership', () => {
     ['resolveProvider', [null, 'openai']],
     ['resolveProviderByTenantId', ['tenant-1', 'openai']],
     ['validateKey', ['openai', 'sk-test']],
-  ] as const)('blocks %s before Prisma, decryption, or fetch', async (method, args) => {
+  ] as Array<[string, unknown[]]>)('blocks %s before Prisma, decryption, or fetch', async (method, args) => {
     const withTenant = jest.fn();
     const prisma = { withTenant, withSystem: jest.fn() } as never;
     const service = new AiCredentialResolverService(config, prisma, shadowRuntime()) as unknown as Record<
@@ -47,7 +47,7 @@ describe('AiCredentialResolverService runtime ownership', () => {
 
     let caught: unknown;
     try {
-      await service[method]?.(...args);
+      await service[method]?.(...args as unknown[]);
     } catch (error) {
       caught = error;
     }

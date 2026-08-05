@@ -63,7 +63,7 @@ function sourcePath(repoPath: string): string {
     path.join(REPO, normalized, 'index.ts'),
     path.join(REPO, normalized, 'index.tsx'),
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0]!;
 }
 
 describe('Engagement dependency manifest', () => {
@@ -124,7 +124,7 @@ describe('Engagement dependency manifest', () => {
     it('detects a synthetic external dependency change', () => {
       const committed = readFixture();
       const changed = JSON.parse(JSON.stringify(committed)) as DependencyManifest;
-      changed.externalImporters[0].importedSymbols = ['SYNTHETIC'];
+      changed.externalImporters[0]!.importedSymbols = ['SYNTHETIC'];
       expect(changed.externalImporters).not.toEqual(committed.externalImporters);
     });
   });

@@ -73,6 +73,56 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement-api.app.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-api.app.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.js",
+      "importedSymbols": [
+        "EngagementRuntimeGuard"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-api/engagement-api-health.controller.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-api/engagement-api-health.controller.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "assertEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/intelligence/alert-memo/alert-memo.module.ts",
       "importedFile": "apps/api/src/engagement/engagement.module.js",
       "importedSymbols": [
@@ -151,6 +201,16 @@
       "importKind": "type-only",
       "isExternal": true,
       "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "assertEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "root_registration"
     },
     {
       "importerFile": "apps/api/src/memory/governed-memory-ingest.service.spec.ts",
@@ -409,6 +469,16 @@
       "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -790,6 +860,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.ts",
       "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
       "importedSymbols": [
@@ -804,6 +884,16 @@
       "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
       "importedSymbols": [
         "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -885,6 +975,16 @@
       "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
       "importedSymbols": [
         "OutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "EngagementRuntimeAction"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -1193,9 +1293,21 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MEETING_BOT_PROVIDER",
+        "MeetingBotProvider"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
       "importedFile": "apps/api/src/engagement/notetaker/notetaker.module.js",
       "importedSymbols": [
-        "NotetakerModule"
+        "NotetakerModule",
+        "RAW_MEETING_BOT_PROVIDER"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -1286,6 +1398,68 @@
       "importedFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.js",
       "importedSymbols": [
         "RaceSafeOutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.js",
+      "importedSymbols": [
+        "guardEngagementAiService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.js",
+      "importedSymbols": [
+        "guardGmailSendService",
+        "guardGoogleOAuthService",
+        "guardGoogleSyncService",
+        "guardGoogleTokenService",
+        "guardMicrosoftGraphSyncService",
+        "guardMicrosoftOAuthService",
+        "RAW_GMAIL_SEND_SERVICE",
+        "RAW_GOOGLE_OAUTH_SERVICE",
+        "RAW_GOOGLE_SYNC_SERVICE",
+        "RAW_GOOGLE_TOKEN_SERVICE",
+        "RAW_MICROSOFT_GRAPH_SYNC_SERVICE",
+        "RAW_MICROSOFT_OAUTH_SERVICE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.js",
+      "importedSymbols": [
+        "guardMeetingBotProvider",
+        "guardNotetakerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "resolveEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -2644,6 +2818,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "EngagementRuntimeAction"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/google/google-oauth.scope-validation.spec.ts",
       "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
       "importedSymbols": [
@@ -2847,6 +3031,26 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.spec.ts",
       "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
       "importedSymbols": [
@@ -2913,6 +3117,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/mail-sender.service.ts",
       "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
       "importedSymbols": [
@@ -2937,6 +3151,16 @@
       "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
       "importedSymbols": [
         "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3125,6 +3349,16 @@
       "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
       "importedSymbols": [
         "MicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "EngagementRuntimeAction"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3321,6 +3555,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.ts",
       "importedFile": "apps/api/src/engagement/engagement.service.js",
       "importedSymbols": [
@@ -3340,6 +3584,16 @@
         "MeetingBotProvider",
         "NormalizedBotEvent",
         "RecordingPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3646,6 +3900,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/outreach-job.spec.ts",
       "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
       "importedSymbols": [
@@ -3864,6 +4128,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/pptx-extract.spec.ts",
       "importedFile": "apps/api/src/engagement/pptx-extract.js",
       "importedSymbols": [
@@ -3920,6 +4194,16 @@
       "importedFile": "apps/api/src/engagement/prisma-unique-retry.js",
       "importedSymbols": [
         "retryOnceAfterPrismaUnique"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3987,6 +4271,597 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/ai-credential-resolver-runtime.spec.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/ai-credential-resolver-runtime.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.js",
+      "importedSymbols": [
+        "guardEngagementAiService",
+        "guardedEngagementAiMethods"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "GmailSendService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GoogleOAuthService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.js",
+      "importedSymbols": [
+        "GMAIL_SEND_RUNTIME_METHODS",
+        "GOOGLE_OAUTH_RUNTIME_METHODS",
+        "GOOGLE_SYNC_RUNTIME_METHODS",
+        "GOOGLE_TOKEN_RUNTIME_METHODS",
+        "guardGmailSendService",
+        "guardGoogleOAuthService",
+        "guardGoogleSyncService",
+        "guardGoogleTokenService",
+        "guardMicrosoftGraphSyncService",
+        "guardMicrosoftOAuthService",
+        "MICROSOFT_GRAPH_RUNTIME_METHODS",
+        "MICROSOFT_OAUTH_RUNTIME_METHODS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "GmailSendService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GoogleOAuthService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MeetingBotProvider"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.js",
+      "importedSymbols": [
+        "guardMeetingBotProvider",
+        "guardNotetakerService",
+        "MEETING_BOT_EXTERNAL_METHODS",
+        "NOTETAKER_BACKGROUND_METHODS",
+        "NOTETAKER_EXTERNAL_METHODS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MeetingBotProvider"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-boundary-map-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/governed-engagement.factory.js",
+      "importedSymbols": [
+        "guardedEngagementServiceMethods"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-boundary-map-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.js",
+      "importedSymbols": [
+        "guardedEngagementAiMethods"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-boundary-map-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.js",
+      "importedSymbols": [
+        "GMAIL_SEND_RUNTIME_METHODS",
+        "GOOGLE_OAUTH_RUNTIME_METHODS",
+        "GOOGLE_SYNC_RUNTIME_METHODS",
+        "GOOGLE_TOKEN_RUNTIME_METHODS",
+        "MICROSOFT_GRAPH_RUNTIME_METHODS",
+        "MICROSOFT_OAUTH_RUNTIME_METHODS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-boundary-map-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.js",
+      "importedSymbols": [
+        "MEETING_BOT_EXTERNAL_METHODS",
+        "NOTETAKER_BACKGROUND_METHODS",
+        "NOTETAKER_EXTERNAL_METHODS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-env.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "parseExactBooleanEnvironment",
+        "resolveEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-env.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "CapiroServiceName",
+        "EngagementBackgroundOwner",
+        "EngagementExternalActionMode",
+        "EngagementProcessMode"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementExternalAction"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "CapiroServiceName",
+        "EngagementBackgroundOwner",
+        "EngagementExternalAction",
+        "EngagementExternalActionMode",
+        "EngagementProcessMode",
+        "EngagementRuntimeSnapshot"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-route-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "EngagementRuntimeActionMetadata"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-route-coverage.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.js",
+      "importedSymbols": [
+        "ENGAGEMENT_RUNTIME_ROUTE_POLICY",
+        "EngagementRuntimeRoutePolicy",
+        "registryEntries",
+        "runtimePolicyForHandler",
+        "sameRuntimeMetadata"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "EngagementRuntimeActionMetadata"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "ENGAGEMENT_RUNTIME_ACTION_KEY",
+        "EngagementRuntimeAction",
+        "EngagementRuntimeActionMetadata"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.js",
+      "importedSymbols": [
+        "EngagementRuntimeGuard"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.js",
+      "importedSymbols": [
+        "ENGAGEMENT_RUNTIME_ACTION_KEY",
+        "EngagementRuntimeActionMetadata"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime.guard.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.js",
+      "importedSymbols": [
+        "runtimePolicyForHandler",
+        "sameRuntimeMetadata"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-service-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-service-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/governed-engagement.factory.js",
+      "importedSymbols": [
+        "guardEngagementServiceRuntime",
+        "guardedEngagementServiceMethods"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-service-runtime.boundary.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/xlsx-extract.spec.ts",
       "importedFile": "apps/api/src/engagement/xlsx-extract.js",
       "importedSymbols": [
@@ -3999,7 +4874,7 @@
     }
   ],
   "summary": {
-    "externalImporterCount": 40,
-    "importedSymbolCount": 41
+    "externalImporterCount": 46,
+    "importedSymbolCount": 47
   }
 }

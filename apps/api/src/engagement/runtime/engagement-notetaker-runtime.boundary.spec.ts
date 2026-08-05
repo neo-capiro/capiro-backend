@@ -73,7 +73,7 @@ describe('Notetaker runtime boundary', () => {
       const caught = invokeAndCapture(guarded, methodName);
       expect(caught).toBeInstanceOf(ServiceUnavailableException);
       expect((caught as ServiceUnavailableException).getResponse()).toMatchObject({
-        code: 'ENGAGEMENT_BACKGROUND_OWNER_MISMATCH',
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
       });
       expect(implementation).not.toHaveBeenCalled();
     },
