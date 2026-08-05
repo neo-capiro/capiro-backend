@@ -3,8 +3,8 @@
  * Authoritative DB-free Phase 1 closeout.
  *
  * This script intentionally does not rely on GitHub Actions. It runs from the
- * exact local checkout and fails on the first missing prerequisite, regression,
- * stale manifest, build failure, or web-routing drift.
+ * exact local checkout and fails on the first missing prerequisite, stale
+ * manifest, regression, build failure, skipped suite, or web-routing drift.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -18,6 +18,9 @@ const TEST_TARGETS = [
   'src/bootstrap/configure-api-http-app.spec.ts',
   'src/engagement-api.app.module.spec.ts',
   'src/engagement-api/engagement-api-health.controller.spec.ts',
+  'src/engagement/engagement-route-manifest.spec.ts',
+  'src/engagement/engagement-dependency-manifest.spec.ts',
+  'src/engagement/engagement-side-effect-registry.spec.ts',
   'src/engagement/runtime',
   'src/engagement/engagement-sync-scheduler.service.spec.ts',
   'src/engagement/outreach-job.service.spec.ts',
@@ -27,10 +30,7 @@ const TEST_TARGETS = [
   'src/engagement/llm-completion.service.spec.ts',
 ];
 
-/**
- * Windows Node 20+ refuses shell-less spawn of *.cmd (EINVAL). Resolve pnpm to
- * `node <corepack>/pnpm.js` the same way scripts/lib/resolve-tool.mjs does.
- */
+/** Resolve pnpm without shelling through *.cmd on Windows. */
 function resolvePnpm(args: string[]): { command: string; args: string[] } {
   if (process.env.PNPM_PATH) {
     const target = process.env.PNPM_PATH;
@@ -147,7 +147,7 @@ function main(): void {
     'verify:engagement-phase-0',
   ]);
   run(
-    'Phase 1 runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
+    'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
     [
       '--filter',
@@ -166,8 +166,8 @@ function main(): void {
   assertFile('apps/engagement-api/Dockerfile');
   assertFile('apps/engagement-api/scripts/entrypoint.sh');
 
-  // Full monorepo turbo typecheck is currently red on main due to PE defense-budget
-  // spec typing outside this PR. Phase 1 gates production API + web type surfaces.
+  // The complete monorepo typecheck may contain unrelated main-branch failures;
+  // Phase 1 gates the production API and web type surfaces it can affect.
   run('API production typecheck', 'pnpm', [
     '--filter',
     '@capiro/api',
@@ -178,13 +178,9 @@ function main(): void {
     '--noEmit',
   ]);
   run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
-  if (process.env.ENGAGEMENT_PHASE1_SKIP_WEB_SUITE === '1') {
-      console.log('\n==> Web regression suite (skipped: ENGAGEMENT_PHASE1_SKIP_WEB_SUITE=1)');
-    } else {
-      run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
-    }
+  run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
-  run('Whitespace validation', GIT, ['diff', '--check']);
+  run('Committed diff whitespace validation', GIT, ['diff', '--check', 'origin/main...HEAD']);
 
   console.log('\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE');
 }
