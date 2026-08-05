@@ -3,10 +3,13 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import * as ts from 'typescript';
+import type { AiCredentialResolverService } from '../ai-credential-resolver.service.js';
 import type { EngagementAiService } from '../engagement-ai.service.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
 import {
+  guardAiCredentialResolverService,
   guardEngagementAiService,
+  guardedCredentialResolverMethods,
   guardedEngagementAiMethods,
 } from './engagement-ai-runtime.boundary.js';
 
@@ -88,6 +91,25 @@ function productionConstructorBypasses(): string[] {
   return findings;
 }
 
+function expectSynchronousBlock(
+  guarded: Record<string, (...args: unknown[]) => unknown>,
+  methodName: string,
+  implementation: jest.Mock,
+): void {
+  let caught: unknown;
+  try {
+    void guarded[methodName]?.({});
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(ServiceUnavailableException);
+  expect((caught as ServiceUnavailableException).getStatus()).toBe(503);
+  expect((caught as ServiceUnavailableException).getResponse()).toMatchObject({
+    code: 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED',
+  });
+  expect(implementation).not.toHaveBeenCalled();
+}
+
 describe('Engagement AI runtime boundary', () => {
   it('covers every public provider-capable AI entry point discovered from the class', () => {
     expect(Object.keys(guardedEngagementAiMethods()).sort()).toEqual(
@@ -100,29 +122,30 @@ describe('Engagement AI runtime boundary', () => {
   });
 
   it.each(Object.keys(guardedEngagementAiMethods()))(
-    'blocks %s before the underlying implementation runs',
+    'blocks AI method %s before the implementation runs',
+    (methodName) => {
+      const implementation = jest.fn(async () => ({ ok: true }));
+      const raw = { [methodName]: implementation } as unknown as EngagementAiService;
+      const guarded = guardEngagementAiService(raw, shadowPolicy()) as unknown as Record<
+        string,
+        (...args: unknown[]) => unknown
+      >;
+      expectSynchronousBlock(guarded, methodName, implementation);
+    },
+  );
+
+  it.each(Object.keys(guardedCredentialResolverMethods()))(
+    'blocks credential method %s before key access or provider validation',
     (methodName) => {
       const implementation = jest.fn(async () => ({ ok: true }));
       const raw = {
         [methodName]: implementation,
-      } as unknown as EngagementAiService;
-      const guarded = guardEngagementAiService(raw, shadowPolicy()) as unknown as Record<
-        string,
-        (...args: unknown[]) => Promise<unknown>
-      >;
-
-      let caught: unknown;
-      try {
-        void guarded[methodName]?.({});
-      } catch (error) {
-        caught = error;
-      }
-      expect(caught).toBeInstanceOf(ServiceUnavailableException);
-      expect((caught as ServiceUnavailableException).getStatus()).toBe(503);
-      expect((caught as ServiceUnavailableException).getResponse()).toMatchObject({
-        code: 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED',
-      });
-      expect(implementation).not.toHaveBeenCalled();
+      } as unknown as AiCredentialResolverService;
+      const guarded = guardAiCredentialResolverService(
+        raw,
+        shadowPolicy(),
+      ) as unknown as Record<string, (...args: unknown[]) => unknown>;
+      expectSynchronousBlock(guarded, methodName, implementation);
     },
   );
 
