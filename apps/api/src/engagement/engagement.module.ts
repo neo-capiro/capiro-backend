@@ -91,6 +91,7 @@ import { guardEngagementAiService } from './runtime/engagement-ai-runtime.bounda
         RAW_ENGAGEMENT_SERVICE,
         ContextPersistenceBoundaryService,
         ContextCompilerService,
+        EngagementRuntimePolicyService,
       ],
     },
     { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
