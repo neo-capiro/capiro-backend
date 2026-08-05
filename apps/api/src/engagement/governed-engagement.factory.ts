@@ -17,7 +17,12 @@ interface GovernedEngagementMethods {
   generateBatchEmails: GenerateBatch;
 }
 
-const RUNTIME_ACTION_BY_METHOD = {
+interface RuntimeMethodMetadata {
+  action: EngagementExternalAction;
+  testMode?: boolean;
+}
+
+const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> = {
   previewAiTemplate: { action: 'outreach_generate' },
   generateTalkingPoints: { action: 'outreach_generate' },
   generateBatchEmails: { action: 'outreach_generate' },
@@ -34,9 +39,7 @@ const RUNTIME_ACTION_BY_METHOD = {
   confirmAttachment: { action: 'attachment_external_write' },
   extractAttachmentText: { action: 'attachment_external_read' },
   deleteAttachment: { action: 'attachment_external_write' },
-} as const satisfies Readonly<
-  Record<string, { action: EngagementExternalAction; testMode?: boolean }>
->;
+};
 
 function activeMainRuntimePolicy(): EngagementRuntimePolicyService {
   return new EngagementRuntimePolicyService({
@@ -140,7 +143,7 @@ export function guardEngagementServiceRuntime(
 }
 
 export function guardedEngagementServiceMethods(): Readonly<
-  Record<string, { action: EngagementExternalAction; testMode?: boolean }>
+  Record<string, RuntimeMethodMetadata>
 > {
   return RUNTIME_ACTION_BY_METHOD;
 }
