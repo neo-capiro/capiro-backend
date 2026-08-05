@@ -784,6 +784,53 @@ export const configSchema = z.object({
   // SMS "from". Required before SMS can actually deliver (provisioning has
   // carrier lead time — see docs).
   TRACKER_SMS_ORIGINATION_NUMBER: z.string().optional(),
+
+  // ── Engagement API Phase 1 — runtime extraction ──────────────────────────
+  //
+  // CAPIRO_SERVICE_NAME identifies which process is running. The main API
+  // defaults to 'api'; the engagement-api bootstrap sets 'engagement-api'.
+  // This drives the runtime policy (shadow vs active mode).
+  CAPIRO_SERVICE_NAME: z.enum(['api', 'engagement-api']).default('api'),
+
+  // Release SHA for the engagement-api health endpoint. 'UNVERIFIED' is the
+  // local default; production should set a 40-character git SHA.
+  RELEASE_SHA: z
+    .union([z.literal('UNVERIFIED'), z.string().regex(/^[0-9a-f]{40}$/i)])
+    .default('UNVERIFIED'),
+
+  // The engagement-api listens on its own port (default 4500).
+  ENGAGEMENT_API_PORT: z.coerce.number().int().positive().default(4500),
+  ENGAGEMENT_API_BIND_HOST: z.string().default('0.0.0.0'),
+
+  // Shadow mode: the engagement-api process runs as a read-only clone.
+  // Active mode: the main API process runs with full capabilities.
+  ENGAGEMENT_PROCESS_MODE: z.enum(['shadow', 'active']).default('active'),
+
+  // Which service owns background workers. 'disabled' = no workers run.
+  ENGAGEMENT_BACKGROUND_OWNER: z
+    .enum(['api', 'engagement-api', 'disabled'])
+    .default('api'),
+
+  // External action mode. 'enabled' = all actions (main API default).
+  // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
+  // testMode=true.
+  ENGAGEMENT_EXTERNAL_ACTIONS: z
+    .enum(['disabled', 'test_only', 'enabled'])
+    .default('enabled'),
+
+  // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
+  // transform (NOT z.coerce.boolean()) so 'false'/'0'/'no'/'off' correctly
+  // disable and only 'true'/'1'/'yes'/'on' enable.
+  ENGAGEMENT_CALLBACKS_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
+  // Recall webhook processing gate. Same allowlist transform.
+  ENGAGEMENT_RECALL_WEBHOOK_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -813,5 +860,51 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
         '(e.g. https://clerk.app.capiro.ai). Refusing to start without issuer pinning.',
     );
   }
+
+  // Engagement API Phase 1 — cross-field validation for the shadow matrix.
+  //
+  // When CAPIRO_SERVICE_NAME=engagement-api, the process must run in shadow
+  // mode with all external actions disabled. Any armed value in combination
+  // with the engagement-api service name is a configuration error that fails
+  // boot with a field-specific message.
+  if (parsed.CAPIRO_SERVICE_NAME === 'engagement-api') {
+    const violations: string[] = [];
+
+    if (parsed.ENGAGEMENT_PROCESS_MODE !== 'shadow') {
+      violations.push(
+        `ENGAGEMENT_PROCESS_MODE must be 'shadow' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_PROCESS_MODE}')`,
+      );
+    }
+    if (parsed.ENGAGEMENT_BACKGROUND_OWNER !== 'disabled') {
+      violations.push(
+        `ENGAGEMENT_BACKGROUND_OWNER must be 'disabled' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_BACKGROUND_OWNER}')`,
+      );
+    }
+    if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS !== 'disabled') {
+      violations.push(
+        `ENGAGEMENT_EXTERNAL_ACTIONS must be 'disabled' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_EXTERNAL_ACTIONS}')`,
+      );
+    }
+    if (parsed.ENGAGEMENT_CALLBACKS_ENABLED) {
+      violations.push(
+        `ENGAGEMENT_CALLBACKS_ENABLED must be false/0/no/off when CAPIRO_SERVICE_NAME=engagement-api`,
+      );
+    }
+    if (parsed.ENGAGEMENT_RECALL_WEBHOOK_ENABLED) {
+      violations.push(
+        `ENGAGEMENT_RECALL_WEBHOOK_ENABLED must be false/0/no/off when CAPIRO_SERVICE_NAME=engagement-api`,
+      );
+    }
+
+    if (violations.length > 0) {
+      throw new Error(
+        'Engagement API shadow-mode configuration validation failed:\n  - ' +
+          violations.join('\n  - ') +
+          '\n\nThe engagement-api process must run with all external actions, ' +
+          'background workers, callbacks, and Recall webhooks disabled.',
+      );
+    }
+  }
+
   return parsed;
 }

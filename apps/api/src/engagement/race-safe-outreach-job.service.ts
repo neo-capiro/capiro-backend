@@ -10,6 +10,7 @@ import {
   type SubmitOutreachJobInput,
 } from './outreach-job.service.js';
 import { retryOnceAfterPrismaUnique } from './prisma-unique-retry.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
  * Production DI wrapper for concurrent outreach-job submissions.
@@ -25,8 +26,9 @@ export class RaceSafeOutreachJobService extends OutreachJobService {
     engagement: EngagementService,
     gateway: GenerationGatewayService,
     config: ConfigService<AppConfig, true>,
+    runtimePolicy: EngagementRuntimePolicyService,
   ) {
-    super(prisma, engagement, gateway, config);
+    super(prisma, engagement, gateway, config, runtimePolicy);
   }
 
   override submit(

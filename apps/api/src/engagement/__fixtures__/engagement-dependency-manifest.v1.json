@@ -1,0 +1,4005 @@
+{
+  "schemaVersion": 1,
+  "externalImporters": [
+    {
+      "importerFile": "apps/api/src/ai-usage/ai-credential-store.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService",
+        "AiProvider"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/ai-usage/ai-usage.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/app.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "root_registration"
+    },
+    {
+      "importerFile": "apps/api/src/capiro-admin/capiro-admin.controller.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiProvider"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/capiro-admin/capiro-admin.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiProvider"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/clients/client-capabilities.service.ts",
+      "importedFile": "apps/api/src/engagement/outcome/outcome.service.js",
+      "importedSymbols": [
+        "OutcomeService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/clients/clients.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/alert-memo.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/district-brief.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/hearing-recap.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/intelligence/alert-memo/hearing-recap.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "intelligence_deliverable"
+    },
+    {
+      "importerFile": "apps/api/src/memory/governed-memory-ingest.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "memory"
+    },
+    {
+      "importerFile": "apps/api/src/memory/governed-memory-ingest.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "memory"
+    },
+    {
+      "importerFile": "apps/api/src/memory/memory-ingest.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "memory"
+    },
+    {
+      "importerFile": "apps/api/src/memory/memory.module.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "memory"
+    },
+    {
+      "importerFile": "apps/api/src/meri/governed-meri-research.factory.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri-research.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri-tools.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri-tools.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri.module.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/meri/meri.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "meri"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews-outreach.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews-outreach.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "type-only",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/reviews/reviews.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "reviews"
+    },
+    {
+      "importerFile": "apps/api/src/tracker/notifications/tracker-summary.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/tracker/tracker.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/webhooks/recall-webhook.controller.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "webhook"
+    },
+    {
+      "importerFile": "apps/api/src/webhooks/webhooks.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "webhook"
+    },
+    {
+      "importerFile": "apps/api/src/workspace-assistant/workspace-assistant.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.module.js",
+      "importedSymbols": [
+        "EngagementModule"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/workspace-assistant/workspace-assistant.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    }
+  ],
+  "internalImports": [
+    {
+      "importerFile": "apps/api/src/engagement/ai-credential-resolver.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-content-threat.spec.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "isUsableScanStatus",
+        "scanStatusDisclosure",
+        "AttachmentScanStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EXTRACTION_TIMEOUT_MS",
+        "MAX_EXTRACTED_CHARS",
+        "MAX_EXTRACTION_PAGES",
+        "MAX_SPREADSHEET_COLS",
+        "MAX_SPREADSHEET_ROWS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "importedFile": "apps/api/src/engagement/pptx-extract.js",
+      "importedSymbols": [
+        "extractPptxText",
+        "isPowerPointAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "importedFile": "apps/api/src/engagement/xlsx-extract.js",
+      "importedSymbols": [
+        "extractXlsxText",
+        "isSpreadsheetAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-scanner.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/attachment-scanner.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService",
+        "FakeAttachmentScanner",
+        "NullAttachmentScanner",
+        "isUsableScanStatus",
+        "scanStatusDisclosure",
+        "AttachmentScanStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/contact-harvest.spec.ts",
+      "importedFile": "apps/api/src/engagement/contact-harvest.js",
+      "importedSymbols": [
+        "harvestMailContacts",
+        "harvestableParticipants",
+        "isHarvestableContact"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/dedupe-recipients.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "dedupeOutreachRecipients"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-access.helpers.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "activeMailMessageWhere",
+        "activeMailThreadWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-ai.prompt.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService",
+        "formatUsdCompact",
+        "CampaignEmailInput",
+        "OutreachDraftInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-ai.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService",
+        "ResolvedAiCredential"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-ai.service.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-ai.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "buildOutreachPromptV2",
+        "OUTREACH_PROMPT_SPEC_VERSION",
+        "resolveOutreachMaxTokens",
+        "OutreachPromptV2"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-audiences.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-batch-error-status.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-batch-group.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-batch-revise.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-context-item-contract.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "normalizeSelectedContextItem"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-dto.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.controller.js",
+      "importedSymbols": [
+        "GenerateBatchEmailDto"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-insights-separation.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-insights.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-integrations.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-integrations.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService",
+        "OutreachSelectedContextItemInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/alert-packet-client.service.js",
+      "importedSymbols": [
+        "GovernmentAffairsAlertPacket"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-legacy-send-gate.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-mail-threads.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-meetings.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-outreach-clamp.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.controller.js",
+      "importedSymbols": [
+        "CreateOutreachRecordDto",
+        "GenerateBatchEmailDto"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-owner-isolation.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-owner-isolation.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-prior-contact.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-sync-scheduler.service.js",
+      "importedSymbols": [
+        "EngagementSyncSchedulerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-sync-scheduler.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-template-ownership.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-throttle.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.controller.js",
+      "importedSymbols": [
+        "EngagementController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.attachment-content-type.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "isAllowedAttachmentContentType"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/outreach-job.service.js",
+      "importedSymbols": [
+        "OutreachJobService",
+        "outreachRecipientKey"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.controller.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/client-association.service.js",
+      "importedSymbols": [
+        "ClientAssociationService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement-sync-scheduler.service.js",
+      "importedSymbols": [
+        "EngagementSyncSchedulerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.controller.js",
+      "importedSymbols": [
+        "EngagementController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/alert-packet-client.service.js",
+      "importedSymbols": [
+        "AlertPacketClientService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/author-style-profile.service.js",
+      "importedSymbols": [
+        "AuthorStyleProfileService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.service.js",
+      "importedSymbols": [
+        "EvidencePacketService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-source.service.js",
+      "importedSymbols": [
+        "EvidenceSourceService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.service.js",
+      "importedSymbols": [
+        "GenerationGatewayService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-verifier.service.js",
+      "importedSymbols": [
+        "GenerationVerifierService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.service.js",
+      "importedSymbols": [
+        "MessagePlanService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/generation/outreach-truth.service.js",
+      "importedSymbols": [
+        "OutreachTruthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "GmailSendService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.controller.js",
+      "importedSymbols": [
+        "GoogleOAuthController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GoogleOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/governed-engagement.factory.js",
+      "importedSymbols": [
+        "createGovernedEngagementService",
+        "RAW_ENGAGEMENT_SERVICE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/internal-ai-credentials.controller.js",
+      "importedSymbols": [
+        "InternalAiCredentialsController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.js",
+      "importedSymbols": [
+        "MicrosoftOAuthController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.module.js",
+      "importedSymbols": [
+        "NotetakerModule"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outcome/outcome.controller.js",
+      "importedSymbols": [
+        "OutcomeController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outcome/outcome.service.js",
+      "importedSymbols": [
+        "OutcomeService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft-audit.service.js",
+      "importedSymbols": [
+        "OutreachDraftAuditService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outreach-job.service.js",
+      "importedSymbols": [
+        "OutreachJobService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/race-safe-outreach-job.service.js",
+      "importedSymbols": [
+        "RaceSafeOutreachJobService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.module.ts",
+      "importedFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.js",
+      "importedSymbols": [
+        "RaceSafeOutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "ResolvedAiCredential"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/client-association.service.js",
+      "importedSymbols": [
+        "ClientAssociationService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement-access.helpers.js",
+      "importedSymbols": [
+        "canEditEncryptedEntry",
+        "canReadEncryptedEntry",
+        "ownMailMessageWhere",
+        "ownMailThreadWhere",
+        "ownMeetingWhere",
+        "ownOutreachRecordWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/alert-packet-client.service.js",
+      "importedSymbols": [
+        "AlertPacketClientService",
+        "renderAlertPacketForOutreach",
+        "overlayClientRelationshipContext"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.service.js",
+      "importedSymbols": [
+        "EnrichmentChannel"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-source.service.js",
+      "importedSymbols": [
+        "EvidenceSourceService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.service.js",
+      "importedSymbols": [
+        "GenerationGatewayService",
+        "GatewayEnrichmentInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.types.js",
+      "importedSymbols": [
+        "GenerationRequest",
+        "GenerationResult",
+        "GenerationSourceManifest",
+        "PinnedGenerationIdentity"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "AudiencePolicyRequiredError",
+        "GaPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "PlanValidationIssue"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/outreach-truth.service.js",
+      "importedSymbols": [
+        "OutreachTruthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "activeMailMessageWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender",
+        "sendProviderSlug"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-context-enrichment.js",
+      "importedSymbols": [
+        "billIdFromItemId",
+        "peCodeFromItemId",
+        "intelAlertIdFromItemId",
+        "formatBillTruth",
+        "formatPeTruth",
+        "renderClientRelationshipSnapshot",
+        "renderClientPeopleRoster",
+        "renderClientTargetOffices",
+        "BillTruth",
+        "PeTruth",
+        "BillVoteRow",
+        "GoverningRuleRow",
+        "PeYearFunding",
+        "TargetOfficeLite"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "DraftApprovalStatus",
+        "DraftAuditStatus",
+        "DraftGenerationStatus"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-email-renderer.js",
+      "importedSymbols": [
+        "appendOutreachSignature",
+        "renderOutreachBody",
+        "RenderedOutreachBody"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-hold.js",
+      "importedSymbols": [
+        "outreachDraftHoldKey",
+        "OUTREACH_HOLD_BLOCKING_STATUSES",
+        "OUTREACH_HOLD_SUBJECT_TYPE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/pptx-extract.js",
+      "importedSymbols": [
+        "extractPptxText",
+        "isPowerPointAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/xlsx-extract.js",
+      "importedSymbols": [
+        "extractXlsxText",
+        "isSpreadsheetAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/fixtures.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "OutreachDraftInput"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/gateway-fixtures.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/gateway-fixtures.ts",
+      "importedFile": "apps/api/src/engagement/generation/gateway-prompt.js",
+      "importedSymbols": [
+        "GatewayPromptInput"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/gateway-fixtures.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience",
+        "GaAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/gateway-fixtures.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlan"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/outreach-evals.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService",
+        "OutreachDraftInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/outreach-evals.spec.ts",
+      "importedFile": "apps/api/src/engagement/evals/fixtures.js",
+      "importedSymbols": [
+        "OUTREACH_EVAL_FIXTURES",
+        "OutreachArchetype",
+        "OutreachEvalFixture"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/outreach-evals.spec.ts",
+      "importedFile": "apps/api/src/engagement/evals/gateway-fixtures.js",
+      "importedSymbols": [
+        "GATEWAY_EVAL_FIXTURES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/outreach-evals.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/gateway-prompt.js",
+      "importedSymbols": [
+        "buildGatewayPrompt",
+        "GATEWAY_PROMPT_SPEC_VERSION"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/evals/outreach-evals.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "buildOutreachPromptV2",
+        "SPOTLIGHT_CLOSE",
+        "SPOTLIGHT_OPEN",
+        "OutreachPromptV2Input"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/alert-packet-client.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/alert-packet-client.service.js",
+      "importedSymbols": [
+        "AlertPacketClientService",
+        "renderAlertPacketForOutreach",
+        "OUTREACH_SUMMARY_MAX",
+        "GovernmentAffairsAlertPacket"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/author-style-profile.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/author-style-profile.service.js",
+      "importedSymbols": [
+        "AuthorStyleProfileService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/author-style-profile.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "ResolvedAiCredential"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/author-style-profile.service.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/author-style-profile.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "SPOTLIGHT_CLOSE",
+        "SPOTLIGHT_OPEN"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.service.js",
+      "importedSymbols": [
+        "EvidencePacketService",
+        "EvidencePacketPersistError",
+        "hashPacket",
+        "CompileOutreachPacketRequest"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "AuthenticatedDirective",
+        "EvidenceItem",
+        "EvidencePacketV2",
+        "SourceFailure"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "canonicalJson",
+        "compareEvidence",
+        "compareFailures",
+        "compareDirectives",
+        "sourceFailure",
+        "boundEvidenceText",
+        "AuthenticatedDirective",
+        "EmailContextScope",
+        "EvidenceItem",
+        "EvidencePacketV2",
+        "GenerationSurface",
+        "PacketModelPolicy",
+        "SourceFailure",
+        "StandingMemoryExclusion",
+        "StandingMemoryRef"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-source.service.js",
+      "importedSymbols": [
+        "EvidenceSourceService",
+        "SelectedContextItemRef"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "GaPolicy"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-source.service.js",
+      "importedSymbols": [
+        "EvidenceSourceService",
+        "SelectedContextItemRef"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement-access.helpers.js",
+      "importedSymbols": [
+        "canReadEncryptedEntry",
+        "ownMeetingWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/alert-packet-client.service.js",
+      "importedSymbols": [
+        "AlertPacketClientService",
+        "renderAlertPacketForOutreach"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "boundEvidenceText",
+        "sourceFailure",
+        "compareDirectives",
+        "compareEvidence",
+        "compareFailures",
+        "MAX_CUSTOM_NOTE_CHARS",
+        "MAX_USER_INSTRUCTION_CHARS",
+        "AuthenticatedDirective",
+        "EmailContextScope",
+        "EvidenceItem",
+        "EvidenceSourceRef",
+        "EvidenceTrust",
+        "SourceFailure"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "freshnessThresholdDays",
+        "GaPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/outreach-truth.service.js",
+      "importedSymbols": [
+        "OutreachTruthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/relevant-email-ranker.js",
+      "importedSymbols": [
+        "rankRelevantEmail",
+        "relevanceLabel",
+        "threadExcerpt",
+        "EmailThreadCandidate"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "activeMailMessageWhere",
+        "activeMailThreadWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-notes-crypto.service.js",
+      "importedSymbols": [
+        "MeetingNotesCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-context-enrichment.js",
+      "importedSymbols": [
+        "intelAlertIdFromItemId"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "importedFile": "apps/api/src/engagement/generation/author-style-profile.service.js",
+      "importedSymbols": [
+        "AuthorStyleProfile"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "renderPolicyBlock",
+        "GaPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlan"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "COMPLIANCE_GUARDRAILS",
+        "HILL_ETIQUETTE",
+        "HONEST_FALLBACK",
+        "INJECTION_RULE",
+        "OUTPUT_CONTRACT",
+        "SPOTLIGHT_CLOSE",
+        "SPOTLIGHT_OPEN"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.service.js",
+      "importedSymbols": [
+        "EvidencePacketPersistError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/gateway-prompt.js",
+      "importedSymbols": [
+        "GATEWAY_PROMPT_SPEC_VERSION"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.service.js",
+      "importedSymbols": [
+        "GenerationGatewayService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.types.js",
+      "importedSymbols": [
+        "GenerationRequest"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-verifier.service.js",
+      "importedSymbols": [
+        "GenerationVerifierService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlanInvalidError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "ResolvedAiCredential"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/author-style-profile.service.js",
+      "importedSymbols": [
+        "AuthorStyleProfileService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.service.js",
+      "importedSymbols": [
+        "EvidencePacketService",
+        "EvidencePacketPersistError",
+        "EnrichmentChannel"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EMAIL_SCOPE_LABELS",
+        "MAX_USER_INSTRUCTION_CHARS",
+        "AuthenticatedDirective",
+        "EmailContextScope",
+        "EvidencePacketV2",
+        "SourceFailure"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/gateway-prompt.js",
+      "importedSymbols": [
+        "buildGatewayPrompt",
+        "GATEWAY_DRAFT_JSON_SCHEMA",
+        "GATEWAY_PROMPT_SPEC_VERSION"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.types.js",
+      "importedSymbols": [
+        "GenerationRequest",
+        "GenerationResult",
+        "GenerationSourceManifest",
+        "PinnedGenerationIdentity"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-verifier.service.js",
+      "importedSymbols": [
+        "GenerationVerifierService",
+        "VerifierFinding"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "AudiencePolicyRequiredError",
+        "selectPolicy",
+        "GaPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlanInvalidError",
+        "MessagePlan"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.service.js",
+      "importedSymbols": [
+        "MessagePlanService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.types.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "GenerationSurface",
+        "SourceFailure"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.types.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-source.service.js",
+      "importedSymbols": [
+        "SelectedContextItemRef"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.types.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "GaAudience"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-gateway.types.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "PlanValidationIssue"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidenceItem",
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-verifier.service.js",
+      "importedSymbols": [
+        "GenerationVerifierService",
+        "parseAmounts",
+        "truthAmounts",
+        "VerifyRequest"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "GaPolicy",
+        "GaValidatorId"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "freshnessThresholdDays"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/generation-verifier.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlan"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "AudiencePolicyRequiredError",
+        "GA_AUDIENCES",
+        "GA_JURISDICTIONS",
+        "GA_POLICY_VERSION",
+        "freshnessThresholdDays",
+        "policyForAudience",
+        "renderPolicyBlock",
+        "selectPolicy",
+        "GaAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.schema.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "GA_AUDIENCES",
+        "GA_JURISDICTIONS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "policyForAudience"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MessagePlanInvalidError",
+        "MessagePlan"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.service.js",
+      "importedSymbols": [
+        "MessagePlanService",
+        "supportsStrictJson"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "ResolvedAiCredential"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EvidencePacketV2"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "GaPolicy"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/message-plan.schema.js",
+      "importedSymbols": [
+        "MESSAGE_PLAN_JSON_SCHEMA",
+        "MessagePlanInvalidError",
+        "messagePlanSchema",
+        "MessagePlan",
+        "PlanValidationIssue"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "SPOTLIGHT_CLOSE",
+        "SPOTLIGHT_OPEN"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/outreach-truth.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-context-enrichment.js",
+      "importedSymbols": [
+        "formatBillTruth",
+        "formatPeTruth",
+        "BillTruth",
+        "BillVoteRow",
+        "GoverningRuleRow",
+        "PeTruth",
+        "PeYearFunding"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/relevant-email-ranker.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/relevant-email-ranker.js",
+      "importedSymbols": [
+        "EMAIL_RANK_WEIGHTS",
+        "MAX_THREADS_PER_RECIPIENT",
+        "excludeThread",
+        "matchedTopicTerms",
+        "rankRelevantEmail",
+        "relevanceLabel",
+        "scoreThread",
+        "threadExcerpt",
+        "EmailRankRequest",
+        "EmailThreadCandidate"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/relevant-email-ranker.ts",
+      "importedFile": "apps/api/src/engagement/generation/evidence-packet.types.js",
+      "importedSymbols": [
+        "EmailContextScope"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-body-extract.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "extractGmailBodyText",
+        "stripGmailBodyData"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.mime.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "buildGmailRawMessage"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "GmailSendService",
+        "buildGmailRawMessage",
+        "sanitizeCorrelationId"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "AmbiguousMailSendError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.service.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "AmbiguousMailSendError",
+        "isAmbiguousTransportFailure",
+        "EngagementMailSendResult"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/gmail-send.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementSendMailInput"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GoogleOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-oauth.scope-validation.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "missingGoogleGrants"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-oauth.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-provider-contract.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GoogleOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-provider-contract.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.backfill-state.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.gmail-attachment.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.history.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService",
+        "foldGmailHistory"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.labels.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "gmailFolderFromLabelIds"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.reset-state.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.retry.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "GoogleSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/client-association.service.js",
+      "importedSymbols": [
+        "ClientAssociationService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/contact-harvest.js",
+      "importedSymbols": [
+        "harvestMailContacts"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "markMailMessageRemovedInTx"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GOOGLE_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-sync.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-sync.service.js",
+      "importedSymbols": [
+        "googleEventVirtuality",
+        "parseAddressList",
+        "parseCalendarDateTime"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-token.service.ts",
+      "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
+      "importedSymbols": [
+        "GOOGLE_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-token.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/governed-engagement.factory.spec.ts",
+      "importedFile": "apps/api/src/engagement/governed-engagement.factory.js",
+      "importedSymbols": [
+        "createGovernedEngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.spec.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.spec.ts",
+      "importedFile": "apps/api/src/engagement/internal-ai-credentials.controller.js",
+      "importedSymbols": [
+        "InternalAiCredentialsController"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "AiCredentialResolverService",
+        "AiProvider"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/llm-completion.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService",
+        "LlmCompletionRequest"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-message-state.spec.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "activeMailMessageWhere",
+        "activeMailThreadWhere",
+        "markMailMessageRemovedInTx",
+        "recomputeMailThreadSummaryInTx"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender",
+        "EngagementSendMailInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.ts",
+      "importedFile": "apps/api/src/engagement/google/gmail-send.service.js",
+      "importedSymbols": [
+        "GmailSendService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "EngagementMailSendResult"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/mail-sender.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-artifact-lifecycle.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-artifact-sharing.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.association-outside-lock.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.notification-bound.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.retry.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.scopes.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "hasRequiredResourceScopes",
+        "normalizeScopeNames"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.scopes.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.series-master-skip.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/client-association.service.js",
+      "importedSymbols": [
+        "ClientAssociationService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/contact-harvest.js",
+      "importedSymbols": [
+        "harvestMailContacts"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-message-state.js",
+      "importedSymbols": [
+        "markMailMessageRemovedInTx"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "AmbiguousMailSendError",
+        "isAmbiguousTransportFailure",
+        "EngagementMailSendResult"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-mail-folders.util.js",
+      "importedSymbols": [
+        "MAX_SYNCED_MAIL_FOLDERS",
+        "selectSyncableFolders",
+        "GraphMailFolder",
+        "SyncableMailFolder"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES",
+        "normalizePem"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-mail-folders.util.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-mail-folders.util.js",
+      "importedSymbols": [
+        "selectSyncableFolders",
+        "GraphMailFolder"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.disconnect.spec.ts",
+      "importedFile": "apps/api/src/engagement/client-association.service.js",
+      "importedSymbols": [
+        "ClientAssociationService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.disconnect.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.disconnect.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.disconnect.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.refresh-token.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "selectRefreshTokenForAccount"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES",
+        "normalizePem"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
+      "importedSymbols": [
+        "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-provider-contract.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-provider-contract.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.js",
+      "importedSymbols": [
+        "MicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "AmbiguousMailSendError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "GraphHttpError",
+        "MicrosoftGraphSyncService",
+        "isAmbiguousGraphSendFailure",
+        "sanitizeGraphHeaderValue"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.module.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MEETING_BOT_PROVIDER"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.module.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/recall.provider.js",
+      "importedSymbols": [
+        "RecallProvider"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "TranscriptNotReadyError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MeetingBotProvider",
+        "NormalizedBotEvent"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/notetaker.service.js",
+      "importedSymbols": [
+        "NotetakerService",
+        "validateMeetingUrl",
+        "detectPlatform",
+        "mapRecallStatus",
+        "formatDebriefBody",
+        "notetakerBotName"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService",
+        "ownMeetingWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/notetaker.service.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MEETING_BOT_PROVIDER",
+        "TranscriptNotReadyError",
+        "MeetingBotProvider",
+        "NormalizedBotEvent",
+        "RecordingPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/recall.provider.spec.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/recall.provider.js",
+      "importedSymbols": [
+        "RecallProvider",
+        "normalizeEvent"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/recall.provider.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meeting-bot.provider.js",
+      "importedSymbols": [
+        "MeetingBotProvider",
+        "DispatchBotInput",
+        "DispatchBotResult",
+        "CreateTranscriptOptions",
+        "CreateTranscriptResult",
+        "NormalizedTranscript",
+        "TranscriptUtterance",
+        "NormalizedBotEvent",
+        "BotWebhookEventKind",
+        "TranscriptLifecycle",
+        "BotCompletion",
+        "TranscriptNotReadyError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/notetaker/recall.provider.ts",
+      "importedFile": "apps/api/src/engagement/notetaker/meri-camera-image.js",
+      "importedSymbols": [
+        "MERI_CAMERA_JPEG_B64"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outcome/outcome.controller.ts",
+      "importedFile": "apps/api/src/engagement/outcome/outcome.service.js",
+      "importedSymbols": [
+        "OUTCOME_KINDS",
+        "OUTCOME_SOURCE_TYPES",
+        "OutcomeService",
+        "OutcomeKind",
+        "OutcomeSourceType"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outcome/outcome.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outcome/outcome.service.js",
+      "importedSymbols": [
+        "OutcomeService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-budget.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-channels.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService",
+        "scrubPiiForVoice"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-context-enrichment.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-context-enrichment.js",
+      "importedSymbols": [
+        "billIdFromItemId",
+        "peCodeFromItemId",
+        "intelAlertIdFromItemId",
+        "fmtM",
+        "formatBillTruth",
+        "formatPeTruth",
+        "renderClientRelationshipSnapshot",
+        "renderClientPeopleRoster",
+        "renderClientTargetOffices",
+        "BillTruth",
+        "PeTruth"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft-audit.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft-audit.service.js",
+      "importedSymbols": [
+        "OutreachAuditUnavailableError",
+        "OutreachDraftAuditService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft-audit.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "isDraftVersionSendable"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft-audit.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE",
+        "DraftApprovalStatus",
+        "DraftAuditStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft-audit.service.js",
+      "importedSymbols": [],
+      "importKind": "dynamic",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.service.js",
+      "importedSymbols": [
+        "OutreachDraftService",
+        "contentHashOf"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft-audit.service.js",
+      "importedSymbols": [
+        "OutreachAuditUnavailableError",
+        "OutreachDraftAuditService",
+        "DeterministicVerifierCheck"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "isDraftVersionSendable",
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE",
+        "DraftApprovalStatus",
+        "DraftAuditStatus",
+        "DraftGenerationStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-draft.types.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "canTransitionOutreachDelivery",
+        "isDeliveryAutoRetryable",
+        "isDraftVersionSendable",
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE",
+        "TERMINAL_DELIVERY_STATUSES",
+        "DraftApprovalStatus",
+        "DraftAuditStatus",
+        "OutreachDeliveryStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-email-renderer.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-email-renderer.js",
+      "importedSymbols": [
+        "appendOutreachSignature",
+        "escapeOutreachPlaintext",
+        "renderOutreachBody"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-federal-context.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-hold.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "OUTREACH_DRAFT_VERSION_SUBJECT_TYPE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-hold.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-hold.js",
+      "importedSymbols": [
+        "outreachDraftHoldKey",
+        "OUTREACH_HOLD_BLOCKING_STATUSES",
+        "OUTREACH_HOLD_SUBJECT_TYPE"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService",
+        "GenerateBatchEmailInput",
+        "OutreachRecipientInput",
+        "SendBatchEmailInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.service.js",
+      "importedSymbols": [
+        "GenerationGatewayService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.types.js",
+      "importedSymbols": [
+        "PinnedGenerationIdentity"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "AudiencePolicyRequiredError",
+        "GaPolicy"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.spec.ts",
+      "importedFile": "apps/api/src/engagement/generation/government-affairs-policy.registry.js",
+      "importedSymbols": [
+        "AudiencePolicyRequiredError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-job.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-job.service.js",
+      "importedSymbols": [
+        "OutreachJobService",
+        "buildItemResult",
+        "classifyGenerationItem",
+        "computeJobRollup",
+        "outreachRecipientKey",
+        "readPinnedIdentity"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-model-tier.spec.ts",
+      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedSymbols": [
+        "ResolvedAiCredential"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-model-tier.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
+      "importedSymbols": [
+        "EngagementAiService",
+        "OutreachDraftInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.js",
+      "importedSymbols": [
+        "buildOutreachPromptV2",
+        "buildOutreachSystemPromptV2",
+        "OUTREACH_PROMPT_SPEC_VERSION",
+        "resolveOutreachMaxTokens",
+        "SPOTLIGHT_OPEN",
+        "SPOTLIGHT_CLOSE",
+        "OutreachPromptV2Input"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/mail-send-result.js",
+      "importedSymbols": [
+        "AmbiguousMailSendError"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "OutreachDeliveryStatus"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.spec.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService",
+        "buildEnvelope",
+        "countByStatus",
+        "deliveryIdempotencyKey",
+        "deriveParentOutreachStatus",
+        "isPromptSpecV2OrLater",
+        "rollUpStatus",
+        "sendIntentRequestFingerprint",
+        "AttachmentManifestEntry"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService",
+        "AttachmentReadinessRow"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement-access.helpers.js",
+      "importedSymbols": [
+        "ownOutreachRecordWhere"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender",
+        "AmbiguousMailSendError",
+        "SendableConnection"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-draft.types.js",
+      "importedSymbols": [
+        "canTransitionOutreachDelivery",
+        "isDraftVersionSendable",
+        "DraftApprovalStatus",
+        "DraftAuditStatus",
+        "OutreachDeliveryStatus"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-email-renderer.js",
+      "importedSymbols": [
+        "appendOutreachSignature",
+        "renderOutreachBody"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/pptx-extract.spec.ts",
+      "importedFile": "apps/api/src/engagement/pptx-extract.js",
+      "importedSymbols": [
+        "extractPptxText",
+        "isPowerPointAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/prisma-unique-retry.spec.ts",
+      "importedFile": "apps/api/src/engagement/prisma-unique-retry.js",
+      "importedSymbols": [
+        "retryOnceAfterPrismaUnique"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/generation/generation-gateway.service.js",
+      "importedSymbols": [
+        "GenerationGatewayService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-job.service.js",
+      "importedSymbols": [
+        "OutreachJobService",
+        "SubmitOutreachJobInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-job.service.ts",
+      "importedFile": "apps/api/src/engagement/prisma-unique-retry.js",
+      "importedSymbols": [
+        "retryOnceAfterPrismaUnique"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-content.service.js",
+      "importedSymbols": [
+        "AttachmentContentService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/attachment-scanner.service.js",
+      "importedSymbols": [
+        "AttachmentScannerService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/engagement.service.js",
+      "importedSymbols": [
+        "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/mail-sender.service.js",
+      "importedSymbols": [
+        "EngagementMailSender"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/outreach-send-intent.service.js",
+      "importedSymbols": [
+        "OutreachSendIntentService",
+        "CreateSendIntentInput"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/race-safe-outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/prisma-unique-retry.js",
+      "importedSymbols": [
+        "retryOnceAfterPrismaUnique"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/xlsx-extract.spec.ts",
+      "importedFile": "apps/api/src/engagement/xlsx-extract.js",
+      "importedSymbols": [
+        "extractXlsxText",
+        "isSpreadsheetAttachment"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    }
+  ],
+  "summary": {
+    "externalImporterCount": 40,
+    "importedSymbolCount": 41
+  }
+}
