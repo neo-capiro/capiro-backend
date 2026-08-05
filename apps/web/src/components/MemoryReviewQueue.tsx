@@ -106,6 +106,7 @@ export function MemoryReviewQueue() {
       setRejecting(null);
       setRejectReason('');
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
+      qc.invalidateQueries({ queryKey: ['memory-review-summary'] });
       qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
       qc.invalidateQueries({ queryKey: ['memory-governance-items'] });
       qc.invalidateQueries({ queryKey: ['memory-governance-transitions'] });
@@ -195,7 +196,9 @@ export function MemoryReviewQueue() {
 
       <Modal
         open={Boolean(rejecting)}
-        title={`Reject ${rejecting ? memoryCandidateKindLabel(rejecting.candidateKind).toLowerCase() : 'proposal'}`}
+        title={`Reject ${
+          rejecting ? memoryCandidateKindLabel(rejecting.candidateKind).toLowerCase() : 'proposal'
+        }`}
         okText="Reject proposal"
         okButtonProps={{ danger: true, disabled: rejectReason.trim().length === 0 }}
         confirmLoading={decision.isPending}

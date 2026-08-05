@@ -15,6 +15,7 @@ import { GovernedMemoryCandidateService } from './governed-memory-candidate.serv
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
 import { MemoryConflictService } from './memory-conflict.service.js';
@@ -32,6 +33,7 @@ import { MemoryGovernanceTenantInterceptor } from './memory-governance-tenant.in
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { MemoryReviewController } from './memory-review.controller.js';
+import { MemoryReviewSummaryController } from './memory-review-summary.controller.js';
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
@@ -53,6 +55,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
   controllers: [
     MemoryController,
     MemoryReviewController,
+    MemoryReviewSummaryController,
     MemoryProposalController,
     MemoryVersionController,
     MemoryGovernanceController,
@@ -69,6 +72,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     { provide: MemoryIngestService, useExisting: GovernedMemoryIngestService },
     MemoryInterviewService,
     SettingsMemoryVersionCandidateService,
+    MemorySettingsReviewReadinessService,
     SettingsAwareMemoryCandidateService,
     {
       provide: GovernedMemoryCandidateService,
