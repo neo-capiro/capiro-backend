@@ -1,127 +1,183 @@
 #!/usr/bin/env node
 /**
- * Engagement API Phase 1 — browser parity checker.
- *
- * Verifies that the current web application continues sending all ordinary
- * requests to the main API (:4000) and does NOT send any traffic to the
- * engagement-api (:4500).
- *
- * Asserts:
- *   - no request to port 4500
- *   - no X-Capiro-Engagement-Preview header
- *   - no engagement-api base URL
- *   - current /engagement routes unchanged
- *   - current Outreach v2 remains default
- *
- * This script is a lightweight CDP-based network monitor. It requires
- * ENGAGEMENT_PHASE1_USER_COOKIE to be set for authenticated requests.
- *
- * If no browser credentials are available, it exits 0 with a SKIP message.
+ * Authenticated Chrome/CDP proof that the unchanged web application still uses
+ * only the main API during Phase 1. Missing credentials are a failure, not a
+ * skip, because a skipped browser cannot authorize a merge.
  */
-const BASE_URL = process.env.ENGAGEMENT_PHASE1_BASE_URL ?? 'http://127.0.0.1:5173';
-const COOKIE = process.env.ENGAGEMENT_PHASE1_USER_COOKIE ?? '';
-
-if (!COOKIE) {
-  console.log('SKIP: ENGAGEMENT_PHASE1_USER_COOKIE not set — browser parity skipped');
-  process.exit(0);
-}
-
-import { writeFile, mkdir } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import chromeLauncher from 'chrome-launcher';
+import { connectChrome, createActor } from './phase19-cdp.mjs';
 
-const EVIDENCE_DIR = process.env.ENGAGEMENT_PHASE1_EVIDENCE_DIR ?? '.artifacts/engagement-phase1';
+const BASE_URL = process.env.ENGAGEMENT_PHASE1_BASE_URL ?? 'http://127.0.0.1:5173';
+const EVIDENCE = required('ENGAGEMENT_PHASE1_EVIDENCE_DIR');
+const TOKEN_FILE = required('ENGAGEMENT_PHASE1_TOKEN_FILE');
+const COOKIE = requiredAny('ENGAGEMENT_PHASE1_USER_COOKIE', 'ENGAGEMENT_PHASE0_USER_COOKIE');
+const ORG_ID = requiredAny(
+  'ENGAGEMENT_PHASE1_CLERK_ORG_ID',
+  'ENGAGEMENT_PHASE0_CLERK_ORG_ID',
+);
+const SCREENSHOTS = path.join(EVIDENCE, 'screenshots');
+
+const STATES = [
+  '/engagement/meetings',
+  '/engagement/outreach',
+  '/engagement/reports',
+  '/engagement/integrations',
+];
+
+function required(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+function requiredAny(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  throw new Error(`One of ${names.join(', ')} is required`);
+}
 
 async function main() {
-  await mkdir(EVIDENCE_DIR, { recursive: true });
+  await mkdir(SCREENSHOTS, { recursive: true });
+  const chrome = await chromeLauncher.launch({
+    chromeFlags: [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--window-size=1440,900',
+    ],
+    startingUrl: 'about:blank',
+  });
+  const cdp = await connectChrome(chrome.port);
+  const requests = [];
 
-  // Fetch the web app and check that it loads.
-  // A full CDP-based suite would use Chrome DevTools Protocol to intercept
-  // network requests and verify none go to :4500. For the local runner,
-  // we do a simple fetch of the page and check the API client config.
-  const results = {
-    timestamp: new Date().toISOString(),
-    baseUrl: BASE_URL,
-    checks: [],
-  };
-
-  // Check 1: Web app loads.
   try {
-    const res = await fetch(BASE_URL);
-    results.checks.push({
-      label: 'web-loads',
-      status: res.status,
-      passed: res.ok,
+    const page = await createActor({
+      cdp,
+      label: 'engagement-phase1',
+      cookie: COOKIE,
+      orgId: ORG_ID,
+      baseUrl: BASE_URL,
+      evidenceDir: SCREENSHOTS,
     });
-  } catch (err) {
-    results.checks.push({
-      label: 'web-loads',
-      error: String(err),
-      passed: false,
-    });
-  }
 
-  // Check 2: API client config points to :4000, not :4500.
-  // Read the web source to verify VITE_API_BASE_URL is not overridden.
-  try {
-    const fs = await import('node:fs/promises');
-    const apiClientSrc = await fs.readFile(
-      path.resolve(process.cwd(), 'apps/web/src/lib/api-client.ts'),
-      'utf-8',
+    const networkKey = `${page.sessionId}:Network.requestWillBeSent`;
+    const listener = (params) => {
+      const request = params?.request ?? {};
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: Object.fromEntries(
+          Object.entries(request.headers ?? {}).filter(
+            ([key]) => !/authorization|cookie/i.test(key),
+          ),
+        ),
+      });
+    };
+    cdp.listeners.set(networkKey, [...(cdp.listeners.get(networkKey) ?? []), listener]);
+
+    const bearerToken = await page.evaluate(`(async () => {
+      const token = await window.Clerk?.session?.getToken({ template: 'capiro' });
+      if (!token) throw new Error('Clerk capiro token unavailable');
+      return token;
+    })()`);
+    if (typeof bearerToken !== 'string' || bearerToken.length < 20) {
+      throw new Error('Authenticated browser did not produce a bearer token');
+    }
+    await writeFile(TOKEN_FILE, bearerToken, { mode: 0o600 });
+    await chmod(TOKEN_FILE, 0o600).catch(() => undefined);
+
+    const stateResults = [];
+    for (const pathname of STATES) {
+      await page.navigate(pathname);
+      await page
+        .waitFor(
+          () => page.evaluate(`!((document.body?.innerText ?? '').includes('Loading'))`),
+          30_000,
+        )
+        .catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      const body = await page.bodyText();
+      const errorBoundary =
+        body.includes('Something went wrong') || body.includes('Application error');
+      if (errorBoundary) throw new Error(`Error boundary rendered at ${pathname}`);
+      const screenshot = await page.screenshot(`phase1-${pathname}`);
+      stateResults.push({ pathname, screenshot, errorBoundary: false });
+    }
+
+    const apiRequests = requests.filter((entry) => entry.url.includes('/api/engagement'));
+    const port4500 = requests.filter((entry) => {
+      try {
+        return new URL(entry.url).port === '4500';
+      } catch {
+        return entry.url.includes(':4500');
+      }
+    });
+    const previewHeaders = requests.filter((entry) =>
+      Object.keys(entry.headers ?? {}).some(
+        (key) => key.toLowerCase() === 'x-capiro-engagement-preview',
+      ),
     );
-    const hasPreviewUrl = apiClientSrc.includes('VITE_ENGAGEMENT_API_URL');
-    const hasPort4500 = apiClientSrc.includes(':4500') || apiClientSrc.includes('4500');
-    results.checks.push({
-      label: 'no-preview-url-in-api-client',
-      passed: !hasPreviewUrl,
-    });
-    results.checks.push({
-      label: 'no-port-4500-in-api-client',
-      passed: !hasPort4500,
-    });
-  } catch (err) {
-    results.checks.push({
-      label: 'api-client-source-check',
-      error: String(err),
-      passed: false,
-    });
-  }
+    if (apiRequests.length === 0) {
+      throw new Error('No authenticated Engagement API requests were observed');
+    }
+    if (port4500.length > 0) {
+      throw new Error('The web application sent traffic to engagement-api port 4500');
+    }
+    if (previewHeaders.length > 0) {
+      throw new Error('The web application sent the Phase 2 preview header');
+    }
 
-  // Check 3: No X-Capiro-Engagement-Preview header in source.
-  try {
-    const fs = await import('node:fs/promises');
-    const useApiSrc = await fs.readFile(
-      path.resolve(process.cwd(), 'apps/web/src/lib/use-api.ts'),
-      'utf-8',
+    const sourceChecks = [];
+    for (const relative of ['apps/web/src/lib/api-client.ts', 'apps/web/src/lib/use-api.ts']) {
+      const source = await readFile(path.resolve(process.cwd(), relative), 'utf8');
+      for (const forbidden of [
+        'VITE_ENGAGEMENT_API_URL',
+        'X-Capiro-Engagement-Preview',
+        ':4500',
+      ]) {
+        sourceChecks.push({ relative, forbidden, absent: !source.includes(forbidden) });
+      }
+    }
+    if (sourceChecks.some((check) => !check.absent)) {
+      throw new Error('Static web routing boundary contains a Phase 2 preview token');
+    }
+
+    const evidence = {
+      marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
+      baseUrl: BASE_URL,
+      states: stateResults,
+      observedRequestCount: requests.length,
+      engagementApiRequestCount: apiRequests.length,
+      engagementRequests: apiRequests,
+      port4500Requests: port4500,
+      previewHeaderRequests: previewHeaders,
+      sourceChecks,
+      currentOutreachRoute: '/engagement/outreach',
+      previewRoutingEnabled: false,
+    };
+    await writeFile(
+      path.join(EVIDENCE, 'browser-parity.json'),
+      `${JSON.stringify(evidence, null, 2)}\n`,
     );
-    const hasPreviewHeader = useApiSrc.includes('X-Capiro-Engagement-Preview');
-    results.checks.push({
-      label: 'no-preview-header-in-use-api',
-      passed: !hasPreviewHeader,
-    });
-  } catch (err) {
-    results.checks.push({
-      label: 'use-api-source-check',
-      error: String(err),
-      passed: false,
-    });
+    console.log('ENGAGEMENT_PHASE1_BROWSER_COMPLETE');
+  } finally {
+    await chrome.kill();
   }
-
-  await writeFile(
-    path.join(EVIDENCE_DIR, 'browser-parity.json'),
-    JSON.stringify(results, null, 2) + '\n',
-  );
-
-  const allPassed = results.checks.every((c) => c.passed);
-  if (!allPassed) {
-    console.error('Browser parity FAILED');
-    const failed = results.checks.filter((c) => !c.passed);
-    console.error('Failed checks:', JSON.stringify(failed, null, 2));
-    process.exit(1);
-  }
-  console.log('Browser parity PASSED');
 }
 
-main().catch((err) => {
-  console.error('Browser parity script failed:', err);
+main().catch(async (error) => {
+  await mkdir(EVIDENCE, { recursive: true }).catch(() => undefined);
+  await writeFile(
+    path.join(EVIDENCE, 'browser-parity-failure.json'),
+    `${JSON.stringify(
+      { error: error instanceof Error ? error.message : String(error) },
+      null,
+      2,
+    )}\n`,
+  ).catch(() => undefined);
+  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
   process.exit(1);
 });
