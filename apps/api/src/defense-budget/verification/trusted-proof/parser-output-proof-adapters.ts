@@ -10,6 +10,8 @@ import { FilesystemParserArtifactStore } from '../../parser-router/parser-artifa
 import {
   computeParserRunCacheKey,
   parseParserArtifactDescriptorV1,
+  parseParserRuntimeResultV1,
+  verifyResultContentSha256,
   type ParserArtifactDescriptorV1,
   type ParserRunIdentityV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
@@ -22,11 +24,6 @@ import type {
 import type { ParseJobClient, ParseJobRow } from './parser-run-proof-resolver.js';
 import type { TrustedByteLocatorReader } from './trusted-byte-locator-reader.js';
 
-/* ------------------------------------------------------------------ */
-/* Filesystem adapter — local parsers                                  */
-/* ------------------------------------------------------------------ */
-
-/** Recursively collect all metadata.json descriptor paths under a root. */
 function collectDescriptorPaths(rootDir: string, out: string[] = []): string[] {
   let entries: string[];
   try {
@@ -42,28 +39,16 @@ function collectDescriptorPaths(rootDir: string, out: string[] = []): string[] {
     } catch {
       continue;
     }
-    if (stat.isDirectory()) {
-      collectDescriptorPaths(full, out);
-    } else if (entry === 'metadata.json') {
-      out.push(full);
-    }
+    if (stat.isDirectory()) collectDescriptorPaths(full, out);
+    else if (entry === 'metadata.json') out.push(full);
   }
   return out;
 }
 
 export interface FilesystemParserOutputProofAdapterOptions {
-  /**
-   * Production trust boundary: require the parser-run declaration to name the
-   * exact canonical content SHA of the independently loaded parser result.
-   * Local compatibility tests may leave this false.
-   */
   requireDeclarationBinding?: boolean;
 }
 
-/**
- * Loads independently persisted local parser output from the Phase 3
- * content-addressed filesystem artifact store.
- */
 export class FilesystemParserOutputProofAdapter implements ParserOutputProofSource {
   private readonly store: FilesystemParserArtifactStore;
 
@@ -79,9 +64,6 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
   ): Promise<ResolvedParserOutputProof | null> {
     const descriptor = this.findPersistedRunRecord(input);
     if (!descriptor) return null;
-
-    // Independently verifies bytes, strict result contract, canonical content
-    // SHA, source/method/version/config, and requested pages.
     const result = await this.store.readVerified(descriptor);
     const outputBytes = readFileSync(descriptor.resultLocator);
     const outputByteSha256 = sha256Bytes(outputBytes);
@@ -111,7 +93,6 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
     };
   }
 
-  /** Load the persisted parser-run record (descriptor) for a parser run ID. */
   private findPersistedRunRecord(
     input: ParserOutputProofRequestV1,
   ): ParserArtifactDescriptorV1 | null {
@@ -146,31 +127,20 @@ export class FilesystemParserOutputProofAdapter implements ParserOutputProofSour
         pages: descriptor.requestedPages,
         runtimeContractVersion: descriptor.runtimeContractVersion,
       };
-      if (computeParserRunCacheKey(identity) !== descriptor.cacheKey) {
-        return null;
-      }
+      if (computeParserRunCacheKey(identity) !== descriptor.cacheKey) return null;
       return descriptor;
     }
     return null;
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* LlamaParse adapter — persisted parse job + persisted output object  */
-/* ------------------------------------------------------------------ */
-
 export interface LlamaParseParserOutputProofAdapterOptions {
   parseJobClient: ParseJobClient;
   byteLocatorReader: TrustedByteLocatorReader;
   outputBucket: string;
-  /** Require exact declared normalized-result and raw-byte SHA bindings. */
   requireDeclarationBinding?: boolean;
 }
 
-/**
- * Loads the persisted LlamaParse output object bytes for a parse job. A row
- * containing an output key is not itself output proof.
- */
 export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSource {
   constructor(private readonly options: LlamaParseParserOutputProofAdapterOptions) {}
 
@@ -186,6 +156,7 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
     if (!job && input.sourceDocumentId) {
       job = await this.options.parseJobClient.documentParseJob.findFirst({
         where: { sourceDocumentId: input.sourceDocumentId, provider: 'llamaparse' },
+        orderBy: { startedAt: 'desc' },
       });
     }
     if (!job || job.status !== 'succeeded') return null;
@@ -198,11 +169,35 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
     const located = await this.options.byteLocatorReader.read(locator);
     const actualOutputByteSha256 = sha256Bytes(located.bytes);
 
+    let normalizedResult;
+    try {
+      normalizedResult = parseParserRuntimeResultV1(
+        JSON.parse(located.bytes.toString('utf8')),
+      );
+    } catch (error) {
+      throw new Error(
+        `persisted LlamaParse output is not a strict normalized parser result ` +
+          `(parseJobId=${job.id}): ${(error as Error).message}`,
+      );
+    }
+    if (!verifyResultContentSha256(normalizedResult)) {
+      throw new Error(
+        `persisted LlamaParse normalized result content SHA does not recompute ` +
+          `(parseJobId=${job.id})`,
+      );
+    }
+    if (normalizedResult.engine !== 'llamaparse') {
+      throw new Error(
+        `persisted LlamaParse normalized result is relabeled as ${normalizedResult.engine} ` +
+          `(parseJobId=${job.id})`,
+      );
+    }
+
     const metadata =
       typeof job.metadata === 'object' && job.metadata !== null
         ? ((job as unknown as { metadata: Record<string, unknown> }).metadata ?? {})
         : {};
-    const normalizedResultSha256 =
+    const recordedNormalizedResultSha256 =
       typeof metadata.normalizedResultSha256 === 'string'
         ? metadata.normalizedResultSha256
         : undefined;
@@ -218,9 +213,18 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
           `recorded byte SHA ${recordedOutputByteSha256} (parseJobId=${job.id})`,
       );
     }
+    if (
+      recordedNormalizedResultSha256 !== undefined &&
+      recordedNormalizedResultSha256 !== normalizedResult.contentSha256
+    ) {
+      throw new Error(
+        `persisted LlamaParse normalized result SHA ${normalizedResult.contentSha256} does not match ` +
+          `recorded SHA ${recordedNormalizedResultSha256} (parseJobId=${job.id})`,
+      );
+    }
 
     if (this.options.requireDeclarationBinding) {
-      if (!normalizedResultSha256) {
+      if (!recordedNormalizedResultSha256) {
         throw new Error(
           `persisted LlamaParse parse job ${job.id} is missing normalizedResultSha256 metadata`,
         );
@@ -230,10 +234,10 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
           `persisted LlamaParse parse job ${job.id} is missing outputByteSha256 metadata`,
         );
       }
-      if (input.declaredOutputSha256 !== normalizedResultSha256) {
+      if (input.declaredOutputSha256 !== normalizedResult.contentSha256) {
         throw new Error(
           `parser-run declaration ${input.declaredOutputSha256} does not match ` +
-            `persisted normalized result SHA ${normalizedResultSha256} ` +
+            `independently recomputed normalized result SHA ${normalizedResult.contentSha256} ` +
             `(parserRunId=${input.parserRunId})`,
         );
       }
@@ -243,35 +247,23 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
       persistedRunId: job.id,
       outputLocator: locator,
       outputBytes: located.bytes,
-      inputSourceSha256: job.inputSha256,
-      parserVersion: typeof metadata.parserVersion === 'string' ? metadata.parserVersion : '',
-      parserConfigSha256:
-        typeof metadata.parserConfigSha256 === 'string' ? metadata.parserConfigSha256 : '',
+      inputSourceSha256: normalizedResult.inputSourceSha256,
+      parserVersion: normalizedResult.parserVersion,
+      parserConfigSha256: normalizedResult.parserConfigSha256,
       providerJobId: job.providerJobId ?? undefined,
       status: job.status,
-      outputContentSha256: normalizedResultSha256,
+      outputContentSha256: normalizedResult.contentSha256,
       outputByteSha256: actualOutputByteSha256,
-      succeededPages:
-        job.pageStart !== null && job.pageEnd !== null
-          ? Array.from(
-              { length: job.pageEnd - job.pageStart + 1 },
-              (_, index) => (job.pageStart as number) + index,
-            )
-          : undefined,
+      succeededPages: normalizedResult.succeededPages,
     };
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* Composite source — routes by method                                 */
-/* ------------------------------------------------------------------ */
 
 export interface CompositeParserOutputProofSourceOptions {
   localSource?: ParserOutputProofSource | null;
   llamaParseSource?: ParserOutputProofSource | null;
 }
 
-/** Routes parser-output proof requests by extraction method. */
 export class CompositeParserOutputProofSource implements ParserOutputProofSource {
   constructor(private readonly options: CompositeParserOutputProofSourceOptions) {}
 

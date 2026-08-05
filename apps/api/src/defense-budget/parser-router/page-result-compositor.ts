@@ -1,42 +1,19 @@
 /**
- * Workstream K — Deterministic page-result compositor.
+ * Deterministic page-result compositor.
  *
- * Combine page results from multiple parsers without losing lineage or
- * silently replacing data. Every page has exactly one selected result or
- * an explicit failure. Output is deterministic regardless of input order.
- *
- * K1: Inputs — page profile, parser results, parse plan, verifier history,
- *     deterministic selection policy.
- * K2: Selected page result — one per requested page.
- * K3: Selection rules — based on verification coverage, not model ranking.
- * K4: Deduplication — by canonical content hash, not title/approximate text.
- * K5: Page order — ascending, blocks/tables retain parser order + fallback.
- * K6: Lineage — every block/table traceable to parser run ID, method,
- *     version, config SHA, source SHA, page, output artifact SHA.
+ * Every requested physical page receives exactly one selected parser result or
+ * an explicit failure. Conflicting outputs remain visible as alternatives and
+ * every parser contribution retains full lineage.
  */
-import { z } from 'zod';
-import {
-  type ParserPageResultV1,
-  type ParserPageFailureV1,
-  type ParserRuntimeResultV1,
-  type LayoutBlockV1,
-  type ParsedTableV1,
-  type EvidencePrecisionV1,
-  computeResultContentSha256,
-  pageRangeKey,
-} from './parser-runtime-contract-v1.js';
-import {
-  type DefenseBudgetParsePlanV1,
-} from './route-planner.js';
-import {
-  sha256CanonicalJson,
-  type JsonValue,
-} from '../contracts/canonical-json.js';
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
-
-/* ------------------------------------------------------------------ */
-/* K2. Selected page result contract                                   */
-/* ------------------------------------------------------------------ */
+import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
+import type { DefenseBudgetParsePlanV1 } from './route-planner.js';
+import type {
+  EvidencePrecisionV1,
+  ParserPageFailureV1,
+  ParserPageResultV1,
+  ParserRuntimeResultV1,
+} from './parser-runtime-contract-v1.js';
 
 export interface ParserRunResultEntry {
   parserRunId: string;
@@ -76,12 +53,7 @@ export interface ComposedPageOutputV1 {
   contentSha256: string;
 }
 
-/* ------------------------------------------------------------------ */
-/* K3. Selection policy                                               */
-/* ------------------------------------------------------------------ */
-
 export type SelectionPolicy = 'strict_verification_coverage' | 'engine_preference';
-
 export const DEFAULT_SELECTION_POLICY: SelectionPolicy = 'strict_verification_coverage';
 
 export const ENGINE_PREFERENCE_ORDER: ExtractionMethodV1[] = [
@@ -94,9 +66,6 @@ export const ENGINE_PREFERENCE_ORDER: ExtractionMethodV1[] = [
   'manual',
 ];
 
-/**
- * Reason codes for why a parser result was selected or not.
- */
 export const SELECTION_REASON_CODES = {
   RESOLVED_FINDING: 'resolved_verifier_finding',
   PAID_DOES_NOT_OUTRANK: 'paid_does_not_outrank_local_without_reason',
@@ -109,273 +78,209 @@ export const SELECTION_REASON_CODES = {
   ALL_FAILED: 'all_parsers_failed_for_page',
 } as const;
 
-/* ------------------------------------------------------------------ */
-/* K4. Deduplication                                                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * Compute the canonical content hash of a page result's blocks and tables.
- * Used for deduplication — two results with the same hash are identical.
- */
 export function computeBlockTableHash(page: ParserPageResultV1): string {
   const content: JsonValue = {
-    blocks: page.blocks.map((b) => ({
-      type: b.blockType,
-      text: b.text,
-      order: b.readingOrder ?? b.blockIndex,
+    blocks: page.blocks.map((block) => ({
+      type: block.blockType,
+      text: block.text,
+      order: block.readingOrder ?? block.blockIndex,
     })),
-    tables: page.tables.map((t) => ({
-      cells: t.cells.map((c) => ({
-        r: c.rowIndex,
-        c: c.columnIndex,
-        text: c.text,
+    tables: page.tables.map((table) => ({
+      cells: table.cells.map((cell) => ({
+        r: cell.rowIndex,
+        c: cell.columnIndex,
+        text: cell.text,
       })),
-      rowCount: t.rowCount,
-      columnCount: t.columnCount,
+      rowCount: table.rowCount,
+      columnCount: table.columnCount,
     })),
   };
   return sha256CanonicalJson(content);
 }
 
-/**
- * Check if two page results have identical content (by canonical hash).
- */
-export function arePageResultsIdentical(a: ParserPageResultV1, b: ParserPageResultV1): boolean {
-  return computeBlockTableHash(a) === computeBlockTableHash(b);
+export function arePageResultsIdentical(
+  left: ParserPageResultV1,
+  right: ParserPageResultV1,
+): boolean {
+  return computeBlockTableHash(left) === computeBlockTableHash(right);
 }
 
-/* ------------------------------------------------------------------ */
-/* K6. Lineage                                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Build lineage entries for all blocks/tables from a parser run result.
- */
 export function buildLineageEntries(entry: ParserRunResultEntry): PageLineageEntry[] {
-  const lineages: PageLineageEntry[] = [];
-  for (const page of entry.result.pages) {
-    lineages.push({
-      parserRunId: entry.parserRunId,
-      method: entry.method,
-      parserVersion: entry.parserVersion,
-      parserConfigSha256: entry.parserConfigSha256,
-      sourceSha256: entry.sourceSha256,
-      page: page.page,
-      outputArtifactSha256: entry.outputArtifactSha256,
-    });
-  }
-  return lineages;
+  return entry.result.pages.map((page) => ({
+    parserRunId: entry.parserRunId,
+    method: entry.method,
+    parserVersion: entry.parserVersion,
+    parserConfigSha256: entry.parserConfigSha256,
+    sourceSha256: entry.sourceSha256,
+    page: page.page,
+    outputArtifactSha256: entry.outputArtifactSha256,
+  }));
 }
-
-/* ------------------------------------------------------------------ */
-/* K3. Selection logic                                                */
-/* ------------------------------------------------------------------ */
 
 interface PageCandidate {
   entry: ParserRunResultEntry;
   pageResult: ParserPageResultV1;
-  hasFailures: boolean;
-  failures: ParserPageFailureV1[];
+}
+
+function precisionRank(value: EvidencePrecisionV1): number {
+  if (value === 'cell_bbox') return 3;
+  if (value === 'text_span') return 2;
+  return 1;
+}
+
+function engineRank(method: ExtractionMethodV1): number {
+  const index = ENGINE_PREFERENCE_ORDER.indexOf(method);
+  return index === -1 ? ENGINE_PREFERENCE_ORDER.length : index;
+}
+
+function sortedUniquePages(pages: readonly number[]): number[] {
+  return [...new Set(pages)].sort((a, b) => a - b);
+}
+
+function samePages(left: readonly number[], right: readonly number[]): boolean {
+  const a = sortedUniquePages(left);
+  const b = sortedUniquePages(right);
+  return a.length === b.length && a.every((page, index) => page === b[index]);
 }
 
 /**
- * Collect all candidates for a specific page from all parser run results.
+ * The active escalation plan names the exact engine/page work for the current
+ * round. Deriving run IDs from that plan prevents an older local result from
+ * remaining selected merely because the caller omitted an explicit ID set.
  */
-function collectPageCandidates(
+export function deriveEscalationRunIds(
+  plan: DefenseBudgetParsePlanV1 | undefined,
   entries: readonly ParserRunResultEntry[],
-  pageNumber: number,
-): PageCandidate[] {
-  const candidates: PageCandidate[] = [];
-  for (const entry of entries) {
-    const pageResult = entry.result.pages.find((p) => p.page === pageNumber);
-    if (pageResult) {
-      candidates.push({
-        entry,
-        pageResult,
-        hasFailures: false,
-        failures: [],
-      });
-    }
-    // Check for explicit failures for this page
-    const failure = entry.result.failedPages.find((f) => f.page === pageNumber);
-    if (failure) {
-      candidates.push({
-        entry,
-        pageResult: entry.result.pages.find((p) => p.page === pageNumber)!,
-        hasFailures: true,
-        failures: [failure],
-      });
+): Set<string> {
+  const output = new Set<string>();
+  if (!plan) return output;
+  const escalationSteps = plan.steps.filter(
+    (step) => !step.reasonCodes.includes('initial_plan'),
+  );
+  for (const step of escalationSteps) {
+    for (const entry of entries) {
+      if (
+        entry.method === step.engine &&
+        samePages(entry.result.requestedPages, step.pages)
+      ) {
+        output.add(entry.parserRunId);
+      }
     }
   }
-  return candidates;
+  return output;
 }
 
-/**
- * Determine evidence precision rank — higher is better.
- */
-function precisionRank(p: EvidencePrecisionV1): number {
-  switch (p) {
-    case 'cell_bbox': return 3;
-    case 'text_span': return 2;
-    case 'page_only': return 1;
+function compareCandidates(
+  left: PageCandidate,
+  right: PageCandidate,
+  escalationRunIds: ReadonlySet<string>,
+  policy: SelectionPolicy,
+): number {
+  if (policy === 'strict_verification_coverage') {
+    const leftEscalation = escalationRunIds.has(left.entry.parserRunId);
+    const rightEscalation = escalationRunIds.has(right.entry.parserRunId);
+    if (leftEscalation !== rightEscalation) return leftEscalation ? -1 : 1;
   }
+
+  const precisionDifference =
+    precisionRank(right.pageResult.evidencePrecision) -
+    precisionRank(left.pageResult.evidencePrecision);
+  if (precisionDifference !== 0) return precisionDifference;
+
+  const engineDifference = engineRank(left.entry.method) - engineRank(right.entry.method);
+  if (engineDifference !== 0) return engineDifference;
+  return left.entry.parserRunId.localeCompare(right.entry.parserRunId);
 }
 
-/**
- * Select the best candidate for a page based on the deterministic policy.
- *
- * Rules (K3):
- * 1. A result that resolved a verifier finding may replace the prior result.
- * 2. Unrelated content must not disappear; compose compatible blocks/tables.
- * 3. Conflicting results are retained as alternatives.
- * 4. LlamaParse does not automatically outrank local output.
- * 5. OCR does not outrank embedded-text output on a clean page.
- * 6. Manual last-wins replacement is forbidden.
- */
-function selectPageCandidate(
-  candidates: PageCandidate[],
-  pageNumber: number,
-  escalationRunIds?: Set<string>,
-): SelectedPageResultV1 {
-  if (candidates.length === 0) {
-    return {
-      page: pageNumber,
-      selectedParserRunId: null,
-      selectionReasonCodes: [SELECTION_REASON_CODES.NO_RESULTS],
-      selectedResult: null,
-      alternativeParserRunIds: [],
-      failures: [],
-    };
-  }
-
-  // Filter to candidates with successful page results (not just failures)
-  const successful = candidates.filter((c) => !c.hasFailures);
-  const allFailed = candidates.filter((c) => c.hasFailures);
-
-  if (successful.length === 0) {
-    // All parsers failed for this page
-    return {
-      page: pageNumber,
-      selectedParserRunId: null,
-      selectionReasonCodes: [SELECTION_REASON_CODES.ALL_FAILED],
-      selectedResult: null,
-      alternativeParserRunIds: [],
-      failures: allFailed.flatMap((c) => c.failures),
-    };
-  }
-
-  // K3 Rule 1: If a page resolved a verifier finding, prefer the engine
-  // from the escalation plan (later step = higher ordinal = resolved finding)
-  // For now, we use engine preference order as the deterministic tiebreaker.
-
-  // K3 Rule 4: LlamaParse does not automatically outrank local.
-  // K3 Rule 5: OCR does not outrank embedded-text without reason.
-  // We rank by: resolved finding > evidence precision > engine preference order
-
-  const escalationIds = escalationRunIds ?? new Set<string>();
-
-  let best = successful[0]!;
-  let bestReason: string = escalationIds.has(best.entry.parserRunId)
-    ? SELECTION_REASON_CODES.RESOLVED_FINDING
-    : SELECTION_REASON_CODES.FIRST_SUCCESSFUL;
-  let bestRank = 0;
-
-  // Compute initial rank for the first candidate
-  bestRank = computeCandidateRank(best, escalationIds.has(best.entry.parserRunId));
-
-  for (let i = 1; i < successful.length; i++) {
-    const candidate = successful[i]!;
-    const candidateRank = computeCandidateRank(candidate, escalationIds.has(candidate.entry.parserRunId));
-
-    if (candidateRank > bestRank) {
-      const loser = best;
-      best = candidate;
-      bestRank = candidateRank;
-      bestReason = determineSelectionReason(candidate, loser, escalationIds.has(candidate.entry.parserRunId));
-    }
-  }
-
-  // Collect alternatives (all successful results that are not the selected one)
-  const alternatives = successful
-    .filter((c) => c.entry.parserRunId !== best.entry.parserRunId)
-    .map((c) => c.entry.parserRunId);
-
-  // K4: Deduplicate — check if any alternatives are identical to the selected
-  const dedupedAlternatives: string[] = [];
-  for (const alt of alternatives) {
-    const altCandidate = successful.find((c) => c.entry.parserRunId === alt);
-    if (altCandidate && !arePageResultsIdentical(altCandidate.pageResult, best.pageResult)) {
-      dedupedAlternatives.push(alt);
-    } else if (altCandidate && arePageResultsIdentical(altCandidate.pageResult, best.pageResult)) {
-      // Identical — don't include as alternative, it's deduplicated
-      continue;
-    } else {
-      dedupedAlternatives.push(alt);
-    }
-  }
-
-  return {
-    page: pageNumber,
-    selectedParserRunId: best.entry.parserRunId,
-    selectionReasonCodes: [bestReason],
-    selectedResult: best.pageResult,
-    alternativeParserRunIds: dedupedAlternatives,
-    failures: allFailed.flatMap((c) => c.failures),
-  };
-}
-
-/**
- * Compute a deterministic rank for a candidate.
- * Higher rank = better candidate.
- *
- * Ranking factors (in order):
- * 1. Escalation run (resolved verifier finding) (weight: 1000)
- * 2. Evidence precision (weight: 100)
- * 3. Engine preference order (weight: 10)
- * 4. Parser run ID (tiebreaker, weight: 1)
- */
-function computeCandidateRank(candidate: PageCandidate, isEscalation: boolean): number {
-  let rank = 0;
-  if (isEscalation) rank += 1000;
-  rank += precisionRank(candidate.pageResult.evidencePrecision) * 100;
-  const engineIdx = ENGINE_PREFERENCE_ORDER.indexOf(candidate.entry.method);
-  // Lower index = higher preference, so invert
-  rank += (ENGINE_PREFERENCE_ORDER.length - engineIdx) * 10;
-  // Tiebreaker: lexicographic parser run ID for determinism
-  // (negative so that lower string = higher rank — deterministic)
-  rank -= candidate.entry.parserRunId.charCodeAt(0) || 0;
-  return rank;
-}
-
-/**
- * Determine the reason code for why a candidate was selected over another.
- */
-function determineSelectionReason(
+function selectionReason(
   winner: PageCandidate,
-  loser: PageCandidate,
-  winnerIsEscalation: boolean,
+  ordered: readonly PageCandidate[],
+  escalationRunIds: ReadonlySet<string>,
 ): string {
-  if (winnerIsEscalation) {
+  if (escalationRunIds.has(winner.entry.parserRunId)) {
     return SELECTION_REASON_CODES.RESOLVED_FINDING;
   }
-  // Check if winner has higher precision
-  if (precisionRank(winner.pageResult.evidencePrecision) > precisionRank(loser.pageResult.evidencePrecision)) {
+  const runnerUp = ordered.find(
+    (candidate) => candidate.entry.parserRunId !== winner.entry.parserRunId,
+  );
+  if (
+    runnerUp &&
+    precisionRank(winner.pageResult.evidencePrecision) >
+      precisionRank(runnerUp.pageResult.evidencePrecision)
+  ) {
     return SELECTION_REASON_CODES.HIGHER_PRECISION;
   }
-  // Check if paid lost to local (K3 Rule 4)
-  if (loser.entry.method === 'llamaparse' && winner.entry.method !== 'llamaparse') {
+  if (
+    winner.entry.method !== 'llamaparse' &&
+    ordered.some((candidate) => candidate.entry.method === 'llamaparse')
+  ) {
     return SELECTION_REASON_CODES.PAID_DOES_NOT_OUTRANK;
   }
-  // Check if OCR lost to clean digital (K3 Rule 5)
-  if (loser.entry.method === 'paddleocr' && winner.entry.method !== 'paddleocr') {
+  if (
+    winner.entry.method !== 'paddleocr' &&
+    ordered.some((candidate) => candidate.entry.method === 'paddleocr')
+  ) {
     return SELECTION_REASON_CODES.OCR_NOT_OVER_CLEAN;
   }
   return SELECTION_REASON_CODES.FIRST_SUCCESSFUL;
 }
 
-/* ------------------------------------------------------------------ */
-/* K5. Main compositor entry point                                    */
-/* ------------------------------------------------------------------ */
+function selectPage(input: {
+  page: number;
+  entries: readonly ParserRunResultEntry[];
+  escalationRunIds: ReadonlySet<string>;
+  policy: SelectionPolicy;
+}): SelectedPageResultV1 {
+  const successful: PageCandidate[] = [];
+  const failures: ParserPageFailureV1[] = [];
+
+  for (const entry of input.entries) {
+    const pageResult = entry.result.pages.find((page) => page.page === input.page);
+    if (pageResult) successful.push({ entry, pageResult });
+    failures.push(
+      ...entry.result.failedPages.filter((failure) => failure.page === input.page),
+    );
+  }
+
+  if (successful.length === 0) {
+    return {
+      page: input.page,
+      selectedParserRunId: null,
+      selectionReasonCodes: [
+        failures.length > 0
+          ? SELECTION_REASON_CODES.ALL_FAILED
+          : SELECTION_REASON_CODES.NO_RESULTS,
+      ],
+      selectedResult: null,
+      alternativeParserRunIds: [],
+      failures,
+    };
+  }
+
+  const ordered = [...successful].sort((left, right) =>
+    compareCandidates(left, right, input.escalationRunIds, input.policy),
+  );
+  const winner = ordered[0]!;
+  const alternatives = ordered
+    .slice(1)
+    .filter(
+      (candidate) =>
+        !arePageResultsIdentical(candidate.pageResult, winner.pageResult),
+    )
+    .map((candidate) => candidate.entry.parserRunId)
+    .sort();
+
+  return {
+    page: input.page,
+    selectedParserRunId: winner.entry.parserRunId,
+    selectionReasonCodes: [
+      selectionReason(winner, ordered, input.escalationRunIds),
+    ],
+    selectedResult: winner.pageResult,
+    alternativeParserRunIds: alternatives,
+    failures,
+  };
+}
 
 export interface ComposeOptions {
   executionId: string;
@@ -383,95 +288,68 @@ export interface ComposeOptions {
   requestedPages: number[];
   parserRunEntries: readonly ParserRunResultEntry[];
   plan?: DefenseBudgetParsePlanV1;
-  /** Parser run IDs that were executed as escalation steps to resolve verifier findings. */
   escalationRunIds?: Set<string>;
   selectionPolicy?: SelectionPolicy;
 }
 
-/**
- * Compose page results from multiple parser runs into a deterministic
- * selected-page output.
- *
- * K1: Accepts page profile (via plan), parser results, parse plan,
- *     verifier history (resolved findings), selection policy.
- * K2: Produces exactly one selected result or explicit failure per page.
- * K3: Selection is deterministic and verification-coverage-based.
- * K4: Deduplicates by canonical content hash.
- * K5: Output pages sorted ascending.
- * K6: Lineage preserved for all blocks/tables.
- */
-export function composePageResults(opts: ComposeOptions): ComposedPageOutputV1 {
-  const policy = opts.selectionPolicy ?? DEFAULT_SELECTION_POLICY;
-  const escalationIds = opts.escalationRunIds ?? new Set<string>();
-
-  // K5: Process pages in ascending order
-  const sortedPages = [...opts.requestedPages].sort((a, b) => a - b);
-
-  const pageSelections: SelectedPageResultV1[] = [];
-
-  for (const pageNumber of sortedPages) {
-    const candidates = collectPageCandidates(opts.parserRunEntries, pageNumber);
-    const selected = selectPageCandidate(candidates, pageNumber, escalationIds);
-    pageSelections.push(selected);
-  }
-
-  // K6: Build lineage entries from all parser runs
-  const lineages: PageLineageEntry[] = [];
-  for (const entry of opts.parserRunEntries) {
-    lineages.push(...buildLineageEntries(entry));
-  }
-
-  // Sort lineages deterministic: by page, then parser run ID
-  lineages.sort((a, b) => {
-    if (a.page !== b.page) return a.page - b.page;
-    return a.parserRunId.localeCompare(b.parserRunId);
-  });
+export function composePageResults(options: ComposeOptions): ComposedPageOutputV1 {
+  const policy = options.selectionPolicy ?? DEFAULT_SELECTION_POLICY;
+  const escalationRunIds =
+    options.escalationRunIds ??
+    deriveEscalationRunIds(options.plan, options.parserRunEntries);
+  const pages = sortedUniquePages(options.requestedPages).map((page) =>
+    selectPage({
+      page,
+      entries: options.parserRunEntries,
+      escalationRunIds,
+      policy,
+    }),
+  );
+  const lineages = options.parserRunEntries
+    .flatMap(buildLineageEntries)
+    .sort(
+      (left, right) =>
+        left.page - right.page ||
+        left.parserRunId.localeCompare(right.parserRunId),
+    );
 
   const unsealed: Omit<ComposedPageOutputV1, 'contentSha256'> = {
     schemaVersion: 'defense_budget_composed_output_v1',
-    executionId: opts.executionId,
-    sourceSha256: opts.sourceSha256,
-    pages: pageSelections,
+    executionId: options.executionId,
+    sourceSha256: options.sourceSha256,
+    pages,
     lineages,
   };
-
-  // Compute content SHA (deterministic)
-  const contentSha256 = sha256CanonicalJson(unsealed as unknown as JsonValue);
-
   return {
     ...unsealed,
-    contentSha256,
+    contentSha256: sha256CanonicalJson(unsealed as unknown as JsonValue),
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* Validation helpers                                                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * Verify that a composed output's content SHA is valid.
- */
 export function verifyComposedContentSha(output: ComposedPageOutputV1): boolean {
   try {
-    const { contentSha256: _, ...rest } = output;
-    const recomputed = sha256CanonicalJson(rest as unknown as JsonValue);
-    return recomputed === output.contentSha256;
+    const { contentSha256: _contentSha256, ...unsealed } = output;
+    return (
+      sha256CanonicalJson(unsealed as unknown as JsonValue) ===
+      output.contentSha256
+    );
   } catch {
     return false;
   }
 }
 
-/**
- * Validate that every page has exactly one selected result or one explicit failure.
- */
-export function validatePageCompleteness(pages: SelectedPageResultV1[]): boolean {
-  for (const page of pages) {
-    // A page is "accounted for" if it has either:
-    // 1. A selected result (selectedResult !== null), OR
-    // 2. An explicit null with a reason code (e.g. NO_RESULTS or ALL_FAILED)
-    if (page.selectedResult === null && page.selectionReasonCodes.length === 0) {
-      return false; // neither result nor reason
+export function validatePageCompleteness(
+  pages: SelectedPageResultV1[],
+): boolean {
+  return pages.every((page) => {
+    if (page.selectedResult !== null) {
+      return page.selectedParserRunId !== null;
     }
-  }
-  return true;
+    return (
+      page.selectedParserRunId === null &&
+      page.selectionReasonCodes.length > 0 &&
+      (page.failures.length > 0 ||
+        page.selectionReasonCodes.includes(SELECTION_REASON_CODES.NO_RESULTS))
+    );
+  });
 }

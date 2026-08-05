@@ -1,141 +1,165 @@
-/**
- * plan-defense-budget-parse — deterministic parse plan CLI.
- *
- *   pnpm --filter @capiro/api plan:defense-budget-parse -- \
- *     --manifest <manifest.json> \
- *     --document <document-key> \
- *     --source <local.pdf> \
- *     --profile <profile.json> \
- *     --out <plan.json>
- *
- * Behavior (M2):
- *   - Prints local engine/page plan.
- *   - Pages that may later require OCR.
- *   - paidAuthorizationRequired=false for initial plan.
- *   - Expected parser runtime target.
- *   - No parser execution.
- *
- * Exit codes (M9): 0 success, 2 argument failure, 3 source failure, 9 internal.
- */
+/** Deterministic, read-only Phase 3 parse-plan command. */
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import { parseBudgetCycleManifestV1 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
-import { buildInitialParsePlan } from '../src/defense-budget/parser-router/route-planner.js';
-import type { PageProfileV1 } from '../src/defense-budget/parser-router/page-profiler.js';
+import {
+  parseDocumentProfileResultV1,
+} from '../src/defense-budget/parser-router/page-profiler.js';
+import {
+  buildInitialParsePlan,
+  parseDefenseBudgetParsePlanV1,
+} from '../src/defense-budget/parser-router/route-planner.js';
 
-function argValue(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 ? process.argv[index + 1] : undefined;
+const VALUE_FLAGS = new Set([
+  '--manifest',
+  '--document',
+  '--source',
+  '--profile',
+  '--out',
+  '--max-escalation-rounds',
+]);
+
+function parseArgs(argv: string[]) {
+  const values = new Map<string, string>();
+  for (let index = 0; index < argv.length; index++) {
+    const flag = argv[index]!;
+    if (!VALUE_FLAGS.has(flag)) throw new Error(`unknown flag: ${flag}`);
+    const value = argv[++index];
+    if (!value || value.startsWith('--')) throw new Error(`missing value for ${flag}`);
+    values.set(flag, value);
+  }
+  const manifest = values.get('--manifest');
+  const document = values.get('--document');
+  const source = values.get('--source');
+  const profile = values.get('--profile');
+  const out = values.get('--out');
+  if (!manifest || !document || !source || !profile || !out) {
+    throw new Error('--manifest, --document, --source, --profile, and --out are required');
+  }
+  const maxEscalationRounds = Number(values.get('--max-escalation-rounds') ?? '4');
+  if (!Number.isInteger(maxEscalationRounds) || maxEscalationRounds < 1) {
+    throw new Error('--max-escalation-rounds must be a positive integer');
+  }
+  return { manifest, document, source, profile, out, maxEscalationRounds };
 }
 
-function computeFileSha256(filePath: string): string {
-  const data = fs.readFileSync(filePath);
-  return createHash('sha256').update(data).digest('hex');
+function sha256File(filePath: string): string {
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-function main(): void {
-  const manifestPath = argValue('manifest');
-  const documentKey = argValue('document');
-  const sourcePath = argValue('source');
-  const profilePath = argValue('profile');
-  const outPath = argValue('out');
+function runtimeTarget(engines: readonly string[]): 'table' | 'layout' | 'ocr' {
+  return engines.includes('paddleocr')
+    ? 'ocr'
+    : engines.includes('docling')
+      ? 'layout'
+      : 'table';
+}
 
-  if (!manifestPath || !documentKey || !sourcePath || !profilePath || !outPath) {
-    console.error(
-      'Usage: plan-defense-budget-parse.ts --manifest <manifest.json> --document <key> --source <local.pdf> --profile <profile.json> --out <plan.json>',
-    );
+async function main(): Promise<void> {
+  let args: ReturnType<typeof parseArgs>;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error((error as Error).message);
     process.exit(2);
   }
 
-  // Validate manifest
   let manifest;
   try {
     manifest = parseBudgetCycleManifestV1(
-      JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+      JSON.parse(fs.readFileSync(path.resolve(args.manifest), 'utf8')),
     );
-  } catch (e) {
-    console.error(`Manifest validation failed: ${(e as Error).message}`);
+  } catch (error) {
+    console.error(`manifest validation failed: ${(error as Error).message}`);
     process.exit(2);
-    return;
   }
-
-  const docEntry = manifest.documents.find(
-    (d: { documentKey: string }) => d.documentKey === documentKey,
-  );
-  if (!docEntry) {
-    console.error(`Document '${documentKey}' not found in manifest.`);
+  const document = manifest.documents.find((entry) => entry.documentKey === args.document);
+  if (!document) {
+    console.error(`document not found in manifest: ${args.document}`);
     process.exit(2);
   }
 
-  // Compute source SHA
+  const sourcePath = path.resolve(args.source);
+  const profilePath = path.resolve(args.profile);
+  const outputPath = path.resolve(args.out);
   if (!fs.existsSync(sourcePath)) {
-    console.error(`Source file not found: ${sourcePath}`);
+    console.error(`source file not found: ${sourcePath}`);
     process.exit(3);
   }
-  const actualSha = computeFileSha256(sourcePath);
+  if (!fs.existsSync(profilePath)) {
+    console.error(`profile file not found: ${profilePath}`);
+    process.exit(3);
+  }
 
-  // Load profile
-  let profileData;
+  const sourceSha256 = sha256File(sourcePath);
+  let profile;
   try {
-    profileData = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
-  } catch (e) {
-    console.error(`Cannot read profile: ${(e as Error).message}`);
-    process.exit(3);
-    return;
-  }
-
-  const pageProfiles: PageProfileV1[] = profileData.pages ?? [];
-  const requestedPages = pageProfiles.map((p) => p.page);
-  const parserPolicy =
-    (docEntry as Record<string, unknown>)['parserPolicy'] ?? 'deterministic_table';
-
-  // Build plan
-  const plan = buildInitialParsePlan({
-    executionId: `plan-${documentKey}-${Date.now()}`,
-    cycleId: manifest.cycleId,
-    manifestDocumentKey: documentKey,
-    sourceSha256: actualSha,
-    parserPolicy: parserPolicy as 'deterministic_table' | 'mixed_layout' | 'ocr' | 'complex' | 'native_structured',
-    pageProfiles,
-  });
-
-  // Write plan
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(plan, null, 2) + '\n', 'utf8');
-
-  // Print summary
-  console.log(`Plan written: ${outPath}`);
-  console.log(`Plan SHA-256: ${plan.planSha256}`);
-  console.log(`Steps: ${plan.steps.length}`);
-  for (const step of plan.steps) {
-    console.log(
-      `  ${step.ordinal}: ${step.engine} pages=[${step.pages.join(',')}] paid=${step.paid}`,
+    profile = parseDocumentProfileResultV1(
+      JSON.parse(fs.readFileSync(profilePath, 'utf8')),
     );
+  } catch (error) {
+    console.error(`profile validation failed: ${(error as Error).message}`);
+    process.exit(3);
   }
-  console.log(`Paid authorization required: ${plan.paidAuthorizationRequired}`);
-  console.log(`Unresolved pages: [${plan.unresolvedPages.join(',')}]`);
-
-  // Identify pages that may later require OCR
-  const ocrPages = pageProfiles
-    .filter((p) => p.likelyImageOnly || p.likelyRotated)
-    .map((p) => p.page);
-  if (ocrPages.length > 0) {
-    console.log(`Pages that may later require OCR: [${ocrPages.join(',')}]`);
+  if (profile.sourceSha256 !== sourceSha256) {
+    console.error(
+      `profile/source SHA mismatch: profile=${profile.sourceSha256} source=${sourceSha256}`,
+    );
+    process.exit(3);
+  }
+  if (profile.pages.length === 0) {
+    console.error('profile contains zero physical pages');
+    process.exit(3);
+  }
+  if (document.parserPolicy === 'native_structured') {
+    console.error(
+      'native_structured requires an explicitly supplied structured companion; the PDF parser plan cannot substitute for it',
+    );
+    process.exit(2);
   }
 
-  // Expected runtime target
-  const hasDocling = plan.steps.some((s) => s.engine === 'docling');
-  const hasOcr = plan.steps.some((s) => s.engine === 'paddleocr');
-  const target = hasOcr ? 'ocr' : hasDocling ? 'layout' : 'table';
-  console.log(`Expected parser runtime target: ${target}`);
+  const executionId = `plan-${document.documentKey}-${sourceSha256.slice(0, 16)}-${profile.contentSha256.slice(0, 16)}`;
+  const plan = parseDefenseBudgetParsePlanV1(
+    buildInitialParsePlan({
+      executionId,
+      cycleId: manifest.cycleId,
+      manifestDocumentKey: document.documentKey,
+      sourceSha256,
+      parserPolicy: document.parserPolicy,
+      pageProfiles: profile.pages,
+      maxEscalationRounds: args.maxEscalationRounds,
+    }),
+  );
+  if (plan.paidAuthorizationRequired || plan.plannedPaidPages.length > 0) {
+    throw new Error('initial plan must be local-only and free');
+  }
 
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(plan, null, 2)}\n`, 'utf8');
+  console.log(
+    JSON.stringify(
+      {
+        documentKey: document.documentKey,
+        sourceSha256,
+        profileContentSha256: profile.contentSha256,
+        planSha256: plan.planSha256,
+        executionId: plan.executionId,
+        runtimeTarget: runtimeTarget(plan.steps.map((step) => step.engine)),
+        steps: plan.steps,
+        pagesThatMayRequireOcr: profile.pages
+          .filter((page) => page.likelyImageOnly || page.likelyRotated)
+          .map((page) => page.page),
+        outputPath,
+      },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 
-const invokedDirectly =
-  process.argv[1] != null &&
-  process.argv[1].endsWith('plan-defense-budget-parse.ts');
-if (invokedDirectly) {
-  main();
-}
+main().catch((error) => {
+  console.error(`internal failure: ${(error as Error).message}`);
+  process.exit(9);
+});

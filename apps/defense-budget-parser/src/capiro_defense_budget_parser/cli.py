@@ -1,25 +1,4 @@
-"""capiro_defense_budget_parser.cli — command-line interface for the parser runtime.
-
-Commands:
-    validate-job  — validate a job JSON file against the contract
-    profile       — run page profiling on a source PDF
-    run           — run a parser engine on a source PDF
-    version       — print version information
-
-Exit codes:
-    0 success
-    2 contract/argument failure
-    3 source SHA mismatch
-    4 parser unavailable
-    5 partial page failure
-    6 total parser failure
-
-Usage:
-    capiro-defense-budget-parser validate-job --job <job.json>
-    capiro-defense-budget-parser profile --job <job.json> --out <result.json>
-    capiro-defense-budget-parser run --job <job.json> --out <result.json>
-    capiro-defense-budget-parser version
-"""
+"""Command-line boundary for the isolated defense-budget parser runtime."""
 
 from __future__ import annotations
 
@@ -29,13 +8,36 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from . import __version__
+from .contracts import ParserRuntimeJobV1
+from .engine_versions import ENGINE_VERSIONS
+
+EXIT_SUCCESS = 0
+EXIT_CONTRACT = 2
+EXIT_SOURCE_SHA = 3
+EXIT_UNAVAILABLE = 4
+EXIT_PARTIAL = 5
+EXIT_TOTAL_FAILURE = 6
 
 
-def _load_job(job_path: str | Path) -> dict[str, Any]:
-    with open(job_path, encoding='utf-8') as f:
-        data: dict[str, Any] = json.load(f)
-        return data
+def _load_json(path: str | Path) -> dict[str, Any]:
+    with open(path, encoding='utf-8') as file:
+        value = json.load(file)
+    if not isinstance(value, dict):
+        raise ValueError('expected a JSON object')
+    return value
+
+
+def _load_validated_job(path: str | Path, *, allow_empty_pages: bool = False) -> dict[str, Any]:
+    raw = _load_json(path)
+    if allow_empty_pages and raw.get('requestedPages') == []:
+        probe = dict(raw)
+        probe['requestedPages'] = [1]
+        ParserRuntimeJobV1.model_validate(probe)
+        return raw
+    return ParserRuntimeJobV1.model_validate(raw).model_dump()
 
 
 def _write_result(result: Any, output_path: str | Path) -> None:
@@ -45,177 +47,146 @@ def _write_result(result: Any, output_path: str | Path) -> None:
         data = result
     else:
         raise TypeError(f'unsupported result type: {type(result)}')
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with open(output, 'w', encoding='utf-8') as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
+        file.write('\n')
+
+
+def _engine_versions() -> dict[str, str]:
+    return dict(ENGINE_VERSIONS)
 
 
 def _dispatch_engine(job: dict[str, Any]) -> Any:
-    """Dispatch to the correct engine based on the job's engine field."""
-    engine = job.get('engine', '')
-
+    engine = job['engine']
+    common = {
+        'source_path': job['sourcePath'],
+        'expected_sha256': job['sourceSha256'],
+        'requested_pages': job['requestedPages'],
+        'config': job.get('parserConfig', {}),
+        'job_id': job['jobId'],
+    }
     if engine == 'deterministic_pdfplumber':
         from .pdfplumber_engine import run_pdfplumber_engine
 
-        config = job.get('parserConfig', {})
-        return run_pdfplumber_engine(
-            source_path=job['sourcePath'],
-            expected_sha256=job['sourceSha256'],
-            requested_pages=job['requestedPages'],
-            config=config,
-            job_id=job.get('jobId', 'pdfplumber-job'),
-        )
-
+        return run_pdfplumber_engine(**common)
     if engine == 'camelot':
         from .camelot_engine import run_camelot_engine
 
-        config = job.get('parserConfig', {})
-        return run_camelot_engine(
-            source_path=job['sourcePath'],
-            expected_sha256=job['sourceSha256'],
-            requested_pages=job['requestedPages'],
-            config=config,
-            job_id=job.get('jobId', 'camelot-job'),
-        )
+        return run_camelot_engine(**common)
+    if engine == 'docling':
+        from .docling_engine import run_docling_engine
 
+        return run_docling_engine(**common)
     if engine == 'paddleocr':
         from .paddleocr_engine import run_paddleocr_engine
 
-        config = job.get('parserConfig', {})
-        return run_paddleocr_engine(
-            source_path=job['sourcePath'],
-            expected_sha256=job['sourceSha256'],
-            requested_pages=job['requestedPages'],
-            config=config,
-            job_id=job.get('jobId', 'paddleocr-job'),
-        )
-
+        return run_paddleocr_engine(**common)
     raise ValueError(f'unsupported engine: {engine}')
 
 
 def _exit_code_from_result(result: Any) -> int:
-    """Determine exit code from a parser result."""
-    if hasattr(result, 'failed_pages') and hasattr(result, 'pages'):
-        len(result.requested_pages) if hasattr(result, 'requested_pages') else 0
-        failed = len(result.failed_pages)
-        succeeded = len(result.pages)
-    elif isinstance(result, dict):
-        len(result.get('requestedPages', []))
-        failed = len(result.get('failedPages', []))
-        succeeded = len(result.get('pages', []))
-    else:
-        return 0
-
+    data = result.model_dump() if hasattr(result, 'model_dump') else result
+    if not isinstance(data, dict):
+        return EXIT_TOTAL_FAILURE
+    failed = len(data.get('failedPages', []))
+    succeeded = len(data.get('succeededPages', []))
     if failed == 0 and succeeded > 0:
-        return 0
+        return EXIT_SUCCESS
     if succeeded > 0 and failed > 0:
-        return 5  # partial failure
-    if failed > 0 and succeeded == 0:
-        return 6  # total failure
-    return 0
+        return EXIT_PARTIAL
+    return EXIT_TOTAL_FAILURE
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog='capiro-defense-budget-parser',
+        description='Isolated parser runtime for defense-budget PDFs',
+    )
+    commands = parser.add_subparsers(dest='command', required=True)
+    validate = commands.add_parser('validate-job', help='Validate a job JSON file')
+    validate.add_argument('--job', required=True)
+    profile = commands.add_parser('profile', help='Profile requested pages or the full PDF')
+    profile.add_argument('--job', required=True)
+    profile.add_argument('--out', required=True)
+    run = commands.add_parser('run', help='Run one strict parser job')
+    run.add_argument('--job', required=True)
+    run.add_argument('--out', required=True)
+    version = commands.add_parser('version', help='Print runtime and engine versions')
+    version.add_argument('--json', action='store_true', dest='as_json')
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog='capiro-defense-budget-parser',
-        description='Isolated Python parser runtime for defense-budget PDFs',
-    )
-    sub = parser.add_subparsers(dest='command', required=True)
-
-    # validate-job
-    vj = sub.add_parser('validate-job', help='Validate a job JSON file')
-    vj.add_argument('--job', required=True, help='Path to job JSON file')
-
-    # profile
-    prof = sub.add_parser('profile', help='Run page profiling on a source PDF')
-    prof.add_argument('--job', required=True, help='Path to job JSON file')
-    prof.add_argument('--out', required=True, help='Path to write result JSON')
-
-    # run
-    run_p = sub.add_parser('run', help='Run a parser job')
-    run_p.add_argument('--job', required=True, help='Path to job JSON file')
-    run_p.add_argument('--out', required=True, help='Path to write result JSON')
-
-    # version
-    sub.add_parser('version', help='Print version information')
-
-    args = parser.parse_args(argv)
+    args = _build_parser().parse_args(argv)
 
     if args.command == 'version':
-        print(f'capiro-defense-budget-parser {__version__}')
-        return 0
+        engines = _engine_versions()
+        payload = {'runtimeVersion': __version__, 'engines': engines}
+        if args.as_json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f'capiro-defense-budget-parser {__version__}')
+            for engine, version in sorted(engines.items()):
+                print(f'{engine}: {version}')
+        return EXIT_SUCCESS
 
-    if args.command == 'validate-job':
-        try:
-            job = _load_job(args.job)
-        except (OSError, json.JSONDecodeError) as e:
-            print(f'error: cannot read job file: {e}', file=sys.stderr)
-            return 2
-
-        try:
-            from .contracts import ParserRuntimeJobV1
-
-            ParserRuntimeJobV1.model_validate(job)
+    try:
+        if args.command == 'validate-job':
+            _load_validated_job(args.job)
             print('job is valid')
-            return 0
-        except Exception as e:
-            print(f'job validation failed: {e}', file=sys.stderr)
-            return 2
+            return EXIT_SUCCESS
 
-    if args.command == 'profile':
-        try:
-            job = _load_job(args.job)
-        except (OSError, json.JSONDecodeError) as e:
-            print(f'error: cannot read job file: {e}', file=sys.stderr)
-            return 2
+        if args.command == 'profile':
+            job = _load_validated_job(args.job, allow_empty_pages=True)
+            from .pdf_profile import profile_document, profile_pages
 
-        try:
-            from .pdf_profile import profile_pages
-
-            result = profile_pages(
-                source_path=job['sourcePath'],
-                expected_sha256=job['sourceSha256'],
-                requested_pages=job['requestedPages'],
+            requested_pages = job['requestedPages']
+            result = (
+                profile_document(job['sourcePath'], job['sourceSha256'])
+                if len(requested_pages) == 0
+                else profile_pages(job['sourcePath'], job['sourceSha256'], requested_pages)
             )
             _write_result(result, args.out)
-            return 0
-        except ValueError as e:
-            if 'SHA mismatch' in str(e):
-                print(f'source SHA mismatch: {e}', file=sys.stderr)
-                return 3
-            print(f'profiling error: {e}', file=sys.stderr)
-            return 2
-        except Exception as e:
-            print(f'profiling error: {e}', file=sys.stderr)
-            return 6
+            return EXIT_SUCCESS
 
-    if args.command == 'run':
-        try:
-            job = _load_job(args.job)
-        except (OSError, json.JSONDecodeError) as e:
-            print(f'error: cannot read job file: {e}', file=sys.stderr)
-            return 2
-
-        try:
+        if args.command == 'run':
+            raw_job = _load_json(args.job)
+            engine_raw = raw_job.get('engine')
+            versions = _engine_versions()
+            if not isinstance(engine_raw, str) or engine_raw not in versions:
+                print(f'parser unavailable: unsupported engine: {engine_raw}', file=sys.stderr)
+                return EXIT_UNAVAILABLE
+            engine = engine_raw
+            job = ParserRuntimeJobV1.model_validate(raw_job).model_dump()
+            actual_version = versions[engine]
+            if job['parserVersion'] != actual_version:
+                raise ValueError(
+                    f'parserVersion mismatch for {engine}: '
+                    f'job declares {job["parserVersion"]}, runtime is {actual_version}'
+                )
             result = _dispatch_engine(job)
             _write_result(result, args.out)
             return _exit_code_from_result(result)
-        except ValueError as e:
-            if 'SHA mismatch' in str(e):
-                print(f'source SHA mismatch: {e}', file=sys.stderr)
-                return 3
-            if 'unsupported engine' in str(e):
-                print(f'parser unavailable: {e}', file=sys.stderr)
-                return 4
-            print(f'contract failure: {e}', file=sys.stderr)
-            return 2
-        except RuntimeError as e:
-            print(f'parser unavailable: {e}', file=sys.stderr)
-            return 4
-        except Exception as e:
-            print(f'parser error: {e}', file=sys.stderr)
-            return 6
+    except (OSError, json.JSONDecodeError, ValidationError, ValueError, KeyError) as error:
+        message = str(error)
+        if 'SHA mismatch' in message or 'source SHA mismatch' in message:
+            print(f'source SHA mismatch: {message}', file=sys.stderr)
+            return EXIT_SOURCE_SHA
+        if 'not installed' in message or 'unsupported engine' in message:
+            print(f'parser unavailable: {message}', file=sys.stderr)
+            return EXIT_UNAVAILABLE
+        print(f'contract/argument failure: {message}', file=sys.stderr)
+        return EXIT_CONTRACT
+    except RuntimeError as error:
+        print(f'parser unavailable: {error}', file=sys.stderr)
+        return EXIT_UNAVAILABLE
+    except Exception as error:  # pragma: no cover
+        print(f'parser error: {error}', file=sys.stderr)
+        return EXIT_TOTAL_FAILURE
 
-    return 1
+    return EXIT_CONTRACT
 
 
 if __name__ == '__main__':

@@ -1,29 +1,15 @@
 /**
- * defense_budget_route_planner_v1 — deterministic route and escalation planner.
- *
- * Converts manifest policy, page profiles, prior parser outcomes, and Phase 2
- * findings into a deterministic parser plan.
- *
- * Same inputs always produce the same plan and IDs. No infinite loop.
- * No repeated parser run. No missing-finding page guess.
- * Paid pages are explicit and bounded.
+ * Deterministic Phase 3 parser route and escalation planner.
  */
 import { z } from 'zod';
 import { sha256Schema } from '../contracts/extraction-artifact-v1.js';
 import {
   DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
-  pageRangeKey,
-  computeParserRunId,
-  computeParserConfigSha256,
 } from './parser-runtime-contract-v1.js';
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 import type { ParserPolicyV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { PageProfileV1 } from './page-profiler.js';
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
-
-/* ------------------------------------------------------------------ */
-/* C1. Parse plan contract                                            */
-/* ------------------------------------------------------------------ */
 
 export const parserPlanStepV1Schema = z
   .object({
@@ -70,10 +56,6 @@ export const defenseBudgetParsePlanV1Schema = z
   .strict();
 export type DefenseBudgetParsePlanV1 = z.infer<typeof defenseBudgetParsePlanV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* C2. Parser-correctable finding adapter                             */
-/* ------------------------------------------------------------------ */
-
 export const parserCorrectableFindingV1Schema = z
   .object({
     findingCode: z.string().min(1),
@@ -87,91 +69,43 @@ export const parserCorrectableFindingV1Schema = z
   .strict();
 export type ParserCorrectableFindingV1 = z.infer<typeof parserCorrectableFindingV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* C3. Escalation ladder                                              */
-/* ------------------------------------------------------------------ */
-
-/**
- * Default next-engine order for digital pages:
- *   deterministic_pdfplumber -> camelot -> docling -> llamaparse
- */
 const DEFAULT_DIGITAL_LADDER: readonly ExtractionMethodV1[] = [
   'deterministic_pdfplumber',
   'camelot',
   'docling',
   'llamaparse',
 ];
-
-/**
- * For image-only pages:
- *   paddleocr -> docling -> llamaparse
- */
 const IMAGE_ONLY_LADDER: readonly ExtractionMethodV1[] = ['paddleocr', 'docling', 'llamaparse'];
-
-/**
- * For mixed layout:
- *   docling -> camelot -> llamaparse
- */
 const MIXED_LAYOUT_LADDER: readonly ExtractionMethodV1[] = ['docling', 'camelot', 'llamaparse'];
 
-/**
- * Maps a recommended engine class from a finding to the appropriate ladder.
- */
 function ladderForEngineClass(
   engineClass: 'table' | 'layout' | 'ocr' | 'complex',
 ): readonly ExtractionMethodV1[] {
-  switch (engineClass) {
-    case 'ocr':
-      return IMAGE_ONLY_LADDER;
-    case 'layout':
-      return MIXED_LAYOUT_LADDER;
-    case 'table':
-      return DEFAULT_DIGITAL_LADDER;
-    case 'complex':
-      return MIXED_LAYOUT_LADDER;
-  }
+  if (engineClass === 'ocr') return IMAGE_ONLY_LADDER;
+  if (engineClass === 'layout' || engineClass === 'complex') return MIXED_LAYOUT_LADDER;
+  return DEFAULT_DIGITAL_LADDER;
 }
 
-/**
- * Maps a page profile to the initial engine for a given policy.
- */
 function initialEngineForPolicy(
   policy: ParserPolicyV1,
   profile: PageProfileV1,
 ): ExtractionMethodV1 {
-  // Image-only pages always start with OCR unless policy is native_structured
-  if (profile.likelyImageOnly) {
-    return 'paddleocr';
+  if (policy === 'native_structured') {
+    throw new Error(
+      'native_structured requires an explicitly supplied structured companion and must not fall back to PDF parsing',
+    );
   }
-
-  switch (policy) {
-    case 'native_structured':
-      // Should not reach here — native_structured requires companion file
-      return 'deterministic_pdfplumber';
-    case 'deterministic_table':
-      return 'deterministic_pdfplumber';
-    case 'mixed_layout':
-      return 'docling';
-    case 'ocr':
-      return 'paddleocr';
-    case 'complex':
-      // Use Docling for digital, PaddleOCR for image-only (handled above)
-      return profile.likelyTablePage ? 'deterministic_pdfplumber' : 'docling';
+  if (profile.likelyImageOnly) return 'paddleocr';
+  if (policy === 'deterministic_table') return 'deterministic_pdfplumber';
+  if (policy === 'mixed_layout') return 'docling';
+  if (policy === 'ocr') {
+    return profile.hasEmbeddedTextLayer ? 'deterministic_pdfplumber' : 'paddleocr';
   }
+  return profile.likelyTablePage ? 'deterministic_pdfplumber' : 'docling';
 }
-
-/* ------------------------------------------------------------------ */
-/* C4. Initial plan builder                                           */
-/* ------------------------------------------------------------------ */
 
 export const DEFAULT_MAX_ESCALATION_ROUNDS = 4;
 
-/**
- * Build the initial parse plan from manifest policy and page profiles.
- *
- * No paid calls are planned in the initial plan.
- * The initial plan is local-only.
- */
 export function buildInitialParsePlan(input: {
   executionId: string;
   cycleId: string;
@@ -182,43 +116,27 @@ export function buildInitialParsePlan(input: {
   maxEscalationRounds?: number;
 }): DefenseBudgetParsePlanV1 {
   const maxRounds = input.maxEscalationRounds ?? DEFAULT_MAX_ESCALATION_ROUNDS;
-
-  // Group pages by initial engine
-  const engineGroups = new Map<ExtractionMethodV1, number[]>();
-
+  if (input.pageProfiles.length === 0) throw new Error('initial plan requires page profiles');
+  const groups = new Map<ExtractionMethodV1, number[]>();
   for (const profile of input.pageProfiles) {
     const engine = initialEngineForPolicy(input.parserPolicy, profile);
-    const pages = engineGroups.get(engine) ?? [];
+    const pages = groups.get(engine) ?? [];
     pages.push(profile.page);
-    engineGroups.set(engine, pages);
+    groups.set(engine, pages);
   }
-
-  // Build steps
-  const steps: ParserPlanStepV1[] = [];
-  let ordinal = 0;
-
-  for (const [engine, pages] of engineGroups) {
-    const sortedPages = [...pages].sort((a, b) => a - b);
-    const stepId = `step-${ordinal}`;
-    const configSha = computeParserConfigSha256({
-      engine,
-      policy: input.parserPolicy,
-      maxEscalationRounds: maxRounds,
-    });
-    steps.push({
-      stepId,
+  const steps: ParserPlanStepV1[] = [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([engine, pages], ordinal) => ({
+      stepId: `step-${ordinal}`,
       ordinal,
       engine,
-      pages: sortedPages,
+      pages: [...pages].sort((a, b) => a - b),
       reasonCodes: ['initial_plan'],
       dependsOnStepIds: [],
       paid: false,
       terminalIfSuccessful: false,
-    });
-    ordinal++;
-  }
-
-  const planWithoutHash: Omit<DefenseBudgetParsePlanV1, 'planSha256'> = {
+    }));
+  return sealPlan({
     schemaVersion: DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
     executionId: input.executionId,
     cycleId: input.cycleId,
@@ -229,23 +147,9 @@ export function buildInitialParsePlan(input: {
     paidAuthorizationRequired: false,
     plannedPaidPages: [],
     unresolvedPages: [],
-  };
-
-  const planSha256 = sha256CanonicalJson(planWithoutHash as unknown as JsonValue);
-
-  return { ...planWithoutHash, planSha256 };
+  });
 }
 
-/* ------------------------------------------------------------------ */
-/* C5. Escalation plan builder                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Build an escalation plan from Phase 2 findings.
- *
- * Only parser-correctable findings may trigger parser escalation.
- * If a finding cannot be mapped to a page, leave it terminal/unresolved.
- */
 export function buildEscalationPlan(input: {
   executionId: string;
   cycleId: string;
@@ -265,184 +169,119 @@ export function buildEscalationPlan(input: {
   terminalReason?: string;
 } {
   const maxRounds = input.maxEscalationRounds ?? DEFAULT_MAX_ESCALATION_ROUNDS;
-
-  // Check terminal conditions
   if (input.currentRound >= maxRounds) {
-    return {
-      plan: buildTerminalPlan(input, 'max_escalation_rounds_reached'),
-      terminal: true,
-      terminalReason: 'max_escalation_rounds_reached',
-    };
+    return terminalPlan(input, 'max_escalation_rounds_reached');
   }
-
   if (input.correctableFindings.length === 0) {
-    return {
-      plan: buildTerminalPlan(input, 'no_correctable_findings'),
-      terminal: true,
-      terminalReason: 'no_correctable_findings',
-    };
+    return terminalPlan(input, 'no_correctable_findings');
   }
 
-  // Map findings to pages and determine next engine for each page
-  const pageToNextEngine = new Map<number, ExtractionMethodV1>();
-  const pageToReasons = new Map<number, string[]>();
-
+  const nextEngineByPage = new Map<number, ExtractionMethodV1>();
+  const reasonsByPage = new Map<number, Set<string>>();
   for (const finding of input.correctableFindings) {
-    const ladder = ladderForEngineClass(finding.recommendedEngineClass);
-
     for (const page of finding.pages) {
       const attempted = input.attemptedEnginesByPage.get(page) ?? [];
-
-      // Find next untried engine on the ladder
-      const nextEngine = ladder.find((e) => !attempted.includes(e));
-
-      if (nextEngine) {
-        // Don't repeat the same engine
-        if (!pageToNextEngine.has(page)) {
-          pageToNextEngine.set(page, nextEngine);
-          pageToReasons.set(page, [finding.findingCode]);
-        } else {
-          // Append reason
-          const reasons = pageToReasons.get(page) ?? [];
-          if (!reasons.includes(finding.findingCode)) {
-            reasons.push(finding.findingCode);
-          }
-        }
+      const next = ladderForEngineClass(finding.recommendedEngineClass).find(
+        (engine) => !attempted.includes(engine),
+      );
+      if (!next) continue;
+      const existing = nextEngineByPage.get(page);
+      // Prefer a local route over a paid route when multiple findings target
+      // the same page in the same round.
+      if (!existing || (existing === 'llamaparse' && next !== 'llamaparse')) {
+        nextEngineByPage.set(page, next);
       }
-      // If no next engine on this ladder, leave terminal/unresolved
+      const reasons = reasonsByPage.get(page) ?? new Set<string>();
+      reasons.add(finding.findingCode);
+      reasonsByPage.set(page, reasons);
     }
   }
 
-  // Split into paid and local steps
-  const localGroups = new Map<ExtractionMethodV1, { pages: number[]; reasons: string[] }>();
-  const paidPages: number[] = [];
-
-  for (const [page, engine] of pageToNextEngine) {
-    const reasons = pageToReasons.get(page) ?? [];
-    if (engine === 'llamaparse') {
-      paidPages.push(page);
-    } else {
-      const group = localGroups.get(engine) ?? { pages: [], reasons: [] };
-      group.pages.push(page);
-      group.reasons.push(...reasons);
-      localGroups.set(engine, group);
-    }
+  if (nextEngineByPage.size === 0) {
+    return terminalPlan(input, 'all_permitted_engines_exhausted');
   }
-
-  // Check paid authorization
-  const sortedPaidPages = [...paidPages].sort((a, b) => a - b);
-  const paidAuthorized = input.allowPaidParse && sortedPaidPages.length <= input.maxPaidPages;
-
-  if (sortedPaidPages.length > 0 && !paidAuthorized) {
-    // Terminal: paid needed but not authorized
-    return {
-      plan: buildTerminalPlan(input, 'paid_not_authorized', sortedPaidPages),
-      terminal: true,
-      terminalReason: 'paid_not_authorized',
-    };
-  }
-
-  // Build steps
-  const steps: ParserPlanStepV1[] = [];
-  let ordinal = 0;
-
-  // Local steps
-  for (const [engine, group] of localGroups) {
-    const sortedPages = [...group.pages].sort((a, b) => a - b);
-    steps.push({
-      stepId: `step-${ordinal}`,
-      ordinal,
-      engine,
-      pages: sortedPages,
-      reasonCodes: [...new Set(group.reasons)],
-      dependsOnStepIds: [],
-      paid: false,
-      terminalIfSuccessful: false,
-    });
-    ordinal++;
-  }
-
-  // Paid step
-  if (sortedPaidPages.length > 0 && paidAuthorized) {
-    steps.push({
-      stepId: `step-${ordinal}`,
-      ordinal,
-      engine: 'llamaparse',
-      pages: sortedPaidPages,
-      reasonCodes: ['escalation_paid'],
-      dependsOnStepIds: steps.filter((s) => !s.paid).map((s) => s.stepId),
-      paid: true,
-      terminalIfSuccessful: true,
-    });
-    ordinal++;
-  }
-
-  const unresolvedPages = [...pageToNextEngine.keys()]
-    .filter((p) => !pageToNextEngine.get(p) || pageToNextEngine.get(p) === 'llamaparse')
-    .filter((p) => !paidAuthorized)
+  const paidPages = [...nextEngineByPage.entries()]
+    .filter(([, engine]) => engine === 'llamaparse')
+    .map(([page]) => page)
     .sort((a, b) => a - b);
+  if (paidPages.length > 0 && !input.allowPaidParse) {
+    return terminalPlan(input, 'paid_not_authorized', paidPages);
+  }
+  if (paidPages.length > input.maxPaidPages) {
+    return terminalPlan(input, 'paid_page_cap_exceeded', paidPages);
+  }
 
-  const planWithoutHash: Omit<DefenseBudgetParsePlanV1, 'planSha256'> = {
-    schemaVersion: DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
-    executionId: input.executionId,
-    cycleId: input.cycleId,
-    manifestDocumentKey: input.manifestDocumentKey,
-    sourceSha256: input.sourceSha256,
-    parserPolicy: input.parserPolicy,
-    steps,
-    paidAuthorizationRequired: sortedPaidPages.length > 0,
-    plannedPaidPages: sortedPaidPages,
-    unresolvedPages,
-  };
-
-  const planSha256 = sha256CanonicalJson(planWithoutHash as unknown as JsonValue);
-
+  const groups = new Map<ExtractionMethodV1, number[]>();
+  for (const [page, engine] of nextEngineByPage) {
+    const pages = groups.get(engine) ?? [];
+    pages.push(page);
+    groups.set(engine, pages);
+  }
+  const sortedGroups = [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  const steps: ParserPlanStepV1[] = sortedGroups.map(([engine, pages], ordinal) => ({
+    stepId: `step-${ordinal}`,
+    ordinal,
+    engine,
+    pages: [...pages].sort((a, b) => a - b),
+    reasonCodes: [
+      ...new Set(pages.flatMap((page) => [...(reasonsByPage.get(page) ?? [])])),
+    ].sort(),
+    dependsOnStepIds: [],
+    paid: engine === 'llamaparse',
+    terminalIfSuccessful: engine === 'llamaparse',
+  }));
   return {
-    plan: { ...planWithoutHash, planSha256 },
+    plan: sealPlan({
+      schemaVersion: DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
+      executionId: input.executionId,
+      cycleId: input.cycleId,
+      manifestDocumentKey: input.manifestDocumentKey,
+      sourceSha256: input.sourceSha256,
+      parserPolicy: input.parserPolicy,
+      steps,
+      paidAuthorizationRequired: paidPages.length > 0,
+      plannedPaidPages: paidPages,
+      unresolvedPages: [],
+    }),
     terminal: false,
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* C6. Terminal plan helper                                           */
-/* ------------------------------------------------------------------ */
-
-function buildTerminalPlan(
-  input: {
-    executionId: string;
-    cycleId: string;
-    manifestDocumentKey: string;
-    sourceSha256: string;
-    parserPolicy: ParserPolicyV1;
-  },
+function terminalPlan(
+  input: Pick<
+    Parameters<typeof buildEscalationPlan>[0],
+    'executionId' | 'cycleId' | 'manifestDocumentKey' | 'sourceSha256' | 'parserPolicy'
+  >,
   reason: string,
   unresolvedPages: number[] = [],
-): DefenseBudgetParsePlanV1 {
-  const planWithoutHash: Omit<DefenseBudgetParsePlanV1, 'planSha256'> = {
-    schemaVersion: DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
-    executionId: input.executionId,
-    cycleId: input.cycleId,
-    manifestDocumentKey: input.manifestDocumentKey,
-    sourceSha256: input.sourceSha256,
-    parserPolicy: input.parserPolicy,
-    steps: [],
-    paidAuthorizationRequired: false,
-    plannedPaidPages: [],
-    unresolvedPages,
+) {
+  return {
+    plan: sealPlan({
+      schemaVersion: DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
+      executionId: input.executionId,
+      cycleId: input.cycleId,
+      manifestDocumentKey: input.manifestDocumentKey,
+      sourceSha256: input.sourceSha256,
+      parserPolicy: input.parserPolicy,
+      steps: [],
+      paidAuthorizationRequired: reason.includes('paid'),
+      plannedPaidPages: reason.includes('paid') ? unresolvedPages : [],
+      unresolvedPages,
+    }),
+    terminal: true,
+    terminalReason: reason,
   };
-
-  const planSha256 = sha256CanonicalJson(planWithoutHash as unknown as JsonValue);
-
-  return { ...planWithoutHash, planSha256 };
 }
 
-/* ------------------------------------------------------------------ */
-/* C7. Helper: determine if a finding is parser-correctable            */
-/* ------------------------------------------------------------------ */
+function sealPlan(
+  value: Omit<DefenseBudgetParsePlanV1, 'planSha256'>,
+): DefenseBudgetParsePlanV1 {
+  return defenseBudgetParsePlanV1Schema.parse({
+    ...value,
+    planSha256: sha256CanonicalJson(value as unknown as JsonValue),
+  });
+}
 
-/**
- * Finding codes that are parser-correctable and may trigger escalation.
- */
 export const PARSER_CORRECTABLE_FINDING_CODES = new Set([
   'missing_required_source_fact',
   'blocking_omission',
@@ -452,12 +291,8 @@ export const PARSER_CORRECTABLE_FINDING_CODES = new Set([
   'required_comparison_not_run',
   'page_only_money_requires_reconciliation',
   'parser_warning_requires_review',
-  'verification_policy_not_implemented',
 ]);
 
-/**
- * Finding codes that are NOT parser-correctable and must remain terminal.
- */
 export const NON_PARSER_CORRECTABLE_FINDING_CODES = new Set([
   'wrong_manifest_requirements',
   'source_sha_mismatch',
@@ -468,18 +303,12 @@ export const NON_PARSER_CORRECTABLE_FINDING_CODES = new Set([
   'missing_independent_reference_document',
   'review_only_policy',
   'unimplemented_family_extraction',
+  'verification_policy_not_implemented',
 ]);
 
-/**
- * Returns true if a finding code is parser-correctable.
- */
 export function isParserCorrectable(code: string): boolean {
   return PARSER_CORRECTABLE_FINDING_CODES.has(code);
 }
-
-/* ------------------------------------------------------------------ */
-/* C8. Helper: validate plan                                         */
-/* ------------------------------------------------------------------ */
 
 export function parseDefenseBudgetParsePlanV1(input: unknown): DefenseBudgetParsePlanV1 {
   return defenseBudgetParsePlanV1Schema.parse(input);

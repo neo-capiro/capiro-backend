@@ -58,7 +58,6 @@ try:
 
     DOCLING_PACKAGE_VERSION: str | None = getattr(docling, '__version__', 'unknown')
 except ImportError:
-    docling = None  # type: ignore[assignment]
     DOCLING_PACKAGE_VERSION = None
 
 ENGINE_VERSION = f'docling-{DOCLING_PACKAGE_VERSION or "unavailable"}-cpu'
@@ -141,7 +140,7 @@ def _create_page_subset_pdf(
     Uses PyMuPDF (fitz) when available, falls back to pypdf.
     """
     try:
-        import fitz  # PyMuPDF
+        import fitz  # type: ignore[import-not-found]  # PyMuPDF
 
         src_doc = fitz.open(str(source_path))
         total_pages = len(src_doc)

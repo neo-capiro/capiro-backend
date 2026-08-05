@@ -1,17 +1,6 @@
-/**
- * Workstream E — Local parser runtime client.
- *
- * Bridges the Node-side router to the isolated Python parser runtime
- * via file/job-envelope transport. Node writes one job JSON file and
- * invokes the parser runtime executable. Python writes one canonical
- * JSON result file plus optional debug artifacts under a caller-provided
- * output directory.
- *
- * Required command shape:
- *   capiro-defense-budget-parser run --job /work/job.json --out /work/result.json
- */
+/** File-envelope client for the isolated Python parser runtime. */
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   parseParserRuntimeJobV1,
@@ -19,22 +8,14 @@ import {
   type ParserRuntimeJobV1,
   type ParserRuntimeResultV1,
 } from './parser-runtime-contract-v1.js';
-
-/* ------------------------------------------------------------------ */
-/* Local parser runtime client                                          */
-/* ------------------------------------------------------------------ */
+import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 
 export interface LocalParserRuntimeClientOptions {
-  /** Path to the parser executable or command. */
   command?: string;
-  /** Working directory for job/result files. */
+  commandArgs?: string[];
+  cwd?: string;
   workDir: string;
-  /** Timeout in milliseconds (default 5 min). */
   timeoutMs?: number;
-}
-
-export interface ExecuteJobOptions {
-  job: ParserRuntimeJobV1;
 }
 
 export interface ExecuteJobResult {
@@ -43,96 +24,117 @@ export interface ExecuteJobResult {
   stderr: string;
 }
 
-/**
- * Client that communicates with the isolated Python parser runtime
- * via file/job-envelope transport.
- */
+export interface ParserRuntimeVersionInfoV1 {
+  runtimeVersion: string;
+  engines: Partial<Record<ExtractionMethodV1, string>>;
+}
+
 export class LocalParserRuntimeClient {
   private readonly command: string;
-  private readonly workDir: string;
+  private readonly commandArgs: string[];
+  private readonly cwd: string;
   private readonly timeoutMs: number;
 
-  constructor(opts: LocalParserRuntimeClientOptions) {
-    this.command = opts.command ?? 'capiro-defense-budget-parser';
-    this.workDir = opts.workDir;
-    this.timeoutMs = opts.timeoutMs ?? 5 * 60 * 1000;
-
-    // Ensure work directory exists
-    mkdirSync(this.workDir, { recursive: true });
+  constructor(private readonly options: LocalParserRuntimeClientOptions) {
+    this.command = options.command ?? 'capiro-defense-budget-parser';
+    this.commandArgs = options.commandArgs ?? [];
+    this.cwd = options.cwd ?? options.workDir;
+    this.timeoutMs = options.timeoutMs ?? 5 * 60 * 1000;
+    mkdirSync(options.workDir, { recursive: true });
   }
 
-  /**
-   * Execute a parser job by writing it to a file, invoking the Python
-   * runtime, and reading the result file.
-   */
-  async executeJob(opts: ExecuteJobOptions): Promise<ExecuteJobResult> {
-    // Validate the job
-    const job = parseParserRuntimeJobV1(opts.job);
+  async executeJob(input: { job: ParserRuntimeJobV1 }): Promise<ExecuteJobResult> {
+    const job = parseParserRuntimeJobV1(input.job);
+    const safeJobId = job.jobId.replace(/[^A-Za-z0-9_.-]/g, '_');
+    const jobPath = join(this.options.workDir, `${safeJobId}.job.json`);
+    const resultPath = join(this.options.workDir, `${safeJobId}.result.json`);
+    writeFileSync(jobPath, `${JSON.stringify(job, null, 2)}\n`, 'utf8');
 
-    // Write job file
-    const jobPath = join(this.workDir, 'job.json');
-    const resultPath = join(this.workDir, 'result.json');
-    writeFileSync(jobPath, JSON.stringify(job, null, 2), 'utf8');
-
-    // Invoke the Python runtime
-    const { exitCode, stderr } = await this.invokeRuntime([
+    const processResult = await this.invokeRuntime([
       'run',
-      '--job', jobPath,
-      '--out', resultPath,
+      '--job',
+      jobPath,
+      '--out',
+      resultPath,
     ]);
-
-    // Read and validate the result
-    const rawResult = readFileSync(resultPath, 'utf8');
-    const result = parseParserRuntimeResultV1(JSON.parse(rawResult));
-
-    return { result, exitCode, stderr };
+    if (processResult.exitCode !== 0 && processResult.exitCode !== 5) {
+      throw new Error(
+        `parser runtime exited ${processResult.exitCode}: ${processResult.stderr || 'no stderr'}`,
+      );
+    }
+    const result = parseParserRuntimeResultV1(
+      JSON.parse(readFileSync(resultPath, 'utf8')),
+    );
+    if (result.engine !== job.engine) {
+      throw new Error(
+        `parser method relabeling detected: job=${job.engine} result=${result.engine}`,
+      );
+    }
+    if (result.inputSourceSha256 !== job.sourceSha256) {
+      throw new Error('parser result source SHA does not match the submitted job');
+    }
+    if (
+      result.parserVersion !== job.parserVersion ||
+      result.parserConfigSha256 !== job.parserConfigSha256
+    ) {
+      throw new Error('parser result version/config identity does not match the submitted job');
+    }
+    if (JSON.stringify(result.requestedPages) !== JSON.stringify(job.requestedPages)) {
+      throw new Error('parser result requested pages do not match the submitted job');
+    }
+    return { ...processResult, result };
   }
 
-  /**
-   * Validate a job without executing the parser.
-   */
-  async validateJob(jobPath: string): Promise<{ valid: boolean; exitCode: number; stderr: string }> {
-    const { exitCode, stderr } = await this.invokeRuntime([
-      'validate-job',
-      '--job', jobPath,
-    ]);
-    return { valid: exitCode === 0, exitCode, stderr };
+  async validateJob(jobPath: string) {
+    const result = await this.invokeRuntime(['validate-job', '--job', jobPath]);
+    return { valid: result.exitCode === 0, ...result };
   }
 
-  /**
-   * Run page profiling on a source PDF.
-   */
-  async profileJob(jobPath: string, resultPath: string): Promise<{ exitCode: number; stderr: string }> {
-    const { exitCode, stderr } = await this.invokeRuntime([
-      'profile',
-      '--job', jobPath,
-      '--out', resultPath,
-    ]);
-    return { exitCode, stderr };
+  async profileJob(jobPath: string, resultPath: string) {
+    return this.invokeRuntime(['profile', '--job', jobPath, '--out', resultPath]);
   }
 
-  /**
-   * Invoke the Python runtime with the given arguments.
-   */
-  private invokeRuntime(args: string[]): Promise<{ exitCode: number; stderr: string }> {
+  async getVersionInfo(): Promise<ParserRuntimeVersionInfoV1> {
+    const result = await this.invokeRuntime(['version', '--json'], true);
+    if (result.exitCode !== 0) {
+      throw new Error(`parser runtime version query failed: ${result.stderr}`);
+    }
+    const parsed = JSON.parse(result.stdout) as unknown;
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      typeof (parsed as { runtimeVersion?: unknown }).runtimeVersion !== 'string' ||
+      typeof (parsed as { engines?: unknown }).engines !== 'object' ||
+      (parsed as { engines?: unknown }).engines === null
+    ) {
+      throw new Error('parser runtime returned invalid version metadata');
+    }
+    return parsed as ParserRuntimeVersionInfoV1;
+  }
+
+  private invokeRuntime(
+    args: string[],
+    captureStdout = false,
+  ): Promise<{ exitCode: number; stderr: string; stdout: string }> {
     return new Promise((resolve, reject) => {
-      const proc = spawn(this.command, args, {
-        cwd: this.workDir,
+      const processHandle = spawn(this.command, [...this.commandArgs, ...args], {
+        cwd: this.cwd,
         timeout: this.timeoutMs,
         env: { ...process.env },
       });
-
       let stderr = '';
-      proc.stderr?.on('data', (chunk: Buffer) => {
+      let stdout = '';
+      processHandle.stderr?.on('data', (chunk: Buffer) => {
         stderr += chunk.toString('utf8');
       });
-
-      proc.on('error', (err) => {
-        reject(new Error(`failed to start parser runtime: ${err.message}`));
+      processHandle.stdout?.on('data', (chunk: Buffer) => {
+        if (captureStdout) stdout += chunk.toString('utf8');
       });
-
-      proc.on('close', (code) => {
-        resolve({ exitCode: code ?? 1, stderr });
+      processHandle.on('error', (error) => {
+        reject(new Error(`failed to start parser runtime: ${error.message}`));
+      });
+      processHandle.on('close', (code) => {
+        resolve({ exitCode: code ?? 1, stderr, stdout });
       });
     });
   }

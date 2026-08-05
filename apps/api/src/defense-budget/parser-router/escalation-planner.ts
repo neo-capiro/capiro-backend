@@ -1,23 +1,11 @@
-/**
- * defense_budget_escalation_planner_v1 — verification-finding-to-page escalation planner.
- *
- * Maps Phase 2 verification findings to parser-correctable page-level
- * escalation steps. Only parser-correctable findings may trigger
- * parser escalation.
- */
-
+/** Phase 2 finding → exact page-level parser escalation adapter. */
 import {
   type ParserCorrectableFindingV1,
   type DefenseBudgetParsePlanV1,
-  type ParserPlanStepV1,
   buildEscalationPlan,
   isParserCorrectable,
 } from './route-planner.js';
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
-
-/* ------------------------------------------------------------------ */
-/* Phase 2 result finding shape (minimal adapter)                     */
-/* ------------------------------------------------------------------ */
 
 export interface VerificationFindingV1 {
   code: string;
@@ -45,146 +33,98 @@ export interface VerificationResultMinimalV1 {
   }>;
 }
 
-/* ------------------------------------------------------------------ */
-/* E1. Map Phase 2 findings to parser-correctable findings           */
-/* ------------------------------------------------------------------ */
-
-/**
- * Determine the recommended engine class from a finding code.
- */
-function recommendEngineClass(code: string): 'table' | 'layout' | 'ocr' | 'complex' | null {
-  if (code.includes('arithmetic') || code.includes('comparison')) {
-    return 'table';
-  }
-  if (code.includes('evidence') || code.includes('proof')) {
-    return 'table';
-  }
-  if (code.includes('missing') && code.includes('fact')) {
-    return 'table';
-  }
-  if (code.includes('omission')) {
-    return 'table';
-  }
-  if (code.includes('layout') || code.includes('reading_order')) {
-    return 'layout';
-  }
-  if (code.includes('ocr') || code.includes('image')) {
-    return 'ocr';
-  }
-  if (code.includes('complex') || code.includes('unimplemented')) {
-    return 'complex';
-  }
-  // Default to table for parser-correctable findings
+function recommendEngineClass(
+  code: string,
+): 'table' | 'layout' | 'ocr' | 'complex' {
+  if (code.includes('ocr') || code.includes('image')) return 'ocr';
+  if (code.includes('layout') || code.includes('reading_order')) return 'layout';
+  if (code.includes('complex') || code.includes('unimplemented')) return 'complex';
   return 'table';
 }
 
-/**
- * Filter Phase 2 findings to only parser-correctable ones and map them
- * to the parser-correctable finding contract.
- */
+function embeddedPage(evidenceId: string): number | null {
+  const match = /^ev1_page_(\d+)_/.exec(evidenceId);
+  if (!match) return null;
+  const page = Number(match[1]);
+  return Number.isInteger(page) && page > 0 ? page : null;
+}
+
+function pagesForEvidence(
+  evidenceIds: readonly string[],
+  evidenceToPages: ReadonlyMap<string, readonly number[]>,
+): number[] {
+  const pages = new Set<number>();
+  for (const evidenceId of evidenceIds) {
+    const mapped = evidenceToPages.get(evidenceId);
+    if (mapped) {
+      for (const page of mapped) {
+        if (Number.isInteger(page) && page > 0) pages.add(page);
+      }
+      continue;
+    }
+    // Router-produced evidence IDs preserve their exact physical page as a
+    // deterministic prefix. This is a fallback for minimal Phase 2 result
+    // adapters; full callers should still supply the evidence map.
+    const page = embeddedPage(evidenceId);
+    if (page !== null) pages.add(page);
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
 export function mapCorrectableFindings(
   result: VerificationResultMinimalV1,
+  evidenceToPages: ReadonlyMap<string, readonly number[]> = new Map(),
 ): ParserCorrectableFindingV1[] {
-  const correctable: ParserCorrectableFindingV1[] = [];
+  const output: ParserCorrectableFindingV1[] = [];
 
-  // From failed checks
   for (const check of result.checks) {
-    if (check.outcome !== 'FAIL') continue;
+    if (check.outcome !== 'FAIL' && check.outcome !== 'NOT_RUN') continue;
     if (!isParserCorrectable(check.code)) continue;
-
-    const engineClass = recommendEngineClass(check.code);
-    if (!engineClass) continue;
-
-    // Extract pages from assertion IDs (convention: pages encoded in evidence)
-    // For now, use the check's assertion/evidence IDs; pages must come from
-    // the artifact's evidence records. The escalation planner will use the
-    // page mapping from the artifact.
-    const pages = extractPagesFromCheck(check);
-    if (pages.length === 0) continue; // No page guess
-
-    correctable.push({
+    const pages = pagesForEvidence(check.evidenceIds, evidenceToPages);
+    if (pages.length === 0) continue;
+    output.push({
       findingCode: check.code,
-      assertionIds: check.assertionIds,
+      assertionIds: [...check.assertionIds],
       sourceFactIds: [],
-      evidenceIds: check.evidenceIds,
+      evidenceIds: [...check.evidenceIds],
       pages,
-      recommendedEngineClass: engineClass,
+      recommendedEngineClass: recommendEngineClass(check.code),
       blocking: check.blocking,
     });
   }
 
-  // From discrepancies
-  for (const disc of result.discrepancies) {
-    if (!isParserCorrectable(disc.code)) continue;
-
-    const engineClass = recommendEngineClass(disc.code);
-    if (!engineClass) continue;
-
-    // Discrepancies don't directly carry pages; they reference evidence
-    // which references pages. For now, skip if no pages can be determined.
-    // The full implementation will resolve pages via evidence IDs.
-    const pages: number[] = []; // Would be resolved from evidence
+  for (const discrepancy of result.discrepancies) {
+    if (!isParserCorrectable(discrepancy.code)) continue;
+    const pages = pagesForEvidence(discrepancy.evidenceIds, evidenceToPages);
     if (pages.length === 0) continue;
-
-    correctable.push({
-      findingCode: disc.code,
-      assertionIds: disc.assertionIds,
+    output.push({
+      findingCode: discrepancy.code,
+      assertionIds: [...discrepancy.assertionIds],
       sourceFactIds: [],
-      evidenceIds: disc.evidenceIds,
+      evidenceIds: [...discrepancy.evidenceIds],
       pages,
-      recommendedEngineClass: engineClass,
-      blocking: disc.severity === 'blocking',
+      recommendedEngineClass: recommendEngineClass(discrepancy.code),
+      blocking: discrepancy.severity === 'blocking',
     });
   }
 
-  return correctable;
+  return output.sort(
+    (left, right) =>
+      left.pages[0]! - right.pages[0]! || left.findingCode.localeCompare(right.findingCode),
+  );
 }
 
-/**
- * Extract page numbers from a check's evidence references.
- * In the full implementation, this resolves through the artifact's
- * evidence records. For now, returns empty if no pages can be determined.
- */
-function extractPagesFromCheck(check: VerificationResultMinimalV1['checks'][number]): number[] {
-  // Page resolution would go through the artifact's evidence records
-  // to find the page numbers. This is a placeholder that will be
-  // connected to the actual evidence resolver in the full implementation.
-  // The escalation planner requires explicit page mappings from findings.
-  //
-  // TODO(WS L): Connect to evidence resolver when artifact bridge
-  // and V1 extraction compose are implemented. Until then, findings
-  // without explicit page mappings are correctly filtered out
-  // (no page guess per Section 9.C3 requirement).
-  return [];
-}
-
-/**
- * Set page numbers on correctable findings from an evidence-to-page map.
- */
 export function resolveFindingPages(
   findings: ParserCorrectableFindingV1[],
-  evidenceToPages: ReadonlyMap<string, number[]>,
+  evidenceToPages: ReadonlyMap<string, readonly number[]>,
 ): ParserCorrectableFindingV1[] {
   return findings
-    .map((finding) => {
-      const pages = new Set<number>();
-      for (const evidenceId of finding.evidenceIds) {
-        const evPages = evidenceToPages.get(evidenceId);
-        if (evPages) {
-          for (const p of evPages) pages.add(p);
-        }
-      }
-      return {
-        ...finding,
-        pages: [...pages].sort((a, b) => a - b),
-      };
-    })
-    .filter((f) => f.pages.length > 0);
+    .map((finding) => ({
+      ...finding,
+      pages: pagesForEvidence(finding.evidenceIds, evidenceToPages),
+    }))
+    .filter((finding) => finding.pages.length > 0);
 }
-
-/* ------------------------------------------------------------------ */
-/* E2. Build escalation from verification result                     */
-/* ------------------------------------------------------------------ */
 
 export function planEscalationFromVerification(input: {
   executionId: string;
@@ -194,24 +134,22 @@ export function planEscalationFromVerification(input: {
   parserPolicy: import('../contracts/budget-cycle-manifest-v1.js').ParserPolicyV1;
   pageProfiles: import('./page-profiler.js').PageProfileV1[];
   verificationResult: VerificationResultMinimalV1;
-  evidenceToPages: ReadonlyMap<string, number[]>;
+  evidenceToPages: ReadonlyMap<string, readonly number[]>;
   attemptedEnginesByPage: ReadonlyMap<number, readonly ExtractionMethodV1[]>;
   allowPaidParse: boolean;
   maxPaidPages: number;
   currentRound: number;
+  maxEscalationRounds?: number;
 }): {
   plan: DefenseBudgetParsePlanV1;
   terminal: boolean;
   terminalReason?: string;
   correctableFindings: ParserCorrectableFindingV1[];
 } {
-  // Map findings
-  let correctableFindings = mapCorrectableFindings(input.verificationResult);
-
-  // Resolve pages from evidence
-  correctableFindings = resolveFindingPages(correctableFindings, input.evidenceToPages);
-
-  // Build escalation plan
+  const correctableFindings = mapCorrectableFindings(
+    input.verificationResult,
+    input.evidenceToPages,
+  );
   const result = buildEscalationPlan({
     executionId: input.executionId,
     cycleId: input.cycleId,
@@ -224,12 +162,9 @@ export function planEscalationFromVerification(input: {
     allowPaidParse: input.allowPaidParse,
     maxPaidPages: input.maxPaidPages,
     currentRound: input.currentRound,
+    ...(input.maxEscalationRounds !== undefined
+      ? { maxEscalationRounds: input.maxEscalationRounds }
+      : {}),
   });
-
-  return {
-    plan: result.plan,
-    terminal: result.terminal,
-    terminalReason: result.terminalReason,
-    correctableFindings,
-  };
+  return { ...result, correctableFindings };
 }

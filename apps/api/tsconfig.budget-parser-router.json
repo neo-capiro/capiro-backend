@@ -22,9 +22,15 @@
   "include": [
     "src/defense-budget/parser-router/**/*.ts",
     "src/defense-budget/contracts/**/*.ts",
+    "src/defense-budget/verification/**/*.ts",
+    "scripts/profile-defense-budget-document.ts",
+    "scripts/plan-defense-budget-parse.ts",
+    "scripts/extract-defense-budget-cycle.ts",
+    "scripts/replay-defense-budget-parser-artifact.ts",
     "scripts/verify-defense-budget-parser-runtime.ts",
     "scripts/verify-defense-budget-parser-architecture.ts",
-    "scripts/verify-pe-budget-phase-3-negative-controls.ts"
+    "scripts/verify-pe-budget-phase-3-negative-controls.ts",
+    "scripts/verify-pe-budget-phase-3-closeout.ts"
   ],
   "exclude": ["**/*.spec.ts"]
 }

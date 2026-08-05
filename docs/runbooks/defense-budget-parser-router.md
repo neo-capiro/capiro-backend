@@ -1,376 +1,347 @@
 # Defense-Budget Parser Router — Operator Runbook
 
-This runbook contains the exact commands needed to set up, run, and
-troubleshoot the Phase 3 cost-aware defense-budget parser router.
-
-> **Safety invariant:** The default command path performs **no paid call**.
-> Paid parsing requires both `--allow-paid-parse` and `--max-paid-pages N`.
-> The router never writes canonical Program Element data.
-
----
+This runbook operates the Phase 3 local-first parser router. It performs no
+canonical Program Element write. The default workflow makes no database, AWS,
+or paid parser call.
 
 ## 1. Environment setup
 
-### 1.1 Node / TypeScript side
-
 ```bash
-# From the repository root
+# Repository root
 pnpm install
-```
 
-### 1.2 Python parser runtime
-
-```bash
-# From the repository root
 cd apps/defense-budget-parser
-uv sync --locked
+uv sync --locked --all-groups
+uv run capiro-defense-budget-parser version --json
 ```
 
-For local development with all extras (Camelot, Docling, PaddleOCR, dev
-tools):
+The version output must list exact identities for:
+
+```text
+deterministic_pdfplumber
+camelot
+docling
+paddleocr
+```
+
+Use the runtime image that contains the engine required by the route plan.
+Reporting an engine version does not imply that its optional package/model is
+available in the current image; execution fails with exit `4` when it is not.
+
+## 2. Container targets
 
 ```bash
-cd apps/defense-budget-parser
-uv sync --locked --extra camelot --extra docling --extra ocr --extra dev
+# Repository root
+docker build --platform linux/amd64 --target table \
+  -f apps/defense-budget-parser/Dockerfile .
+
+docker build --platform linux/amd64 --target layout \
+  -f apps/defense-budget-parser/Dockerfile .
+
+docker build --platform linux/amd64 --target ocr \
+  -f apps/defense-budget-parser/Dockerfile .
 ```
 
----
+- `table`: pdfplumber and Camelot.
+- `layout`: table target plus Docling CPU.
+- `ocr`: layout target plus PaddleOCR CPU.
 
-## 2. Python runtime build (Docker)
+The API image is intentionally unchanged and contains no Python or parser-ML
+packages.
 
-Build each target separately. All commands are run from the repository root.
+## 3. Prepare a manual manifest and source files
 
-### 2.1 `table` target (pdfplumber + Camelot)
+Phase 3 performs no source discovery. Supply:
+
+- one strict `defense_budget_cycle_manifest_v1` file;
+- one local source PDF per selected document;
+- a SourceDocument UUID only when persisting final verification audit;
+- an explicit Phase 1 V1 companion for `native_structured` documents.
+
+Validate the manifest:
 
 ```bash
-docker build \
-  --target table \
-  --platform linux/amd64 \
-  -t capiro-defense-budget-parser:table \
-  apps/defense-budget-parser
+pnpm --filter @capiro/api validate:defense-budget-manifest -- \
+  --input manifest.json
 ```
 
-### 2.2 `layout` target (table + Docling CPU)
+## 4. Profile a supplied PDF
 
 ```bash
-docker build \
-  --target layout \
-  --platform linux/amd64 \
-  -t capiro-defense-budget-parser:layout \
-  apps/defense-budget-parser
+pnpm --filter @capiro/api profile:defense-budget-document -- \
+  --manifest manifest.json \
+  --document r1-army-fy2027 \
+  --source sources/r1-army.pdf \
+  --out work/r1-army/profile.json
 ```
 
-### 2.3 `ocr` target (layout + PaddleOCR CPU)
+The command:
+
+1. recomputes source SHA-256;
+2. validates the manifest/document;
+3. profiles every physical page with pdfplumber only;
+4. writes a strict, content-addressed profile;
+5. refuses overwrite unless `--force` is supplied.
+
+No OCR, Docling, PaddleOCR, LlamaParse, database, or AWS operation occurs.
+
+## 5. Create a deterministic local plan
 
 ```bash
-docker build \
-  --target ocr \
-  --platform linux/amd64 \
-  -t capiro-defense-budget-parser:ocr \
-  apps/defense-budget-parser
+pnpm --filter @capiro/api plan:defense-budget-parse -- \
+  --manifest manifest.json \
+  --document r1-army-fy2027 \
+  --source sources/r1-army.pdf \
+  --profile work/r1-army/profile.json \
+  --out work/r1-army/plan.json
 ```
 
-### 2.4 Verify the container entrypoint
+The profile source SHA must equal the actual supplied source SHA. Repeating the
+command with identical inputs produces a byte-identical plan and execution ID.
+The initial plan is always local and free.
+
+A `native_structured` document is rejected by this PDF plan command; use the
+companion workflow in Section 8.
+
+## 6. Run local extraction and Phase 2 inspect verification
 
 ```bash
-docker run --rm capiro-defense-budget-parser:table version
+pnpm --filter @capiro/api extract:defense-budget-cycle -- \
+  --manifest manifest.json \
+  --document r1-army-fy2027 \
+  --source sources/r1-army.pdf \
+  --work-dir work/fy2027 \
+  --out work/fy2027/r1-army.extraction-v1.json
 ```
 
----
+Default behavior:
 
-## 3. Source / profile / plan commands
+- profiles every page;
+- builds the deterministic local plan;
+- executes or cryptographically replays local parser runs;
+- composes one selected result or explicit failure per requested page;
+- builds a strict `defense_budget_extraction_v1` artifact;
+- calls Phase 2 in inspect mode;
+- maps parser-correctable findings to exact evidence pages;
+- executes stronger local engines when needed;
+- stops before a paid call unless authorization is present;
+- writes `execution-report.json` under the document work directory.
 
-### 3.1 Validate the cycle manifest
+A generic page-level artifact may truthfully end in `NEEDS_REVIEW` until a
+registered family-specific extraction adapter produces budget assertions. That
+is not an execution failure and must not be converted to a pass.
+
+## 7. Explicit paid-page escalation
 
 ```bash
-pnpm --filter @capiro/api validate:defense-budget-manifest \
-  --manifest path/to/cycle-manifest.json
+export LLAMAPARSE_API_KEY='...'
+export LLAMAPARSE_BASE_URL='https://api.cloud.llamaindex.ai/api/parsing'
+
+pnpm --filter @capiro/api extract:defense-budget-cycle -- \
+  --manifest manifest.json \
+  --document r2-army-fy2027 \
+  --source sources/r2-army.pdf \
+  --work-dir work/fy2027 \
+  --out work/fy2027/r2-army.extraction-v1.json \
+  --allow-paid-parse \
+  --max-paid-pages 12 \
+  --paid-mode pdf_premium
 ```
 
-### 3.2 Profile a source document
+Paid rules:
 
-> **Note:** The operator script `profile-defense-budget-document.ts` is
-> pending Workstream M. When available it will wrap the Python profiler with
-> manifest-aware argument construction.
+- both authorization and a positive page cap are mandatory;
+- only unresolved, explicitly mapped pages are submitted;
+- one-based pages are converted to provider zero-based pages exactly once;
+- the provider is not automatically retried as a new job;
+- a proven cached output consumes no paid-page allowance;
+- a corrupt cache never silently authorizes a new paid call;
+- local output does not lose solely because a paid engine also returned output.
 
-Direct Python runtime profiling (available now):
+## 8. Native-structured companion workflow
+
+First convert the structured companion through the Phase 1 contract. Then run:
 
 ```bash
-cd apps/defense-budget-parser
-
-# Create a job envelope (see Section 7 of BUDGET-PARSER-ROUTER-V1.md)
-cat > /tmp/profile-job.json <<'EOF'
-{
-  "schemaVersion": "defense_budget_parser_job_v1",
-  "jobId": "profile-001",
-  "sourcePath": "/absolute/path/to/source.pdf",
-  "sourceSha256": "<sha256-of-source-file>",
-  "engine": "deterministic_pdfplumber",
-  "requestedPages": [1, 2, 3],
-  "parserVersion": "0.1.0",
-  "parserConfig": {},
-  "parserConfigSha256": "<sha256-of-canonical-config>",
-  "outputDirectory": "/tmp/parser-out",
-  "includeDebugArtifacts": false
-}
-EOF
-
-uv run capiro-defense-budget-parser profile \
-  --job /tmp/profile-job.json \
-  --out /tmp/profile-result.json
+pnpm --filter @capiro/api extract:defense-budget-cycle -- \
+  --manifest manifest.json \
+  --document r1-structured-fy2027 \
+  --source sources/r1-official.pdf \
+  --structured-companion companions/r1.extraction-v1.json \
+  --work-dir work/fy2027 \
+  --out work/fy2027/r1.extraction-v1.json
 ```
 
-### 3.3 Build a parse plan
+The companion must:
 
-> **Note:** The operator script `plan-defense-budget-parse.ts` is pending
-> Workstream M. When available it will produce a deterministic
-> `defense_budget_parse_plan_v1` JSON file.
+- be schema-valid and semantically valid under Phase 1;
+- match manifest document identity and source PDF SHA;
+- contain `native_structured` parser lineage;
+- use the supplied SourceDocument ID when persisted.
 
-Plan construction is currently exercised through the unit tests:
+The command does not parse the PDF for primary values. It sends the companion
+through the same Phase 2 verifier.
+
+For `--all-documents`, supply:
+
+```text
+--source-root <PDF directory>
+--structured-companion-root <V1 companion directory>
+```
+
+Each native companion is resolved as:
+
+```text
+<root>/<manifest-document-key>.extraction-v1.json
+```
+
+## 9. Persist final verification audit
+
+Persist only after SourceDocument registration and parser-proof storage are
+configured.
 
 ```bash
-pnpm --filter @capiro/api verify:pe-budget-phase-3
+export DATABASE_URL='...'
+export BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT='/shared/parser-artifacts'
+
+pnpm --filter @capiro/api extract:defense-budget-cycle -- \
+  --manifest manifest.json \
+  --document r1-army-fy2027 \
+  --source sources/r1-army.pdf \
+  --source-document-id '<uuid>' \
+  --work-dir work/fy2027 \
+  --out work/fy2027/r1-army.extraction-v1.json \
+  --persist-verification-audit
 ```
 
----
+The shared parser-artifact root must be readable by the verification process.
+The same Prisma client records `DocumentParseJob` and Phase 2 audit rows.
 
-## 4. Local extraction
+### Persisted paid output
 
-> **Note:** The operator script `extract-defense-budget-cycle.ts` is pending
-> Workstream M. When available it will orchestrate the full local-first
-> extraction loop.
-
-Direct Python runtime parsing (available now):
+Also configure:
 
 ```bash
-cd apps/defense-budget-parser
-
-uv run capiro-defense-budget-parser run \
-  --job /tmp/parse-job.json \
-  --out /tmp/parse-result.json
+export BUDGET_VERIFICATION_LLAMAPARSE_OUTPUT_BUCKET='capiro-parser-output'
+export BUDGET_PARSER_ARTIFACT_S3_PREFIX='derived/public/dod-budget/parser_runs'
+export AWS_REGION='us-east-1'
 ```
 
----
-
-## 5. Paid-page extraction
-
-Paid parsing is disabled by default. To authorize a bounded paid run:
+For a local S3-compatible rehearsal only:
 
 ```bash
-# Example shape once Workstream M operator scripts are available:
-# pnpm --filter @capiro/api extract:defense-budget-cycle \
-#   --manifest path/to/manifest.json \
-#   --allow-paid-parse \
-#   --max-paid-pages 10
+export BUDGET_VERIFICATION_S3_ENDPOINT='http://127.0.0.1:4566'
 ```
 
-Safety checks enforced by the router:
+Normalized LlamaParse results are written to versioned S3. Replay requires the
+exact VersionId. Before the parse-job row is written, the recorder re-reads the
+persisted object and recomputes its actual byte SHA.
 
-- `--allow-paid-parse` without `--max-paid-pages` is an error.
-- `--max-paid-pages` must be a positive integer.
-- Planned paid pages exceeding the cap produce a terminal plan with reason
-  `paid_not_authorized` or `paid_page_cap_exceeded`.
-- The LlamaParse executor refuses to run when `allowPaidParse` is false.
+Do not use audit persistence against a shared environment without separate
+operational authorization.
 
----
+## 10. Replay parser artifacts
 
-## 6. Artifact replay
-
-> **Note:** The operator script `replay-defense-budget-parser-artifact.ts` is
-> pending Workstream M. When available it will verify a cached artifact and
-> replay it without re-paying parser costs.
-
-Manual replay verification (available now):
+Local descriptor:
 
 ```bash
-# Recompute the content SHA of a cached result and compare with metadata.json
-cd apps/defense-budget-parser
-uv run python - <<'PY'
-import json
-from capiro_defense_budget_parser.canonical_json import sha256_canonical_json
-
-with open('/path/to/artifact/result.json') as f:
-    result = json.load(f)
-
-recorded = result.pop('contentSha256')
-# durationMillis is excluded from the content SHA for determinism
-if 'metrics' in result and 'durationMillis' in result['metrics']:
-    del result['metrics']['durationMillis']
-
-recomputed = sha256_canonical_json(result)
-
-print('recorded :', recorded)
-print('recomputed:', recomputed)
-print('match    :', recorded == recomputed)
-PY
+pnpm --filter @capiro/api replay:defense-budget-parser-artifact -- \
+  --descriptor work/fy2027/parser-artifacts/.../metadata.json
 ```
 
----
+The command revalidates descriptor identity, byte SHA, content SHA, source SHA,
+method, version, configuration SHA, and exact requested pages. It makes no
+parser call.
 
-## 7. Verifier report interpretation
+S3 replay must use the injected `S3ParserArtifactStore`; the local replay CLI
+refuses to silently discover AWS credentials.
 
-After local parsing and composition, the composed V1 artifact is passed to
-Phase 2 verification in inspect mode.
+## 11. Interpret terminal results
 
-```bash
-pnpm --filter @capiro/api verify:defense-budget-artifact-v1 \
-  --artifact path/to/extraction-artifact.json \
-  --manifest path/to/cycle-manifest.json
-```
+| Exit | Meaning |
+|---:|---|
+| 0 | Phase 2 verification passed |
+| 2 | argument, manifest, or contract failure |
+| 3 | source, artifact, manifest, or proof failure |
+| 4 | parser runtime/engine unavailable |
+| 5 | parsing incomplete |
+| 6 | Phase 2 rejected |
+| 7 | Phase 2 needs review |
+| 8 | paid-page cap exceeded |
+| 9 | internal failure |
 
-Interpretation guide:
+The execution report contains:
 
-| Decision | Meaning | Router action |
-|---|---|---|
-| `PASS` | Artifact satisfies the verification policy | Continue to next document or terminal state `TERMINAL_PASSED` |
-| `REVIEW` | Findings require human review but are parser-correctable | Escalation planner maps findings to pages and plans a stronger parser |
-| `REJECT` | Artifact violates hard policy | Terminal state `TERMINAL_REJECTED`; no further parsing |
+- parser rounds and plan SHAs;
+- exact parser-run IDs;
+- executed and reused pages by engine;
+- paid pages and provider credits when returned;
+- parser failures;
+- artifact ID, content SHA, byte SHA, and locator;
+- verifier decision;
+- unresolved and review-required findings;
+- the next operator action.
 
-Parser-correctable finding codes are defined in
-`apps/api/src/defense-budget/parser-router/escalation-planner.ts`
-(`PARSER_CORRECTABLE_FINDING_CODES`).
+## 12. Cache corruption recovery
 
----
+A corrupt output is never reused. Preserve it for diagnosis, then remove or
+quarantine the affected result and descriptor under the exact identity path.
+Re-run the same command. A local engine may execute again. A paid engine still
+requires explicit authorization and cap.
 
-## 8. Cache corruption recovery
+Never edit a descriptor to make it match mutated bytes.
 
-The artifact store is content-addressed. A corrupted, missing, or unprovable
-cached output is never reused.
+## 13. Runtime unavailable
 
-Recovery steps:
-
-1. Delete the corrupted artifact directory:
-
-   ```bash
-   rm -rf /path/to/artifact-store/<method>/<source-sha>/<config-sha>/<page-range>
-   ```
-
-2. Re-run the parser job for the affected pages. The router will recompute
-   the source SHA, rebuild the identity tuple, and write a fresh artifact.
-
-3. Verify the new artifact with the replay command in Section 6.
-
----
-
-## 9. Parser runtime unavailable
-
-Symptoms:
-
-- `uv run capiro-defense-budget-parser …` exits with a non-zero code.
-- Docker container fails to start or exits immediately.
-
-Checks:
-
-```bash
-# 1. Confirm Python runtime dependencies are locked and synced
-cd apps/defense-budget-parser
-uv sync --locked
-
-# 2. Run the CLI directly to see the error
-uv run capiro-defense-budget-parser version
-
-# 3. Validate a job envelope before submitting
-uv run capiro-defense-budget-parser validate-job \
-  --job /tmp/parse-job.json
-
-# 4. Run the Python unit tests (no network required)
-uv run pytest tests/ -v
-
-# 5. Check Docker image build
-docker build --target table --platform linux/amd64 \
-  -t capiro-defense-budget-parser:table apps/defense-budget-parser
-```
-
-Common causes:
-
-| Cause | Fix |
-|---|---|
-| Missing `uv.lock` or lock drift | `uv sync --locked` |
-| Job JSON fails schema validation | `validate-job` output shows the exact field failure |
-| Missing engine extras | Rebuild with the correct `--extra` flag or Docker target |
-| Non-absolute `sourcePath` | Use an absolute path in the job envelope |
-| `outputDirectory` not writable | Create the directory and ensure the runtime user can write to it |
-
----
-
-## 10. Model-cache preparation
-
-PaddleOCR and Docling download models on first use. To pre-warm the cache
-inside the `ocr` container:
-
-```bash
-docker run --rm \
-  -v capiro-parser-models:/home/parser/.paddleocr \
-  capiro-defense-budget-parser:ocr \
-  uv run python -c "from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='en')"
-```
-
-For Docling:
-
-```bash
-docker run --rm \
-  capiro-defense-budget-parser:layout \
-  uv run python -c "from docling.document_converter import DocumentConverter; DocumentConverter()"
-```
-
----
-
-## 11. No-network unit tests
-
-### 11.1 TypeScript side
-
-```bash
-# Parser-router unit tests only (no network, no DB, no AWS)
-pnpm --filter @capiro/api verify:pe-budget-phase-3
-```
-
-### 11.2 Python side
+Confirm:
 
 ```bash
 cd apps/defense-budget-parser
-uv run pytest tests/ -v
+uv sync --locked --all-groups
+uv run capiro-defense-budget-parser version --json
 ```
 
-All Python tests are designed to run without network access. Fixtures are
-small synthetic PDFs generated in test setup or checked in under
-`tests/fixtures/`.
+Use the correct Docker target for Docling or PaddleOCR. The runtime reports
+exit `4` when an optional engine/package/model is unavailable.
 
----
+## 14. Validation and closeout
 
-## 12. Cleanup of local work directories
+Without container builds:
 
 ```bash
-# Remove local parser output directories
-rm -rf /tmp/parser-out /tmp/profile-out
-
-# Remove local artifact store (only if you want to force re-parsing)
-rm -rf /path/to/artifact-store
-
-# Remove Python virtual environment and rebuild
-cd apps/defense-budget-parser
-rm -rf .venv
-uv sync --locked
-
-# Remove Docker images
-docker rmi capiro-defense-budget-parser:table \
-           capiro-defense-budget-parser:layout \
-           capiro-defense-budget-parser:ocr
+pnpm --dir apps/api exec tsx scripts/verify-pe-budget-phase-3-closeout.ts
 ```
 
----
-
-## 13. Useful verification commands
+Including all three Linux/amd64 Docker targets:
 
 ```bash
-# Phase 1 contract verification
-pnpm --filter @capiro/api verify:pe-budget-phase-1
-
-# Phase 2 verifier verification
-pnpm --filter @capiro/api verify:pe-budget-phase-2
-
-# Phase 3 parser-router unit tests
-pnpm --filter @capiro/api verify:pe-budget-phase-3
-
-# Full API typecheck (includes parser-router tsconfig)
-pnpm --filter @capiro/api typecheck
+pnpm --dir apps/api exec tsx scripts/verify-pe-budget-phase-3-closeout.ts \
+  --include-containers
 ```
+
+The closeout runner executes:
+
+- Phase 1, Phase 2, and Phase 3 regression suites;
+- strict Phase 3 TypeScript;
+- Prisma validation;
+- architecture containment;
+- TypeScript/Python cross-language contract and canonical-hash checks;
+- locked Python sync, tests, Ruff, and mypy;
+- all 20 real mutate–fail–restore negative controls;
+- Prettier;
+- optional table/layout/OCR container builds.
+
+GitHub Actions are not required for Phase 3 acceptance.
+
+## 15. Cleanup
+
+Work directories contain source-adjacent parser results and audit reports. Clean
+only after the final artifact, parser descriptors, and execution reports have
+been retained according to the operator’s storage policy.
+
+```bash
+rm -rf work/fy2027
+```
+
+Do not delete shared parser artifacts or persisted proof objects referenced by a
+Phase 2 audit run.

@@ -1,8 +1,4 @@
-/**
- * Barrel exports for the defense-budget parser-router module.
- */
-
-// Workstream A: Runtime contracts and state machine
+/** Public Phase 3 parser-router API. */
 export {
   DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION,
   DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION,
@@ -53,7 +49,11 @@ export {
   type EvidencePrecisionV1,
 } from './parser-runtime-contract-v1.js';
 
-// Workstream B: Page profiler
+export {
+  ROUTER_STATE_TRANSITIONS,
+  assertRouterStateTransition,
+} from './router-state-machine.js';
+
 export {
   pageProfileV1Schema,
   documentProfileSummaryV1Schema,
@@ -69,7 +69,6 @@ export {
   type ProfilingThresholdsV1,
 } from './page-profiler.js';
 
-// Workstream C: Route planner and escalation
 export {
   parserPlanStepV1Schema,
   defenseBudgetParsePlanV1Schema,
@@ -94,30 +93,51 @@ export {
   type VerificationResultMinimalV1,
 } from './escalation-planner.js';
 
-// Workstream D: Artifact store and replay
 export {
   FilesystemParserArtifactStore,
   S3ParserArtifactStore,
   NoOpParserRunRecorder,
   reuseOrCreate,
   type ParserArtifactStoreV1,
+  type ParserArtifactObjectStoreV1,
   type ParserRunRecorderV1,
 } from './parser-artifact-store.js';
-
+export { MethodRoutingParserArtifactStore } from './method-routing-parser-artifact-store.js';
+export {
+  ProofBoundParserRunRecorder,
+  type ParserOutputByteReaderV1,
+} from './proof-bound-parser-run-recorder.js';
+export {
+  AwsParserArtifactObjectStore,
+  createS3ParserArtifactStore,
+} from './s3-parser-artifact-store.js';
 export { PrismaParserRunRecorder } from './prisma-parser-run-recorder.js';
+export {
+  createProductionParserVerificationContext,
+  type ProductionParserVerificationContextV1,
+} from './production-parser-verification-context.js';
+export { getDefaultParserConfig } from './parser-engine-defaults.js';
+export {
+  LocalParserRuntimeClient,
+  type LocalParserRuntimeClientOptions,
+  type ExecuteJobResult,
+  type ParserRuntimeVersionInfoV1,
+} from './local-parser-runtime-client.js';
 
-// Cost accounting
 export { CostAccumulator, type ParserCostReportV1 } from './cost-accounting.js';
 
-// Workstream L: V1 artifact bridge and parser router service
 export {
   pagesToContiguousRanges,
   buildContributingParserRuns,
   buildExtractionArtifact,
-  computeArtifactId,
   type ExtractionArtifactBridgeInput,
   type ExtractionArtifactBridgeOutput,
 } from './extraction-artifact-bridge.js';
+
+export {
+  verifyNativeStructuredCompanion,
+  type NativeStructuredCompanionResultV1,
+} from './native-structured-companion.js';
 
 export {
   ParserRouterV1Service,
