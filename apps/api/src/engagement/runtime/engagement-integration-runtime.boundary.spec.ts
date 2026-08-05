@@ -3,15 +3,18 @@ import { describe, expect, it, jest } from '@jest/globals';
 import type { GmailSendService } from '../google/gmail-send.service.js';
 import type { GoogleOAuthService } from '../google/google-oauth.service.js';
 import type { GoogleSyncService } from '../google/google-sync.service.js';
+import type { GoogleTokenService } from '../google/google-token.service.js';
 import type { MicrosoftGraphSyncService } from '../microsoft/microsoft-graph-sync.service.js';
 import type { MicrosoftOAuthService } from '../microsoft/microsoft-oauth.service.js';
 import {
   GMAIL_SEND_RUNTIME_METHODS,
   GOOGLE_OAUTH_RUNTIME_METHODS,
   GOOGLE_SYNC_RUNTIME_METHODS,
+  GOOGLE_TOKEN_RUNTIME_METHODS,
   guardGmailSendService,
   guardGoogleOAuthService,
   guardGoogleSyncService,
+  guardGoogleTokenService,
   guardMicrosoftGraphSyncService,
   guardMicrosoftOAuthService,
   MICROSOFT_GRAPH_RUNTIME_METHODS,
@@ -68,6 +71,12 @@ describe('Engagement integration runtime boundaries', () => {
   it('blocks every Microsoft OAuth lifecycle entry point', () => {
     expectBlocked(MICROSOFT_OAUTH_RUNTIME_METHODS, (raw) =>
       guardMicrosoftOAuthService(raw as unknown as MicrosoftOAuthService, shadowPolicy()),
+    );
+  });
+
+  it('blocks Google token loading, decryption, and refresh', () => {
+    expectBlocked(GOOGLE_TOKEN_RUNTIME_METHODS, (raw) =>
+      guardGoogleTokenService(raw as unknown as GoogleTokenService, shadowPolicy()),
     );
   });
 
