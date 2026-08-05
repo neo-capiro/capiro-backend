@@ -94,6 +94,9 @@ function routePath(route: RouteEntry, fixtures: Fixtures): string {
 }
 
 function idForRoute(route: RouteEntry, fixtures: Fixtures): string {
+  if (route.handler === 'getOutreachJob' || route.handler === 'getSendIntent') {
+    return MISSING_ID;
+  }
   if (route.path.includes('/meetings/')) return fixtures.meetingIds.current ?? MISSING_ID;
   if (route.path.includes('/outreach/')) return fixtures.outreachIds.draft ?? MISSING_ID;
   if (route.path.includes('/campaigns/')) return fixtures.campaignId ?? MISSING_ID;
@@ -168,7 +171,7 @@ async function tableCounts(prisma: PrismaService): Promise<Record<string, number
   const tables = [
     'outreach_jobs',
     'outreach_send_intents',
-    'notetaker_sessions',
+    'meeting_bot_sessions',
     'engagement_connections',
     'engagement_attachments',
   ];
