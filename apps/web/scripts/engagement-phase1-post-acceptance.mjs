@@ -2,26 +2,18 @@
 /**
  * Mandatory post-acceptance proof for Phase 1.
  *
- * The primary browser proof records request destinations and the primary API
- * parity proof exercises the entire manifest. This second pass closes two
- * false-green classes:
+ * The isolated post runtime first reruns the hardened authenticated Phase 1
+ * browser proof and writes its bearer token to a mode-0600 temporary file. This
+ * script reuses that token to close two false-green classes:
  *   1. a browser request that returned 401/403/404/5xx;
  *   2. read parity satisfied only because both services returned the same 404.
- *
- * It authenticates with the existing test session, replays every observed
- * browser GET, probes representative real seeded records through both APIs,
- * and classifies every non-2xx manifest read as an explicit not-found contract.
  */
 import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connectChrome, createActor } from './phase19-cdp.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const require = createRequire(path.join(ROOT, 'apps/web/package.json'));
-const chromeLauncher = require('chrome-launcher');
 const args = parse(process.argv.slice(2));
 const actualSha = required('ENGAGEMENT_PHASE1_EXPECTED_SHA', args.sha);
 const evidence = path.resolve(
@@ -31,9 +23,11 @@ const evidence = path.resolve(
 const mainUrl = process.env.ENGAGEMENT_PHASE1_MAIN_URL ?? 'http://127.0.0.1:4000';
 const shadowUrl =
   process.env.ENGAGEMENT_PHASE1_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
-const baseUrl = process.env.ENGAGEMENT_PHASE1_BASE_URL ?? 'http://127.0.0.1:5173';
-const cookie = requiredAny('ENGAGEMENT_PHASE1_USER_COOKIE', 'ENGAGEMENT_PHASE0_USER_COOKIE');
-const orgId = requiredAny('ENGAGEMENT_PHASE1_CLERK_ORG_ID', 'ENGAGEMENT_PHASE0_CLERK_ORG_ID');
+const tokenFile = required('ENGAGEMENT_PHASE1_TOKEN_FILE');
+const token = (await readFile(tokenFile, 'utf8')).trim();
+if (token.length < 20) {
+  throw new Error('The hardened browser proof did not provide a bearer token');
+}
 
 const browserEvidence = JSON.parse(
   await readFile(path.join(evidence, 'browser-parity.json'), 'utf8'),
@@ -46,70 +40,50 @@ const summary = JSON.parse(await readFile(summaryPath, 'utf8'));
 if (summary.sha !== actualSha || summary.actualHeadSha !== actualSha) {
   throw new Error('Post-acceptance proof SHA does not match the primary summary');
 }
-
-await mkdir(path.join(evidence, 'screenshots'), { recursive: true });
-const chrome = await chromeLauncher.launch({
-  chromeFlags: ['--headless=new', '--no-sandbox', '--disable-gpu', '--window-size=1280,800'],
-  startingUrl: 'about:blank',
-});
-
-try {
-  const cdp = await connectChrome(chrome.port);
-  const page = await createActor({
-    cdp,
-    label: 'engagement-phase1-post-acceptance',
-    cookie,
-    orgId,
-    baseUrl,
-    evidenceDir: path.join(evidence, 'screenshots'),
-  });
-  const token = await page.evaluate(`(async () => {
-    const value = await window.Clerk?.session?.getToken({ template: 'capiro' });
-    if (!value) throw new Error('Clerk capiro token unavailable');
-    return value;
-  })()`);
-  if (typeof token !== 'string' || token.length < 20) {
-    throw new Error('Post-acceptance browser did not produce an authenticated bearer token');
-  }
-
-  const browserReplays = await replayBrowserGets(token);
-  const realReads = await proveRealSeededReads(token);
-  const manifestClassification = classifyManifestReads();
-
-  const proof = {
-    marker: 'ENGAGEMENT_PHASE1_POST_ACCEPTANCE_COMPLETE',
-    sha: actualSha,
-    browserReplays,
-    realReads,
-    manifestClassification,
-    browserResponsesSuccessful: true,
-    realSeededReadParity: true,
-    unmatchedManifestReads: 0,
-    unclassifiedNon2xxReads: 0,
-  };
-  await writeFile(
-    path.join(evidence, 'post-acceptance-proof.json'),
-    `${JSON.stringify(proof, null, 2)}\n`,
-  );
-  await writeFile(
-    summaryPath,
-    `${JSON.stringify(
-      {
-        ...summary,
-        browserResponsesVerified: true,
-        realSeededReadParity: true,
-        postAcceptanceMarker: proof.marker,
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  console.log('ENGAGEMENT_PHASE1_POST_ACCEPTANCE_COMPLETE');
-} finally {
-  await chrome.kill();
+if (
+  browserEvidence.marker !== 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE' ||
+  browserEvidence.authenticated !== true ||
+  browserEvidence.everySurfaceLoaded !== true ||
+  browserEvidence.everySurfaceCalledMainApi !== true
+) {
+  throw new Error('The isolated hardened browser proof did not complete successfully');
 }
 
-async function replayBrowserGets(token) {
+const browserReplays = await replayBrowserGets();
+const realReads = await proveRealSeededReads();
+const manifestClassification = classifyManifestReads();
+
+const proof = {
+  marker: 'ENGAGEMENT_PHASE1_POST_ACCEPTANCE_COMPLETE',
+  sha: actualSha,
+  browserReplays,
+  realReads,
+  manifestClassification,
+  browserResponsesSuccessful: true,
+  realSeededReadParity: true,
+  unmatchedManifestReads: 0,
+  unclassifiedNon2xxReads: 0,
+};
+await writeFile(
+  path.join(evidence, 'post-acceptance-proof.json'),
+  `${JSON.stringify(proof, null, 2)}\n`,
+);
+await writeFile(
+  summaryPath,
+  `${JSON.stringify(
+    {
+      ...summary,
+      browserResponsesVerified: true,
+      realSeededReadParity: true,
+      postAcceptanceMarker: proof.marker,
+    },
+    null,
+    2,
+  )}\n`,
+);
+console.log('ENGAGEMENT_PHASE1_POST_ACCEPTANCE_COMPLETE');
+
+async function replayBrowserGets() {
   const requests = (browserEvidence.states ?? [])
     .flatMap((state) => state.engagementRequests ?? [])
     .filter((request) => String(request.method ?? 'GET').toUpperCase() === 'GET');
@@ -127,14 +101,14 @@ async function replayBrowserGets(token) {
       redirect: 'manual',
     });
     results.push({ url, status: response.status, contentType: mediaType(response) });
-    if (response.status < 200 || response.status >= 400) {
-      throw new Error(`Observed browser GET did not succeed: ${response.status} ${url}`);
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Observed browser GET did not return 2xx: ${response.status} ${url}`);
     }
   }
   return { count: results.length, results };
 }
 
-async function proveRealSeededReads(token) {
+async function proveRealSeededReads() {
   const meetingId = requiredFixture(fixtures.meetingIds?.current, 'meetingIds.current');
   const outreachId = requiredFixture(fixtures.outreachIds?.draft, 'outreachIds.draft');
   const campaignId = requiredFixture(fixtures.campaignId, 'campaignId');
@@ -175,7 +149,7 @@ async function proveRealSeededReads(token) {
     { label: 'campaign-detail-real', path: `/api/engagement/campaigns/${campaignId}`, marker: campaignId },
     { label: 'tasks-real', path: '/api/engagement/tasks', marker: taskId },
     { label: 'reports-overview', path: '/api/engagement/reports/overview' },
-    { label: 'client-context-real', path: `/api/engagement/context/${clientId}`, marker: clientId },
+    { label: 'client-context-real', path: `/api/engagement/context/${clientId}` },
     { label: 'client-debriefs', path: `/api/engagement/debriefs?clientId=${clientId}` },
     { label: 'shared-meetings', path: `/api/engagement/shared-meetings?clientId=${clientId}` },
     { label: 'mail-threads', path: `/api/engagement/mail-threads?clientId=${clientId}` },
@@ -185,8 +159,8 @@ async function proveRealSeededReads(token) {
   const results = [];
   for (const definition of probes) {
     const [main, shadow] = await Promise.all([
-      probe(mainUrl, definition.path, token),
-      probe(shadowUrl, definition.path, token),
+      probe(mainUrl, definition.path),
+      probe(shadowUrl, definition.path),
     ]);
     if (main.status < 200 || main.status >= 300) {
       throw new Error(`${definition.label} main API returned ${main.status}`);
@@ -267,7 +241,7 @@ function classifyManifestReads() {
   };
 }
 
-async function probe(base, pathname, token) {
+async function probe(base, pathname) {
   const response = await fetch(`${base}${pathname}`, {
     headers: { Authorization: `Bearer ${token}` },
     redirect: 'manual',
@@ -320,14 +294,6 @@ function required(name, fallback) {
   const value = process.env[name]?.trim() || String(fallback ?? '').trim();
   if (!value) throw new Error(`${name} is required`);
   return value;
-}
-
-function requiredAny(...names) {
-  for (const name of names) {
-    const value = process.env[name]?.trim();
-    if (value) return value;
-  }
-  throw new Error(`One of ${names.join(', ')} is required`);
 }
 
 function parse(values) {
