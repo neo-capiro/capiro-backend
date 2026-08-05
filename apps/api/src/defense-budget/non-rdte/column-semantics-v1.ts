@@ -150,6 +150,13 @@ export function bindHeaders(input: {
         'blin', 'line', 'title', 'code', 'pe', 'li', 'line item',
         'description', 'item', 'name', 'type', 'category', 'service',
         'component', 'account', 'appropriation', 'activity',
+        // O-1 (O&M Summary) label column headers
+        'sag', 'ba', 'bag', 'budget activity', 'budget activity group',
+        'activity group', 'subactivity group', 'subactivity',
+        'subactivity group code', 'subactivity group title',
+        'sag code', 'sag title', 'sag no.', 'sag/subactivity',
+        'budget activity (ba)', 'budget activity group (bag)',
+        'budget activity no.',
       ]);
       if (!labelWords.has(text.toLowerCase())) {
         unresolvedColumnIndices.push(header.columnIndex);
