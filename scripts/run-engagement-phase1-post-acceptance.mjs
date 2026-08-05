@@ -3,12 +3,13 @@
  * Isolated runtime for the mandatory Phase 1 post-acceptance proof.
  *
  * The primary closeout tears down its disposable services before returning.
- * This stage therefore creates a fresh database, starts both API processes and
- * the unchanged web application, runs the authenticated successful-response and
- * real-record verifier, and tears everything down regardless of outcome.
+ * This stage creates a fresh database, starts both API processes and the
+ * unchanged web application, reruns the hardened authenticated browser proof,
+ * then replays its requests and proves real seeded-record parity.
  */
 import { spawn } from 'node:child_process';
-import { appendFile, mkdir, rm } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
@@ -38,6 +39,8 @@ if ((counts[0] ?? Number.NaN) !== 0) {
 const EVIDENCE = path.resolve(ROOT, args.evidenceDir ?? `.artifacts/engagement-phase1-${SHA}`);
 const LOGS = path.join(EVIDENCE, 'logs');
 const FIXTURES = path.join(EVIDENCE, 'fixtures.json');
+const TOKEN_DIR = await mkdtemp(path.join(os.tmpdir(), 'capiro-engagement-phase1-post-'));
+const TOKEN_FILE = path.join(TOKEN_DIR, 'bearer-token');
 const DB_PORT = String(args.postDbPort ?? '55473');
 const MAIN_PORT = String(args.postMainPort ?? '4000');
 const SHADOW_PORT = String(args.postShadowPort ?? '4500');
@@ -105,6 +108,7 @@ const commonEnv = {
   ENGAGEMENT_PHASE1_FIXTURE_FILE: FIXTURES,
   ENGAGEMENT_PHASE1_EVIDENCE_DIR: EVIDENCE,
   ENGAGEMENT_PHASE1_EXPECTED_SHA: SHA,
+  ENGAGEMENT_PHASE1_TOKEN_FILE: TOKEN_FILE,
   ENGAGEMENT_PHASE1_BASE_URL: `http://127.0.0.1:${WEB_PORT}`,
   ENGAGEMENT_PHASE1_MAIN_URL: `http://127.0.0.1:${MAIN_PORT}`,
   ENGAGEMENT_PHASE1_ENGAGEMENT_URL: `http://127.0.0.1:${SHADOW_PORT}`,
@@ -137,44 +141,58 @@ const shadowEnv = {
 
 try {
   await mkdir(LOGS, { recursive: true });
-  await run('Remove stale post-acceptance database', DOCKER, ['rm', '-f', CONTAINER], commonEnv, true);
-  await run('Start post-acceptance pgvector PostgreSQL', DOCKER, [
-    'run',
-    '-d',
-    '--name',
-    CONTAINER,
-    '-e',
-    'POSTGRES_USER=capiro',
-    '-e',
-    'POSTGRES_PASSWORD=capiro',
-    '-e',
-    'POSTGRES_DB=capiro',
-    '-p',
-    `${DB_PORT}:5432`,
-    'pgvector/pgvector:pg16',
-  ], commonEnv);
+  await run(
+    'Remove stale post-acceptance database',
+    DOCKER,
+    ['rm', '-f', CONTAINER],
+    commonEnv,
+    true,
+  );
+  await run(
+    'Start post-acceptance pgvector PostgreSQL',
+    DOCKER,
+    [
+      'run',
+      '-d',
+      '--name',
+      CONTAINER,
+      '-e',
+      'POSTGRES_USER=capiro',
+      '-e',
+      'POSTGRES_PASSWORD=capiro',
+      '-e',
+      'POSTGRES_DB=capiro',
+      '-p',
+      `${DB_PORT}:5432`,
+      'pgvector/pgvector:pg16',
+    ],
+    commonEnv,
+  );
   await waitDatabase();
-  await run('Apply migrations to post-acceptance database', 'pnpm', [
-    '--filter',
-    '@capiro/api',
-    'exec',
-    'prisma',
-    'migrate',
-    'deploy',
-  ], mainEnv);
-  await run('Seed post-acceptance Engagement fixtures', 'pnpm', [
-    '--filter',
-    '@capiro/api',
-    'exec',
-    'tsx',
-    'scripts/seed-engagement-phase0-browser-fixtures.ts',
-  ], mainEnv);
-  await run('Build exact-head API entrypoints for post-acceptance', 'pnpm', [
-    '--filter',
-    '@capiro/api',
-    'run',
-    'build',
-  ], mainEnv);
+  await run(
+    'Apply migrations to post-acceptance database',
+    'pnpm',
+    ['--filter', '@capiro/api', 'exec', 'prisma', 'migrate', 'deploy'],
+    mainEnv,
+  );
+  await run(
+    'Seed post-acceptance Engagement fixtures',
+    'pnpm',
+    [
+      '--filter',
+      '@capiro/api',
+      'exec',
+      'tsx',
+      'scripts/seed-engagement-phase0-browser-fixtures.ts',
+    ],
+    mainEnv,
+  );
+  await run(
+    'Build exact-head API entrypoints for post-acceptance',
+    'pnpm',
+    ['--filter', '@capiro/api', 'run', 'build'],
+    mainEnv,
+  );
 
   children.push(
     start('post-main-api', process.execPath, ['apps/api/dist/main.js'], mainEnv),
@@ -191,7 +209,13 @@ try {
   await waitUrl(`http://127.0.0.1:${WEB_PORT}/`, 120_000);
 
   await run(
-    'Authenticated successful-response and real-record verifier',
+    'Rerun hardened authenticated browser proof',
+    process.execPath,
+    [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs')],
+    commonEnv,
+  );
+  await run(
+    'Successful-response and real-record verifier',
     process.execPath,
     [path.join(ROOT, 'apps/web/scripts/engagement-phase1-post-acceptance.mjs'), ...args],
     commonEnv,
@@ -199,9 +223,14 @@ try {
   console.log('ENGAGEMENT_PHASE1_POST_RUNTIME_COMPLETE');
 } finally {
   for (const child of children.reverse()) await terminate(child);
-  await run('Remove post-acceptance PostgreSQL', DOCKER, ['rm', '-f', CONTAINER], commonEnv, true).catch(
-    () => undefined,
-  );
+  await run(
+    'Remove post-acceptance PostgreSQL',
+    DOCKER,
+    ['rm', '-f', CONTAINER],
+    commonEnv,
+    true,
+  ).catch(() => undefined);
+  await rm(TOKEN_DIR, { recursive: true, force: true }).catch(() => undefined);
 }
 
 function start(label, command, commandArgs, env) {
