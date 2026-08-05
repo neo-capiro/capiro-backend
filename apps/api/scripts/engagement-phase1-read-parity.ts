@@ -15,6 +15,7 @@ interface RouteEntry {
   handler: string;
   classification: string;
 }
+
 interface Fixtures {
   tenantId: string;
   userId: string;
@@ -25,11 +26,17 @@ interface Fixtures {
   campaignId: string;
   taskId: string;
 }
+
 interface ProbeResult {
   status: number;
   contentType: string;
   serviceHeader: string;
   body: unknown;
+}
+
+interface TableDigest {
+  count: number;
+  digest: string;
 }
 
 const MAIN_URL = required('ENGAGEMENT_PHASE1_MAIN_URL');
@@ -80,6 +87,8 @@ function routePath(route: RouteEntry, fixtures: Fixtures): string {
     noteId: MISSING_ID,
     prepId: MISSING_ID,
     itemId: MISSING_ID,
+    attachmentId: MISSING_ID,
+    recipientId: MISSING_ID,
     id: idForRoute(route, fixtures),
   };
   return route.path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
@@ -106,15 +115,17 @@ function idForRoute(route: RouteEntry, fixtures: Fixtures): string {
 
 function queryForRoute(route: RouteEntry, fixtures: Fixtures): string {
   const params = new URLSearchParams();
-  if (route.handler === 'sharedMeetings') {
-    params.set('clientId', fixtures.clientIds[0] ?? MISSING_ID);
-  }
-  if (route.handler === 'clientDebriefs') {
+  if (route.handler === 'sharedMeetings' || route.handler === 'clientDebriefs') {
     params.set('clientId', fixtures.clientIds[0] ?? MISSING_ID);
   }
   if (route.handler === 'meetingLibrary') params.set('limit', '20');
   if (route.handler === 'listContacts') params.set('limit', '20');
   if (route.handler === 'listOutreachAudiences') params.set('kind', 'list');
+  if (route.handler === 'callback') {
+    params.set('code', 'phase1-local');
+    params.set('state', 'phase1-local');
+  }
+  if (route.handler === 'validateGet') params.set('validationToken', 'phase1-local');
   const query = params.toString();
   return query ? `?${query}` : '';
 }
@@ -167,22 +178,86 @@ function parity(left: ProbeResult, right: ProbeResult): boolean {
   );
 }
 
-async function tableCounts(prisma: PrismaService): Promise<Record<string, number>> {
-  const tables = [
-    'outreach_jobs',
-    'outreach_send_intents',
-    'meeting_bot_sessions',
-    'engagement_connections',
-    'engagement_attachments',
-  ];
-  const counts: Record<string, number> = {};
-  for (const table of tables) {
-    const rows = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
-      `SELECT COUNT(*)::bigint AS count FROM ${table}`,
-    );
-    counts[table] = Number(rows[0]?.count ?? 0n);
+function errorClass(result: ProbeResult): string {
+  if (!result.body || typeof result.body !== 'object') return `http_${result.status}`;
+  const body = result.body as Record<string, unknown>;
+  return String(body.code ?? body.error ?? body.statusCode ?? `http_${result.status}`);
+}
+
+function requireDeniedPair(
+  label: string,
+  mainResult: ProbeResult,
+  engagementResult: ProbeResult,
+  allowedStatuses: readonly number[],
+): void {
+  if (!parity(mainResult, engagementResult)) {
+    throw new Error(`${label} did not return parity-equivalent denials`);
   }
-  return counts;
+  if (!allowedStatuses.includes(mainResult.status)) {
+    throw new Error(
+      `${label} returned ${mainResult.status}; expected one of ${allowedStatuses.join(', ')}`,
+    );
+  }
+  if (errorClass(mainResult) !== errorClass(engagementResult)) {
+    throw new Error(`${label} returned different nonleaking error classes`);
+  }
+}
+
+function assertNonleakingRecordDenial(
+  label: string,
+  marker: string,
+  mainResult: ProbeResult,
+  engagementResult: ProbeResult,
+): void {
+  requireDeniedPair(label, mainResult, engagementResult, [403, 404]);
+  const serialized = JSON.stringify([mainResult.body, engagementResult.body]);
+  if (serialized.includes(marker)) {
+    throw new Error(`${label} leaked the protected record body`);
+  }
+}
+
+async function protectedTableDigests(
+  prisma: PrismaService,
+): Promise<Record<string, TableDigest>> {
+  const tables = await prisma.$queryRawUnsafe<Array<{ table_name: string }>>(`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_type = 'BASE TABLE'
+      AND (
+        table_name LIKE 'engagement_%'
+        OR table_name LIKE 'outreach_%'
+        OR table_name LIKE 'meeting_%'
+        OR table_name LIKE 'mail_%'
+        OR table_name = 'meetings'
+      )
+    ORDER BY table_name
+  `);
+  const output: Record<string, TableDigest> = {};
+  for (const row of tables) {
+    if (!/^[a-z0-9_]+$/.test(row.table_name)) {
+      throw new Error(`Unsafe table name returned by PostgreSQL: ${row.table_name}`);
+    }
+    const result = await prisma.$queryRawUnsafe<Array<{ count: bigint; digest: string }>>(`
+      SELECT
+        COUNT(*)::bigint AS count,
+        COALESCE(
+          md5(string_agg(to_jsonb(t)::text, '|' ORDER BY to_jsonb(t)::text)),
+          md5('')
+        ) AS digest
+      FROM "${row.table_name}" AS t
+    `);
+    output[row.table_name] = {
+      count: Number(result[0]?.count ?? 0n),
+      digest: result[0]?.digest ?? '',
+    };
+  }
+  return output;
+}
+
+function expectedConstraintError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /invalid input value for enum|violates check constraint|check constraint/i.test(message);
 }
 
 async function main(): Promise<void> {
@@ -219,6 +294,8 @@ async function main(): Promise<void> {
       const matched = parity(mainResult, engagementResult);
       readResults.push({
         route: `${route.method} ${pathname}`,
+        controller: route.controller,
+        handler: route.handler,
         mainResult,
         engagementResult,
         matched,
@@ -227,11 +304,16 @@ async function main(): Promise<void> {
     }
 
     for (const authCase of [
-      { label: 'missing_bearer', headers: {} },
-      { label: 'invalid_bearer', headers: { Authorization: 'Bearer invalid-token' } },
+      { label: 'missing_bearer', headers: {}, allowed: [401] as const },
+      {
+        label: 'invalid_bearer',
+        headers: { Authorization: 'Bearer invalid-token' },
+        allowed: [401] as const,
+      },
       {
         label: 'wrong_tenant_header',
         headers: authHeaders({ 'X-Capiro-Tenant': 'not-a-real-tenant' }),
+        allowed: [403] as const,
       },
     ]) {
       const pathname = '/api/engagement/meetings';
@@ -239,9 +321,15 @@ async function main(): Promise<void> {
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
         headers: authCase.headers,
       });
-      const matched = parity(mainResult, engagementResult);
-      authResults.push({ label: authCase.label, mainResult, engagementResult, matched });
-      if (!matched) throw new Error(`Auth parity mismatch: ${authCase.label}`);
+      requireDeniedPair(authCase.label, mainResult, engagementResult, authCase.allowed);
+      authResults.push({
+        label: authCase.label,
+        expectedStatuses: authCase.allowed,
+        mainResult,
+        engagementResult,
+        errorClass: errorClass(mainResult),
+        matched: true,
+      });
     }
 
     const originalMembership = await prisma.$queryRawUnsafe<Array<{ role: string }>>(
@@ -252,6 +340,7 @@ async function main(): Promise<void> {
     const standardRank = ROLE_RANK.standard_user;
     const belowRole = Object.entries(ROLE_RANK).find(([, rank]) => rank < standardRank)?.[0];
     if (!belowRole) throw new Error('ROLE_RANK has no role below standard_user');
+
     try {
       await prisma.$executeRawUnsafe(
         `UPDATE tenant_memberships SET role = '${belowRole}' WHERE tenant_id = '${fixtures.tenantId}'::uuid AND user_id = '${fixtures.userId}'::uuid`,
@@ -261,51 +350,56 @@ async function main(): Promise<void> {
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
         headers: authHeaders(),
       });
-      const matched = parity(mainResult, engagementResult) && mainResult.status === 403;
+      requireDeniedPair('below_required_role', mainResult, engagementResult, [403]);
       authResults.push({
         label: 'below_required_role',
         role: belowRole,
+        expectedStatuses: [403],
         mainResult,
         engagementResult,
-        matched,
+        matched: true,
       });
-      if (!matched) throw new Error('Below-required-role parity failed');
     } finally {
       await prisma.$executeRawUnsafe(
         `UPDATE tenant_memberships SET role = '${originalRole}' WHERE tenant_id = '${fixtures.tenantId}'::uuid AND user_id = '${fixtures.userId}'::uuid`,
       );
     }
 
+    let unknownRoleWasWritten = false;
     try {
       await prisma.$executeRawUnsafe(
         `UPDATE tenant_memberships SET role = 'phase1_unrecognized_role' WHERE tenant_id = '${fixtures.tenantId}'::uuid AND user_id = '${fixtures.userId}'::uuid`,
       );
+      unknownRoleWasWritten = true;
+    } catch (error) {
+      if (!expectedConstraintError(error)) throw error;
+      authResults.push({
+        label: 'unrecognized_role',
+        result: 'database_rejected_unknown_role',
+        databaseConstraint: true,
+        matched: true,
+      });
+    }
+    if (unknownRoleWasWritten) {
       try {
         const pathname = '/api/engagement/meetings';
         const mainResult = await probe(MAIN_URL, pathname, { headers: authHeaders() });
         const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
           headers: authHeaders(),
         });
-        const matched = parity(mainResult, engagementResult) && mainResult.status === 403;
-        authResults.push({ label: 'unrecognized_role', mainResult, engagementResult, matched });
-        if (!matched) throw new Error('Unrecognized-role parity failed');
+        requireDeniedPair('unrecognized_role', mainResult, engagementResult, [403]);
+        authResults.push({
+          label: 'unrecognized_role',
+          expectedStatuses: [403],
+          mainResult,
+          engagementResult,
+          matched: true,
+        });
       } finally {
         await prisma.$executeRawUnsafe(
           `UPDATE tenant_memberships SET role = '${originalRole}' WHERE tenant_id = '${fixtures.tenantId}'::uuid AND user_id = '${fixtures.userId}'::uuid`,
         );
       }
-    } catch (error) {
-      await prisma
-        .$executeRawUnsafe(
-          `UPDATE tenant_memberships SET role = '${originalRole}' WHERE tenant_id = '${fixtures.tenantId}'::uuid AND user_id = '${fixtures.userId}'::uuid`,
-        )
-        .catch(() => undefined);
-      authResults.push({
-        label: 'unrecognized_role',
-        blockedByDatabaseConstraint: true,
-        errorClass: error instanceof Error ? error.name : 'unknown',
-        matched: true,
-      });
     }
 
     await prisma.$executeRawUnsafe(`
@@ -331,18 +425,24 @@ async function main(): Promise<void> {
       ON CONFLICT (id) DO NOTHING
     `);
 
-    for (const [label, id] of [
-      ['cross_user_owned_record', CROSS_USER_MEETING_ID],
-      ['cross_tenant_record', CROSS_TENANT_MEETING_ID],
+    for (const [label, id, marker] of [
+      ['cross_user_owned_record', CROSS_USER_MEETING_ID, 'Phase 1 Cross User'],
+      ['cross_tenant_record', CROSS_TENANT_MEETING_ID, 'Phase 1 Cross Tenant'],
     ] as const) {
       const pathname = `/api/engagement/meetings/${id}`;
       const mainResult = await probe(MAIN_URL, pathname, { headers: authHeaders() });
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
         headers: authHeaders(),
       });
-      const matched = parity(mainResult, engagementResult);
-      authResults.push({ label, mainResult, engagementResult, matched });
-      if (!matched) throw new Error(`Ownership parity mismatch: ${label}`);
+      assertNonleakingRecordDenial(label, marker, mainResult, engagementResult);
+      authResults.push({
+        label,
+        expectedStatuses: [403, 404],
+        mainResult,
+        engagementResult,
+        leakedMarker: false,
+        matched: true,
+      });
     }
 
     const marker = `Phase 1 Interop ${Date.now()}`;
@@ -399,110 +499,69 @@ async function main(): Promise<void> {
     if (!roundTrip) throw new Error('Shared-database local write interoperability failed');
     await prisma.$executeRawUnsafe(`DELETE FROM meetings WHERE id = '${createdId}'::uuid`);
 
-    const beforeCounts = await tableCounts(prisma);
-    const actionProbeByAction: Record<string, { method: string; path: string }> = {
-      outreach_generate: {
-        method: 'POST',
-        path: '/api/engagement/outreach/generate-batch',
-      },
-      outreach_send: { method: 'POST', path: '/api/engagement/outreach/send-batch' },
-      outreach_test_send: {
-        method: 'POST',
-        path: `/api/engagement/campaigns/${fixtures.campaignId}/send-test`,
-      },
-      meeting_prep_generate: {
-        method: 'POST',
-        path: `/api/engagement/meetings/${fixtures.meetingIds.current}/prep`,
-      },
-      meeting_debrief_generate: {
-        method: 'POST',
-        path: `/api/engagement/meetings/${fixtures.meetingIds.current}/debrief-draft`,
-      },
-      integration_oauth_start: {
-        method: 'POST',
-        path: '/api/engagement/integrations/microsoft/start',
-      },
-      integration_oauth_callback: {
-        method: 'GET',
-        path: '/api/engagement/integrations/microsoft/callback?code=x&state=x',
-      },
-      integration_disconnect: {
-        method: 'DELETE',
-        path: `/api/engagement/integrations/microsoft/${MISSING_ID}`,
-      },
-      integration_sync: {
-        method: 'POST',
-        path: `/api/engagement/integrations/microsoft/${MISSING_ID}/sync`,
-      },
-      integration_subscription: {
-        method: 'POST',
-        path: `/api/engagement/integrations/microsoft/${MISSING_ID}/subscriptions`,
-      },
-      integration_notification: {
-        method: 'POST',
-        path: '/api/engagement/integrations/microsoft/notifications',
-      },
-      notetaker_dispatch: {
-        method: 'POST',
-        path: `/api/engagement/meetings/${fixtures.meetingIds.current}/notetaker`,
-      },
-      notetaker_remove: {
-        method: 'DELETE',
-        path: `/api/engagement/meetings/${fixtures.meetingIds.current}/notetaker`,
-      },
-      attachment_external_read: {
-        method: 'POST',
-        path: `/api/engagement/attachments/${MISSING_ID}/extract-text`,
-      },
-      attachment_external_write: {
-        method: 'POST',
-        path: '/api/engagement/attachments/upload-url',
-      },
-      internal_ai_credential_resolve: {
-        method: 'POST',
-        path: '/api/internal/ai-credentials/resolve',
-      },
-    };
-    const actions = [...new Set(registryEntries().map((entry) => entry.metadata.action))];
-    for (const action of actions) {
-      const definition = actionProbeByAction[action];
-      if (!definition) throw new Error(`Missing denial probe for runtime action ${action}`);
-      const result = await probe(ENGAGEMENT_URL, definition.path, {
-        method: definition.method,
-        headers: authHeaders(),
-        body:
-          definition.method === 'GET' || definition.method === 'DELETE' ? undefined : '{}',
-      });
-      const body = result.body as Record<string, unknown> | undefined;
-      const denied =
-        result.status === 503 &&
-        result.serviceHeader === 'engagement-api' &&
-        body?.code === 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED' &&
-        body?.action === action;
-      denialResults.push({ action, ...definition, result, denied });
-      if (!denied) throw new Error(`External action was not denied correctly: ${action}`);
+    const beforeDigests = await protectedTableDigests(prisma);
+    const registry = registryEntries();
+    let routeProbeCount = 0;
+    for (const entry of registry) {
+      const matchingRoutes = manifest.routes.filter(
+        (route) => route.controller === entry.controller && route.handler === entry.handler,
+      );
+      if (matchingRoutes.length === 0) {
+        throw new Error(`Runtime registry entry has no manifest route: ${entry.controller}.${entry.handler}`);
+      }
+      for (const route of matchingRoutes) {
+        const pathname = `${routePath(route, fixtures)}${queryForRoute(route, fixtures)}`;
+        const result = await probe(ENGAGEMENT_URL, pathname, {
+          method: route.method,
+          headers: authHeaders(),
+          body: ['GET', 'DELETE'].includes(route.method) ? undefined : '{}',
+        });
+        const body = result.body as Record<string, unknown> | undefined;
+        const denied =
+          result.status === 503 &&
+          result.serviceHeader === 'engagement-api' &&
+          body?.code === 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED' &&
+          body?.action === entry.metadata.action;
+        denialResults.push({
+          controller: entry.controller,
+          handler: entry.handler,
+          action: entry.metadata.action,
+          method: route.method,
+          pathname,
+          result,
+          denied,
+        });
+        routeProbeCount += 1;
+        if (!denied) {
+          throw new Error(
+            `External route was not denied correctly: ${route.method} ${pathname} ` +
+              `(${entry.controller}.${entry.handler}, action=${entry.metadata.action})`,
+          );
+        }
+      }
     }
-    const afterCounts = await tableCounts(prisma);
-    if (JSON.stringify(beforeCounts) !== JSON.stringify(afterCounts)) {
+    if (routeProbeCount < registry.length) {
       throw new Error(
-        `External denial probes mutated protected tables: ${JSON.stringify({
-          beforeCounts,
-          afterCounts,
+        `External route probe coverage was incomplete: routes=${routeProbeCount} registry=${registry.length}`,
+      );
+    }
+    const afterDigests = await protectedTableDigests(prisma);
+    if (JSON.stringify(beforeDigests) !== JSON.stringify(afterDigests)) {
+      throw new Error(
+        `External denial probes mutated protected data: ${JSON.stringify({
+          beforeDigests,
+          afterDigests,
         })}`,
       );
     }
-    denialResults.push({
-      databaseCounts: { before: beforeCounts, after: afterCounts },
-      unchanged: true,
-    });
 
     await writeFile(
       path.join(EVIDENCE_DIR, 'read-parity.json'),
-      JSON.stringify({ routes: readResults }, null, 2),
+      JSON.stringify({ routes: readResults, total: readResults.length, passed: readResults.length }, null, 2),
     );
     await writeFile(
       path.join(EVIDENCE_DIR, 'auth-parity.json'),
-      JSON.stringify({ cases: authResults }, null, 2),
+      JSON.stringify({ cases: authResults, total: authResults.length, passed: authResults.length }, null, 2),
     );
     await writeFile(
       path.join(EVIDENCE_DIR, 'local-write-interoperability.json'),
@@ -510,11 +569,21 @@ async function main(): Promise<void> {
     );
     await writeFile(
       path.join(EVIDENCE_DIR, 'external-action-denials.json'),
-      JSON.stringify({ denials: denialResults }, null, 2),
+      JSON.stringify(
+        {
+          denials: denialResults,
+          runtimeRegistryEntries: registry.length,
+          routeProbes: routeProbeCount,
+          protectedData: { before: beforeDigests, after: afterDigests, unchanged: true },
+          passed: true,
+        },
+        null,
+        2,
+      ),
     );
     console.log(`Read parity: ${readResults.length}/${readResults.length}`);
     console.log(`Auth/ownership parity: ${authResults.length}/${authResults.length}`);
-    console.log(`External actions denied: ${actions.length}/${actions.length}`);
+    console.log(`External routes denied: ${routeProbeCount}/${routeProbeCount}`);
     console.log('ENGAGEMENT_PHASE1_API_PARITY_COMPLETE');
   } finally {
     await prisma
