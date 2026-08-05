@@ -307,13 +307,10 @@ async function main() {
 
     await run(
       'Manifest-driven API/auth/write/per-route denial parity',
-      'pnpm',
+      process.execPath,
       [
-        '--filter',
-        '@capiro/api',
-        'exec',
-        'tsx',
-        'scripts/engagement-phase1-read-parity.ts',
+        path.join(ROOT, 'apps/api/node_modules/tsx/dist/cli.mjs'),
+        path.join(ROOT, 'apps/api/scripts/engagement-phase1-read-parity.ts'),
       ],
       { ...mainEnv, ENGAGEMENT_PHASE1_BEARER_TOKEN: bearerToken },
     );

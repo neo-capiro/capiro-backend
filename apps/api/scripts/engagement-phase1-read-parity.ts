@@ -1,6 +1,8 @@
 #!/usr/bin/env tsx
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ROLE_RANK } from '@capiro/shared';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
@@ -44,10 +46,13 @@ const ENGAGEMENT_URL = required('ENGAGEMENT_PHASE1_ENGAGEMENT_URL');
 const TOKEN = required('ENGAGEMENT_PHASE1_BEARER_TOKEN');
 const EVIDENCE_DIR = required('ENGAGEMENT_PHASE1_EVIDENCE_DIR');
 const FIXTURE_FILE = required('ENGAGEMENT_PHASE1_FIXTURE_FILE');
-const MANIFEST_FILE = path.resolve(
-  process.cwd(),
-  'apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json',
-);
+const MANIFEST_CANDIDATES = [
+  path.resolve(process.cwd(), 'apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json'),
+  path.resolve(process.cwd(), 'src/engagement/__fixtures__/engagement-route-manifest.v1.json'),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/engagement/__fixtures__/engagement-route-manifest.v1.json'),
+];
+const MANIFEST_FILE =
+  MANIFEST_CANDIDATES.find((candidate) => existsSync(candidate)) ?? MANIFEST_CANDIDATES[0]!;
 const MISSING_ID = 'ea000000-0000-4000-8000-000000000099';
 const CROSS_USER_ID = 'ea000000-0000-4000-8000-000000000012';
 const CROSS_TENANT_ID = 'ea000000-0000-4000-8000-000000000002';
