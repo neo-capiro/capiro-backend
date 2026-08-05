@@ -1,31 +1,98 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');
 const FIXTURE = path.join(__dirname, '__fixtures__', 'engagement-dependency-manifest.v1.json');
-const SCRIPT = path.join(REPO, 'apps', 'api', 'scripts', 'engagement-phase0-dependency-manifest.ts');
-const TSX = path.join(REPO, 'apps', 'api', 'node_modules', '.bin', 'tsx');
+const SCRIPT = path.join(
+  REPO,
+  'apps',
+  'api',
+  'scripts',
+  'engagement-phase0-dependency-manifest.ts',
+);
+const TSX_CLI = require.resolve('tsx/cli');
 
-function readFixture() { return JSON.parse(fs.readFileSync(FIXTURE, 'utf-8')); }
-function generate() { return JSON.parse(execSync(`bash "${TSX}" "${SCRIPT}"`, {cwd:REPO,stdio:'pipe',timeout:30000}).toString()); }
+function readFixture() {
+  return JSON.parse(fs.readFileSync(FIXTURE, 'utf-8'));
+}
+
+function generate() {
+  const result = spawnSync(process.execPath, [TSX_CLI, SCRIPT], {
+    cwd: REPO,
+    encoding: 'utf8',
+    timeout: 30_000,
+    shell: false,
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`dependency manifest generator failed: ${result.stderr || result.stdout}`);
+  }
+  return JSON.parse(result.stdout);
+}
 
 describe('Engagement dependency manifest', () => {
   describe('fixture integrity', () => {
-    it('exists and parses', () => { const m=readFixture(); expect(m.schemaVersion).toBe(1); expect(Array.isArray(m.externalImporters)).toBe(true); });
-    it('has root_registration category', () => { expect(new Set(readFixture().externalImporters.map((e:any)=>e.category)).has('root_registration')).toBe(true); });
+    it('exists and parses', () => {
+      const manifest = readFixture();
+      expect(manifest.schemaVersion).toBe(1);
+      expect(Array.isArray(manifest.externalImporters)).toBe(true);
+    });
+
+    it('has a root_registration category', () => {
+      expect(
+        new Set(readFixture().externalImporters.map((entry: any) => entry.category)).has(
+          'root_registration',
+        ),
+      ).toBe(true);
+    });
   });
+
   describe('structural invariants', () => {
-    let m: any;
-    beforeAll(() => { m = readFixture(); });
-    it('no duplicate entries', () => { const s=new Set<string>(),d:string[]=[]; for(const e of m.externalImporters){const k=`${e.importerFile}|${e.importedFile}|${e.importedSymbols.join(',')}|${e.importKind}`; if(s.has(k)) d.push(k); s.add(k);} expect(d).toEqual([]); });
-    it('no self-import', () => { for(const e of m.externalImporters) expect(e.importerFile).not.toBe(e.importedFile); });
-    it('isExternal boolean', () => { for(const e of [...m.externalImporters,...m.internalImports]) expect(typeof e.isExternal).toBe('boolean'); });
+    let manifest: any;
+    beforeAll(() => {
+      manifest = readFixture();
+    });
+
+    it('has no duplicate entries', () => {
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      for (const entry of manifest.externalImporters) {
+        const key = `${entry.importerFile}|${entry.importedFile}|${entry.importedSymbols.join(
+          ',',
+        )}|${entry.importKind}`;
+        if (seen.has(key)) duplicates.push(key);
+        seen.add(key);
+      }
+      expect(duplicates).toEqual([]);
+    });
+
+    it('has no self-import', () => {
+      for (const entry of manifest.externalImporters) {
+        expect(entry.importerFile).not.toBe(entry.importedFile);
+      }
+    });
+
+    it('records isExternal as a boolean', () => {
+      for (const entry of [...manifest.externalImporters, ...manifest.internalImports]) {
+        expect(typeof entry.isExternal).toBe('boolean');
+      }
+    });
   });
+
   describe('snapshot comparison', () => {
-    it('regenerated matches committed', () => { expect(generate()).toEqual(readFixture()); });
+    it('matches the current source dependency graph exactly', () => {
+      expect(generate()).toEqual(readFixture());
+    });
   });
+
   describe('negative controls', () => {
-    it('synthetic change causes mismatch', () => { const c=readFixture(),d=JSON.parse(JSON.stringify(c)); if(d.externalImporters.length>0) d.externalImporters[0].importedSymbols=['SYNTHETIC']; expect(d).not.toEqual(c); });
+    it('detects a synthetic dependency change', () => {
+      const committed = readFixture();
+      const changed = JSON.parse(JSON.stringify(committed));
+      changed.externalImporters[0].importedSymbols = ['SYNTHETIC'];
+      expect(changed).not.toEqual(committed);
+    });
   });
 });
