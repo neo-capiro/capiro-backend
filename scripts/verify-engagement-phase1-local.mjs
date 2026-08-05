@@ -34,7 +34,7 @@ await rm(path.join(evidence, 'logs', 'engagement-api-strict-background.log'), {
 await rm(path.join(evidence, 'strict-background-failure.json'), { force: true });
 
 await run('Phase 1 strict background digest closeout', [
-  path.join(ROOT, 'scripts', 'verify-engagement-phase1-background.mjs'),
+  path.join(ROOT, 'scripts', 'verify-engagement-phase1-background-final.mjs'),
   ...args,
 ]);
 
