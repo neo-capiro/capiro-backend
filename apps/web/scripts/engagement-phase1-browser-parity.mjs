@@ -6,7 +6,9 @@
  */
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import chromeLauncher from 'chrome-launcher';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const chromeLauncher = require('chrome-launcher');
 import { connectChrome, createActor } from './phase19-cdp.mjs';
 
 const BASE_URL = process.env.ENGAGEMENT_PHASE1_BASE_URL ?? 'http://127.0.0.1:5173';
