@@ -85,8 +85,8 @@ async function main(): Promise<void> {
 
     // Tenant
     await prisma.$executeRawUnsafe(`
-      INSERT INTO tenants (id, name, clerk_org_id, created_at, updated_at)
-      VALUES ('${TENANT_ID}'::uuid, 'Phase 0 Engagement Baseline', '${clerkOrgId}', now(), now())
+      INSERT INTO tenants (id, slug, name, status, clerk_org_id, created_at, updated_at)
+      VALUES ('${TENANT_ID}'::uuid, 'phase0-engagement-baseline', 'Phase 0 Engagement Baseline', 'active', '${clerkOrgId}', now(), now())
     `);
 
     // User + membership
@@ -95,8 +95,8 @@ async function main(): Promise<void> {
       VALUES ('${USER_ID}'::uuid, '${userEmail}', '${clerkUserId}', now(), now())
     `);
     await prisma.$executeRawUnsafe(`
-      INSERT INTO tenant_memberships (tenant_id, user_id, role, created_at, updated_at)
-      VALUES ('${TENANT_ID}'::uuid, '${USER_ID}'::uuid, 'user_admin', now(), now())
+      INSERT INTO tenant_memberships (tenant_id, user_id, role, status, created_at, updated_at)
+      VALUES ('${TENANT_ID}'::uuid, '${USER_ID}'::uuid, 'user_admin', 'active', now(), now())
     `);
 
     // Clients
