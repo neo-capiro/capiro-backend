@@ -51,6 +51,7 @@ import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 @Module({
   imports: [
@@ -70,6 +71,9 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     OutcomeController,
   ],
   providers: [
+    // Engagement API Phase 1 — central runtime policy service.
+    // Registered first so every other provider can inject it.
+    EngagementRuntimePolicyService,
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -110,7 +114,12 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     // LlmCompletionService is a plain (non-@Injectable) class that EngagementAiService
     // instantiates directly; registered here via a factory so the generation
     // services can take it by DI and a spec can swap in a fault-injecting fetch.
-    { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
+    {
+      provide: LlmCompletionService,
+      useFactory: (runtime: EngagementRuntimePolicyService) =>
+        new LlmCompletionService({ runtimePolicy: runtime }),
+      inject: [EngagementRuntimePolicyService],
+    },
     AttachmentScannerService,
     AttachmentContentService,
     OutreachTruthService,
@@ -123,6 +132,7 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     AlertPacketClientService,
   ],
   exports: [
+    EngagementRuntimePolicyService,
     OutcomeService,
     EngagementService,
     NotetakerService,

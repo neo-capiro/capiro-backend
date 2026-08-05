@@ -30,6 +30,8 @@
     "verify:meriv2-release": "pnpm verify:meriv2-scripts && node scripts/verify-meriv2-release.mjs --mode=release",
     "verify:engagement-phase-0": "pnpm --filter @capiro/api verify:engagement-phase-0",
     "verify:engagement-phase-0:browser": "node scripts/run-engagement-phase0-local.mjs",
+    "verify:engagement-phase-1": "pnpm --filter @capiro/api verify:engagement-phase-1",
+    "verify:engagement-phase-1:local": "node scripts/run-engagement-phase1-local.mjs",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
     "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",

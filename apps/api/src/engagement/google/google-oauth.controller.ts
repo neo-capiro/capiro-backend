@@ -18,6 +18,7 @@ import { RolesGuard } from '../../auth/roles.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { GoogleOAuthService } from './google-oauth.service.js';
 import { GoogleSyncService } from './google-sync.service.js';
+import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
 
 class StartOAuthDto {
   @IsOptional()
@@ -54,6 +55,7 @@ export class GoogleOAuthController {
   @Post(':connectionId/sync')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_sync')
   syncConnection(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -74,6 +76,7 @@ export class GoogleOAuthController {
   @Delete(':connectionId')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_disconnect')
   disconnect(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -86,6 +89,7 @@ export class GoogleOAuthController {
   @Post('start')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_oauth_start')
   start(@CurrentTenant() ctx: TenantContext, @Body() body: StartOAuthDto) {
     return this.oauth.start(ctx, body);
   }
@@ -97,6 +101,7 @@ export class GoogleOAuthController {
   // top-level redirect carries no bearer token — it authenticates via the
   // HMAC-signed `state`, exactly like the Microsoft callback.
   @Get('callback')
+  @EngagementRuntimeAction('integration_oauth_callback', { requiresCallbacks: true })
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,

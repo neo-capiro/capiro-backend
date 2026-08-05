@@ -65,6 +65,7 @@ import {
   type AttachmentReadinessRow,
 } from './attachment-content.service.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /** Graph/Gmail simple-send inline attachment ceiling. */
 const INLINE_ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
@@ -165,6 +166,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     private readonly attachmentContent: AttachmentContentService,
     private readonly attachmentScanner: AttachmentScannerService,
     config: ConfigService<AppConfig, true>,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {
     this.sweepMs = config.get('OUTREACH_JOB_SWEEP_MS', { infer: true });
     this.staleMs = config.get('OUTREACH_JOB_STALE_MS', { infer: true });
@@ -175,6 +177,15 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   }
 
   onModuleInit(): void {
+    // Engagement API Phase 1 — fail-closed runtime policy check.
+    if (!this.runtimePolicy.backgroundWorkersEnabled()) {
+      this.logger.log(
+        'outreach-send-intent-worker disabled by runtime policy ' +
+          `(service=${this.runtimePolicy.snapshot().serviceName} ` +
+          `owner=${this.runtimePolicy.snapshot().backgroundOwner})`,
+      );
+      return;
+    }
     // The worker only runs where versioned outreach is enabled; with the flag off
     // no intents can be created, so a sweep would be pure load.
     if (!this.versionedOutreach) return;
@@ -217,6 +228,12 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     ctx: TenantContext,
     input: CreateSendIntentInput,
   ): Promise<{ intentId: string; deduped: boolean }> {
+    // Engagement API Phase 1 — assert external action before any work.
+    // testMode=true → outreach_test_send; otherwise → outreach_send.
+    this.runtimePolicy.assertExternalAction(
+      input.testMode ? 'outreach_test_send' : 'outreach_send',
+      { testMode: input.testMode },
+    );
     const requestKey = input.requestKey?.trim() ?? '';
     if (requestKey.length < 8 || requestKey.length > 128) {
       throw new BadRequestException('requestKey must be 8–128 characters.');
@@ -556,6 +573,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   // ── Worker ────────────────────────────────────────────────────────────────
 
   async runSweep(): Promise<void> {
+    this.runtimePolicy.assertBackgroundOwner('outreach-send-intent-worker');
     await this.reconcileStale();
     const intentId = await this.findRunnableIntentId();
     if (!intentId) return;
