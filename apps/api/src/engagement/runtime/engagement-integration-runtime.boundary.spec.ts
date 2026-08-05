@@ -58,31 +58,34 @@ function expectBlocked(
 describe('Engagement integration runtime boundaries', () => {
   it('blocks every Microsoft Graph sync, subscription, notification, and send entry point', () => {
     expectBlocked(MICROSOFT_GRAPH_RUNTIME_METHODS, (raw) =>
-      guardMicrosoftGraphSyncService(raw as MicrosoftGraphSyncService, shadowPolicy()),
+      guardMicrosoftGraphSyncService(
+        raw as unknown as MicrosoftGraphSyncService,
+        shadowPolicy(),
+      ),
     );
   });
 
   it('blocks every Microsoft OAuth lifecycle entry point', () => {
     expectBlocked(MICROSOFT_OAUTH_RUNTIME_METHODS, (raw) =>
-      guardMicrosoftOAuthService(raw as MicrosoftOAuthService, shadowPolicy()),
+      guardMicrosoftOAuthService(raw as unknown as MicrosoftOAuthService, shadowPolicy()),
     );
   });
 
   it('blocks every Google sync entry point', () => {
     expectBlocked(GOOGLE_SYNC_RUNTIME_METHODS, (raw) =>
-      guardGoogleSyncService(raw as GoogleSyncService, shadowPolicy()),
+      guardGoogleSyncService(raw as unknown as GoogleSyncService, shadowPolicy()),
     );
   });
 
   it('blocks every Google OAuth lifecycle entry point', () => {
     expectBlocked(GOOGLE_OAUTH_RUNTIME_METHODS, (raw) =>
-      guardGoogleOAuthService(raw as GoogleOAuthService, shadowPolicy()),
+      guardGoogleOAuthService(raw as unknown as GoogleOAuthService, shadowPolicy()),
     );
   });
 
   it('blocks direct Gmail sends', () => {
     expectBlocked(GMAIL_SEND_RUNTIME_METHODS, (raw) =>
-      guardGmailSendService(raw as GmailSendService, shadowPolicy()),
+      guardGmailSendService(raw as unknown as GmailSendService, shadowPolicy()),
     );
   });
 
