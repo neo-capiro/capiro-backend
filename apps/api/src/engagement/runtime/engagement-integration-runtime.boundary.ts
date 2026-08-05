@@ -1,6 +1,7 @@
 import type { GmailSendService } from '../google/gmail-send.service.js';
 import type { GoogleOAuthService } from '../google/google-oauth.service.js';
 import type { GoogleSyncService } from '../google/google-sync.service.js';
+import type { GoogleTokenService } from '../google/google-token.service.js';
 import type { MicrosoftGraphSyncService } from '../microsoft/microsoft-graph-sync.service.js';
 import type { MicrosoftOAuthService } from '../microsoft/microsoft-oauth.service.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
@@ -8,6 +9,7 @@ import type { EngagementExternalAction } from './engagement-runtime.types.js';
 
 export const RAW_MICROSOFT_GRAPH_SYNC_SERVICE = Symbol('RAW_MICROSOFT_GRAPH_SYNC_SERVICE');
 export const RAW_MICROSOFT_OAUTH_SERVICE = Symbol('RAW_MICROSOFT_OAUTH_SERVICE');
+export const RAW_GOOGLE_TOKEN_SERVICE = Symbol('RAW_GOOGLE_TOKEN_SERVICE');
 export const RAW_GOOGLE_SYNC_SERVICE = Symbol('RAW_GOOGLE_SYNC_SERVICE');
 export const RAW_GOOGLE_OAUTH_SERVICE = Symbol('RAW_GOOGLE_OAUTH_SERVICE');
 export const RAW_GMAIL_SEND_SERVICE = Symbol('RAW_GMAIL_SEND_SERVICE');
@@ -32,6 +34,11 @@ export const MICROSOFT_OAUTH_RUNTIME_METHODS = {
   start: { action: 'integration_oauth_start' },
   handleCallback: { action: 'integration_oauth_callback' },
   disconnect: { action: 'integration_disconnect' },
+} as const satisfies Readonly<Record<string, BoundaryMetadata>>;
+
+export const GOOGLE_TOKEN_RUNTIME_METHODS = {
+  loadConnection: { action: 'integration_sync' },
+  getValidAccessToken: { action: 'integration_sync' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
 export const GOOGLE_SYNC_RUNTIME_METHODS = {
@@ -80,6 +87,13 @@ export function guardMicrosoftOAuthService(
   policy: EngagementRuntimePolicyService,
 ): MicrosoftOAuthService {
   return guardService(service, policy, MICROSOFT_OAUTH_RUNTIME_METHODS);
+}
+
+export function guardGoogleTokenService(
+  service: GoogleTokenService,
+  policy: EngagementRuntimePolicyService,
+): GoogleTokenService {
+  return guardService(service, policy, GOOGLE_TOKEN_RUNTIME_METHODS);
 }
 
 export function guardGoogleSyncService(
