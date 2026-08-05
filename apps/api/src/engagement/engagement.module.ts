@@ -66,11 +66,13 @@ import {
   guardGmailSendService,
   guardGoogleOAuthService,
   guardGoogleSyncService,
+  guardGoogleTokenService,
   guardMicrosoftGraphSyncService,
   guardMicrosoftOAuthService,
   RAW_GMAIL_SEND_SERVICE,
   RAW_GOOGLE_OAUTH_SERVICE,
   RAW_GOOGLE_SYNC_SERVICE,
+  RAW_GOOGLE_TOKEN_SERVICE,
   RAW_MICROSOFT_GRAPH_SYNC_SERVICE,
   RAW_MICROSOFT_OAUTH_SERVICE,
 } from './runtime/engagement-integration-runtime.boundary.js';
@@ -100,6 +102,13 @@ import { guardNotetakerService } from './runtime/engagement-notetaker-runtime.bo
         new EngagementRuntimePolicyService(
           resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
         ),
+    },
+    { provide: RAW_GOOGLE_TOKEN_SERVICE, useClass: GoogleTokenService },
+    {
+      provide: GoogleTokenService,
+      useFactory: (raw: GoogleTokenService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleTokenService(raw, runtime),
+      inject: [RAW_GOOGLE_TOKEN_SERVICE, EngagementRuntimePolicyService],
     },
     { provide: RAW_MICROSOFT_GRAPH_SYNC_SERVICE, useClass: MicrosoftGraphSyncService },
     {
@@ -197,7 +206,6 @@ import { guardNotetakerService } from './runtime/engagement-notetaker-runtime.bo
     AiCredentialResolverService,
     MeetingNotesCryptoService,
     EngagementSyncSchedulerService,
-    GoogleTokenService,
     EngagementMailSender,
     TokenCryptoService,
     OutreachDraftService,
