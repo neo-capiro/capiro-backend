@@ -2,7 +2,8 @@
 /**
  * Authenticated Chrome/CDP proof that the unchanged web application still uses
  * only the main API during Phase 1. Missing credentials, a sign-in redirect, an
- * empty application shell, or zero Engagement API traffic are hard failures.
+ * unfinished application shell, or missing per-surface Engagement API traffic
+ * are hard failures.
  */
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -297,18 +298,16 @@ async function main() {
     for (const state of STATES) {
       const requestStart = requests.length;
       await page.navigate(state.pathname);
-      await page
-        .waitFor(
-          () =>
-            page.evaluate(`(() => {
-              const body = document.body?.innerText ?? '';
-              return document.readyState === 'complete' &&
-                !body.includes('Loading') &&
-                !body.includes('Signing in');
-            })()`),
-          30_000,
-        )
-        .catch(() => undefined);
+      await page.waitFor(
+        () =>
+          page.evaluate(`(() => {
+            const body = document.body?.innerText ?? '';
+            return document.readyState === 'complete' &&
+              !body.includes('Loading') &&
+              !body.includes('Signing in');
+          })()`),
+        30_000,
+      );
       await new Promise((resolve) => setTimeout(resolve, 2_000));
 
       const browserState = await page.evaluate(`({
@@ -332,23 +331,34 @@ async function main() {
         throw new Error(`Engagement application shell was empty at ${state.pathname}`);
       }
       if (
+        body.includes('Loading') ||
+        body.includes('Signing in') ||
         body.includes('Something went wrong') ||
         body.includes('Application error') ||
         body.includes('Sign in to') ||
         body.includes('Create your account')
       ) {
-        throw new Error(`Authentication/error page rendered at ${state.pathname}`);
+        throw new Error(`Authentication/error/loading page rendered at ${state.pathname}`);
       }
 
-      const screenshot = await page.screenshot(`phase1-${state.label}`);
       const stateRequests = requests.slice(requestStart);
+      const stateEngagementRequests = stateRequests.filter((entry) =>
+        String(entry.url).includes('/api/engagement'),
+      );
+      if (stateEngagementRequests.length === 0) {
+        throw new Error(`No Engagement API request was observed for ${state.pathname}`);
+      }
+      const screenshot = await page.screenshot(`phase1-${state.label}`);
       stateResults.push({
         ...state,
         screenshot,
         renderedPathname: browserState.pathname,
         requestCount: stateRequests.length,
+        engagementApiRequestCount: stateEngagementRequests.length,
+        engagementRequests: stateEngagementRequests,
         errorBoundary: false,
         authenticated: true,
+        fullyLoaded: true,
       });
     }
 
@@ -420,6 +430,10 @@ async function main() {
       currentOutreachRoute: '/engagement/outreach',
       previewRoutingEnabled: false,
       authenticated: true,
+      everySurfaceLoaded: stateResults.every((state) => state.fullyLoaded),
+      everySurfaceCalledMainApi: stateResults.every(
+        (state) => state.engagementApiRequestCount > 0,
+      ),
       externalBusinessProviderAction: false,
     };
     await writeFile(
