@@ -85,7 +85,7 @@ describe('Notetaker runtime boundary', () => {
       { verifyAndParseWebhook: verify } as unknown as MeetingBotProvider,
       shadowPolicy(),
     );
-    expect(provider.verifyAndParseWebhook(Buffer.from('{}'), {})).toEqual({ kind: 'unknown' });
+    expect(provider.verifyAndParseWebhook({}, Buffer.from('{}'))).toEqual({ kind: 'unknown' });
     expect(verify).toHaveBeenCalledTimes(1);
 
     const localRead = jest.fn(() => ({ status: 'done' }));
