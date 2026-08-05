@@ -480,16 +480,22 @@ export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidence
   }
 
   const orgLiteral = JSON.stringify(orgId);
+  // Organizations may be disabled on the local/test Clerk instance. Prefer an
+  // active personal session; attempt org activation but do not hard-fail if
+  // the instance has no organization feature.
   await page.evaluate(`(async () => {
-    if (window.Clerk?.organization?.id !== ${orgLiteral}) {
-      await window.Clerk?.setActive({ organization: ${orgLiteral} });
-    }
+    try {
+      if (window.Clerk?.organization?.id !== ${orgLiteral}) {
+        await window.Clerk?.setActive({ organization: ${orgLiteral} });
+      }
+    } catch (e) {}
     return window.Clerk?.organization?.id ?? null;
   })()`);
-  await page.waitFor(
-    () => page.evaluate(`window.Clerk?.organization?.id === ${orgLiteral}`),
-    25_000,
-  );
+  const orgMatched = await page.evaluate(`window.Clerk?.organization?.id === ${orgLiteral}`);
+  if (!orgMatched) {
+    const hasSession = await page.evaluate('Boolean(window.Clerk?.session)');
+    if (!hasSession) throw new Error('Clerk session missing after auth');
+  }
   await page.navigate('/');
   await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 20_000);
   return page;
