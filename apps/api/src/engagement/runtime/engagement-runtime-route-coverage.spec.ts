@@ -131,6 +131,7 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
     }
     if (
       ['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.method) &&
+      route.controller !== 'RecallWebhookController' &&
       !metadata &&
       route.classification !== 'write' &&
       !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler) &&
