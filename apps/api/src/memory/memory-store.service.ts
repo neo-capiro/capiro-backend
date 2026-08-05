@@ -330,11 +330,18 @@ export class MemoryStoreService {
   }
 
   /**
-   * Upsert an item for a tenant via the trusted ingestion path, then re-derive
-   * its wikilink edges. Used by ingestion workers and seeding (not per-request
-   * user writes, which go through withTenant).
+   * Upsert an item for a tenant via the trusted (RLS-bypass) path, then
+   * re-derive its wikilink edges. Used by ingestion workers and seeding, and
+   * also by the interactive Settings-editor save (upsertSectionsForCurrentTenant)
+   * — that caller passes a higher `opts.timeoutMs` since it runs inline on a
+   * user's save click rather than in a background worker; see withSystem's
+   * doc comment for why the default 5s cap is unsafe under pool pressure.
    */
-  async upsertSystem(item: MemoryItem, ctx?: IngestContext): Promise<string> {
+  async upsertSystem(
+    item: MemoryItem,
+    ctx?: IngestContext,
+    opts?: { timeoutMs?: number },
+  ): Promise<string> {
     // Phase 6: governed-ingestion provenance. When an ingest pass supplies a
     // context, stamp the run id + timestamp + review_state; absent ⇒ NULL/'auto'
     // (byte-identical to pre-Phase-6). review_state advances auto→unreviewed for
@@ -430,7 +437,7 @@ export class MemoryStoreService {
       }
       await this.deriveEdges(tx, item, id);
       return id;
-    });
+    }, opts);
   }
 
   /**
@@ -598,7 +605,12 @@ export class MemoryStoreService {
           ...defaultMemoryGovernanceFields(),
         };
 
-    await this.upsertSystem(item);
+    // Interactive save (Settings editor / Client Soul), not a background
+    // ingestion pass: the default 5s interactive-transaction timeout leaves no
+    // headroom under Prisma pool pressure, which has intermittently turned a
+    // slow-but-legitimate save into an outright failure (503). Give it more
+    // room to wait out a transient pool stall rather than aborting the write.
+    await this.upsertSystem(item, undefined, { timeoutMs: 15_000 });
     return { ...item, updatedAt: new Date().toISOString() };
   }
 
