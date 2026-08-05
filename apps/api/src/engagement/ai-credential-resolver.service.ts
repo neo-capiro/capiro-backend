@@ -94,6 +94,7 @@ export class AiCredentialResolverService implements OnModuleInit {
   }
 
   async resolveOrder(ctx: TenantContext | null | undefined): Promise<ResolvedAiCredential[]> {
+    this.assertCredentialAccess();
     const providers: AiProvider[] = [];
     const add = (provider: AiProvider) => {
       if (!providers.includes(provider)) providers.push(provider);
@@ -114,6 +115,7 @@ export class AiCredentialResolverService implements OnModuleInit {
     ctx: TenantContext | null | undefined,
     provider: AiProvider,
   ): Promise<ResolvedAiCredential | null> {
+    this.assertCredentialAccess();
     return this.resolveForProvider(ctx, provider);
   }
 
@@ -121,6 +123,7 @@ export class AiCredentialResolverService implements OnModuleInit {
     tenantId: string,
     provider: AiProvider,
   ): Promise<ResolvedAiCredential | null> {
+    this.assertCredentialAccess();
     return this.resolveForProvider({ tenantId }, provider);
   }
 
@@ -174,6 +177,7 @@ export class AiCredentialResolverService implements OnModuleInit {
     apiKey: string,
     model?: string | null,
   ): Promise<{ ok: boolean; error?: string }> {
+    this.assertCredentialAccess();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
     try {
@@ -224,5 +228,9 @@ export class AiCredentialResolverService implements OnModuleInit {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private assertCredentialAccess(): void {
+    this.runtimePolicy?.assertExternalAction('internal_ai_credential_resolve');
   }
 }
