@@ -126,3 +126,11 @@ jobs:
       # the image/e2e path), so the full `test` is safe here.
       - name: Test api-strategy
         run: pnpm --filter @capiro/api-strategy test
+
+      # Engagement API Phase 1 — local-runtime contract. Runs the DB-free
+      # verifier (runtime policy, route coverage, timer containment, external
+      # boundaries, app module, bootstrap, health, entrypoint tests) and
+      # the API build that produces both dist/main.js and dist/engagement-main.js.
+      # Does NOT connect to a database, call AWS, or call any external provider.
+      - name: Engagement API Phase 1 local-runtime contract
+        run: pnpm verify:engagement-phase-1

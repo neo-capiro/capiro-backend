@@ -1,0 +1,2795 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": null,
+  "globalPrefix": "/api",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/engagement/associations/override",
+      "controller": "EngagementController",
+      "handler": "overrideAssociation",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2341,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "AssociationOverrideDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/attachments",
+      "controller": "EngagementController",
+      "handler": "attachments",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2364,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "meetingId",
+        "mailMessageId",
+        "unlinked"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/attachments/:id",
+      "controller": "EngagementController",
+      "handler": "deleteAttachment",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2386,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/attachments/:id/extract-text",
+      "controller": "EngagementController",
+      "handler": "extractAttachmentText",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2381,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/attachments/confirm",
+      "controller": "EngagementController",
+      "handler": "confirmAttachment",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2359,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "ConfirmAttachmentDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/attachments/upload-url",
+      "controller": "EngagementController",
+      "handler": "createAttachmentUploadUrl",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2351,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "AttachmentUploadDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/campaigns",
+      "controller": "EngagementController",
+      "handler": "listCampaigns",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2391,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "status"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/campaigns",
+      "controller": "EngagementController",
+      "handler": "createCampaign",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2400,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateCampaignDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/campaigns/:id",
+      "controller": "EngagementController",
+      "handler": "deleteCampaign",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2419,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/campaigns/:id",
+      "controller": "EngagementController",
+      "handler": "getCampaign",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2405,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/campaigns/:id",
+      "controller": "EngagementController",
+      "handler": "updateCampaign",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2410,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateCampaignDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/campaigns/:id/generate",
+      "controller": "EngagementController",
+      "handler": "generateCampaignEmail",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2442,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "GenerateCampaignEmailDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/campaigns/:id/recipients",
+      "controller": "EngagementController",
+      "handler": "addCampaignRecipients",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2424,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "AddCampaignRecipientsDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/campaigns/:id/recipients/:recipientId",
+      "controller": "EngagementController",
+      "handler": "removeCampaignRecipient",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2433,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "recipientId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/campaigns/:id/send",
+      "controller": "EngagementController",
+      "handler": "sendCampaignEmails",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2451,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/campaigns/:id/send-test",
+      "controller": "EngagementController",
+      "handler": "sendCampaignTest",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2456,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/capabilities",
+      "controller": "EngagementController",
+      "handler": "capabilities",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1651,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/contacts",
+      "controller": "EngagementController",
+      "handler": "listContacts",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1666,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "ListContactsQueryDto",
+      "parameterNames": [
+        "ctx",
+        "query"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/context/:clientId",
+      "controller": "EngagementController",
+      "handler": "clientContext",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2346,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "clientId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/debriefs",
+      "controller": "EngagementController",
+      "handler": "clientDebriefs",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1918,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "recipientEmails"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations",
+      "controller": "EngagementController",
+      "handler": "integrations",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1671,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations",
+      "controller": "EngagementController",
+      "handler": "createIntegration",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1677,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateIntegrationDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/integrations/google/:connectionId",
+      "controller": "GoogleOAuthController",
+      "handler": "disconnect",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "sourceLine": 74,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/google/:connectionId/sync",
+      "controller": "GoogleOAuthController",
+      "handler": "syncConnection",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "sourceLine": 54,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "reset",
+        "calendar",
+        "mail"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/google/callback",
+      "controller": "GoogleOAuthController",
+      "handler": "callback",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "sourceLine": 99,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "code",
+        "state",
+        "error",
+        "res"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/google/capabilities",
+      "controller": "GoogleOAuthController",
+      "handler": "capabilities",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "sourceLine": 44,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/google/start",
+      "controller": "GoogleOAuthController",
+      "handler": "start",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.controller.ts",
+      "sourceLine": 86,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "StartOAuthDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/integrations/microsoft/:connectionId",
+      "controller": "MicrosoftOAuthController",
+      "handler": "disconnect",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 56,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-window",
+      "controller": "MicrosoftOAuthController",
+      "handler": "syncCalendarWindow",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 96,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "from",
+        "to"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/:connectionId/subscriptions",
+      "controller": "MicrosoftOAuthController",
+      "handler": "subscriptions",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 111,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/:connectionId/sync",
+      "controller": "MicrosoftOAuthController",
+      "handler": "sync",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 75,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "reset",
+        "calendar",
+        "mail",
+        "from",
+        "to"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/microsoft/callback",
+      "controller": "MicrosoftOAuthController",
+      "handler": "callback",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 151,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "code",
+        "state",
+        "error",
+        "errorDescription",
+        "adminConsent",
+        "msTenant",
+        "res"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/microsoft/capabilities",
+      "controller": "MicrosoftOAuthController",
+      "handler": "capabilities",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 45,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/microsoft/notifications",
+      "controller": "MicrosoftOAuthController",
+      "handler": "validateGet",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 121,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "validationToken",
+        "res"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/notifications",
+      "controller": "MicrosoftOAuthController",
+      "handler": "notifications",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 130,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": 202,
+      "bodyDto": "unknown",
+      "queryDto": "string | undefined",
+      "parameterNames": [
+        "validationToken",
+        "body",
+        "res"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/start",
+      "controller": "MicrosoftOAuthController",
+      "handler": "start",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts",
+      "sourceLine": 68,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "StartOAuthDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "oauth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/mail-threads",
+      "controller": "EngagementController",
+      "handler": "mailThreads",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1901,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "recipientEmails"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/meeting-preps/:id",
+      "controller": "EngagementController",
+      "handler": "updatePrep",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1887,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateMeetingPrepDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "prepId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meeting-preps/:id/approve",
+      "controller": "EngagementController",
+      "handler": "approvePrep",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1896,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "prepId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings",
+      "controller": "EngagementController",
+      "handler": "meetings",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1683,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "from",
+        "to",
+        "recipientEmails"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings",
+      "controller": "EngagementController",
+      "handler": "createMeeting",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1717,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateMeetingDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id",
+      "controller": "EngagementController",
+      "handler": "meeting",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1712,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/engagement/meetings/:id",
+      "controller": "EngagementController",
+      "handler": "updateMeeting",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1722,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateMeetingDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/artifacts/share",
+      "controller": "EngagementController",
+      "handler": "shareArtifacts",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1748,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "ShareArtifactsDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/artifacts/unshare",
+      "controller": "EngagementController",
+      "handler": "unshareArtifacts",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1757,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "ShareArtifactsDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/attachments/:attachmentId/approve",
+      "controller": "EngagementController",
+      "handler": "approveMeetingAttachment",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1840,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "attachmentId"
+      ],
+      "classification": "attachment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/debrief-draft",
+      "controller": "EngagementController",
+      "handler": "generateDebriefDraft",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1849,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "GenerateDebriefDraftDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/debriefs",
+      "controller": "EngagementController",
+      "handler": "meetingDebriefs",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1811,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/debriefs",
+      "controller": "EngagementController",
+      "handler": "createDebrief",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1802,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateDebriefDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/meetings/:id/debriefs/:debriefId",
+      "controller": "EngagementController",
+      "handler": "updateDebrief",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1816,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateDebriefDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "debriefId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/debriefs/:debriefId/approve",
+      "controller": "EngagementController",
+      "handler": "approveDebrief",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1828,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "debriefId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/notes",
+      "controller": "EngagementController",
+      "handler": "meetingNotes",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1775,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/notes",
+      "controller": "EngagementController",
+      "handler": "createNote",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1766,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateNoteDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/meetings/:id/notes/:noteId",
+      "controller": "EngagementController",
+      "handler": "updateNote",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1780,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateNoteDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "noteId",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/notes/:noteId/approve",
+      "controller": "EngagementController",
+      "handler": "approveNote",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1793,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "noteId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/meetings/:id/notetaker",
+      "controller": "EngagementController",
+      "handler": "removeNotetaker",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1873,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "notetaker"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/notetaker",
+      "controller": "EngagementController",
+      "handler": "meetingNotetaker",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1867,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "notetaker"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/notetaker",
+      "controller": "EngagementController",
+      "handler": "dispatchNotetaker",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1858,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "DispatchNotetakerDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "notetaker"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/prep",
+      "controller": "EngagementController",
+      "handler": "generatePrep",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1878,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "GenerateMeetingPrepDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/share",
+      "controller": "EngagementController",
+      "handler": "shareMeeting",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1734,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/unshare",
+      "controller": "EngagementController",
+      "handler": "unshareMeeting",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1739,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/library",
+      "controller": "EngagementController",
+      "handler": "meetingLibrary",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1707,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "MeetingLibraryQueryDto",
+      "parameterNames": [
+        "ctx",
+        "query"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outcomes",
+      "controller": "OutcomeController",
+      "handler": "list",
+      "sourceFile": "apps/api/src/engagement/outcome/outcome.controller.ts",
+      "sourceLine": 50,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "kind",
+        "limit"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outcomes",
+      "controller": "OutcomeController",
+      "handler": "record",
+      "sourceFile": "apps/api/src/engagement/outcome/outcome.controller.ts",
+      "sourceLine": 37,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "RecordOutcomeDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "dto"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach",
+      "controller": "EngagementController",
+      "handler": "outreachRecords",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1944,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "from",
+        "to",
+        "type",
+        "limit",
+        "deleted"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach",
+      "controller": "EngagementController",
+      "handler": "createOutreachRecord",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2252,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateOutreachRecordDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/outreach/:id",
+      "controller": "EngagementController",
+      "handler": "deleteOutreachRecord",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2287,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/:id",
+      "controller": "EngagementController",
+      "handler": "outreachRecord",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2247,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/outreach/:id",
+      "controller": "EngagementController",
+      "handler": "updateOutreachRecord",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2257,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateOutreachRecordDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/:id/generate-draft",
+      "controller": "EngagementController",
+      "handler": "generateOutreachDraft",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2267,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 40 } }",
+      "httpCode": null,
+      "bodyDto": "GenerateOutreachDraftDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/:id/open-email",
+      "controller": "EngagementController",
+      "handler": "openOutreachEmail",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2277,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/:id/restore",
+      "controller": "EngagementController",
+      "handler": "restoreOutreachRecord",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2292,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/:id/send-campaign",
+      "controller": "EngagementController",
+      "handler": "sendCampaign",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2282,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/:outreachRecordId/draft-artifacts",
+      "controller": "EngagementController",
+      "handler": "listDraftArtifacts",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2147,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "outreachRecordId"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/ai-templates",
+      "controller": "EngagementController",
+      "handler": "listAiTemplates",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1985,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/ai-templates",
+      "controller": "EngagementController",
+      "handler": "createAiTemplate",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1990,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateAiTemplateDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/outreach/ai-templates/:id",
+      "controller": "EngagementController",
+      "handler": "deleteAiTemplate",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2004,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/engagement/outreach/ai-templates/:id",
+      "controller": "EngagementController",
+      "handler": "updateAiTemplate",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1995,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateAiTemplateDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/ai-templates/:id/preview",
+      "controller": "EngagementController",
+      "handler": "previewAiTemplate",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2011,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 30 } }",
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/audiences",
+      "controller": "EngagementController",
+      "handler": "listOutreachAudiences",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2231,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "ListOutreachAudiencesQueryDto",
+      "parameterNames": [
+        "ctx",
+        "query"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/audiences",
+      "controller": "EngagementController",
+      "handler": "createOutreachAudience",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2239,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateOutreachAudienceDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/context-library",
+      "controller": "EngagementController",
+      "handler": "outreachContextLibrary",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2224,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/draft-artifacts/:artifactId/versions",
+      "controller": "EngagementController",
+      "handler": "createDraftVersion",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2162,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 240 } }",
+      "httpCode": null,
+      "bodyDto": "CreateDraftVersionDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "artifactId",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/draft-artifacts/:artifactId/versions/:candidateVersionId/accept",
+      "controller": "EngagementController",
+      "handler": "acceptCandidateVersion",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2184,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 240 } }",
+      "httpCode": null,
+      "bodyDto": "AcceptCandidateVersionDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "artifactId",
+        "candidateVersionId",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/draft-versions/:versionId",
+      "controller": "EngagementController",
+      "handler": "getDraftVersion",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2173,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "versionId"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/generate-batch",
+      "controller": "EngagementController",
+      "handler": "generateBatchEmails",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2038,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 120 } }",
+      "httpCode": null,
+      "bodyDto": "GenerateBatchEmailDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body",
+        "authHeader"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/insights",
+      "controller": "EngagementController",
+      "handler": "outreachInsights",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2017,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/insights/talking-points",
+      "controller": "EngagementController",
+      "handler": "generateTalkingPoints",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2023,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 40 } }",
+      "httpCode": null,
+      "bodyDto": "GenerateTalkingPointsDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/jobs/:id",
+      "controller": "EngagementController",
+      "handler": "getOutreachJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2116,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/jobs/:id/cancel",
+      "controller": "EngagementController",
+      "handler": "cancelOutreachJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2123,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/jobs/:id/items/:itemId/retry",
+      "controller": "EngagementController",
+      "handler": "retryOutreachJobItem",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2130,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "itemId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/jobs/generate",
+      "controller": "EngagementController",
+      "handler": "submitGenerateJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2066,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 120 } }",
+      "httpCode": null,
+      "bodyDto": "OutreachGenerateJobDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/jobs/send",
+      "controller": "EngagementController",
+      "handler": "submitSendJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2087,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "OutreachSendJobDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/outbound/contact-data",
+      "controller": "EngagementController",
+      "handler": "outboundCampaignContactData",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1964,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/prior-contact",
+      "controller": "EngagementController",
+      "handler": "getPriorContact",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2058,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "GetPriorContactDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/send-batch",
+      "controller": "EngagementController",
+      "handler": "sendBatchEmails",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2051,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "SendBatchEmailDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/send-intents",
+      "controller": "EngagementController",
+      "handler": "createSendIntent",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2201,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateSendIntentDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/send-intents/:id",
+      "controller": "EngagementController",
+      "handler": "getSendIntent",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2206,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/send-intents/:id/cancel",
+      "controller": "EngagementController",
+      "handler": "cancelSendIntent",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2216,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/templates",
+      "controller": "EngagementController",
+      "handler": "outreachTemplates",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1972,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "type"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach/templates",
+      "controller": "EngagementController",
+      "handler": "createOutreachTemplate",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1977,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateOutreachTemplateDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/reports/overview",
+      "controller": "EngagementController",
+      "handler": "reportOverview",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2297,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId",
+        "period"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/reports/target-offices",
+      "controller": "EngagementController",
+      "handler": "createReportTargetOffice",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2306,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateReportTargetOfficeDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/reports/target-offices/overrides",
+      "controller": "EngagementController",
+      "handler": "upsertReportTargetOffice",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2314,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpsertReportTargetOfficeDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/shared-meetings",
+      "controller": "EngagementController",
+      "handler": "sharedMeetings",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 1939,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/tasks",
+      "controller": "EngagementController",
+      "handler": "tasks",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2322,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "string",
+      "parameterNames": [
+        "ctx",
+        "clientId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/tasks",
+      "controller": "EngagementController",
+      "handler": "createTask",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2327,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "CreateTaskDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/tasks/:id",
+      "controller": "EngagementController",
+      "handler": "updateTask",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2332,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateTaskDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/ai-credentials/resolve",
+      "controller": "InternalAiCredentialsController",
+      "handler": "resolve",
+      "sourceFile": "apps/api/src/engagement/internal-ai-credentials.controller.ts",
+      "sourceLine": 39,
+      "controllerGuards": [
+        "InternalServiceGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": 200,
+      "bodyDto": "ResolveAiCredentialDto",
+      "queryDto": null,
+      "parameterNames": [
+        "dto"
+      ],
+      "classification": "internal_secret"
+    },
+    {
+      "method": "POST",
+      "path": "/webhooks/recall",
+      "controller": "RecallWebhookController",
+      "handler": "receive",
+      "sourceFile": "apps/api/src/webhooks/recall-webhook.controller.ts",
+      "sourceLine": 21,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": 204,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "req",
+        "webhookId",
+        "webhookTimestamp",
+        "webhookSignature",
+        "svixId",
+        "svixTimestamp",
+        "svixSignature"
+      ],
+      "classification": "webhook"
+    }
+  ]
+}
