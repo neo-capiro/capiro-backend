@@ -57,6 +57,18 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
+import {
+  guardGmailSendService,
+  guardGoogleOAuthService,
+  guardGoogleSyncService,
+  guardMicrosoftGraphSyncService,
+  guardMicrosoftOAuthService,
+  RAW_GMAIL_SEND_SERVICE,
+  RAW_GOOGLE_OAUTH_SERVICE,
+  RAW_GOOGLE_SYNC_SERVICE,
+  RAW_MICROSOFT_GRAPH_SYNC_SERVICE,
+  RAW_MICROSOFT_OAUTH_SERVICE,
+} from './runtime/engagement-integration-runtime.boundary.js';
 
 @Module({
   imports: [
@@ -82,6 +94,43 @@ import { guardEngagementAiService } from './runtime/engagement-ai-runtime.bounda
         new EngagementRuntimePolicyService(
           resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
         ),
+    },
+    { provide: RAW_MICROSOFT_GRAPH_SYNC_SERVICE, useClass: MicrosoftGraphSyncService },
+    {
+      provide: MicrosoftGraphSyncService,
+      useFactory: (
+        raw: MicrosoftGraphSyncService,
+        runtime: EngagementRuntimePolicyService,
+      ) => guardMicrosoftGraphSyncService(raw, runtime),
+      inject: [RAW_MICROSOFT_GRAPH_SYNC_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_MICROSOFT_OAUTH_SERVICE, useClass: MicrosoftOAuthService },
+    {
+      provide: MicrosoftOAuthService,
+      useFactory: (raw: MicrosoftOAuthService, runtime: EngagementRuntimePolicyService) =>
+        guardMicrosoftOAuthService(raw, runtime),
+      inject: [RAW_MICROSOFT_OAUTH_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GOOGLE_SYNC_SERVICE, useClass: GoogleSyncService },
+    {
+      provide: GoogleSyncService,
+      useFactory: (raw: GoogleSyncService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleSyncService(raw, runtime),
+      inject: [RAW_GOOGLE_SYNC_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GOOGLE_OAUTH_SERVICE, useClass: GoogleOAuthService },
+    {
+      provide: GoogleOAuthService,
+      useFactory: (raw: GoogleOAuthService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleOAuthService(raw, runtime),
+      inject: [RAW_GOOGLE_OAUTH_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GMAIL_SEND_SERVICE, useClass: GmailSendService },
+    {
+      provide: GmailSendService,
+      useFactory: (raw: GmailSendService, runtime: EngagementRuntimePolicyService) =>
+        guardGmailSendService(raw, runtime),
+      inject: [RAW_GMAIL_SEND_SERVICE, EngagementRuntimePolicyService],
     },
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
@@ -121,13 +170,8 @@ import { guardEngagementAiService } from './runtime/engagement-ai-runtime.bounda
     },
     AiCredentialResolverService,
     MeetingNotesCryptoService,
-    MicrosoftGraphSyncService,
-    MicrosoftOAuthService,
-    GoogleOAuthService,
-    GoogleSyncService,
     EngagementSyncSchedulerService,
     GoogleTokenService,
-    GmailSendService,
     EngagementMailSender,
     TokenCryptoService,
     OutreachDraftService,
