@@ -13,6 +13,7 @@ export const NOTETAKER_EXTERNAL_METHODS: Readonly<
 > = {
   dispatch: { action: 'notetaker_dispatch' },
   remove: { action: 'notetaker_remove' },
+  receiveWebhook: { action: 'notetaker_dispatch', requiresCallbacks: true },
   handleBotEvent: { action: 'notetaker_dispatch', requiresCallbacks: true },
 };
 
