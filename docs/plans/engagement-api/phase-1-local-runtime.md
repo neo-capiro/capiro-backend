@@ -1,97 +1,49 @@
 # Phase 1 — Engagement API Local Runtime
 
-## Base SHA
+## Final implementation posture
 
-Phase 0 branch tip `68102d64` (Phase 0 not merged to main).
+Phase 1 adds a second NestJS runtime on port `4500` that reuses the existing `EngagementModule` and shared database. It does not copy the Engagement source tree, route browser traffic, add infrastructure, create a migration, deploy, or change the visible product.
 
-## Phase 0 prerequisite
+## Fail-closed runtime
 
-- accepted: yes (branch tip 68102d64)
-- verifier: `pnpm verify:engagement-phase-0`
-- route count: see engagement-route-manifest.v1.json
-- timer count: 5 on_module_init timers (SE-001 through SE-005, SE-013, SE-022)
-- external-action route count: 25+ routes annotated with @EngagementRuntimeAction
+The `engagement-api` bootstrap requires the exact shadow matrix before Nest constructs providers:
 
-## Architecture
-
-```
-main API        http://127.0.0.1:4000   (main.ts → AppModule)
-engagement-api  http://127.0.0.1:4500   (engagement-main.ts → EngagementApiAppModule)
-web             http://127.0.0.1:5173   (unchanged, points to :4000 only)
+```text
+CAPIRO_SERVICE_NAME=engagement-api
+ENGAGEMENT_PROCESS_MODE=shadow
+ENGAGEMENT_BACKGROUND_OWNER=disabled
+ENGAGEMENT_EXTERNAL_ACTIONS=disabled
+ENGAGEMENT_CALLBACKS_ENABLED=false
+ENGAGEMENT_RECALL_WEBHOOK_ENABLED=false
 ```
 
-Both API processes share the same PostgreSQL database. No dual-write layer,
-no second database. The engagement-api performs tenant-scoped reads and safe
-local writes against the shared schema.
+Boolean controls accept only the exact true and false allowlists. Misspellings fail boot.
 
-## Main API behavior
+An exact controller/handler route registry is authoritative for external actions and the decrypted internal AI-credential route. Colocated decorators are checked against that registry but are not the only runtime protection. All worker `onModuleInit` paths, job submission, send-intent creation, email, LLM, notetaker, attachment, OAuth, sync, callback, and provider-credential boundaries fail closed in shadow.
 
-- defaults: active/enabled (unset variables resolve to current-behavior defaults)
-- bootstrap parity: shared `configureApiHttpApp` extracted from main.ts
-- no route changes
+## Main API parity
 
-## engagement-api posture
+Unset main-API controls preserve the existing active behavior. The shared HTTP configurator retains current global-prefix exclusions, CORS behavior, parser ordering and limits, validation, Prisma exception mapping, and server timeouts.
 
-- shadow mode
-- background disabled
-- external actions disabled
-- callbacks disabled
-- Recall unregistered
+## Local acceptance without GitHub Actions
 
-## Background-process containment
+GitHub Actions are unavailable. The authoritative merge gate is:
 
-Every Phase 0 `on_module_init` timer consults
-`EngagementRuntimePolicyService.backgroundWorkersEnabled()` before
-`setInterval`. In shadow mode: no timer created, one sanitized log message.
+```bash
+pnpm verify:engagement-phase-1
+pnpm verify:engagement-phase-1:local -- --sha "$(git rev-parse HEAD)"
+```
 
-Contained timers:
-- EngagementSyncSchedulerService
-- OutreachJobService
-- OutreachSendIntentService
-- NotetakerService
-- AiCredentialResolverService
+The second command requires authenticated Chrome/CDP proof and produces a SHA-bound evidence bundle. It may not skip browser, route, ownership, external-action, background, Docker, or ARM64 validation and may emit `ENGAGEMENT_PHASE1_LOCAL_COMPLETE` only after all gates pass.
 
-## External-action containment
+## Non-goals confirmed
 
-- `@EngagementRuntimeAction` decorator on controller routes
-- `EngagementRuntimeGuard` (global guard in EngagementApiAppModule only)
-- Defense-in-depth: `EngagementMailSender.sendMail`, `LlmCompletionService.complete`,
-  `NotetakerService.dispatch/remove`, `OutreachJobService.submit`,
-  `OutreachSendIntentService.createIntent`
-
-## Route contract and parity
-
-- Same current Engagement HTTP contract
-- Same canonical route paths
-- Read-route parity tested via engagement-phase1-read-parity.ts
-
-## Auth and tenant parity
-
-Same JWT, role, tenant, and ownership rules enforced on both processes.
-
-## Health and service identity
-
-- `GET /health` on engagement-api returns shadow posture
-- `X-Capiro-Service: engagement-api` on every response
-
-## Docker and ARM64 build
-
-- Dedicated `apps/engagement-api/Dockerfile`
-- Serve-only entrypoint (refuses migrations, exit 64)
-- ARM64 OCI artifact build verified
-
-## Migrations
-
-None.
-
-## Infrastructure
-
-None.
-
-## Web/UI
-
-Unchanged.
-
-## Deployment
-
-Not performed.
+- No AWS/CDK/ALB/DNS change
+- No deployment
+- No database migration
+- No normal browser routing to port 4500
+- No Recall controller in engagement-api
+- No worker ownership transfer
+- No Outreach V3 or LangGraph
+- No visible UI change
+- No merge performed by the implementation agent
