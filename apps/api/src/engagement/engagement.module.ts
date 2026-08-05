@@ -9,7 +9,10 @@ import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
-import { NotetakerModule } from './notetaker/notetaker.module.js';
+import {
+  NotetakerModule,
+  RAW_MEETING_BOT_PROVIDER,
+} from './notetaker/notetaker.module.js';
 import {
   MEETING_BOT_PROVIDER,
   type MeetingBotProvider,
@@ -76,7 +79,10 @@ import {
   RAW_MICROSOFT_GRAPH_SYNC_SERVICE,
   RAW_MICROSOFT_OAUTH_SERVICE,
 } from './runtime/engagement-integration-runtime.boundary.js';
-import { guardNotetakerService } from './runtime/engagement-notetaker-runtime.boundary.js';
+import {
+  guardMeetingBotProvider,
+  guardNotetakerService,
+} from './runtime/engagement-notetaker-runtime.boundary.js';
 
 @Module({
   imports: [
@@ -102,6 +108,12 @@ import { guardNotetakerService } from './runtime/engagement-notetaker-runtime.bo
         new EngagementRuntimePolicyService(
           resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
         ),
+    },
+    {
+      provide: MEETING_BOT_PROVIDER,
+      useFactory: (raw: MeetingBotProvider, runtime: EngagementRuntimePolicyService) =>
+        guardMeetingBotProvider(raw, runtime),
+      inject: [RAW_MEETING_BOT_PROVIDER, EngagementRuntimePolicyService],
     },
     { provide: RAW_GOOGLE_TOKEN_SERVICE, useClass: GoogleTokenService },
     {
