@@ -15,12 +15,7 @@ export type EngagementBackgroundOwner = 'api' | 'engagement-api' | 'disabled';
 
 export type EngagementExternalActionMode = 'disabled' | 'test_only' | 'enabled';
 
-/**
- * Every external action that the runtime policy can gate.
- *
- * Extend only when the accepted Phase 0 side-effect registry identifies
- * a new external action.
- */
+/** Every external or sensitive boundary gated by the runtime policy. */
 export type EngagementExternalAction =
   | 'outreach_generate'
   | 'outreach_send'
@@ -36,13 +31,9 @@ export type EngagementExternalAction =
   | 'notetaker_dispatch'
   | 'notetaker_remove'
   | 'attachment_external_read'
-  | 'attachment_external_write';
+  | 'attachment_external_write'
+  | 'internal_ai_credential_resolve';
 
-/**
- * Shape of the policy snapshot returned by `EngagementRuntimePolicyService.snapshot()`.
- *
- * Must never include secrets, tokens, credentials, or tenant data.
- */
 export interface EngagementRuntimeSnapshot {
   serviceName: CapiroServiceName;
   processMode: EngagementProcessMode;
@@ -52,9 +43,6 @@ export interface EngagementRuntimeSnapshot {
   recallWebhookEnabled: boolean;
 }
 
-/**
- * Options passed to `assertExternalAction` / `externalActionAllowed`.
- */
 export interface AssertExternalActionOptions {
   testMode?: boolean;
 }
