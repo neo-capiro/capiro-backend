@@ -1,8 +1,5 @@
 import type { EngagementExternalAction } from './engagement-runtime.types.js';
 
-/**
- * Metadata key for the EngagementRuntimeAction decorator.
- */
 export const ENGAGEMENT_RUNTIME_ACTION_KEY = '__engagement_runtime_action__';
 
 export interface EngagementRuntimeActionMetadata {
@@ -12,30 +9,23 @@ export interface EngagementRuntimeActionMetadata {
 }
 
 /**
- * Decorator that marks a controller route as requiring an external-action
- * policy check. The EngagementRuntimeGuard reads this metadata and calls
- * EngagementRuntimePolicyService.assertExternalAction / assertCallbacksEnabled
- * before the controller body executes.
- *
- * Usage:
- *   @EngagementRuntimeAction('integration_sync')
- *   @EngagementRuntimeAction('integration_oauth_callback', { requiresCallbacks: true })
- *   @EngagementRuntimeAction('outreach_test_send', { testMode: true })
+ * Colocated route metadata. Metadata is written to the actual handler function,
+ * which is the target Nest's Reflector receives from ExecutionContext.
  */
 export function EngagementRuntimeAction(
   action: EngagementExternalAction,
   options?: { requiresCallbacks?: boolean; testMode?: boolean },
 ): MethodDecorator {
-  return <T>(
-    _target: object,
-    _propertyKey: string | symbol,
-    _descriptor: TypedPropertyDescriptor<T>,
-  ) => {
+  return (_target, _propertyKey, descriptor) => {
+    const handler = descriptor?.value;
+    if (typeof handler !== 'function') {
+      throw new TypeError('EngagementRuntimeAction can only decorate methods');
+    }
     const metadata: EngagementRuntimeActionMetadata = {
       action,
       requiresCallbacks: options?.requiresCallbacks ?? false,
       testMode: options?.testMode ?? false,
     };
-    Reflect.defineMetadata(ENGAGEMENT_RUNTIME_ACTION_KEY, metadata, _target, _propertyKey);
+    Reflect.defineMetadata(ENGAGEMENT_RUNTIME_ACTION_KEY, metadata, handler);
   };
 }
