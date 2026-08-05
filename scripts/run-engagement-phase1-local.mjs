@@ -86,6 +86,9 @@ const commonEnv = {
   ENGAGEMENT_PHASE1_ENGAGEMENT_URL: 'http://127.0.0.1:4500',
   ENGAGEMENT_PHASE1_TOKEN_FILE: TOKEN_FILE,
   VITE_API_BASE_URL: 'http://127.0.0.1:4000',
+  VITE_CLERK_PUBLISHABLE_KEY:
+    process.env.VITE_CLERK_PUBLISHABLE_KEY ?? process.env.CLERK_PUBLISHABLE_KEY ?? '',
+  CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? '',
 };
 const mainEnv = {
   ...commonEnv,

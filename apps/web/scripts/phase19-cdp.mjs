@@ -76,6 +76,7 @@ export async function connectChrome(port) {
 }
 
 function cookiesFromHeader(header, baseUrl) {
+  const origin = new URL(baseUrl);
   return header.split(';').map((part) => {
     const at = part.indexOf('=');
     if (at <= 0) throw new Error('Invalid cookie header');
@@ -83,6 +84,11 @@ function cookiesFromHeader(header, baseUrl) {
       name: part.slice(0, at).trim(),
       value: part.slice(at + 1).trim(),
       url: baseUrl,
+      domain: origin.hostname,
+      path: '/',
+      httpOnly: false,
+      secure: origin.protocol === 'https:',
+      sameSite: 'Lax',
     };
   });
 }
@@ -417,7 +423,19 @@ export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidence
     page.sessionId,
   );
   await page.navigate('/');
-  await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 35_000);
+  try {
+    await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 45_000);
+  } catch (error) {
+    const debug = await page.evaluate(`({
+      href: location.href,
+      hasClerk: Boolean(window.Clerk),
+      session: window.Clerk?.session?.id ?? null,
+      user: window.Clerk?.user?.id ?? null,
+      loaded: window.Clerk?.loaded ?? null,
+      cookieNames: document.cookie.split(';').map((p) => p.split('=')[0].trim()).filter(Boolean),
+    })`);
+    throw new Error(`${error instanceof Error ? error.message : String(error)} clerk_debug=${JSON.stringify(debug)}`);
+  }
   await page.evaluate(`(async () => {
     if (window.Clerk?.organization?.id !== ${JSON.stringify(orgId)}) {
       await window.Clerk?.setActive({ organization: ${JSON.stringify(orgId)} });
