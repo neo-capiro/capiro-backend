@@ -12,8 +12,8 @@ import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.j
  *
  * Ordering (MUST be preserved):
  *   1. global prefix
- *   2. CORS
- *   3. optional service-header middleware
+ *   2. optional service-header middleware
+ *   3. CORS
  *   4. raw webhook parsers (Clerk, Recall)
  *   5. special email-signature large body parser
  *   6. default JSON parser
@@ -74,8 +74,25 @@ export function configureApiHttpApp(
     ],
   });
 
-  // 2. CORS — registered BEFORE body parsers so that short-circuit responses
-  //    (e.g. 413 on an oversized upload) still carry CORS headers.
+  // 2. Optional service-header middleware — installed before CORS and body
+  //    parsers so every response, including CORS and parser failures, carries
+  //    an unambiguous process identity.
+  if (options.serviceHeader) {
+    app.use(
+      (
+        req: unknown,
+        res: { setHeader: (name: string, value: string) => void },
+        next: (err?: unknown) => void,
+      ) => {
+        res.setHeader('X-Capiro-Service', options.serviceHeader!);
+        next();
+      },
+    );
+  }
+
+  // 3. CORS — registered before body parsers so short-circuit responses
+  //    (e.g. 413 on an oversized upload) still carry CORS headers. The service
+  //    identity middleware above also stamps rejected-origin responses.
   const allowedOrigins = resolvedAllowedOrigins(process.env.WEB_ORIGIN);
   app.enableCors({
     origin: (origin, callback) => {
@@ -87,15 +104,6 @@ export function configureApiHttpApp(
     },
     credentials: true,
   });
-
-  // 3. Optional service-header middleware — installed before parsers so that
-  //    every response (including parser errors) carries the header.
-  if (options.serviceHeader) {
-    app.use((req: unknown, res: { setHeader: (name: string, value: string) => void }, next: (err?: unknown) => void) => {
-      res.setHeader('X-Capiro-Service', options.serviceHeader!);
-      next();
-    });
-  }
 
   // 4. Raw webhook parsers — registered before the default JSON parser so
   //    they win for their specific paths.
