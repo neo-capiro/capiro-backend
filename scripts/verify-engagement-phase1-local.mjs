@@ -3,8 +3,8 @@
  * Authoritative Phase 1 local command.
  *
  * The primary runner proves the full two-process/API/browser/image contract.
- * A mandatory authenticated post-pass proves successful browser responses and
- * real seeded-record parity. A final fresh process then re-proves background
+ * A mandatory isolated runtime then proves successful browser responses and
+ * real seeded-record parity. A final fresh process re-proves background
  * containment with JSON-encoded PostgreSQL digests.
  */
 import { execFileSync, spawn } from 'node:child_process';
@@ -31,8 +31,8 @@ await run('Phase 1 full local closeout', [
 ]);
 
 try {
-  await run('Phase 1 successful-response and real-record parity closeout', [
-    path.join(ROOT, 'apps', 'web', 'scripts', 'engagement-phase1-post-acceptance.mjs'),
+  await run('Phase 1 isolated successful-response and real-record closeout', [
+    path.join(ROOT, 'scripts', 'run-engagement-phase1-post-acceptance.mjs'),
     ...args,
   ]);
 
