@@ -6713,7 +6713,7 @@ model MemoryCandidate {
   id                String    @id @default(uuid()) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
   proposedBy        String    @map("proposed_by") @db.Uuid
-  sourceKind        String    @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction
+  sourceKind        String    @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction | settings_sections
   scope             String    @db.VarChar(16) // personal | firm | client (G2)
   /// G2: set iff scope='client' — the client the proposed memory belongs to.
   clientId          String?   @map("client_id") @db.Uuid
