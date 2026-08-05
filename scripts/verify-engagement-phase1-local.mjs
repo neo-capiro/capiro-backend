@@ -23,6 +23,7 @@ const evidence = path.resolve(
   parsed.evidenceDir ?? `.artifacts/engagement-phase1-${sha}`,
 );
 const summary = path.join(evidence, 'local-runner-summary.json');
+const postProofPath = path.join(evidence, 'post-acceptance-proof.json');
 
 await run('Phase 1 full local closeout', [
   path.join(ROOT, 'scripts', 'run-engagement-phase1-local.mjs'),
@@ -34,6 +35,27 @@ try {
     path.join(ROOT, 'apps', 'web', 'scripts', 'engagement-phase1-post-acceptance.mjs'),
     ...args,
   ]);
+
+  const postProof = JSON.parse(await readFile(postProofPath, 'utf8'));
+  const replayResults = postProof.browserReplays?.results ?? [];
+  if (
+    postProof.marker !== 'ENGAGEMENT_PHASE1_POST_ACCEPTANCE_COMPLETE' ||
+    postProof.sha !== sha ||
+    postProof.browserResponsesSuccessful !== true ||
+    postProof.realSeededReadParity !== true ||
+    replayResults.length === 0 ||
+    replayResults.some((result) => result.status < 200 || result.status >= 300)
+  ) {
+    throw new Error(
+      `Post-acceptance proof is incomplete or contains a non-2xx replay: ${JSON.stringify({
+        marker: postProof.marker,
+        sha: postProof.sha,
+        browserResponsesSuccessful: postProof.browserResponsesSuccessful,
+        realSeededReadParity: postProof.realSeededReadParity,
+        replayResults,
+      })}`,
+    );
+  }
 
   // A previous local attempt must not satisfy the strict log assertions.
   await rm(path.join(evidence, 'logs', 'engagement-api-strict-background.log'), {
