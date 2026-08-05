@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
+import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
+import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { NotetakerModule } from './notetaker/notetaker.module.js';
 import { EngagementController } from './engagement.controller.js';
@@ -52,6 +55,7 @@ import { GenerationGatewayService } from './generation/generation-gateway.servic
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
+import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
 
 @Module({
   imports: [
@@ -92,7 +96,27 @@ import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtim
     OutcomeService,
     NotetakerService,
     ClientAssociationService,
-    EngagementAiService,
+    {
+      provide: EngagementAiService,
+      useFactory: (
+        config: ConfigService,
+        lobbyIntel: LobbyIntelService,
+        federalSpending: FederalSpendingService,
+        credentials: AiCredentialResolverService,
+        runtime: EngagementRuntimePolicyService,
+      ) =>
+        guardEngagementAiService(
+          new EngagementAiService(config, lobbyIntel, federalSpending, credentials),
+          runtime,
+        ),
+      inject: [
+        ConfigService,
+        LobbyIntelService,
+        FederalSpendingService,
+        AiCredentialResolverService,
+        EngagementRuntimePolicyService,
+      ],
+    },
     AiCredentialResolverService,
     MeetingNotesCryptoService,
     MicrosoftGraphSyncService,
