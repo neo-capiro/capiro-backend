@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
@@ -99,7 +100,7 @@ import { guardEngagementAiService } from './runtime/engagement-ai-runtime.bounda
     {
       provide: EngagementAiService,
       useFactory: (
-        config: ConfigService,
+        config: ConfigService<AppConfig, true>,
         lobbyIntel: LobbyIntelService,
         federalSpending: FederalSpendingService,
         credentials: AiCredentialResolverService,
