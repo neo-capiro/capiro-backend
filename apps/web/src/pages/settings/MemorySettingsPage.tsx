@@ -3,6 +3,7 @@ import { Alert, Card, Segmented, Space, Typography } from 'antd';
 import { useMe } from '../../lib/me.js';
 import { MemoryFileEditor } from '../../components/MemoryFileEditor.js';
 import { MemoryGovernanceCenterHost } from '../../components/MemoryGovernanceCenterHost.js';
+import { MemoryReviewStatusSummary } from '../../components/MemoryReviewStatusSummary.js';
 
 const { Text, Title } = Typography;
 
@@ -22,6 +23,7 @@ export function MemorySettingsPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <MemoryReviewStatusSummary />
       <MemoryGovernanceCenterHost isAdmin={isAdmin} />
 
       <Card>
@@ -40,7 +42,7 @@ export function MemorySettingsPage() {
           <Space wrap>
             <Segmented
               value={scope}
-              onChange={(v) => setScope(v as 'firm' | 'user')}
+              onChange={(value) => setScope(value as 'firm' | 'user')}
               options={[
                 { label: 'Firm', value: 'firm' },
                 { label: 'My files', value: 'user' },
@@ -59,7 +61,10 @@ export function MemorySettingsPage() {
             <Alert
               type="info"
               showIcon
-              message="These files are private to you and help Meri work in your voice. Paste real samples under My Writing Style for the best results."
+              message={
+                'These files are private to you and help Meri work in your voice. ' +
+                'Paste real samples under My Writing Style for the best results.'
+              }
             />
           )}
 

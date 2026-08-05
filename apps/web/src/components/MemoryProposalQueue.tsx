@@ -94,6 +94,7 @@ export function MemoryProposalQueue() {
       message.success('Proposal withdrawn');
       qc.invalidateQueries({ queryKey: ['memory-own-proposals'] });
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
+      qc.invalidateQueries({ queryKey: ['memory-review-summary'] });
       qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
       qc.invalidateQueries({ queryKey: ['memory-governance-transitions'] });
       qc.invalidateQueries({ queryKey: ['memory-item'] });
@@ -136,7 +137,7 @@ export function MemoryProposalQueue() {
 
               {candidate.restricted && (
                 <Paragraph type="secondary" style={{ marginBottom: 4 }}>
-                  Proposal content is hidden because you no longer have access to this client's
+                  Proposal content is hidden because you no longer have access to this client&apos;s
                   memory.
                   {candidate.capabilities.withdraw ? ' You may still withdraw it.' : ''}
                 </Paragraph>
