@@ -22,12 +22,14 @@
   "include": [
     "src/defense-budget/rdte/**/*.ts",
     "src/defense-budget/contracts/**/*.ts",
-    "src/defense-budget/parser-router/parser-runtime-contract-v1.ts",
+    "src/defense-budget/parser-router/**/*.ts",
+    "src/defense-budget/verification/**/*.ts",
     "scripts/build-rdte-cycle.ts",
     "scripts/report-rdte-cycle.ts",
     "scripts/plan-rdte-canonical-projection.ts",
     "scripts/verify-rdte-phase-4-safety.ts",
-    "scripts/verify-pe-budget-phase-4-negative-controls.ts"
+    "scripts/verify-pe-budget-phase-4-negative-controls.ts",
+    "scripts/verify-pe-budget-phase-4-closeout.ts"
   ],
   "exclude": ["**/*.spec.ts", "**/__tmp__/**", "src/defense-budget/rdte/**/__tmp__/**"]
 }

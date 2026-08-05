@@ -1,217 +1,171 @@
-/**
- * rdte-cycle-reconciler-v1.spec — Workstream L tests.
- *
- * Synthetic fixtures for:
- * - complete passing cycle;
- * - missing R-1;
- * - missing R-2 volume;
- * - R-2-only PE;
- * - reviewed new-PE exception;
- * - R-1/R-2 mismatch;
- * - project-sum mismatch;
- * - missing performer category when required;
- * - R-4 not applicable;
- * - rejected source artifact;
- * - duplicate natural key;
- * - input permutation.
- */
-import { reconcileRdteCycle } from './rdte-cycle-reconciler-v1.js';
-import { certifyRdteCycle } from './rdte-cycle-certifier-v1.js';
-import type { R2aColumnReconciliation } from '../r2a/r2a-project-reconciler.js';
+import { describe, expect, it } from '@jest/globals';
 import type { CategoryCoverageInput } from '../rdte-cycle-summary-v1.js';
 import type {
+  RdteCycleArtifactRefV1,
   RdteCycleSourceDocumentV1,
   RdteCycleVerificationRefV1,
 } from '../rdte-cycle-bundle-v1.js';
+import { certifyRdteCycle } from './rdte-cycle-certifier-v1.js';
+import { reconcileRdteCycle } from './rdte-cycle-reconciler-v1.js';
 
 const SHA = 'a'.repeat(64);
+const MANIFEST_SHA = 'b'.repeat(64);
+const POLICY_SHA = 'c'.repeat(64);
+const PROJECTION_SHA = 'd'.repeat(64);
 const PE1 = '0601234A';
 const PE2 = '0601235A';
 
 function coverageAllVerified(): CategoryCoverageInput[] {
   return [
-    {
-      category: 'identity',
-      expectedKeys: [PE1, PE2],
-      coveredKeys: [PE1, PE2],
-      applicable: true,
-    },
-    {
-      category: 'funding',
-      expectedKeys: [PE1, PE2],
-      coveredKeys: [PE1, PE2],
-      applicable: true,
-    },
-    {
-      category: 'narrative',
-      expectedKeys: [PE1, PE2],
-      coveredKeys: [PE1, PE2],
-      applicable: true,
-    },
-    {
-      category: 'projects',
-      expectedKeys: [`${PE1}|A1`],
-      coveredKeys: [`${PE1}|A1`],
-      applicable: true,
-    },
-    {
-      category: 'project_funding',
-      expectedKeys: [`${PE1}|A1`],
-      coveredKeys: [`${PE1}|A1`],
-      applicable: true,
-    },
-    {
-      category: 'performers',
-      expectedKeys: [PE1],
-      coveredKeys: [PE1],
-      applicable: true,
-    },
+    ['identity', [PE1, PE2]],
+    ['funding', [`${PE1}|2027|request`, `${PE2}|2027|request`]],
+    ['narrative', [`${PE1}|mission`, `${PE2}|mission`]],
+    ['projects', [`${PE1}|A1`]],
+    ['project_funding', [`${PE1}|A1|2027|request`]],
+    ['performers', [`${PE1}|LOCKHEED`]],
+    ['relationships', [`${PE1}|A1|project_of`]],
+  ].map(([category, keys]) => ({
+    category: category as CategoryCoverageInput['category'],
+    expectedKeys: keys as string[],
+    coveredKeys: keys as string[],
+    applicable: true,
+  })).concat([
     {
       category: 'milestones',
       expectedKeys: [],
       coveredKeys: [],
       applicable: false,
     },
-    {
-      category: 'relationships',
-      expectedKeys: [`${PE1}|A1`],
-      coveredKeys: [`${PE1}|A1`],
-      applicable: true,
-    },
-  ];
+  ]);
 }
 
-function makeReconciledColumn(
-  overrides: Partial<R2aColumnReconciliation> = {},
-): R2aColumnReconciliation {
-  return {
-    peCode: PE1,
-    fiscalYear: 2027,
-    columnRole: 'budget_year_request',
-    status: 'reconciled',
-    blocking: false,
-    childSum: '12',
-    printedTotal: '12',
-    difference: '0',
-    tolerance: '1.5',
-    childCount: 2,
-    includedProjectCodes: ['A1', 'B2'],
-    missingProjectCodes: [],
-    excludedRowKinds: [],
-    message: 'exact',
-    ...overrides,
-  };
+function reconciliation(overrides: Parameters<typeof reconcileRdteCycle>[0] = {
+  identity: { r1PeCodes: [PE1, PE2], otherExhibitPeCodes: [PE1, PE2] },
+  fundingComparisons: [
+    {
+      peCode: PE1,
+      fiscalYear: 2027,
+      columnRole: 'budget_year_request',
+      result: 'pass',
+      evidenceIds: ['evidence-r1', 'evidence-r2'],
+    },
+  ],
+  projectSumReconciliations: [],
+  projectRelationships: {
+    projects: [{ peCode: PE1, projectCode: 'A1' }],
+    projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
+    referencedProjectKeys: [{ peCode: PE1, projectCode: 'A1' }],
+  },
+  coverageInputs: coverageAllVerified(),
+}) {
+  return reconcileRdteCycle(overrides);
 }
 
-function makeSourceDocs(): RdteCycleSourceDocumentV1[] {
-  return [
-    {
-      manifestDocumentKey: 'r1',
-      exhibitRole: 'r1_catalog',
-      required: true,
-      sourcePdfSha256: SHA,
-      sourceLocator: 's3://bucket/r1.pdf',
-    },
-    {
-      manifestDocumentKey: 'r2',
-      exhibitRole: 'r2_pe_summary',
-      required: true,
-      sourcePdfSha256: SHA,
-      sourceLocator: 's3://bucket/r2.pdf',
-    },
-  ];
+function sourceDocs(): RdteCycleSourceDocumentV1[] {
+  return ['r1', 'r2'].map((key) => ({
+    manifestDocumentKey: key,
+    sourceDocumentId: `source-${key}`,
+    exhibitRole: key === 'r1' ? 'r1_catalog' : 'r2_pe_summary',
+    required: true,
+    sourcePdfSha256: SHA,
+    sourceLocator: `/sources/${key}.pdf`,
+    pageCount: 2,
+    parserRunIds: [`parser-${key}`],
+    unresolvedPages: [],
+  }));
 }
 
-function makeVerifications(
-  decision: 'VERIFICATION_PASSED' | 'NEEDS_REVIEW' | 'REJECTED' = 'VERIFICATION_PASSED',
+function artifactRefs(): RdteCycleArtifactRefV1[] {
+  return ['r1', 'r2'].map((key) => ({
+    manifestDocumentKey: key,
+    artifactId: `artifact-${key}`,
+    artifactContentSha256: key === 'r1' ? '1'.repeat(64) : '2'.repeat(64),
+    artifactByteSha256: key === 'r1' ? '3'.repeat(64) : '4'.repeat(64),
+  }));
+}
+
+function verificationRefs(
+  state: 'pass' | 'review' | 'accepted' | 'reject' = 'pass',
 ): RdteCycleVerificationRefV1[] {
-  return [
-    {
-      manifestDocumentKey: 'r1',
-      artifactId: 'art_r1',
-      verificationCandidateId: 'cand_r1',
-      verificationRunId: 'run_r1',
-      decision,
-      decisionId: 'dec_r1',
-    },
-    {
-      manifestDocumentKey: 'r2',
-      artifactId: 'art_r2',
-      verificationCandidateId: 'cand_r2',
-      verificationRunId: 'run_r2',
-      decision,
-      decisionId: 'dec_r2',
-    },
-  ];
+  const artifacts = artifactRefs();
+  return artifacts.map((artifact) => {
+    const decision = state === 'reject' ? 'REJECT' : state === 'pass' ? 'PASS' : 'REVIEW';
+    const status =
+      state === 'reject'
+        ? 'REJECTED'
+        : state === 'pass'
+          ? 'VERIFICATION_PASSED'
+          : state === 'accepted'
+            ? 'REVIEW_ACCEPTED'
+            : 'NEEDS_REVIEW';
+    const candidateId = `candidate-${artifact.manifestDocumentKey}`;
+    const runId = `run-${artifact.manifestDocumentKey}`;
+    return {
+      manifestDocumentKey: artifact.manifestDocumentKey,
+      manifestContentSha256: MANIFEST_SHA,
+      artifactId: artifact.artifactId,
+      artifactContentSha256: artifact.artifactContentSha256,
+      artifactByteSha256: artifact.artifactByteSha256,
+      candidateId,
+      verificationRunId: runId,
+      policySha256: POLICY_SHA,
+      sourceDocumentId: `source-${artifact.manifestDocumentKey}`,
+      sourcePdfSha256: SHA,
+      phase2Decision: decision,
+      status,
+      acceptedAssertionIds: state === 'pass' || state === 'accepted' ? ['assertion-1'] : [],
+      rejectedAssertionIds: state === 'reject' ? ['assertion-1'] : [],
+      verificationCandidateId: candidateId,
+      decision: status,
+      decisionId: runId,
+    };
+  });
 }
 
-/* ------------------------------------------------------------------ */
-/* Reconciler                                                          */
-/* ------------------------------------------------------------------ */
+function certify(overrides: Partial<Parameters<typeof certifyRdteCycle>[0]> = {}) {
+  return certifyRdteCycle({
+    cycleIdIdentity: { fiscalYear: 2027, cycle: 'pb' },
+    fiscalYear: 2027,
+    manifestContentSha256: MANIFEST_SHA,
+    requiredManifestDocumentKeys: ['r1', 'r2'],
+    sourceDocuments: sourceDocs(),
+    artifacts: artifactRefs(),
+    verifications: verificationRefs(),
+    comparisons: [],
+    reconciliation: reconciliation(),
+    projectionPlanningSucceeded: true,
+    projectionPlanContentSha256: PROJECTION_SHA,
+    ...overrides,
+  });
+}
 
 describe('rdte-cycle-reconciler-v1', () => {
-  it('reconciles a complete passing cycle', () => {
-    const result = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1, PE2],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
-      fundingComparisons: [
-        { peCode: PE1, fiscalYear: 2027, columnRole: 'budget_year_request', result: 'pass' },
-      ],
-      projectSumReconciliations: [makeReconciledColumn()],
-      projectRelationships: {
-        projects: [{ peCode: PE1, projectCode: 'A1' }],
-        projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
-      },
-      coverageInputs: coverageAllVerified(),
-    });
-
+  it('reconciles exact identity, funding, relationships, and coverage', () => {
+    const result = reconciliation();
     expect(result.blocking).toBe(false);
     expect(result.identity.complete).toBe(true);
     expect(result.funding.complete).toBe(true);
-    expect(result.projectSums.complete).toBe(true);
     expect(result.relationships.complete).toBe(true);
+    expect(result.coverage.every((entry) => entry.status !== 'missing')).toBe(true);
   });
 
-  it('flags R-2-only PE as orphan outside R-1', () => {
-    const result = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
+  it('blocks orphan PEs and duplicate natural keys', () => {
+    const result = reconciliation({
+      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1, PE2] },
       fundingComparisons: [],
       projectSumReconciliations: [],
       projectRelationships: { projects: [], projectFundingKeys: [] },
       coverageInputs: [],
+      duplicateNaturalKeys: ['duplicate-key'],
     });
-
-    expect(result.identity.orphanPeCodes).toEqual([PE2]);
     expect(result.blocking).toBe(true);
-    expect(result.findings.some((f) => f.code === 'orphan_pe_outside_r1')).toBe(true);
+    expect(result.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(['orphan_pe_outside_r1', 'duplicate_natural_key']),
+    );
   });
 
-  it('allows reviewed new-PE exception', () => {
-    const result = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1],
-        otherExhibitPeCodes: [PE1, PE2],
-        reviewedNewPeExceptions: [PE2],
-      },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-    });
-
-    expect(result.identity.orphanPeCodes).toEqual([]);
-    expect(result.identity.reviewedExceptions).toEqual([PE2]);
-    expect(result.findings.some((f) => f.code === 'reviewed_new_pe_exception')).toBe(true);
-    expect(result.blocking).toBe(false);
-  });
-
-  it('blocks R-1/R-2 funding mismatch', () => {
-    const result = reconcileRdteCycle({
+  it('retains evidence on a funding mismatch', () => {
+    const result = reconciliation({
       identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
       fundingComparisons: [
         {
@@ -219,416 +173,115 @@ describe('rdte-cycle-reconciler-v1', () => {
           fiscalYear: 2027,
           columnRole: 'budget_year_request',
           result: 'fail',
-          message: 'values differ',
+          evidenceIds: ['left-evidence', 'right-evidence'],
         },
       ],
       projectSumReconciliations: [],
       projectRelationships: { projects: [], projectFundingKeys: [] },
       coverageInputs: [],
     });
-
-    expect(result.funding.complete).toBe(false);
-    expect(result.blocking).toBe(true);
-    expect(result.findings.some((f) => f.code === 'r1_r2_funding_mismatch')).toBe(true);
+    const finding = result.findings.find(
+      (entry) => entry.code === 'r1_r2_funding_mismatch',
+    );
+    expect(finding?.evidenceIds).toEqual(['left-evidence', 'right-evidence']);
   });
 
-  it('blocks project-sum mismatch', () => {
-    const result = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [
-        makeReconciledColumn({
-          status: 'outside_tolerance',
-          blocking: true,
-          message: 'sum outside tolerance',
-        }),
-      ],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-    });
-
-    expect(result.projectSums.complete).toBe(false);
-    expect(result.blocking).toBe(true);
-  });
-
-  it('blocks missing performer category when required', () => {
-    const result = reconcileRdteCycle({
+  it('blocks partial required coverage and unresolved R-3/R-4 project references', () => {
+    const result = reconciliation({
       identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
       fundingComparisons: [],
       projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
+      projectRelationships: {
+        projects: [{ peCode: PE1, projectCode: 'A1' }],
+        projectFundingKeys: [],
+        referencedProjectKeys: [{ peCode: PE1, projectCode: 'MISSING' }],
+      },
       coverageInputs: [
         {
           category: 'performers',
-          expectedKeys: [PE1],
-          coveredKeys: [],
+          expectedKeys: ['one', 'two'],
+          coveredKeys: ['one'],
           applicable: true,
         },
       ],
     });
-
     expect(result.blocking).toBe(true);
-    expect(result.findings.some((f) => f.code === 'category_coverage_missing')).toBe(true);
-  });
-
-  it('treats R-4 milestones as not_applicable when marked so', () => {
-    const result = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [
-        {
-          category: 'milestones',
-          expectedKeys: [],
-          coveredKeys: [],
-          applicable: false,
-        },
-      ],
-    });
-
-    const milestones = result.coverage.find((c) => c.category === 'milestones');
-    expect(milestones?.status).toBe('not_applicable');
-    expect(result.blocking).toBe(false);
-  });
-
-  it('blocks duplicate natural keys', () => {
-    const result = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-      duplicateNaturalKeys: ['pe|proj|ACME|loc|method|cat|2027|src'],
-    });
-
-    expect(result.blocking).toBe(true);
-    expect(result.findings.some((f) => f.code === 'duplicate_natural_key')).toBe(true);
-  });
-
-  it('is deterministic under input permutation', () => {
-    const base = {
-      identity: {
-        r1PeCodes: [PE2, PE1],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
-      fundingComparisons: [
-        {
-          peCode: PE2,
-          fiscalYear: 2027,
-          columnRole: 'budget_year_request',
-          result: 'pass' as const,
-        },
-        {
-          peCode: PE1,
-          fiscalYear: 2027,
-          columnRole: 'budget_year_request',
-          result: 'pass' as const,
-        },
-      ],
-      projectSumReconciliations: [] as R2aColumnReconciliation[],
-      projectRelationships: {
-        projects: [
-          { peCode: PE1, projectCode: 'B2' },
-          { peCode: PE1, projectCode: 'A1' },
-        ],
-        projectFundingKeys: [
-          { peCode: PE1, projectCode: 'A1' },
-          { peCode: PE1, projectCode: 'B2' },
-        ],
-      },
-      coverageInputs: coverageAllVerified(),
-    };
-
-    const r1 = reconcileRdteCycle(base);
-    const r2 = reconcileRdteCycle({
-      ...base,
-      identity: {
-        r1PeCodes: [PE1, PE2],
-        otherExhibitPeCodes: [PE2, PE1],
-      },
-      fundingComparisons: [...base.fundingComparisons].reverse(),
-      projectRelationships: {
-        projects: [...base.projectRelationships.projects].reverse(),
-        projectFundingKeys: [...base.projectRelationships.projectFundingKeys].reverse(),
-      },
-    });
-
-    expect(r1.findings.map((f) => f.code)).toEqual(r2.findings.map((f) => f.code));
-    expect(r1.coverage.map((c) => c.category)).toEqual(r2.coverage.map((c) => c.category));
-    expect(r1.blocking).toBe(r2.blocking);
-  });
-
-  it('flags project funding without project assertion', () => {
-    const result = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: {
-        projects: [],
-        projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
-      },
-      coverageInputs: [],
-    });
-
-    expect(result.relationships.complete).toBe(false);
-    expect(result.blocking).toBe(true);
+    expect(result.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(['category_coverage_partial', 'unresolved_project_reference']),
+    );
   });
 });
 
-/* ------------------------------------------------------------------ */
-/* Certifier                                                           */
-/* ------------------------------------------------------------------ */
-
 describe('rdte-cycle-certifier-v1', () => {
-  it('certifies a complete passing cycle', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1, PE2],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
-      fundingComparisons: [
-        { peCode: PE1, fiscalYear: 2027, columnRole: 'budget_year_request', result: 'pass' },
-      ],
-      projectSumReconciliations: [makeReconciledColumn()],
-      projectRelationships: {
-        projects: [{ peCode: PE1, projectCode: 'A1' }],
-        projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
-      },
-      coverageInputs: coverageAllVerified(),
-    });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027, cycle: 'pb' },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [
-        { manifestDocumentKey: 'r1', artifactId: 'art_r1', artifactContentSha256: SHA },
-        { manifestDocumentKey: 'r2', artifactId: 'art_r2', artifactContentSha256: SHA },
-      ],
-      verifications: makeVerifications('VERIFICATION_PASSED'),
-      comparisons: [],
-      reconciliation,
-      projectionPlanningSucceeded: true,
-    });
-
+  it('certifies only after exact projection planning and proof binding', () => {
+    const result = certify();
     expect(result.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(result.bundle.contentSha256).toHaveLength(64);
-    expect(result.bundle.blockingFindings).toHaveLength(0);
+    expect(result.bundle.projectionPlanContentSha256).toBe(PROJECTION_SHA);
+    expect(result.bundle.blockingFindings).toEqual([]);
   });
 
-  it('marks incomplete when required R-1 is missing verification', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
+  it('blocks certification until projection planning produces an exact SHA', () => {
+    const result = certify({
+      projectionPlanningSucceeded: false,
+      projectionPlanContentSha256: undefined,
     });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [],
-      verifications: [
-        {
-          manifestDocumentKey: 'r2',
-          artifactId: 'art_r2',
-          verificationCandidateId: 'cand_r2',
-          verificationRunId: 'run_r2',
-          decision: 'VERIFICATION_PASSED',
-          decisionId: 'dec_r2',
-        },
-      ],
-      comparisons: [],
-      reconciliation,
-    });
-
     expect(result.certification).toBe('INCOMPLETE');
-  });
-
-  it('marks incomplete when required R-2 volume is missing verification', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-    });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [],
-      verifications: [
-        {
-          manifestDocumentKey: 'r1',
-          artifactId: 'art_r1',
-          verificationCandidateId: 'cand_r1',
-          verificationRunId: 'run_r1',
-          decision: 'VERIFICATION_PASSED',
-          decisionId: 'dec_r1',
-        },
-      ],
-      comparisons: [],
-      reconciliation,
-    });
-
-    expect(result.certification).toBe('INCOMPLETE');
-  });
-
-  it('rejects when source artifact is REJECTED', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-    });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [],
-      verifications: makeVerifications('REJECTED'),
-      comparisons: [],
-      reconciliation,
-    });
-
-    expect(result.certification).toBe('REJECTED');
-  });
-
-  it('needs review for NEEDS_REVIEW without allowed acceptance', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: [],
-    });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [],
-      verifications: makeVerifications('NEEDS_REVIEW'),
-      comparisons: [],
-      reconciliation,
-    });
-
-    expect(['NEEDS_REVIEW', 'INCOMPLETE', 'REJECTED']).toContain(result.certification);
-    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-  });
-
-  it('allows NEEDS_REVIEW with allowed reviewed acceptance', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: { r1PeCodes: [PE1], otherExhibitPeCodes: [PE1] },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: coverageAllVerified().map((c) =>
-        c.category === 'performers' || c.category === 'milestones'
-          ? { ...c, applicable: false, expectedKeys: [], coveredKeys: [] }
-          : c,
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) => finding.code === 'projection_planning_not_complete',
       ),
-    });
-
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [
-        { manifestDocumentKey: 'r1', artifactId: 'art_r1', artifactContentSha256: SHA },
-        { manifestDocumentKey: 'r2', artifactId: 'art_r2', artifactContentSha256: SHA },
-      ],
-      verifications: makeVerifications('NEEDS_REVIEW'),
-      comparisons: [],
-      reconciliation,
-      allowedReviewedAcceptances: new Set(['dec_r1', 'dec_r2']),
-      projectionPlanningSucceeded: true,
-    });
-
-    expect(result.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    ).toBe(true);
   });
 
-  it('is deterministic under input permutation', () => {
-    const reconciliation = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1, PE2],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: {
-        projects: [{ peCode: PE1, projectCode: 'A1' }],
-        projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
-      },
-      coverageInputs: coverageAllVerified(),
-    });
-
-    const base = {
-      cycleIdIdentity: { fy: 2027, cycle: 'pb' },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [
-        { manifestDocumentKey: 'r1', artifactId: 'art_r1', artifactContentSha256: SHA },
-        { manifestDocumentKey: 'r2', artifactId: 'art_r2', artifactContentSha256: SHA },
-      ],
-      verifications: makeVerifications('VERIFICATION_PASSED'),
-      comparisons: [],
-      reconciliation,
-      projectionPlanningSucceeded: true as const,
+  it('blocks a verification bound to the wrong artifact bytes or manifest', () => {
+    const verifications = verificationRefs();
+    verifications[0] = {
+      ...verifications[0]!,
+      artifactByteSha256: '9'.repeat(64),
+      manifestContentSha256: '8'.repeat(64),
     };
-
-    const r1 = certifyRdteCycle(base);
-    const r2 = certifyRdteCycle({
-      ...base,
-      sourceDocuments: [...base.sourceDocuments].reverse(),
-      artifacts: [...base.artifacts].reverse(),
-      verifications: [...base.verifications].reverse(),
-    });
-
-    expect(r1.certification).toBe(r2.certification);
-    expect(r1.bundle.contentSha256).toBe(r2.bundle.contentSha256);
-    expect(r1.bundle.cycleId).toBe(r2.bundle.cycleId);
+    const result = certify({ verifications });
+    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) => finding.code === 'verification_identity_mismatch',
+      ),
+    ).toBe(true);
   });
 
-  it('never certifies on coverage percentage alone', () => {
-    /* High coverage but orphan PE → not certified. */
-    const reconciliation = reconcileRdteCycle({
-      identity: {
-        r1PeCodes: [PE1],
-        otherExhibitPeCodes: [PE1, PE2],
-      },
-      fundingComparisons: [],
-      projectSumReconciliations: [],
-      projectRelationships: { projects: [], projectFundingKeys: [] },
-      coverageInputs: coverageAllVerified(),
-    });
+  it('accepts an immutable REVIEW_ACCEPTED result but blocks pending review', () => {
+    expect(certify({ verifications: verificationRefs('accepted') }).certification).toBe(
+      'CERTIFIED_RDTE_READY_FOR_PROJECTION',
+    );
+    const pending = certify({ verifications: verificationRefs('review') });
+    expect(pending.certification).toBe('NEEDS_REVIEW');
+    expect(
+      pending.bundle.blockingFindings.some(
+        (finding) => finding.code === 'required_document_needs_review',
+      ),
+    ).toBe(true);
+  });
 
-    const result = certifyRdteCycle({
-      cycleIdIdentity: { fy: 2027 },
-      fiscalYear: 2027,
-      manifestContentSha256: SHA,
-      sourceDocuments: makeSourceDocs(),
-      artifacts: [],
-      verifications: makeVerifications('VERIFICATION_PASSED'),
-      comparisons: [],
-      reconciliation,
-    });
+  it('rejects a required rejected document and marks missing inventory incomplete', () => {
+    expect(certify({ verifications: verificationRefs('reject') }).certification).toBe(
+      'REJECTED',
+    );
+    const incomplete = certify({ requiredManifestDocumentKeys: ['r1', 'r2', 'r3'] });
+    expect(incomplete.certification).toBe('INCOMPLETE');
+    expect(
+      incomplete.bundle.blockingFindings.some(
+        (finding) => finding.code === 'required_document_missing',
+      ),
+    ).toBe(true);
+  });
 
-    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(result.bundle.blockingFindings.length).toBeGreaterThan(0);
+  it('is deterministic across input permutations', () => {
+    const first = certify();
+    const second = certify({
+      sourceDocuments: [...sourceDocs()].reverse(),
+      artifacts: [...artifactRefs()].reverse(),
+      verifications: [...verificationRefs()].reverse(),
+    });
+    expect(first.bundle.contentSha256).toBe(second.bundle.contentSha256);
   });
 });

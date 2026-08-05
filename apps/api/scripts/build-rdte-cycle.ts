@@ -1,52 +1,46 @@
 /**
- * build-rdte-cycle — manifest-driven Phase 4 RDT&E cycle build (WS N).
+ * Manifest-driven Phase 4 annual RDT&E build.
  *
- * Usage:
- *   pnpm --filter @capiro/api build:rdte-cycle -- \
- *     --manifest <fy-manifest.json> \
- *     --out <cycle-output-directory> \
- *     [--source-root <path>] \
- *     [--pages-dir <phase3-page-results-dir>] \
- *     [--allow-paid-parse --max-paid-pages N --paid-mode pdf_premium]
+ * source bytes → Phase 3 profile/router/replay → Phase 4 semantic artifact
+ * → final all-artifact Phase 2 inspect verification → reconciliation
+ * → guarded projection planning → final cycle certification.
  *
- * Behavior:
- *   - validates the manifest;
- *   - computes source SHAs for real files;
- *   - consumes Phase 3 normalized page results (never re-parses; content-
- *     addressed replay) from --pages-dir (`<documentKey>.pages-v1.json`);
- *     fixture:// documents resolve through the built-in golden fixtures;
- *   - builds defense_budget_extraction_v1 artifacts per document;
- *   - runs cross-exhibit reconciliation + cycle certification;
- *   - produces the read-only projection plan when certified;
- *   - writes content-addressed artifacts/reports under --out;
- *   - performs NO canonical write and NO paid call by default.
- *
- * Paid escalation flags are forwarded ONLY when supplied and never weaken
- * the Phase 3 authorization contract; the default run is local/no-paid.
- *
- * Exit codes (plan §19):
- *   0 certified / successful inspect
- *   2 needs review
- *   3 incomplete
- *   4 rejected
- *   5 operational/configuration failure
+ * No canonical writes, source discovery, scheduling, deployment, or paid call
+ * occur by default. Paid parsing remains explicitly authorized and capped.
  */
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import {
   parseBudgetCycleManifestV1,
   validateBudgetCycleManifestV1,
+  type BudgetCycleManifestDocumentV1,
+  type BudgetCycleManifestV1,
 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
-import { defenseBudgetExtractionArtifactV1Schema } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
-import type { ParserPageResultV1 } from '../src/defense-budget/parser-router/parser-runtime-contract-v1.js';
-import { runRdteCyclePipeline } from '../src/defense-budget/rdte/cycle/rdte-cycle-pipeline-v1.js';
+import type { ExtractionSourceV1 } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
+import { sha256Bytes } from '../src/defense-budget/contracts/canonical-json.js';
 import {
-  goldenPagesByKey,
-  goldenSource,
-} from '../src/defense-budget/rdte/cycle/rdte-golden-cycle-v1.js';
-import { planRdteCanonicalProjection } from '../src/defense-budget/rdte/projection/rdte-projection-planner-v1.js';
-import type { RdteCycleVerificationRefV1 } from '../src/defense-budget/rdte/rdte-cycle-bundle-v1.js';
+  DEFAULT_PROFILING_THRESHOLDS,
+  computeProfilingConfigSha256,
+  parseDocumentProfileResultV1,
+} from '../src/defense-budget/parser-router/page-profiler.js';
+import { LocalParserRuntimeClient } from '../src/defense-budget/parser-router/local-parser-runtime-client.js';
+import { FilesystemParserArtifactStore } from '../src/defense-budget/parser-router/parser-artifact-store.js';
+import { ParserRouterV1Service } from '../src/defense-budget/parser-router/parser-router-v1.service.js';
+import { FilesystemProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.js';
+import { BudgetVerificationV1Service } from '../src/defense-budget/verification/services/budget-verification-v1.service.js';
+import type { VerificationRequestV1 } from '../src/defense-budget/verification/verification-contract-v1.js';
+import {
+  buildRdteCycleArtifacts,
+  finalizeRdteCycle,
+} from '../src/defense-budget/rdte/cycle/rdte-cycle-pipeline-v1.js';
+import { createRdtePhase2VerificationAdapter } from '../src/defense-budget/rdte/cycle/rdte-phase2-verification-adapter-v1.js';
+import { createRdteSemanticArtifactFactory } from '../src/defense-budget/rdte/cycle/rdte-phase3-semantic-artifact-factory-v1.js';
+import type { RdteCycleDocumentInputV1 } from '../src/defense-budget/rdte/cycle/rdte-phase3-document-input-v1.js';
+import {
+  rdteVerificationRefFromResult,
+  type RdteCycleVerificationRefV1,
+} from '../src/defense-budget/rdte/rdte-cycle-bundle-v1.js';
 
 const EXIT_OK = 0;
 const EXIT_NEEDS_REVIEW = 2;
@@ -54,253 +48,671 @@ const EXIT_INCOMPLETE = 3;
 const EXIT_REJECTED = 4;
 const EXIT_ERROR = 5;
 
-function argValue(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 ? process.argv[index + 1] : undefined;
+const VALUE_FLAGS = new Set([
+  '--manifest',
+  '--out',
+  '--source-root',
+  '--source-map',
+  '--max-paid-pages',
+  '--paid-mode',
+  '--max-escalation-rounds',
+]);
+const BOOLEAN_FLAGS = new Set(['--allow-paid-parse']);
+
+interface CommandArgs {
+  manifest: string;
+  out: string;
+  sourceRoot?: string;
+  sourceMap?: string;
+  allowPaidParse: boolean;
+  maxPaidPages: number;
+  paidMode?: 'pdf_fast' | 'pdf_premium' | 'pdf_ocr';
+  maxEscalationRounds: number;
 }
 
-function hasFlag(name: string): boolean {
-  return process.argv.includes(`--${name}`);
+interface SourceMapEntry {
+  sourcePath: string;
+  sourceDocumentId?: string;
 }
 
-function computeFileSha256(filePath: string): string {
-  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+type SourceMapFile = Record<string, string | SourceMapEntry>;
+
+interface ResolvedDocument {
+  original: BudgetCycleManifestDocumentV1;
+  local: BudgetCycleManifestDocumentV1;
+  sourcePath: string;
+  sourceDocumentId: string;
+  sourceSha256: string;
 }
 
-function main(): void {
-  const manifestPath = argValue('manifest');
-  const outDir = argValue('out');
-  const sourceRoot = argValue('source-root');
-  const pagesDir = argValue('pages-dir');
-  const allowPaidParse = hasFlag('allow-paid-parse');
-  const maxPaidPages = argValue('max-paid-pages');
-  const paidMode = argValue('paid-mode');
-  const verificationsPath = argValue('verifications');
+interface ParsedDocumentResult {
+  input: RdteCycleDocumentInputV1;
+  artifactLocator: string;
+  sourceDocumentId: string;
+  verificationResultCount: number;
+  executionReport: unknown;
+}
 
-  if (!manifestPath || !outDir) {
-    console.error(
-      'Usage: build-rdte-cycle.ts --manifest <manifest.json> --out <dir> ' +
-        '[--source-root <dir>] [--pages-dir <dir>] [--verifications <refs.json>] ' +
-        '[--allow-paid-parse --max-paid-pages N --paid-mode pdf_premium]',
+function parseArgs(argv: string[]): CommandArgs {
+  const values = new Map<string, string>();
+  const booleans = new Set<string>();
+  for (let index = 0; index < argv.length; index++) {
+    const flag = argv[index]!;
+    if (BOOLEAN_FLAGS.has(flag)) {
+      booleans.add(flag);
+      continue;
+    }
+    if (!VALUE_FLAGS.has(flag)) throw new Error(`unknown flag: ${flag}`);
+    const value = argv[++index];
+    if (!value || value.startsWith('--')) throw new Error(`missing value for ${flag}`);
+    values.set(flag, value);
+  }
+  const manifest = values.get('--manifest');
+  const out = values.get('--out');
+  if (!manifest || !out) throw new Error('--manifest and --out are required');
+  if (!values.get('--source-root') && !values.get('--source-map')) {
+    throw new Error('supply --source-root or --source-map');
+  }
+  const allowPaidParse = booleans.has('--allow-paid-parse');
+  const maxPaidPages = Number(values.get('--max-paid-pages') ?? '0');
+  if (!Number.isInteger(maxPaidPages) || maxPaidPages < 0) {
+    throw new Error('--max-paid-pages must be a nonnegative integer');
+  }
+  if (allowPaidParse && maxPaidPages === 0) {
+    throw new Error('--allow-paid-parse requires --max-paid-pages <positive integer>');
+  }
+  const paidMode = values.get('--paid-mode');
+  if (
+    paidMode !== undefined &&
+    paidMode !== 'pdf_fast' &&
+    paidMode !== 'pdf_premium' &&
+    paidMode !== 'pdf_ocr'
+  ) {
+    throw new Error('--paid-mode must be pdf_fast, pdf_premium, or pdf_ocr');
+  }
+  const maxEscalationRounds = Number(values.get('--max-escalation-rounds') ?? '4');
+  if (!Number.isInteger(maxEscalationRounds) || maxEscalationRounds < 1) {
+    throw new Error('--max-escalation-rounds must be a positive integer');
+  }
+  return {
+    manifest,
+    out,
+    ...(values.get('--source-root') ? { sourceRoot: values.get('--source-root')! } : {}),
+    ...(values.get('--source-map') ? { sourceMap: values.get('--source-map')! } : {}),
+    allowPaidParse,
+    maxPaidPages,
+    ...(paidMode ? { paidMode } : {}),
+    maxEscalationRounds,
+  };
+}
+
+function sha256File(filePath: string): string {
+  return sha256Bytes(fs.readFileSync(filePath));
+}
+
+function readSourceMap(filePath: string | undefined): SourceMapFile {
+  if (!filePath) return {};
+  const absolute = path.resolve(filePath);
+  if (!fs.existsSync(absolute)) throw new Error(`source map not found: ${absolute}`);
+  const parsed = JSON.parse(fs.readFileSync(absolute, 'utf8')) as unknown;
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('--source-map must contain a JSON object keyed by manifest document key');
+  }
+  return parsed as SourceMapFile;
+}
+
+function sourceMapEntry(value: string | SourceMapEntry | undefined): SourceMapEntry | null {
+  if (typeof value === 'string') return { sourcePath: value };
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof value.sourcePath === 'string' &&
+    value.sourcePath.trim()
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function resolveSourcePath(input: {
+  document: BudgetCycleManifestDocumentV1;
+  sourceRoot?: string;
+  sourceMap: SourceMapFile;
+}): SourceMapEntry {
+  const mapped = sourceMapEntry(input.sourceMap[input.document.documentKey]);
+  if (mapped) return { ...mapped, sourcePath: path.resolve(mapped.sourcePath) };
+  if (!input.sourceRoot) {
+    throw new Error(`source map has no entry for ${input.document.documentKey}`);
+  }
+  const locator = input.document.sourceLocator.replace(/^file:\/\//, '');
+  const filename = path.basename(locator);
+  if (!filename || filename === '.' || filename === path.sep) {
+    throw new Error(
+      `document ${input.document.documentKey} has no deterministic source filename`,
     );
-    process.exit(EXIT_ERROR);
   }
-  if (allowPaidParse && (!maxPaidPages || Number(maxPaidPages) <= 0)) {
-    console.error('--allow-paid-parse requires --max-paid-pages <positive integer>');
-    process.exit(EXIT_ERROR);
-  }
-  if (!fs.existsSync(manifestPath)) {
-    console.error(`manifest not found: ${manifestPath}`);
-    process.exit(EXIT_ERROR);
-  }
+  return { sourcePath: path.resolve(input.sourceRoot, filename) };
+}
 
-  /* 1. Validate manifest. */
-  let manifest;
-  try {
-    manifest = parseBudgetCycleManifestV1(JSON.parse(fs.readFileSync(manifestPath, 'utf8')));
-  } catch (err) {
-    console.error(`manifest validation failed: ${(err as Error).message}`);
-    process.exit(EXIT_ERROR);
-    return;
-  }
-  const findings = validateBudgetCycleManifestV1(manifest);
-  const errors = findings.filter((f) => f.severity === 'error');
-  if (errors.length > 0) {
-    for (const f of errors) console.error(`manifest error ${f.path}: ${f.message}`);
-    process.exit(EXIT_ERROR);
-  }
-  const manifestContentSha256 = createHash('sha256')
-    .update(fs.readFileSync(manifestPath))
-    .digest('hex');
+function exhibitRank(exhibit: string): number {
+  return ({ 'R-1': 0, 'R-2': 1, 'R-2A': 2, 'R-3': 3, 'R-4': 4, 'R-4A': 5 } as Record<
+    string,
+    number
+  >)[exhibit] ?? 99;
+}
 
-  /* 2. Resolve per-document page results + sources. */
-  const goldenPages = goldenPagesByKey();
-  const documents = [];
-  const verifications: RdteCycleVerificationRefV1[] = [];
-  const suppliedVerifications = new Map<string, RdteCycleVerificationRefV1>();
-  if (verificationsPath != null) {
-    if (!fs.existsSync(verificationsPath)) {
-      console.error(`verifications file not found: ${verificationsPath}`);
-      process.exit(EXIT_ERROR);
-    }
-    const parsed = JSON.parse(fs.readFileSync(verificationsPath, 'utf8')) as unknown;
-    if (!Array.isArray(parsed)) {
-      console.error('--verifications must be a JSON array of verification references');
-      process.exit(EXIT_ERROR);
-    }
-    for (const entry of parsed as RdteCycleVerificationRefV1[]) {
-      suppliedVerifications.set(entry.manifestDocumentKey, entry);
-    }
-  }
-  for (const doc of manifest.documents) {
-    let pages: readonly ParserPageResultV1[];
-    let sourceSha256: string;
-
-    if (doc.sourceLocator.startsWith('fixture://')) {
-      const fixturePages = goldenPages[doc.documentKey];
-      if (fixturePages == null) {
-        console.error(`no golden fixture for fixture document ${doc.documentKey}`);
-        process.exit(EXIT_ERROR);
+function resolveDocuments(input: {
+  manifest: BudgetCycleManifestV1;
+  sourceRoot?: string;
+  sourceMap: SourceMapFile;
+}): ResolvedDocument[] {
+  return [...input.manifest.documents]
+    .sort(
+      (left, right) =>
+        exhibitRank(left.exhibit) - exhibitRank(right.exhibit) ||
+        left.documentKey.localeCompare(right.documentKey),
+    )
+    .flatMap((document) => {
+      let resolved: SourceMapEntry;
+      try {
+        resolved = resolveSourcePath({
+          document,
+          sourceRoot: input.sourceRoot,
+          sourceMap: input.sourceMap,
+        });
+      } catch (error) {
+        if (!document.required) return [];
+        throw error;
       }
-      pages = fixturePages;
-      sourceSha256 = goldenSource(doc.documentKey).sourcePdfSha256;
-    } else if (pagesDir != null) {
-      const pagesPath = path.join(pagesDir, `${doc.documentKey}.pages-v1.json`);
-      if (!fs.existsSync(pagesPath)) {
-        console.error(
-          `missing Phase 3 page results for ${doc.documentKey}: ${pagesPath}\n` +
-            '  run Phase 3 first: pnpm --filter @capiro/api extract:defense-budget-cycle ' +
-            '(local/no-paid by default)',
+      if (!fs.existsSync(resolved.sourcePath)) {
+        if (!document.required) return [];
+        throw new Error(`source file not found for ${document.documentKey}: ${resolved.sourcePath}`);
+      }
+      const sourceSha256 = sha256File(resolved.sourcePath);
+      if (
+        document.expectedSourceSha256 &&
+        document.expectedSourceSha256 !== sourceSha256
+      ) {
+        throw new Error(
+          `source SHA mismatch for ${document.documentKey}: expected ${document.expectedSourceSha256}, got ${sourceSha256}`,
         );
-        process.exit(EXIT_ERROR);
       }
-      pages = JSON.parse(fs.readFileSync(pagesPath, 'utf8')) as ParserPageResultV1[];
-      const realSourcePath =
-        sourceRoot != null
-          ? path.join(sourceRoot, path.basename(doc.sourceLocator))
-          : doc.sourceLocator;
-      if (!fs.existsSync(realSourcePath)) {
-        console.error(`missing source PDF for ${doc.documentKey}: ${realSourcePath}`);
-        process.exit(EXIT_ERROR);
-      }
-      sourceSha256 = computeFileSha256(realSourcePath);
-      if (doc.expectedSourceSha256 != null && doc.expectedSourceSha256 !== sourceSha256) {
-        console.error(
-          `source SHA mismatch for ${doc.documentKey}: expected ${doc.expectedSourceSha256}, got ${sourceSha256}`,
-        );
-        process.exit(EXIT_ERROR);
-      }
-    } else {
-      console.error(
-        `document ${doc.documentKey} requires Phase 3 page results: pass --pages-dir <dir> ` +
-          `or use a fixture:// source locator for rehearsals`,
-      );
-      process.exit(EXIT_ERROR);
-      return;
-    }
-
-    const source = {
-      manifestDocumentKey: doc.documentKey,
-      sourcePdfSha256: sourceSha256,
-      sourceLocator: doc.sourceLocator,
-      ...(doc.sourceUrl != null ? { sourceUrl: doc.sourceUrl } : {}),
-      fiscalYear: manifest.fiscalYear,
-      family: doc.family,
-      exhibit: doc.exhibit,
-      authority: doc.authority,
-      component: doc.component,
-      budgetCycle: doc.budgetCycle,
-      documentType: doc.documentType,
-    };
-    documents.push({ document: doc, source, pages });
-
-    /* Phase 2 verification reference. fixture:// documents carry a
-     * deterministic fixture reference (documented rehearsal mode). Real
-     * documents must be verified with the inspect-mode Phase 2 command
-     * (verify-defense-budget-extraction-v1.ts) and their references passed
-     * via --verifications <refs.json>; without one they are marked
-     * NEEDS_REVIEW so certification fails closed. */
-    const supplied = suppliedVerifications.get(doc.documentKey);
-    if (supplied != null) {
-      verifications.push(supplied);
-    } else if (doc.sourceLocator.startsWith('fixture://')) {
-      verifications.push({
-        manifestDocumentKey: doc.documentKey,
-        artifactId: `fixture_artifact_${doc.documentKey}`,
-        verificationCandidateId: `fixture_candidate_${doc.documentKey}`,
-        verificationRunId: `fixture_run_${doc.documentKey}`,
-        decision: 'VERIFICATION_PASSED',
-        decisionId: `fixture_decision_${doc.documentKey}`,
-      });
-    } else {
-      verifications.push({
-        manifestDocumentKey: doc.documentKey,
-        artifactId: `pending_${doc.documentKey}`,
-        verificationCandidateId: `pending_candidate_${doc.documentKey}`,
-        verificationRunId: `pending_run_${doc.documentKey}`,
-        decision: 'NEEDS_REVIEW',
-        decisionId: `pending_decision_${doc.documentKey}`,
-      });
-    }
-  }
-
-  /* 3. Run the pure pipeline. */
-  const result = runRdteCyclePipeline({
-    cycleIdIdentity: { cycleId: manifest.cycleId, fiscalYear: manifest.fiscalYear },
-    fiscalYear: manifest.fiscalYear,
-    manifestContentSha256,
-    documents,
-    verifications,
-  });
-
-  /* 4. Projection plan when certified. */
-  let projectionPlan = null;
-  if (result.certification === 'CERTIFIED_RDTE_READY_FOR_PROJECTION') {
-    const planned = planRdteCanonicalProjection({
-      bundle: result.bundle,
-      artifacts: result.artifacts.map((a) => a.artifact),
+      const sourceDocumentId =
+        resolved.sourceDocumentId?.trim() || `local-${sourceSha256}`;
+      return [
+        {
+          original: document,
+          local: {
+            ...document,
+            sourceLocator: resolved.sourcePath,
+            expectedSourceSha256: sourceSha256,
+          },
+          sourcePath: resolved.sourcePath,
+          sourceDocumentId,
+          sourceSha256,
+        },
+      ];
     });
-    projectionPlan = planned.plan;
-  }
+}
 
-  /* 5. Write content-addressed outputs. */
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.mkdirSync(path.join(outDir, 'artifacts'), { recursive: true });
-  for (const { documentKey, artifact } of result.artifacts) {
-    const parsed = defenseBudgetExtractionArtifactV1Schema.parse(artifact);
-    fs.writeFileSync(
-      path.join(outDir, 'artifacts', `${documentKey}.extraction-v1.json`),
-      JSON.stringify(parsed, null, 2),
+function writeExecutionManifest(input: {
+  original: BudgetCycleManifestV1;
+  resolved: readonly ResolvedDocument[];
+  outDir: string;
+}): { manifest: BudgetCycleManifestV1; locator: string; contentSha256: string } {
+  const localByKey = new Map(input.resolved.map((value) => [value.local.documentKey, value.local]));
+  const manifest = parseBudgetCycleManifestV1({
+    ...input.original,
+    documents: input.original.documents.map(
+      (document) => localByKey.get(document.documentKey) ?? document,
+    ),
+  });
+  const findings = validateBudgetCycleManifestV1(manifest).filter(
+    (finding) => finding.severity === 'error',
+  );
+  if (findings.length > 0) {
+    throw new Error(
+      `local execution manifest invalid: ${findings
+        .map((finding) => `${finding.path}: ${finding.message}`)
+        .join('; ')}`,
     );
   }
-  fs.writeFileSync(path.join(outDir, 'cycle-bundle.json'), JSON.stringify(result.bundle, null, 2));
-  if (projectionPlan != null) {
+  const locator = path.join(input.outDir, 'execution-manifest.json');
+  const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
+  fs.writeFileSync(locator, serialized, 'utf8');
+  return {
+    manifest,
+    locator,
+    contentSha256: createHash('sha256').update(serialized, 'utf8').digest('hex'),
+  };
+}
+
+function sourceForDocument(input: {
+  manifest: BudgetCycleManifestV1;
+  document: ResolvedDocument;
+}): ExtractionSourceV1 & { sourceDocumentId: string } {
+  const value = input.document;
+  return {
+    manifestDocumentKey: value.local.documentKey,
+    sourceDocumentId: value.sourceDocumentId,
+    sourcePdfSha256: value.sourceSha256,
+    sourceLocator: value.sourcePath,
+    ...(value.original.sourceUrl ? { sourceUrl: value.original.sourceUrl } : {}),
+    fiscalYear: input.manifest.fiscalYear,
+    family: value.local.family,
+    exhibit: value.local.exhibit,
+    authority: value.local.authority,
+    component: value.local.component,
+    budgetCycle: value.local.budgetCycle,
+    documentType: value.local.documentType,
+    title: value.local.title,
+  };
+}
+
+async function profileDocument(input: {
+  runtimeClient: LocalParserRuntimeClient;
+  document: ResolvedDocument;
+  runtimeWorkDir: string;
+  parserVersion: string;
+}) {
+  const profileJob = {
+    schemaVersion: 'defense_budget_parser_job_v1' as const,
+    jobId: `profile-${input.document.local.documentKey}`,
+    sourcePath: input.document.sourcePath,
+    sourceSha256: input.document.sourceSha256,
+    engine: 'deterministic_pdfplumber' as const,
+    requestedPages: [],
+    parserVersion: input.parserVersion,
+    parserConfig: DEFAULT_PROFILING_THRESHOLDS,
+    parserConfigSha256: computeProfilingConfigSha256(DEFAULT_PROFILING_THRESHOLDS),
+    outputDirectory: input.runtimeWorkDir,
+    includeDebugArtifacts: false,
+  };
+  const jobPath = path.join(input.runtimeWorkDir, 'profile.job.json');
+  const resultPath = path.join(input.runtimeWorkDir, 'profile.result.json');
+  fs.writeFileSync(jobPath, `${JSON.stringify(profileJob, null, 2)}\n`, 'utf8');
+  const execution = await input.runtimeClient.profileJob(jobPath, resultPath);
+  if (execution.exitCode !== 0) {
+    throw new Error(
+      `profile failed for ${input.document.local.documentKey}: ${execution.stderr || execution.exitCode}`,
+    );
+  }
+  const profile = parseDocumentProfileResultV1(
+    JSON.parse(fs.readFileSync(resultPath, 'utf8')),
+  );
+  if (profile.sourceSha256 !== input.document.sourceSha256) {
+    throw new Error(`profile source SHA mismatch for ${input.document.local.documentKey}`);
+  }
+  if (profile.pages.length === 0) {
+    throw new Error(`profile returned zero pages for ${input.document.local.documentKey}`);
+  }
+  return profile;
+}
+
+async function parseDocument(input: {
+  args: CommandArgs;
+  executionManifest: BudgetCycleManifestV1;
+  manifestLocator: string;
+  document: ResolvedDocument;
+  priorArtifacts: readonly {
+    documentKey: string;
+    artifactLocator: string;
+    sourceDocumentId: string;
+  }[];
+  sharedArtifactStore: FilesystemParserArtifactStore;
+  outDir: string;
+}): Promise<ParsedDocumentResult> {
+  if (input.document.local.parserPolicy === 'native_structured') {
+    throw new Error(
+      `annual RDT&E build requires a PDF parser policy for ${input.document.local.documentKey}; ` +
+        'convert native structured sources to a manifest-specific PDF parser policy or run the native companion path separately',
+    );
+  }
+  const documentWorkDir = path.join(input.outDir, 'work', input.document.local.documentKey);
+  const runtimeWorkDir = path.join(documentWorkDir, 'runtime');
+  fs.mkdirSync(runtimeWorkDir, { recursive: true });
+  const runtimeClient = new LocalParserRuntimeClient({
+    command: 'uv',
+    commandArgs: ['run', 'capiro-defense-budget-parser'],
+    cwd: path.resolve(__dirname, '../../defense-budget-parser'),
+    workDir: runtimeWorkDir,
+    timeoutMs: 15 * 60 * 1000,
+  });
+  const versions = await runtimeClient.getVersionInfo();
+  const pdfplumberVersion = versions.engines.deterministic_pdfplumber;
+  if (!pdfplumberVersion) {
+    throw new Error('parser runtime did not report deterministic_pdfplumber version');
+  }
+  const profile = await profileDocument({
+    runtimeClient,
+    document: input.document,
+    runtimeWorkDir,
+    parserVersion: pdfplumberVersion,
+  });
+  const requestedPages = profile.pages.map((page) => page.page).sort((a, b) => a - b);
+  const source = sourceForDocument({
+    manifest: input.executionManifest,
+    document: input.document,
+  });
+  const semantic = createRdteSemanticArtifactFactory({
+    document: input.document.local,
+    source,
+    fiscalYear: input.executionManifest.fiscalYear,
+  });
+  const delegate = new BudgetVerificationV1Service(new FilesystemProofResolver(), null);
+  const referenceArtifacts: VerificationRequestV1['referenceArtifacts'] = input.priorArtifacts.map(
+    (artifact) => ({
+      artifactLocator: artifact.artifactLocator,
+      sourceDocumentId: artifact.sourceDocumentId,
+      manifestDocumentKey: artifact.documentKey,
+      manifestLocator: input.manifestLocator,
+    }),
+  );
+  const verification = createRdtePhase2VerificationAdapter({
+    delegate,
+    referenceArtifacts,
+  });
+  const router = new ParserRouterV1Service(
+    {
+      executionId: `${input.document.local.documentKey}-${input.document.sourceSha256.slice(0, 16)}`,
+      cycleId: input.executionManifest.cycleId,
+      manifestDocumentKey: input.document.local.documentKey,
+      manifestLocator: input.manifestLocator,
+      sourceDocumentId: input.document.sourceDocumentId,
+      sourcePath: input.document.sourcePath,
+      sourceSha256: input.document.sourceSha256,
+      sourceLocator: input.document.sourcePath,
+      ...(input.document.original.sourceUrl
+        ? { sourceUrl: input.document.original.sourceUrl }
+        : {}),
+      parserPolicy: input.document.local.parserPolicy,
+      exhibitType: input.document.local.exhibit,
+      budgetFamily: input.document.local.family,
+      fiscalYear: input.executionManifest.fiscalYear,
+      authority: input.document.local.authority,
+      component: input.document.local.component,
+      budgetCycle: input.document.local.budgetCycle,
+      documentType: input.document.local.documentType,
+      title: input.document.local.title,
+      maxEscalationRounds: input.args.maxEscalationRounds,
+      allowPaidParse: input.args.allowPaidParse,
+      maxPaidPages: input.args.maxPaidPages,
+      ...(input.args.paidMode ? { paidMode: input.args.paidMode } : {}),
+      persistVerificationAudit: false,
+      workDir: documentWorkDir,
+      parserVersions: versions.engines,
+    },
+    {
+      artifactStore: input.sharedArtifactStore,
+      runtimeClient,
+      verificationService: verification.service,
+      artifactFactory: semantic.factory,
+      llamaparseAuthorization: {
+        allowPaidParse: input.args.allowPaidParse,
+        maxPaidPages: input.args.maxPaidPages,
+        ...(input.args.paidMode ? { paidMode: input.args.paidMode } : {}),
+      },
+      ...(input.args.allowPaidParse
+        ? {
+            llamaparseClientConfig: {
+              apiKey:
+                process.env.LLAMAPARSE_API_KEY ??
+                (() => {
+                  throw new Error('LLAMAPARSE_API_KEY is required for paid parsing');
+                })(),
+              baseUrl:
+                process.env.LLAMAPARSE_BASE_URL ??
+                (() => {
+                  throw new Error('LLAMAPARSE_BASE_URL is required for paid parsing');
+                })(),
+            },
+          }
+        : {}),
+    },
+  );
+  const terminal = await router.execute(profile.pages, requestedPages);
+  if (!semantic.capture.documentInput || !semantic.capture.artifactLocator) {
+    throw new Error(`semantic artifact capture missing for ${input.document.local.documentKey}`);
+  }
+  fs.writeFileSync(
+    path.join(documentWorkDir, 'execution-report.json'),
+    `${JSON.stringify(terminal, null, 2)}\n`,
+    'utf8',
+  );
+  return {
+    input: semantic.capture.documentInput,
+    artifactLocator: semantic.capture.artifactLocator,
+    sourceDocumentId: input.document.sourceDocumentId,
+    verificationResultCount: verification.capture.results.length,
+    executionReport: terminal,
+  };
+}
+
+async function runFinalVerifications(input: {
+  build: ReturnType<typeof buildRdteCycleArtifacts>;
+  manifestLocator: string;
+  artifactDirectory: string;
+}): Promise<RdteCycleVerificationRefV1[]> {
+  const delegate = new BudgetVerificationV1Service(new FilesystemProofResolver(), null);
+  const sourceDocumentIdByKey = new Map(
+    input.build.documents.map((document) => [
+      document.document.documentKey,
+      document.source.sourceDocumentId,
+    ]),
+  );
+  const artifactPathByKey = new Map<string, string>();
+  fs.mkdirSync(input.artifactDirectory, { recursive: true });
+  for (const built of input.build.artifacts) {
+    const locator = path.join(
+      input.artifactDirectory,
+      `${built.documentKey}.extraction-v1.json`,
+    );
+    fs.writeFileSync(locator, built.serializedArtifact, 'utf8');
+    artifactPathByKey.set(built.documentKey, locator);
+  }
+
+  const output: RdteCycleVerificationRefV1[] = [];
+  for (const built of input.build.artifacts) {
+    const sourceDocumentId = sourceDocumentIdByKey.get(built.documentKey);
+    const artifactLocator = artifactPathByKey.get(built.documentKey);
+    if (!sourceDocumentId || !artifactLocator) {
+      throw new Error(`final verification identity missing for ${built.documentKey}`);
+    }
+    const references: NonNullable<VerificationRequestV1['referenceArtifacts']> = input.build.artifacts
+      .filter((candidate) => candidate.documentKey !== built.documentKey)
+      .map((candidate) => {
+        const candidateLocator = artifactPathByKey.get(candidate.documentKey);
+        const candidateSourceDocumentId = sourceDocumentIdByKey.get(candidate.documentKey);
+        if (!candidateLocator || !candidateSourceDocumentId) {
+          throw new Error(`reference identity missing for ${candidate.documentKey}`);
+        }
+        return {
+          artifactLocator: candidateLocator,
+          sourceDocumentId: candidateSourceDocumentId,
+          manifestDocumentKey: candidate.documentKey,
+          manifestLocator: input.manifestLocator,
+        };
+      });
+    const result = await delegate.verify({
+      manifestLocator: input.manifestLocator,
+      manifestDocumentKey: built.documentKey,
+      extractionArtifactLocator: artifactLocator,
+      sourceDocumentId,
+      referenceArtifacts: references,
+      mode: 'inspect',
+      expectedSourcePdfSha256: built.artifact.source.sourcePdfSha256,
+      expectedExtractionArtifactSha256: built.artifactRef.artifactByteSha256,
+    });
+    output.push(
+      rdteVerificationRefFromResult({
+        result,
+        artifactContentSha256: built.artifact.contentSha256,
+      }),
+    );
+  }
+  return output.sort((left, right) =>
+    left.manifestDocumentKey.localeCompare(right.manifestDocumentKey),
+  );
+}
+
+function writeOutputs(input: {
+  args: CommandArgs;
+  result: ReturnType<typeof finalizeRdteCycle>;
+  executionManifestLocator: string;
+  parsedDocuments: readonly ParsedDocumentResult[];
+}): void {
+  const outputDirectory = path.resolve(input.args.out);
+  fs.writeFileSync(
+    path.join(outputDirectory, 'cycle-bundle.json'),
+    `${JSON.stringify(input.result.bundle, null, 2)}\n`,
+    'utf8',
+  );
+  if (input.result.projectionPlan) {
     fs.writeFileSync(
-      path.join(outDir, 'projection-plan.json'),
-      JSON.stringify(projectionPlan, null, 2),
+      path.join(outputDirectory, 'projection-plan.json'),
+      `${JSON.stringify(input.result.projectionPlan, null, 2)}\n`,
+      'utf8',
     );
   }
   fs.writeFileSync(
-    path.join(outDir, 'build-summary.json'),
-    JSON.stringify(
+    path.join(outputDirectory, 'build-summary.json'),
+    `${JSON.stringify(
       {
-        cycleId: result.bundle.cycleId,
-        fiscalYear: result.bundle.fiscalYear,
-        certification: result.certification,
-        reason: result.reason,
-        counts: result.counts,
-        artifacts: result.artifacts.map((a) => ({
-          documentKey: a.documentKey,
-          artifactId: a.artifact.artifactId,
-          contentSha256: a.artifact.contentSha256,
+        cycleId: input.result.bundle.cycleId,
+        fiscalYear: input.result.bundle.fiscalYear,
+        certification: input.result.certification,
+        reason: input.result.reason,
+        counts: input.result.counts,
+        bundleContentSha256: input.result.bundle.contentSha256,
+        projectionPlanContentSha256:
+          input.result.projectionPlan?.contentSha256 ?? null,
+        executionManifestLocator: input.executionManifestLocator,
+        paidAuthorization: {
+          allowed: input.args.allowPaidParse,
+          maxPaidPages: input.args.maxPaidPages,
+          mode: input.args.paidMode ?? null,
+        },
+        parserExecutions: input.parsedDocuments.map((document) => ({
+          documentKey: document.input.document.documentKey,
+          parserRunIds: document.input.parserRuns.map((run) => run.parserRunId),
+          unresolvedPages: document.input.unresolvedPages,
+          verificationRounds: document.verificationResultCount,
         })),
-        bundleContentSha256: result.bundle.contentSha256,
-        projectionPlanContentSha256: projectionPlan?.contentSha256 ?? null,
-        allowPaidParse,
-        paidMode: paidMode ?? null,
-        maxPaidPages: maxPaidPages != null ? Number(maxPaidPages) : null,
       },
       null,
       2,
-    ),
+    )}\n`,
+    'utf8',
   );
+}
 
-  console.log(JSON.stringify({ certification: result.certification, reason: result.reason }));
+async function main(): Promise<void> {
+  let args: CommandArgs;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error((error as Error).message);
+    process.exit(EXIT_ERROR);
+  }
+  try {
+    const manifestPath = path.resolve(args.manifest);
+    if (!fs.existsSync(manifestPath)) throw new Error(`manifest not found: ${manifestPath}`);
+    const originalManifest = parseBudgetCycleManifestV1(
+      JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+    );
+    const manifestErrors = validateBudgetCycleManifestV1(originalManifest).filter(
+      (finding) => finding.severity === 'error',
+    );
+    if (manifestErrors.length > 0) {
+      throw new Error(
+        `manifest invalid: ${manifestErrors
+          .map((finding) => `${finding.path}: ${finding.message}`)
+          .join('; ')}`,
+      );
+    }
+    const outDir = path.resolve(args.out);
+    fs.mkdirSync(outDir, { recursive: true });
+    const sourceMap = readSourceMap(args.sourceMap);
+    const resolved = resolveDocuments({
+      manifest: originalManifest,
+      sourceRoot: args.sourceRoot,
+      sourceMap,
+    });
+    const executionManifest = writeExecutionManifest({
+      original: originalManifest,
+      resolved,
+      outDir,
+    });
+    const sharedArtifactStore = new FilesystemParserArtifactStore(
+      path.join(outDir, 'parser-artifacts'),
+    );
+    const parsedDocuments: ParsedDocumentResult[] = [];
+    const priorArtifacts: Array<{
+      documentKey: string;
+      artifactLocator: string;
+      sourceDocumentId: string;
+    }> = [];
+    for (const document of resolved) {
+      const parsed = await parseDocument({
+        args,
+        executionManifest: executionManifest.manifest,
+        manifestLocator: executionManifest.locator,
+        document,
+        priorArtifacts,
+        sharedArtifactStore,
+        outDir,
+      });
+      parsedDocuments.push(parsed);
+      priorArtifacts.push({
+        documentKey: parsed.input.document.documentKey,
+        artifactLocator: parsed.artifactLocator,
+        sourceDocumentId: parsed.sourceDocumentId,
+      });
+    }
 
-  switch (result.certification) {
-    case 'CERTIFIED_RDTE_READY_FOR_PROJECTION':
+    const build = buildRdteCycleArtifacts({
+      fiscalYear: executionManifest.manifest.fiscalYear,
+      manifestContentSha256: executionManifest.contentSha256,
+      manifestDocuments: executionManifest.manifest.documents,
+      documents: parsedDocuments.map((document) => document.input),
+    });
+    const verifications = await runFinalVerifications({
+      build,
+      manifestLocator: executionManifest.locator,
+      artifactDirectory: path.join(outDir, 'artifacts'),
+    });
+    const result = finalizeRdteCycle({
+      cycleIdIdentity: {
+        cycleId: executionManifest.manifest.cycleId,
+        fiscalYear: executionManifest.manifest.fiscalYear,
+        manifestContentSha256: executionManifest.contentSha256,
+      },
+      build,
+      verifications,
+    });
+    writeOutputs({
+      args,
+      result,
+      executionManifestLocator: executionManifest.locator,
+      parsedDocuments,
+    });
+    console.log(
+      JSON.stringify({
+        certification: result.certification,
+        reason: result.reason,
+        bundleContentSha256: result.bundle.contentSha256,
+      }),
+    );
+    if (result.certification === 'CERTIFIED_RDTE_READY_FOR_PROJECTION') {
       process.exit(EXIT_OK);
-      break;
-    case 'NEEDS_REVIEW':
-      process.exit(EXIT_NEEDS_REVIEW);
-      break;
-    case 'INCOMPLETE':
-      process.exit(EXIT_INCOMPLETE);
-      break;
-    case 'REJECTED':
-      process.exit(EXIT_REJECTED);
-      break;
+    }
+    if (result.certification === 'NEEDS_REVIEW') process.exit(EXIT_NEEDS_REVIEW);
+    if (result.certification === 'INCOMPLETE') process.exit(EXIT_INCOMPLETE);
+    process.exit(EXIT_REJECTED);
+  } catch (error) {
+    console.error((error as Error).stack ?? (error as Error).message);
+    process.exit(EXIT_ERROR);
   }
 }
 
-main();
+void main();

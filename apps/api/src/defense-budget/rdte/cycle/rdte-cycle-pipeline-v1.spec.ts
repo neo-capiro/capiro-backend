@@ -1,211 +1,259 @@
-/**
- * rdte-cycle-pipeline-v1.spec — Workstream N end-to-end golden cycle:
- *   - a complete synthetic cycle certifies deterministically;
- *   - missing required document blocks certification (fail-closed);
- *   - NEEDS_REVIEW / REJECTED verification decisions block certification;
- *   - R-1/R-2 request mismatch blocks certification;
- *   - broken project sum blocks certification;
- *   - the pipeline is deterministic under document permutation.
- */
-import { describe, it, expect } from '@jest/globals';
-import { runRdteCyclePipeline } from './rdte-cycle-pipeline-v1.js';
-import type { RdteCycleDocumentInput } from './rdte-cycle-pipeline-v1.js';
-import {
-  GOLDEN_CYCLE_FY,
-  GOLDEN_PE,
-  GOLDEN_SHA,
-  goldenManifestDocument,
-  goldenPagesByKey,
-  goldenSource,
-} from './rdte-golden-cycle-v1.js';
-import type { RdteCycleVerificationRefV1 } from '../rdte-cycle-bundle-v1.js';
+import { describe, expect, it } from '@jest/globals';
 import { sha256Hex } from '../../contracts/canonical-json.js';
+import type { RdteCycleDocumentInputV1 } from './rdte-phase3-document-input-v1.js';
+import {
+  buildRdteCycleArtifacts,
+  finalizeRdteCycle,
+  type RdteCycleArtifactBuildResult,
+} from './rdte-cycle-pipeline-v1.js';
+import {
+  GOLDEN_DOCUMENT_KEYS,
+  goldenCloseoutDocuments,
+  goldenCloseoutVerifications,
+} from './rdte-golden-closeout-v1.js';
+import { GOLDEN_CYCLE_FY, GOLDEN_PE } from './rdte-golden-cycle-v1.js';
 
-const MANIFEST_SHA = sha256Hex('golden-manifest');
+const MANIFEST_SHA = sha256Hex('golden-phase4-closeout-manifest');
 
-function goldenDocuments(): RdteCycleDocumentInput[] {
-  const pages = goldenPagesByKey();
-  return ['golden_r1', 'golden_r2', 'golden_r2a', 'golden_r3', 'golden_r4'].map((key) => ({
-    document: goldenManifestDocument(key),
-    source: goldenSource(key),
-    pages: pages[key] ?? [],
-  }));
-}
-
-function goldenVerifications(): RdteCycleVerificationRefV1[] {
-  return ['golden_r1', 'golden_r2', 'golden_r2a', 'golden_r3', 'golden_r4'].map((key) => ({
-    manifestDocumentKey: key,
-    artifactId: `art_${key}`,
-    verificationCandidateId: `cand_${key}`,
-    verificationRunId: `run_${key}`,
-    decision: 'VERIFICATION_PASSED' as const,
-    decisionId: `dec_${key}`,
-  }));
-}
-
-function runGolden(overrides?: {
-  documents?: RdteCycleDocumentInput[];
-  verifications?: RdteCycleVerificationRefV1[];
-}) {
-  return runRdteCyclePipeline({
-    cycleIdIdentity: { cycle: 'golden', fy: GOLDEN_CYCLE_FY },
+function buildGolden(documents = goldenCloseoutDocuments()): RdteCycleArtifactBuildResult {
+  return buildRdteCycleArtifacts({
     fiscalYear: GOLDEN_CYCLE_FY,
     manifestContentSha256: MANIFEST_SHA,
-    documents: overrides?.documents ?? goldenDocuments(),
-    verifications: overrides?.verifications ?? goldenVerifications(),
+    manifestDocuments: goldenCloseoutDocuments().map((value) => value.document),
+    documents,
   });
 }
 
-describe('rdte-cycle-pipeline-v1 (golden cycle)', () => {
-  it('certifies a complete synthetic cycle', () => {
-    const result = runGolden();
+function finalizeGolden(input?: {
+  documents?: RdteCycleDocumentInputV1[];
+  verificationOverride?: Parameters<typeof goldenCloseoutVerifications>[0]['override'];
+  mutateVerifications?: (
+    values: ReturnType<typeof goldenCloseoutVerifications>,
+  ) => ReturnType<typeof goldenCloseoutVerifications>;
+}) {
+  const build = buildGolden(input?.documents);
+  let verifications = goldenCloseoutVerifications({
+    build,
+    manifestContentSha256: MANIFEST_SHA,
+    ...(input?.verificationOverride ? { override: input.verificationOverride } : {}),
+  });
+  if (input?.mutateVerifications) verifications = input.mutateVerifications(verifications);
+  return finalizeRdteCycle({
+    cycleIdIdentity: { cycle: 'golden', fy: GOLDEN_CYCLE_FY },
+    build,
+    verifications,
+  });
+}
+
+function tamperDocument(
+  key: string,
+  update: (document: RdteCycleDocumentInputV1) => RdteCycleDocumentInputV1,
+): RdteCycleDocumentInputV1[] {
+  return goldenCloseoutDocuments().map((document) =>
+    document.document.documentKey === key ? update(document) : document,
+  );
+}
+
+describe('Phase 4 exact RDT&E cycle pipeline', () => {
+  it('certifies only after exact verification and projection planning', () => {
+    const result = finalizeGolden();
     expect(result.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(result.counts.r1PeCount).toBe(1);
-    expect(result.counts.r2PeCount).toBe(1);
-    expect(result.counts.r2aProjectCount).toBe(2);
-    expect(result.counts.r3PerformerCount).toBe(2);
-    expect(result.counts.r4MilestoneCount).toBe(2);
-    expect(result.counts.comparisonCount).toBe(1);
-    expect(result.counts.blockingFindingCount).toBe(0);
-    expect(result.artifacts).toHaveLength(5);
     expect(result.bundle.blockingFindings).toHaveLength(0);
-
-    /* R-1/R-2 comparison passed. */
-    const comparison = result.bundle.comparisons[0];
-    void comparison;
-  });
-
-  it('is deterministic under document permutation', () => {
-    const a = runGolden();
-    const documents = [...goldenDocuments()].reverse();
-    const b = runGolden({ documents });
-    expect(a.bundle.contentSha256).toBe(b.bundle.contentSha256);
-  });
-
-  it('blocks certification when a required document is missing', () => {
-    const documents = goldenDocuments().filter((d) => d.document.documentKey !== 'golden_r2');
-    const verifications = goldenVerifications().filter(
-      (v) => v.manifestDocumentKey !== 'golden_r2',
+    expect(result.bundle.projectionPlanContentSha256).toBe(result.projectionPlan?.contentSha256);
+    expect(result.projectionPlan).not.toBeNull();
+    expect(result.counts).toEqual(
+      expect.objectContaining({
+        r1PeCount: 1,
+        r2PeCount: 1,
+        r2aProjectCount: 2,
+        r3PerformerCount: 2,
+        r4MilestoneCount: 2,
+        comparisonCount: 1,
+        blockingFindingCount: 0,
+      }),
     );
-    const result = runGolden({ documents, verifications });
-    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(result.bundle.blockingFindings.length).toBeGreaterThan(0);
+
+    for (const source of result.bundle.sourceDocuments) {
+      expect(source.sourceDocumentId).toContain(source.manifestDocumentKey);
+      expect(source.parserRunIds.length).toBeGreaterThan(0);
+      expect(source.unresolvedPages).toEqual([]);
+    }
+    for (const verification of result.bundle.verifications) {
+      const artifact = result.bundle.artifacts.find(
+        (candidate) => candidate.manifestDocumentKey === verification.manifestDocumentKey,
+      );
+      expect(verification.phase2Decision).toBe('PASS');
+      expect(verification.status).toBe('VERIFICATION_PASSED');
+      expect(verification.artifactId).toBe(artifact?.artifactId);
+      expect(verification.artifactContentSha256).toBe(artifact?.artifactContentSha256);
+      expect(verification.artifactByteSha256).toBe(artifact?.artifactByteSha256);
+    }
   });
 
-  it('blocks certification when verification is NEEDS_REVIEW', () => {
-    const verifications = goldenVerifications().map((v) =>
-      v.manifestDocumentKey === 'golden_r3' ? { ...v, decision: 'NEEDS_REVIEW' as const } : v,
+  it('emits R-2 identity and narrative in the verified R-2 artifact', () => {
+    const result = finalizeGolden();
+    const r2 = result.artifacts.find((value) => value.documentKey === 'golden_r2')?.artifact;
+    expect(r2).toBeDefined();
+    expect(
+      r2?.assertions.some(
+        (assertion) =>
+          assertion.assertionKind === 'program_element_identity' &&
+          assertion.identity.peCode === GOLDEN_PE,
+      ),
+    ).toBe(true);
+    expect(
+      r2?.assertions.some(
+        (assertion) =>
+          assertion.assertionKind === 'narrative' && assertion.narrativeType === 'mission',
+      ),
+    ).toBe(true);
+    expect(r2?.parserRuns[0]?.method).toBe('native_structured');
+  });
+
+  it('retains evidence-linked unit-tolerant R-1/R-2 comparison records', () => {
+    const result = finalizeGolden();
+    expect(result.bundle.comparisons).toHaveLength(1);
+    expect(result.bundle.comparisons[0]).toEqual(
+      expect.objectContaining({
+        comparisonKind: 'r1_r2_budget_year_request',
+        peCode: GOLDEN_PE,
+        fiscalYear: GOLDEN_CYCLE_FY,
+        result: 'pass',
+        toleranceMillions: '1',
+      }),
     );
-    const result = runGolden({ verifications });
-    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    expect(result.bundle.comparisons[0]?.leftAssertionIds.length).toBe(1);
+    expect(result.bundle.comparisons[0]?.rightAssertionIds.length).toBe(1);
+    expect(result.bundle.comparisons[0]?.evidenceIds.length).toBeGreaterThan(0);
   });
 
-  it('blocks certification when verification is REJECTED', () => {
-    const verifications = goldenVerifications().map((v) =>
-      v.manifestDocumentKey === 'golden_r1' ? { ...v, decision: 'REJECTED' as const } : v,
+  it('is deterministic under supplied-document permutation', () => {
+    const forward = finalizeGolden();
+    const reverse = finalizeGolden({ documents: [...goldenCloseoutDocuments()].reverse() });
+    expect(reverse.bundle.contentSha256).toBe(forward.bundle.contentSha256);
+    expect(reverse.projectionPlan?.contentSha256).toBe(forward.projectionPlan?.contentSha256);
+    expect(reverse.artifacts.map((value) => value.artifact.artifactId)).toEqual(
+      forward.artifacts.map((value) => value.artifact.artifactId),
     );
-    const result = runGolden({ verifications });
-    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
   });
 
-  it('blocks certification when R-1 and R-2 requests disagree', () => {
-    const documents = goldenDocuments().map((doc) => {
-      if (doc.document.documentKey !== 'golden_r1') return doc;
-      /* Tamper the R-1 request cell: 12.000 -> 99.000. */
-      const pages = doc.pages.map((page) => ({
+  it('reports a missing required manifest document as incomplete', () => {
+    const documents = goldenCloseoutDocuments().filter(
+      (value) => value.document.documentKey !== 'golden_r2',
+    );
+    const result = finalizeGolden({ documents });
+    expect(result.certification).toBe('INCOMPLETE');
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) =>
+          finding.code === 'required_document_missing' ||
+          finding.code === 'required_artifact_missing',
+      ),
+    ).toBe(true);
+    expect(result.projectionPlan).toBeNull();
+  });
+
+  it('blocks review-pending and rejected Phase 2 results', () => {
+    const review = finalizeGolden({
+      verificationOverride: {
+        golden_r3: { phase2Decision: 'REVIEW', status: 'NEEDS_REVIEW' },
+      },
+    });
+    expect(review.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    expect(review.projectionPlan).toBeNull();
+
+    const rejected = finalizeGolden({
+      verificationOverride: {
+        golden_r1: { phase2Decision: 'REJECT', status: 'REJECTED' },
+      },
+    });
+    expect(rejected.certification).toBe('REJECTED');
+  });
+
+  it('accepts only an immutable reviewed acceptance status', () => {
+    const reviewed = finalizeGolden({
+      verificationOverride: {
+        golden_r3: { phase2Decision: 'REVIEW', status: 'REVIEW_ACCEPTED' },
+      },
+    });
+    expect(reviewed.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+  });
+
+  it('rejects a verification result bound to different artifact bytes', () => {
+    const result = finalizeGolden({
+      mutateVerifications: (values) =>
+        values.map((value) =>
+          value.manifestDocumentKey === 'golden_r1'
+            ? { ...value, artifactByteSha256: '0'.repeat(64) }
+            : value,
+        ),
+    });
+    expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) => finding.code === 'verification_identity_mismatch',
+      ),
+    ).toBe(true);
+  });
+
+  it('blocks R-1/R-2 disagreement with exact evidence', () => {
+    const documents = tamperDocument('golden_r1', (document) => ({
+      ...document,
+      pages: document.pages.map((page) => ({
         ...page,
         tables: page.tables.map((table) => ({
           ...table,
           cells: table.cells.map((cell) =>
-            cell.rowIndex === 1 && cell.columnIndex === 4 ? { ...cell, text: '99.000' } : cell,
+            cell.rowIndex === 1 && cell.columnIndex === 4
+              ? { ...cell, text: '99.000' }
+              : cell,
           ),
         })),
-      }));
-      return { ...doc, pages };
-    });
-    const result = runGolden({ documents });
+      })),
+    }));
+    const result = finalizeGolden({ documents });
     expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(result.bundle.blockingFindings.some((f) => f.code.startsWith('r1_r2'))).toBe(true);
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) => finding.code === 'cross_exhibit_comparison_failed',
+      ),
+    ).toBe(true);
   });
 
-  it('blocks certification when the project sum does not reconcile', () => {
-    const documents = goldenDocuments().map((doc) => {
-      if (doc.document.documentKey !== 'golden_r2a') return doc;
-      /* Tamper project A1: 7.000 -> 9.000 (sum 14 != PE total 12). */
-      const pages = doc.pages.map((page) => ({
+  it('blocks materially incomplete project sums', () => {
+    const documents = tamperDocument('golden_r2a', (document) => ({
+      ...document,
+      pages: document.pages.map((page) => ({
         ...page,
         tables: page.tables.map((table) => ({
           ...table,
           cells: table.cells.map((cell) =>
-            cell.rowIndex === 1 && cell.columnIndex === 1 && page.page === 1
+            page.page === 1 && cell.rowIndex === 1 && cell.columnIndex === 1
               ? { ...cell, text: '9.000' }
               : cell,
           ),
         })),
-      }));
-      return { ...doc, pages };
-    });
-    const result = runGolden({ documents });
+      })),
+    }));
+    const result = finalizeGolden({ documents });
     expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
+    expect(
+      result.bundle.blockingFindings.some(
+        (finding) => finding.code === 'r2a_project_sum_unreconciled',
+      ),
+    ).toBe(true);
   });
 
-  it('projects every golden PE through the projection planner', async () => {
-    const { planRdteCanonicalProjection } =
-      await import('../projection/rdte-projection-planner-v1.js');
-    const result = runGolden();
-    expect(result.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    const { plan } = planRdteCanonicalProjection({
-      bundle: result.bundle,
-      artifacts: result.artifacts.map((a) => a.artifact),
-    });
-
-    /* Identity, request, positions, projects, performers, milestones all
-     * project; contextual/CTC values are excluded. */
-    const targets = new Set(plan.candidates.map((c) => c.target));
-    expect(targets.has('ProgramElement')).toBe(true);
-    expect(targets.has('ProgramElementYear')).toBe(true);
-    expect(targets.has('ProgramElementBudgetPosition')).toBe(true);
-    expect(targets.has('ProgramElementProject')).toBe(true);
-    expect(targets.has('ProgramElementProjectBudgetPosition')).toBe(true);
-    expect(targets.has('ProgramElementPerformer')).toBe(true);
-    expect(targets.has('ProgramElementMilestone')).toBe(true);
-    expect(targets.has('ProgramElementMilestoneSchedulePeriod')).toBe(true);
-    expect(targets.has('ProgramElementSource')).toBe(true);
-
-    const year = plan.candidates.find((c) => c.target === 'ProgramElementYear');
-    expect(year?.values.peCode).toBe(GOLDEN_PE);
-    expect(year?.values.fy).toBe(GOLDEN_CYCLE_FY);
-
-    /* Outyear appears as a PE position, never as a ProgramElementYear. */
-    const positions = plan.candidates.filter((c) => c.target === 'ProgramElementBudgetPosition');
-    expect(positions.some((c) => c.values.assertedFy === 2028)).toBe(true);
-
-    /* IOC keeps its fiscal-quarter period without a fabricated date. */
-    const ioc = plan.candidates.find(
-      (c) =>
-        c.target === 'ProgramElementMilestone' &&
-        String(c.values.milestoneType).includes('Initial Operational'),
-    );
-    expect(ioc?.values.plannedDate).toBeUndefined();
-    const periods = plan.candidates.filter(
-      (c) => c.target === 'ProgramElementMilestoneSchedulePeriod',
-    );
-    expect(
-      periods.some((c) => c.values.periodKind === 'fiscal_quarter' && c.values.fiscalQuarter === 3),
-    ).toBe(true);
-
-    /* CTC/total-cost never reach annual funding targets. */
-    const exclusions = plan.exclusions.map((e) => e.reason);
-    expect(exclusions).toContain('non_annual_cost_value');
-    expect(exclusions).toContain('contextual_only_value');
-
-    /* No projection candidate may carry an outyear as the cycle request. */
-    for (const candidate of plan.candidates) {
-      if (candidate.target === 'ProgramElementYear') {
-        expect(candidate.values.fy).toBe(GOLDEN_CYCLE_FY);
-      }
+  it('keeps all manifest-required coverage categories explicit', () => {
+    const result = finalizeGolden();
+    const expected = new Set(['identity', 'funding', 'narrative', 'projects', 'project_funding', 'performers', 'milestones']);
+    expect(new Set(result.bundle.coverage.map((entry) => entry.category))).toEqual(expected);
+    for (const entry of result.bundle.coverage) {
+      expect(entry.status).toBe('verified');
+      expect(entry.numerator).toBe(entry.denominator);
+      expect(entry.denominator).toBeGreaterThan(0);
+      expect(entry.missingKeys).toEqual([]);
     }
-    expect(plan.contentSha256).toHaveLength(64);
-    void GOLDEN_SHA;
+    expect(GOLDEN_DOCUMENT_KEYS).toHaveLength(5);
   });
 });

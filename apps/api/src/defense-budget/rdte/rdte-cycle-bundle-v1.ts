@@ -1,82 +1,139 @@
 /**
- * rdte-cycle-bundle-v1 — the deterministic RDT&E cycle bundle contract.
+ * rdte-cycle-bundle-v1 — deterministic RDT&E cycle bundle contract.
  *
- * One bundle per annual RDT&E cycle. It references Phase 1 artifact IDs and
- * Phase 2 verification IDs by content SHA; it never copies trusted proof
- * claims. No timestamps participate in deterministic IDs or content hashes.
- *
- * Pure module: no NestJS, Prisma, AWS, parser, or writer dependency.
+ * Exact Phase 2 fields are authoritative. Compatibility aliases exist only so
+ * the pre-closeout projection planner can be incrementally migrated; the
+ * certifier never uses those aliases to establish trust.
  */
 import { z } from 'zod';
 import { sha256Schema } from '../contracts/extraction-artifact-v1.js';
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
+import {
+  defenseBudgetVerificationResultV1Schema,
+  verificationCandidateStatusV1Schema,
+  verificationDecisionV1Schema,
+  type DefenseBudgetVerificationResultV1,
+} from '../verification/verification-contract-v1.js';
 import { rdteCoverageStatusV1Schema, rdteExhibitRoleV1Schema } from './rdte-column-role-v1.js';
 
 export const RDTE_CYCLE_BUNDLE_SCHEMA_VERSION = 'rdte_cycle_bundle_v1' as const;
 
-const nonBlank = z
-  .string()
-  .min(1)
-  .refine((s) => s.trim().length > 0, { message: 'must be nonblank' });
-
+const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
+  message: 'must be nonblank',
+});
 const fiscalYear = z.number().int().min(1900).max(2200);
-
-/* ------------------------------------------------------------------ */
-/* Source-document entry                                               */
-/* ------------------------------------------------------------------ */
 
 export const rdteCycleSourceDocumentV1Schema = z
   .object({
     manifestDocumentKey: nonBlank,
+    sourceDocumentId: nonBlank,
     exhibitRole: rdteExhibitRoleV1Schema,
     required: z.boolean(),
     sourcePdfSha256: sha256Schema,
     sourceLocator: nonBlank,
     pageCount: z.number().int().positive().optional(),
+    parserRunIds: z.array(nonBlank),
+    unresolvedPages: z.array(z.number().int().positive()),
   })
   .strict();
 export type RdteCycleSourceDocumentV1 = z.infer<typeof rdteCycleSourceDocumentV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* Artifact reference (Phase 1)                                        */
-/* ------------------------------------------------------------------ */
 
 export const rdteCycleArtifactRefV1Schema = z
   .object({
     manifestDocumentKey: nonBlank,
     artifactId: nonBlank,
     artifactContentSha256: sha256Schema,
+    artifactByteSha256: sha256Schema,
   })
   .strict();
 export type RdteCycleArtifactRefV1 = z.infer<typeof rdteCycleArtifactRefV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Verification reference (Phase 2)                                    */
-/* ------------------------------------------------------------------ */
-
-export const VERIFICATION_DECISION_V1_VALUES = [
-  'VERIFICATION_PASSED',
-  'NEEDS_REVIEW',
-  'REJECTED',
-] as const;
-export const verificationDecisionV1Schema = z.enum(VERIFICATION_DECISION_V1_VALUES);
-export type VerificationDecisionV1 = z.infer<typeof verificationDecisionV1Schema>;
-
 export const rdteCycleVerificationRefV1Schema = z
   .object({
     manifestDocumentKey: nonBlank,
+    manifestContentSha256: sha256Schema,
     artifactId: nonBlank,
-    verificationCandidateId: nonBlank,
+    artifactContentSha256: sha256Schema,
+    artifactByteSha256: sha256Schema,
+    candidateId: nonBlank,
     verificationRunId: nonBlank,
-    decision: verificationDecisionV1Schema,
+    policySha256: sha256Schema,
+    sourceDocumentId: nonBlank,
+    sourcePdfSha256: sha256Schema,
+    phase2Decision: verificationDecisionV1Schema,
+    status: verificationCandidateStatusV1Schema,
+    acceptedAssertionIds: z.array(nonBlank),
+    rejectedAssertionIds: z.array(nonBlank),
+    verificationCandidateId: nonBlank,
+    decision: verificationCandidateStatusV1Schema,
     decisionId: nonBlank,
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const expectedStatus =
+      value.phase2Decision === 'PASS'
+        ? 'VERIFICATION_PASSED'
+        : value.phase2Decision === 'REJECT'
+          ? 'REJECTED'
+          : value.status === 'REVIEW_ACCEPTED'
+            ? 'REVIEW_ACCEPTED'
+            : 'NEEDS_REVIEW';
+    if (value.status !== expectedStatus) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['status'],
+        message: `decision ${value.phase2Decision} is inconsistent with status ${value.status}`,
+      });
+    }
+    if (value.decision !== value.status) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['decision'],
+        message: 'compatibility decision alias must equal status',
+      });
+    }
+    if (value.verificationCandidateId !== value.candidateId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['verificationCandidateId'],
+        message: 'candidate compatibility alias must equal candidateId',
+      });
+    }
+    if (value.decisionId !== value.verificationRunId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['decisionId'],
+        message: 'decision compatibility alias must equal verificationRunId',
+      });
+    }
+  });
 export type RdteCycleVerificationRefV1 = z.infer<typeof rdteCycleVerificationRefV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Cross-exhibit comparison                                            */
-/* ------------------------------------------------------------------ */
+export function rdteVerificationRefFromResult(input: {
+  result: DefenseBudgetVerificationResultV1;
+  artifactContentSha256: string;
+}): RdteCycleVerificationRefV1 {
+  const result = defenseBudgetVerificationResultV1Schema.parse(input.result);
+  return rdteCycleVerificationRefV1Schema.parse({
+    manifestDocumentKey: result.manifestDocumentKey,
+    manifestContentSha256: result.manifestContentSha256,
+    artifactId: result.extractionArtifactId,
+    artifactContentSha256: input.artifactContentSha256,
+    artifactByteSha256: result.extractionArtifactSha256,
+    candidateId: result.candidateId,
+    verificationRunId: result.verificationRunId,
+    policySha256: result.policySha256,
+    sourceDocumentId: result.sourceDocumentId,
+    sourcePdfSha256: result.sourcePdfSha256,
+    phase2Decision: result.decision,
+    status: result.status,
+    acceptedAssertionIds: result.acceptedAssertionIds,
+    rejectedAssertionIds: result.rejectedAssertionIds,
+    verificationCandidateId: result.candidateId,
+    decision: result.status,
+    decisionId: result.verificationRunId,
+  });
+}
 
 export const COMPARISON_RESULT_V1_VALUES = ['pass', 'fail', 'review', 'not_applicable'] as const;
 export const comparisonResultV1Schema = z.enum(COMPARISON_RESULT_V1_VALUES);
@@ -86,18 +143,20 @@ export const rdteCycleComparisonV1Schema = z
   .object({
     comparisonId: nonBlank,
     comparisonKind: nonBlank,
+    peCode: nonBlank,
+    fiscalYear,
+    columnRole: nonBlank,
     leftArtifactId: nonBlank,
     rightArtifactId: nonBlank,
+    leftAssertionIds: z.array(nonBlank),
+    rightAssertionIds: z.array(nonBlank),
     result: comparisonResultV1Schema,
+    toleranceMillions: z.string().optional(),
     evidenceIds: z.array(nonBlank),
     message: z.string().optional(),
   })
   .strict();
 export type RdteCycleComparisonV1 = z.infer<typeof rdteCycleComparisonV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* Coverage summary                                                    */
-/* ------------------------------------------------------------------ */
 
 export const rdteCycleCoverageEntryV1Schema = z
   .object({
@@ -109,10 +168,6 @@ export const rdteCycleCoverageEntryV1Schema = z
   })
   .strict();
 export type RdteCycleCoverageEntryV1 = z.infer<typeof rdteCycleCoverageEntryV1Schema>;
-
-/* ------------------------------------------------------------------ */
-/* Certification                                                       */
-/* ------------------------------------------------------------------ */
 
 export const CYCLE_CERTIFICATION_V1_VALUES = [
   'CERTIFIED_RDTE_READY_FOR_PROJECTION',
@@ -134,10 +189,6 @@ export const rdteCycleFindingV1Schema = z
   .strict();
 export type RdteCycleFindingV1 = z.infer<typeof rdteCycleFindingV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Bundle envelope                                                     */
-/* ------------------------------------------------------------------ */
-
 export const rdteCycleBundleV1Schema = z
   .object({
     schemaVersion: z.literal(RDTE_CYCLE_BUNDLE_SCHEMA_VERSION),
@@ -158,15 +209,10 @@ export const rdteCycleBundleV1Schema = z
   .strict();
 export type RdteCycleBundleV1 = z.infer<typeof rdteCycleBundleV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Deterministic ID + content hash                                     */
-/* ------------------------------------------------------------------ */
-
 export function rdteCycleBundleId(identity: JsonValue): string {
   return `rdte_cycle_${sha256CanonicalJson(identity)}`;
 }
 
-/** Compute the deterministic content SHA for a bundle (excludes contentSha256). */
 export function computeRdteCycleBundleContentSha256(
   bundle: Omit<RdteCycleBundleV1, 'contentSha256'>,
 ): string {

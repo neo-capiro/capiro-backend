@@ -1,10 +1,4 @@
-/**
- * rdte-cycle-reconciler-v1 — cross-exhibit reconciliation for one RDT&E cycle.
- *
- * Workstream L (Phase 4 plan §17). Combines identity, R-1↔R-2 funding,
- * R-2 PE total ↔ R-2A project sum, project relationships, and coverage into
- * one deterministic reconciliation result. Pure module.
- */
+/** Cross-exhibit reconciliation for one RDT&E cycle. */
 import type { RdteCycleCoverageEntryV1 } from '../rdte-cycle-bundle-v1.js';
 import {
   computeCoverageEntry,
@@ -13,20 +7,11 @@ import {
 } from '../rdte-cycle-summary-v1.js';
 import type { R2aColumnReconciliation } from '../r2a/r2a-project-reconciler.js';
 
-/* ------------------------------------------------------------------ */
-/* Input types                                                         */
-/* ------------------------------------------------------------------ */
-
 export interface RdteIdentityCatalogV1 {
-  /** PE codes from R-1 (primary catalog denominator). */
   r1PeCodes: readonly string[];
-  /** PE codes appearing in R-2/R-2A/R-3/R-4. */
   otherExhibitPeCodes: readonly string[];
-  /** Reviewed new-PE exceptions allowed outside R-1. */
   reviewedNewPeExceptions?: readonly string[];
-  /** PE title aliases (same PE, different title) — not identity-key changes. */
   titleAliases?: ReadonlyArray<{ peCode: string; titles: readonly string[] }>;
-  /** PE title conflicts that need review. */
   titleConflicts?: ReadonlyArray<{ peCode: string; titles: readonly string[] }>;
 }
 
@@ -36,14 +21,12 @@ export interface RdteFundingComparisonV1 {
   columnRole: string;
   result: 'pass' | 'fail' | 'review' | 'not_applicable';
   message?: string;
+  evidenceIds?: readonly string[];
 }
 
 export interface RdteProjectRelationshipV1 {
-  /** Every project must have a parent PE. */
   projects: ReadonlyArray<{ peCode: string; projectCode: string }>;
-  /** Every project_funding assertion must have a project assertion. */
   projectFundingKeys: ReadonlyArray<{ peCode: string; projectCode: string }>;
-  /** R-3/R-4 project references that must resolve. */
   referencedProjectKeys?: ReadonlyArray<{ peCode: string; projectCode: string }>;
 }
 
@@ -52,19 +35,11 @@ export interface RdteCycleReconcileInput {
   fundingComparisons: readonly RdteFundingComparisonV1[];
   projectSumReconciliations: readonly R2aColumnReconciliation[];
   projectRelationships: RdteProjectRelationshipV1;
-  /** Category coverage inputs (identity/funding/narrative/...). */
   coverageInputs: readonly CategoryCoverageInput[];
-  /** Optional: PE codes with blocking omissions remaining. */
   blockingOmissionPeCodes?: readonly string[];
-  /** Optional: unresolved source pages. */
   unresolvedPages?: readonly number[];
-  /** Optional: duplicate natural-key conflicts. */
   duplicateNaturalKeys?: readonly string[];
 }
-
-/* ------------------------------------------------------------------ */
-/* Output types                                                        */
-/* ------------------------------------------------------------------ */
 
 export interface RdteCycleFinding {
   findingId: string;
@@ -98,13 +73,8 @@ export interface RdteCycleReconciliationResult {
   };
   coverage: RdteCycleCoverageEntryV1[];
   findings: RdteCycleFinding[];
-  /** True when any blocking finding exists. */
   blocking: boolean;
 }
-
-/* ------------------------------------------------------------------ */
-/* Reconciler                                                          */
-/* ------------------------------------------------------------------ */
 
 function projectKey(peCode: string, projectCode: string): string {
   return `${peCode}|${projectCode}`;
@@ -114,197 +84,144 @@ export function reconcileRdteCycle(input: RdteCycleReconcileInput): RdteCycleRec
   const findings: RdteCycleFinding[] = [];
   let findingSeq = 0;
   const nextId = (code: string) => `find_${code}_${++findingSeq}`;
+  const add = (
+    severity: RdteCycleFinding['severity'],
+    code: string,
+    message: string,
+    evidenceIds: readonly string[] = [],
+  ) => {
+    findings.push({
+      findingId: nextId(code),
+      severity,
+      code,
+      message,
+      evidenceIds: [...new Set(evidenceIds)].sort(),
+    });
+  };
 
-  /* ---------- Identity ---------- */
   const r1Set = new Set(input.identity.r1PeCodes);
   const exceptionSet = new Set(input.identity.reviewedNewPeExceptions ?? []);
   const orphanPeCodes = [
     ...new Set(
-      input.identity.otherExhibitPeCodes.filter((pe) => !r1Set.has(pe) && !exceptionSet.has(pe)),
+      input.identity.otherExhibitPeCodes.filter(
+        (peCode) => !r1Set.has(peCode) && !exceptionSet.has(peCode),
+      ),
     ),
   ].sort();
   const reviewedExceptions = [...exceptionSet].sort();
   const titleConflictPeCodes = [
-    ...new Set((input.identity.titleConflicts ?? []).map((t) => t.peCode)),
+    ...new Set((input.identity.titleConflicts ?? []).map((value) => value.peCode)),
   ].sort();
 
-  for (const pe of orphanPeCodes) {
-    findings.push({
-      findingId: nextId('orphan_pe'),
-      severity: 'blocking',
-      code: 'orphan_pe_outside_r1',
-      message: `PE ${pe} appears in R-2/R-2A/R-3/R-4 but not in R-1 catalog and has no reviewed exception`,
-      evidenceIds: [],
-    });
+  for (const peCode of orphanPeCodes) {
+    add(
+      'blocking',
+      'orphan_pe_outside_r1',
+      `PE ${peCode} appears outside R-1 and has no reviewed exception`,
+    );
   }
-  for (const pe of titleConflictPeCodes) {
-    findings.push({
-      findingId: nextId('title_conflict'),
-      severity: 'review',
-      code: 'pe_title_conflict',
-      message: `PE ${pe} has conflicting titles across exhibits`,
-      evidenceIds: [],
-    });
+  for (const peCode of titleConflictPeCodes) {
+    add('review', 'pe_title_conflict', `PE ${peCode} has conflicting titles across exhibits`);
   }
-  for (const pe of reviewedExceptions) {
-    findings.push({
-      findingId: nextId('new_pe_exception'),
-      severity: 'review',
-      code: 'reviewed_new_pe_exception',
-      message: `PE ${pe} is a reviewed R-2-only new PE exception`,
-      evidenceIds: [],
-    });
+  for (const peCode of reviewedExceptions) {
+    add('review', 'reviewed_new_pe_exception', `PE ${peCode} is a reviewed R-2-only exception`);
   }
-
   const identityComplete = orphanPeCodes.length === 0;
 
-  /* ---------- R-1 ↔ R-2 funding ---------- */
-  const failedComparisons = input.fundingComparisons.filter((c) => c.result === 'fail');
-  const reviewComparisons = input.fundingComparisons.filter((c) => c.result === 'review');
-  for (const c of failedComparisons) {
-    findings.push({
-      findingId: nextId('funding_mismatch'),
-      severity: 'blocking',
-      code: 'r1_r2_funding_mismatch',
-      message:
-        c.message ?? `R-1/R-2 funding mismatch for ${c.peCode} FY${c.fiscalYear} ${c.columnRole}`,
-      evidenceIds: [],
-    });
+  const failedComparisons = input.fundingComparisons.filter((value) => value.result === 'fail');
+  const reviewComparisons = input.fundingComparisons.filter((value) => value.result === 'review');
+  for (const comparison of failedComparisons) {
+    add(
+      'blocking',
+      'r1_r2_funding_mismatch',
+      comparison.message ??
+        `R-1/R-2 funding mismatch for ${comparison.peCode} FY${comparison.fiscalYear} ${comparison.columnRole}`,
+      comparison.evidenceIds,
+    );
   }
-  for (const c of reviewComparisons) {
-    findings.push({
-      findingId: nextId('funding_review'),
-      severity: 'review',
-      code: 'r1_r2_funding_review',
-      message:
-        c.message ??
-        `R-1/R-2 funding needs review for ${c.peCode} FY${c.fiscalYear} ${c.columnRole}`,
-      evidenceIds: [],
-    });
+  for (const comparison of reviewComparisons) {
+    add(
+      'blocking',
+      'r1_r2_funding_review',
+      comparison.message ??
+        `R-1/R-2 funding is unresolved for ${comparison.peCode} FY${comparison.fiscalYear} ${comparison.columnRole}`,
+      comparison.evidenceIds,
+    );
   }
-  const fundingComplete = failedComparisons.length === 0;
+  const fundingComplete = failedComparisons.length === 0 && reviewComparisons.length === 0;
 
-  /* ---------- R-2 PE total ↔ R-2A project sum ---------- */
-  const blockingColumns = input.projectSumReconciliations.filter((c) => c.blocking);
-  for (const c of blockingColumns) {
-    findings.push({
-      findingId: nextId('project_sum'),
-      severity: 'blocking',
-      code: 'r2a_project_sum_unreconciled',
-      message: c.message,
-      evidenceIds: [],
-    });
+  const blockingColumns = input.projectSumReconciliations.filter((value) => value.blocking);
+  for (const value of blockingColumns) {
+    add('blocking', 'r2a_project_sum_unreconciled', value.message);
   }
   const projectSumsComplete = blockingColumns.length === 0;
 
-  /* ---------- Project relationships ---------- */
   const projectSet = new Set(
-    input.projectRelationships.projects.map((p) => projectKey(p.peCode, p.projectCode)),
+    input.projectRelationships.projects.map((value) =>
+      projectKey(value.peCode, value.projectCode),
+    ),
   );
   const projectsWithoutParent = input.projectRelationships.projects.filter(
-    (p) => !p.peCode || p.peCode.trim() === '',
+    (value) => value.peCode.trim() === '',
   );
   const fundingWithoutProject = input.projectRelationships.projectFundingKeys.filter(
-    (p) => !projectSet.has(projectKey(p.peCode, p.projectCode)),
+    (value) => !projectSet.has(projectKey(value.peCode, value.projectCode)),
   );
   const unresolvedReferences = (input.projectRelationships.referencedProjectKeys ?? []).filter(
-    (p) => !projectSet.has(projectKey(p.peCode, p.projectCode)),
+    (value) => !projectSet.has(projectKey(value.peCode, value.projectCode)),
   );
-
-  for (const p of projectsWithoutParent) {
-    findings.push({
-      findingId: nextId('project_no_parent'),
-      severity: 'blocking',
-      code: 'project_missing_parent_pe',
-      message: `Project ${p.projectCode} has no parent PE`,
-      evidenceIds: [],
-    });
+  for (const value of projectsWithoutParent) {
+    add('blocking', 'project_missing_parent_pe', `Project ${value.projectCode} has no parent PE`);
   }
-  for (const p of fundingWithoutProject) {
-    findings.push({
-      findingId: nextId('funding_no_project'),
-      severity: 'blocking',
-      code: 'project_funding_without_project',
-      message: `Project funding for ${p.peCode}/${p.projectCode} has no project assertion`,
-      evidenceIds: [],
-    });
+  for (const value of fundingWithoutProject) {
+    add(
+      'blocking',
+      'project_funding_without_project',
+      `Project funding for ${value.peCode}/${value.projectCode} has no project assertion`,
+    );
   }
-  for (const p of unresolvedReferences) {
-    findings.push({
-      findingId: nextId('unresolved_ref'),
-      severity: 'review',
-      code: 'unresolved_project_reference',
-      message: `R-3/R-4 project reference ${p.peCode}/${p.projectCode} does not resolve`,
-      evidenceIds: [],
-    });
+  for (const value of unresolvedReferences) {
+    add(
+      'blocking',
+      'unresolved_project_reference',
+      `R-3/R-4 project reference ${value.peCode}/${value.projectCode} does not resolve`,
+    );
   }
   const relationshipsComplete =
-    projectsWithoutParent.length === 0 && fundingWithoutProject.length === 0;
+    projectsWithoutParent.length === 0 &&
+    fundingWithoutProject.length === 0 &&
+    unresolvedReferences.length === 0;
 
-  /* ---------- Coverage ---------- */
   const coverage = input.coverageInputs
-    .map((c) => computeCoverageEntry(c))
-    .sort((a, b) => a.category.localeCompare(b.category));
-
+    .map((value) => computeCoverageEntry(value))
+    .sort((left, right) => left.category.localeCompare(right.category));
   for (const entry of coverage) {
-    if (entry.status === 'missing' && entry.denominator > 0) {
-      findings.push({
-        findingId: nextId('coverage_missing'),
-        severity: 'blocking',
-        code: 'category_coverage_missing',
-        message: `Category ${entry.category} coverage missing: ${entry.numerator}/${entry.denominator}`,
-        evidenceIds: [],
-      });
-    } else if (entry.status === 'needs_review') {
-      findings.push({
-        findingId: nextId('coverage_partial'),
-        severity: 'review',
-        code: 'category_coverage_partial',
-        message: `Category ${entry.category} coverage partial: ${entry.numerator}/${entry.denominator}; missing ${entry.missingKeys.join(', ')}`,
-        evidenceIds: [],
-      });
+    if (entry.status === 'missing' || entry.status === 'needs_review') {
+      add(
+        'blocking',
+        entry.status === 'missing' ? 'category_coverage_missing' : 'category_coverage_partial',
+        `Category ${entry.category} coverage is ${entry.numerator}/${entry.denominator}; missing ${entry.missingKeys.join(', ') || 'required ledger'}`,
+      );
     }
   }
 
-  /* ---------- Additional blockers ---------- */
-  for (const pe of input.blockingOmissionPeCodes ?? []) {
-    findings.push({
-      findingId: nextId('blocking_omission'),
-      severity: 'blocking',
-      code: 'blocking_omission_remaining',
-      message: `Blocking omission remains for PE ${pe}`,
-      evidenceIds: [],
-    });
+  for (const peCode of input.blockingOmissionPeCodes ?? []) {
+    add('blocking', 'blocking_omission_remaining', `Blocking omission remains for PE ${peCode}`);
   }
-  for (const page of input.unresolvedPages ?? []) {
-    findings.push({
-      findingId: nextId('unresolved_page'),
-      severity: 'blocking',
-      code: 'unresolved_source_page',
-      message: `Required source page ${page} remains unresolved`,
-      evidenceIds: [],
-    });
+  for (const page of [...new Set(input.unresolvedPages ?? [])].sort((a, b) => a - b)) {
+    add('blocking', 'unresolved_source_page', `Required source page ${page} remains unresolved`);
   }
-  for (const key of input.duplicateNaturalKeys ?? []) {
-    findings.push({
-      findingId: nextId('duplicate_key'),
-      severity: 'blocking',
-      code: 'duplicate_natural_key',
-      message: `Duplicate natural-key conflict: ${key}`,
-      evidenceIds: [],
-    });
+  for (const key of [...new Set(input.duplicateNaturalKeys ?? [])].sort()) {
+    add('blocking', 'duplicate_natural_key', `Duplicate natural-key conflict: ${key}`);
   }
 
-  /* Deterministic ordering of findings. */
-  findings.sort((a, b) => {
-    const sev = a.severity.localeCompare(b.severity);
-    if (sev !== 0) return sev;
-    const code = a.code.localeCompare(b.code);
+  findings.sort((left, right) => {
+    const severity = left.severity.localeCompare(right.severity);
+    if (severity !== 0) return severity;
+    const code = left.code.localeCompare(right.code);
     if (code !== 0) return code;
-    return a.message.localeCompare(b.message);
+    return left.message.localeCompare(right.message);
   });
-
-  const blocking = findings.some((f) => f.severity === 'blocking');
 
   return {
     identity: {
@@ -330,11 +247,10 @@ export function reconcileRdteCycle(input: RdteCycleReconcileInput): RdteCycleRec
     },
     coverage,
     findings,
-    blocking,
+    blocking: findings.some((finding) => finding.severity === 'blocking'),
   };
 }
 
-/** Convenience: empty category coverage input for a required category. */
 export function emptyCoverageInput(
   category: RdteRequiredCategoryV1,
   applicable = true,

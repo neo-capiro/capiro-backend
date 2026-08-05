@@ -1,42 +1,18 @@
-/**
- * rdte-canonical-projection-plan-v1 — the deterministic, read-only
- * future-canonical projection plan contract.
- *
- * Workstream M (Phase 4 plan §18). The plan records the exact future
- * canonical records Phase 7 will write, mapped from verified RDT&E
- * assertions of a certified cycle. It performs NO database write: the words
- * `projection`, `candidate`, and `ready` do not authorize a write, and no
- * field below is equivalent to `promotionReady`.
- *
- * Eligibility (plan §18): only assertions from a cycle certified
- * CERTIFIED_RDTE_READY_FOR_PROJECTION are projected. Excluded:
- *   - rejected artifacts;
- *   - review-pending artifacts;
- *   - contextual-only values;
- *   - cost-to-complete/total-cost values from annual funding targets;
- *   - outyear values from ProgramElementYear.request;
- *   - duplicate-conflict assertions;
- *   - unsupported role claims;
- *   - unresolved evidence.
- *
- * Pure module: no NestJS, Prisma, AWS, parser, or writer dependency.
- */
+/** Deterministic read-only future-canonical RDT&E projection contracts. */
 import { z } from 'zod';
 import { sha256Schema } from '../../contracts/extraction-artifact-v1.js';
 import { sha256CanonicalJson, type JsonValue } from '../../contracts/canonical-json.js';
+import {
+  verificationCandidateStatusV1Schema,
+  verificationDecisionV1Schema,
+} from '../../verification/verification-contract-v1.js';
 
 export const RDTE_PROJECTION_PLAN_SCHEMA_VERSION = 'rdte_canonical_projection_plan_v1' as const;
 
-const nonBlank = z
-  .string()
-  .min(1)
-  .refine((s) => s.trim().length > 0, { message: 'must be nonblank' });
-
+const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
+  message: 'must be nonblank',
+});
 const fiscalYear = z.number().int().min(1900).max(2200);
-
-/* ------------------------------------------------------------------ */
-/* Vocabulary                                                          */
-/* ------------------------------------------------------------------ */
 
 export const RDTE_PROJECTION_TARGET_V1_VALUES = [
   'ProgramElement',
@@ -73,52 +49,85 @@ export const RDTE_PROJECTION_EXCLUSION_V1_VALUES = [
   'unresolved_evidence',
   'not_projection_eligible',
 ] as const;
-export const rdteProjectionExclusionReasonV1Schema = z.enum(RDTE_PROJECTION_EXCLUSION_V1_VALUES);
-export type RdteProjectionExclusionReasonV1 = z.infer<typeof rdteProjectionExclusionReasonV1Schema>;
+export const rdteProjectionExclusionReasonV1Schema = z.enum(
+  RDTE_PROJECTION_EXCLUSION_V1_VALUES,
+);
+export type RdteProjectionExclusionReasonV1 = z.infer<
+  typeof rdteProjectionExclusionReasonV1Schema
+>;
 
-/* ------------------------------------------------------------------ */
-/* Candidate                                                           */
-/* ------------------------------------------------------------------ */
+const candidateBaseShape = {
+  candidateId: nonBlank,
+  target: rdteProjectionTargetV1Schema,
+  naturalKey: nonBlank,
+  operation: rdteProjectionOperationV1Schema,
+  reason: z.string(),
+  artifactId: nonBlank,
+  artifactContentSha256: sha256Schema,
+  verificationCandidateId: nonBlank,
+  verificationRunId: nonBlank,
+  /** Compatibility alias equal to verificationRunId. */
+  verificationDecisionId: nonBlank,
+  sourceDocumentKey: nonBlank,
+  sourcePdfSha256: sha256Schema,
+  assertionIds: z.array(nonBlank),
+  evidenceIds: z.array(nonBlank),
+  values: z.record(z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
+  exclusionReason: rdteProjectionExclusionReasonV1Schema.optional(),
+};
 
 /**
- * One future canonical record candidate. Carries full provenance back to the
- * extraction artifact, Phase 2 verification decision, source document, and
- * evidence. `values` are exact canonical decimal strings (never floats).
- *
- * When the candidate is excluded (`operation: 'conflict'` with
- * `exclusionReason`, or a record-level exclusion), `exclusionReason` states
- * why — the candidate still carries its exact source values.
+ * Intermediate pure-mapper candidate. The production boundary must enrich and
+ * validate the exact Phase 2 fields with proofBoundRdteProjectionCandidateV1Schema.
  */
 export const rdteProjectionCandidateV1Schema = z
   .object({
-    candidateId: nonBlank,
-    target: rdteProjectionTargetV1Schema,
-    naturalKey: nonBlank,
-    operation: rdteProjectionOperationV1Schema,
-    reason: z.string(),
-    /* Provenance. */
-    artifactId: nonBlank,
-    artifactContentSha256: sha256Schema,
-    verificationCandidateId: nonBlank,
-    verificationRunId: nonBlank,
-    verificationDecisionId: nonBlank,
-    sourceDocumentKey: nonBlank,
-    sourcePdfSha256: sha256Schema,
-    assertionIds: z.array(nonBlank),
-    evidenceIds: z.array(nonBlank),
-    /* Exact future values (canonical decimal strings where monetary).
-     * Required: every candidate carries its exact values; excluded records
-     * are represented in the exclusions ledger, never as silent drops. */
-    values: z.record(z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
-    /* Context-only exclusion reason when excluded. */
-    exclusionReason: rdteProjectionExclusionReasonV1Schema.optional(),
+    ...candidateBaseShape,
+    verificationDecision: verificationDecisionV1Schema.optional(),
+    verificationStatus: verificationCandidateStatusV1Schema.optional(),
+    verificationPolicySha256: sha256Schema.optional(),
+    sourceDocumentId: nonBlank.optional(),
   })
   .strict();
 export type RdteProjectionCandidateV1 = z.infer<typeof rdteProjectionCandidateV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Diff summary                                                        */
-/* ------------------------------------------------------------------ */
+/** Final production candidate; every trusted Phase 2 field is mandatory. */
+export const proofBoundRdteProjectionCandidateV1Schema = z
+  .object({
+    ...candidateBaseShape,
+    verificationDecision: verificationDecisionV1Schema,
+    verificationStatus: verificationCandidateStatusV1Schema,
+    verificationPolicySha256: sha256Schema,
+    sourceDocumentId: nonBlank,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.verificationDecisionId !== value.verificationRunId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['verificationDecisionId'],
+        message: 'compatibility decision ID must equal verificationRunId',
+      });
+    }
+    const expectedStatus =
+      value.verificationDecision === 'PASS'
+        ? 'VERIFICATION_PASSED'
+        : value.verificationDecision === 'REJECT'
+          ? 'REJECTED'
+          : value.verificationStatus === 'REVIEW_ACCEPTED'
+            ? 'REVIEW_ACCEPTED'
+            : 'NEEDS_REVIEW';
+    if (value.verificationStatus !== expectedStatus) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['verificationStatus'],
+        message: `verification decision ${value.verificationDecision} is inconsistent with ${value.verificationStatus}`,
+      });
+    }
+  });
+export type ProofBoundRdteProjectionCandidateV1 = z.infer<
+  typeof proofBoundRdteProjectionCandidateV1Schema
+>;
 
 export const rdteProjectionDiffSummaryV1Schema = z
   .object({
@@ -131,10 +140,6 @@ export const rdteProjectionDiffSummaryV1Schema = z
   .strict();
 export type RdteProjectionDiffSummaryV1 = z.infer<typeof rdteProjectionDiffSummaryV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Exclusion ledger                                                    */
-/* ------------------------------------------------------------------ */
-
 export const rdteProjectionExclusionV1Schema = z
   .object({
     artifactId: nonBlank,
@@ -145,43 +150,46 @@ export const rdteProjectionExclusionV1Schema = z
   .strict();
 export type RdteProjectionExclusionV1 = z.infer<typeof rdteProjectionExclusionV1Schema>;
 
-/* ------------------------------------------------------------------ */
-/* Plan envelope                                                       */
-/* ------------------------------------------------------------------ */
+const planBaseShape = {
+  schemaVersion: z.literal(RDTE_PROJECTION_PLAN_SCHEMA_VERSION),
+  cycleId: nonBlank,
+  cycleBundleContentSha256: sha256Schema,
+  cycleCertification: z.literal('CERTIFIED_RDTE_READY_FOR_PROJECTION'),
+  fiscalYear,
+  positionCycle: nonBlank,
+  exclusions: z.array(rdteProjectionExclusionV1Schema),
+  diffSummary: z.array(rdteProjectionDiffSummaryV1Schema),
+  diffedAgainstCanonicalRows: z.boolean(),
+  contentSha256: sha256Schema,
+};
 
+/** Intermediate mapper plan. */
 export const rdteCanonicalProjectionPlanV1Schema = z
   .object({
-    schemaVersion: z.literal(RDTE_PROJECTION_PLAN_SCHEMA_VERSION),
-    cycleId: nonBlank,
-    cycleBundleContentSha256: sha256Schema,
-    cycleCertification: z.literal('CERTIFIED_RDTE_READY_FOR_PROJECTION'),
-    fiscalYear,
-    /** The PB cycle these positions belong to, e.g. `pb_fy2027`. */
-    positionCycle: nonBlank,
+    ...planBaseShape,
     candidates: z.array(rdteProjectionCandidateV1Schema),
-    exclusions: z.array(rdteProjectionExclusionV1Schema),
-    diffSummary: z.array(rdteProjectionDiffSummaryV1Schema),
-    /** True only when an explicit read-only diff against canonical rows ran. */
-    diffedAgainstCanonicalRows: z.boolean(),
-    contentSha256: sha256Schema,
   })
   .strict();
-export type RdteCanonicalProjectionPlanV1 = z.infer<typeof rdteCanonicalProjectionPlanV1Schema>;
+export type RdteCanonicalProjectionPlanV1 = z.infer<
+  typeof rdteCanonicalProjectionPlanV1Schema
+>;
 
-/* ------------------------------------------------------------------ */
-/* Deterministic content hash                                          */
-/* ------------------------------------------------------------------ */
+/** Final production plan returned by the proof-bound wrapper. */
+export const proofBoundRdteCanonicalProjectionPlanV1Schema = z
+  .object({
+    ...planBaseShape,
+    candidates: z.array(proofBoundRdteProjectionCandidateV1Schema),
+  })
+  .strict();
+export type ProofBoundRdteCanonicalProjectionPlanV1 = z.infer<
+  typeof proofBoundRdteCanonicalProjectionPlanV1Schema
+>;
 
-/** Compute the deterministic content SHA for a plan (excludes contentSha256). */
 export function computeProjectionPlanContentSha256(
   plan: Omit<RdteCanonicalProjectionPlanV1, 'contentSha256'>,
 ): string {
   return sha256CanonicalJson(plan as unknown as JsonValue);
 }
-
-/* ------------------------------------------------------------------ */
-/* Candidate ID (deterministic from natural identity)                  */
-/* ------------------------------------------------------------------ */
 
 export function rdteProjectionCandidateId(identity: JsonValue): string {
   return `rdte_proj_${sha256CanonicalJson(identity)}`;

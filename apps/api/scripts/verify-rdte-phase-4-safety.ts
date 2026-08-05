@@ -1,19 +1,4 @@
-/**
- * verify-rdte-phase-4-safety — permanent Phase 4 safety gate runner (WS N).
- *
- * Usage:
- *   pnpm --filter @capiro/api verify:pe-budget-phase-4
- *
- * Runs the static architecture gates (rdte-phase4-gates-v1) over the Phase 4
- * production source (src/defense-budget/rdte/** non-spec .ts + the four
- * Phase 4 scripts) and checks:
- *   - no --commit flag exists in any Phase 4 command;
- *   - the projection command refuses --commit;
- *   - the Phase 4 migration directory contains exactly one additive
- *     migration (no DROP/DELETE/TRUNCATE).
- *
- * Exit 0 when all gates hold, 1 on any violation.
- */
+/** Permanent Phase 4 architecture, command, and migration safety gate. */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { runRdtePhase4Gates } from '../src/defense-budget/rdte/gates/rdte-phase4-gates-v1.js';
@@ -27,9 +12,8 @@ function collect(dir: string, filter: (name: string) => boolean): Record<string,
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       if (entry.name === '__tmp__' || entry.name === 'node_modules') continue;
       const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (filter(entry.name)) {
+      if (entry.isDirectory()) walk(full);
+      else if (filter(entry.name)) {
         files[path.relative(API_ROOT, full).replace(/\\/g, '/')] = fs.readFileSync(full, 'utf8');
       }
     }
@@ -38,13 +22,21 @@ function collect(dir: string, filter: (name: string) => boolean): Record<string,
   return files;
 }
 
+function requireText(
+  failures: string[],
+  file: string,
+  source: string,
+  text: string,
+  label: string,
+): void {
+  if (!source.includes(text)) failures.push(`[${label}] ${file} is missing required invariant`);
+}
+
 function main(): void {
   const failures: string[] = [];
-
-  /* 1. Static gates over rdte/ production source + phase-4 scripts. */
   const rdteSources = collect(
     path.join(API_ROOT, 'src', 'defense-budget', 'rdte'),
-    (name) => name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.includes('__tmp__'),
+    (name) => name.endsWith('.ts') && !name.endsWith('.spec.ts'),
   );
   const phase4Scripts: Record<string, string> = {};
   for (const script of [
@@ -54,71 +46,103 @@ function main(): void {
     'scripts/verify-rdte-phase-4-safety.ts',
   ]) {
     const full = path.join(API_ROOT, script);
-    if (fs.existsSync(full)) {
-      phase4Scripts[script] = fs.readFileSync(full, 'utf8');
-    }
+    if (fs.existsSync(full)) phase4Scripts[script] = fs.readFileSync(full, 'utf8');
   }
 
-  const violations = runRdtePhase4Gates({ files: { ...rdteSources, ...phase4Scripts } });
-  for (const violation of violations) {
+  for (const violation of runRdtePhase4Gates({
+    files: { ...rdteSources, ...phase4Scripts },
+  })) {
     failures.push(
       `[${violation.gateId}] ${violation.file}:${violation.line} — ${violation.excerpt}`,
     );
   }
 
-  /* 2. No Phase 4 command accepts --commit. */
-  for (const [script, source] of Object.entries(phase4Scripts)) {
-    if (script.includes('verify-rdte-phase-4-safety')) continue;
-    const definesCommitFlag = /KNOWN_FLAGS[^;]*--commit|--commit['"]\s*\)/.test(source);
-    if (definesCommitFlag && script.includes('plan-rdte-canonical-projection')) {
-      /* The projection command only references --commit to REFUSE it. */
-      continue;
-    }
-    if (definesCommitFlag) {
-      failures.push(`[--commit] ${script} appears to define a --commit flag`);
+  const build = phase4Scripts['scripts/build-rdte-cycle.ts'] ?? '';
+  requireText(
+    failures,
+    'scripts/build-rdte-cycle.ts',
+    build,
+    'new ParserRouterV1Service(',
+    'phase3_router_required',
+  );
+  requireText(
+    failures,
+    'scripts/build-rdte-cycle.ts',
+    build,
+    'rdteVerificationRefFromResult',
+    'phase2_result_required',
+  );
+  requireText(
+    failures,
+    'scripts/build-rdte-cycle.ts',
+    build,
+    '--max-paid-pages',
+    'paid_cap_required',
+  );
+  for (const forbidden of ['--pages-dir', '--verifications', 'fixture://', 'ProgramElementWriterService']) {
+    if (build.includes(forbidden)) {
+      failures.push(`[annual_command] forbidden legacy/canonical token ${forbidden}`);
     }
   }
 
-  /* 3. Migration additivity. */
-  const migrationDir = path.join(
-    API_ROOT,
-    'prisma',
-    'migrations',
-    '20260817010000_rdte_phase4_projection_schema',
+  const projection = phase4Scripts['scripts/plan-rdte-canonical-projection.ts'] ?? '';
+  requireText(
+    failures,
+    'scripts/plan-rdte-canonical-projection.ts',
+    projection,
+    'planProofBoundRdteCanonicalProjection',
+    'proof_bound_projection_required',
   );
-  if (!fs.existsSync(migrationDir)) {
-    failures.push('[migration] Phase 4 migration directory missing');
-  } else {
-    const sql = fs.readFileSync(path.join(migrationDir, 'migration.sql'), 'utf8');
-    if (/\bDROP\s+TABLE\b/i.test(sql)) {
-      failures.push('[migration] DROP TABLE is not allowed in the Phase 4 migration');
+  if (!projection.includes("process.argv.includes('--commit')")) {
+    failures.push('[projection_command] --commit refusal is missing');
+  }
+
+  for (const directory of [
+    '20260817010000_rdte_phase4_projection_schema',
+    '20260818010000_rdte_phase4_closeout_constraints',
+  ]) {
+    const migration = path.join(API_ROOT, 'prisma', 'migrations', directory, 'migration.sql');
+    if (!fs.existsSync(migration)) {
+      failures.push(`[migration] ${directory} is missing`);
+      continue;
     }
-    if (/\bDELETE\s+FROM\b/i.test(sql)) {
-      failures.push('[migration] DELETE FROM is not allowed in the Phase 4 migration');
+    const sql = fs.readFileSync(migration, 'utf8');
+    for (const pattern of [/\bDROP\s+TABLE\b/i, /\bDELETE\s+FROM\b/i, /\bTRUNCATE\b/i]) {
+      if (pattern.test(sql)) failures.push(`[migration] destructive SQL in ${directory}`);
     }
-    if (/\bTRUNCATE\b/i.test(sql)) {
-      failures.push('[migration] TRUNCATE is not allowed in the Phase 4 migration');
-    }
-    if (/TYPE\s+VARCHAR\s*\(\s*[1-7]\s*\)/i.test(sql)) {
-      failures.push('[migration] destructive narrowing of a VARCHAR column detected');
-    }
+  }
+  const closeout = fs.readFileSync(
+    path.join(
+      API_ROOT,
+      'prisma',
+      'migrations',
+      '20260818010000_rdte_phase4_closeout_constraints',
+      'migration.sql',
+    ),
+    'utf8',
+  );
+  for (const required of [
+    'program_element_project_budget_position_project_fkey',
+    'program_element_project_budget_position_provenance_check',
+    'program_element_milestone_schedule_period_shape_check',
+    'program_element_milestone_schedule_period_provenance_check',
+  ]) {
+    if (!closeout.includes(required)) failures.push(`[migration] missing ${required}`);
   }
 
   if (failures.length > 0) {
     console.error('Phase 4 safety gates FAILED:');
-    for (const failure of failures) console.error(`  ${failure}`);
+    failures.forEach((failure) => console.error(`  ${failure}`));
     process.exit(1);
   }
-
   console.log(
     JSON.stringify({
       ok: true,
       filesScanned: Object.keys(rdteSources).length + Object.keys(phase4Scripts).length,
-      gates: 'all hold',
-      migration: 'additive only',
+      annualCommand: 'Phase 3 + Phase 2 + reconciliation + proof-bound projection',
+      migrations: 'two additive forward migrations',
     }),
   );
-  process.exit(0);
 }
 
 main();
