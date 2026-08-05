@@ -39,7 +39,6 @@ import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachDraftAuditService } from './outreach-draft-audit.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 import { RaceSafeOutreachSendIntentService } from './race-safe-outreach-send-intent.service.js';
-// Phase 1 — governed generation gateway.
 import { LlmCompletionService } from './llm-completion.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
@@ -52,6 +51,7 @@ import { GenerationVerifierService } from './generation/generation-verifier.serv
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
 
 @Module({
   imports: [
@@ -71,9 +71,13 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
     OutcomeController,
   ],
   providers: [
-    // Engagement API Phase 1 — central runtime policy service.
-    // Registered first so every other provider can inject it.
-    EngagementRuntimePolicyService,
+    {
+      provide: EngagementRuntimePolicyService,
+      useFactory: () =>
+        new EngagementRuntimePolicyService(
+          resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
+        ),
+    },
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -100,20 +104,9 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
     GmailSendService,
     EngagementMailSender,
     TokenCryptoService,
-    // Phase 0 — trust boundary. NOTE: ReviewsModule already imports
-    // EngagementModule, so EngagementModule must NEVER import ReviewsModule;
-    // OutreachDraftService is EXPORTED instead and ReviewsService injects it.
     OutreachDraftService,
     OutreachDraftAuditService,
     { provide: OutreachSendIntentService, useClass: RaceSafeOutreachSendIntentService },
-    // Phase 1 §3.g2 — the generation stack. All internal to this module: the
-    // per-source resolvers, the truth builders, the ranker and the style
-    // extractor are implementation detail of the gateway, and exporting them
-    // would invite another surface to assemble its own half-governed path, which
-    // is exactly the fragmentation Phase 1 removes.
-    // LlmCompletionService is a plain (non-@Injectable) class that EngagementAiService
-    // instantiates directly; registered here via a factory so the generation
-    // services can take it by DI and a spec can swap in a fault-injecting fetch.
     {
       provide: LlmCompletionService,
       useFactory: (runtime: EngagementRuntimePolicyService) =>
@@ -139,12 +132,7 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
     MicrosoftGraphSyncService,
     EngagementMailSender,
     AiCredentialResolverService,
-    // Exported so ReviewsService can approve/reject an EXACT draft version
-    // inside its own transaction (plan §3.f1) without a module cycle.
     OutreachDraftService,
-    // Only these two are exported (§3.g2): the gateway is the entry point, and
-    // the packet service is what another module would legitimately need to read
-    // provenance from.
     GenerationGatewayService,
     EvidencePacketService,
   ],
