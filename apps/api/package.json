@@ -91,6 +91,7 @@
     "verify:pe-budget-phase-2": "jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/contracts",
     "verify:pe-budget-phase-3": "jest --runInBand --forceExit src/defense-budget/parser-router",
     "verify:pe-budget-phase-4": "jest --runInBand --forceExit src/defense-budget/rdte && tsx scripts/verify-rdte-phase-4-safety.ts",
+    "verify:pe-budget-phase-5": "jest --runInBand --forceExit src/defense-budget/non-rdte src/defense-budget/procurement src/defense-budget/om src/defense-budget/milcon src/defense-budget/contracts/family-completeness-profiles-v1.spec.ts",
     "build:rdte-cycle": "tsx scripts/build-rdte-cycle.ts",
     "report:rdte-cycle": "tsx scripts/report-rdte-cycle.ts",
     "plan:rdte-projection": "tsx scripts/plan-rdte-canonical-projection.ts",
