@@ -25,7 +25,7 @@ describe('engagement runtime environment preflight', () => {
     ['0', false],
     ['no', false],
     ['off', false],
-  ] as const)('parses exact boolean %s', (raw, expected) => {
+  ])('parses exact boolean %s', (raw: string, expected: boolean) => {
     expect(parseExactBooleanEnvironment('FLAG', raw, !expected)).toBe(expected);
   });
 
@@ -62,7 +62,7 @@ describe('engagement runtime environment preflight', () => {
     ['ENGAGEMENT_EXTERNAL_ACTIONS', 'enabled'],
     ['ENGAGEMENT_CALLBACKS_ENABLED', 'true'],
     ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
-  ] as const)('rejects armed shadow field %s', (field, value) => {
+  ])('rejects armed shadow field %s', (field: string, value: string) => {
     const env: Record<string, string> = {
       CAPIRO_SERVICE_NAME: 'engagement-api',
       ENGAGEMENT_PROCESS_MODE: 'shadow',

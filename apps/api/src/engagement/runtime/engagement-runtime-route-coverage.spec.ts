@@ -203,7 +203,11 @@ describe('Engagement runtime route coverage', () => {
     for (const [controller, handlers] of Object.entries(ENGAGEMENT_RUNTIME_ROUTE_POLICY)) {
       clone[controller] = { ...handlers };
     }
-    delete clone.EngagementController.generateBatchEmails;
+    const engagementHandlers = clone.EngagementController;
+    if (!engagementHandlers) {
+      throw new Error('EngagementController missing from route policy clone');
+    }
+    delete engagementHandlers.generateBatchEmails;
     expect(validateRegistry(clone)).toContain(
       'missing runtime policy: POST /api/engagement/outreach/generate-batch (EngagementController.generateBatchEmails)',
     );

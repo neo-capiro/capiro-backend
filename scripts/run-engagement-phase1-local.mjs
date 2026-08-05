@@ -10,6 +10,7 @@ import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/pro
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSpawn } from './lib/resolve-tool.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(process.argv.slice(2));
@@ -31,7 +32,6 @@ const PSQL_DATABASE_URL = `postgresql://capiro:capiro@127.0.0.1:${DB_PORT}/capir
 const CONTAINER = `engagement-phase1-${process.pid}`;
 const IMAGE = `capiro-engagement-api:phase1-${SHA.slice(0, 12)}`;
 const ARM64_OCI = path.join(EVIDENCE, 'engagement-api-arm64.oci.tar');
-const PNPM = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const DOCKER = process.platform === 'win32' ? 'docker.exe' : 'docker';
 const children = [];
 
@@ -115,7 +115,7 @@ async function main() {
   try {
     await run(
       'DB-free exact-head closeout',
-      PNPM,
+      'pnpm',
       [
         '--filter',
         '@capiro/api',
@@ -156,19 +156,19 @@ async function main() {
     await waitDatabase();
     await run(
       'Apply migration history to disposable database',
-      PNPM,
+      'pnpm',
       ['--filter', '@capiro/api', 'exec', 'prisma', 'migrate', 'deploy'],
       mainEnv,
     );
     await run(
       'Generate API Prisma client',
-      PNPM,
+      'pnpm',
       ['--filter', '@capiro/api', 'exec', 'prisma', 'generate'],
       mainEnv,
     );
     await run(
       'Seed Phase 0/1 fixtures',
-      PNPM,
+      'pnpm',
       [
         '--filter',
         '@capiro/api',
@@ -182,19 +182,19 @@ async function main() {
     children.push(
       start(
         'main-api',
-        PNPM,
+        'pnpm',
         ['--filter', '@capiro/api', 'exec', 'tsx', 'src/main.ts'],
         mainEnv,
       ),
       start(
         'engagement-api',
-        PNPM,
+        'pnpm',
         ['--filter', '@capiro/api', 'exec', 'tsx', 'src/engagement-main.ts'],
         engagementEnv,
       ),
       start(
         'web',
-        PNPM,
+        'pnpm',
         ['--filter', '@capiro/web', 'dev', '--', '--host', '127.0.0.1'],
         mainEnv,
       ),
@@ -227,7 +227,7 @@ async function main() {
     if (bearerToken.length < 20) throw new Error('Browser token handoff failed');
     await run(
       'Manifest-driven API/auth/write/denial parity',
-      PNPM,
+      'pnpm',
       [
         '--filter',
         '@capiro/api',
@@ -455,9 +455,16 @@ function blobPath(directory, digest) {
   return path.join(directory, 'blobs', algorithm, hash);
 }
 
+function resolveCommand(command, commandArgs) {
+  if (command === 'pnpm' || command === 'pnpm.cmd') return resolveSpawn('pnpm', commandArgs);
+  if (command === 'git' || command === 'git.exe') return resolveSpawn('git', commandArgs);
+  if (command === 'docker' || command === 'docker.exe') return resolveSpawn('docker', commandArgs);
+  return { command, args: commandArgs };
+}
 function start(label, command, commandArgs, env) {
   const logFile = path.join(LOGS, `${label}.log`);
-  const child = spawn(command, commandArgs, {
+  const resolved = resolveCommand(command, commandArgs);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: ROOT,
     env,
     shell: false,
@@ -479,7 +486,8 @@ function start(label, command, commandArgs, env) {
 
 async function run(label, command, commandArgs, env, allowFailure = false) {
   console.log(`\n==> ${label}`);
-  const child = spawn(command, commandArgs, {
+  const resolved = resolveCommand(command, commandArgs);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: ROOT,
     env,
     shell: false,
@@ -497,7 +505,8 @@ async function run(label, command, commandArgs, env, allowFailure = false) {
 }
 
 async function capture(command, commandArgs) {
-  const child = spawn(command, commandArgs, {
+  const resolved = resolveCommand(command, commandArgs);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: ROOT,
     env: process.env,
     shell: false,

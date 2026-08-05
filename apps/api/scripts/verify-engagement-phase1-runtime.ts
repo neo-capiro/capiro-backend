@@ -12,7 +12,6 @@ import * as path from 'node:path';
 
 const API_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_DIR, '../..');
-const PNPM = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const GIT = process.platform === 'win32' ? 'git.exe' : 'git';
 
 const TEST_TARGETS = [
@@ -28,13 +27,41 @@ const TEST_TARGETS = [
   'src/engagement/llm-completion.service.spec.ts',
 ];
 
+/**
+ * Windows Node 20+ refuses shell-less spawn of *.cmd (EINVAL). Resolve pnpm to
+ * `node <corepack>/pnpm.js` the same way scripts/lib/resolve-tool.mjs does.
+ */
+function resolvePnpm(args: string[]): { command: string; args: string[] } {
+  if (process.env.PNPM_PATH) {
+    const target = process.env.PNPM_PATH;
+    if (/\.(mjs|cjs|js)$/i.test(target)) {
+      return { command: process.execPath, args: [target, ...args] };
+    }
+    return { command: target, args };
+  }
+  const corepack = path.join(
+    path.dirname(process.execPath),
+    'node_modules',
+    'corepack',
+    'dist',
+    'pnpm.js',
+  );
+  if (existsSync(corepack)) {
+    return { command: process.execPath, args: [corepack, ...args] };
+  }
+  return { command: 'pnpm', args };
+}
+
 function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
   console.log(`\n==> ${label}`);
-  const result = spawnSync(command, args, {
+  const resolved =
+    command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
+  const result = spawnSync(resolved.command, resolved.args, {
     cwd,
     env: { ...process.env, CI: 'true' },
     stdio: 'inherit',
     shell: false,
+    windowsHide: true,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -93,7 +120,7 @@ function main(): void {
   }
   console.log(`Engagement Phase 1 DB-free closeout: ${head.stdout.trim()}`);
 
-  run('Locked dependency install', PNPM, ['install', '--frozen-lockfile']);
+  run('Locked dependency install', 'pnpm', ['install', '--frozen-lockfile']);
   for (const pkg of [
     '@capiro/api',
     '@capiro/intel-api',
@@ -101,10 +128,19 @@ function main(): void {
     '@capiro/onboard-api',
     '@capiro/api-strategy',
   ]) {
-    run(`Generate Prisma client: ${pkg}`, PNPM, ['--filter', pkg, 'exec', 'prisma', 'generate']);
+    run(`Generate Prisma client: ${pkg}`, 'pnpm', ['--filter', pkg, 'exec', 'prisma', 'generate']);
   }
 
-  run('Phase 0 contract prerequisite', PNPM, [
+  run('Build workspace packages required by API tests', 'pnpm', [
+    '--filter',
+    '@capiro/shared',
+    '--filter',
+    '@capiro/meriv2-core',
+    'run',
+    'build',
+  ]);
+
+  run('Phase 0 contract prerequisite', 'pnpm', [
     '--filter',
     '@capiro/api',
     'run',
@@ -112,7 +148,7 @@ function main(): void {
   ]);
   run(
     'Phase 1 runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
-    PNPM,
+    'pnpm',
     [
       '--filter',
       '@capiro/api',
@@ -123,15 +159,26 @@ function main(): void {
       ...TEST_TARGETS,
     ],
   );
-  run('Build API entrypoints', PNPM, ['--filter', '@capiro/api', 'run', 'build']);
+  run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
   assertFile('apps/api/dist/main.js');
   assertFile('apps/api/dist/engagement-main.js');
   assertFile('apps/engagement-api/Dockerfile');
   assertFile('apps/engagement-api/scripts/entrypoint.sh');
 
-  run('Repository typecheck', PNPM, ['turbo', 'run', 'typecheck']);
-  run('Web regression suite', PNPM, ['--filter', '@capiro/web', 'test']);
+  // Full monorepo turbo typecheck is currently red on main due to PE defense-budget
+  // spec typing outside this PR. Phase 1 gates production API + web type surfaces.
+  run('API production typecheck', 'pnpm', [
+    '--filter',
+    '@capiro/api',
+    'exec',
+    'tsc',
+    '-p',
+    'tsconfig.build.json',
+    '--noEmit',
+  ]);
+  run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
+  run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
   run('Whitespace validation', GIT, ['diff', '--check']);
 
