@@ -14,7 +14,7 @@ import { connectChrome, createActor } from './phase19-cdp.mjs';
 const BASE_URL = process.env.ENGAGEMENT_PHASE1_BASE_URL ?? 'http://127.0.0.1:5173';
 const EVIDENCE = required('ENGAGEMENT_PHASE1_EVIDENCE_DIR');
 const TOKEN_FILE = required('ENGAGEMENT_PHASE1_TOKEN_FILE');
-const COOKIE = requiredAny('ENGAGEMENT_PHASE1_USER_COOKIE', 'ENGAGEMENT_PHASE0_USER_COOKIE');
+const COOKIE = (process.env.ENGAGEMENT_PHASE1_USER_COOKIE || process.env.ENGAGEMENT_PHASE0_USER_COOKIE || '').trim();
 const ORG_ID = requiredAny(
   'ENGAGEMENT_PHASE1_CLERK_ORG_ID',
   'ENGAGEMENT_PHASE0_CLERK_ORG_ID',
@@ -33,6 +33,30 @@ function required(name) {
   if (!value) throw new Error(`${name} is required`);
   return value;
 }
+
+async function maybeMintClerkTicket() {
+  const secret = process.env.CLERK_SECRET_KEY?.trim();
+  const userId = (
+    process.env.ENGAGEMENT_PHASE1_USER_CLERK_ID ||
+    process.env.ENGAGEMENT_PHASE0_USER_CLERK_ID ||
+    ''
+  ).trim();
+  if (!secret || !userId) return '';
+  const response = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user_id: userId, expires_in_seconds: 1800 }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body?.token) {
+    throw new Error(`Clerk sign_in_token mint failed status=${response.status}`);
+  }
+  return body.token;
+}
+
 function requiredAny(...names) {
   for (const name of names) {
     const value = process.env[name]?.trim();
@@ -56,14 +80,19 @@ async function main() {
   const requests = [];
 
   try {
-    const page = await createActor({
-      cdp,
-      label: 'engagement-phase1',
-      cookie: COOKIE,
-      orgId: ORG_ID,
-      baseUrl: BASE_URL,
-      evidenceDir: SCREENSHOTS,
-    });
+      const clerkTicket = await maybeMintClerkTicket();
+      if (!COOKIE && !clerkTicket) {
+        throw new Error('USER_COOKIE or CLERK_SECRET_KEY+user id required for browser auth');
+      }
+      const page = await createActor({
+        cdp,
+        label: 'engagement-phase1',
+        cookie: COOKIE,
+        clerkTicket,
+        orgId: ORG_ID,
+        baseUrl: BASE_URL,
+        evidenceDir: SCREENSHOTS,
+      });
 
     const networkKey = `${page.sessionId}:Network.requestWillBeSent`;
     const listener = (params) => {

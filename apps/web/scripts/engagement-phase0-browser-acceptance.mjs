@@ -23,6 +23,30 @@ function required(name) {
   return value;
 }
 
+async function maybeMintClerkTicket() {
+  const secret = process.env.CLERK_SECRET_KEY?.trim();
+  const userId = (
+    process.env.ENGAGEMENT_PHASE1_USER_CLERK_ID ||
+    process.env.ENGAGEMENT_PHASE0_USER_CLERK_ID ||
+    ''
+  ).trim();
+  if (!secret || !userId) return '';
+  const response = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user_id: userId, expires_in_seconds: 1800 }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body?.token) {
+    throw new Error(`Clerk sign_in_token mint failed status=${response.status}`);
+  }
+  return body.token;
+}
+
+
 const VIEWPORTS = [
   { name: 'desktop-1440x900', width: 1440, height: 900 },
   { name: 'desktop-1024x768', width: 1024, height: 768 },
@@ -38,8 +62,9 @@ const STATES = [
 ];
 
 async function main() {
-  const cookie = required('ENGAGEMENT_PHASE0_USER_COOKIE');
-  const orgId = required('ENGAGEMENT_PHASE0_CLERK_ORG_ID');
+  const orgId = required(process.env.ENGAGEMENT_PHASE1_CLERK_ORG_ID ? 'ENGAGEMENT_PHASE1_CLERK_ORG_ID' : 'ENGAGEMENT_PHASE0_CLERK_ORG_ID');
+  const cookie = (process.env.ENGAGEMENT_PHASE1_USER_COOKIE || process.env.ENGAGEMENT_PHASE0_USER_COOKIE || '').trim();
+  const clerkTicket = await maybeMintClerkTicket();
   if (!EVIDENCE) throw new Error('ENGAGEMENT_PHASE0_EVIDENCE_DIR is required');
 
   await mkdir(path.join(EVIDENCE, 'screenshots'), { recursive: true });
@@ -64,10 +89,14 @@ async function main() {
 
   try {
     console.log('\n--- Creating authenticated actor ---');
+    if (!cookie && !clerkTicket) {
+      throw new Error('USER_COOKIE or CLERK_SECRET_KEY+user id required for browser auth');
+    }
     const page = await createActor({
       cdp,
-      label: 'engagement-phase0',
+      label: '',
       cookie,
+      clerkTicket,
       orgId,
       baseUrl: BASE_URL,
       evidenceDir: EVIDENCE,

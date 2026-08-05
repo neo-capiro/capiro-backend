@@ -398,7 +398,7 @@ export class BrowserPage {
   }
 }
 
-export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidenceDir }) {
+export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidenceDir, clerkTicket }) {
   const context = await cdp.send('Target.createBrowserContext', { disposeOnDetach: true });
   const target = await cdp.send('Target.createTarget', {
     url: 'about:blank',
@@ -417,12 +417,52 @@ export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidence
     evidenceDir,
   });
   await page.init();
-  await cdp.send(
-    'Network.setCookies',
-    { cookies: cookiesFromHeader(cookie, baseUrl) },
-    page.sessionId,
-  );
-  await page.navigate('/');
+
+  // Prefer ticket-based sign-in on localhost. Production __session cookies are
+  // not transferable across origins and leave Clerk.loaded=false on 127.0.0.1.
+  if (clerkTicket) {
+    const ticketUrl = `${baseUrl.replace(/\/$/, '')}/sign-in?__clerk_ticket=${encodeURIComponent(clerkTicket)}`;
+    await page.navigate(ticketUrl);
+  } else if (cookie) {
+    await cdp.send(
+      'Network.setCookies',
+      { cookies: cookiesFromHeader(cookie, baseUrl) },
+      page.sessionId,
+    );
+    await page.navigate('/');
+  } else {
+    throw new Error('createActor requires cookie or clerkTicket');
+  }
+
+  try {
+    await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.loaded)'), 45_000);
+  } catch (error) {
+    const debug = await page.evaluate(`({
+      href: location.href,
+      hasClerk: Boolean(window.Clerk),
+      loaded: window.Clerk?.loaded ?? null,
+      cookieNames: document.cookie.split(';').map((p) => p.split('=')[0].trim()).filter(Boolean),
+    })`);
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)} clerk_load_debug=${JSON.stringify(debug)}`,
+    );
+  }
+
+  if (clerkTicket) {
+    const ticketLiteral = JSON.stringify(clerkTicket);
+    await page.evaluate(`(async () => {
+      if (window.Clerk?.session) return true;
+      const ticket = ${ticketLiteral};
+      try {
+        const result = await window.Clerk.client.signIn.create({ strategy: 'ticket', ticket });
+        if (result?.createdSessionId) {
+          await window.Clerk.setActive({ session: result.createdSessionId });
+        }
+      } catch (e) {}
+      return Boolean(window.Clerk?.session);
+    })()`);
+  }
+
   try {
     await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 45_000);
   } catch (error) {
@@ -434,17 +474,23 @@ export async function createActor({ cdp, label, cookie, orgId, baseUrl, evidence
       loaded: window.Clerk?.loaded ?? null,
       cookieNames: document.cookie.split(';').map((p) => p.split('=')[0].trim()).filter(Boolean),
     })`);
-    throw new Error(`${error instanceof Error ? error.message : String(error)} clerk_debug=${JSON.stringify(debug)}`);
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)} clerk_debug=${JSON.stringify(debug)}`,
+    );
   }
+
+  const orgLiteral = JSON.stringify(orgId);
   await page.evaluate(`(async () => {
-    if (window.Clerk?.organization?.id !== ${JSON.stringify(orgId)}) {
-      await window.Clerk?.setActive({ organization: ${JSON.stringify(orgId)} });
+    if (window.Clerk?.organization?.id !== ${orgLiteral}) {
+      await window.Clerk?.setActive({ organization: ${orgLiteral} });
     }
     return window.Clerk?.organization?.id ?? null;
   })()`);
   await page.waitFor(
-    () => page.evaluate(`window.Clerk?.organization?.id === ${JSON.stringify(orgId)}`),
+    () => page.evaluate(`window.Clerk?.organization?.id === ${orgLiteral}`),
     25_000,
   );
+  await page.navigate('/');
+  await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 20_000);
   return page;
 }
