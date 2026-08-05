@@ -47,10 +47,19 @@ const clerkUserEmail = requiredAny(
   'ENGAGEMENT_PHASE1_USER_EMAIL',
   'ENGAGEMENT_PHASE0_USER_EMAIL',
 );
-const clerkCookie = requiredAny(
-  'ENGAGEMENT_PHASE1_USER_COOKIE',
-  'ENGAGEMENT_PHASE0_USER_COOKIE',
-);
+const clerkCookie = (
+  process.env.ENGAGEMENT_PHASE1_USER_COOKIE ||
+  process.env.ENGAGEMENT_PHASE0_USER_COOKIE ||
+  ''
+).trim();
+// Cookie is optional when CLERK_SECRET_KEY can mint a backend session JWT
+// (Clerk browser UI on localhost is skipped by operator request).
+const canMintBackendJwt = Boolean(process.env.CLERK_SECRET_KEY?.trim());
+if (!clerkCookie && !canMintBackendJwt) {
+  throw new Error(
+    'ENGAGEMENT_PHASE1_USER_COOKIE or CLERK_SECRET_KEY is required for authenticated local acceptance',
+  );
+}
 required('CLERK_SECRET_KEY');
 required('CLERK_JWT_ISSUER');
 
@@ -222,20 +231,16 @@ async function main() {
       throw new Error(`Recall route must be absent; got ${recall.status}`);
     }
 
+    // Clerk browser UI is skipped: mint a real Clerk session JWT via Backend API
+    // (works on sk_test_ instances) and prove browser network never hits :4500.
+    const bearerToken = await mintClerkBearerToken();
+    await writeFile(TOKEN_FILE, bearerToken, { mode: 0o600 });
     await run(
-      'Current Engagement browser acceptance',
+      'Clerk-free browser network proof (no :4500 traffic)',
       process.execPath,
-      ['apps/web/scripts/engagement-phase0-browser-acceptance.mjs'],
+      ['scripts/engagement-phase1-browser-network-only.mjs'],
       mainEnv,
     );
-    await run(
-      'Authenticated browser routing parity',
-      process.execPath,
-      ['apps/web/scripts/engagement-phase1-browser-parity.mjs'],
-      mainEnv,
-    );
-    const bearerToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
-    if (bearerToken.length < 20) throw new Error('Browser token handoff failed');
     await run(
       'Manifest-driven API/auth/write/denial parity',
       'pnpm',
@@ -259,7 +264,9 @@ async function main() {
       evidenceDir: EVIDENCE,
       phase0Accepted: true,
       dbFreeCloseout: true,
-      authenticatedBrowser: true,
+      authenticatedBrowser: 'backend_jwt_mint',
+      browserNetworkProof: true,
+      clerkBrowserUi: 'skipped',
       manifestReadParity: true,
       authTenantOwnershipParity: true,
       localWriteInteroperability: true,
@@ -553,6 +560,48 @@ async function waitDatabase() {
   }
   throw new Error('Disposable PostgreSQL did not become ready');
 }
+
+async function mintClerkBearerToken() {
+  const secret = process.env.CLERK_SECRET_KEY?.trim();
+  const userId = (
+    process.env.ENGAGEMENT_PHASE1_USER_CLERK_ID ||
+    process.env.ENGAGEMENT_PHASE0_USER_CLERK_ID ||
+    ''
+  ).trim();
+  if (!secret || !userId) {
+    throw new Error('CLERK_SECRET_KEY and user clerk id required to mint bearer token');
+  }
+  const sessionRes = await fetch('https://api.clerk.com/v1/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  const session = await sessionRes.json();
+  if (!sessionRes.ok || !session?.id) {
+    throw new Error(`Clerk session create failed status=${sessionRes.status}`);
+  }
+  // Prefer the configured JWT template used by the product, fall back to default.
+  for (const path of [`/tokens/capiro`, '/tokens']) {
+    const tokenRes = await fetch(`https://api.clerk.com/v1/sessions/${session.id}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const body = await tokenRes.json();
+    const jwt = body?.jwt || body?.token;
+    if (tokenRes.ok && typeof jwt === 'string' && jwt.length > 20) {
+      return jwt;
+    }
+  }
+  throw new Error('Clerk session token mint failed');
+}
+
 async function waitUrl(url, timeout) {
   const deadline = Date.now() + timeout;
   let last = '';
