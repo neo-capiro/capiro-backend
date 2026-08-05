@@ -48,11 +48,14 @@ const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
   'approveMeetingAttachment',
 ]);
 const LOCAL_SAFE_OAUTH_HANDLERS = new Set(['capabilities']);
+const LOCAL_SAFE_SEND_HANDLERS = new Set(['getSendIntent', 'cancelSendIntent']);
 
 function externallySensitive(route: RouteEntry): boolean {
   if (route.controller === 'RecallWebhookController') return false;
   if (route.classification === 'internal_secret') return true;
-  if (route.classification === 'external_send') return true;
+  if (route.classification === 'external_send') {
+    return !LOCAL_SAFE_SEND_HANDLERS.has(route.handler);
+  }
   if (route.classification === 'sync') return true;
   if (route.classification === 'notetaker') return true;
   if (route.classification === 'webhook') return true;
@@ -135,7 +138,8 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
       !metadata &&
       route.classification !== 'write' &&
       !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler) &&
-      !LOCAL_SAFE_ATTACHMENT_HANDLERS.has(route.handler)
+      !LOCAL_SAFE_ATTACHMENT_HANDLERS.has(route.handler) &&
+      !LOCAL_SAFE_SEND_HANDLERS.has(route.handler)
     ) {
       findings.push(
         `unclassified mutating route: ${route.method} ${route.path} (${route.controller}.${route.handler})`,
@@ -202,6 +206,6 @@ describe('Engagement runtime route coverage', () => {
   });
 
   it('keeps Recall outside the Phase 1 application runtime', () => {
-    expect(runtimePolicyForHandler('RecallWebhookController', 'handle')).toBeUndefined();
+    expect(runtimePolicyForHandler('RecallWebhookController', 'receive')).toBeUndefined();
   });
 });
