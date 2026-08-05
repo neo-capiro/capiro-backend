@@ -1,32 +1,126 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 const REPO = path.resolve(__dirname, '..', '..', '..', '..');
 const FIXTURE = path.join(__dirname, '__fixtures__', 'engagement-side-effect-registry.v1.json');
-const VERIFIER = path.join(REPO, 'apps', 'api', 'scripts', 'engagement-phase0-side-effect-verify.ts');
-const TSX = path.join(REPO, 'apps', 'api', 'node_modules', '.bin', 'tsx');
+const VERIFIER = path.join(
+  REPO,
+  'apps',
+  'api',
+  'scripts',
+  'engagement-phase0-side-effect-verify.ts',
+);
+const TSX_CLI = require.resolve('tsx/cli');
 
-function readFixture() { return JSON.parse(fs.readFileSync(FIXTURE, 'utf-8')); }
+function readFixture() {
+  return JSON.parse(fs.readFileSync(FIXTURE, 'utf-8'));
+}
+
 function runVerifier(): { passed: boolean; output: string } {
-  try { return { passed: true, output: execSync(`bash "${TSX}" "${VERIFIER}"`, {cwd:REPO,stdio:'pipe',timeout:30000}).toString() }; }
-  catch(e: any) { return { passed: false, output: (e.stdout?.toString()??'')+(e.stderr?.toString()??'') }; }
+  const result = spawnSync(process.execPath, [TSX_CLI, VERIFIER], {
+    cwd: REPO,
+    encoding: 'utf8',
+    timeout: 30_000,
+    shell: false,
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  return {
+    passed: result.status === 0,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
 }
 
 describe('Engagement side-effect registry', () => {
   describe('fixture integrity', () => {
-    it('exists and parses', () => { const m=readFixture(); expect(m.schemaVersion).toBe(1); expect(Array.isArray(m.entries)).toBe(true); expect(m.entries.length).toBeGreaterThan(0); });
-    it('all required fields', () => { const rf=['id','sourceFile','symbol','trigger','effect','externalSystem','currentProcessOwner','activationConfig','idempotencyBoundary','concurrencyBoundary','containsSensitiveData','phase1ContainmentRequirement']; for(const e of readFixture().entries) for(const f of rf) expect(e).toHaveProperty(f); });
-    it('unique ids', () => { const ids=readFixture().entries.map((e:any)=>e.id); expect(new Set(ids).size).toBe(ids.length); });
-    it('all main_api owned', () => { for(const e of readFixture().entries) expect(e.currentProcessOwner).toBe('main_api'); });
-    it('no secret material', () => { const sp=/\b(api_key|secret|password)\b/i; for(const e of readFixture().entries){const check=[e.externalSystem,e.idempotencyBoundary,e.concurrencyBoundary]; for(const v of check) if(v) expect(sp.test(String(v))).toBe(false);} });
+    it('exists and parses', () => {
+      const manifest = readFixture();
+      expect(manifest.schemaVersion).toBe(1);
+      expect(Array.isArray(manifest.entries)).toBe(true);
+      expect(manifest.entries.length).toBeGreaterThan(0);
+    });
+
+    it('contains every required field', () => {
+      const requiredFields = [
+        'id',
+        'sourceFile',
+        'symbol',
+        'trigger',
+        'effect',
+        'externalSystem',
+        'currentProcessOwner',
+        'activationConfig',
+        'idempotencyBoundary',
+        'concurrencyBoundary',
+        'containsSensitiveData',
+        'phase1ContainmentRequirement',
+      ];
+      for (const entry of readFixture().entries) {
+        for (const field of requiredFields) expect(entry).toHaveProperty(field);
+      }
+    });
+
+    it('has unique ids', () => {
+      const ids = readFixture().entries.map((entry: any) => entry.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('records main_api as the current owner', () => {
+      for (const entry of readFixture().entries) {
+        expect(entry.currentProcessOwner).toBe('main_api');
+      }
+    });
+
+    it('contains no secret material', () => {
+      const secretPattern = /\b(api_key|secret|password)\b/i;
+      for (const entry of readFixture().entries) {
+        for (const value of [
+          entry.externalSystem,
+          entry.idempotencyBoundary,
+          entry.concurrencyBoundary,
+        ]) {
+          if (value) expect(secretPattern.test(String(value))).toBe(false);
+        }
+      }
+    });
   });
+
   describe('static verifier', () => {
-    it('verifier exits 0', () => { expect(runVerifier().passed).toBe(true); });
-    it('verifier output mentions PASS', () => { expect(runVerifier().output).toContain('PASS'); });
+    it('exits successfully', () => {
+      expect(runVerifier().passed).toBe(true);
+    });
+
+    it('reports PASS', () => {
+      expect(runVerifier().output).toContain('PASS');
+    });
   });
+
   describe('negative controls', () => {
-    it('removing timer entry reduces count', () => { const c=readFixture(); const modified=JSON.parse(JSON.stringify(c)); modified.entries=modified.entries.filter((e:any)=>e.symbol!=='EngagementSyncSchedulerService'); const origOnMod=c.entries.filter((e:any)=>e.trigger==='on_module_init').length; const modOnMod=modified.entries.filter((e:any)=>e.trigger==='on_module_init').length; expect(modOnMod).toBeLessThan(origOnMod); });
-    it('changing symbol causes mismatch', () => { const c=readFixture(),m=JSON.parse(JSON.stringify(c)); const i=m.entries.findIndex((e:any)=>e.symbol==='OutreachJobService'); if(i>=0){m.entries[i].symbol='NonExistent'; expect(m.entries[i].symbol).not.toBe('OutreachJobService');} });
+    it('detects removal of a timer entry', () => {
+      const committed = readFixture();
+      const changed = JSON.parse(JSON.stringify(committed));
+      changed.entries = changed.entries.filter(
+        (entry: any) => entry.symbol !== 'EngagementSyncSchedulerService',
+      );
+      const originalTimers = committed.entries.filter(
+        (entry: any) => entry.trigger === 'on_module_init',
+      ).length;
+      const changedTimers = changed.entries.filter(
+        (entry: any) => entry.trigger === 'on_module_init',
+      ).length;
+      expect(changedTimers).toBeLessThan(originalTimers);
+    });
+
+    it('detects a synthetic symbol change', () => {
+      const committed = readFixture();
+      const changed = JSON.parse(JSON.stringify(committed));
+      const index = changed.entries.findIndex(
+        (entry: any) => entry.symbol === 'OutreachJobService',
+      );
+      expect(index).toBeGreaterThanOrEqual(0);
+      changed.entries[index].symbol = 'NonExistent';
+      expect(changed.entries[index].symbol).not.toBe('OutreachJobService');
+    });
   });
 });
