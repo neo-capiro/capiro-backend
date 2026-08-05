@@ -7,13 +7,15 @@ interface ExternalMethodMetadata {
   requiresCallbacks?: boolean;
 }
 
-export const NOTETAKER_EXTERNAL_METHODS = {
+export const NOTETAKER_EXTERNAL_METHODS: Readonly<
+  Record<string, ExternalMethodMetadata>
+> = {
   dispatch: { action: 'notetaker_dispatch' },
   remove: { action: 'notetaker_remove' },
   handleBotEvent: { action: 'notetaker_dispatch', requiresCallbacks: true },
-} as const satisfies Readonly<Record<string, ExternalMethodMetadata>>;
+};
 
-export const NOTETAKER_BACKGROUND_METHODS = new Set([
+export const NOTETAKER_BACKGROUND_METHODS: ReadonlySet<string> = new Set([
   'runReconcileSweep',
   'reconcileStaleTranscripts',
   'reconcileStrandedDrafting',
