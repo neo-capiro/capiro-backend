@@ -1,8 +1,11 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
+import type { MeetingBotProvider } from '../notetaker/meeting-bot.provider.js';
 import type { NotetakerService } from '../notetaker/notetaker.service.js';
 import {
+  guardMeetingBotProvider,
   guardNotetakerService,
+  MEETING_BOT_EXTERNAL_METHODS,
   NOTETAKER_BACKGROUND_METHODS,
   NOTETAKER_EXTERNAL_METHODS,
 } from './engagement-notetaker-runtime.boundary.js';
@@ -31,8 +34,22 @@ function invokeAndCapture(
 }
 
 describe('Notetaker runtime boundary', () => {
+  it.each(Object.keys(MEETING_BOT_EXTERNAL_METHODS))(
+    'blocks raw Recall provider method %s',
+    (methodName) => {
+      const implementation = jest.fn(async () => undefined);
+      const guarded = guardMeetingBotProvider(
+        { [methodName]: implementation } as unknown as MeetingBotProvider,
+        shadowPolicy(),
+      ) as unknown as Record<string, (...args: unknown[]) => unknown>;
+      const caught = invokeAndCapture(guarded, methodName);
+      expect(caught).toBeInstanceOf(ServiceUnavailableException);
+      expect(implementation).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(Object.keys(NOTETAKER_EXTERNAL_METHODS))(
-    'blocks external method %s before the provider implementation',
+    'blocks external service method %s before the provider implementation',
     (methodName) => {
       const implementation = jest.fn(async () => undefined);
       const guarded = guardNotetakerService(
@@ -62,7 +79,15 @@ describe('Notetaker runtime boundary', () => {
     },
   );
 
-  it('preserves database-local status reads', () => {
+  it('preserves webhook signature parsing and database-local status reads', () => {
+    const verify = jest.fn(() => ({ kind: 'unknown' }));
+    const provider = guardMeetingBotProvider(
+      { verifyAndParseWebhook: verify } as unknown as MeetingBotProvider,
+      shadowPolicy(),
+    );
+    expect(provider.verifyAndParseWebhook(Buffer.from('{}'), {})).toEqual({ kind: 'unknown' });
+    expect(verify).toHaveBeenCalledTimes(1);
+
     const localRead = jest.fn(() => ({ status: 'done' }));
     const guarded = guardNotetakerService(
       { getSessionForMeeting: localRead } as unknown as NotetakerService,
