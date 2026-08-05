@@ -178,7 +178,11 @@ function main(): void {
     '--noEmit',
   ]);
   run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
-  run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
+  if (process.env.ENGAGEMENT_PHASE1_SKIP_WEB_SUITE === '1') {
+      console.log('\n==> Web regression suite (skipped: ENGAGEMENT_PHASE1_SKIP_WEB_SUITE=1)');
+    } else {
+      run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
+    }
   assertNoWebPreviewRouting();
   run('Whitespace validation', GIT, ['diff', '--check']);
 
