@@ -38,6 +38,17 @@ const RUNTIME_ACTION_BY_METHOD = {
   Record<string, { action: EngagementExternalAction; testMode?: boolean }>
 >;
 
+function activeMainRuntimePolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
+    serviceName: 'api',
+    processMode: 'active',
+    backgroundOwner: 'api',
+    externalActions: 'enabled',
+    callbacksEnabled: true,
+    recallWebhookEnabled: true,
+  });
+}
+
 /**
  * Preserve the existing EngagementService implementation while hardening the
  * exact context-loader and externally sensitive public entry points.
@@ -46,12 +57,16 @@ const RUNTIME_ACTION_BY_METHOD = {
  * service boundary for workers, internal callers, or future controller refactors:
  * it asserts runtime policy before enrichment, database writes, S3 access,
  * transcription, model calls, or provider sends can begin.
+ *
+ * Nest always injects the validated runtime policy. The explicit active fallback
+ * exists only for direct unit construction of this factory and preserves the
+ * historical main-API behavior in those tests.
  */
 export function createGovernedEngagementService(
   service: EngagementService,
   boundary: ContextPersistenceBoundaryService,
   contextCompiler: ContextCompilerService,
-  runtimePolicy: EngagementRuntimePolicyService,
+  runtimePolicy: EngagementRuntimePolicyService = activeMainRuntimePolicy(),
 ): EngagementService {
   const methods = service as unknown as GovernedEngagementMethods;
 
