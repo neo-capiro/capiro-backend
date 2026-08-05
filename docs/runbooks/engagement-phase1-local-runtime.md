@@ -1,100 +1,91 @@
-# Engagement Phase 1 Local Runtime Runbook
+# Engagement Phase 1 Local Runtime — Merge Closeout
 
-## Prerequisites
+GitHub Actions are unavailable for this repository and are **not** an acceptance dependency. Phase 1 is accepted from one exact, clean local checkout using the repository-owned closeout commands below.
 
-1. Phase 0 must be accepted and pass: `pnpm verify:engagement-phase-0`
-2. Docker (for the disposable database and image build)
-3. Node 20.16+ and pnpm 9.12+
+## Required environment
 
-## DB-free verification
+Docker, Docker Buildx, Chrome/Chromium, Node 20.16+, pnpm 9.12+, and a Clerk test actor are required.
+
+Set either the Phase 1 names below or the equivalent `ENGAGEMENT_PHASE0_*` aliases:
+
+```text
+CLERK_SECRET_KEY
+CLERK_JWT_ISSUER
+ENGAGEMENT_PHASE1_CLERK_ORG_ID
+ENGAGEMENT_PHASE1_USER_CLERK_ID
+ENGAGEMENT_PHASE1_USER_EMAIL
+ENGAGEMENT_PHASE1_USER_COOKIE
+```
+
+The cookie and derived bearer token are never written into the evidence bundle. The temporary token file is mode `0600` and deleted during cleanup.
+
+## 1. DB-free closeout
 
 ```bash
 pnpm verify:engagement-phase-1
 ```
 
-This runs:
-- Phase 0 verifier
-- Phase 1 test suite (runtime policy, route coverage, timer containment,
-  external boundaries, app module, bootstrap, health, entrypoint tests)
-- API build (produces both `dist/main.js` and `dist/engagement-main.js`)
-- Static check: no web preview routing change
+This command performs the locked install, all five Prisma generations, Phase 0 manifest verification, exact route-policy and negative-control tests, worker/provider/bootstrap/health/entrypoint tests, both API builds, repository typecheck, web tests, web routing drift checks, and `git diff --check`.
 
-Does NOT connect to a database, call AWS, or call any external provider.
+Expected terminal marker:
 
-## Local two-process acceptance
+```text
+ENGAGEMENT_PHASE1_DB_FREE_COMPLETE
+```
+
+It does not connect to a database, AWS, OAuth, Recall, an AI provider, or an email provider.
+
+## 2. Authoritative local closeout
+
+From a clean checkout of the exact PR head:
 
 ```bash
 pnpm verify:engagement-phase-1:local -- --sha "$(git rev-parse HEAD)"
 ```
 
-This:
-1. Starts a disposable pgvector PostgreSQL 16 container
-2. Applies all API migrations
-3. Seeds engagement fixtures
-4. Starts the main API on :4000
-5. Starts the engagement-api on :4500 (shadow mode)
-6. Waits for both health endpoints
-7. Runs read-parity tests
-8. Runs external-action denial tests
-9. Optionally runs browser parity (needs ENGAGEMENT_PHASE1_USER_COOKIE)
-10. Tears everything down
+The command fails rather than skips when authenticated browser credentials, Chrome, Docker, Buildx, or a required fixture are unavailable. It:
 
-Evidence is written to `.artifacts/engagement-phase1-<sha>/`.
+1. Runs the DB-free closeout.
+2. Creates a disposable PostgreSQL 16 + pgvector database and applies the complete migration history.
+3. Seeds synthetic Engagement fixtures.
+4. Starts the main API on `4000`, engagement-api on `4500`, and the unchanged web app on `5173`.
+5. Verifies health, exact shadow posture, `X-Capiro-Service`, and Recall `404`.
+6. Runs the current Engagement Chrome/CDP acceptance at four viewports.
+7. Records actual browser network requests and proves no traffic reaches `4500` and no preview header exists.
+8. Enumerates safe reads from the accepted route manifest and compares normalized status, content type, body, identity, and service header.
+9. Proves missing/invalid/wrong-tenant, below-role, unknown-role, cross-user, and cross-tenant denial parity.
+10. Creates a safe meeting through engagement-api, reads and updates it through the main API, then reads it back through engagement-api.
+11. Probes every registered runtime action and proves the stable `503 ENGAGEMENT_EXTERNAL_ACTION_DISABLED` result without protected-table mutation.
+12. Proves all background workers are disabled and no worker-start log is present.
+13. Builds and inspects the dedicated host image, refuses `migrate` and an unknown command with exit `64`, and builds/inspects an ARM64 OCI artifact.
+14. Tears down all child processes and the disposable database.
 
-## Docker image build
+Expected terminal marker:
 
-```bash
-docker build \
-  -f apps/engagement-api/Dockerfile \
-  -t capiro-engagement-api:phase1-local \
-  .
+```text
+ENGAGEMENT_PHASE1_LOCAL_COMPLETE
 ```
 
-## ARM64 artifact
+Evidence is written to:
 
-```bash
-mkdir -p .artifacts/engagement-phase1-image
-
-docker buildx build \
-  --platform linux/arm64 \
-  -f apps/engagement-api/Dockerfile \
-  --output type=oci,dest=.artifacts/engagement-phase1-image/engagement-api-arm64.oci.tar \
-  .
+```text
+.artifacts/engagement-phase1-<sha>/
 ```
 
-## Verify image is serve-only
+The merge decision must use the SHA in `local-runner-summary.json`. A result from another SHA is not transferable.
 
-```bash
-docker run --rm capiro-engagement-api:phase1-local migrate
-# Expected: exit 64
-```
+## Merge gate
 
-## Manual testing
+Phase 1 is ready for manual merge only when:
 
-### Both processes run
+- the PR is mergeable against current `main`;
+- both local markers pass on the exact PR head;
+- `local-runner-summary.json` reports every gate true;
+- no unresolved P0/P1 review finding exists;
+- no migration, AWS, ALB, DNS, deployment, or visible UI change is present.
 
-```bash
-curl -i http://127.0.0.1:4000/health
-curl -i http://127.0.0.1:4500/health
-```
-
-### Shadow cannot act externally
-
-Attempt any external action on :4500:
-- connect Microsoft/Google
-- sync
-- dispatch notetaker
-- generate
-- send
-
-Expected: `503 ENGAGEMENT_EXTERNAL_ACTION_DISABLED`
+GitHub Actions status is informational only and must not be represented as test evidence.
 
 ## Rollback
 
-1. Stop the engagement-api process/container.
-2. Delete local image/artifacts if desired.
-3. Revert the Phase 1 branch/PR.
-4. Continue running the unchanged main API and web app.
-5. Dispose of the local test database (no migration exists).
-
-No production rollback action is required because production was not changed.
+Phase 1 is additive and local-only. Stop the engagement-api process/container and revert the PR. No database or infrastructure rollback is required because this phase adds no migration and performs no deployment.
