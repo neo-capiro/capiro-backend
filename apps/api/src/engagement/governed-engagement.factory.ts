@@ -3,6 +3,8 @@ import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
 import { rethrowRequiredContextPersistence } from '../context/context-required-persistence.js';
 import { EngagementService } from './engagement.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import type { EngagementExternalAction } from './runtime/engagement-runtime.types.js';
 
 export const RAW_ENGAGEMENT_SERVICE = Symbol('RAW_ENGAGEMENT_SERVICE');
 
@@ -15,19 +17,41 @@ interface GovernedEngagementMethods {
   generateBatchEmails: GenerateBatch;
 }
 
+const RUNTIME_ACTION_BY_METHOD = {
+  previewAiTemplate: { action: 'outreach_generate' },
+  generateTalkingPoints: { action: 'outreach_generate' },
+  generateBatchEmails: { action: 'outreach_generate' },
+  generateOutreachDraft: { action: 'outreach_generate' },
+  generateCampaignEmail: { action: 'outreach_generate' },
+  generateMeetingPrep: { action: 'meeting_prep_generate' },
+  generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
+  sendBatchEmails: { action: 'outreach_send' },
+  openOutreachEmail: { action: 'outreach_send' },
+  sendCampaign: { action: 'outreach_send' },
+  sendCampaignEmails: { action: 'outreach_send' },
+  sendCampaignTest: { action: 'outreach_test_send', testMode: true },
+  createAttachmentUploadUrl: { action: 'attachment_external_write' },
+  confirmAttachment: { action: 'attachment_external_write' },
+  extractAttachmentText: { action: 'attachment_external_read' },
+  deleteAttachment: { action: 'attachment_external_write' },
+} as const satisfies Readonly<
+  Record<string, { action: EngagementExternalAction; testMode?: boolean }>
+>;
+
 /**
  * Preserve the existing EngagementService implementation while hardening the
- * exact context-loader and the two externally rendered generation entry points.
+ * exact context-loader and externally sensitive public entry points.
  *
- * Replacing the loader means a required Context Packet persistence error escapes
- * before any model call or draft/version write. Ordinary context outages retain
- * the historical best-effort fallback. The public method guards also cover the
- * async OutreachJobService worker and any future fail-soft catch added later.
+ * The controller guard remains the first boundary. This proxy is the independent
+ * service boundary for workers, internal callers, or future controller refactors:
+ * it asserts runtime policy before enrichment, database writes, S3 access,
+ * transcription, model calls, or provider sends can begin.
  */
 export function createGovernedEngagementService(
   service: EngagementService,
   boundary: ContextPersistenceBoundaryService,
   contextCompiler: ContextCompilerService,
+  runtimePolicy: EngagementRuntimePolicyService,
 ): EngagementService {
   const methods = service as unknown as GovernedEngagementMethods;
 
@@ -77,5 +101,31 @@ export function createGovernedEngagementService(
   methods.generateBatchEmails = ((...args: Parameters<GenerateBatch>) =>
     boundary.guard(() => generateBatch(...args))) as GenerateBatch;
 
-  return service;
+  return guardEngagementServiceRuntime(service, runtimePolicy);
+}
+
+export function guardEngagementServiceRuntime(
+  service: EngagementService,
+  runtimePolicy: EngagementRuntimePolicyService,
+): EngagementService {
+  return new Proxy(service, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof property !== 'string' || typeof value !== 'function') return value;
+      const metadata = RUNTIME_ACTION_BY_METHOD[property];
+      if (!metadata) return value.bind(target);
+      return (...args: unknown[]) => {
+        runtimePolicy.assertExternalAction(metadata.action, {
+          testMode: metadata.testMode,
+        });
+        return Reflect.apply(value, target, args);
+      };
+    },
+  });
+}
+
+export function guardedEngagementServiceMethods(): Readonly<
+  Record<string, { action: EngagementExternalAction; testMode?: boolean }>
+> {
+  return RUNTIME_ACTION_BY_METHOD;
 }
