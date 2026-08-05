@@ -22,6 +22,8 @@ const TEST_TARGETS = [
   'src/engagement/engagement-dependency-manifest.spec.ts',
   'src/engagement/engagement-side-effect-registry.spec.ts',
   'src/engagement/runtime',
+  'src/engagement/ai-credential-resolver.service.spec.ts',
+  'src/engagement/governed-engagement.factory.spec.ts',
   'src/engagement/engagement-sync-scheduler.service.spec.ts',
   'src/engagement/outreach-job.service.spec.ts',
   'src/engagement/outreach-send-intent.service.spec.ts',
