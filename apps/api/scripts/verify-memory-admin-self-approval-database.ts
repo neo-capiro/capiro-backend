@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
+import { MemoryAuthorizationService } from '../src/memory/memory-authorization.service.js';
+
+const authorization = new MemoryAuthorizationService({} as PrismaService);
 
 async function main(): Promise<void> {
   const urls = [
@@ -77,26 +81,26 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
       rawAdminDenied = String(error).includes('MEMORY_REVIEW_SELF_DECISION_DENIED');
     }
     if (!rawAdminDenied) {
-      throw new Error(`${label}: raw admin self-approval bypassed the canonical capability.`);
+      throw new Error(`${label}: raw admin self-approval bypassed canonical authorization.`);
     }
 
     let crossCandidateDenied = false;
     try {
       await prisma.$transaction(async (tx) => {
         await setContext(tx, tenantId, adminId);
-        await setAdminCapability(tx, adminCandidateId, adminId);
+        await authorizeAdminDecision(tx, tenantId, adminId, adminCandidateId);
         await updateCandidateApproved(tx, tenantId, adminId, otherAdminCandidateId);
       });
     } catch (error) {
       crossCandidateDenied = String(error).includes('MEMORY_REVIEW_SELF_DECISION_DENIED');
     }
     if (!crossCandidateDenied) {
-      throw new Error(`${label}: one candidate capability authorized a different candidate.`);
+      throw new Error(`${label}: one candidate authorization enabled a different candidate.`);
     }
 
     const approved = await prisma.$transaction(async (tx) => {
       await setContext(tx, tenantId, adminId);
-      await setAdminCapability(tx, adminCandidateId, adminId);
+      await authorizeAdminDecision(tx, tenantId, adminId, adminCandidateId);
       return updateCandidateApproved(tx, tenantId, adminId, adminCandidateId);
     });
     if (approved !== 1) {
@@ -145,6 +149,33 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
     }
   } finally {
     await prisma.$disconnect();
+  }
+}
+
+async function authorizeAdminDecision(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  adminId: string,
+  candidateId: string,
+): Promise<void> {
+  const subject = await authorization.loadCandidateInTx(tx, tenantId, candidateId);
+  if (!subject) throw new Error('Acceptance candidate disappeared before authorization.');
+  if (subject.legacyCandidateStatus !== 'pending') {
+    throw new Error(
+      `Expected legacy pending candidate, got ${String(subject.legacyCandidateStatus)}.`,
+    );
+  }
+  if (subject.status !== 'suggested') {
+    throw new Error(`Expected fresh governed status suggested, got ${subject.status}.`);
+  }
+  const decision = await authorization.evaluateInTx(
+    tx,
+    { tenantId, userId: adminId, role: 'user_admin' },
+    subject,
+    'approve',
+  );
+  if (!decision.allowed) {
+    throw new Error(`Canonical admin authorization unexpectedly denied: ${decision.reason}`);
   }
 }
 

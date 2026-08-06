@@ -23,6 +23,8 @@ export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
   clientId: string | null;
   ownerUserId: string | null;
   clientStatus: string | null;
+  /** Legacy memory_candidate.status. Present only for candidate subjects. */
+  legacyCandidateStatus?: string | null;
 }
 
 export interface MemoryAuthorizationOptions {
@@ -131,12 +133,20 @@ export class MemoryAuthorizationService {
     const effectiveRole = options.impersonating
       ? (options.actorRole ?? ctx.role)
       : ctx.role;
+    // The governed candidate column deliberately defaults to `suggested`, while
+    // the legacy workflow uses status='pending'. Shared Settings submissions can
+    // therefore be a real pending review before governed_status advances. Bind
+    // the DB capability to either representation, but only for candidate rows
+    // (identified by proposedByUserId) and only after canonical authorization.
+    const pendingCandidate =
+      Boolean(subject.proposedByUserId) &&
+      (subject.status === 'pending_review' || subject.legacyCandidateStatus === 'pending');
     if (
       decision.allowed &&
       options.emitDenialMetrics !== false &&
       isMemoryReviewAdminRole(effectiveRole) &&
       (operation === 'approve' || operation === 'review') &&
-      subject.status === 'pending_review'
+      pendingCandidate
     ) {
       await tx.$executeRawUnsafe(
         `SELECT set_config('app.memory_admin_review_candidate_id', $1, true)`,
@@ -188,6 +198,7 @@ export class MemoryAuthorizationService {
              mc.memory_class AS "memoryClass",
              mc.memory_scope AS scope,
              mc.governed_status AS status,
+             mc.status AS "legacyCandidateStatus",
              mc.legal_hold AS "legalHold",
              c.status AS "clientStatus"
       FROM memory_candidate mc
