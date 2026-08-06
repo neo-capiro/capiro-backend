@@ -32,6 +32,58 @@ ALTER TABLE review_request
 ALTER TABLE review_request
   VALIDATE CONSTRAINT review_request_memory_phase2_shape_check;
 
+-- Keep existing open rows and future trigger-created rows aligned with the new
+-- administrator-approval policy. This updates display/audit wording only; it
+-- does not alter assignment, status, candidate content, or active memory.
+UPDATE review_request
+SET reason = 'Memory candidate awaiting administrator review.'
+WHERE surface = 'memory'
+  AND subject_type = 'memory_candidate'
+  AND status = 'pending'
+  AND reason = 'Memory candidate awaiting independent review.';
+
+CREATE OR REPLACE FUNCTION ensure_memory_review_request_for_candidate()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.status = 'pending' AND NEW.scope IN ('firm', 'client') THEN
+    INSERT INTO review_request (
+      tenant_id,
+      risk_tier,
+      surface,
+      subject_type,
+      subject_id,
+      client_id,
+      title,
+      reason,
+      payload_jsonb,
+      status,
+      requested_by,
+      assigned_to,
+      created_at
+    ) VALUES (
+      NEW.tenant_id,
+      'moderate',
+      'memory',
+      'memory_candidate',
+      NEW.id::text,
+      NEW.client_id,
+      memory_review_workflow_title(NEW.payload_jsonb),
+      'Memory candidate awaiting administrator review.',
+      memory_review_workflow_metadata(NEW.source_kind, NEW.scope, false),
+      'pending',
+      NEW.proposed_by,
+      NULL,
+      NEW.created_at
+    )
+    ON CONFLICT DO NOTHING;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION enforce_memory_review_assignment_on_decision()
 RETURNS trigger
 LANGUAGE plpgsql
