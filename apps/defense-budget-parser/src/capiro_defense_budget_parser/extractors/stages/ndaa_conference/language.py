@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass, field
 
 from ....contracts import LayoutBlockV1, ParserPageResultV1
+from ..provisions.contracts import BoundingBoxV1
 from ..provisions.semantics import (
     _caveat,
     _classify_action,
@@ -74,7 +75,8 @@ def extract_ndaa_conference_language(
         usable = [
             block
             for block in blocks
-            if block.blockType in {'heading', 'paragraph', 'text', 'list_item'} and block.text.strip()
+            if block.blockType in {'heading', 'paragraph', 'text', 'list_item'}
+            and block.text.strip()
         ]
         if not usable:
             omitted_pages.add(page.page)
@@ -101,7 +103,8 @@ def extract_ndaa_conference_language(
                 continue
             if draft is None:
                 warnings.append(
-                    f'page {page.page} block {block.blockIndex}: narrative before first heading omitted'
+                    f'page {page.page} block {block.blockIndex}:'
+                    ' narrative before first heading omitted'
                 )
                 continue
             draft.text_parts.append(text)
@@ -139,9 +142,12 @@ def _finalize(draft: _Draft, known_titles: list[str]) -> NdaaConferenceLanguageP
         'startPage': draft.start_page,
         'endPage': draft.end_page,
     }
-    provision_id = 'ndaa-language-' + hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
-    ).hexdigest()
+    provision_id = (
+        'ndaa-language-'
+        + hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        ).hexdigest()
+    )
     return NdaaConferenceLanguageProvisionV1(
         provisionId=provision_id,
         fiscalYear=draft.fiscal_year,
@@ -184,12 +190,12 @@ def _add_evidence(
             granularity='text_span' if box is not None else 'page_only',
             excerpt=block.text.strip(),
             boundingBox=(
-                {
-                    'x0': box.x0,
-                    'y0': box.y0,
-                    'x1': box.x1,
-                    'y1': box.y1,
-                }
+                BoundingBoxV1(
+                    x0=box.x0,
+                    y0=box.y0,
+                    x1=box.x1,
+                    y1=box.y1,
+                )
                 if box is not None
                 else None
             ),

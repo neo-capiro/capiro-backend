@@ -60,18 +60,20 @@ class NdaaConferenceTableV1(BaseModel):
             role = role_map.get(column.columnIndex)
             if role == 'quantity' and not column.isQuantity:
                 raise ValueError('quantity role requires isQuantity=true')
-            if role in {'hasc', 'sasc', 'ndaa_conference', 'request_baseline', 'change'}:
-                if column.moneySemantic is None:
-                    raise ValueError(f'{role} role requires a moneySemantic')
+            if (
+                role in {'hasc', 'sasc', 'ndaa_conference', 'request_baseline', 'change'}
+                and column.moneySemantic is None
+            ):
+                raise ValueError(f'{role} role requires a moneySemantic')
         return self
 
 
 class NdaaConferenceExtractionResultV1(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    schemaVersion: Literal[
+    schemaVersion: Literal['ndaa_conference_extraction_result_v1'] = (
         'ndaa_conference_extraction_result_v1'
-    ] = 'ndaa_conference_extraction_result_v1'
+    )
     stage: Literal['ndaa_conference'] = 'ndaa_conference'
     profileId: str = Field(min_length=1)
     sourceDocumentId: str = Field(min_length=1)
@@ -181,9 +183,9 @@ class NdaaConferenceLanguageProvisionV1(BaseModel):
 class NdaaConferenceLanguageExtractionResultV1(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    schemaVersion: Literal[
+    schemaVersion: Literal['ndaa_conference_language_extraction_result_v1'] = (
         'ndaa_conference_language_extraction_result_v1'
-    ] = 'ndaa_conference_language_extraction_result_v1'
+    )
     stage: Literal['ndaa_conference'] = 'ndaa_conference'
     profileId: str = Field(min_length=1)
     sourceDocumentId: str = Field(min_length=1)

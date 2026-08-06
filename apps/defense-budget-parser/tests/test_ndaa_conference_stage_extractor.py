@@ -172,11 +172,17 @@ def test_missing_physical_page_is_explicitly_omitted() -> None:
         [
             page_with_table(
                 205,
-                [['Program Element', 'Conference Position FY 2027 ($ thousands)'], ['0605053A', '1']],
+                [
+                    ['Program Element', 'Conference Position FY 2027 ($ thousands)'],
+                    ['0605053A', '1'],
+                ],
             ),
             page_with_table(
                 207,
-                [['Program Element', 'Conference Position FY 2027 ($ thousands)'], ['0603270A', '2']],
+                [
+                    ['Program Element', 'Conference Position FY 2027 ($ thousands)'],
+                    ['0603270A', '2'],
+                ],
             ),
         ]
     )
@@ -226,7 +232,10 @@ def test_replay_is_deterministic() -> None:
     pages = [
         page_with_table(
             208,
-            [['Program Element', 'Conference Position FY 2027 ($ thousands)'], ['0605053A', '125000']],
+            [
+                ['Program Element', 'Conference Position FY 2027 ($ thousands)'],
+                ['0605053A', '125000'],
+            ],
         )
     ]
     assert extract(pages).model_dump_json() == extract(pages).model_dump_json()

@@ -9,7 +9,11 @@ call is made here.
 from __future__ import annotations
 
 from ....contracts import ParsedTableV1, ParserPageResultV1
-from ..common.congressional_table import CongressionalCellV1, CongressionalRowV1, CongressionalTableV1
+from ..common.congressional_table import (
+    CongressionalCellV1,
+    CongressionalRowV1,
+    CongressionalTableV1,
+)
 from .contracts import (
     NdaaConferenceColumnRoleV1,
     NdaaConferenceExtractionResultV1,

@@ -48,22 +48,27 @@ _COMPONENTS: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 
-def column_role_and_semantic(header: str) -> tuple[ConferenceColumnRoleV1, MoneySemanticV1 | None, bool]:
+def column_role_and_semantic(
+    header: str,
+) -> tuple[ConferenceColumnRoleV1, MoneySemanticV1 | None, bool]:
     normalized = normalize_text(header)
     if not normalized:
         return 'other', None, False
-    if 'quantity' in normalized or normalized in {'qty', 'qty'}:
+    if 'quantity' in normalized or normalized in {'qty'}:
         return 'quantity', None, True
     if 'house' in normalized and any(
-        token in normalized for token in ('position', 'authorized', 'authorization', 'recommendation')
+        token in normalized
+        for token in ('position', 'authorized', 'authorization', 'recommendation')
     ):
         return 'hasc', 'authorized_total', False
     if 'senate' in normalized and any(
-        token in normalized for token in ('position', 'authorized', 'authorization', 'recommendation')
+        token in normalized
+        for token in ('position', 'authorized', 'authorization', 'recommendation')
     ):
         return 'sasc', 'authorized_total', False
     if any(token in normalized for token in ('conference', 'agreement')) and any(
-        token in normalized for token in ('position', 'authorized', 'authorization', 'agreement', 'total')
+        token in normalized
+        for token in ('position', 'authorized', 'authorization', 'agreement', 'total')
     ):
         return 'ndaa_conference', 'authorized_total', False
     if 'request' in normalized or 'budget estimate' in normalized:
@@ -123,7 +128,11 @@ def row_reference(
         return PeCodeReferenceV1(peCode=pe_match.group(1).upper(), rowTitle=raw_label)
     procurement_match = _PROCUREMENT_RE.search(raw_label)
     if procurement_match is not None or line_family == 'procurement':
-        code = procurement_match.group(1).upper() if procurement_match is not None else first_code(raw_label)
+        code = (
+            procurement_match.group(1).upper()
+            if procurement_match is not None
+            else first_code(raw_label)
+        )
         if code is not None:
             return ProcurementReferenceV1(
                 lineCode=code,
@@ -159,7 +168,11 @@ def line_family(context: str, header: list[str]) -> str:
     normalized = normalize_text(' '.join([context, *header]))
     if 'military construction' in normalized or 'milcon' in normalized:
         return 'milcon'
-    if 'operation and maintenance' in normalized or 'o m' in normalized or ' sag ' in f' {normalized} ':
+    if (
+        'operation and maintenance' in normalized
+        or 'o m' in normalized
+        or ' sag ' in f' {normalized} '
+    ):
         return 'om'
     if 'procurement' in normalized or 'blin' in normalized:
         return 'procurement'
@@ -254,7 +267,9 @@ def first_code(label: str) -> str | None:
     return None
 
 
-def label_column_index(columns: list[CongressionalColumnV1], roles: list[ConferenceColumnRoleV1]) -> int:
+def label_column_index(
+    columns: list[CongressionalColumnV1], roles: list[ConferenceColumnRoleV1]
+) -> int:
     for column, role in zip(columns, roles, strict=True):
         if role == 'label':
             return column.columnIndex
@@ -291,22 +306,34 @@ def chamber_dispositions(text: str) -> list[NdaaConferenceChamberDispositionV1]:
         (re.compile(r'\bthe\s+house\s+recedes\b', re.IGNORECASE), 'house', 'receded'),
         (re.compile(r'\bthe\s+senate\s+recedes\b', re.IGNORECASE), 'senate', 'receded'),
         (
-            re.compile(r'\bconference\s+agreement\s+adopts?\s+the\s+house\s+(?:provision|position)\b', re.IGNORECASE),
+            re.compile(
+                r'\bconference\s+agreement\s+adopts?\s+the\s+house\s+(?:provision|position)\b',
+                re.IGNORECASE,
+            ),
             'house',
             'adopted',
         ),
         (
-            re.compile(r'\bconference\s+agreement\s+adopts?\s+the\s+senate\s+(?:provision|position)\b', re.IGNORECASE),
+            re.compile(
+                r'\bconference\s+agreement\s+adopts?\s+the\s+senate\s+(?:provision|position)\b',
+                re.IGNORECASE,
+            ),
             'senate',
             'adopted',
         ),
         (
-            re.compile(r'\bconference\s+agreement\s+does\s+not\s+adopt\s+the\s+house\s+(?:provision|position)\b', re.IGNORECASE),
+            re.compile(
+                r'\bconference\s+agreement\s+does\s+not\s+adopt\s+the\s+house\s+(?:provision|position)\b',
+                re.IGNORECASE,
+            ),
             'house',
             'not_adopted',
         ),
         (
-            re.compile(r'\bconference\s+agreement\s+does\s+not\s+adopt\s+the\s+senate\s+(?:provision|position)\b', re.IGNORECASE),
+            re.compile(
+                r'\bconference\s+agreement\s+does\s+not\s+adopt\s+the\s+senate\s+(?:provision|position)\b',
+                re.IGNORECASE,
+            ),
             'senate',
             'not_adopted',
         ),
