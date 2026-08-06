@@ -1,17 +1,16 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import {
-  awardHistoryIdentity,
   buildClientOpportunityProfile,
   dedupeStrings,
   emptyAwardHistory,
   normalizeUei,
   profileFingerprint,
 } from './client-opportunity-profile.builder.js';
+import { buildAwardHistoryIdentity } from './award-history-identity.js';
 import {
   CLIENT_PROFILE_SELECT,
   PROFILE_MAPPING_WHERE,
   VISIBLE_CLIENT_FILTER,
-  readAwardHistory,
   readClientProfileFacts,
   readClientProfileFactsMany,
   splitMappings,
@@ -75,6 +74,7 @@ function history(partial: Partial<AwardHistoryFacts> = {}): AwardHistoryFacts {
     assistanceAgencies: ['Department of Health and Human Services'],
     contractAgencies: ['Department of Defense', 'DEPT OF THE NAVY'],
     contractOffices: [],
+    basis: { contract: 'exact_uei', assistance: 'exact_uei' },
     ...partial,
   };
 }
@@ -103,17 +103,16 @@ describe('dedupeStrings', () => {
 describe('splitMappings', () => {
   test('contract and assistance identities cannot cross-contaminate', () => {
     const rows: RawProfileMappingRow[] = [
-      { clientId: CLIENT, source: 'contracting', externalId: 'AAA111111111', externalName: 'A' },
-      {
-        clientId: CLIENT,
-        source: 'assistance_recipient',
-        externalId: 'BBB222222222',
-        externalName: 'B',
-      },
+      { clientId: CLIENT, source: 'contracting', externalId: 'AAA111111111', externalName: 'A', matchBasis: 'exact_legal_name', matchTier: 2 },
+      { clientId: CLIENT, source: 'assistance_recipient', externalId: 'BBB222222222', externalName: 'B', matchBasis: 'exact_legal_name', matchTier: 2 },
     ];
     const split = splitMappings(rows);
-    expect(split.contractingMappings).toEqual([{ externalId: 'AAA111111111', externalName: 'A' }]);
-    expect(split.assistanceMappings).toEqual([{ externalId: 'BBB222222222', externalName: 'B' }]);
+    expect(split.contractingMappings).toEqual([
+      { externalId: 'AAA111111111', externalName: 'A', matchBasis: 'exact_legal_name', matchTier: 2 },
+    ]);
+    expect(split.assistanceMappings).toEqual([
+      { externalId: 'BBB222222222', externalName: 'B', matchBasis: 'exact_legal_name', matchTier: 2 },
+    ]);
   });
 
   test('an unrecognized source lands in NEITHER rail', () => {
@@ -121,57 +120,15 @@ describe('splitMappings', () => {
     // award-bearing identity, and defaulting it into one rail would let an LDA or
     // FEC row contribute federal award history.
     const split = splitMappings([
-      { clientId: CLIENT, source: 'lda_registrant', externalId: 'CCC333333333', externalName: 'C' },
+      { clientId: CLIENT, source: 'lda_registrant', externalId: 'CCC333333333', externalName: 'C', matchBasis: 'exact_legal_name', matchTier: 2 },
     ]);
     expect(split.contractingMappings).toEqual([]);
     expect(split.assistanceMappings).toEqual([]);
   });
 });
 
-// ── The deliberate behavior change ──────────────────────────────────────────
-
-describe('award-history identity', () => {
-  const facts = () =>
-    toClientProfileFacts(rawClient(), [
-      { clientId: CLIENT, source: 'contracting', externalId: 'ZZZ999999999', externalName: 'Sub Co' },
-    ]);
-
-  test("the client's own UEI counts for BOTH rails", () => {
-    // P01's single behavioral change. Before this the SAM producer used mapping
-    // UEIs only; the read path used both. Unified on the read path.
-    const identity = awardHistoryIdentity(facts());
-    expect(identity.contractorUeis).toEqual(['ABC123456789', 'ZZZ999999999']);
-    expect(identity.assistanceUeis).toEqual(['ABC123456789']);
-  });
-
-  test('a client with no UEI and no mappings yields empty identity sets', () => {
-    const identity = awardHistoryIdentity(toClientProfileFacts(rawClient({ uei: null }), []));
-    expect(identity.contractorUeis).toEqual([]);
-    expect(identity.contractorNames).toEqual([]);
-    expect(identity.assistanceUeis).toEqual([]);
-    expect(identity.assistanceNames).toEqual([]);
-  });
-
-  test('names are lowercased for the SQL comparison and never fuzzy', () => {
-    const identity = awardHistoryIdentity(
-      toClientProfileFacts(rawClient(), [
-        { clientId: CLIENT, source: 'contracting', externalId: null, externalName: 'Acme  Defense LLC' },
-      ]),
-    );
-    // Preserved verbatim apart from case: no punctuation stripping, no
-    // whitespace collapsing, no stemming. A near-match is a different company.
-    expect(identity.contractorNames).toEqual(['acme  defense llc']);
-  });
-
-  test('a malformed mapping UEI is dropped, not passed through', () => {
-    const identity = awardHistoryIdentity(
-      toClientProfileFacts(rawClient({ uei: null }), [
-        { clientId: CLIENT, source: 'contracting', externalId: 'nope', externalName: null },
-      ]),
-    );
-    expect(identity.contractorUeis).toEqual([]);
-  });
-});
+// Award-history identity moved to award-history-identity.spec.ts in P02, where
+// the UEI-first rule and the labeled name fallback are covered in full.
 
 // ── The builder ─────────────────────────────────────────────────────────────
 
@@ -392,75 +349,6 @@ describe('repository reads', () => {
   });
 });
 
-describe('readAwardHistory', () => {
-  function fakeQuery(rows: Record<string, unknown[]>) {
-    const seen: string[] = [];
-    const prisma = {
-      $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
-        const sql = Array.from(strings).join('?');
-        seen.push(sql);
-        for (const [needle, value] of Object.entries(rows)) {
-          if (sql.includes(needle)) return value as never;
-        }
-        return [] as never;
-      }),
-    };
-    return { prisma, seen };
-  }
-
-  test('skips a rail entirely when it has no identities', async () => {
-    // Not "queries with an empty array": an unbounded scan of federal_award with
-    // no identity predicate is the failure this guard prevents.
-    const { prisma, seen } = fakeQuery({});
-    await readAwardHistory(prisma, {
-      contractorUeis: [],
-      contractorNames: [],
-      assistanceUeis: [],
-      assistanceNames: [],
-    });
-    expect(seen).toHaveLength(0);
-  });
-
-  test('reads both agency tiers, because SAM agency strings are sub-tier shaped', async () => {
-    const { prisma } = fakeQuery({
-      federal_award: [
-        { awarding_agency: 'Department of Defense', awarding_sub_tier: 'DEPT OF THE NAVY' },
-        { awarding_agency: 'Department of Defense', awarding_sub_tier: 'DEPT OF THE ARMY' },
-      ],
-    });
-    const facts = await readAwardHistory(prisma, {
-      contractorUeis: ['ABC123456789'],
-      contractorNames: [],
-      assistanceUeis: [],
-      assistanceNames: [],
-    });
-    expect(facts.contractAgencies).toEqual([
-      'Department of Defense',
-      'DEPT OF THE NAVY',
-      'DEPT OF THE ARMY',
-    ]);
-  });
-
-  test('THROWS rather than degrading to empty history', async () => {
-    // The read path wraps this in its own try/catch because a degraded page is
-    // better than a failed request. A producer must NOT: scoring every client
-    // against silently-empty history would mark real suggestions stale.
-    const prisma = {
-      $queryRaw: jest.fn(async () => {
-        throw new Error('connection reset');
-      }),
-    };
-    await expect(
-      readAwardHistory(prisma as never, {
-        contractorUeis: ['ABC123456789'],
-        contractorNames: [],
-        assistanceUeis: [],
-        assistanceNames: [],
-      }),
-    ).rejects.toThrow('connection reset');
-  });
-});
-
 // ── Parity: the acceptance criterion ────────────────────────────────────────
 
 /**
@@ -492,15 +380,15 @@ describe('read path and both producers reach the SAME profile', () => {
       setAsideCertifications: [], sectorTag: null, capabilities: [], facilities: [],
     }), []],
     ['a defense contractor', rawClient(), [
-      { clientId: CLIENT, source: 'contracting', externalId: 'ZZZ999999999', externalName: 'Sub Co' },
+      { clientId: CLIENT, source: 'contracting', externalId: 'ZZZ999999999', externalName: 'Sub Co', matchBasis: 'exact_legal_name', matchTier: 2 },
     ]],
     ['a grant recipient', rawClient({ naicsCodes: [], pscCodes: [], sectorTag: 'HEALTH' }), [
-      { clientId: CLIENT, source: 'assistance_recipient', externalId: 'YYY888888888', externalName: 'Health Co' },
+      { clientId: CLIENT, source: 'assistance_recipient', externalId: 'YYY888888888', externalName: 'Health Co', matchBasis: 'exact_legal_name', matchTier: 2 },
     ]],
     ['a multi-entity client', rawClient(), [
-      { clientId: CLIENT, source: 'contracting', externalId: 'AAA111111111', externalName: 'A Co' },
-      { clientId: CLIENT, source: 'contracting', externalId: 'BBB222222222', externalName: 'B Co' },
-      { clientId: CLIENT, source: 'assistance_recipient', externalId: 'CCC333333333', externalName: 'C Co' },
+      { clientId: CLIENT, source: 'contracting', externalId: 'AAA111111111', externalName: 'A Co', matchBasis: 'exact_legal_name', matchTier: 2 },
+      { clientId: CLIENT, source: 'contracting', externalId: 'BBB222222222', externalName: 'B Co', matchBasis: 'exact_legal_name', matchTier: 2 },
+      { clientId: CLIENT, source: 'assistance_recipient', externalId: 'CCC333333333', externalName: 'C Co', matchBasis: 'exact_legal_name', matchTier: 2 },
     ]],
     ['a client with no history at all', rawClient({ uei: null }), []],
   ];
@@ -522,13 +410,13 @@ describe('read path and both producers reach the SAME profile', () => {
     const one = await readClientProfileFacts(tx, { clientId: row.id });
     const { tx: tx2 } = fakeReadClient([row], mappings);
     const [many] = await readClientProfileFactsMany(tx2, { tenantId: TENANT });
-    expect(awardHistoryIdentity(many!)).toEqual(awardHistoryIdentity(one!));
+    expect(buildAwardHistoryIdentity(many!)).toEqual(buildAwardHistoryIdentity(one!));
   });
 
   test('the single-client and batch reads produce identical FACTS, not just profiles', async () => {
     const row = rawClient();
     const mappings: RawProfileMappingRow[] = [
-      { clientId: CLIENT, source: 'contracting', externalId: 'ZZZ999999999', externalName: 'Sub Co' },
+      { clientId: CLIENT, source: 'contracting', externalId: 'ZZZ999999999', externalName: 'Sub Co', matchBasis: 'exact_legal_name', matchTier: 2 },
     ];
     const { tx } = fakeReadClient([row], mappings);
     const one = await readClientProfileFacts(tx, { clientId: CLIENT });

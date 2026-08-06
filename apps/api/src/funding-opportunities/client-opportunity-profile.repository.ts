@@ -33,13 +33,10 @@
  * suggestions stale, and it must crash instead.
  */
 
-import {
-  awardHistoryIdentity,
-  dedupeStrings,
-} from './client-opportunity-profile.builder.js';
+import { dedupeStrings } from './client-opportunity-profile.builder.js';
+import type { AwardHistoryIdentityV2 } from './award-history-identity.js';
 import type {
   AwardHistoryFacts,
-  AwardHistoryIdentity,
   ClientProfileFacts,
   ProfileMapping,
 } from './client-opportunity-profile.types.js';
@@ -132,6 +129,8 @@ export interface RawProfileMappingRow {
   source: string;
   externalId: string | null;
   externalName: string | null;
+  matchBasis: string | null;
+  matchTier: number | null;
 }
 
 /** Minimal Prisma slice, duck-typed so this is unit-testable without a database. */
@@ -175,7 +174,12 @@ export function splitMappings(rows: RawProfileMappingRow[]): {
   const contractingMappings: ProfileMapping[] = [];
   const assistanceMappings: ProfileMapping[] = [];
   for (const row of rows) {
-    const mapping: ProfileMapping = { externalId: row.externalId, externalName: row.externalName };
+    const mapping: ProfileMapping = {
+      externalId: row.externalId,
+      externalName: row.externalName,
+      matchBasis: row.matchBasis ?? null,
+      matchTier: row.matchTier ?? null,
+    };
     if (row.source === 'contracting') contractingMappings.push(mapping);
     else if (row.source === 'assistance_recipient') assistanceMappings.push(mapping);
   }
@@ -230,7 +234,16 @@ export async function readProfileMappingsByClient(
       clientId: { in: input.clientIds },
       ...PROFILE_MAPPING_WHERE,
     },
-    select: { clientId: true, source: true, externalId: true, externalName: true },
+    select: {
+      clientId: true,
+      source: true,
+      externalId: true,
+      externalName: true,
+      // P02: the recorded match basis gates the name fallback. Without these two
+      // columns a fuzzy-matched mapping is indistinguishable from a verified one.
+      matchBasis: true,
+      matchTier: true,
+    },
   });
   for (const row of rows) {
     const list = byClient.get(row.clientId) ?? [];
@@ -289,42 +302,103 @@ export async function readClientProfileFactsMany(
 }
 
 /**
- * Award history for one client's identities. THROWS on failure — see the file
- * docblock for why the two caller groups want different behavior.
+ * Resolve `federal_contractor.id` -> `federal_contractor.uei` for a batch.
+ *
+ * This is the join P02 adds. A `contracting` mapping's `externalId` is a
+ * `federal_contractor` UUID, so before P02 the contract rail had no verified
+ * identifier available and fell through to matching on names — the exact UEI was
+ * one join away and never read.
+ *
+ * `federal_contractor` is a GLOBAL reference table (no `tenant_id`, no RLS), so
+ * this is safe to run outside the tenant transaction, and it must be: it is
+ * batched across a whole client page rather than issued per client.
  */
-export async function readAwardHistory(
+export async function resolveContractorUeis(
   prisma: AwardHistoryReadClient,
-  identity: AwardHistoryIdentity,
+  contractorIds: string[],
+): Promise<Map<string, string | null>> {
+  const index = new Map<string, string | null>();
+  if (contractorIds.length === 0) return index;
+  // tenant-scope-exempt: federal_contractor is public federal reference data with
+  // no tenant_id, same as federal_award and federal_assistance_award.
+  const rows = await prisma.$queryRaw<{ id: string; uei: string | null }>`
+    SELECT id::text AS id, uei
+    FROM federal_contractor
+    WHERE id = ANY(${contractorIds}::uuid[])
+  `;
+  for (const row of rows) index.set(row.id, row.uei);
+  return index;
+}
+
+/**
+ * Award history for one client, read under ONE basis per rail.
+ *
+ * The pre-P02 query OR'd an exact-UEI list with a reviewed-name list in a single
+ * predicate, which made a name as authoritative as a verified identifier and left
+ * no way to tell which rows arrived by which route. Each rail now issues exactly
+ * one query, keyed on whichever basis `buildAwardHistoryIdentity` selected — or no
+ * query at all when the basis is `none`.
+ *
+ * THROWS. See the file docblock for why the read path and the producers want
+ * different failure behavior.
+ */
+export async function readAwardHistoryByBasis(
+  prisma: AwardHistoryReadClient,
+  identity: AwardHistoryIdentityV2,
 ): Promise<AwardHistoryFacts> {
-  const assistancePromise =
-    identity.assistanceUeis.length || identity.assistanceNames.length
-      ? prisma.$queryRaw<{
-          assistance_listing_number: string | null;
-          awarding_agency: string | null;
-        }>`
-          SELECT DISTINCT assistance_listing_number, awarding_agency
-          FROM federal_assistance_award
-          WHERE recipient_uei = ANY(${identity.assistanceUeis}::text[])
-             OR lower(recipient_name) = ANY(${identity.assistanceNames}::text[])
-          LIMIT ${HISTORY_ROW_CAP}
-        `
-      : Promise.resolve([]);
+  const assistanceRows = async () => {
+    if (identity.assistance.basis === 'exact_uei') {
+      return prisma.$queryRaw<{
+        assistance_listing_number: string | null;
+        awarding_agency: string | null;
+      }>`
+        SELECT DISTINCT assistance_listing_number, awarding_agency
+        FROM federal_assistance_award
+        WHERE recipient_uei = ANY(${identity.assistance.ueis}::text[])
+        LIMIT ${HISTORY_ROW_CAP}
+      `;
+    }
+    if (identity.assistance.basis === 'reviewed_name_fallback') {
+      return prisma.$queryRaw<{
+        assistance_listing_number: string | null;
+        awarding_agency: string | null;
+      }>`
+        SELECT DISTINCT assistance_listing_number, awarding_agency
+        FROM federal_assistance_award
+        WHERE lower(recipient_name) = ANY(${identity.assistance.fallbackNames}::text[])
+        LIMIT ${HISTORY_ROW_CAP}
+      `;
+    }
+    return [];
+  };
 
-  const contractPromise =
-    identity.contractorUeis.length || identity.contractorNames.length
-      ? prisma.$queryRaw<{
-          awarding_agency: string | null;
-          awarding_sub_tier: string | null;
-        }>`
-          SELECT DISTINCT awarding_agency, awarding_sub_tier
-          FROM federal_award
-          WHERE recipient_uei = ANY(${identity.contractorUeis}::text[])
-             OR lower(contractor_name) = ANY(${identity.contractorNames}::text[])
-          LIMIT ${HISTORY_ROW_CAP}
-        `
-      : Promise.resolve([]);
+  const contractRows = async () => {
+    if (identity.contract.basis === 'exact_uei') {
+      return prisma.$queryRaw<{
+        awarding_agency: string | null;
+        awarding_sub_tier: string | null;
+      }>`
+        SELECT DISTINCT awarding_agency, awarding_sub_tier
+        FROM federal_award
+        WHERE recipient_uei = ANY(${identity.contract.ueis}::text[])
+        LIMIT ${HISTORY_ROW_CAP}
+      `;
+    }
+    if (identity.contract.basis === 'reviewed_name_fallback') {
+      return prisma.$queryRaw<{
+        awarding_agency: string | null;
+        awarding_sub_tier: string | null;
+      }>`
+        SELECT DISTINCT awarding_agency, awarding_sub_tier
+        FROM federal_award
+        WHERE lower(contractor_name) = ANY(${identity.contract.fallbackNames}::text[])
+        LIMIT ${HISTORY_ROW_CAP}
+      `;
+    }
+    return [];
+  };
 
-  const [assistance, contracts] = await Promise.all([assistancePromise, contractPromise]);
+  const [assistance, contracts] = await Promise.all([assistanceRows(), contractRows()]);
 
   return {
     assistanceListings: dedupeStrings(assistance.map((r) => r.assistance_listing_number)),
@@ -337,13 +411,9 @@ export async function readAwardHistory(
       ...contracts.map((r) => r.awarding_sub_tier),
     ]),
     contractOffices: [],
+    basis: {
+      contract: identity.contract.basis,
+      assistance: identity.assistance.basis,
+    },
   };
-}
-
-/** Facts + history + build, for a caller that wants the whole profile in one call. */
-export async function loadClientOpportunityProfileHistory(
-  prisma: AwardHistoryReadClient,
-  facts: ClientProfileFacts,
-): Promise<AwardHistoryFacts> {
-  return readAwardHistory(prisma, awardHistoryIdentity(facts));
 }

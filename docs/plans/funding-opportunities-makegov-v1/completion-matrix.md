@@ -34,7 +34,7 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 |---|---|---|---|---|---|---|---|---|---|
 | P00 | Freeze the baseline and release gate | in progress | *pending commit* | api 20/584, web 26/79, 0 skipped. Floor raised 19/500 → **20/575** | *pending* | n/a | n/a — no production code changed | Three mutations verified to fail a boundary test: `totalAmount` (required → compile error; optional → 2 assertion failures), null money → `0` (2 failures), internal-tenant flag fallback (1 failure). Zero skipped/todo in scope. | Revert the docs/tests/fixture commit and restore the 19/500 floor. No data rollback. |
 | P01 | One shared client-opportunity profile builder | in progress | *pending commit* | api 21/641, web 26/79, 0 skipped. Floor raised 20/575 → **21/630** | *pending* | n/a | n/a — schedules still disabled, dry-run still default | Byte-equivalent profile JSON + fingerprint proven across the read path and the batch producer read for 5 client shapes (thin, defense, grant, multi-entity, no-history). **One deliberate behavior change** — see below. | Revert the three new modules and restore the inline builders. No data rollback: nothing is persisted by this phase. |
-| P02 | UEI-first award-history identity and labeled name fallback | not started | | | | n/a | | Every score change enumerated in the PR; no unexplained golden update | Revert code; persisted human decisions untouched |
+| P02 | UEI-first award-history identity and labeled name fallback | in progress | *pending commit* | api 22/672, web 26/79, 0 skipped. Floor raised 21/630 → **22/660** | *pending* | n/a | n/a — schedules still disabled | Score changes enumerated below. **Zero existing golden/fixture assertions changed**, because no pre-P02 fixture held a UEI and a name-bearing mapping at once — which is itself the reason the defect survived. | Revert code. No persisted human decision is touched; derived scores return to prior behavior on the next run. |
 | P03 | Complete grant producer keyset walk | not started | | | | n/a | | 4,001-grant / 501-client fixtures reach the last row; resume without skip or duplicate | Revert producer; persisted suggestions intact |
 | P04 | Complete SAM producer keyset walk | not started | | | | n/a | | Same boundary fixtures; informational notices never enter the scored set | Revert producer; no data deletion |
 | P05 | Mapping governance hardening | not started | | | | conditional | | Body `id` rejected; bulk actions cannot touch an award-bearing mapping | Revert code; new audit columns are additive |
@@ -86,6 +86,50 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 | P51 | General availability and closeout | not started | | | | n/a | | | |
 
 ---
+
+## P02 — enumerated score changes
+
+Required by P02's own acceptance rule: *"score changes are explicitly enumerated;
+no unexplained golden update is accepted."* No test fixture changed, so this list is
+the enumeration.
+
+Before P02 one SQL predicate OR'd exact UEIs with reviewed names. Each rail now
+reads under exactly one basis. Four categories of client are affected:
+
+| # | Client shape | Change | Direction |
+|---|---|---|---|
+| 1 | Has own UEI **and** contracting/assistance mappings whose names matched other entities | Name-matched rows are no longer read | history **shrinks** |
+| 2 | Has contracting mappings whose `federal_contractor.uei` is populated | The verified UEI is now read — it never was, because `externalId` is a `federal_contractor` UUID and was fed to a UEI check that always failed | history **grows** |
+| 3 | Only contracting mapping has `matchBasis` of `fuzzy_name` or `legacy_unrecorded` (or null), **and** no resolvable `federal_contractor.uei` | Contributes nothing | history **empties** |
+| 4 | Contract rail UEI-identified, assistance rail name-identified (or vice versa) | Each rail is labeled independently instead of sharing one unlabeled channel | provenance only |
+
+**Category 3 is the one to watch before enabling any schedule.** `matchBasis` is
+nullable and, per its own schema comment, *every* row predating the column is
+unrecorded — so a large share of existing confirmed `contracting` mappings may have
+a null basis. Those lose their name fallback. The mitigating fact is that the same
+rows carry a `federal_contractor` id, so any of them whose contractor row has a UEI
+moves to category 2 and gets *better* evidence instead. The split between 2 and 3
+cannot be predicted from the code; it needs a dry-run comparison on real data,
+which the runbook already requires before a schedule is enabled.
+
+Nothing scores *differently on the basis itself* yet — `identityBasis` is carried on
+the profile and rendered in P09. Changing signal strength is a scoring change and
+was deliberately kept out of an identity phase.
+
+## Out-of-scope observations
+
+Recorded, not acted on. The same OR'd UEI/name award-history predicate P02 removed
+from Funding Opportunities still exists in:
+
+- `apps/api/scripts/generate-grant-opportunity-candidates.ts` (District Nexus
+  compatibility producer — explicitly a separate rail)
+- `apps/api/src/district-nexus/district-nexus.service.ts`
+- `apps/api/src/district-nexus/district-nexus-relationships.service.ts`
+- `apps/api/src/intelligence/intelligence.service.ts`
+
+Each has the same weakness: a reviewed name acts as an equal-strength identifier.
+Out of this program's scope, but they will disagree with Funding Opportunities about
+a client's award history until they are changed.
 
 ## Deviations from the plan
 

@@ -13,14 +13,18 @@ import {
   type SamOpportunityProfile,
 } from './sam-opportunity-relevance.js';
 import {
-  awardHistoryIdentity,
   buildClientOpportunityProfile,
   emptyAwardHistory,
 } from './client-opportunity-profile.builder.js';
 import {
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from './award-history-identity.js';
+import {
   asProfileReadClient,
-  readAwardHistory,
+  readAwardHistoryByBasis,
   readClientProfileFacts,
+  resolveContractorUeis,
 } from './client-opportunity-profile.repository.js';
 import type { ClientOpportunityProfileV1 } from './client-opportunity-profile.types.js';
 import { grantsGovKind, samNoticeKind } from './opportunity-kind.js';
@@ -669,7 +673,17 @@ export class FundingOpportunitiesService {
     // why `readAwardHistory` throws and this try/catch lives here.
     let history;
     try {
-      history = await readAwardHistory(this.prisma, awardHistoryIdentity(facts));
+      // The contracting rail's externalId is a federal_contractor UUID, so the
+      // verified UEI has to be resolved before identity can be decided. Global
+      // reference table, so it reads outside the tenant transaction.
+      const contractorUeis = await resolveContractorUeis(
+        this.prisma,
+        contractorIdsToResolve([facts]),
+      );
+      history = await readAwardHistoryByBasis(
+        this.prisma,
+        buildAwardHistoryIdentity(facts, contractorUeis),
+      );
     } catch (error) {
       this.logger.warn(
         `award-history read failed; source-specific history signals will not fire: ${

@@ -12,10 +12,10 @@ import { shapeClientRelevanceProfile } from '../district-nexus/grant-opportunity
 import type { ClientRelevanceProfile } from '../district-nexus/grant-opportunity-relevance.js';
 import type { SamClientProfile } from './sam-opportunity-relevance.js';
 import type { ProfileCompleteness } from './missing-profile-fields.js';
+import type { AwardMatchBasis } from './award-history-identity.js';
 import {
   CLIENT_OPPORTUNITY_PROFILE_VERSION,
   type AwardHistoryFacts,
-  type AwardHistoryIdentity,
   type ClientOpportunityProfileV1,
   type ClientProfileFacts,
 } from './client-opportunity-profile.types.js';
@@ -40,54 +40,13 @@ export function normalizeUei(value: string | null | undefined): string | null {
   return UEI_RE.test(normalized) ? normalized : null;
 }
 
-/**
- * The client's federal identities, as two separate sets.
- *
- * THE CLIENT'S OWN UEI COUNTS FOR BOTH RAILS.
- * -------------------------------------------
- * This is the single behavioral change P01 makes, and it is the whole reason the
- * phase exists. Before P01 the SAM producer built contract identities from
- * confirmed `contracting` mapping UEIs only and never looked at `Client.uei`,
- * while the read path used both. A client holding its own UEI with no confirmed
- * contracting mapping saw prior-agency history on screen that the nightly
- * producer could not reproduce, so the producer would decline to suggest a notice
- * the page would have scored highly.
- *
- * Unified on the read path's behavior deliberately: the read path is what a user
- * sees, so a producer that cannot reproduce it is the side that is wrong. The
- * consequence is that the SAM producer now finds MORE prior-agency history, and
- * more notices clear the suggestion floor.
- *
- * A name is still OR'd with a UEI inside one SQL predicate here. That is
- * preserved from the current behavior on purpose — correcting it is P02's job,
- * and doing it here would smuggle a second score change into a refactor.
- */
-export function awardHistoryIdentity(facts: ClientProfileFacts): AwardHistoryIdentity {
-  const ownUei = normalizeUei(facts.uei);
-  return {
-    contractorUeis: dedupeStrings([
-      ownUei,
-      ...facts.contractingMappings.map((m) => normalizeUei(m.externalId)),
-    ]),
-    contractorNames: dedupeStrings(facts.contractingMappings.map((m) => m.externalName)).map((n) =>
-      n.toLowerCase(),
-    ),
-    assistanceUeis: dedupeStrings([
-      ownUei,
-      ...facts.assistanceMappings.map((m) => normalizeUei(m.externalId)),
-    ]),
-    assistanceNames: dedupeStrings(facts.assistanceMappings.map((m) => m.externalName)).map((n) =>
-      n.toLowerCase(),
-    ),
-  };
-}
-
 export function emptyAwardHistory(): AwardHistoryFacts {
   return {
     assistanceListings: [],
     assistanceAgencies: [],
     contractAgencies: [],
     contractOffices: [],
+    basis: { contract: 'none', assistance: 'none' },
   };
 }
 
@@ -182,6 +141,7 @@ function canonicalize(value: unknown): unknown {
 export function profileFingerprint(input: {
   grant: ClientRelevanceProfile;
   sam: SamClientProfile;
+  identityBasis?: { contract: AwardMatchBasis; assistance: AwardMatchBasis };
 }): string {
   const canonical = JSON.stringify(canonicalize({ v: CLIENT_OPPORTUNITY_PROFILE_VERSION, ...input }));
   return createHash('sha256').update(canonical).digest('hex').slice(0, 40);
@@ -197,12 +157,17 @@ export function buildClientOpportunityProfile(
 ): ClientOpportunityProfileV1 {
   const grant = buildGrantProfile(facts, history);
   const sam = buildSamProfile(facts, history);
+  const identityBasis = history.basis ?? { contract: 'none', assistance: 'none' };
   return {
     version: CLIENT_OPPORTUNITY_PROFILE_VERSION,
     clientId: facts.clientId,
     grant,
     sam,
     completeness: buildCompleteness(facts, history, sam.programElementCodes.length),
-    fingerprint: profileFingerprint({ grant, sam }),
+    identityBasis,
+    // The basis is part of the fingerprint: the same agency list reached via a
+    // reviewed name is not the same evidence as one reached via a verified UEI,
+    // and a profile whose basis changed has materially changed.
+    fingerprint: profileFingerprint({ grant, sam, identityBasis }),
   };
 }

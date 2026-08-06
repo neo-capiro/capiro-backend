@@ -56,14 +56,16 @@ import {
   type SamClientProfile,
   type SamOpportunityProfile,
 } from '../src/funding-opportunities/sam-opportunity-relevance.js';
+import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
 import {
-  awardHistoryIdentity,
-  buildClientOpportunityProfile,
-} from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from '../src/funding-opportunities/award-history-identity.js';
 import {
   asProfileReadClient,
-  readAwardHistory,
+  readAwardHistoryByBasis,
   readClientProfileFactsMany,
+  resolveContractorUeis,
 } from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 import { samNoticeKind } from '../src/funding-opportunities/opportunity-kind.js';
 import { NON_PURSUABLE_KINDS } from '../src/funding-opportunities/funding-opportunities.types.js';
@@ -398,11 +400,23 @@ export async function generateSamCandidates(
       if (r.samOpportunityId) existingByKey.set(`${r.clientId}:${r.samOpportunityId}`, r);
     }
 
+    // Resolve federal_contractor.uei for the WHOLE page in one query, not per
+    // client. This is the join P02 adds: a contracting mapping's externalId is a
+    // federal_contractor UUID, so without it the contract rail has no verified
+    // identifier and falls back to matching on names.
+    const contractorUeis = await resolveContractorUeis(
+      prisma,
+      contractorIdsToResolve(clients),
+    );
+
     for (const client of clients) {
       // One award-history read per client, never one per notice. Throws rather
       // than degrading to empty history: a run that scored every client against
       // no award history would mark real suggestions stale.
-      const history = await readAwardHistory(prisma, awardHistoryIdentity(client));
+      const history = await readAwardHistoryByBasis(
+        prisma,
+        buildAwardHistoryIdentity(client, contractorUeis),
+      );
       const profile = buildClientOpportunityProfile(client, history).sam;
 
       for (const notice of noticeProfiles) {

@@ -32,6 +32,7 @@
  * unprovable.
  */
 
+import type { AwardMatchBasis } from './award-history-identity.js';
 import type { ClientRelevanceProfile } from '../district-nexus/grant-opportunity-relevance.js';
 import type { SamClientProfile } from './sam-opportunity-relevance.js';
 import type { ProfileCompleteness } from './missing-profile-fields.js';
@@ -48,8 +49,25 @@ export type ClientOpportunityProfileVersion = typeof CLIENT_OPPORTUNITY_PROFILE_
  * same as the money being the client's.
  */
 export interface ProfileMapping {
+  /**
+   * MEANING DIFFERS BY RAIL, which is why P02 exists:
+   *   - `contracting`: a `federal_contractor.id` UUID. NOT a UEI. The verified
+   *     UEI lives in `federal_contractor.uei` and must be resolved.
+   *   - `assistance_recipient`: `COALESCE(recipient_uei, recipient_name)`, so it
+   *     is sometimes a UEI and sometimes a name.
+   */
   externalId: string | null;
   externalName: string | null;
+  /**
+   * How the candidate was originally matched, in the contractor matcher's own
+   * vocabulary: `exact_uei` | `exact_cage` | `exact_legal_name_corroborated` |
+   * `exact_legal_name` | `fuzzy_name` | `manual_pin` | `legacy_unrecorded`.
+   * Null on rows that predate the column. Gates the name fallback — see
+   * `award-history-identity.ts`.
+   */
+  matchBasis: string | null;
+  /** Identity tier 1-4 (1 = exact verified identifier, 4 = fuzzy name). */
+  matchTier: number | null;
 }
 
 export interface ProfileCapability {
@@ -90,29 +108,13 @@ export interface ClientProfileFacts {
 }
 
 /**
- * The identity sets used to query the global award tables.
+ * What the global award tables returned for one client's identities, and under
+ * which basis each rail was read.
  *
- * Contract and assistance identities are kept SEPARATE. They come from different
- * mapping sources and are compared against different tables, and merging them
- * would let a contracting relationship contribute assistance history.
- *
- * P02 replaces the flat name arrays here with a labeled match basis. Until then
- * a name and a UEI are both in play for the same query, which is exactly the
- * weakness P02 exists to fix — see the note on `contractorNames`.
+ * Contract and assistance history are kept SEPARATE. They come from different
+ * mapping sources and different tables, and merging them would let a contracting
+ * relationship contribute assistance history.
  */
-export interface AwardHistoryIdentity {
-  contractorUeis: string[];
-  /**
-   * Lowercased reviewed names. Currently OR'd with the UEI list in one SQL
-   * predicate, so a same-name entity can contribute history even when an exact
-   * UEI is present. P02 splits this into a labeled fallback.
-   */
-  contractorNames: string[];
-  assistanceUeis: string[];
-  assistanceNames: string[];
-}
-
-/** What the global award tables returned for one client's identities. */
 export interface AwardHistoryFacts {
   assistanceListings: string[];
   assistanceAgencies: string[];
@@ -125,6 +127,15 @@ export interface AwardHistoryFacts {
    * real office column exists.
    */
   contractOffices: string[];
+  /**
+   * How each rail's history was obtained. Absent on a hand-built empty history.
+   *
+   * This is the field that makes name-derived history distinguishable from
+   * identifier-derived history downstream. Without it, `priorAgencies` is a bare
+   * string list and nothing can tell a reader whether it came from a verified UEI
+   * or from a reviewed name that another company also happens to have.
+   */
+  basis?: { contract: AwardMatchBasis; assistance: AwardMatchBasis };
 }
 
 /**
@@ -141,6 +152,16 @@ export interface ClientOpportunityProfileV1 {
   sam: SamClientProfile;
   /** Drives `missingProfileFields`. Not a score input. */
   completeness: ProfileCompleteness;
+  /**
+   * How this client's award history was identified, per rail.
+   *
+   * Carried on the profile so a consumer can say "prior award history with DEPT
+   * OF THE NAVY, matched on your UEI" rather than presenting name-derived history
+   * with identifier strength. P09 renders it; nothing scores differently on it
+   * yet, and that is deliberate — changing signal strength is a scoring change
+   * and does not belong in the same phase as the identity correction.
+   */
+  identityBasis: { contract: AwardMatchBasis; assistance: AwardMatchBasis };
   /**
    * Stable hash over SOURCE-BACKED profile content only — never a local clock,
    * never `completeness` (which is a derived count of the same facts). Two

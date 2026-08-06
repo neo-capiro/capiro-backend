@@ -15,14 +15,16 @@ import {
   scoreOpportunityRelevance,
   MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
 } from '../src/district-nexus/grant-opportunity-relevance.js';
+import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
 import {
-  awardHistoryIdentity,
-  buildClientOpportunityProfile,
-} from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from '../src/funding-opportunities/award-history-identity.js';
 import {
   asProfileReadClient,
-  readAwardHistory,
+  readAwardHistoryByBasis,
   readClientProfileFactsMany,
+  resolveContractorUeis,
 } from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 
 dotenvConfig();
@@ -172,6 +174,15 @@ export async function generateFundingGrantCandidates(
         .map((row) => [`${row.clientId}:${row.grantOpportunityId}`, row]),
     );
 
+    // Resolve federal_contractor.uei for the WHOLE page in one query, not per
+    // client. This is the join P02 adds: a contracting mapping's externalId is a
+    // federal_contractor UUID, so without it the contract rail has no verified
+    // identifier and falls back to matching on names.
+    const contractorUeis = await resolveContractorUeis(
+      prisma,
+      contractorIdsToResolve(scoped.clients),
+    );
+
     for (const client of scoped.clients) {
       // One award-history read per client, never one per grant. This does BOTH
       // rails now — the grant profile only reads the assistance half, but the
@@ -182,7 +193,10 @@ export async function generateFundingGrantCandidates(
       // Not wrapped in a try/catch, deliberately: a nightly job that scored every
       // client against silently-empty award history would mark real suggestions
       // stale. The read path degrades; this must crash.
-      const history = await readAwardHistory(prisma, awardHistoryIdentity(client));
+      const history = await readAwardHistoryByBasis(
+        prisma,
+        buildAwardHistoryIdentity(client, contractorUeis),
+      );
       const profile = buildClientOpportunityProfile(client, history).grant;
 
       for (const grant of grants) {
