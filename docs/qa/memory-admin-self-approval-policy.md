@@ -13,7 +13,7 @@ Administrator roles:
 - `user_admin`
 - `capiro_admin`
 
-Assignment remains useful for routing and notifications, but it is not an
+Assignment remains useful for routing and in-app notifications, but it is not an
 administrator authorization prerequisite.
 
 ## Controls retained
@@ -26,7 +26,7 @@ This policy change does not bypass:
 - client-memory access grants;
 - archived/inactive client denial;
 - legal hold restrictions;
-- body-free broad inbox and notification payloads;
+- body-free broad inbox and in-app notification payloads;
 - immutable revision lineage;
 - generic `/api/reviews` containment;
 - bounded audit reasons and decision stamps.
@@ -79,6 +79,8 @@ app.memory_admin_review_actor_id=<administrator UUID>
   review, including the administrator's own submission.
 - Admin inbox capability checks are batched per page inside one tenant-bound
   transaction; standard-user inbox behavior remains unchanged.
+- Memory Review notifications are in-app only. There is no email transport,
+  email feature flag, or SES delivery path.
 
 ## Local acceptance
 
@@ -119,4 +121,5 @@ Keep rollout limited to the tenant UUIDs for:
 - `capiro-internal`
 - `dualsiight`
 
-Keep `MEMORY_REVIEW_EMAIL_DELIVERY` unset until in-app canary acceptance passes.
+Run the notification dispatcher for in-app delivery only. No email configuration
+or email rollout step exists for Memory Review.
