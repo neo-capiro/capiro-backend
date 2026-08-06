@@ -55,9 +55,21 @@ Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
 
 Evidence: `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`.
 
+### Increment 3C — persistence closeout runner portability
+
+- removed direct `pnpm.cmd` spawning from the Windows closeout path;
+- prefers Node + Corepack and uses a deliberate Windows shell fallback only when required;
+- added a bounded 64 MB process-output buffer;
+- redacts database URLs and other secret-bearing environment values from diagnostics;
+- distinguishes startup errors, exit failures, and terminating signals;
+- added helper regression tests and an integration contract pinning the portable runner;
+- preserved every existing Prisma, migration, concurrency, tenant-context, compatibility-route, and active-memory assertion.
+
+Evidence: `docs/qa/memory-phase2-increment-3c-closeout-runner-portability.md`.
+
 ## Validation completed in the available environment
 
-- strict isolated TypeScript for the persistence contract and focused specifications;
+- strict isolated TypeScript for the persistence contract, closeout runner, portable command helper, and focused specifications;
 - target transformer and runtime contract;
 - schema and migration-transformer idempotence;
 - partial-application and drift refusal;
@@ -68,13 +80,14 @@ Evidence: `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`.
 - predecessor lock, proposer validation, successor conflict, and terminal-state ordering controls;
 - database uniqueness-boundary and API conflict-translation checks;
 - disposable-database harness safety review;
-- post-publication migration diff review.
+- Windows/Corepack resolution, bounded-output, credential-redaction, and startup-error probes;
+- post-publication diff review.
 
 ## Persistence gate still open
 
-The current environment has no complete repository checkout with `pnpm`, Docker, PostgreSQL, and `psql`. The checked-in Prisma schema could not be rewritten safely through the connector, and GitHub Actions previously returned `startup_failure` for a temporary guarded patch workflow. That workflow was removed and made no product or data change.
+The current environment has no complete repository checkout with `pnpm`, Docker, PostgreSQL, and `psql`. The checked-in Prisma schema has therefore not been rewritten and validated through the full repository toolchain, and the executable PostgreSQL closeout has not run.
 
-The executable persistence marker has therefore **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema, and passes:
+The executable persistence marker has **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema, and passes:
 
 ```text
 MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
@@ -102,5 +115,7 @@ In a complete checkout:
 5. run `scripts/verify-memory-phase2-persistence-closeout.ts`;
 6. repair every failure and require the exact completion marker;
 7. review and commit the resulting schema/migration diff.
+
+On Windows, the closeout now resolves Node-adjacent Corepack automatically. `CAPIRO_COREPACK_PNPM_JS` may be set to an absolute `pnpm.js` path when an unusual Node installation cannot be discovered automatically.
 
 Do not begin notifications or frontend work until this gate is green.
