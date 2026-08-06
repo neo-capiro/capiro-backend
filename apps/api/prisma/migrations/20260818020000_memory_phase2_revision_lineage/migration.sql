@@ -30,6 +30,7 @@ BEGIN
     ADD CONSTRAINT memory_candidate_revision_root_fk
     FOREIGN KEY (tenant_id, revision_root_id)
     REFERENCES memory_candidate(tenant_id, id)
+    ON UPDATE NO ACTION
     ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
@@ -42,6 +43,7 @@ BEGIN
     ADD CONSTRAINT memory_candidate_predecessor_fk
     FOREIGN KEY (tenant_id, predecessor_candidate_id)
     REFERENCES memory_candidate(tenant_id, id)
+    ON UPDATE NO ACTION
     ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
@@ -54,6 +56,7 @@ BEGIN
     ADD CONSTRAINT memory_candidate_superseded_by_fk
     FOREIGN KEY (tenant_id, superseded_by_id)
     REFERENCES memory_candidate(tenant_id, id)
+    ON UPDATE NO ACTION
     ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
