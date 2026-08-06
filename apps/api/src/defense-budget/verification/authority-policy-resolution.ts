@@ -1,12 +1,13 @@
 /**
  * R8.3 — Authority-aware verification policy selection.
  *
- * Phase 6 addition: HASC request values are non-owning comparison facts. The
- * resolved HASC policy therefore requires only `hascMark`, while exact request
- * comparison is enforced by `committee_request_reference` over typed baseline
- * document facts. This prevents a later authority from claiming `request`.
+ * Phase 6 addition: HASC and SASC request values are non-owning comparison
+ * facts. Their resolved policies require only the chamber-owned mark, while
+ * exact request comparison is enforced over typed baseline document facts.
+ * This prevents either congressional authority from claiming `request`.
  */
 import type { BudgetCycleManifestDocumentV1 } from '../contracts/budget-cycle-manifest-v1.js';
+import type { FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
 import type { VerificationPolicyV1 } from './verification-policy-v1.js';
 import { getAllPolicies } from './verification-policy-registry.js';
 
@@ -20,6 +21,13 @@ const AUTHORITY_POLICY_KEYS: Readonly<Record<string, string>> = {
   public_law: 'PUBLIC_LAW',
 };
 
+const PHASE6_COMMITTEE_MARK_FIELDS: Readonly<
+  Partial<Record<string, Extract<FundingFieldV1, 'hascMark' | 'sascMark'>>>
+> = {
+  hasc: 'hascMark',
+  sasc: 'sascMark',
+};
+
 export class AmbiguousVerificationPolicyError extends Error {
   constructor(message: string) {
     super(message);
@@ -31,11 +39,12 @@ function phase6AuthorityOverrides(
   authority: string,
   policy: VerificationPolicyV1,
 ): VerificationPolicyV1 {
-  if (authority !== 'hasc') return policy;
+  const ownedField = PHASE6_COMMITTEE_MARK_FIELDS[authority];
+  if (ownedField == null) return policy;
   return {
     ...policy,
     requiredDataCategories: ['funding'],
-    requiredFundingFields: ['hascMark'],
+    requiredFundingFields: [ownedField],
     requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
     requiredComparisonRules: ['committee_request_reference'],
     arithmeticRules: ['committee_adjustment'],
@@ -70,7 +79,8 @@ export function lookupPolicyForManifestDocument(
   }
 
   const matches = entries.filter(
-    (entry) => entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
+    (entry) =>
+      entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
   );
 
   if (matches.length === 0) return null;
