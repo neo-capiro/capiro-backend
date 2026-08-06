@@ -101,14 +101,9 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
     const marks = input.artifact.assertions.filter(
       (assertion): assertion is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
         assertion.assertionKind === 'funding' &&
-        [
-          'hascMark',
-          'sascMark',
-          'hacDMark',
-          'sacDMark',
-          'ndaaConference',
-          'conference',
-        ].includes(assertion.field),
+        ['hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'ndaaConference', 'conference'].includes(
+          assertion.field,
+        ),
     );
     const baselines = committeeRequestComparablesV1(input.artifact);
     const actions = committeeStageActionsV1(input.artifact.assertions);
@@ -196,7 +191,11 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
             'committee_adjustment_mismatch',
             'blocking',
             `request(${baseline.money.valueMillions}) + actions(${netActions}) = ${computed}M, mark=${mark.money.valueMillions}M, diff=${absDifference(mark.money.valueMillions, computed)}M`,
-            [mark.assertionId, baseline.assertionId, ...matchingActions.map((action) => action.actionId)],
+            [
+              mark.assertionId,
+              baseline.assertionId,
+              ...matchingActions.map((action) => action.actionId),
+            ],
             [],
             [],
           ),

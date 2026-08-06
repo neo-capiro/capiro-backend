@@ -198,7 +198,10 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
       }
       matched.push(candidate.assertionId);
       const tolerance = printedUnitToleranceMillions(1);
-      if (compareWithTolerance(candidate.money.valueMillions, reference.valueMillions, tolerance) !== 0) {
+      if (
+        compareWithTolerance(candidate.money.valueMillions, reference.valueMillions, tolerance) !==
+        0
+      ) {
         mismatches.push({
           assertionId: candidate.assertionId,
           evidenceId: candidate.evidenceIds[0] ?? '',

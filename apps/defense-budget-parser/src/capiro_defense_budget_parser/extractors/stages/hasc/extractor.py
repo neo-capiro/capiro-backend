@@ -35,6 +35,7 @@ from .semantics import (
     _table_context,
 )
 
+
 def extract_hasc_tables(
     *,
     pages: list[ParserPageResultV1],
@@ -112,9 +113,7 @@ def _normalize_table(
     rows: list[CongressionalRowV1] = []
     canonical_header = [_normalize_text(value) for value in header]
 
-    for source_row_index, raw_row in enumerate(
-        matrix[header_index + 1 :], start=header_index + 1
-    ):
+    for source_row_index, raw_row in enumerate(matrix[header_index + 1 :], start=header_index + 1):
         if not any(value.strip() for value in raw_row):
             continue
         if [_normalize_text(value) for value in raw_row] == canonical_header:
@@ -205,6 +204,8 @@ def _table_matrix(table: ParsedTableV1) -> list[list[str]]:
 def _find_header_row(matrix: list[list[str]]) -> int | None:
     for index, row in enumerate(matrix[:4]):
         semantics = [_header_semantic(value) for value in row]
-        if any(value is not None for value in semantics) or any(_is_quantity_header(value) for value in row):
+        if any(value is not None for value in semantics) or any(
+            _is_quantity_header(value) for value in row
+        ):
             return index
     return None

@@ -1,7 +1,4 @@
-import {
-  createHascSourceProfileV1,
-  hascSourceProfileHashV1,
-} from './hasc-source-profile-v1.js';
+import { createHascSourceProfileV1, hascSourceProfileHashV1 } from './hasc-source-profile-v1.js';
 import { requestOwnershipAllowedForAuthority } from '../stage-source-profile-v1.js';
 
 const INPUT = {

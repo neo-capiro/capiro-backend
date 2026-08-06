@@ -79,10 +79,18 @@ const INDEX: NativeIdentityIndexEntry[] = [
   { identity: MILCON, manifestDocumentKey: 'c1', title: 'Advanced Test Facility' },
 ];
 
-function column(overrides: Partial<CongressionalColumnV1> & { columnIndex: number }): CongressionalColumnV1 {
-  return { headerText: `column-${overrides.columnIndex}`, isQuantity: false, ...overrides } as CongressionalColumnV1;
+function column(
+  overrides: Partial<CongressionalColumnV1> & { columnIndex: number },
+): CongressionalColumnV1 {
+  return {
+    headerText: `column-${overrides.columnIndex}`,
+    isQuantity: false,
+    ...overrides,
+  } as CongressionalColumnV1;
 }
-function row(overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, 'rowIndex' | 'reference'>): CongressionalRowV1 {
+function row(
+  overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, 'rowIndex' | 'reference'>,
+): CongressionalRowV1 {
   return {
     rawLabel: 'row',
     semanticKind: 'absolute_position',
@@ -90,7 +98,10 @@ function row(overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, '
     ...overrides,
   } as CongressionalRowV1;
 }
-function table(rows: CongressionalRowV1[], overrides: Partial<CongressionalTableV1> = {}): CongressionalTableV1 {
+function table(
+  rows: CongressionalRowV1[],
+  overrides: Partial<CongressionalTableV1> = {},
+): CongressionalTableV1 {
   return {
     schemaVersion: CONGRESSIONAL_TABLE_SCHEMA_VERSION,
     profileId: PROFILE.profileId,
@@ -101,9 +112,19 @@ function table(rows: CongressionalRowV1[], overrides: Partial<CongressionalTable
     declaredUnit: 'thousands',
     columns: [
       column({ columnIndex: 0, headerText: 'Line' }),
-      column({ columnIndex: 1, headerText: 'FY 2027 Request', moneySemantic: 'request_baseline', fiscalYear: FY }),
+      column({
+        columnIndex: 1,
+        headerText: 'FY 2027 Request',
+        moneySemantic: 'request_baseline',
+        fiscalYear: FY,
+      }),
       column({ columnIndex: 2, headerText: 'Change', moneySemantic: 'change', fiscalYear: FY }),
-      column({ columnIndex: 3, headerText: 'Committee Recommendation', moneySemantic: 'recommended_total', fiscalYear: FY }),
+      column({
+        columnIndex: 3,
+        headerText: 'Committee Recommendation',
+        moneySemantic: 'recommended_total',
+        fiscalYear: FY,
+      }),
     ],
     rows,
     ...overrides,
@@ -143,16 +164,42 @@ describe('HASC composer V1', () => {
     const result = compose([
       table([
         positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-        positionRow(1, { referenceKind: 'procurement_line', lineCode: 'W12002', account: '2035A', component: 'ARMY' }, '80', '-5', '75'),
-        positionRow(2, { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' }, '40', '2', '42'),
-        positionRow(3, { referenceKind: 'milcon_project', projectCode: 'PN12345', component: 'AF', location: 'Eglin AFB' }, '20', '5', '25'),
+        positionRow(
+          1,
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'W12002',
+            account: '2035A',
+            component: 'ARMY',
+          },
+          '80',
+          '-5',
+          '75',
+        ),
+        positionRow(
+          2,
+          { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' },
+          '40',
+          '2',
+          '42',
+        ),
+        positionRow(
+          3,
+          {
+            referenceKind: 'milcon_project',
+            projectCode: 'PN12345',
+            component: 'AF',
+            location: 'Eglin AFB',
+          },
+          '20',
+          '5',
+          '25',
+        ),
       ]),
     ]);
     const funding = result.artifact.assertions.filter(
-      (assertion): assertion is Extract<
-        DefenseBudgetAssertionV1,
-        { assertionKind: 'funding' }
-      > => assertion.assertionKind === 'funding',
+      (assertion): assertion is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
+        assertion.assertionKind === 'funding',
     );
     expect(funding).toHaveLength(4);
     expect(funding.every((a) => a.field === 'hascMark')).toBe(true);
@@ -164,12 +211,17 @@ describe('HASC composer V1', () => {
   });
 
   it('preserves printed request values only as non-owning document facts', () => {
-    const result = compose([table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')])]);
+    const result = compose([
+      table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
+    ]);
     expect(
-      result.artifact.assertions.some((a) => a.assertionKind === 'funding' && a.field === 'request'),
+      result.artifact.assertions.some(
+        (a) => a.assertionKind === 'funding' && a.field === 'request',
+      ),
     ).toBe(false);
     const baselines = result.artifact.assertions.filter(
-      (a) => a.assertionKind === 'document_fact' && a.fieldName === COMMITTEE_REQUEST_BASELINE_FIELD,
+      (a) =>
+        a.assertionKind === 'document_fact' && a.fieldName === COMMITTEE_REQUEST_BASELINE_FIELD,
     );
     expect(baselines).toHaveLength(1);
   });
@@ -186,7 +238,8 @@ describe('HASC composer V1', () => {
     const result = compose([table([adjustment])]);
     expect(result.artifact.assertions.some((a) => a.assertionKind === 'funding')).toBe(false);
     const actionAssertion = result.artifact.assertions.find(
-      (a) => a.assertionKind === 'document_fact' && a.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
+      (a) =>
+        a.assertionKind === 'document_fact' && a.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
     );
     expect(actionAssertion).toBeDefined();
     if (actionAssertion?.assertionKind !== 'document_fact') throw new Error('expected action');
@@ -205,7 +258,8 @@ describe('HASC composer V1', () => {
     });
     const result = compose([table([undistributed])]);
     const assertion = result.artifact.assertions.find(
-      (a) => a.assertionKind === 'document_fact' && a.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
+      (a) =>
+        a.assertionKind === 'document_fact' && a.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
     );
     if (assertion?.assertionKind !== 'document_fact') throw new Error('expected action');
     const action = parseCommitteeStageActionV1(assertion.value);
@@ -220,9 +274,18 @@ describe('HASC composer V1', () => {
     const first = table([
       positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
     ]);
-    const second = table([
-      positionRow(0, { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' }, '40', '2', '42'),
-    ], { page: 2, printedPage: '77' });
+    const second = table(
+      [
+        positionRow(
+          0,
+          { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' },
+          '40',
+          '2',
+          '42',
+        ),
+      ],
+      { page: 2, printedPage: '77' },
+    );
     const result = compose([first, second]);
     expect(result.artifact.assertions.filter((a) => a.assertionKind === 'funding')).toHaveLength(2);
     expect(new Set(result.artifact.evidence.map((e) => e.page))).toEqual(new Set([1, 2]));
@@ -230,7 +293,9 @@ describe('HASC composer V1', () => {
 
   it('blocks an unresolved procurement line that lacks account namespace', () => {
     const result = compose([
-      table([positionRow(0, { referenceKind: 'procurement_line', lineCode: 'W12002' }, '80', '-5', '75')]),
+      table([
+        positionRow(0, { referenceKind: 'procurement_line', lineCode: 'W12002' }, '80', '-5', '75'),
+      ]),
     ]);
     expect(result.bindings[0]?.status).toBe('unresolved');
     expect(result.artifact.assertions.some((a) => a.assertionKind === 'funding')).toBe(false);
@@ -257,7 +322,11 @@ describe('HASC composer V1', () => {
       table([
         positionRow(
           0,
-          { referenceKind: 'procurement_line', lineCode: 'UNKNOWN', rowTitle: 'Robotics and Applique Systems' },
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'UNKNOWN',
+            rowTitle: 'Robotics and Applique Systems',
+          },
           '80',
           '-5',
           '75',
@@ -268,7 +337,6 @@ describe('HASC composer V1', () => {
     expect(candidateResult.artifact.omissions[0]?.severity).toBe('review');
     expect(candidateResult.coverage.status).toBe('complete_with_review');
   });
-
 
   it('composes agreeing duplicate rows to one mark while retaining both rows evidence', () => {
     const duplicateA = positionRow(
@@ -287,10 +355,8 @@ describe('HASC composer V1', () => {
     );
     const result = compose([table([duplicateA, duplicateB])]);
     const funding = result.artifact.assertions.filter(
-      (assertion): assertion is Extract<
-        DefenseBudgetAssertionV1,
-        { assertionKind: 'funding' }
-      > => assertion.assertionKind === 'funding',
+      (assertion): assertion is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
+        assertion.assertionKind === 'funding',
     );
     expect(funding).toHaveLength(1);
     expect(funding[0]?.evidenceIds.length).toBe(8);
@@ -300,8 +366,20 @@ describe('HASC composer V1', () => {
   });
 
   it('blocks equal-key rows with unequal totals instead of choosing a winner', () => {
-    const duplicateA = positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125');
-    const duplicateB = positionRow(1, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '30', '130');
+    const duplicateA = positionRow(
+      0,
+      { referenceKind: 'pe_code', peCode: '0605053A' },
+      '100',
+      '25',
+      '125',
+    );
+    const duplicateB = positionRow(
+      1,
+      { referenceKind: 'pe_code', peCode: '0605053A' },
+      '100',
+      '30',
+      '130',
+    );
     const result = compose([table([duplicateA, duplicateB])]);
     expect(result.artifact.assertions.some((a) => a.assertionKind === 'funding')).toBe(false);
     expect(result.artifact.omissions).toHaveLength(2);
@@ -309,12 +387,13 @@ describe('HASC composer V1', () => {
   });
 
   it('blocks money when no printed unit is declared', () => {
-    const withoutUnits = table([
-      positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-    ], {
-      declaredUnit: undefined,
-      columns: table([]).columns.map((entry) => ({ ...entry, declaredUnit: undefined })),
-    });
+    const withoutUnits = table(
+      [positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')],
+      {
+        declaredUnit: undefined,
+        columns: table([]).columns.map((entry) => ({ ...entry, declaredUnit: undefined })),
+      },
+    );
     const result = compose([withoutUnits]);
     expect(result.artifact.assertions.some((a) => a.assertionKind === 'funding')).toBe(false);
     expect(result.artifact.omissions.some((o) => o.reason === 'unsupported_unit')).toBe(true);
@@ -328,7 +407,9 @@ describe('HASC composer V1', () => {
 
   it('rejects an invalid unit rather than inferring scale from magnitude', () => {
     const valid = table([]);
-    expect(() => congressionalTableV1Schema.parse({ ...valid, declaredUnit: 'billions' })).toThrow();
+    expect(() =>
+      congressionalTableV1Schema.parse({ ...valid, declaredUnit: 'billions' }),
+    ).toThrow();
   });
 
   it('contains no canonical writer import', () => {

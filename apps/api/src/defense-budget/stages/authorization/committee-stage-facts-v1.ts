@@ -19,15 +19,20 @@ import {
 export const COMMITTEE_REQUEST_BASELINE_FIELD = 'committee_request_baseline_v1' as const;
 export const DEFENSE_BUDGET_STAGE_ACTION_FIELD = 'defense_budget_stage_action_v1' as const;
 
-export const COMMITTEE_REQUEST_BASELINE_SCHEMA_VERSION =
-  'committee_request_baseline_v1' as const;
-export const DEFENSE_BUDGET_STAGE_ACTION_SCHEMA_VERSION =
-  'defense_budget_stage_action_v1' as const;
+export const COMMITTEE_REQUEST_BASELINE_SCHEMA_VERSION = 'committee_request_baseline_v1' as const;
+export const DEFENSE_BUDGET_STAGE_ACTION_SCHEMA_VERSION = 'defense_budget_stage_action_v1' as const;
 
 export const committeeRequestBaselineV1Schema = z
   .object({
     schemaVersion: z.literal(COMMITTEE_REQUEST_BASELINE_SCHEMA_VERSION),
-    stage: z.enum(['hasc', 'sasc', 'hac_d', 'sac_d', 'ndaa_conference', 'appropriations_conference']),
+    stage: z.enum([
+      'hasc',
+      'sasc',
+      'hac_d',
+      'sac_d',
+      'ndaa_conference',
+      'appropriations_conference',
+    ]),
     authority: z.enum([
       'hasc_authorization',
       'sasc_authorization',
@@ -61,7 +66,14 @@ export const committeeStageActionV1Schema = z
     schemaVersion: z.literal(DEFENSE_BUDGET_STAGE_ACTION_SCHEMA_VERSION),
     actionId: z.string().min(1),
     track: z.enum(['authorization', 'appropriations']),
-    stage: z.enum(['hasc', 'sasc', 'hac_d', 'sac_d', 'ndaa_conference', 'appropriations_conference']),
+    stage: z.enum([
+      'hasc',
+      'sasc',
+      'hac_d',
+      'sac_d',
+      'ndaa_conference',
+      'appropriations_conference',
+    ]),
     authority: z.enum([
       'hasc_authorization',
       'sasc_authorization',
@@ -113,10 +125,7 @@ export const committeeStageActionV1Schema = z
         path: ['signedValueMillions'],
       });
     }
-    if (
-      (value.actionType === 'increase' || value.actionType === 'transfer_in') &&
-      negative
-    ) {
+    if ((value.actionType === 'increase' || value.actionType === 'transfer_in') && negative) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `${value.actionType} requires a non-negative signed value`,

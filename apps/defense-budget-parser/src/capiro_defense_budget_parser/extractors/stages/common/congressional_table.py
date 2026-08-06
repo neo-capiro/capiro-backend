@@ -33,9 +33,9 @@ RowSemanticKindV1 = Literal[
     'rescission',
     'quantity_change',
     'undistributed',
-   'general_provision',
-   'narrative_only',
-   'unresolved',
+    'general_provision',
+    'narrative_only',
+    'unresolved',
 ]
 
 

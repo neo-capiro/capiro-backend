@@ -8,19 +8,27 @@ from decimal import Decimal, InvalidOperation
 from ....contracts import ParsedTableCellV1, ParsedTableV1, ParserPageResultV1
 from ..common.congressional_table import (
     BoundingBoxV1,
+    BudgetLineReferenceV1,
     CongressionalColumnV1,
     MilconReferenceV1,
+    MoneySemanticV1,
+    MoneyUnitV1,
     OmSagReferenceV1,
     PackageScopeReferenceV1,
     PeCodeReferenceV1,
     ProcurementReferenceV1,
+    RowSemanticKindV1,
     UnresolvedReferenceV1,
 )
 
 _PE_RE = re.compile(r'\b([0-9]{7}[A-Z])\b', re.IGNORECASE)
-_PROCUREMENT_RE = re.compile(r'\b(?:BLIN|LINE(?:\s+ITEM)?)\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{2,})\b', re.IGNORECASE)
+_PROCUREMENT_RE = re.compile(
+    r'\b(?:BLIN|LINE(?:\s+ITEM)?)\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{2,})\b', re.IGNORECASE
+)
 _OM_RE = re.compile(r'\b(?:SAG|SUBACTIVITY\s+GROUP)\s*[:#-]?\s*([A-Z0-9.]+)\b', re.IGNORECASE)
-_MILCON_RE = re.compile(r'\b(?:PROJECT(?:\s+(?:NO\.?|NUMBER))?|PN)\s*[:#-]?\s*([A-Z0-9-]+)\b', re.IGNORECASE)
+_MILCON_RE = re.compile(
+    r'\b(?:PROJECT(?:\s+(?:NO\.?|NUMBER))?|PN)\s*[:#-]?\s*([A-Z0-9-]+)\b', re.IGNORECASE
+)
 _FY_RE = re.compile(r'\bFY\s*(20\d{2}|\d{2})\b', re.IGNORECASE)
 _ACCOUNT_RE = re.compile(r'\bACCOUNT\s*:\s*([^|\n]+)', re.IGNORECASE)
 _LOCATION_RE = re.compile(r'\bLOCATION\s*:\s*([^|\n]+)', re.IGNORECASE)
@@ -33,6 +41,7 @@ _COMPONENTS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r'\bARMY\b', re.IGNORECASE), 'ARMY'),
     (re.compile(r'\bDEFENSE[- ]WIDE\b', re.IGNORECASE), 'DW'),
 )
+
 
 def _column_from_header(index: int, header: str, table_unit: str | None) -> CongressionalColumnV1:
     fiscal_year = _fiscal_year(header)
@@ -49,7 +58,7 @@ def _column_from_header(index: int, header: str, table_unit: str | None) -> Cong
     )
 
 
-def _header_semantic(value: str):
+def _header_semantic(value: str) -> MoneySemanticV1 | None:
     normalized = _normalize_text(value)
     if not normalized:
         return None
@@ -75,7 +84,7 @@ def _is_quantity_header(value: str) -> bool:
     return 'quantity' in normalized or normalized in {'qty', 'qty.'}
 
 
-def _row_semantic(label: str):
+def _row_semantic(label: str) -> RowSemanticKindV1:
     normalized = _normalize_text(label)
     if 'transfer in' in normalized:
         return 'transfer_in'
@@ -87,11 +96,16 @@ def _row_semantic(label: str):
         return 'undistributed'
     if 'general provision' in normalized:
         return 'general_provision'
-    if 'quantity' in normalized and ('change' in normalized or 'increase' in normalized or 'decrease' in normalized):
+    if 'quantity' in normalized and (
+        'change' in normalized or 'increase' in normalized or 'decrease' in normalized
+    ):
         return 'quantity_change'
     if any(token in normalized for token in ('increase', 'decrease', 'reduction', 'adjustment')):
         return 'adjustment'
-    if any(token in normalized for token in ('committee', 'program element', 'blin', 'line ', 'sag', 'project')):
+    if any(
+        token in normalized
+        for token in ('committee', 'program element', 'blin', 'line ', 'sag', 'project')
+    ):
         return 'absolute_position'
     return 'absolute_position'
 
@@ -105,7 +119,7 @@ def _row_reference(
     location: str | None,
     semantic_kind: str,
     context: str,
-):
+) -> BudgetLineReferenceV1:
     if semantic_kind in {'general_provision', 'undistributed'} and not any(
         pattern.search(raw_label) for pattern in (_PE_RE, _PROCUREMENT_RE, _OM_RE, _MILCON_RE)
     ):
@@ -115,7 +129,11 @@ def _row_reference(
         return PeCodeReferenceV1(peCode=pe_match.group(1).upper(), rowTitle=raw_label)
     procurement_match = _PROCUREMENT_RE.search(raw_label)
     if procurement_match is not None or line_family == 'procurement':
-        code = procurement_match.group(1).upper() if procurement_match is not None else _first_code(raw_label)
+        code = (
+            procurement_match.group(1).upper()
+            if procurement_match is not None
+            else _first_code(raw_label)
+        )
         if code is not None:
             return ProcurementReferenceV1(
                 lineCode=code,
@@ -151,7 +169,11 @@ def _line_family(context: str, header: list[str]) -> str:
     normalized = _normalize_text(' '.join([context, *header]))
     if 'military construction' in normalized or 'milcon' in normalized:
         return 'milcon'
-    if 'operation and maintenance' in normalized or 'o&m' in normalized or ' sag ' in f' {normalized} ':
+    if (
+        'operation and maintenance' in normalized
+        or 'o&m' in normalized
+        or ' sag ' in f' {normalized} '
+    ):
         return 'om'
     if 'procurement' in normalized or 'blin' in normalized:
         return 'procurement'
@@ -160,7 +182,7 @@ def _line_family(context: str, header: list[str]) -> str:
     return 'unknown'
 
 
-def _detect_unit(text: str) -> tuple[str | None, str | None]:
+def _detect_unit(text: str) -> tuple[MoneyUnitV1 | None, str | None]:
     normalized = _normalize_text(text)
     if 'billion' in normalized:
         return None, 'unsupported printed unit billions; no magnitude inference performed'
@@ -208,13 +230,17 @@ def _canonical_decimal(text: str) -> str | None:
 
 def _table_context(page: ParserPageResultV1, table: ParsedTableV1) -> str:
     values = [table.label or '', page.text or '']
-    values.extend(block.text for block in page.blocks if block.blockType in {'heading', 'header', 'caption'})
+    values.extend(
+        block.text for block in page.blocks if block.blockType in {'heading', 'header', 'caption'}
+    )
     return '\n'.join(value for value in values if value)
 
 
 def _heading_candidates(page: ParserPageResultV1, table: ParsedTableV1) -> list[str]:
     headings = [table.label] if table.label else []
-    headings.extend(block.text for block in page.blocks if block.blockType in {'heading', 'header', 'caption'})
+    headings.extend(
+        block.text for block in page.blocks if block.blockType in {'heading', 'header', 'caption'}
+    )
     return list(dict.fromkeys(value.strip() for value in headings if value and value.strip()))
 
 
@@ -228,7 +254,10 @@ def _component(context: str) -> str | None:
 
 def _package_scope(context: str) -> str:
     for line in context.splitlines():
-        if any(token in _normalize_text(line) for token in ('title ', 'research', 'procurement', 'operation', 'military construction')):
+        if any(
+            token in _normalize_text(line)
+            for token in ('title ', 'research', 'procurement', 'operation', 'military construction')
+        ):
             return line.strip()
     return 'HASC report package'
 
