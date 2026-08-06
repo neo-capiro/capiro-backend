@@ -15,6 +15,7 @@ import { GovernedMemoryCandidateService } from './governed-memory-candidate.serv
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import { MemoryReviewInboxService } from './memory-review-inbox.service.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { MemoryReviewNotificationDispatcherService } from './memory-review-notification-dispatcher.service.js';
@@ -37,6 +38,7 @@ import { MemoryGovernanceTenantInterceptor } from './memory-governance-tenant.in
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { MemoryReviewController } from './memory-review.controller.js';
+import { MemoryReviewInboxController } from './memory-review-inbox.controller.js';
 import { MemoryReviewSummaryController } from './memory-review-summary.controller.js';
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
@@ -46,16 +48,16 @@ import { InternalMemoryController } from './internal-memory.controller.js';
 /**
  * Institutional Memory module.
  *
- * Phase 2 review workflow state is a companion to memory_candidate. It owns
- * named assignment, bounded review feedback, immutable revision lineage, and
- * body-free notification delivery while canonical activation remains in the
- * governed candidate/version paths.
+ * Phase 2 review workflow state is a companion to memory_candidate. Phase 3
+ * adds the body-free Review Inbox, protected revision detail, and recipient-
+ * scoped notification read state without changing canonical activation paths.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
   controllers: [
     MemoryController,
     MemoryReviewController,
+    MemoryReviewInboxController,
     MemoryReviewSummaryController,
     MemoryProposalController,
     MemoryVersionController,
@@ -83,6 +85,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewWorkflowService,
     MemoryReviewRevisionService,
     MemoryCandidateReviewService,
+    MemoryReviewInboxService,
     MemoryReviewNotificationEmailService,
     MemoryReviewNotificationDispatcherService,
     MemoryAuthorizationService,
@@ -109,6 +112,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryCandidateService,
     GovernedMemoryCandidateService,
     MemoryCandidateReviewService,
+    MemoryReviewInboxService,
     MemoryReviewWorkflowService,
     MemoryReviewRevisionService,
     MemoryReviewNotificationDispatcherService,
