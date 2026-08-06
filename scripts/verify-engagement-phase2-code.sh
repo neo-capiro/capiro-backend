@@ -187,7 +187,7 @@ else
   skip "task config verifier on fresh synth output" "synth failed"
 fi
 
-node_test "template safety suite (23 negative controls)" \
+node_test "template safety suite (26 negative controls)" \
   scripts/verify-engagement-phase2-template.spec.mjs
 
 # The committed fixtures must still match what the stacks synthesize; otherwise

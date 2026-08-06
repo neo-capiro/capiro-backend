@@ -82,7 +82,6 @@
 
   "kmsKeyArns": {
     "ecr": "arn:aws:kms:us-east-1:<account>:key/<ecr-key-id>",
-    "logs": "arn:aws:kms:us-east-1:<account>:key/<logs-key-id>",
     "data": ["arn:aws:kms:us-east-1:<account>:key/<data-key-id>"]
   },
 

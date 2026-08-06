@@ -3,6 +3,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
@@ -29,9 +30,14 @@ export interface EngagementApiServiceStackProps extends cdk.StackProps {
 /**
  * The dark `engagement-api` Fargate service.
  *
- * Every identifier is imported. The stack creates a log group, a task
- * definition, a service and its autoscaling target — nothing else. It creates
- * no listener rule, so deploying it cannot route a single user request.
+ * Every identifier is imported, with one exception: the log group's own KMS
+ * key. Live discovery (Gate C, 2026-08-06) found the shared `alias/capiro-dev`
+ * CMK's policy scoped to CloudTrail only, with no CloudWatch Logs grant, and
+ * no existing log group in the account uses a CMK at all — importing it
+ * failed deploy with AccessDenied. The stack creates a log group, that log
+ * group's encryption key, a task definition, a service and its autoscaling
+ * target — nothing else. It creates no listener rule, so deploying it cannot
+ * route a single user request.
  *
  * The runtime posture is the Phase 1 shadow matrix, written literally rather
  * than derived from config, so no deployment parameter can arm this service.
@@ -90,12 +96,39 @@ export class EngagementApiServiceStack extends cdk.Stack {
     );
 
     // ── logs ────────────────────────────────────────────────────────────────
+    // A dedicated key, not the shared `alias/capiro-dev` CMK: live discovery
+    // (Gate C, 2026-08-06) found that key's policy scoped entirely to
+    // CloudTrail, with no CloudWatch Logs service-principal grant, and no
+    // existing log group in the account uses a CMK at all. Reusing it failed
+    // deploy with AccessDenied. A key this stack owns can carry a policy
+    // scoped to exactly what CloudWatch Logs needs for this one log group,
+    // without touching a key another security control already depends on.
+    const logsEncryptionKey = new kms.Key(this, 'LogsKey', {
+      description: `engagement-api CloudWatch Logs encryption (${cfg.environment})`,
+      alias: `capiro-${cfg.environment}-engagement-api-logs`,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    logsEncryptionKey.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudWatchLogsForThisLogGroupOnly',
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.ServicePrincipal(`logs.${cfg.region}.amazonaws.com`)],
+        actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
+        resources: ['*'],
+        conditions: {
+          ArnLike: {
+            'kms:EncryptionContext:aws:logs:arn': `arn:aws:logs:${cfg.region}:${cfg.accountId}:log-group:${names.logGroup}`,
+          },
+        },
+      }),
+    );
+
     // Created here because the task definition cannot exist without a log
     // destination. Micro-session 2.8 adds metric filters, alarms and the
     // dashboard on top of this group; it does not move it.
     this.logGroup = new logs.LogGroup(this, 'LogGroup', {
       logGroupName: names.logGroup,
-      encryptionKey: kms.Key.fromKeyArn(this, 'LogsKey', cfg.kmsKeyArns.logs),
+      encryptionKey: logsEncryptionKey,
       retention:
         cfg.environment === 'prod' ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_MONTH,
       removalPolicy: cdk.RemovalPolicy.RETAIN,

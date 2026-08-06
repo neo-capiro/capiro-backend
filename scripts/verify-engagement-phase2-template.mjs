@@ -36,9 +36,20 @@ const FORBIDDEN_RESOURCE_TYPES = [
   'AWS::RDS::DBCluster',
   'AWS::RDS::DBInstance',
   'AWS::ECS::Cluster',
-  'AWS::KMS::Key',
   'AWS::SecretsManager::Secret',
 ];
+
+/**
+ * AWS::KMS::Key is checked separately from FORBIDDEN_RESOURCE_TYPES, not
+ * exempted from it. Reviewed exception (Gate C, 2026-08-06): the shared
+ * `alias/capiro-dev` CMK's policy is CloudTrail-only, with no CloudWatch Logs
+ * grant, and no existing log group in the account uses a CMK at all —
+ * importing it failed a real deploy with AccessDenied. Exactly one
+ * stack-owned key, for the Service stack's own log group and named with the
+ * `LogsKey` prefix CDK gives it, is allowed. Any other KMS key, or a second
+ * one, still fails closed exactly like before.
+ */
+const ALLOWED_CREATED_KMS_KEY_ID_PREFIX = 'LogsKey';
 
 const EXACT_SHADOW_ENV = {
   CAPIRO_SERVICE_NAME: 'engagement-api',
@@ -109,6 +120,17 @@ for (const file of files) {
   // ── nothing live may be created ─────────────────────────────────────────
   for (const type of FORBIDDEN_RESOURCE_TYPES) {
     for (const id of byType(type)) fail(`creates ${type} (${id}); live resources must be imported`);
+  }
+
+  // ── AWS::KMS::Key: one reviewed exception, everything else still forbidden
+  const kmsKeys = byType('AWS::KMS::Key');
+  for (const id of kmsKeys) {
+    if (!id.startsWith(ALLOWED_CREATED_KMS_KEY_ID_PREFIX)) {
+      fail(`creates AWS::KMS::Key (${id}); live resources must be imported`);
+    }
+  }
+  if (kmsKeys.length > 1) {
+    fail(`creates ${kmsKeys.length} AWS::KMS::Key resources; only the log-group key is allowed`);
   }
 
   // ── no historical Compute stack coupling ────────────────────────────────

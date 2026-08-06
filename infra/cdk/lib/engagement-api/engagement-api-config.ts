@@ -103,7 +103,10 @@ export interface EngagementApiInfraConfig {
 
   requiredSecretArns: string[];
 
-  kmsKeyArns: { ecr: string; logs: string; data: string[] };
+  // No `logs` key here: the Service stack creates and owns its own
+  // CloudWatch Logs encryption key rather than importing a shared one — see
+  // engagement-api-service-stack.ts's LogsKey for why.
+  kmsKeyArns: { ecr: string; data: string[] };
 
   bucketNames: {
     assets?: string;
@@ -268,7 +271,6 @@ export function collectConfigFailures(
     if (!isArn(arn, 'secretsmanager')) fail(`requiredSecretArns contains a malformed ARN: ${arn}`);
   }
   if (!isArn(c.kmsKeyArns?.ecr, 'kms')) fail(`kmsKeyArns.ecr is malformed: ${c.kmsKeyArns?.ecr}`);
-  if (!isArn(c.kmsKeyArns?.logs, 'kms')) fail(`kmsKeyArns.logs is malformed: ${c.kmsKeyArns?.logs}`);
   for (const arn of c.kmsKeyArns?.data ?? []) {
     if (!isArn(arn, 'kms')) fail(`kmsKeyArns.data contains a malformed ARN: ${arn}`);
   }

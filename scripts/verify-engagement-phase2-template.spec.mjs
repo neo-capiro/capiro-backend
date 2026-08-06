@@ -314,6 +314,31 @@ test('NC-24 a missing CLERK_JWT_ISSUER is rejected', () => {
   assert.match(result.out, /has no CLERK_JWT_ISSUER; the task will crash-loop at boot/);
 });
 
+test('NC-25 a KMS key unrelated to the log group is still rejected', () => {
+  // The LogsKey exception (Gate C, 2026-08-06) is scoped to the exact key CDK
+  // names for the log group, not KMS::Key in general — any other key some
+  // future construct might create still fails closed exactly as before.
+  const result = mutated('service', (template) => {
+    template.Resources.RogueDataKey = {
+      Type: 'AWS::KMS::Key',
+      Properties: { Description: 'not the log group key' },
+    };
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.out, /creates AWS::KMS::Key \(RogueDataKey\); live resources must be imported/);
+});
+
+test('NC-26 a second log-group-named KMS key is still rejected', () => {
+  const result = mutated('service', (template) => {
+    template.Resources.LogsKeyDuplicateB00 = {
+      Type: 'AWS::KMS::Key',
+      Properties: { Description: 'a second one' },
+    };
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.out, /creates 2 AWS::KMS::Key resources; only the log-group key is allowed/);
+});
+
 // ───────────────────────────────────────────────────────────── not vacuous
 
 test('the verifier reports the exact number of violations', () => {

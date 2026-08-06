@@ -1,9 +1,118 @@
 {
  "Resources": {
+  "LogsKeyA6AB43B2": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "Description": "engagement-api CloudWatch Logs encryption (dev)",
+    "KeyPolicy": {
+     "Statement": [
+      {
+       "Action": "kms:*",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":iam::000000000000:root"
+          ]
+         ]
+        }
+       },
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "kms:Decrypt*",
+        "kms:Describe*",
+        "kms:Encrypt*",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*"
+       ],
+       "Condition": {
+        "ArnLike": {
+         "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:us-east-1:000000000000:log-group:/capiro/dev/engagement-api"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "logs.us-east-1.amazonaws.com"
+       },
+       "Resource": "*",
+       "Sid": "AllowCloudWatchLogsForThisLogGroupOnly"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/LogsKey/Resource"
+   }
+  },
+  "LogsKeyAliasEDDECDD8": {
+   "Type": "AWS::KMS::Alias",
+   "Properties": {
+    "AliasName": "alias/capiro-dev-engagement-api-logs",
+    "TargetKeyId": {
+     "Fn::GetAtt": [
+      "LogsKeyA6AB43B2",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/LogsKey/Alias/Resource"
+   }
+  },
   "LogGroupF5B46931": {
    "Type": "AWS::Logs::LogGroup",
    "Properties": {
-    "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-0000000logs0",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "LogsKeyA6AB43B2",
+      "Arn"
+     ]
+    },
     "LogGroupName": "/capiro/dev/engagement-api",
     "RetentionInDays": 30,
     "Tags": [
@@ -1578,7 +1687,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11Q227CMAz9Ft5DtnXaB2wg9rJpU+F9Mq4ppiGucgGhKP8+pWVc9nQu9jlRXOnqpdKPEzj6KTbd1PBap2UA7FRNXqJDUnD0P4nQ6Zp68RzEnd7AkzLSep0+pH13Ens129gL/6TgGBdsArkyuNVZEXqdFuBaCLQC381pw5YDiy27/x2xAdiSu/HO2SW5AyOV0B9dIhhYm6F2JtGGrBj2OtVihr0Bv8UwnoocWVbQ94YRSjnEIB7BsG11uta5lsLw0L0zwsoBdmzb5Zi79t8ZWXnr9Up6xuF+aCQ2Rwi41enVgNuXxEjm4LdrAdcU6yKyogPZ4HWq4/k70VDOhX3F0MeQlZWG9M4/HKpKV8/6abLzzFMXbeA96XrEXwcOzJD2AQAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11QS24CMQw9C/uQtlP1ABREF23VamBfmWAGMyEexQkIRbl7lRnKp6v3sf0su9LVS6UfR3CUsVm3Y0srnRYBTKtqFI7eoIKj/CQ0XtfYsVBgf3oFQdXuRad3PKnpxhWYWAIpoidZWW5Epw9u3jzHrhQu/BODJzMnG9CXwq3OCo3oNAffQMAlSDvDDTkKxK70/nfYBSCH/sY7zy7QH8hgGfqjCwMWVraPnXJ0ISuCvU41276vx2+2ZPqzBpYVdJ0lAyUcYmAxYMk1Ol3jfIOhX3TvDLD0YFpyzWKYu+bfGVmJE73kjkz/X2M5ro8QzFaniQW/H35byAxku2Lw62JdRFZ4QBdEpzqez4kWcy7sK4Yuhqwcr1Hv5OFQVbp61k+jnRCNfXSB9qjrAX8B+KO5YRYCAAA="
    },
    "Metadata": {
     "aws:cdk:path": "Capiro-dev-EngagementApiService/CDKMetadata/Default"

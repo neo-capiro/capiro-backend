@@ -281,13 +281,38 @@ test('autoscaling stays between one and two tasks', () => {
 
 // ───────────────────────────────────────────────────────────────────── logs
 
-test('the log group is KMS encrypted and retained', () => {
+test('the log group is KMS encrypted by a stack-owned key and retained', () => {
   synth().hasResource('AWS::Logs::LogGroup', {
     Properties: Match.objectLike({
       LogGroupName: '/capiro/dev/engagement-api',
-      KmsKeyId: base().kmsKeyArns.logs,
+      KmsKeyId: Match.objectLike({
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('^LogsKey'), 'Arn']),
+      }),
     }),
     DeletionPolicy: 'Retain',
+  });
+});
+
+test('the logs key policy grants CloudWatch Logs access scoped to this log group only', () => {
+  // Live discovery (Gate C, 2026-08-06): the shared alias/capiro-dev CMK's
+  // policy is CloudTrail-only and has no CloudWatch Logs service-principal
+  // grant, so a stack-owned key is used instead. Its policy must scope that
+  // grant to exactly this log group's ARN, not every log group in the account.
+  synth().hasResourceProperties('AWS::KMS::Key', {
+    KeyPolicy: Match.objectLike({
+      Statement: Match.arrayWith([
+        Match.objectLike({
+          Effect: 'Allow',
+          Principal: { Service: 'logs.us-east-1.amazonaws.com' },
+          Condition: {
+            ArnLike: {
+              'kms:EncryptionContext:aws:logs:arn':
+                'arn:aws:logs:us-east-1:000000000000:log-group:/capiro/dev/engagement-api',
+            },
+          },
+        }),
+      ]),
+    }),
   });
 });
 
@@ -308,11 +333,16 @@ test('the service stack creates no routing, network, registry or data resource',
     'AWS::ECR::Repository',
     'AWS::RDS::DBCluster',
     'AWS::Route53::RecordSet',
-    'AWS::KMS::Key',
     'AWS::SecretsManager::Secret',
   ]) {
     template.resourceCountIs(type, 0);
   }
+  // Exactly one: the log group's own encryption key (see 'the logs key
+  // policy...' above). Every other identifier this stack touches is still
+  // imported, not created — a second AWS::KMS::Key here would mean some
+  // other resource started creating its own key too, which this test exists
+  // to catch.
+  template.resourceCountIs('AWS::KMS::Key', 1);
 });
 
 test('the stack references no historical Compute stack export', () => {
