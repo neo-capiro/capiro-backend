@@ -9,6 +9,8 @@
     "src/memory/memory-review-admin-policy.ts",
     "src/memory/memory-authorization.helpers.ts",
     "src/memory/memory-authorization.helpers.spec.ts",
+    "src/memory/memory-authorization.service.ts",
+    "src/memory/memory-authorization.admin-capability.spec.ts",
     "src/memory/memory-candidate.service.ts",
     "src/memory/memory-candidate-review.service.ts",
     "src/memory/memory-candidate-review.service.spec.ts",
