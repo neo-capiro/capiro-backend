@@ -13,6 +13,11 @@ import {
   uiContractSha256,
   type EngagementApiInfraConfig,
 } from './engagement-api-config';
+import {
+  EngagementApiObservability,
+  loadBalancerFullNameFromListenerArn,
+  targetGroupFullNameFromArn,
+} from './engagement-api-alarms';
 import { buildEngagementApiIam } from './engagement-api-iam';
 import { applyEngagementApiTags } from './engagement-api-tags';
 
@@ -200,6 +205,17 @@ export class EngagementApiServiceStack extends cdk.Stack {
       targetUtilizationPercent: 70,
       scaleOutCooldown: cdk.Duration.seconds(60),
       scaleInCooldown: cdk.Duration.seconds(300),
+    });
+
+    // Observability is attached here because every alarm dimension needs the
+    // service and log group that this stack owns. Micro-session 2.8 defines
+    // the contract; this stack only wires it.
+    new EngagementApiObservability(this, 'Observability', {
+      cfg,
+      service: this.service,
+      logGroup: this.logGroup,
+      loadBalancerFullName: loadBalancerFullNameFromListenerArn(cfg.httpsListenerArn),
+      targetGroupFullName: targetGroupFullNameFromArn(targetGroupArn),
     });
 
     new cdk.CfnOutput(this, 'ServiceName', { value: names.service });
