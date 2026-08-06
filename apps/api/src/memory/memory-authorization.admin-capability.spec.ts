@@ -19,10 +19,10 @@ const subject = {
 };
 
 function harness() {
-  const executeRaw = jest.fn(async () => 1);
-  const tx = { $executeRaw: executeRaw };
+  const executeRawUnsafe = jest.fn(async () => 1);
+  const tx = { $executeRawUnsafe: executeRawUnsafe };
   const service = new MemoryAuthorizationService({} as PrismaService);
-  return { service, tx, executeRaw };
+  return { service, tx, executeRawUnsafe };
 }
 
 describe('MemoryAuthorizationService administrator decision capability', () => {
@@ -36,7 +36,9 @@ describe('MemoryAuthorizationService administrator decision capability', () => {
         'approve',
       ),
     ).resolves.toEqual({ allowed: true, basis: 'admin' });
-    expect(h.executeRaw).toHaveBeenCalledTimes(1);
+    expect(h.executeRawUnsafe).toHaveBeenCalledWith(
+      "SELECT set_config('app.memory_admin_review_decision', 'on', true)",
+    );
   });
 
   it('does not arm the capability during read-model simulations', async () => {
@@ -50,7 +52,7 @@ describe('MemoryAuthorizationService administrator decision capability', () => {
         { emitDenialMetrics: false },
       ),
     ).resolves.toEqual({ allowed: true, basis: 'admin' });
-    expect(h.executeRaw).not.toHaveBeenCalled();
+    expect(h.executeRawUnsafe).not.toHaveBeenCalled();
   });
 
   it('does not give the admin capability to a standard-user decision', async () => {
@@ -58,11 +60,15 @@ describe('MemoryAuthorizationService administrator decision capability', () => {
     await expect(
       h.service.evaluateInTx(
         h.tx as never,
-        { tenantId: TENANT, userId: '44444444-4444-4444-8444-444444444444', role: 'standard_user' },
+        {
+          tenantId: TENANT,
+          userId: '44444444-4444-4444-8444-444444444444',
+          role: 'standard_user',
+        },
         { ...subject, proposedByUserId: 'someone-else' },
         'approve',
       ),
     ).resolves.toEqual({ allowed: false, reason: 'admin_required' });
-    expect(h.executeRaw).not.toHaveBeenCalled();
+    expect(h.executeRawUnsafe).not.toHaveBeenCalled();
   });
 });
