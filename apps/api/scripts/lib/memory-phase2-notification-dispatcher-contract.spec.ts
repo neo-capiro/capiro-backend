@@ -32,6 +32,7 @@ describe('memory Phase 2 notification dispatcher contract', () => {
     expect(dispatcher).toContain("tm.status = 'active'");
     expect(dispatcher).toContain('memoryReviewNotificationMatchesWorkflow');
     expect(dispatcher).toContain('this.authorization.loadCandidateInTx');
+    expect(dispatcher).toContain("subject.clientStatus !== 'active'");
     expect(dispatcher).toContain('this.authorization.evaluateInTx');
     expect(dispatcher).toContain('memoryReviewNotificationOperation(eventType)');
   });
@@ -44,6 +45,12 @@ describe('memory Phase 2 notification dispatcher contract', () => {
     expect(migration).toContain('memory_review_in_app_notification_idempotency_unique');
     expect(migration).toContain('memory_review_in_app_notification_review_fk');
     expect(migration).toContain('memory_review_in_app_notification_candidate_fk');
+    expect(migration).toMatch(
+      /memory_review_notification_outbox_recipient_fk[\s\S]{0,240}ON DELETE RESTRICT/,
+    );
+    expect(migration).toMatch(
+      /memory_review_in_app_notification_recipient_fk[\s\S]{0,240}ON DELETE RESTRICT/,
+    );
     expect(dispatcher).toContain('ON CONFLICT (');
     expect(dispatcher).toContain('DO NOTHING');
   });
@@ -73,11 +80,13 @@ describe('memory Phase 2 notification dispatcher contract', () => {
     expect(migration).toContain("'sourceExcerpt'");
   });
 
-  it('uses default-off at-most-once email delivery', () => {
+  it('uses default-off at-most-once email delivery and preserves prior outcomes', () => {
     expect(helpers).toContain("raw?.trim().toLowerCase() === 'enforce'");
     expect(email).toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
     expect(dispatcher).toContain("row.emailStatus === 'sending'");
     expect(dispatcher).toContain("SET email_status = 'sending'");
+    expect(dispatcher).toContain('completedEmailStatus(row.emailStatus)');
+    expect(dispatcher).toContain('outbox.provider_message_id AS "providerMessageId"');
     expect(dispatcher).not.toContain('reason: authorized');
     expect(email).not.toContain('input.reason');
   });
@@ -93,6 +102,6 @@ describe('memory Phase 2 notification dispatcher contract', () => {
 
   it('reports every successful in-app delivery independently of email outcome', () => {
     expect(dispatcher).toContain('summary.delivered += 1');
-    expect(dispatcher).toContain("summary[outcome] += 1");
+    expect(dispatcher).toContain('summary[outcome] += 1');
   });
 });
