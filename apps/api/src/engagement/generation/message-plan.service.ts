@@ -28,6 +28,7 @@ import {
 } from './message-plan.schema.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GaPolicy } from './government-affairs-policy.registry.js';
+import { extractJsonObject } from './json-extract.js';
 
 /**
  * Models known to honor strict JSON schema output. The plan requires the fast
@@ -141,7 +142,7 @@ export class MessagePlanService {
   private parsePlan(text: string): MessagePlan {
     let raw: unknown;
     try {
-      raw = JSON.parse(text);
+      raw = JSON.parse(extractJsonObject(text) ?? text);
     } catch {
       throw new MessagePlanInvalidError([
         { code: 'PLAN_NOT_JSON', message: 'The planner did not return valid JSON.' },
