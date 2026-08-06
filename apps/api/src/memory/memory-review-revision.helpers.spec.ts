@@ -25,13 +25,15 @@ const payload = {
   },
 };
 
+const revisedSections = [
+  { key: 'mission', heading: 'Mission', owner: 'human' as const, body: ' Revised mission. ' },
+  { key: 'voice', heading: 'Voice', owner: 'human' as const, body: 'Measured' },
+];
+
 describe('prepareMemoryReviewRevision', () => {
   it('replaces only section bodies and preserves canonical/version identity', () => {
     const result = prepareMemoryReviewRevision('settings_sections', payload, {
-      sections: [
-        { key: 'mission', heading: 'Mission', owner: 'human', body: ' Revised mission. ' },
-        { key: 'voice', heading: 'Voice', owner: 'human', body: 'Measured' },
-      ],
+      sections: revisedSections,
     });
 
     expect(result.revisionSummary).toEqual({ valueChanged: true, sectionBodiesChanged: 1 });
@@ -100,13 +102,27 @@ describe('prepareMemoryReviewRevision', () => {
     ).toThrow('identical');
   });
 
+  it('rejects a second browser-controlled value channel for canonical memory', () => {
+    expect(() =>
+      prepareMemoryReviewRevision('settings_sections', payload, {
+        value: 'Conflicting browser value',
+        sections: revisedSections,
+      }),
+    ).toThrow('accept only the complete section set');
+    expect(() =>
+      prepareMemoryReviewRevision('settings_sections', payload, { value: 'New' }),
+    ).toThrow('accept only the complete section set');
+  });
+
   it('supports value-only revision only for non-canonical candidates', () => {
     const nonCanonical = { key: 'fact', value: 'Old', source: 'conversation', scope: 'firm' };
     expect(
       prepareMemoryReviewRevision('explicit_user', nonCanonical, { value: ' New fact. ' }).payload,
     ).toMatchObject({ value: 'New fact.' });
-    expect(() => prepareMemoryReviewRevision('explicit_user', payload, { value: 'New' })).toThrow(
-      'complete section set',
-    );
+    expect(() =>
+      prepareMemoryReviewRevision('explicit_user', nonCanonical, {
+        sections: revisedSections,
+      }),
+    ).toThrow('does not support section-based revision');
   });
 });
