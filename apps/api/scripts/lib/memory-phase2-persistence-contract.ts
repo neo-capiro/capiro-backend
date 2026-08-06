@@ -93,6 +93,10 @@ export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2Persi
   }
 
   assertBodyFreeWorkflowMetadataContract(sources.workflowMigration);
+  assertDeterministicRevisionConflictContract(
+    sources.revisionMigration,
+    sources.revisionService,
+  );
 
   required(sources.revisionMigration.includes(CURRENT_OWNERSHIP_COMMENT), 'Revision migration must contain the exact current ownership contract.');
   required(sources.revisionMigration.includes('create_memory_candidate_revision'), 'Atomic revision function is required.');
@@ -217,6 +221,48 @@ function assertBodyFreeWorkflowMetadataContract(workflowMigration: string): void
       workflowMigration,
     ),
     'Workflow migration must reconcile rows from interrupted or partial application.',
+  );
+}
+
+function assertDeterministicRevisionConflictContract(
+  revisionMigration: string,
+  revisionService: string,
+): void {
+  const fn = extractSqlFunction(
+    revisionMigration,
+    'create_memory_candidate_revision',
+  );
+  const lock = fn.indexOf('FOR UPDATE;');
+  const proposerGuard = fn.indexOf('predecessor.proposed_by <> p_proposer_id');
+  const successorConflict = fn.indexOf('MEMORY_REVISION_SUCCESSOR_EXISTS');
+  const terminalStatusGuard = fn.indexOf("IF predecessor.status <> 'pending'");
+
+  required(lock >= 0, 'Revision function must lock the predecessor row.');
+  required(
+    proposerGuard > lock,
+    'Revision function must validate the original proposer after acquiring the row lock.',
+  );
+  required(
+    successorConflict > proposerGuard,
+    'Revision function must not expose successor existence before proposer validation.',
+  );
+  required(
+    terminalStatusGuard > successorConflict,
+    'Revision retries must report a durable successor before the generic terminal state.',
+  );
+  required(
+    revisionMigration.includes('memory_candidate_one_successor_per_predecessor'),
+    'Revision migration must retain one successor per predecessor.',
+  );
+  required(
+    revisionService.includes("message.includes('MEMORY_REVISION_SUCCESSOR_EXISTS')"),
+    'Revision service must translate the deterministic successor conflict.',
+  );
+  required(
+    revisionService.includes(
+      "throw new ConflictException('A revised successor already exists for this proposal.')",
+    ),
+    'Revision service must return a stable successor-conflict response.',
   );
 }
 
