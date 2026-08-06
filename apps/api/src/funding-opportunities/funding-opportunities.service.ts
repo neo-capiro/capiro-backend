@@ -44,6 +44,7 @@ import {
   profileIsTooThin,
   type ProfileCompleteness,
 } from './missing-profile-fields.js';
+import { recommendOpportunity } from './opportunity-recommendation.js';
 import {
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
@@ -1154,10 +1155,16 @@ export class FundingOpportunitiesService {
     };
   }
 
+  /**
+   * `asOf` is a parameter, not `new Date()`, so a recommendation is reproducible:
+   * the same request replayed against the same data gives the same answer, and a
+   * test can pin deadline proximity without freezing the clock.
+   */
   private shapeScored(
     src: SourceRow,
     facts: ClientFacts,
     workflows: WorkflowRowWithRefs[],
+    asOf: Date = new Date(),
   ): FundingOpportunity {
     const base = this.shapeUnscored(src);
     const scored = this.scoreRow(src, facts);
@@ -1174,6 +1181,21 @@ export class FundingOpportunitiesService {
       relevanceScore: scored.relevanceScore,
       matchedSignals: scored.matchedSignals,
       eligibility: scored.eligibility,
+      // Computed, never persisted. Recomputing on read is what keeps it honest
+      // against a client profile that has changed since the producer last ran.
+      recommendation: recommendOpportunity({
+        source: base.source,
+        kind: base.kind,
+        isActive: base.isActive,
+        isPursuable: base.isPursuable,
+        responseDeadline: base.responseDeadline,
+        relevanceScore: scored.relevanceScore,
+        signalStrengths: scored.matchedSignals.map((sig) => sig.strength),
+        signalKeys: scored.matchedSignals.map((sig) => sig.signal),
+        eligibility: scored.eligibility.state,
+        profileTooThin: profileIsTooThin(facts.completeness),
+        asOf,
+      }),
       missingProfileFields: missingProfileFields(facts.completeness, base.source),
       // An explicit project site OVERRIDES nothing — it is the only district
       // source for a grant (Grants.gov publishes no geography) and it is a
@@ -1242,6 +1264,9 @@ export class FundingOpportunitiesService {
         relevanceScore: 0,
         eligibility: { state: 'unknown', reason: NO_CLIENT_REASON },
         matchedSignals: [],
+        // Null, not a placeholder: a recommendation is always relative to a
+        // specific client, and the unscoped catalog read has none.
+        recommendation: null,
         missingProfileFields: [],
         sourceUpdatedAt: (g.lastUpdatedAt ?? g.detailSyncedAt ?? g.syncedAt)?.toISOString() ?? null,
         workflow: null,
@@ -1304,6 +1329,10 @@ export class FundingOpportunitiesService {
       relevanceScore: 0,
       eligibility: { state: 'unknown', reason: NO_CLIENT_REASON },
       matchedSignals: [],
+      // Null, not a 'needs_review' placeholder: a recommendation is always
+      // relative to a specific client, and inventing one for the unscoped catalog
+      // would be a claim about a client nobody named.
+      recommendation: null,
       missingProfileFields: [],
       sourceUpdatedAt: (s.updatedAt ?? s.lastSyncedAt)?.toISOString() ?? null,
       workflow: null,

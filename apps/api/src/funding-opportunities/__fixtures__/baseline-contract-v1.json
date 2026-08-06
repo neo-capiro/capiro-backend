@@ -31,6 +31,7 @@
       "placeOfPerformance",
       "postedDate",
       "pscCodes",
+      "recommendation",
       "relevanceScore",
       "responseDeadline",
       "responseDeadlineNote",
@@ -49,6 +50,14 @@
       "workflow"
     ],
     "FundingOpportunity.eligibility": ["reason", "state"],
+    "OpportunityRecommendationView": [
+      "machineRecommendation",
+      "primaryReason",
+      "primaryRisk",
+      "reasonCodes",
+      "recommendationConfidence",
+      "recommendedNextAction"
+    ],
     "FundingOpportunity.placeOfPerformance": ["city", "country", "state", "zip"],
     "GrantFunding": [
       "awardCeiling",
@@ -183,7 +192,9 @@
       "no_source_records",
       "source_never_synced"
     ],
-    "WRITE_DTO_ACCEPTED_STATUSES": ["saved", "pursuing", "won", "lost"]
+    "WRITE_DTO_ACCEPTED_STATUSES": ["saved", "pursuing", "won", "lost"],
+    "MACHINE_RECOMMENDATIONS": ["pursue", "monitor", "pass", "needs_review"],
+    "RECOMMENDATION_CONFIDENCES": ["high", "medium", "low"]
   },
 
   "moneyFields": [
@@ -198,10 +209,16 @@
     "FundingOpportunityListResponse.totalIsCapped": "Whether that row count hit the scan bound. Not money."
   },
 
+  "amendedByPhase": {
+    "P06": "Added FundingOpportunity.recommendation (additive, nullable) plus the OpportunityRecommendationView shape and the two recommendation vocabularies. The field is COMPUTED on read, never persisted, and is null on the unscoped catalog read because a recommendation is always relative to a specific client. Relevance and eligibility are unchanged; this is a fourth concept, not a replacement."
+  },
+
   "invariants": {
     "noBlendedMoney": "No response key sums grant money with contract money, and no key named totalAmount (or any *Amount) exists. grantFunding is null on a sam_gov row; contractValue is null on a grants_gov row.",
     "nullMoneyIsNotZero": "Every field listed in moneyFields is `number | null`. Null means the source stated no figure. Nothing in the read path coerces it to 0.",
     "relevanceIsNotEligibility": "relevanceScore (number) and eligibility ({state, reason}) are separate keys, computed by separate functions, and neither is derived from the other.",
+    "confidenceIsNotWinProbability": "recommendationConfidence is evidence quality. A high-confidence `pass` is a confident recommendation NOT to bid, which is why it can never be rendered as a win rate.",
+    "recommendationIsNotPersisted": "The recommendation is recomputed from source facts on every read, so it cannot go stale against a client profile that has since changed.",
     "explicitFeatureFlag": "Every route is gated by an explicit enabled row in intel_feature_flag for feature 'funding_opportunities'. There is no implicit internal-tenant fallback. A missing row, a missing tenant context, and a failing flag read all produce 404.",
     "portalDenial": "client_portal_user ranks below the controller's declared standard_user minimum, so RolesGuard denies every route with 403. This module exposes no separate portal read path.",
     "failureIsNotEmpty": "A failing catalog read propagates as a non-2xx. EmptyReason has no member meaning 'the request failed', so a broken query can never render as zero results.",
@@ -220,8 +237,8 @@
   "testFloors": {
     "note": "Floors enforced by scripts/assert-test-summary.mjs in .github/workflows/funding-opportunities-ci.yml. A floor may be RAISED freely. Lowering one is indistinguishable from the gate shrinking and requires a written reason in the PR description.",
     "measuredAtFreeze": { "api": { "suites": 20, "tests": 584 }, "web": { "suites": 26, "tests": 79 } },
-    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740" },
-    "api": { "suites": 24, "tests": 740 },
+    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740", "P06": "24/740 -> 25/790" },
+    "api": { "suites": 25, "tests": 790 },
     "web": { "suites": 25, "tests": 75 }
   },
 

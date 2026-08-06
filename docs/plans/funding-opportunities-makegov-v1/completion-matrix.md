@@ -38,7 +38,7 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 | P03 | Complete grant producer keyset walk | in progress | *pending commit* | api 23/709, web 26/79, 0 skipped. Floor raised 22/660 → **23/700** | *pending* | n/a | n/a — schedule still `enabled: false`, dry-run still default | 4,001 grants x 501 clients: last row of BOTH dimensions evaluated, `completion=COMPLETE`, 2,004,501 pairs, zero errors. Resume starts strictly after the cursor. Query count bounded per page, and unchanged when the notice count doubles. No source text says "raise the cap". | Revert producer + producer-pagination.ts. Persisted suggestions intact; nothing is deleted. |
 | P04 | Complete SAM producer keyset walk | in progress | *pending commit* | api 23/717, web 26/79, 0 skipped. Floor raised 23/700 → **23/710** | *pending* | n/a | n/a — schedule still `enabled: false`, dry-run still default | 4,001 notices x 501 clients: last row of both dimensions evaluated, `completion=COMPLETE`, 2,004,501 pairs. Informational notices excluded at every page boundary (interleaved fixture, not just edges). Never orders by `responseDeadline`. Same completion vocabulary as P03, asserted. `SAM_OPPORTUNITY_SCAN_CAP` / `SAM_CANDIDATE_CLIENT_CAP` removed. | Revert producer. No data deletion; persisted suggestions intact. |
 | P05 | Mapping governance hardening | in progress | *pending commit* | api 24/748, web 26/81, 0 skipped. Floor raised 23/710 → **24/740** | *pending* | **n/a — no migration needed.** Every review/audit column already exists (`reviewStatus`, `reviewedBy`, `reviewedAt`, `rejectionReason`, `matchBasis`, `matchTier`, `relationshipType`, `rollUpAwards`). | API + web deploy together — the web fix and the DTO gate are two halves of one change | Body `id` rejected (DTO validation + web behavioural test, mutation-verified). Award-bearing confirm requires explicit relationship + roll-up **on the request**; reject requires a written reason. PATCH now `user_admin`; portal AND standard user denied. Cross-tenant → 404, no write. Prune script no longer erases rejections. | Revert API + web together. No schema change to roll back. Any mapping already confirmed keeps its recorded relationship/roll-up. |
-| P06 | Deterministic recommendation contract | not started | | | | n/a | | Full truth table; stable under input ordering | Revert additive response fields |
+| P06 | Deterministic recommendation contract | in progress | *pending commit* | api 25/798, web 26/81, 0 skipped. Floor raised 24/740 → **25/790** | *pending* | n/a | API may deploy before web — the field is additive and nothing in the UI reads it yet | 2,304-row exhaustive sweep: every combination yields a valid result, and BOTH hard invariants hold on every row (closed/informational never `pursue`; unresolved eligibility never `pursue`). Stable under signal reordering. Reads the supplied `asOf`, never the wall clock. No raw camelCase key in any output string. | Revert the additive `recommendation` field and restore the P05 fixture keys. Nothing persisted, so no data rollback. |
 | P07 | Human decision and next-action persistence | not started | | | | **required** | | Clean + ordered replay; 4 RLS policies and FORCE intact | Roll back code, leave additive nullable columns |
 | P08 | Atomic review/pursuit task action | not started | | | | n/a | | Failure at either step rolls back both; retry creates one task | Revert UI to prior endpoint |
 | P09 | Human-readable match explanations | not started | | | | n/a | | No raw camelCase signal key in default card text | Revert web display |
@@ -130,6 +130,29 @@ from Funding Opportunities still exists in:
 Each has the same weakness: a reviewed name acts as an equal-strength identifier.
 Out of this program's scope, but they will disagree with Funding Opportunities about
 a client's award history until they are changed.
+
+## P06 — frozen-contract amendment
+
+P00's fixture is edited by hand, in the diff, with a reason — which is the whole
+point of it being a fixture rather than a snapshot. P06 adds:
+
+- `FundingOpportunity.recommendation` (additive, nullable)
+- the `OpportunityRecommendationView` shape
+- `MACHINE_RECOMMENDATIONS` and `RECOMMENDATION_CONFIDENCES`
+
+`recommendation` is **null on the unscoped catalog read**, not a `needs_review`
+placeholder: a recommendation is always relative to a specific client, and
+inventing one for a read where nobody named a client would be a claim about
+nothing.
+
+It is **computed on every read and never persisted**, per P06's own instruction.
+That is not laziness — a stored recommendation goes stale the moment the client
+profile changes, and there is no mechanism yet that would notice.
+
+`recommendationConfidence` is evidence quality. The fixture records the invariant
+explicitly, and a test asserts no confidence value is named like a probability,
+because "high" next to a dollar figure invites exactly the win-rate reading the
+contract forbids.
 
 ## Deviations from the plan
 

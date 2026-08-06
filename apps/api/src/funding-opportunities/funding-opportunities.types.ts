@@ -32,6 +32,12 @@
  *    carries a human-readable reason.
  */
 
+import type {
+  MachineRecommendation,
+  RecommendationConfidence,
+  RecommendationReasonCode,
+} from './opportunity-recommendation.js';
+
 // ── Source and kind vocabularies ────────────────────────────────────────────
 
 export const OPPORTUNITY_SOURCES = ['grants_gov', 'sam_gov'] as const;
@@ -367,6 +373,18 @@ export interface FundingOpportunity {
   relevanceScore: number;
   eligibility: { state: EligibilityState; reason: string };
   matchedSignals: OpportunityMatchedSignal[];
+
+  /**
+   * What to DO with this, and why. Deterministic — see
+   * `opportunity-recommendation.ts`. Additive in P06 and NOT persisted: it is
+   * recomputed from the same source facts on every read, so it cannot go stale
+   * against a profile that has since changed.
+   *
+   * A fourth concept alongside relevance, eligibility and workflow status, not a
+   * replacement for any of them. Null only on the unscoped catalog read, where
+   * there is no client to recommend anything relative to.
+   */
+  recommendation: OpportunityRecommendationView | null;
   missingProfileFields: MissingProfileField[];
 
   /** When the source record itself was last refreshed by ingestion. */
@@ -377,6 +395,22 @@ export interface FundingOpportunity {
 
   /** The client this scoring is relative to. Null on the unscoped catalog read. */
   clientId: string | null;
+}
+
+/**
+ * The read-model of a recommendation. Mirrors
+ * `OpportunityRecommendationResult`; kept as its own interface so the response
+ * contract does not import the rule engine's internal types.
+ */
+export interface OpportunityRecommendationView {
+  machineRecommendation: MachineRecommendation;
+  /** Evidence quality. NEVER a probability of winning. */
+  recommendationConfidence: RecommendationConfidence;
+  primaryReason: string;
+  /** The strongest reason not to act, or null when there is none worth naming. */
+  primaryRisk: string | null;
+  recommendedNextAction: string;
+  reasonCodes: RecommendationReasonCode[];
 }
 
 export interface OpportunityWorkflow {

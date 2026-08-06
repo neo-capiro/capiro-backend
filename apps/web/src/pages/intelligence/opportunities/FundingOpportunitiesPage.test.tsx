@@ -90,6 +90,9 @@ function grant(partial: Partial<FundingOpportunity> = {}): FundingOpportunity {
     kind: 'grant',
     kindRaw: 'Grant',
     baseKind: null,
+    // P06 additive field. Null here: nothing in the page reads it yet, and a
+    // fixture that invented a recommendation would assert behaviour P09 owns.
+    recommendation: null,
     title: 'Advanced Manufacturing Research',
     agency: 'Department of Energy',
     subAgency: null,

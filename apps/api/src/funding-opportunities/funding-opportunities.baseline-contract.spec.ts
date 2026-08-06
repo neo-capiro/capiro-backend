@@ -3,6 +3,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import baseline from './__fixtures__/baseline-contract-v1.json';
 import {
+  MACHINE_RECOMMENDATIONS,
+  RECOMMENDATION_CONFIDENCES,
+} from './opportunity-recommendation.js';
+import {
   ELIGIBILITY_STATES,
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
@@ -129,6 +133,15 @@ const ELIGIBILITY: FundingOpportunity['eligibility'] = {
  * saying the source stated no figure, and this constructor is the thing that
  * proves a null survives to the response instead of becoming 0.
  */
+const RECOMMENDATION: NonNullable<FundingOpportunity['recommendation']> = {
+  machineRecommendation: 'pass',
+  recommendationConfidence: 'high',
+  primaryReason: 'No strong match against this client.',
+  primaryRisk: null,
+  recommendedNextAction: 'No action.',
+  reasonCodes: ['below_evidence_floor'],
+};
+
 const OPPORTUNITY: FundingOpportunity = {
   id: 'grants_gov:ABC-123',
   source: 'grants_gov',
@@ -166,6 +179,9 @@ const OPPORTUNITY: FundingOpportunity = {
   districtBasis: null,
   relevanceScore: 0,
   eligibility: ELIGIBILITY,
+  // Null is the honest value on an unscoped row. The constructor below covers the
+  // populated shape.
+  recommendation: null,
   matchedSignals: [],
   missingProfileFields: [],
   sourceUpdatedAt: null,
@@ -328,6 +344,7 @@ const CONSTRUCTED_KEYS: Record<string, string[]> = {
   FundingOpportunityCounts: Object.keys(COUNTS),
   OpportunitySourceFreshness: Object.keys(FRESHNESS),
   GrantEnrichmentHealth: Object.keys(ENRICHMENT),
+  OpportunityRecommendationView: Object.keys(RECOMMENDATION),
   FundingOpportunityListResponse: Object.keys(LIST_RESPONSE),
   ClientFundingOpportunitySummary: Object.keys(SUMMARY),
   'ClientFundingOpportunitySummary.nextDeadline': Object.keys(NEXT_DEADLINE),
@@ -355,6 +372,7 @@ describe('the frozen response contract still matches the code', () => {
     'FundingOpportunityCounts',
     'OpportunitySourceFreshness',
     'GrantEnrichmentHealth',
+    'OpportunityRecommendationView',
     'FundingOpportunityListResponse',
     'ClientFundingOpportunitySummary',
   ])('the %s INTERFACE declares exactly the frozen keys (catches an added optional)', (name) => {
@@ -512,6 +530,21 @@ describe('the frozen vocabularies still match the runtime constants', () => {
     );
     for (const member of unionMembers('EmptyReason')) {
       expect(member).not.toMatch(/error|fail|unavailable|degraded/i);
+    }
+  });
+
+  test('the recommendation vocabularies are frozen', () => {
+    expect([...MACHINE_RECOMMENDATIONS]).toEqual(baseline.vocabularies.MACHINE_RECOMMENDATIONS);
+    expect([...RECOMMENDATION_CONFIDENCES]).toEqual(
+      baseline.vocabularies.RECOMMENDATION_CONFIDENCES,
+    );
+  });
+
+  test('confidence is never named like a probability', () => {
+    // The field is evidence quality. A value called "likely" or a percent band
+    // would invite exactly the win-rate reading the contract forbids.
+    for (const value of RECOMMENDATION_CONFIDENCES) {
+      expect(value).not.toMatch(/likely|probab|percent|%|win/i);
     }
   });
 
