@@ -10,6 +10,7 @@ import {
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(scriptDirectory, '..');
 const pnpm = resolveMemoryPhase2Pnpm();
+const RLS_TEST_ROLE = 'capiro_memory_phase2_rls_test';
 
 interface FixtureIds {
   tenantId: string;
@@ -27,6 +28,13 @@ interface OutboxRow {
   recipient_user_id: string;
   event_type: string;
   payload_has_forbidden: boolean;
+}
+
+interface DatabaseRoleRow {
+  role_name: string;
+  rolsuper: boolean;
+  rolbypassrls: boolean;
+  inherited_memberships: number;
 }
 
 async function main(): Promise<void> {
@@ -64,6 +72,7 @@ async function runNotificationAcceptance(
   ids: FixtureIds,
 ): Promise<void> {
   await createNotificationWorkflow(databaseUrl, ids);
+  await ensureRlsTestRole(databaseUrl);
   const outbox = await assertOutboxObligations(databaseUrl, ids);
   await assertConcurrentClaims(databaseUrl, ids, outbox.length);
   await assertRecipientInAppRls(databaseUrl, ids, outbox);
@@ -169,6 +178,75 @@ async function createNotificationWorkflow(
   }
 }
 
+async function ensureRlsTestRole(databaseUrl: string): Promise<void> {
+  const prisma = client(databaseUrl);
+  try {
+    await prisma.$executeRawUnsafe(`
+      DO $memory_phase2$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_roles WHERE rolname = '${RLS_TEST_ROLE}'
+        ) THEN
+          CREATE ROLE ${RLS_TEST_ROLE}
+            NOLOGIN
+            NOSUPERUSER
+            NOCREATEDB
+            NOCREATEROLE
+            NOINHERIT
+            NOBYPASSRLS;
+        END IF;
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END
+      $memory_phase2$
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER ROLE ${RLS_TEST_ROLE}
+        NOLOGIN
+        NOSUPERUSER
+        NOCREATEDB
+        NOCREATEROLE
+        NOINHERIT
+        NOBYPASSRLS
+    `);
+    await prisma.$executeRawUnsafe(
+      `GRANT USAGE ON SCHEMA public TO ${RLS_TEST_ROLE}`,
+    );
+    await prisma.$executeRawUnsafe(
+      `GRANT SELECT ON TABLE memory_review_notification_outbox TO ${RLS_TEST_ROLE}`,
+    );
+    await prisma.$executeRawUnsafe(
+      `GRANT SELECT, INSERT ON TABLE memory_review_in_app_notification TO ${RLS_TEST_ROLE}`,
+    );
+
+    const rows = await prisma.$queryRawUnsafe<DatabaseRoleRow[]>(
+      `SELECT role.rolname::text AS role_name,
+              role.rolsuper,
+              role.rolbypassrls,
+              (
+                SELECT count(*)::int
+                FROM pg_auth_members membership
+                WHERE membership.member = role.oid
+              ) AS inherited_memberships
+       FROM pg_roles role
+       WHERE role.rolname = $1`,
+      RLS_TEST_ROLE,
+    );
+    const role = rows[0];
+    if (
+      !role ||
+      role.role_name !== RLS_TEST_ROLE ||
+      role.rolsuper ||
+      role.rolbypassrls ||
+      role.inherited_memberships !== 0
+    ) {
+      throw new Error('Memory Phase 2 RLS test role is not isolated from bypass privileges.');
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function assertOutboxObligations(
   databaseUrl: string,
   ids: FixtureIds,
@@ -176,6 +254,7 @@ async function assertOutboxObligations(
   const prisma = client(databaseUrl);
   try {
     const rows = await prisma.$transaction(async (tx) => {
+      await setRlsTestRole(tx);
       await setContext(tx, ids.tenantId, ids.proposerId);
       return tx.$queryRawUnsafe<OutboxRow[]>(
         `SELECT outbox.id::text,
@@ -284,6 +363,7 @@ async function assertRecipientInAppRls(
   const prisma = client(databaseUrl);
   try {
     await prisma.$transaction(async (tx) => {
+      await setRlsTestRole(tx);
       await setContext(tx, ids.tenantId, ids.reviewerId);
       for (let attempt = 0; attempt < 2; attempt += 1) {
         await tx.$executeRawUnsafe(
@@ -326,6 +406,7 @@ async function assertRecipientInAppRls(
     });
 
     await prisma.$transaction(async (tx) => {
+      await setRlsTestRole(tx);
       await setContext(tx, ids.tenantId, ids.otherUserId);
       const rows = await tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT count(*)::int AS count
@@ -343,6 +424,7 @@ async function assertRecipientInAppRls(
     let bodyRejected = false;
     try {
       await prisma.$transaction(async (tx) => {
+        await setRlsTestRole(tx);
         await setContext(tx, ids.tenantId, ids.reviewerId);
         await tx.$executeRawUnsafe(
           `INSERT INTO memory_review_in_app_notification (
@@ -365,6 +447,7 @@ async function assertRecipientInAppRls(
     if (!bodyRejected) throw new Error('In-app notification accepted forbidden feedback content.');
 
     await prisma.$transaction(async (tx) => {
+      await setRlsTestRole(tx);
       await setContext(tx, randomUUID(), ids.reviewerId);
       const rows = await tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT count(*)::int AS count FROM memory_review_in_app_notification`,
@@ -375,6 +458,37 @@ async function assertRecipientInAppRls(
     });
   } finally {
     await prisma.$disconnect();
+  }
+}
+
+async function setRlsTestRole(
+  tx: {
+    $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+    $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
+  },
+): Promise<void> {
+  await tx.$executeRawUnsafe(`SET LOCAL ROLE ${RLS_TEST_ROLE}`);
+  const rows = await tx.$queryRawUnsafe<DatabaseRoleRow[]>(
+    `SELECT role.rolname::text AS role_name,
+            role.rolsuper,
+            role.rolbypassrls,
+            (
+              SELECT count(*)::int
+              FROM pg_auth_members membership
+              WHERE membership.member = role.oid
+            ) AS inherited_memberships
+     FROM pg_roles role
+     WHERE role.rolname = current_user`,
+  );
+  const role = rows[0];
+  if (
+    !role ||
+    role.role_name !== RLS_TEST_ROLE ||
+    role.rolsuper ||
+    role.rolbypassrls ||
+    role.inherited_memberships !== 0
+  ) {
+    throw new Error('Memory Phase 2 RLS acceptance did not enter a non-bypass role.');
   }
 }
 
