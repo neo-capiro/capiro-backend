@@ -476,8 +476,8 @@ async function main(): Promise<void> {
       ON CONFLICT (id) DO NOTHING
     `);
     await prisma.$executeRawUnsafe(`
-      INSERT INTO tenants (id, name, clerk_org_id, created_at, updated_at)
-      VALUES ('${CROSS_TENANT_ID}'::uuid, 'Phase 1 Cross Tenant', 'phase1-cross-tenant', now(), now())
+      INSERT INTO tenants (id, slug, name, clerk_org_id, created_at, updated_at)
+      VALUES ('${CROSS_TENANT_ID}'::uuid, 'phase1-cross-tenant', 'Phase 1 Cross Tenant', 'phase1-cross-tenant', now(), now())
       ON CONFLICT (id) DO NOTHING
     `);
     await prisma.$executeRawUnsafe(`
