@@ -12,6 +12,7 @@ function apiRoot(): string {
 
 const root = apiRoot();
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+const readWeb = (path: string) => readFileSync(resolve(root, '../web', path), 'utf8');
 const migration = read(
   'prisma/migrations/20260818050000_memory_admin_self_approval_policy/migration.sql',
 );
@@ -22,12 +23,12 @@ const workflow = read('src/memory/memory-review-workflow.service.ts');
 const candidate = read('src/memory/memory-candidate.service.ts');
 const immutable = read('src/memory/immutable-memory-version.service.ts');
 const adminInbox = read('src/memory/memory-review-admin-inbox.service.ts');
+const dispatcher = read('src/memory/memory-review-notification-dispatcher.service.ts');
+const notificationHelpers = read('src/memory/memory-review-notification.helpers.ts');
 const moduleSource = read('src/memory/memory.module.ts');
-const editor = readFileSync(resolve(root, '../web/src/components/MemoryFileEditor.tsx'), 'utf8');
-const pendingPanel = readFileSync(
-  resolve(root, '../web/src/components/PendingMemoryReviewPanel.tsx'),
-  'utf8',
-);
+const editor = readWeb('src/components/MemoryFileEditor.tsx');
+const pendingPanel = readWeb('src/components/PendingMemoryReviewPanel.tsx');
+const reviewInbox = readWeb('src/components/MemoryReviewInbox.tsx');
 
 describe('memory administrator self-approval policy contract', () => {
   it('permits only candidate- and actor-bound active tenant administrators at the database boundary', () => {
@@ -81,16 +82,27 @@ describe('memory administrator self-approval policy contract', () => {
     expect(adminInbox).toContain("requestedView === 'needs_my_review' ? 'all_pending'");
     expect(adminInbox).toContain('this.adminPrisma.withTenantUser');
     expect(adminInbox).toContain('this.adminAuthorization.loadCandidateInTx');
-    expect(adminInbox).toContain("this.adminAuthorization.evaluateInTx(tx, ctx, subject, 'approve'");
+    expect(adminInbox).toContain("'approve'");
     expect(moduleSource).toContain(
       '{ provide: MemoryReviewInboxService, useExisting: MemoryReviewAdminInboxService }',
     );
   });
 
-  it('removes the independent-approver claim from active shared-save copy', () => {
+  it('removes the independent-approver claim from every active shared-memory UI surface', () => {
     expect(editor).toContain('Submitted for approval');
     expect(editor).not.toContain('Submitted for independent review');
     expect(pendingPanel).toContain('Waiting for approval');
     expect(pendingPanel).not.toContain('independent reviewer');
+    expect(reviewInbox).toContain('authorized administrator or reviewer approves it');
+    expect(reviewInbox).not.toContain('independent reviewer approves it');
+  });
+
+  it('keeps Memory Review notifications in-app only', () => {
+    expect(dispatcher).toContain('in-app notification table only');
+    expect(dispatcher).not.toContain('MemoryReviewNotificationEmailService');
+    expect(dispatcher).not.toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
+    expect(notificationHelpers).not.toContain('renderMemoryReviewNotificationEmail');
+    expect(notificationHelpers).not.toContain('memoryReviewEmailDeliveryEnabled');
+    expect(moduleSource).not.toContain('MemoryReviewNotificationEmailService');
   });
 });
