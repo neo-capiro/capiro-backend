@@ -17,6 +17,8 @@ import { SettingsMemoryVersionCandidateService } from './settings-memory-version
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
+import { MemoryReviewNotificationDispatcherService } from './memory-review-notification-dispatcher.service.js';
+import { MemoryReviewNotificationEmailService } from './memory-review-notification-email.service.js';
 import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -45,8 +47,9 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  * Institutional Memory module.
  *
  * Phase 2 review workflow state is a companion to memory_candidate. It owns
- * named assignment, bounded review feedback, and immutable revision lineage
- * while canonical activation remains in the governed candidate/version paths.
+ * named assignment, bounded review feedback, immutable revision lineage, and
+ * body-free notification delivery while canonical activation remains in the
+ * governed candidate/version paths.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -80,6 +83,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewWorkflowService,
     MemoryReviewRevisionService,
     MemoryCandidateReviewService,
+    MemoryReviewNotificationEmailService,
+    MemoryReviewNotificationDispatcherService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
     MemoryConflictService,
@@ -106,6 +111,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryCandidateReviewService,
     MemoryReviewWorkflowService,
     MemoryReviewRevisionService,
+    MemoryReviewNotificationDispatcherService,
     MemoryAuthorizationService,
     ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
