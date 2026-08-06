@@ -74,11 +74,14 @@ const workflowSnapshot = {
   capabilities: { requestChanges: false, reassign: true },
 };
 
-function harness(input: {
-  proposedBy?: string;
-  allowed?: boolean;
-  functionError?: Error;
-} = {}) {
+function harness(
+  input: {
+    proposedBy?: string;
+    predecessorAllowed?: boolean;
+    successorAllowed?: boolean;
+    functionError?: Error;
+  } = {},
+) {
   const sourceRow = { ...source, proposedBy: input.proposedBy ?? source.proposedBy };
   const queryRaw = jest
     .fn<(...args: unknown[]) => Promise<unknown[]>>()
@@ -108,11 +111,15 @@ function harness(input: {
     .fn<(...args: unknown[]) => Promise<typeof subject>>()
     .mockResolvedValueOnce(subject)
     .mockResolvedValueOnce({ ...subject, id: SUCCESSOR });
-  const evaluateInTx = jest.fn(async () =>
-    input.allowed === false
-      ? ({ allowed: false as const, reason: 'ethical_wall' as const })
-      : ({ allowed: true as const, basis: 'tenant_read' as const }),
-  );
+  let evaluation = 0;
+  const evaluateInTx = jest.fn(async () => {
+    evaluation += 1;
+    const allowed =
+      evaluation === 1 ? input.predecessorAllowed !== false : input.successorAllowed !== false;
+    return allowed
+      ? ({ allowed: true as const, basis: 'tenant_read' as const })
+      : ({ allowed: false as const, reason: 'ethical_wall' as const });
+  });
   const authorization = {
     loadCandidateInTx,
     evaluateInTx,
@@ -133,7 +140,7 @@ const revisedSections = [
 ];
 
 describe('MemoryReviewRevisionService', () => {
-  it('creates one immutable successor, preserves active memory, and opens fresh review', async () => {
+  it('creates one immutable successor, refreshes content identity, and opens fresh review', async () => {
     const h = harness();
     const result = await h.service.revise(ctx, PREDECESSOR, { sections: revisedSections });
 
@@ -145,7 +152,14 @@ describe('MemoryReviewRevisionService', () => {
       activeMemoryUnchanged: true,
       workflow: { status: 'pending', assignedReviewer: { name: 'Riley Reviewer' } },
     });
-    expect(h.evaluateInTx).toHaveBeenCalledWith(expect.anything(), ctx, subject, 'propose');
+    expect(h.evaluateInTx).toHaveBeenNthCalledWith(1, expect.anything(), ctx, subject, 'propose');
+    expect(h.evaluateInTx).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      ctx,
+      expect.objectContaining({ id: SUCCESSOR }),
+      'propose',
+    );
     expect(h.ensureAndDescribeInTx).toHaveBeenCalledWith(
       expect.anything(),
       ctx,
@@ -166,6 +180,7 @@ describe('MemoryReviewRevisionService', () => {
           revisionNumber: 2,
           sectionBodiesChanged: 1,
           payloadHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          sourceContentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         }),
       }),
     });
@@ -181,12 +196,22 @@ describe('MemoryReviewRevisionService', () => {
     expect(h.queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('re-evaluates wall and client-status policy before resubmission', async () => {
-    const h = harness({ allowed: false });
+  it('re-evaluates wall and client-status policy before cloning', async () => {
+    const h = harness({ predecessorAllowed: false });
     await expect(
       h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(h.queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls back the clone path when authorization changes before successor review opens', async () => {
+    const h = harness({ successorAllowed: false });
+    await expect(
+      h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(h.queryRaw).toHaveBeenCalledTimes(2);
+    expect(h.ensureAndDescribeInTx).not.toHaveBeenCalled();
+    expect(h.auditCreate).not.toHaveBeenCalled();
   });
 
   it('maps concurrent successor and stale-workflow races to stable conflicts', async () => {
