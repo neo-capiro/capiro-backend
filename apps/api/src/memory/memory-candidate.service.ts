@@ -14,6 +14,7 @@ import { MemoryTransitionAuditService } from './memory-transition-audit.service.
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
 import { fetchDeniedClientIds } from './memory-wall.helpers.js';
 import {
@@ -127,8 +128,8 @@ interface ActivatedCandidate {
  * WARN (stays 'pending' until `approve`/`reject`).
  *
  * Only PERSONAL scope resolves PASS. Firm and client scope always land pending
- * for an independent reviewer (closeout §2.2) — an administrator can propose
- * shared memory but can no longer ratify their own proposal in one request.
+ * for review. Any active administrator may later approve, including the
+ * administrator who proposed the memory; standard self-review remains denied.
  */
 @Injectable()
 export class MemoryCandidateService {
@@ -155,7 +156,7 @@ export class MemoryCandidateService {
     ),
   ) {}
 
-  /** Submit a complete Settings firm/client file for independent review. */
+  /** Submit a complete Settings firm/client file for administrator review. */
   async proposeSettingsSections(
     ctx: CandidateActorContext,
     input: SettingsMemoryCandidateInput,
@@ -178,11 +179,11 @@ export class MemoryCandidateService {
       ctx.tenantId,
       ctx.userId,
       record,
-      ctx.role === 'user_admin' || ctx.role === 'capiro_admin',
+      isMemoryReviewAdminRole(ctx.role),
       'settings_sections',
     );
     if (result.status !== 'pending') {
-      throw new Error('Shared Settings memory unexpectedly bypassed independent review.');
+      throw new Error('Shared Settings memory unexpectedly bypassed review.');
     }
     return {
       candidateId: result.candidateId,
@@ -240,7 +241,6 @@ export class MemoryCandidateService {
       throw new BadRequestException('Client-scope memory requires a clientId.');
     }
 
-    // Phase 4: clamp a finite confidence to [0,1]; anything else = unscored (null).
     const candidateConfidence =
       typeof record.confidence === 'number' && Number.isFinite(record.confidence)
         ? Math.min(1, Math.max(0, record.confidence))
@@ -275,8 +275,8 @@ export class MemoryCandidateService {
       sourceExcerpt,
     };
 
-    // The outcome is deterministic from server-owned facts. Only personal scope
-    // may PASS; every shared scope remains pending for an independent reviewer.
+    // Only personal scope may commit inline. Shared scope always remains pending
+    // until an authorized administrator or assigned reviewer takes a decision.
     const decision = evaluateMemoryCandidate({
       scope,
       isAdmin,
@@ -284,9 +284,6 @@ export class MemoryCandidateService {
       confidence: candidateConfidence,
     });
 
-    // Candidate insert, duplicate lineage, personal activation, candidate
-    // decision, transition audit, and durable projection obligation share ONE
-    // transaction. An exception after any mutation rolls all of them back.
     const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
       const priorCommitted = await tx.$queryRaw<
         Array<{ id: string; committed_memory_id: string | null }>
@@ -369,14 +366,6 @@ export class MemoryCandidateService {
     };
   }
 
-  /**
-   * Approve and activate a pending candidate atomically.
-   *
-   * `SELECT ... FOR UPDATE` serializes concurrent reviewers. The candidate is
-   * re-checked as pending after the lock is acquired, so exactly one caller can
-   * activate it; every other caller receives the same tenant-safe not-found
-   * response used for an unknown or cross-tenant id.
-   */
   async approve(
     tenantId: string,
     candidateId: string,
@@ -393,7 +382,7 @@ export class MemoryCandidateService {
         'approve',
         actorContext,
       );
-      this.requireIndependentReviewer(candidate, approverUserId);
+      this.requireSharedApprovalPolicy(candidate, approverUserId, actorContext);
       const record = payloadToSaveRequest(candidate.payload);
       const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
         ? buildCanonicalGovernance({
@@ -426,7 +415,6 @@ export class MemoryCandidateService {
     return { memoryId: activated.memoryId };
   }
 
-  /** Reject a pending candidate atomically. No memory write ever happens. */
   async reject(
     tenantId: string,
     candidateId: string,
@@ -448,34 +436,25 @@ export class MemoryCandidateService {
   }
 
   /**
-   * Segregation of duties. Approving a shared-scope candidate is what turns a
-   * proposal into firm/client memory that every other user will later be served
-   * as institutional truth, so the approver must not be the proposer. The route's
-   * `@Roles('user_admin')` guard is a role check, not an independence check — an
-   * admin's own firm-scope proposal was previously self-ratifiable in one call.
-   *
-   * Personal scope is deliberately exempt: it is the proposer's own memory and
-   * nobody else can review it. Rejection is also exempt — declining your own
-   * proposal is a withdrawal and writes no memory.
+   * Standard users still may not approve their own shared proposal. An active
+   * administrator with server-resolved actor context may do so. The canonical
+   * authorization layer separately enforces the tenant, ethical wall, client
+   * status, and current role before this defense-in-depth check runs.
    */
-  private requireIndependentReviewer(
+  private requireSharedApprovalPolicy(
     candidate: { proposedBy: string; scope: string },
     approverUserId: string,
+    actorContext?: CandidateActorContext,
   ): void {
     const shared = candidate.scope === 'firm' || candidate.scope === 'client';
-    if (shared && candidate.proposedBy === approverUserId) {
+    const selfApproval = shared && candidate.proposedBy === approverUserId;
+    if (selfApproval && !isMemoryReviewAdminRole(actorContext?.role)) {
       throw new ForbiddenException(
-        'Shared-scope memory must be approved by a reviewer other than the proposer.',
+        'Shared-scope memory self-approval requires an active administrator.',
       );
     }
   }
 
-  /**
-   * Admin review queue. When a viewer is identified, candidates proposing
-   * memory for a walled client the viewer is not granted are withheld — the
-   * proposed payload is itself confidential content (fail-closed; the wall
-   * manager grants a reviewer access when one is needed).
-   */
   async listPending(tenantId: string, viewerUserId?: string): Promise<MemoryCandidateRow[]> {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
@@ -512,11 +491,6 @@ export class MemoryCandidateService {
     return row;
   }
 
-  /**
-   * Run the canonical governed authorization decision inside the same transaction
-   * that owns the row lock and activation. The controller passes server-resolved
-   * context; browser-supplied tenant, role, wall, or grant facts are never used.
-   */
   private async authorizeCandidateInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -541,10 +515,6 @@ export class MemoryCandidateService {
     }
   }
 
-  /**
-   * Record the decision on the candidate row using the CALLER'S transaction.
-   * No helper in an activation path may open an independent tenant transaction.
-   */
   private async markDecidedInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -639,11 +609,6 @@ export class MemoryCandidateService {
     }
   }
 
-  /**
-   * Commit one canonical clio_memory version and enqueue its projection using
-   * the CALLER'S transaction. This helper never opens a nested transaction and
-   * never performs network work.
-   */
   private async commitToClioMemoryInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,
@@ -737,11 +702,6 @@ export class MemoryCandidateService {
     return { clioMemoryId: id, memoryItemId };
   }
 
-  /**
-   * Compatibility wrapper for non-candidate callers and focused projection
-   * tests. Candidate activation itself calls commitToClioMemoryInTx directly so
-   * memory creation and the candidate decision cannot split across commits.
-   */
   private async commitToClioMemory(tenantId: string, record: MemorySaveRequest): Promise<string> {
     const committed = await this.prisma.withTenant(tenantId, (tx) =>
       this.commitToClioMemoryInTx(tx, tenantId, record),
@@ -750,7 +710,6 @@ export class MemoryCandidateService {
     return committed.clioMemoryId;
   }
 
-  /** Network-backed embedding/projection is deliberately post-commit. */
   private dispatchProjectionFastPath(
     tenantId: string,
     memoryId: string,
@@ -769,19 +728,6 @@ export class MemoryCandidateService {
       });
   }
 
-  /**
-   * Best-effort semantic-recall embedding for ONE committed clio_memory row.
-   *
-   * **Targets `id`, never `(tenant_id, key)`.** `clio_memory` is unique on
-   * (tenant, scope, owner, client, key) — NOT on (tenant, key) — so the same key
-   * legitimately exists many times in one tenant: once per client for
-   * client-scope rows, once per user for user_private rows, plus the firm-scope
-   * row. The previous `WHERE tenant_id = $2 AND key = $3` therefore wrote one
-   * memory's vector over EVERY same-key row in the tenant, so a save for client A
-   * silently repointed client B's semantic recall at A's content, and any
-   * user_private row with a colliding key was overwritten with another user's
-   * text. Closeout §4 "Embedding fix".
-   */
   private async embedMemory(
     tenantId: string,
     memoryId: string,
@@ -802,7 +748,6 @@ export class MemoryCandidateService {
     const vecStr = `[${embedding.join(',')}]`;
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.$executeRawUnsafe(
-        // tenant_id stays in the predicate as defence in depth behind RLS.
         `UPDATE clio_memory SET embedding = $1::vector WHERE id = $2::uuid AND tenant_id = $3::uuid`,
         vecStr,
         memoryId,
@@ -840,8 +785,6 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     value: p.value,
     source: p.source,
     expiresAt: typeof raw.expiresAt === 'string' ? new Date(raw.expiresAt) : null,
-    // Phase 4: round-trip confidence so an APPROVED candidate commits with the
-    // extraction confidence it was reviewed at (else it would lose it on commit).
     confidence:
       typeof raw.confidence === 'number' && Number.isFinite(raw.confidence) ? raw.confidence : null,
     sourceConversationId:
