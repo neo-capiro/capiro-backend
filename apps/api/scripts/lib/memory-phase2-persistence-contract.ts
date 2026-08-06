@@ -12,6 +12,12 @@ export const MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS = [
   { prismaField: 'supersededById', databaseColumn: 'superseded_by_id', prismaType: 'String?', migrationSqlType: 'uuid' },
 ] as const satisfies readonly PrismaModeledLineageColumn[];
 
+const TENANT_BOUND_LINEAGE_REFERENCES = [
+  { prismaField: 'revisionRootId', databaseColumn: 'revision_root_id', relation: 'MemoryCandidateRevisionRoot' },
+  { prismaField: 'predecessorCandidateId', databaseColumn: 'predecessor_candidate_id', relation: 'MemoryCandidatePredecessor' },
+  { prismaField: 'supersededById', databaseColumn: 'superseded_by_id', relation: 'MemoryCandidateSupersession' },
+] as const;
+
 export interface MemoryPhase2PersistenceSources {
   prismaSchema: string;
   workflowMigration: string;
@@ -69,14 +75,30 @@ export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2Persi
       `Revision migration must own ${column.databaseColumn}.`,
     );
   }
-  for (const relation of [
-    '@relation("MemoryCandidateRevisionRoot", fields: [tenantId, revisionRootId], references: [tenantId, id]',
-    '@relation("MemoryCandidatePredecessor", fields: [tenantId, predecessorCandidateId], references: [tenantId, id]',
-    '@relation("MemoryCandidateSupersession", fields: [tenantId, supersededById], references: [tenantId, id]',
-  ]) required(model.includes(relation), `Prisma MemoryCandidate is missing tenant-bound relation ${relation}.`);
   required(model.includes('@@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")'), 'Prisma MemoryCandidate must model the tenant/id composite key.');
+  required(
+    /CREATE UNIQUE INDEX IF NOT EXISTS\s+memory_candidate_tenant_id_id_unique\s+ON memory_candidate\s*\(\s*tenant_id\s*,\s*id\s*\)/i.test(sources.revisionMigration),
+    'Migration must retain the tenant/id composite key.',
+  );
+  for (const reference of TENANT_BOUND_LINEAGE_REFERENCES) {
+    const prismaRelation = `@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id]`;
+    required(model.includes(prismaRelation), `Prisma MemoryCandidate is missing tenant-bound relation ${prismaRelation}.`);
+    required(
+      new RegExp(
+        `FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)`,
+        'i',
+      ).test(sources.revisionMigration),
+      `Migration must tenant-bind ${reference.databaseColumn}.`,
+    );
+    required(
+      !new RegExp(
+        `FOREIGN KEY\\s*\\(\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate`,
+        'i',
+      ).test(sources.revisionMigration),
+      `Migration must not use a UUID-only FK for ${reference.databaseColumn}.`,
+    );
+  }
   required(sources.revisionMigration.includes('PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT'), 'Revision migration must document the ownership boundary.');
-  required(sources.revisionMigration.includes('memory_candidate_tenant_id_id_unique'), 'Migration must retain the tenant/id key.');
   required(sources.revisionMigration.includes('create_memory_candidate_revision'), 'Atomic revision function is required.');
   required(!/SECURITY\s+DEFINER/i.test(sources.revisionMigration), 'Revision function must remain SECURITY INVOKER.');
   required(/SET\s+search_path\s*=\s*public,\s*pg_temp/i.test(sources.revisionMigration), 'Revision function must pin search_path.');
@@ -112,12 +134,17 @@ export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2Persi
 export function applyMemoryPhase2PrismaLineageModel(schema: string): string {
   const model = extractPrismaModel(schema, 'MemoryCandidate');
   const present = MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.filter((column) => new RegExp(`\\b${escapeRegex(column.prismaField)}\\b`).test(model));
-  if (present.length === MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.length) return schema;
+  if (present.length === MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.length) {
+    assertTransformedModel(model);
+    return schema;
+  }
   if (present.length > 0) throw new MemoryPhase2PersistenceContractError('MemoryCandidate contains a partially applied Phase 2 lineage model.');
   for (const [anchor, label] of [[FIELD_ANCHOR, 'field'], [RELATION_ANCHOR, 'relation'], [INDEX_ANCHOR, 'index']] as const) {
     if (count(schema, anchor) !== 1) throw new MemoryPhase2PersistenceContractError(`Expected one MemoryCandidate ${label} anchor; found ${count(schema, anchor)}.`);
   }
-  return schema.replace(FIELD_ANCHOR, FIELD_REPLACEMENT).replace(RELATION_ANCHOR, RELATION_REPLACEMENT).replace(INDEX_ANCHOR, INDEX_REPLACEMENT);
+  const transformed = schema.replace(FIELD_ANCHOR, FIELD_REPLACEMENT).replace(RELATION_ANCHOR, RELATION_REPLACEMENT).replace(INDEX_ANCHOR, INDEX_REPLACEMENT);
+  assertTransformedModel(extractPrismaModel(transformed, 'MemoryCandidate'));
+  return transformed;
 }
 
 export function extractPrismaModel(schema: string, modelName: string): string {
@@ -129,6 +156,16 @@ export function extractPrismaModel(schema: string, modelName: string): string {
     if (schema[index] === '}' && --depth === 0) return schema.slice(start, index + 1);
   }
   throw new MemoryPhase2PersistenceContractError(`Prisma model ${modelName} is unterminated.`);
+}
+
+function assertTransformedModel(model: string): void {
+  required(model.includes('@@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")'), 'Transformed MemoryCandidate is missing the tenant/id composite key.');
+  for (const reference of TENANT_BOUND_LINEAGE_REFERENCES) {
+    required(
+      model.includes(`@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id]`),
+      `Transformed MemoryCandidate relation ${reference.relation} is not tenant-bound.`,
+    );
+  }
 }
 
 function count(value: string, search: string): number { return value.split(search).length - 1; }
