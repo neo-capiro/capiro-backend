@@ -82,7 +82,10 @@ export function composeSacdStageV1(input: ComposeSacdStageV1Input): ComposeSacdS
 
   const builder = new ArtifactBuilderV1(input.source);
   const standInRun = {
-    parserRunId: parserRunIdV1({ source: input.source.sourcePdfSha256, profile: profile.profileId }),
+    parserRunId: parserRunIdV1({
+      source: input.source.sourcePdfSha256,
+      profile: profile.profileId,
+    }),
     method: 'manual' as const,
     parserVersion: 'sacd-stage-composer-v1',
     parserConfigSha256: stageSourceProfileHashV1(profile),
@@ -154,7 +157,13 @@ export function composeSacdStageV1(input: ComposeSacdStageV1Input): ComposeSacdS
       bindings.push(binding);
       countSacdBinding(bucket, coverage.totals, binding.status);
       if (binding.status !== 'accepted' || binding.targetIdentity == null) {
-        addSacdUnresolvedBinding({ report: unresolved, table, row, binding, evidenceIds: allEvidence });
+        addSacdUnresolvedBinding({
+          report: unresolved,
+          table,
+          row,
+          binding,
+          evidenceIds: allEvidence,
+        });
         const severity = binding.status === 'candidate' ? 'review' : 'blocking';
         omitSacdRow(
           builder,
@@ -172,14 +181,7 @@ export function composeSacdStageV1(input: ComposeSacdStageV1Input): ComposeSacdS
       if (row.semanticKind === 'general_provision') {
         const amount = sacdActionMoney(rowMoneyV1(table, row));
         if (amount != null) {
-          emitSacdDirectAction(
-            builder,
-            table,
-            row,
-            binding.targetIdentity,
-            amount,
-            allEvidence,
-          );
+          emitSacdDirectAction(builder, table, row, binding.targetIdentity, amount, allEvidence);
           countSacdAction(bucket, coverage.totals, account);
         } else {
           omitSacdRow(
@@ -231,12 +233,7 @@ export function composeSacdStageV1(input: ComposeSacdStageV1Input): ComposeSacdS
 
       for (const omission of emission.omissions) {
         emitSacdStageOmission(builder, table, row, allEvidence, omission);
-        countSacdOmission(
-          bucket,
-          coverage.totals,
-          account,
-          sacdStageOmissionSeverity(omission),
-        );
+        countSacdOmission(bucket, coverage.totals, account, sacdStageOmissionSeverity(omission));
       }
       if (
         emission.positions.length === 0 &&

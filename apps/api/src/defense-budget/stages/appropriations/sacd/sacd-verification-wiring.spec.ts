@@ -56,22 +56,42 @@ const TABLE: CongressionalTableV1 = {
   declaredUnit: 'thousands',
   columns: [
     { columnIndex: 0, headerText: 'Program Element', isQuantity: false },
-    { columnIndex: 1, headerText: 'FY 2027 Budget Estimate', moneySemantic: 'request_baseline', fiscalYear: FY, isQuantity: false },
-    { columnIndex: 2, headerText: 'Change', moneySemantic: 'change', fiscalYear: FY, isQuantity: false },
-    { columnIndex: 3, headerText: 'Senate Recommendation', moneySemantic: 'appropriated_total', fiscalYear: FY, isQuantity: false },
+    {
+      columnIndex: 1,
+      headerText: 'FY 2027 Budget Estimate',
+      moneySemantic: 'request_baseline',
+      fiscalYear: FY,
+      isQuantity: false,
+    },
+    {
+      columnIndex: 2,
+      headerText: 'Change',
+      moneySemantic: 'change',
+      fiscalYear: FY,
+      isQuantity: false,
+    },
+    {
+      columnIndex: 3,
+      headerText: 'Senate Recommendation',
+      moneySemantic: 'appropriated_total',
+      fiscalYear: FY,
+      isQuantity: false,
+    },
   ],
-  rows: [{
-    rowIndex: 0,
-    rawLabel: 'PE 0605053A Ground Robotics',
-    reference: { referenceKind: 'pe_code', peCode: '0605053A' },
-    semanticKind: 'absolute_position',
-    cells: [
-      { rowIndex: 0, columnIndex: 0, rawText: 'PE 0605053A' },
-      { rowIndex: 0, columnIndex: 1, rawText: '100', value: '100' },
-      { rowIndex: 0, columnIndex: 2, rawText: '25', value: '25' },
-      { rowIndex: 0, columnIndex: 3, rawText: '125', value: '125' },
-    ],
-  }],
+  rows: [
+    {
+      rowIndex: 0,
+      rawLabel: 'PE 0605053A Ground Robotics',
+      reference: { referenceKind: 'pe_code', peCode: '0605053A' },
+      semanticKind: 'absolute_position',
+      cells: [
+        { rowIndex: 0, columnIndex: 0, rawText: 'PE 0605053A' },
+        { rowIndex: 0, columnIndex: 1, rawText: '100', value: '100' },
+        { rowIndex: 0, columnIndex: 2, rawText: '25', value: '25' },
+        { rowIndex: 0, columnIndex: 3, rawText: '125', value: '125' },
+      ],
+    },
+  ],
 };
 
 function candidateArtifact() {
@@ -139,19 +159,27 @@ describe('SAC-D Phase 6 verification wiring', () => {
       ...artifact,
       artifactId: 'request-reference-artifact',
       contentSha256: 'e'.repeat(64),
-      source: { ...artifact.source, sourceDocumentId: 'request-source', authority: 'dod-comptroller' },
-      assertions: [{
-        assertionKind: 'funding',
-        assertionId: 'request-reference-assertion',
-        sourceFactIds: ['request-reference-fact'],
-        evidenceIds: ['request-reference-evidence'],
-        confidence: 1,
-        identity: IDENTITY,
-        fiscalYear: FY,
-        field: 'request',
-        money: { originalValue: '100', originalUnit: 'thousands', valueMillions: '0.1' },
-      }],
+      source: {
+        ...artifact.source,
+        sourceDocumentId: 'request-source',
+        authority: 'dod-comptroller',
+      },
+      assertions: [
+        {
+          assertionKind: 'funding',
+          assertionId: 'request-reference-assertion',
+          sourceFactIds: ['request-reference-fact'],
+          evidenceIds: ['request-reference-evidence'],
+          confidence: 1,
+          identity: IDENTITY,
+          fiscalYear: FY,
+          field: 'request',
+          money: { originalValue: '100', originalUnit: 'thousands', valueMillions: '0.1' },
+        },
+      ],
     } as DefenseBudgetExtractionArtifactV1;
-    expect(COMMITTEE_REQUEST_REFERENCE_RULE.execute(context(artifact, [reference])).check?.outcome).toBe('PASS');
+    expect(
+      COMMITTEE_REQUEST_REFERENCE_RULE.execute(context(artifact, [reference])).check?.outcome,
+    ).toBe('PASS');
   });
 });

@@ -12,7 +12,9 @@ const PRODUCTION_FILES = [
 
 describe('SAC-D Phase 6 containment', () => {
   it('contains no persistence, canonical writer, network, AWS, or paid-parser dependency', () => {
-    const source = PRODUCTION_FILES.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8')).join('\n');
+    const source = PRODUCTION_FILES.map((file) =>
+      fs.readFileSync(path.join(ROOT, file), 'utf8'),
+    ).join('\n');
     for (const token of [
       'PrismaClient',
       '$queryRaw',
@@ -28,7 +30,9 @@ describe('SAC-D Phase 6 containment', () => {
   });
 
   it('cannot emit HAC-D, authorization, conference, or enacted funding fields', () => {
-    const source = PRODUCTION_FILES.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8')).join('\n');
+    const source = PRODUCTION_FILES.map((file) =>
+      fs.readFileSync(path.join(ROOT, file), 'utf8'),
+    ).join('\n');
     for (const field of ['hascMark', 'sascMark', 'hacDMark', 'conference', 'enacted']) {
       expect(source).not.toContain(`field: '${field}'`);
     }

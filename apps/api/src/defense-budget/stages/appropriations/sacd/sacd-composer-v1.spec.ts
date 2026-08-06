@@ -80,13 +80,22 @@ const INDEX: NativeIdentityIndexEntry[] = [
 function column(
   overrides: Partial<CongressionalColumnV1> & { columnIndex: number },
 ): CongressionalColumnV1 {
-  return { headerText: `column-${overrides.columnIndex}`, isQuantity: false, ...overrides } as CongressionalColumnV1;
+  return {
+    headerText: `column-${overrides.columnIndex}`,
+    isQuantity: false,
+    ...overrides,
+  } as CongressionalColumnV1;
 }
 
 function row(
   overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, 'rowIndex' | 'reference'>,
 ): CongressionalRowV1 {
-  return { rawLabel: 'row', semanticKind: 'absolute_position', cells: [], ...overrides } as CongressionalRowV1;
+  return {
+    rawLabel: 'row',
+    semanticKind: 'absolute_position',
+    cells: [],
+    ...overrides,
+  } as CongressionalRowV1;
 }
 
 function table(
@@ -104,9 +113,19 @@ function table(
     declaredUnit: 'thousands',
     columns: [
       column({ columnIndex: 0, headerText: 'Line' }),
-      column({ columnIndex: 1, headerText: 'FY 2027 Budget Estimate', moneySemantic: 'request_baseline', fiscalYear: FY }),
+      column({
+        columnIndex: 1,
+        headerText: 'FY 2027 Budget Estimate',
+        moneySemantic: 'request_baseline',
+        fiscalYear: FY,
+      }),
       column({ columnIndex: 2, headerText: 'Change', moneySemantic: 'change', fiscalYear: FY }),
-      column({ columnIndex: 3, headerText: 'Senate Recommendation', moneySemantic: 'appropriated_total', fiscalYear: FY }),
+      column({
+        columnIndex: 3,
+        headerText: 'Senate Recommendation',
+        moneySemantic: 'appropriated_total',
+        fiscalYear: FY,
+      }),
     ],
     rows,
     ...overrides,
@@ -156,30 +175,85 @@ describe('SAC-D composer V1', () => {
     const result = compose([
       table([
         positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-        positionRow(1, { referenceKind: 'procurement_line', lineCode: 'W12002', account: '2035A', component: 'ARMY' }, '80', '-5', '75'),
-        positionRow(2, { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' }, '40', '2', '42'),
-        positionRow(3, { referenceKind: 'milcon_project', projectCode: 'PN12345', component: 'AF', location: 'Eglin AFB' }, '20', '5', '25'),
+        positionRow(
+          1,
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'W12002',
+            account: '2035A',
+            component: 'ARMY',
+          },
+          '80',
+          '-5',
+          '75',
+        ),
+        positionRow(
+          2,
+          { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' },
+          '40',
+          '2',
+          '42',
+        ),
+        positionRow(
+          3,
+          {
+            referenceKind: 'milcon_project',
+            projectCode: 'PN12345',
+            component: 'AF',
+            location: 'Eglin AFB',
+          },
+          '20',
+          '5',
+          '25',
+        ),
       ]),
     ]);
     const funding = fundingAssertions(result);
     expect(funding).toHaveLength(4);
     expect(funding.every((assertion) => assertion.field === 'sacDMark')).toBe(true);
-    expect(funding.some((assertion) => ['hacDMark', 'hascMark', 'sascMark'].includes(assertion.field))).toBe(false);
+    expect(
+      funding.some((assertion) => ['hacDMark', 'hascMark', 'sascMark'].includes(assertion.field)),
+    ).toBe(false);
     expect(result.coverage.byLineFamily.PROCUREMENT_BLIN.positionsEmitted).toBe(1);
     expect(result.coverage.byLineFamily.OM_SAG.positionsEmitted).toBe(1);
   });
 
   it('preserves request as non-owning comparison data and emits a typed appropriations action', () => {
-    const result = compose([table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')])]);
-    expect(fundingAssertions(result).some((assertion) => assertion.field === 'request')).toBe(false);
-    expect(result.artifact.assertions.some((assertion) => assertion.assertionKind === 'document_fact' && assertion.fieldName === COMMITTEE_REQUEST_BASELINE_FIELD)).toBe(true);
-    const action = result.artifact.assertions.find((assertion) => assertion.assertionKind === 'document_fact' && assertion.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD);
+    const result = compose([
+      table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
+    ]);
+    expect(fundingAssertions(result).some((assertion) => assertion.field === 'request')).toBe(
+      false,
+    );
+    expect(
+      result.artifact.assertions.some(
+        (assertion) =>
+          assertion.assertionKind === 'document_fact' &&
+          assertion.fieldName === COMMITTEE_REQUEST_BASELINE_FIELD,
+      ),
+    ).toBe(true);
+    const action = result.artifact.assertions.find(
+      (assertion) =>
+        assertion.assertionKind === 'document_fact' &&
+        assertion.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
+    );
     if (action?.assertionKind !== 'document_fact') throw new Error('expected action');
-    expect(parseCommitteeStageActionV1(action.value)).toMatchObject({ track: 'appropriations', stage: 'sac_d', authority: 'sacd_appropriations' });
+    expect(parseCommitteeStageActionV1(action.value)).toMatchObject({
+      track: 'appropriations',
+      stage: 'sac_d',
+      authority: 'sacd_appropriations',
+    });
   });
 
   it('preserves Senate footnote text and cross-page continuation evidence', () => {
-    const continued = positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100000', '25000', '125000', '125,000†');
+    const continued = positionRow(
+      0,
+      { referenceKind: 'pe_code', peCode: '0605053A' },
+      '100000',
+      '25000',
+      '125000',
+      '125,000†',
+    );
     continued.finding = 'continued from physical page 179';
     const result = compose([table([continued], { page: 180 })]);
     expect(fundingAssertions(result)[0]!.money.originalValue).toBe('125000');
@@ -190,54 +264,124 @@ describe('SAC-D composer V1', () => {
   it('reports split-account native coverage independently', () => {
     const result = compose([
       table([
-        positionRow(0, { referenceKind: 'procurement_line', lineCode: 'W12002', account: '2035A', component: 'ARMY' }, '80', '-5', '75'),
-        positionRow(1, { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' }, '40', '2', '42'),
+        positionRow(
+          0,
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'W12002',
+            account: '2035A',
+            component: 'ARMY',
+          },
+          '80',
+          '-5',
+          '75',
+        ),
+        positionRow(
+          1,
+          { referenceKind: 'om_sag', sagCode: '121', account: '2020A', component: 'ARMY' },
+          '40',
+          '2',
+          '42',
+        ),
       ]),
     ]);
-    expect(result.coverage.byAccount['2035A']).toMatchObject({ representedRows: 1, positionsEmitted: 1 });
-    expect(result.coverage.byAccount['2020A']).toMatchObject({ representedRows: 1, positionsEmitted: 1 });
+    expect(result.coverage.byAccount['2035A']).toMatchObject({
+      representedRows: 1,
+      positionsEmitted: 1,
+    });
+    expect(result.coverage.byAccount['2020A']).toMatchObject({
+      representedRows: 1,
+      positionsEmitted: 1,
+    });
   });
 
   it('blocks conflicting duplicate Senate rows', () => {
-    const result = compose([table([
-      positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-      positionRow(1, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '30', '130'),
-    ])]);
+    const result = compose([
+      table([
+        positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
+        positionRow(1, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '30', '130'),
+      ]),
+    ]);
     expect(fundingAssertions(result)).toHaveLength(0);
     expect(result.coverage.status).toBe('blocked');
   });
 
   it('keeps title-only candidates out of machine-pass funding', () => {
-    const result = compose([table([
-      positionRow(0, { referenceKind: 'procurement_line', lineCode: 'UNKNOWN', rowTitle: 'Ground Robotics' }, '100', '25', '125'),
-    ])]);
+    const result = compose([
+      table([
+        positionRow(
+          0,
+          { referenceKind: 'procurement_line', lineCode: 'UNKNOWN', rowTitle: 'Ground Robotics' },
+          '100',
+          '25',
+          '125',
+        ),
+      ]),
+    ]);
     expect(fundingAssertions(result)).toHaveLength(0);
     expect(result.coverage.status).toBe('complete_with_review');
-    expect(result.unresolved.entries[0]).toMatchObject({ status: 'candidate', lineFamily: 'PROCUREMENT_BLIN' });
+    expect(result.unresolved.entries[0]).toMatchObject({
+      status: 'candidate',
+      lineFamily: 'PROCUREMENT_BLIN',
+    });
   });
 
   it('emits classified/general-transfer rows only as package actions', () => {
-    const result = compose([table([
-      row({ rowIndex: 0, reference: { referenceKind: 'package_scope', scope: 'SAC-D classified programs' }, rawLabel: 'Classified adjustment — undistributed', semanticKind: 'undistributed', cells: [{ rowIndex: 0, columnIndex: 2, rawText: '-10', value: '-10' }] }),
-      row({ rowIndex: 1, reference: { referenceKind: 'package_scope', scope: 'SAC-D general transfer authority' }, rawLabel: 'Transfer out — general transfer authority', semanticKind: 'transfer_out', cells: [{ rowIndex: 1, columnIndex: 2, rawText: '-5', value: '-5' }] }),
-    ], { headings: ['CLASSIFIED PROGRAMS — GENERAL TRANSFER'] })]);
+    const result = compose([
+      table(
+        [
+          row({
+            rowIndex: 0,
+            reference: { referenceKind: 'package_scope', scope: 'SAC-D classified programs' },
+            rawLabel: 'Classified adjustment — undistributed',
+            semanticKind: 'undistributed',
+            cells: [{ rowIndex: 0, columnIndex: 2, rawText: '-10', value: '-10' }],
+          }),
+          row({
+            rowIndex: 1,
+            reference: {
+              referenceKind: 'package_scope',
+              scope: 'SAC-D general transfer authority',
+            },
+            rawLabel: 'Transfer out — general transfer authority',
+            semanticKind: 'transfer_out',
+            cells: [{ rowIndex: 1, columnIndex: 2, rawText: '-5', value: '-5' }],
+          }),
+        ],
+        { headings: ['CLASSIFIED PROGRAMS — GENERAL TRANSFER'] },
+      ),
+    ]);
     expect(fundingAssertions(result)).toHaveLength(0);
-    expect(result.artifact.assertions.filter((assertion) => assertion.assertionKind === 'document_fact' && assertion.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD)).toHaveLength(2);
+    expect(
+      result.artifact.assertions.filter(
+        (assertion) =>
+          assertion.assertionKind === 'document_fact' &&
+          assertion.fieldName === DEFENSE_BUDGET_STAGE_ACTION_FIELD,
+      ),
+    ).toHaveLength(2);
   });
 
   it('rejects HAC-D/SAC-D profile swapping', () => {
-    const hacd = createHacdSourceProfileV1({ fiscalYear: FY, reportNumber: 'H. Rept. 119-715', sourceDocumentKeys: ['hacd_fy2027'] });
-    expect(() => composeSacdStageV1({
-      profile: hacd,
-      source: SOURCE,
-      parserRuns: [RUN],
-      tables: [],
-      resolutionContext: { index: INDEX, fiscalYear: FY, profileId: hacd.profileId },
-    })).toThrow('SAC-D composer requires stage=sac_d');
+    const hacd = createHacdSourceProfileV1({
+      fiscalYear: FY,
+      reportNumber: 'H. Rept. 119-715',
+      sourceDocumentKeys: ['hacd_fy2027'],
+    });
+    expect(() =>
+      composeSacdStageV1({
+        profile: hacd,
+        source: SOURCE,
+        parserRuns: [RUN],
+        tables: [],
+        resolutionContext: { index: INDEX, fiscalYear: FY, profileId: hacd.profileId },
+      }),
+    ).toThrow('SAC-D composer requires stage=sac_d');
   });
 
   it('replays deterministically', () => {
-    const input = [table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')])];
+    const input = [
+      table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
+    ];
     expect(compose(input)).toEqual(compose(input));
   });
 });

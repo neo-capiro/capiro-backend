@@ -18,10 +18,7 @@ const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
   Partial<
     Record<
       string,
-      Extract<
-        FundingFieldV1,
-        'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'ndaaConference'
-      >
+      Extract<FundingFieldV1, 'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'ndaaConference'>
     >
   >
 > = {
