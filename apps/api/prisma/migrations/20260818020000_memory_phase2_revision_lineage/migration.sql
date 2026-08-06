@@ -90,15 +90,17 @@ CREATE INDEX IF NOT EXISTS memory_candidate_revision_root_idx
 
 -- Clone the complete predecessor row rather than rebuilding a partial candidate
 -- from browser input. Only immutable-content payload/provenance, lifecycle
--- stamps, and lineage fields are replaced. This preserves versionProposal,
--- canonical identity, memory class/scope, client boundary, and source evidence.
+-- stamps, revision-owned source identity, and lineage fields are replaced. This
+-- preserves versionProposal, canonical identity, memory class/scope, client
+-- boundary, and source evidence without carrying a stale content hash/version.
 CREATE OR REPLACE FUNCTION create_memory_candidate_revision(
   p_tenant_id uuid,
   p_predecessor_id uuid,
   p_proposer_id uuid,
   p_successor_id uuid,
   p_payload jsonb,
-  p_provenance jsonb
+  p_provenance jsonb,
+  p_source_content_hash text
 )
 RETURNS TABLE (
   candidate_id uuid,
@@ -113,6 +115,7 @@ DECLARE
   workflow review_request%ROWTYPE;
   root_id uuid;
   next_revision integer;
+  superseded_at timestamptz;
 BEGIN
   IF p_payload IS NULL OR jsonb_typeof(p_payload) <> 'object' THEN
     RAISE EXCEPTION 'MEMORY_REVISION_PAYLOAD_REQUIRED'
@@ -120,6 +123,11 @@ BEGIN
   END IF;
   IF p_provenance IS NULL OR jsonb_typeof(p_provenance) <> 'object' THEN
     RAISE EXCEPTION 'MEMORY_REVISION_PROVENANCE_REQUIRED'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_source_content_hash IS NULL
+     OR p_source_content_hash !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_CONTENT_HASH_REQUIRED'
       USING ERRCODE = '22023';
   END IF;
 
@@ -169,6 +177,7 @@ BEGIN
 
   root_id := COALESCE(predecessor.revision_root_id, predecessor.id);
   next_revision := predecessor.revision_number + 1;
+  superseded_at := now();
 
   INSERT INTO memory_candidate
   SELECT (
@@ -184,7 +193,10 @@ BEGIN
         'committed_memory_item_id', NULL,
         'decided_by', NULL,
         'decided_at', NULL,
-        'created_at', now(),
+        'created_at', superseded_at,
+        'source_content_hash', p_source_content_hash,
+        'source_version', 'candidate:' || p_successor_id::text,
+        'origin_trace_id', p_successor_id::text,
         'revision_root_id', root_id,
         'predecessor_candidate_id', predecessor.id,
         'revision_number', next_revision,
@@ -197,16 +209,19 @@ BEGIN
   SET status = 'superseded',
       superseded_by_id = p_successor_id,
       decided_by = p_proposer_id,
-      decided_at = now()
+      decided_at = superseded_at
   WHERE tenant_id = p_tenant_id
     AND id = p_predecessor_id;
 
+  -- Keep the original reviewer's changes-requested attribution intact. The
+  -- proposer supersession is a separate event represented in bounded metadata
+  -- and the audit ledger, not by overwriting decided_by/decided_at.
   UPDATE review_request
   SET status = 'superseded',
-      decided_by = p_proposer_id,
-      decided_at = now(),
       payload_jsonb = payload_jsonb || jsonb_build_object(
-        'supersededByCandidateId', p_successor_id::text
+        'supersededByCandidateId', p_successor_id::text,
+        'supersededByUserId', p_proposer_id::text,
+        'supersededAt', superseded_at
       )
   WHERE id = workflow.id;
 
