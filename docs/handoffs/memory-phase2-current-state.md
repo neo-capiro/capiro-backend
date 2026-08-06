@@ -43,20 +43,36 @@ Evidence: `docs/qa/memory-phase2-increment-2-revision-lineage.md`.
 
 Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
 
+### Increment 3B — workflow metadata and conflict integrity
+
+- normalized body-free workflow titles for backfills and future trigger-created rows;
+- canonical candidate-kind metadata for standard, correction, restore, and contradiction proposals;
+- idempotent tenant-bound reconciliation for partial migration application;
+- executable contract controls that reject title or metadata body leakage;
+- deterministic successor-conflict behavior for legitimate concurrent-revision retries;
+- original-proposer validation before successor-existence checks;
+- stable API conflict translation protected by the persistence contract.
+
+Evidence: `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`.
+
 ## Validation completed in the available environment
 
-- strict isolated TypeScript for the exact persistence contract helper;
+- strict isolated TypeScript for the persistence contract and focused specifications;
 - target transformer and runtime contract;
 - schema and migration-transformer idempotence;
 - partial-application and drift refusal;
 - composite tenant relation, constraint-name, and referential-action controls;
-- five runtime negative controls for action drift, name drift, and unsafe Prisma mutation;
 - tenant-context and system-bypass security review;
-- disposable-database harness safety review.
+- body-free workflow title and metadata mutation controls;
+- candidate-kind vocabulary and reconciliation controls;
+- predecessor lock, proposer validation, successor conflict, and terminal-state ordering controls;
+- database uniqueness-boundary and API conflict-translation checks;
+- disposable-database harness safety review;
+- post-publication migration diff review.
 
 ## Persistence gate still open
 
-The current environment has no `pnpm`, Docker, PostgreSQL, or `psql`. The checked-in Prisma schema could not be rewritten safely through the connector, and GitHub Actions returned `startup_failure` for a temporary guarded patch workflow. The workflow was removed and made no product or data change.
+The current environment has no complete repository checkout with `pnpm`, Docker, PostgreSQL, and `psql`. The checked-in Prisma schema could not be rewritten safely through the connector, and GitHub Actions previously returned `startup_failure` for a temporary guarded patch workflow. That workflow was removed and made no product or data change.
 
 The executable persistence marker has therefore **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema, and passes:
 
