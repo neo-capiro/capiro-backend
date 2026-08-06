@@ -10,10 +10,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import { assertMemoryPhase2PersistenceContract } from './lib/memory-phase2-persistence-contract.js';
+import {
+  resolveMemoryPhase2Pnpm,
+  runMemoryPhase2Command,
+} from './lib/memory-phase2-command-runner.js';
 
 const PHASE1 = '20260818010000_memory_phase2_review_workflow_foundation';
 const PHASE2 = '20260818020000_memory_phase2_revision_lineage';
@@ -21,6 +24,7 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(scriptDirectory, '..');
 const prismaRoot = join(apiRoot, 'prisma');
 const migrationRoot = join(prismaRoot, 'migrations');
+const pnpm = resolveMemoryPhase2Pnpm();
 
 interface FixtureIds {
   tenantId: string;
@@ -39,10 +43,10 @@ async function main(): Promise<void> {
     throw new Error('Clean and upgrade database URLs must identify different databases.');
   }
 
-  run('pnpm', ['exec', 'prisma', 'validate', '--schema', 'prisma/schema.prisma'], {
+  runPnpm(['exec', 'prisma', 'validate', '--schema', 'prisma/schema.prisma'], {
     DATABASE_URL: cleanUrl,
   });
-  run('pnpm', ['exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'], {
+  runPnpm(['exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'], {
     DATABASE_URL: cleanUrl,
   });
 
@@ -111,26 +115,21 @@ function copyMigration(name: string, targetPrismaRoot: string): void {
 }
 
 function runMigrateDeploy(databaseUrl: string, schemaPath: string): void {
-  run('pnpm', ['exec', 'prisma', 'migrate', 'deploy', '--schema', schemaPath], {
+  runPnpm(['exec', 'prisma', 'migrate', 'deploy', '--schema', schemaPath], {
     DATABASE_URL: databaseUrl,
   });
 }
 
-function run(command: string, args: string[], env: Record<string, string> = {}): void {
-  const executable = process.platform === 'win32' && command === 'pnpm' ? 'pnpm.cmd' : command;
-  const result = spawnSync(executable, args, {
+function runPnpm(args: string[], env: Record<string, string> = {}): void {
+  const result = runMemoryPhase2Command({
+    command: pnpm.command,
+    args: [...pnpm.prefixArgs, ...args],
     cwd: apiRoot,
-    env: { ...process.env, ...env },
-    encoding: 'utf8',
-    stdio: 'pipe',
+    env,
+    shell: pnpm.shell,
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(
-      `${command} ${args.join(' ')} failed (${String(result.status)}).\n${result.stdout}\n${result.stderr}`,
-    );
-  }
-  process.stdout.write(result.stdout);
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
 }
 
 function requireDisposableUrl(name: string): string {
