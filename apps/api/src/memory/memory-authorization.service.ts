@@ -139,7 +139,12 @@ export class MemoryAuthorizationService {
       subject.status === 'pending_review'
     ) {
       await tx.$executeRawUnsafe(
-        `SELECT set_config('app.memory_admin_review_decision', 'on', true)`,
+        `SELECT set_config('app.memory_admin_review_candidate_id', $1, true)`,
+        subject.id,
+      );
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_actor_id', $1, true)`,
+        ctx.userId,
       );
     }
 
