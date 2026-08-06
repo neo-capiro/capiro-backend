@@ -34,8 +34,10 @@ Evidence: `docs/qa/memory-phase2-increment-2-revision-lineage.md`.
 - revision SQL bound to `app.current_tenant` and `app.current_user`;
 - system-bypass revision calls denied;
 - tenant-bound composite lineage foreign keys and unique key;
+- exact Prisma/PostgreSQL constraint-name mapping;
+- explicit matching `ON UPDATE NO ACTION` and `ON DELETE RESTRICT` behavior;
 - target ownership contract changed to Prisma-modeled but SQL-enforced;
-- guarded idempotent schema/migration transformer;
+- guarded idempotent schema and migration-ownership transformers;
 - executable clean/upgrade PostgreSQL, concurrency, compatibility-route, and active-memory closeout harness;
 - disposable-database refusal safeguards.
 
@@ -43,9 +45,12 @@ Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
 
 ## Validation completed in the available environment
 
-- strict isolated TypeScript for the persistence contract helper;
-- target transformer/runtime contract: 5 scenarios;
-- partial-application and unsafe Prisma-mutation controls;
+- strict isolated TypeScript for the exact persistence contract helper;
+- target transformer and runtime contract;
+- schema and migration-transformer idempotence;
+- partial-application and drift refusal;
+- composite tenant relation, constraint-name, and referential-action controls;
+- five runtime negative controls for action drift, name drift, and unsafe Prisma mutation;
 - tenant-context and system-bypass security review;
 - disposable-database harness safety review.
 
@@ -53,7 +58,7 @@ Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
 
 The current environment has no `pnpm`, Docker, PostgreSQL, or `psql`. The checked-in Prisma schema could not be rewritten safely through the connector, and GitHub Actions returned `startup_failure` for a temporary guarded patch workflow. The workflow was removed and made no product or data change.
 
-The executable persistence marker has therefore **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema/migration comment, and passes:
+The executable persistence marker has therefore **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema, and passes:
 
 ```text
 MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
@@ -76,9 +81,10 @@ In a complete checkout:
 
 1. run `pnpm exec tsx scripts/apply-memory-phase2-prisma-lineage-model.ts` from `apps/api`;
 2. run Prisma format, validate, and generate;
-3. provide two different empty local pgvector/PostgreSQL databases named with `memory_phase2`;
-4. run `scripts/verify-memory-phase2-persistence-closeout.ts`;
-5. repair every failure and require the exact completion marker;
-6. review and commit the resulting schema/migration diff.
+3. review the generated relation constraints and confirm no schema drift;
+4. provide two different empty local pgvector/PostgreSQL databases named with `memory_phase2`;
+5. run `scripts/verify-memory-phase2-persistence-closeout.ts`;
+6. repair every failure and require the exact completion marker;
+7. review and commit the resulting schema/migration diff.
 
 Do not begin notifications or frontend work until this gate is green.
