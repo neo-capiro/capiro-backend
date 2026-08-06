@@ -90,6 +90,10 @@ function identities() {
   ];
 }
 
+function mockQueryRaw() {
+  return jest.fn(async (..._args: unknown[]): Promise<unknown[]> => []);
+}
+
 function serviceHarness(tx: Record<string, unknown>, evaluate?: jest.Mock) {
   const authorization = {
     loadCandidateInTx: jest.fn(async () => subject),
@@ -111,8 +115,7 @@ function serviceHarness(tx: Record<string, unknown>, evaluate?: jest.Mock) {
 
 describe('MemoryReviewWorkflowService', () => {
   it('creates one body-free workflow and deterministically assigns the strongest eligible reviewer', async () => {
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         activeMember(REVIEWER, 'user_admin', 'z@example.com', 'Riley', 'Reviewer'),
@@ -126,7 +129,7 @@ describe('MemoryReviewWorkflowService', () => {
       ])
       .mockResolvedValueOnce(identities());
     const created = workflowRow({ assignedTo: REVIEWER });
-    const create = jest.fn(async () => created);
+    const create = jest.fn(async (..._args: unknown[]) => created);
     const auditCreate = jest.fn(async () => ({}));
     const tx = {
       $queryRaw: queryRaw,
@@ -169,8 +172,7 @@ describe('MemoryReviewWorkflowService', () => {
 
   it('reassigns a pending workflow when the old reviewer is no longer eligible', async () => {
     const existing = workflowRow({ assignedTo: OTHER_REVIEWER });
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([existing])
       .mockResolvedValueOnce([
         activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer'),
@@ -213,8 +215,7 @@ describe('MemoryReviewWorkflowService', () => {
       decidedBy: REVIEWER,
       decidedAt: new Date('2026-08-05T20:05:00.000Z'),
     });
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([
         {
           id: CANDIDATE,
@@ -266,8 +267,7 @@ describe('MemoryReviewWorkflowService', () => {
 
   it('rejects an authorized but unassigned reviewer', async () => {
     const pending = workflowRow({ assignedTo: OTHER_REVIEWER });
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([
         {
           id: CANDIDATE,
@@ -304,8 +304,7 @@ describe('MemoryReviewWorkflowService', () => {
 
   it('gates approval to the named reviewer while the workflow is pending', async () => {
     const pending = workflowRow();
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([
         {
           id: CANDIDATE,
@@ -347,7 +346,7 @@ describe('MemoryReviewWorkflowService', () => {
       decidedBy: REVIEWER,
       decidedAt: new Date('2026-08-05T20:10:00.000Z'),
     });
-    const queryRaw = jest.fn().mockResolvedValueOnce([pending]).mockResolvedValueOnce(identities());
+    const queryRaw = mockQueryRaw().mockResolvedValueOnce([pending]).mockResolvedValueOnce(identities());
     const update = jest.fn(async () => updated);
     const tx = {
       $queryRaw: queryRaw,
@@ -372,8 +371,7 @@ describe('MemoryReviewWorkflowService', () => {
 
   it('allows an administrator to reassign only to a currently eligible reviewer', async () => {
     const pending = workflowRow({ assignedTo: OTHER_REVIEWER });
-    const queryRaw = jest
-      .fn()
+    const queryRaw = mockQueryRaw()
       .mockResolvedValueOnce([
         {
           id: CANDIDATE,
