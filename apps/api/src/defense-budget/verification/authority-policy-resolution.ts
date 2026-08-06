@@ -79,8 +79,7 @@ export function lookupPolicyForManifestDocument(
   }
 
   const matches = entries.filter(
-    (entry) =>
-      entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
+    (entry) => entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
   );
 
   if (matches.length === 0) return null;

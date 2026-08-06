@@ -39,10 +39,7 @@ export function sascActionMoney(values: RowMoneyV1[]): RowMoneyV1 | undefined {
   );
 }
 
-export function sascActionType(
-  row: CongressionalRowV1,
-  value: string,
-): CommitteeStageActionTypeV1 {
+export function sascActionType(row: CongressionalRowV1, value: string): CommitteeStageActionTypeV1 {
   if (row.semanticKind === 'transfer_in') return 'transfer_in';
   if (row.semanticKind === 'transfer_out') return 'transfer_out';
   if (row.semanticKind === 'rescission') return 'rescission';
@@ -55,17 +52,13 @@ export function sascSignedValue(type: CommitteeStageActionTypeV1, value: string)
   const canonical = parseCanonicalDecimalString(value);
   const magnitude = canonical.startsWith('-') ? canonical.slice(1) : canonical;
   if (magnitude === '0') return '0';
-  return ['decrease', 'transfer_out', 'rescission'].includes(type)
-    ? `-${magnitude}`
-    : magnitude;
+  return ['decrease', 'transfer_out', 'rescission'].includes(type) ? `-${magnitude}` : magnitude;
 }
 
 export function sascFiscalYear(table: CongressionalTableV1): number {
   const values = [
     ...new Set(
-      table.columns.flatMap((column) =>
-        column.fiscalYear == null ? [] : [column.fiscalYear],
-      ),
+      table.columns.flatMap((column) => (column.fiscalYear == null ? [] : [column.fiscalYear])),
     ),
   ];
   if (values.length !== 1) {

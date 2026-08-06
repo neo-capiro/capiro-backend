@@ -2,7 +2,10 @@
  * Phase 6 Workstream E — stage-specific SASC coverage and unresolved-reference reports.
  */
 import type { ExtractionSourceV1 } from '../../contracts/extraction-artifact-v1.js';
-import { nativeIdentityKeyV1, type ResolvedBudgetLineBindingV1 } from '../budget-line-reference-v1.js';
+import {
+  nativeIdentityKeyV1,
+  type ResolvedBudgetLineBindingV1,
+} from '../budget-line-reference-v1.js';
 import type { CongressionalRowV1 } from '../congressional-table-v1.js';
 import {
   stageSourceProfileHashV1,
@@ -186,18 +189,12 @@ export function countSascBinding(
   total[key] += 1;
 }
 
-export function countSascPosition(
-  bucket: SascCoverageBucketV1,
-  total: SascCoverageBucketV1,
-): void {
+export function countSascPosition(bucket: SascCoverageBucketV1, total: SascCoverageBucketV1): void {
   bucket.positionsEmitted += 1;
   total.positionsEmitted += 1;
 }
 
-export function countSascAction(
-  bucket: SascCoverageBucketV1,
-  total: SascCoverageBucketV1,
-): void {
+export function countSascAction(bucket: SascCoverageBucketV1, total: SascCoverageBucketV1): void {
   bucket.actionsEmitted += 1;
   total.actionsEmitted += 1;
 }

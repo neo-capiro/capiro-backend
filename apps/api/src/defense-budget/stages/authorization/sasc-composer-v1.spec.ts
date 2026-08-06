@@ -88,8 +88,7 @@ function column(
 }
 
 function row(
-  overrides: Partial<CongressionalRowV1> &
-    Pick<CongressionalRowV1, 'rowIndex' | 'reference'>,
+  overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, 'rowIndex' | 'reference'>,
 ): CongressionalRowV1 {
   return {
     rawLabel: 'row',
@@ -175,10 +174,8 @@ function compose(tables: CongressionalTableV1[], index = INDEX) {
 
 function fundingAssertions(result: ReturnType<typeof compose>) {
   return result.artifact.assertions.filter(
-    (assertion): assertion is Extract<
-      DefenseBudgetAssertionV1,
-      { assertionKind: 'funding' }
-    > => assertion.assertionKind === 'funding',
+    (assertion): assertion is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
+      assertion.assertionKind === 'funding',
   );
 }
 
@@ -414,18 +411,14 @@ describe('SASC composer V1', () => {
 
   it('replays deterministically', () => {
     const input = [
-      table([
-        positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-      ]),
+      table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
     ];
     expect(compose(input)).toEqual(compose(input));
   });
 
   it('never emits request funding when it emits a non-owning baseline fact', () => {
     const result = compose([
-      table([
-        positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
-      ]),
+      table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
     ]);
     expect(
       result.artifact.assertions.some(

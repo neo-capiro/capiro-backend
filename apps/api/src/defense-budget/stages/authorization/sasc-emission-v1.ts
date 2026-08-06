@@ -303,9 +303,7 @@ export function emitSascStageOmission(
   );
 }
 
-export function sascStageOmissionSeverity(
-  omission: StageOmissionV1,
-): 'review' | 'blocking' {
+export function sascStageOmissionSeverity(omission: StageOmissionV1): 'review' | 'blocking' {
   return omission.reason === 'row_not_interpretable' && omission.rawLabel.length > 0
     ? 'review'
     : 'blocking';
@@ -318,9 +316,7 @@ export function addSascEvidence(
   parserRunId: string,
 ): string[] {
   const cells =
-    row.cells.length === 0
-      ? [{ rowIndex: row.rowIndex, columnIndex: -1, rawText: '' }]
-      : row.cells;
+    row.cells.length === 0 ? [{ rowIndex: row.rowIndex, columnIndex: -1, rawText: '' }] : row.cells;
   const evidenceIds = cells.map((cell) => {
     const evidenceId = evidenceIdV1({
       stage: 'sasc',

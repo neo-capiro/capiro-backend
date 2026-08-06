@@ -1,8 +1,5 @@
 import { requestOwnershipAllowedForAuthority } from '../stage-source-profile-v1.js';
-import {
-  createSascSourceProfileV1,
-  sascSourceProfileHashV1,
-} from './sasc-source-profile-v1.js';
+import { createSascSourceProfileV1, sascSourceProfileHashV1 } from './sasc-source-profile-v1.js';
 
 const INPUT = {
   fiscalYear: 2027,

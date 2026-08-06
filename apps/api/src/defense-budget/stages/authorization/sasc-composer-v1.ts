@@ -1,8 +1,5 @@
 /** Phase 6 Workstream E — deterministic, write-free SASC stage composition. */
-import {
-  ArtifactBuilderV1,
-  parserRunIdV1,
-} from '../../contracts/artifact-builders.js';
+import { ArtifactBuilderV1, parserRunIdV1 } from '../../contracts/artifact-builders.js';
 import type {
   DefenseBudgetExtractionArtifactV1,
   ExtractionSourceV1,
@@ -218,11 +215,7 @@ export function composeSascStageV1(input: ComposeSascStageV1Input): ComposeSascS
 
       for (const omission of emission.omissions) {
         emitSascStageOmission(builder, table, row, allEvidence, omission);
-        countSascOmission(
-          bucket,
-          coverage.totals,
-          sascStageOmissionSeverity(omission),
-        );
+        countSascOmission(bucket, coverage.totals, sascStageOmissionSeverity(omission));
       }
 
       if (

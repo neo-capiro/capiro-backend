@@ -49,9 +49,9 @@ describe('R8.3 authority-aware verification policy resolution', () => {
       const policy = lookupPolicyForManifestDocument(document(authority));
       expect(policy).not.toBeNull();
       expect(policy!.requiredFundingFields).toContain(expectedField);
-      if (authority === 'hasc') {
-        // Phase 6: HASC request values are non-owning comparison facts;
-        // the policy requires hascMark, not request.
+      if (authority === 'hasc' || authority === 'sasc') {
+        // Phase 6: HASC and SASC request values are non-owning comparison
+        // facts; the policy requires the chamber-owned mark, not request.
         expect(policy!.requiredFundingFields).not.toContain('request');
       } else {
         expect(policy!.requiredFundingFields).toContain('request');
