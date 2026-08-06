@@ -86,7 +86,9 @@ function newBuilder(source: ExtractionSourceV1): ArtifactBuilderV1 {
     parserConfigSha256: source.sourcePdfSha256,
     inputSourceSha256: source.sourcePdfSha256,
     outputArtifactSha256: source.sourcePdfSha256,
-    pageRanges: [],
+    /* Covers every page this fixture cites (1, 3, 5, 7). A run declaring no
+     * pages cannot honestly carry page-bearing evidence. */
+    pageRanges: [{ startPage: 1, endPage: 7 }],
   });
   return builder;
 }

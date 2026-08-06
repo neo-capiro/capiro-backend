@@ -16,12 +16,7 @@ import type { PrintedUnitV1 } from './unit-semantics-v1.js';
 /* Value kind vocabulary                                                */
 /* ------------------------------------------------------------------ */
 
-export const VALUE_KIND_V1_VALUES = [
-  'money',
-  'quantity',
-  'unit_cost',
-  'text',
-] as const;
+export const VALUE_KIND_V1_VALUES = ['money', 'quantity', 'unit_cost', 'text'] as const;
 export const valueKindV1Schema = z.enum(VALUE_KIND_V1_VALUES);
 export type ValueKindV1 = z.infer<typeof valueKindV1Schema>;
 
@@ -29,13 +24,7 @@ export type ValueKindV1 = z.infer<typeof valueKindV1Schema>;
 /* Base/OCO/OOC/total status                                            */
 /* ------------------------------------------------------------------ */
 
-export const BASE_OCO_STATUS_V1_VALUES = [
-  'base',
-  'oco',
-  'ooc',
-  'total',
-  'none',
-] as const;
+export const BASE_OCO_STATUS_V1_VALUES = ['base', 'oco', 'ooc', 'total', 'none'] as const;
 export const baseOcoStatusV1Schema = z.enum(BASE_OCO_STATUS_V1_VALUES);
 export type BaseOcoStatusV1 = z.infer<typeof baseOcoStatusV1Schema>;
 
@@ -147,15 +136,40 @@ export function bindHeaders(input: {
       // FY/unit classification. Only flag as unresolved when the header
       // looks like it should carry data but couldn't be classified.
       const labelWords = new Set([
-        'blin', 'line', 'title', 'code', 'pe', 'li', 'line item',
-        'description', 'item', 'name', 'type', 'category', 'service',
-        'component', 'account', 'appropriation', 'activity',
+        'blin',
+        'line',
+        'title',
+        'code',
+        'pe',
+        'li',
+        'line item',
+        'description',
+        'item',
+        'name',
+        'type',
+        'category',
+        'service',
+        'component',
+        'account',
+        'appropriation',
+        'activity',
         // O-1 (O&M Summary) label column headers
-        'sag', 'ba', 'bag', 'budget activity', 'budget activity group',
-        'activity group', 'subactivity group', 'subactivity',
-        'subactivity group code', 'subactivity group title',
-        'sag code', 'sag title', 'sag no.', 'sag/subactivity',
-        'budget activity (ba)', 'budget activity group (bag)',
+        'sag',
+        'ba',
+        'bag',
+        'budget activity',
+        'budget activity group',
+        'activity group',
+        'subactivity group',
+        'subactivity',
+        'subactivity group code',
+        'subactivity group title',
+        'sag code',
+        'sag title',
+        'sag no.',
+        'sag/subactivity',
+        'budget activity (ba)',
+        'budget activity group (bag)',
         'budget activity no.',
       ]);
       if (!labelWords.has(text.toLowerCase())) {
@@ -289,10 +303,7 @@ function classifyHeader(
  * arithmetic comparison. Only values with matching FY, value kind,
  * base/OCO status, and funding stage can be compared.
  */
-export function areColumnBindingsCompatible(
-  a: ColumnBindingV1,
-  b: ColumnBindingV1,
-): boolean {
+export function areColumnBindingsCompatible(a: ColumnBindingV1, b: ColumnBindingV1): boolean {
   if (a.valueKind !== b.valueKind) return false;
   if (a.fiscalYear !== b.fiscalYear) return false;
   if (a.baseOcoStatus !== b.baseOcoStatus) return false;

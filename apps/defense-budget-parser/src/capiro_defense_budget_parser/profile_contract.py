@@ -6,7 +6,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-DEFENSE_BUDGET_PROFILE_JOB_SCHEMA_VERSION = 'defense_budget_profile_job_v1'
+DEFENSE_BUDGET_PROFILE_JOB_SCHEMA_VERSION: Literal['defense_budget_profile_job_v1'] = (
+    'defense_budget_profile_job_v1'
+)
 
 
 class ParserProfileJobV1(BaseModel):
@@ -48,7 +50,7 @@ class ParserProfileJobV1(BaseModel):
         return pages
 
     @model_validator(mode='after')
-    def _validate_scope(self) -> 'ParserProfileJobV1':
+    def _validate_scope(self) -> ParserProfileJobV1:
         if self.allPages and self.requestedPages:
             raise ValueError('allPages=true requires empty requestedPages')
         if not self.allPages and not self.requestedPages:

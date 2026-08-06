@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "rootDir": "../..",
+    "baseUrl": "../..",
+    "paths": {
+      "@capiro/shared/*": ["packages/shared/src/*"],
+      "@capiro/shared": ["packages/shared/src/index.ts"]
+    }
+  },
+  "include": [
+    "src/defense-budget/non-rdte/**/*.ts",
+    "src/defense-budget/procurement/**/*.ts",
+    "src/defense-budget/om/**/*.ts",
+    "src/defense-budget/milcon/**/*.ts",
+    "src/defense-budget/contracts/**/*.ts",
+    "src/defense-budget/parser-router/parser-runtime-contract-v1.ts",
+    "src/defense-budget/verification/verification-contract-v1.ts",
+    "scripts/lib/non-rdte-phase5-operator-lib.ts",
+    "scripts/inspect-defense-budget-non-rdte.ts",
+    "scripts/extract-defense-budget-non-rdte.ts",
+    "scripts/verify-defense-budget-non-rdte.ts",
+    "scripts/certify-defense-budget-non-rdte.ts",
+    "scripts/plan-defense-budget-non-rdte-projection.ts",
+    "scripts/verify-pe-budget-phase-5-negative-controls.ts",
+    "scripts/verify-pe-budget-phase-5-closeout.ts"
+  ],
+  "exclude": ["**/*.spec.ts", "**/__tmp__/**"]
+}

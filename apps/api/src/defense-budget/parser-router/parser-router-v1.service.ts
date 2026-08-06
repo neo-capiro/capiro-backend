@@ -31,20 +31,14 @@ import {
   buildInitialParsePlan,
   buildEscalationPlan,
 } from './route-planner.js';
-import {
-  mapCorrectableFindings,
-  type VerificationResultMinimalV1,
-} from './escalation-planner.js';
+import { mapCorrectableFindings, type VerificationResultMinimalV1 } from './escalation-planner.js';
 import type { PageProfileV1 } from './page-profiler.js';
 import {
   type ParserDocumentStateV1,
   type ParserRuntimeEngineV1,
   computeParserConfigSha256,
 } from './parser-runtime-contract-v1.js';
-import type {
-  ComposedPageOutputV1,
-  ParserRunResultEntry,
-} from './page-result-compositor.js';
+import type { ComposedPageOutputV1, ParserRunResultEntry } from './page-result-compositor.js';
 import { composePageResults } from './page-result-compositor.js';
 import {
   buildExtractionArtifact,
@@ -267,17 +261,13 @@ export class ParserRouterV1Service {
       });
       if (escalation.terminal || escalation.plan.steps.length === 0) {
         this.transitionTo(
-          verificationResult.decision === 'REJECT'
-            ? 'TERMINAL_REJECTED'
-            : 'TERMINAL_REVIEW',
+          verificationResult.decision === 'REJECT' ? 'TERMINAL_REJECTED' : 'TERMINAL_REVIEW',
         );
         break;
       }
 
       plan = escalation.plan;
-      this.transitionTo(
-        plan.steps.some((step) => !step.paid) ? 'RUNNING_LOCAL' : 'RUNNING_PAID',
-      );
+      this.transitionTo(plan.steps.some((step) => !step.paid) ? 'RUNNING_LOCAL' : 'RUNNING_PAID');
     }
 
     if (!this.isTerminal()) this.transitionTo('TERMINAL_REVIEW');
@@ -290,7 +280,9 @@ export class ParserRouterV1Service {
   ): void {
     if (requestedPages.length === 0) throw new Error('requestedPages must be nonempty');
     if (
-      requestedPages.some((page, index) => page < 1 || (index > 0 && page <= requestedPages[index - 1]!))
+      requestedPages.some(
+        (page, index) => page < 1 || (index > 0 && page <= requestedPages[index - 1]!),
+      )
     ) {
       throw new Error('requestedPages must be sorted, unique, one-based pages');
     }
@@ -381,37 +373,33 @@ export class ParserRouterV1Service {
       runtimeContractVersion: 'defense_budget_parser_job_v1',
     } as const;
 
-    const replay = await reuseOrCreate(
-      this.dependencies.artifactStore,
-      identity,
-      async () => {
-        const execution = await this.dependencies.runtimeClient.executeJob({
-          job: {
-            schemaVersion: 'defense_budget_parser_job_v1',
-            jobId: `${this.config.executionId}-${engine}-${step.ordinal}`,
-            sourcePath: this.config.sourcePath,
-            sourceSha256: this.config.sourceSha256,
-            engine,
-            requestedPages: [...step.pages],
-            parserVersion,
-            parserConfig,
-            parserConfigSha256,
-            outputDirectory: this.config.workDir,
-            includeDebugArtifacts: false,
-          },
-        });
-        if (
-          execution.result.parserVersion !== parserVersion ||
-          execution.result.parserConfigSha256 !== parserConfigSha256
-        ) {
-          throw new Error(`${engine} result identity does not match planned identity`);
-        }
-        return {
-          result: execution.result,
-          resultJson: canonicalJsonStringify(execution.result as unknown as JsonValue),
-        };
-      },
-    );
+    const replay = await reuseOrCreate(this.dependencies.artifactStore, identity, async () => {
+      const execution = await this.dependencies.runtimeClient.executeJob({
+        job: {
+          schemaVersion: 'defense_budget_parser_job_v1',
+          jobId: `${this.config.executionId}-${engine}-${step.ordinal}`,
+          sourcePath: this.config.sourcePath,
+          sourceSha256: this.config.sourceSha256,
+          engine,
+          requestedPages: [...step.pages],
+          parserVersion,
+          parserConfig,
+          parserConfigSha256,
+          outputDirectory: this.config.workDir,
+          includeDebugArtifacts: false,
+        },
+      });
+      if (
+        execution.result.parserVersion !== parserVersion ||
+        execution.result.parserConfigSha256 !== parserConfigSha256
+      ) {
+        throw new Error(`${engine} result identity does not match planned identity`);
+      }
+      return {
+        result: execution.result,
+        resultJson: canonicalJsonStringify(execution.result as unknown as JsonValue),
+      };
+    });
 
     if (replay.reusedArtifact) {
       this.costAccumulator.recordReused(engine, step.pages.length);
@@ -480,37 +468,33 @@ export class ParserRouterV1Service {
     // Mutable box so proof assigned inside produce() remains visible to TS after await.
     const freshProofBox: { value: LlamaParseRunProofV1 | null } = { value: null };
 
-    const replay = await reuseOrCreate(
-      this.dependencies.artifactStore,
-      identity,
-      async () => {
-        const execution = await executeLlamaParsePages({
-          sourceSha256: this.config.sourceSha256,
-          sourcePdfBuffer: readFileSync(this.config.sourcePath),
-          sourceFilename: this.config.sourcePath,
-          requestedPages: [...step.pages],
-          pageType,
-          authorization,
-          paidModeConfig: {
-            ...(this.config.paidMode ? { operatorOverride: this.config.paidMode } : {}),
-          },
-          ...(this.dependencies.llamaparseClient
-            ? { client: this.dependencies.llamaparseClient }
-            : {}),
-          ...(this.dependencies.llamaparseClientConfig
-            ? { clientConfig: this.dependencies.llamaparseClientConfig }
-            : {}),
-          jobId: `${this.config.executionId}-llamaparse-${step.ordinal}`,
-        });
-        if (!execution.proof) throw new Error('fresh paid parse did not return provider proof');
-        freshProofBox.value = execution.proof;
-        return {
-          result: execution.result,
-          resultJson: canonicalJsonStringify(execution.result as unknown as JsonValue),
-          providerJobId: execution.proof.providerJobId,
-        };
-      },
-    );
+    const replay = await reuseOrCreate(this.dependencies.artifactStore, identity, async () => {
+      const execution = await executeLlamaParsePages({
+        sourceSha256: this.config.sourceSha256,
+        sourcePdfBuffer: readFileSync(this.config.sourcePath),
+        sourceFilename: this.config.sourcePath,
+        requestedPages: [...step.pages],
+        pageType,
+        authorization,
+        paidModeConfig: {
+          ...(this.config.paidMode ? { operatorOverride: this.config.paidMode } : {}),
+        },
+        ...(this.dependencies.llamaparseClient
+          ? { client: this.dependencies.llamaparseClient }
+          : {}),
+        ...(this.dependencies.llamaparseClientConfig
+          ? { clientConfig: this.dependencies.llamaparseClientConfig }
+          : {}),
+        jobId: `${this.config.executionId}-llamaparse-${step.ordinal}`,
+      });
+      if (!execution.proof) throw new Error('fresh paid parse did not return provider proof');
+      freshProofBox.value = execution.proof;
+      return {
+        result: execution.result,
+        resultJson: canonicalJsonStringify(execution.result as unknown as JsonValue),
+        providerJobId: execution.proof.providerJobId,
+      };
+    });
 
     const freshProof = freshProofBox.value;
     const providerJobId =
@@ -575,9 +559,7 @@ export class ParserRouterV1Service {
   }): Promise<void> {
     const hasSuccess = input.result.succeededPages.length > 0;
     await this.recorder.record({
-      ...(this.config.sourceDocumentId
-        ? { sourceDocumentId: this.config.sourceDocumentId }
-        : {}),
+      ...(this.config.sourceDocumentId ? { sourceDocumentId: this.config.sourceDocumentId } : {}),
       method: input.method,
       ...(input.providerJobId ? { providerJobId: input.providerJobId } : {}),
       mode: input.mode,
@@ -616,9 +598,7 @@ export class ParserRouterV1Service {
       executionId: this.config.executionId,
       cycleId: this.config.cycleId,
       manifestDocumentKey: this.config.manifestDocumentKey,
-      ...(this.config.sourceDocumentId
-        ? { sourceDocumentId: this.config.sourceDocumentId }
-        : {}),
+      ...(this.config.sourceDocumentId ? { sourceDocumentId: this.config.sourceDocumentId } : {}),
       sourceSha256: this.config.sourceSha256,
       sourceLocator: this.config.sourceLocator,
       ...(this.config.sourceUrl ? { sourceUrl: this.config.sourceUrl } : {}),

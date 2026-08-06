@@ -109,9 +109,7 @@ async function main(): Promise<void> {
     if (execution.exitCode !== 0) {
       throw new Error(execution.stderr || `profiler exited ${execution.exitCode}`);
     }
-    const profile = parseDocumentProfileResultV1(
-      JSON.parse(fs.readFileSync(outputPath, 'utf8')),
-    );
+    const profile = parseDocumentProfileResultV1(JSON.parse(fs.readFileSync(outputPath, 'utf8')));
     if (profile.sourceSha256 !== sourceSha256 || profile.pages.length === 0) {
       throw new Error('profile is empty or not bound to the supplied source bytes');
     }

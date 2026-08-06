@@ -2,10 +2,24 @@
  * Phase 5 Workstream F tests — procurement composition, verification,
  * and reconciliation.
  */
-import { reconcileProcurementFunding, compareUnitConvertedValues, type ProcurementFundingValueV1 } from './procurement-reconciliation-v1.js';
-import { verifyProcurementFamily, type ProcurementIdentityInput, type ProcurementVerificationInput } from './procurement-verification-policy-v1.js';
-import { composeProcurementFamily, type ProcurementCompositionInput } from './procurement-composer-v1.js';
-import type { DefenseBudgetExtractionArtifactV1, DefenseBudgetAssertionV1 } from '../contracts/extraction-artifact-v1.js';
+import {
+  reconcileProcurementFunding,
+  compareUnitConvertedValues,
+  type ProcurementFundingValueV1,
+} from './procurement-reconciliation-v1.js';
+import {
+  verifyProcurementFamily,
+  type ProcurementIdentityInput,
+  type ProcurementVerificationInput,
+} from './procurement-verification-policy-v1.js';
+import {
+  composeProcurementFamily,
+  type ProcurementCompositionInput,
+} from './procurement-composer-v1.js';
+import type {
+  DefenseBudgetExtractionArtifactV1,
+  DefenseBudgetAssertionV1,
+} from '../contracts/extraction-artifact-v1.js';
 import type { ColumnBindingV1 } from '../non-rdte/column-semantics-v1.js';
 import type { PrintedUnitV1 } from '../non-rdte/unit-semantics-v1.js';
 
@@ -25,7 +39,9 @@ function makeColumnBinding(overrides: Partial<ColumnBindingV1> = {}): ColumnBind
   };
 }
 
-function makeFundingValue(overrides: Partial<ProcurementFundingValueV1> = {}): ProcurementFundingValueV1 {
+function makeFundingValue(
+  overrides: Partial<ProcurementFundingValueV1> = {},
+): ProcurementFundingValueV1 {
   return {
     identityNaturalKey: 'PROCUREMENT_BLIN:ARMY:2031A: AIRCRAFT PROCUREMENT, ARMY:9670A00005:base',
     identity: {
@@ -47,7 +63,9 @@ function makeFundingValue(overrides: Partial<ProcurementFundingValueV1> = {}): P
   };
 }
 
-function makeIdentityInput(overrides: Partial<ProcurementIdentityInput> = {}): ProcurementIdentityInput {
+function makeIdentityInput(
+  overrides: Partial<ProcurementIdentityInput> = {},
+): ProcurementIdentityInput {
   return {
     naturalKey: 'PROCUREMENT_BLIN:ARMY:2031A: AIRCRAFT PROCUREMENT, ARMY:9670A00005:base',
     printedCode: '9670A00005',
@@ -157,7 +175,10 @@ describe('procurement-reconciliation-v1', () => {
       identityNaturalKey: 'PROCUREMENT_BLIN:NAVY:1706N: OTHER PROCUREMENT, NAVY:0145:base',
       valueMillions: '200',
     });
-    const comparisons = reconcileProcurementFunding({ p1Values: [p1a, p1b], p40Values: [p40a, p40b] });
+    const comparisons = reconcileProcurementFunding({
+      p1Values: [p1a, p1b],
+      p40Values: [p40a, p40b],
+    });
     expect(comparisons).toHaveLength(2);
     expect(comparisons[0]?.result).toBe('pass');
     expect(comparisons[1]?.result).toBe('pass');
@@ -169,7 +190,8 @@ describe('procurement-reconciliation-v1', () => {
       valueMillions: '240',
     });
     const p40AP = makeFundingValue({
-      identityNaturalKey: 'PROCUREMENT_BLIN:ARMY:2031A: AIRCRAFT PROCUREMENT, ARMY:9670A00005:advance',
+      identityNaturalKey:
+        'PROCUREMENT_BLIN:ARMY:2031A: AIRCRAFT PROCUREMENT, ARMY:9670A00005:advance',
       valueMillions: '50',
     });
     const comparisons = reconcileProcurementFunding({ p1Values: [p1Base], p40Values: [p40AP] });
@@ -204,7 +226,9 @@ describe('procurement-reconciliation-v1', () => {
 });
 
 describe('procurement-verification-policy-v1', () => {
-  function makeVerificationInput(overrides: Partial<ProcurementVerificationInput> = {}): ProcurementVerificationInput {
+  function makeVerificationInput(
+    overrides: Partial<ProcurementVerificationInput> = {},
+  ): ProcurementVerificationInput {
     return {
       p1Identities: [makeIdentityInput()],
       p40Identities: [makeIdentityInput({ exhibit: 'P-40' })],
@@ -221,17 +245,21 @@ describe('procurement-verification-policy-v1', () => {
   }
 
   it('passes with complete P-1/P-40 and matching funding', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      fundingComparisons: [{
-        identityNaturalKey: 'test',
-        printedCode: '9670A00005',
-        fiscalYear: CYCLE_FY,
-        columnRole: 'budget_year_request',
-        p1ValueMillions: '240',
-        p40ValueMillions: '240',
-        result: 'pass',
-      }],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        fundingComparisons: [
+          {
+            identityNaturalKey: 'test',
+            printedCode: '9670A00005',
+            fiscalYear: CYCLE_FY,
+            columnRole: 'budget_year_request',
+            p1ValueMillions: '240',
+            p40ValueMillions: '240',
+            result: 'pass',
+          },
+        ],
+      }),
+    );
     expect(result.decision).toBe('VERIFICATION_PASSED');
     expect(result.blocking).toBe(false);
   });
@@ -248,76 +276,96 @@ describe('procurement-verification-policy-v1', () => {
   });
 
   it('blocks on funding mismatch', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      fundingComparisons: [{
-        identityNaturalKey: 'test',
-        printedCode: '9670A00005',
-        fiscalYear: CYCLE_FY,
-        columnRole: 'budget_year_request',
-        p1ValueMillions: '240',
-        p40ValueMillions: '300',
-        result: 'fail',
-      }],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        fundingComparisons: [
+          {
+            identityNaturalKey: 'test',
+            printedCode: '9670A00005',
+            fiscalYear: CYCLE_FY,
+            columnRole: 'budget_year_request',
+            p1ValueMillions: '240',
+            p40ValueMillions: '300',
+            result: 'fail',
+          },
+        ],
+      }),
+    );
     expect(result.blocking).toBe(true);
   });
 
   it('blocks on missing comparison when P-40 required', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      fundingComparisons: [{
-        identityNaturalKey: 'test',
-        printedCode: '9670A00005',
-        fiscalYear: CYCLE_FY,
-        columnRole: 'budget_year_request',
-        result: 'not_run',
-      }],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        fundingComparisons: [
+          {
+            identityNaturalKey: 'test',
+            printedCode: '9670A00005',
+            fiscalYear: CYCLE_FY,
+            columnRole: 'budget_year_request',
+            result: 'not_run',
+          },
+        ],
+      }),
+    );
     expect(result.blocking).toBe(true);
   });
 
   it('blocks on missing quantity when required', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      p40Identities: [makeIdentityInput({ exhibit: 'P-40', hasQuantity: false })],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        p40Identities: [makeIdentityInput({ exhibit: 'P-40', hasQuantity: false })],
+      }),
+    );
     expect(result.blocking).toBe(true);
     expect(result.findings.some((f) => f.code === 'required_quantity_missing')).toBe(true);
   });
 
   it('blocks on missing unit cost when required', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      p40Identities: [makeIdentityInput({ exhibit: 'P-40', hasUnitCost: false })],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        p40Identities: [makeIdentityInput({ exhibit: 'P-40', hasUnitCost: false })],
+      }),
+    );
     expect(result.blocking).toBe(true);
     expect(result.findings.some((f) => f.code === 'required_unit_cost_missing')).toBe(true);
   });
 
   it('blocks on missing enrichment parent relationship', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      p5P21P3aIdentities: [makeIdentityInput({
-        exhibit: 'P-5',
-        parentNaturalKey: undefined,
-      })],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        p5P21P3aIdentities: [
+          makeIdentityInput({
+            exhibit: 'P-5',
+            parentNaturalKey: undefined,
+          }),
+        ],
+      }),
+    );
     expect(result.blocking).toBe(true);
     expect(result.findings.some((f) => f.code === 'enrichment_parent_missing')).toBe(true);
   });
 
   it('blocks on base/AP identity collapse', () => {
     const sameKey = 'PROCUREMENT_BLIN:ARMY:2031A: AIRCRAFT PROCUREMENT, ARMY:9670A00005:base';
-    const result = verifyProcurementFamily(makeVerificationInput({
-      p1Identities: [
-        makeIdentityInput({ naturalKey: sameKey, advanceProcurement: false }),
-        makeIdentityInput({ naturalKey: sameKey, advanceProcurement: true }),
-      ],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        p1Identities: [
+          makeIdentityInput({ naturalKey: sameKey, advanceProcurement: false }),
+          makeIdentityInput({ naturalKey: sameKey, advanceProcurement: true }),
+        ],
+      }),
+    );
     expect(result.blocking).toBe(true);
     expect(result.findings.some((f) => f.code === 'base_ap_identity_collapse')).toBe(true);
   });
 
   it('blocks on required identity missing', () => {
-    const result = verifyProcurementFamily(makeVerificationInput({
-      requiredIdentityKeys: ['PROCUREMENT_BLIN:ARMY:2031A:TEST:XXXX:base'],
-    }));
+    const result = verifyProcurementFamily(
+      makeVerificationInput({
+        requiredIdentityKeys: ['PROCUREMENT_BLIN:ARMY:2031A:TEST:XXXX:base'],
+      }),
+    );
     expect(result.blocking).toBe(true);
     expect(result.findings.some((f) => f.code === 'required_identity_not_found')).toBe(true);
   });
@@ -354,7 +402,9 @@ describe('procurement-composer-v1', () => {
       'utf-8',
     );
     /* Check that no import statement brings in a canonical writer. */
-    const importLines = composerSource.split('\n').filter((l: string) => l.trim().startsWith('import '));
+    const importLines = composerSource
+      .split('\n')
+      .filter((l: string) => l.trim().startsWith('import '));
     for (const line of importLines) {
       expect(line).not.toContain('ProgramElementWriterService');
       expect(line).not.toContain('upsertProgramElement');

@@ -18,9 +18,12 @@ import { rdteCoverageStatusV1Schema, rdteExhibitRoleV1Schema } from './rdte-colu
 
 export const RDTE_CYCLE_BUNDLE_SCHEMA_VERSION = 'rdte_cycle_bundle_v1' as const;
 
-const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
-  message: 'must be nonblank',
-});
+const nonBlank = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: 'must be nonblank',
+  });
 const fiscalYear = z.number().int().min(1900).max(2200);
 
 export const rdteCycleSourceDocumentV1Schema = z
@@ -123,9 +126,7 @@ export function rdteVerificationRefFromResult(input: {
 }): RdteCycleVerificationRefV1 {
   const result = defenseBudgetVerificationResultV1Schema.parse(input.result);
   const artifactContentSha256 = sha256Schema.parse(input.artifactContentSha256);
-  const artifactByteSha256 = sha256Schema.parse(
-    input.artifactByteSha256 ?? artifactContentSha256,
-  );
+  const artifactByteSha256 = sha256Schema.parse(input.artifactByteSha256 ?? artifactContentSha256);
   if (result.extractionArtifactSha256 !== artifactContentSha256) {
     throw new Error(
       `Phase 2 result content SHA ${result.extractionArtifactSha256} does not match artifact ${artifactContentSha256}`,

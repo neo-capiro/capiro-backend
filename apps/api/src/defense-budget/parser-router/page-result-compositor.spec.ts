@@ -61,7 +61,9 @@ function makeRuntimeResult(
 ): ParserRuntimeResultV1 {
   const succeeded = pages.map((p) => p.page);
   // requestedPages must include all pages referenced (failures + successes)
-  const allPages = [...new Set([...succeeded, ...failures.map((f) => f.page)])].sort((a, b) => a - b);
+  const allPages = [...new Set([...succeeded, ...failures.map((f) => f.page)])].sort(
+    (a, b) => a - b,
+  );
   return sealParserRuntimeResult({
     schemaVersion: 'defense_budget_parser_result_v1',
     jobId,
@@ -113,10 +115,16 @@ describe('page-result-compositor', () => {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Budget text' }],
       });
 
-      const entry1 = makeRunEntry('run-pdfplumber-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [page1]));
-      const entry2 = makeRunEntry('run-camelot-1', 'camelot',
-        makeRuntimeResult('run-camelot-1', 'camelot', [page1Dup]));
+      const entry1 = makeRunEntry(
+        'run-pdfplumber-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [page1]),
+      );
+      const entry2 = makeRunEntry(
+        'run-camelot-1',
+        'camelot',
+        makeRuntimeResult('run-camelot-1', 'camelot', [page1Dup]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -136,8 +144,11 @@ describe('page-result-compositor', () => {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Same text' }],
       });
 
-      const entry1 = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry1 = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output1 = composePageResults({
         executionId: 'exec-1',
@@ -166,10 +177,16 @@ describe('page-result-compositor', () => {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Parser B text' }],
       });
 
-      const entry1 = makeRunEntry('run-pdfplumber-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [page1A]));
-      const entry2 = makeRunEntry('run-camelot-1', 'camelot',
-        makeRuntimeResult('run-camelot-1', 'camelot', [page1B]));
+      const entry1 = makeRunEntry(
+        'run-pdfplumber-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [page1A]),
+      );
+      const entry2 = makeRunEntry(
+        'run-camelot-1',
+        'camelot',
+        makeRuntimeResult('run-camelot-1', 'camelot', [page1B]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -199,10 +216,16 @@ describe('page-result-compositor', () => {
         evidencePrecision: 'page_only',
       });
 
-      const localEntry = makeRunEntry('run-pdfplumber-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [localPage]));
-      const paidEntry = makeRunEntry('run-llamaparse-1', 'llamaparse',
-        makeRuntimeResult('run-llamaparse-1', 'llamaparse', [paidPage]));
+      const localEntry = makeRunEntry(
+        'run-pdfplumber-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [localPage]),
+      );
+      const paidEntry = makeRunEntry(
+        'run-llamaparse-1',
+        'llamaparse',
+        makeRuntimeResult('run-llamaparse-1', 'llamaparse', [paidPage]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -227,10 +250,16 @@ describe('page-result-compositor', () => {
         evidencePrecision: 'page_only',
       });
 
-      const localEntry = makeRunEntry('run-pdfplumber-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [localPage]));
-      const paidEntry = makeRunEntry('run-llamaparse-1', 'llamaparse',
-        makeRuntimeResult('run-llamaparse-1', 'llamaparse', [paidPage]));
+      const localEntry = makeRunEntry(
+        'run-pdfplumber-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [localPage]),
+      );
+      const paidEntry = makeRunEntry(
+        'run-llamaparse-1',
+        'llamaparse',
+        makeRuntimeResult('run-llamaparse-1', 'llamaparse', [paidPage]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -259,10 +288,16 @@ describe('page-result-compositor', () => {
         evidencePrecision: 'page_only',
       });
 
-      const digitalEntry = makeRunEntry('run-pdfplumber-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [digitalPage]));
-      const ocrEntry = makeRunEntry('run-paddleocr-1', 'paddleocr',
-        makeRuntimeResult('run-paddleocr-1', 'paddleocr', [ocrPage]));
+      const digitalEntry = makeRunEntry(
+        'run-pdfplumber-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-pdfplumber-1', 'deterministic_pdfplumber', [digitalPage]),
+      );
+      const ocrEntry = makeRunEntry(
+        'run-paddleocr-1',
+        'paddleocr',
+        makeRuntimeResult('run-paddleocr-1', 'paddleocr', [ocrPage]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -281,8 +316,11 @@ describe('page-result-compositor', () => {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'OCR recovered text' }],
         evidencePrecision: 'page_only',
       });
-      const ocrEntry = makeRunEntry('run-paddleocr-1', 'paddleocr',
-        makeRuntimeResult('run-paddleocr-1', 'paddleocr', [ocrPage]));
+      const ocrEntry = makeRunEntry(
+        'run-paddleocr-1',
+        'paddleocr',
+        makeRuntimeResult('run-paddleocr-1', 'paddleocr', [ocrPage]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -321,8 +359,11 @@ describe('page-result-compositor', () => {
         code: 'pdf_parse_error',
         message: 'failed to parse',
       };
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [], [failure]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [], [failure]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -348,10 +389,16 @@ describe('page-result-compositor', () => {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Text B' }],
       });
 
-      const entry1 = makeRunEntry('run-aaa', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-aaa', 'deterministic_pdfplumber', [page1A]));
-      const entry2 = makeRunEntry('run-bbb', 'camelot',
-        makeRuntimeResult('run-bbb', 'camelot', [page1B]));
+      const entry1 = makeRunEntry(
+        'run-aaa',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-aaa', 'deterministic_pdfplumber', [page1A]),
+      );
+      const entry2 = makeRunEntry(
+        'run-bbb',
+        'camelot',
+        makeRuntimeResult('run-bbb', 'camelot', [page1B]),
+      );
 
       const output1 = composePageResults({
         executionId: 'exec-1',
@@ -371,12 +418,21 @@ describe('page-result-compositor', () => {
     });
 
     it('produces identical output with shuffled requested pages order', () => {
-      const page1 = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'P1' }] });
-      const page2 = makePageResult(2, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'P2' }] });
-      const page3 = makePageResult(3, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'P3' }] });
+      const page1 = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'P1' }],
+      });
+      const page2 = makePageResult(2, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'P2' }],
+      });
+      const page3 = makePageResult(3, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'P3' }],
+      });
 
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1, page2, page3]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1, page2, page3]),
+      );
 
       const output1 = composePageResults({
         executionId: 'exec-1',
@@ -400,16 +456,31 @@ describe('page-result-compositor', () => {
   /* ─── K7: no lost alternative run IDs ─── */
   describe('K7: no lost alternative run IDs', () => {
     it('preserves all non-duplicate alternative run IDs', () => {
-      const page1A = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'A' }] });
-      const page1B = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'B' }] });
-      const page1C = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'C' }] });
+      const page1A = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'A' }],
+      });
+      const page1B = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'B' }],
+      });
+      const page1C = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'C' }],
+      });
 
-      const entry1 = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1A]));
-      const entry2 = makeRunEntry('run-2', 'camelot',
-        makeRuntimeResult('run-2', 'camelot', [page1B]));
-      const entry3 = makeRunEntry('run-3', 'docling',
-        makeRuntimeResult('run-3', 'docling', [page1C]));
+      const entry1 = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1A]),
+      );
+      const entry2 = makeRunEntry(
+        'run-2',
+        'camelot',
+        makeRuntimeResult('run-2', 'camelot', [page1B]),
+      );
+      const entry3 = makeRunEntry(
+        'run-3',
+        'docling',
+        makeRuntimeResult('run-3', 'docling', [page1C]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -431,16 +502,31 @@ describe('page-result-compositor', () => {
 
     it('does not lose alternatives when deduplicating', () => {
       // Two identical results + one different
-      const page1A = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'Same' }] });
-      const page1Dup = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'Same' }] });
-      const page1Diff = makePageResult(1, { blocks: [{ blockIndex: 0, blockType: 'text', text: 'Different' }] });
+      const page1A = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'Same' }],
+      });
+      const page1Dup = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'Same' }],
+      });
+      const page1Diff = makePageResult(1, {
+        blocks: [{ blockIndex: 0, blockType: 'text', text: 'Different' }],
+      });
 
-      const entry1 = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1A]));
-      const entry2 = makeRunEntry('run-2', 'camelot',
-        makeRuntimeResult('run-2', 'camelot', [page1Dup]));
-      const entry3 = makeRunEntry('run-3', 'docling',
-        makeRuntimeResult('run-3', 'docling', [page1Diff]));
+      const entry1 = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1A]),
+      );
+      const entry2 = makeRunEntry(
+        'run-2',
+        'camelot',
+        makeRuntimeResult('run-2', 'camelot', [page1Dup]),
+      );
+      const entry3 = makeRunEntry(
+        'run-3',
+        'docling',
+        makeRuntimeResult('run-3', 'docling', [page1Diff]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -466,8 +552,11 @@ describe('page-result-compositor', () => {
       const page1 = makePageResult(1, {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Text' }],
       });
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -486,8 +575,11 @@ describe('page-result-compositor', () => {
   describe('K8: every page is accounted for', () => {
     it('validatePageCompleteness passes for valid output', () => {
       const page1 = makePageResult(1);
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -513,8 +605,11 @@ describe('page-result-compositor', () => {
 
     it('every requested page appears in output', () => {
       const pages = [1, 2, 3, 4, 5].map((n) => makePageResult(n));
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', pages));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', pages),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -531,8 +626,11 @@ describe('page-result-compositor', () => {
   describe('K8: composed output hash is deterministic', () => {
     it('content SHA is 64-char hex', () => {
       const page1 = makePageResult(1);
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -547,8 +645,11 @@ describe('page-result-compositor', () => {
 
     it('verifyComposedContentSha returns true for valid output', () => {
       const page1 = makePageResult(1);
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -564,8 +665,11 @@ describe('page-result-compositor', () => {
       const page1 = makePageResult(1, {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'Test' }],
       });
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output1 = composePageResults({
         executionId: 'exec-1',
@@ -589,8 +693,11 @@ describe('page-result-compositor', () => {
     it('builds lineage entries for all parser run pages', () => {
       const page1 = makePageResult(1);
       const page2 = makePageResult(2);
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1, page2]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1, page2]),
+      );
 
       const lineages = buildLineageEntries(entry);
 
@@ -603,8 +710,11 @@ describe('page-result-compositor', () => {
 
     it('lineage includes all required fields', () => {
       const page1 = makePageResult(1);
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -625,10 +735,16 @@ describe('page-result-compositor', () => {
 
     it('multiple parser runs produce multiple lineage entries', () => {
       const page1 = makePageResult(1);
-      const entry1 = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]));
-      const entry2 = makeRunEntry('run-2', 'camelot',
-        makeRuntimeResult('run-2', 'camelot', [page1]));
+      const entry1 = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', [page1]),
+      );
+      const entry2 = makeRunEntry(
+        'run-2',
+        'camelot',
+        makeRuntimeResult('run-2', 'camelot', [page1]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -688,8 +804,11 @@ describe('page-result-compositor', () => {
   describe('K5: page order', () => {
     it('output pages are sorted ascending', () => {
       const pages = [5, 3, 1, 4, 2].map((n) => makePageResult(n));
-      const entry = makeRunEntry('run-1', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-1', 'deterministic_pdfplumber', pages));
+      const entry = makeRunEntry(
+        'run-1',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-1', 'deterministic_pdfplumber', pages),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -727,19 +846,27 @@ describe('page-result-compositor', () => {
       const pageHigh = makePageResult(1, {
         blocks: [{ blockIndex: 0, blockType: 'text', text: 'High' }],
         evidencePrecision: 'cell_bbox',
-        tables: [{
-          tableIndex: 0,
-          rowCount: 1,
-          columnCount: 1,
-          cells: [{ rowIndex: 0, columnIndex: 0, text: 'Data' }],
-          warnings: [],
-        }],
+        tables: [
+          {
+            tableIndex: 0,
+            rowCount: 1,
+            columnCount: 1,
+            cells: [{ rowIndex: 0, columnIndex: 0, text: 'Data' }],
+            warnings: [],
+          },
+        ],
       });
 
-      const entryLow = makeRunEntry('run-low', 'deterministic_pdfplumber',
-        makeRuntimeResult('run-low', 'deterministic_pdfplumber', [pageLow]));
-      const entryHigh = makeRunEntry('run-high', 'camelot',
-        makeRuntimeResult('run-high', 'camelot', [pageHigh]));
+      const entryLow = makeRunEntry(
+        'run-low',
+        'deterministic_pdfplumber',
+        makeRuntimeResult('run-low', 'deterministic_pdfplumber', [pageLow]),
+      );
+      const entryHigh = makeRunEntry(
+        'run-high',
+        'camelot',
+        makeRuntimeResult('run-high', 'camelot', [pageHigh]),
+      );
 
       const output = composePageResults({
         executionId: 'exec-1',
@@ -749,7 +876,9 @@ describe('page-result-compositor', () => {
       });
 
       expect(output.pages[0]!.selectedParserRunId).toBe('run-high');
-      expect(output.pages[0]!.selectionReasonCodes).toContain(SELECTION_REASON_CODES.HIGHER_PRECISION);
+      expect(output.pages[0]!.selectionReasonCodes).toContain(
+        SELECTION_REASON_CODES.HIGHER_PRECISION,
+      );
     });
   });
 });

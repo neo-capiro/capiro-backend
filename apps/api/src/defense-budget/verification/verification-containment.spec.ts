@@ -30,15 +30,6 @@ function verificationSources(): Array<{ file: string; code: string }> {
   return results;
 }
 
-/**
- * V1-specific production files only. These are the files that must never
- * contain canonical writer imports, unsafe Prisma casts, caller-supplied
- * proof objects, or source-byte hashing through string conversion.
- *
- * Excludes the Phase 0 legacy scaffold (budget-verification.ts,
- * budget-document-adapter.ts, budget-verification-service.ts,
- * budget-verification-repository.ts) which has its own containment rules.
- */
 function v1ProductionSources(): Array<{ file: string; code: string }> {
   const v1Subdirs = ['trusted-proof', 'rules', 'decision', 'persistence', 'services'];
   const v1Files = [
@@ -46,9 +37,9 @@ function v1ProductionSources(): Array<{ file: string; code: string }> {
     'verification-input-v1.ts',
     'verification-policy-v1.ts',
     'verification-policy-registry.ts',
+    'authority-policy-resolution.ts',
   ];
   const results: Array<{ file: string; code: string }> = [];
-  // V1 subdirectory production files
   for (const sub of v1Subdirs) {
     const dir = join(VERIFICATION_DIR, sub);
     if (!existsSync(dir)) continue;
@@ -68,18 +59,41 @@ function v1ProductionSources(): Array<{ file: string; code: string }> {
     };
     walk(dir, sub);
   }
-  // V1 top-level production files
   for (const name of v1Files) {
     const full = join(VERIFICATION_DIR, name);
     if (existsSync(full)) {
-      results.push({
-        file: name,
-        code: stripComments(readFileSync(full, 'utf8')),
-      });
+      results.push({ file: name, code: stripComments(readFileSync(full, 'utf8')) });
     }
   }
   return results;
 }
+
+const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
+  'verify-defense-budget-extraction-v1.ts',
+  'review-defense-budget-verification-v1.ts',
+  'report-defense-budget-verification-cycle-v1.ts',
+  'rehearse-budget-verification-v1.ts',
+  'extract-defense-budget-cycle.ts',
+  'build-rdte-cycle.ts',
+  'verify-defense-budget-non-rdte.ts',
+  'certify-defense-budget-non-rdte.ts',
+  'plan-defense-budget-non-rdte-projection.ts',
+]);
+
+const CANONICAL_WRITER_PATTERNS = [
+  /ProgramElementWriterService/,
+  /program-element-writer\.service/,
+  /programElementYear\.(create|update|upsert|updateMany|createMany)/,
+  /programElement\.create/,
+  /programElement\.update/,
+  /upsertProgramElement/,
+  /upsertProgramElementYear/,
+  /promotionReady/,
+  /canonicalEligible/,
+];
+
+const VERIFICATION_IMPORT_PATTERN =
+  /(?:from\s*|import\s*\(\s*|import\s*)['"][^'"]*defense-budget\/verification/;
 
 describe('verification scaffold containment', () => {
   it('contains no promotion or canonical API symbols in executable source', () => {
@@ -94,10 +108,6 @@ describe('verification scaffold containment', () => {
       'verifyAndPersistBudgetDocument',
       'programElementYearSourceValue.create',
     ];
-    // Phase 2 V1 allows a real Prisma repository under the V1 namespace.
-    // The Phase 0 scaffold prohibited the non-V1 PrismaBudgetVerificationRepository
-    // (a fake placeholder). The V1 class PrismaBudgetVerificationRepositoryV1 is
-    // the approved concrete repository and is permitted.
     for (const { file, code } of verificationSources()) {
       for (const symbol of prohibited) {
         expect({ file, hit: code.includes(symbol) }).toEqual({ file, hit: false });
@@ -112,19 +122,7 @@ describe('verification scaffold containment', () => {
   });
 
   it('does not import canonical writers or Prisma PE-year write APIs', () => {
-    const banned = [
-      /ProgramElementWriterService/,
-      /program-element-writer\.service/,
-      /programElementYear\.(create|update|upsert|updateMany|createMany)/,
-      /programElement\.create/,
-      /programElement\.update/,
-      /upsertProgramElement/,
-      /upsertProgramElementYear/,
-      /promotionReady/,
-      /canonicalEligible/,
-      /CANONICAL/,
-      /PROMOTED/,
-    ];
+    const banned = [...CANONICAL_WRITER_PATTERNS, /CANONICAL/, /PROMOTED/];
     for (const { file, code } of verificationSources()) {
       for (const pattern of banned) {
         expect({ file, hit: pattern.test(code) }).toEqual({ file, hit: false });
@@ -133,8 +131,6 @@ describe('verification scaffold containment', () => {
   });
 
   it('does not use unsafe Prisma casts or manufactured delegate methods', () => {
-    // R0 containment: detect `as unknown as Prisma...` and `findUniqueById`
-    // which manufacture nonexistent Prisma APIs.
     const banned = [/as\s+unknown\s+as\s+(?:Prisma|PrismaLike)/, /findUniqueById/];
     for (const { file, code } of v1ProductionSources()) {
       for (const pattern of banned) {
@@ -144,14 +140,6 @@ describe('verification scaffold containment', () => {
   });
 
   it('does not accept caller-supplied proof objects in the verification request', () => {
-    // R0 containment: the V1 verification request must not accept archiveProof,
-    // parseProof, or approvedSha256 from the caller. These are proof objects
-    // that must be independently resolved by the verifier.
-    //
-    // We check the verification request schema file specifically, not all V1
-    // files, because local variables named `archiveProof` in proof resolver
-    // code are the verifier's own internal proof construction — not
-    // caller-supplied proof objects.
     const requestFile = join(VERIFICATION_DIR, 'verification-contract-v1.ts');
     const requestInputFile = join(VERIFICATION_DIR, 'verification-input-v1.ts');
     const bannedProofFields = [/\barchiveProof\b/, /\bparseProof\b/];
@@ -159,17 +147,15 @@ describe('verification scaffold containment', () => {
       if (!existsSync(filePath)) continue;
       const code = stripComments(readFileSync(filePath, 'utf8'));
       for (const pattern of bannedProofFields) {
-        expect({ file: filePath, hit: pattern.test(code) }).toEqual({ file: filePath, hit: false });
+        expect({ file: filePath, hit: pattern.test(code) }).toEqual({
+          file: filePath,
+          hit: false,
+        });
       }
     }
   });
 
-  it('does not hash source bytes through string conversion (binary/utf8)', () => {
-    // R0 containment: source PDFs, S3 objects, and artifact files must be
-    // hashed as raw bytes, not through .toString('binary') or .toString('utf8').
-    // The canonical-json module provides sha256Hex for deliberate UTF-8 string
-    // hashing and sha256Bytes for raw bytes. Source/archived object hashing
-    // through string conversion is a defect.
+  it('does not hash source bytes through string conversion', () => {
     const banned = [/\.toString\(['"]binary['"]\)/];
     for (const { file, code } of v1ProductionSources()) {
       for (const pattern of banned) {
@@ -178,50 +164,27 @@ describe('verification scaffold containment', () => {
     }
   });
 
-  it('is not imported by any operational script', () => {
+  it('is imported only by named non-promoting operator scripts', () => {
     const offenders: string[] = [];
     for (const name of readdirSync(SCRIPTS_DIR)) {
       if (!name.endsWith('.ts')) continue;
       const code = stripComments(readFileSync(join(SCRIPTS_DIR, name), 'utf8'));
-      if (/defense-budget\/verification/.test(code)) offenders.push(name);
+      if (VERIFICATION_IMPORT_PATTERN.test(code)) offenders.push(name);
     }
-    // Phase 2 V1 CLI scripts import from the verification directory — those are allowed.
-    // Filter out the approved V1 CLI scripts.
-    const approvedV1 = new Set([
-      'verify-defense-budget-extraction-v1.ts',
-      'review-defense-budget-verification-v1.ts',
-      'report-defense-budget-verification-cycle-v1.ts',
-      // Disposable local-only migration/rehearsal utility. It is not wired to
-      // the operational entrypoint and cannot target canonical writers.
-      'rehearse-budget-verification-v1.ts',
-    ]);
-    const real = offenders.filter((s) => !approvedV1.has(s));
+    const real = offenders.filter((script) => !APPROVED_VERIFICATION_OPERATOR_SCRIPTS.has(script));
     expect(real).toEqual([]);
   });
 
-  it('V1 CLI scripts import no canonical writers (O4)', () => {
-    const v1Scripts = [
-      'verify-defense-budget-extraction-v1.ts',
-      'review-defense-budget-verification-v1.ts',
-      'report-defense-budget-verification-cycle-v1.ts',
-    ];
-    const banned = [
-      /ProgramElementWriterService/,
-      /program-element-writer\.service/,
-      /programElementYear\.(create|update|upsert|updateMany|createMany)/,
-      /programElement\.create/,
-      /programElement\.update/,
-      /upsertProgramElement/,
-      /upsertProgramElementYear/,
-      /promotionReady/,
-      /canonicalEligible/,
-    ];
-    for (const name of v1Scripts) {
+  it('approved verification operators import no canonical writers', () => {
+    for (const name of APPROVED_VERIFICATION_OPERATOR_SCRIPTS) {
       const fullPath = join(SCRIPTS_DIR, name);
       if (!existsSync(fullPath)) continue;
       const code = stripComments(readFileSync(fullPath, 'utf8'));
-      for (const pattern of banned) {
-        expect({ file: name, hit: pattern.test(code) }).toEqual({ file: name, hit: false });
+      for (const pattern of CANONICAL_WRITER_PATTERNS) {
+        expect({ file: name, hit: pattern.test(code) }).toEqual({
+          file: name,
+          hit: false,
+        });
       }
     }
   });

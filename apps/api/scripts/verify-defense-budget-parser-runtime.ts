@@ -11,6 +11,7 @@
  * Exit 0 if all checks pass, 1 if any check fails.
  */
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
@@ -21,7 +22,11 @@ import {
 import { sha256CanonicalJson } from '../src/defense-budget/contracts/canonical-json.js';
 
 const PARSER_DIR = path.resolve(__dirname, '..', '..', 'defense-budget-parser');
-const FIXTURES_DIR = path.resolve(__dirname, '..', 'src', 'defense-budget', 'parser-router', '__fixtures__');
+// Write ephemeral gate fixtures outside the prettier-checked source tree.
+// JSON.stringify compact arrays are valid JSON but prettier --check on
+// apps/api/src/defense-budget/parser-router fails when these files are rewritten
+// mid-closeout.
+const FIXTURES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'pe-cross-lang-gate-'));
 
 interface GateResult {
   check: string;
@@ -54,7 +59,11 @@ try {
   parseParserRuntimeJobV1(tsJob);
   results.push({ check: 'TS validates TS-generated job', passed: true, detail: 'ok' });
 } catch (e) {
-  results.push({ check: 'TS validates TS-generated job', passed: false, detail: (e as Error).message });
+  results.push({
+    check: 'TS validates TS-generated job',
+    passed: false,
+    detail: (e as Error).message,
+  });
 }
 
 // Write fixture for Python validation
@@ -67,11 +76,11 @@ fs.writeFileSync(tsJobPath, JSON.stringify(tsJob, null, 2) + '\n', 'utf8');
 /* ------------------------------------------------------------------ */
 
 try {
-  execFileSync(
-    'uv',
-    ['run', 'capiro-defense-budget-parser', 'validate-job', '--job', tsJobPath],
-    { cwd: PARSER_DIR, stdio: 'pipe', timeout: 30_000 },
-  );
+  execFileSync('uv', ['run', 'capiro-defense-budget-parser', 'validate-job', '--job', tsJobPath], {
+    cwd: PARSER_DIR,
+    stdio: 'pipe',
+    timeout: 30_000,
+  });
   results.push({ check: 'Python validates TS-generated job', passed: true, detail: 'ok' });
 } catch (e) {
   results.push({
@@ -100,7 +109,9 @@ try {
       `import json, sys; sys.path.insert(0, '${PARSER_DIR.replace(/\\/g, '\\\\')}\\\\src'); from capiro_defense_budget_parser.canonical_json import sha256_canonical_json; print(sha256_canonical_json(json.loads(open(r'${tsJobPath}').read())))`,
     ],
     { cwd: PARSER_DIR, stdio: 'pipe', timeout: 30_000 },
-  ).toString().trim();
+  )
+    .toString()
+    .trim();
 
   const hashMatch = tsCanonicalHash === pyHashOutput;
   results.push({

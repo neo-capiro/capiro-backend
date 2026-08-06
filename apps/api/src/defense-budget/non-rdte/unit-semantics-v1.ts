@@ -97,7 +97,7 @@ function unitDecimalPlaces(unit: PrintedUnitV1): number {
     default: {
       const exhaustive: never = unit;
       throw new Error(`unsupported printed unit: ${String(exhaustive)}`);
-  }
+    }
   }
 }
 
@@ -115,10 +115,7 @@ function unitDecimalPlaces(unit: PrintedUnitV1): number {
  * This function returns the absolute tolerance in the target unit (millions)
  * for comparing two values that may have different source units.
  */
-export function comparisonTolerance(
-  unitA: PrintedUnitV1,
-  unitB: PrintedUnitV1,
-): string {
+export function comparisonTolerance(unitA: PrintedUnitV1, unitB: PrintedUnitV1): string {
   // Each source has ±0.5 of its own unit. Combined tolerance in millions:
   const tolA = moneyToMillionsString('0.5', unitA);
   const tolB = moneyToMillionsString('0.5', unitB);
@@ -146,11 +143,7 @@ export function compareCanonicalDecimal(a: string, b: string): number {
 /**
  * Check if two values are within tolerance.
  */
-export function valuesWithinTolerance(
-  a: string,
-  b: string,
-  toleranceMillions: string,
-): boolean {
+export function valuesWithinTolerance(a: string, b: string, toleranceMillions: string): boolean {
   const diff = absDiffCanonicalDecimals(a, b);
   return compareCanonicalDecimal(diff, toleranceMillions) <= 0;
 }
@@ -200,9 +193,7 @@ export function parseQuantity(
   const canonical = parseCanonicalDecimalString(value);
   const isFractional = canonical.includes('.');
   if (isFractional && !options?.allowFractional) {
-    throw new Error(
-      `fractional quantity not allowed by source semantics: ${canonical}`,
-    );
+    throw new Error(`fractional quantity not allowed by source semantics: ${canonical}`);
   }
   return canonical;
 }

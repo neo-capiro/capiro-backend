@@ -262,7 +262,7 @@
     "engine": "deterministic_pdfplumber",
     "requestedPages": [1],
     "parserVersion": "pdfplumber-0.11.0",
-    "parserConfig": {"tableStrategy": "lines"},
+    "parserConfig": { "tableStrategy": "lines" },
     "parserConfigSha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "outputDirectory": "/work/output",
     "includeDebugArtifacts": false

@@ -209,7 +209,12 @@ describe('adapter provenance and evidence truthfulness', () => {
   it('committee adapter never coerces a missing page to page 1', () => {
     const artifact = adaptCommitteeArtifactToArtifactV1(
       { rows: [{ peCode: '0601102A', mark: 100 }] },
-      adapterTestContext(),
+      adapterTestContext({
+        family: 'committee',
+        exhibit: 'committee_report',
+        authority: 'hasc',
+        documentType: 'committee_test',
+      }),
       { mode: 'HASC', legacyDeclaredUnit: 'dollars', defaultFiscalYear: 2099 },
     );
     const rowEvidence = artifact.evidence.filter((ev) => ev.granularity !== 'document_only');

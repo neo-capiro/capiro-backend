@@ -49,10 +49,7 @@ export {
   type EvidencePrecisionV1,
 } from './parser-runtime-contract-v1.js';
 
-export {
-  ROUTER_STATE_TRANSITIONS,
-  assertRouterStateTransition,
-} from './router-state-machine.js';
+export { ROUTER_STATE_TRANSITIONS, assertRouterStateTransition } from './router-state-machine.js';
 
 export {
   pageProfileV1Schema,

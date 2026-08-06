@@ -28,11 +28,7 @@ const SHA = 'e'.repeat(64);
 const ACCOUNT = 'O&M, Army';
 const COMPONENT = 'ARMY' as const;
 
-function makeCell(
-  rowIndex: number,
-  columnIndex: number,
-  text: string,
-): ParsedTableCellV1 {
+function makeCell(rowIndex: number, columnIndex: number, text: string): ParsedTableCellV1 {
   return { rowIndex, columnIndex, text };
 }
 
@@ -48,11 +44,7 @@ function makeTable(cells: ParsedTableCellV1[]): ParsedTableV1 {
   };
 }
 
-function makePage(
-  tables: ParsedTableV1[],
-  text?: string,
-  page = 1,
-): ParserPageResultV1 {
+function makePage(tables: ParsedTableV1[], text?: string, page = 1): ParserPageResultV1 {
   return {
     page,
     text,
@@ -192,15 +184,9 @@ describe('o1-extractor-v1', () => {
     });
     expect(result.identities).toHaveLength(1);
     expect(result.funding).toHaveLength(3);
-    const baseFunding = result.funding.find(
-      (f) => f.columnBinding.baseOcoStatus === 'base',
-    );
-    const ocoFunding = result.funding.find(
-      (f) => f.columnBinding.baseOcoStatus === 'oco',
-    );
-    const totalFunding = result.funding.find(
-      (f) => f.columnBinding.baseOcoStatus === 'total',
-    );
+    const baseFunding = result.funding.find((f) => f.columnBinding.baseOcoStatus === 'base');
+    const ocoFunding = result.funding.find((f) => f.columnBinding.baseOcoStatus === 'oco');
+    const totalFunding = result.funding.find((f) => f.columnBinding.baseOcoStatus === 'total');
     expect(baseFunding?.valueMillions).toBe('100');
     expect(ocoFunding?.valueMillions).toBe('30');
     expect(totalFunding?.valueMillions).toBe('130');
@@ -227,9 +213,7 @@ describe('o1-extractor-v1', () => {
     });
     expect(result.identities).toHaveLength(1);
     expect(result.funding).toHaveLength(3);
-    const actualVal = result.funding.find(
-      (f) => f.columnBinding.fundingStage === 'prior_actual',
-    );
+    const actualVal = result.funding.find((f) => f.columnBinding.fundingStage === 'prior_actual');
     const enactedVal = result.funding.find(
       (f) => f.columnBinding.fundingStage === 'current_enacted',
     );
@@ -409,24 +393,18 @@ describe('o1-extractor-v1', () => {
       cycleFiscalYear: CYCLE_FY,
     });
     // Should be schema-valid and semantically valid
-    expect(() =>
-      parseDefenseBudgetExtractionArtifactV1(artifact),
-    ).not.toThrow();
+    expect(() => parseDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
     expect(artifact.summary.assertionCount).toBeGreaterThan(0);
 
     // All identity assertions are om_line with OM_SAG
-    const omLines = artifact.assertions.filter(
-      (a) => a.assertionKind === 'om_line',
-    );
+    const omLines = artifact.assertions.filter((a) => a.assertionKind === 'om_line');
     expect(omLines.length).toBeGreaterThan(0);
     for (const a of omLines) {
       expect(a.identity.lineKind).toBe('OM_SAG');
     }
 
     // Funding assertions should reference OM_SAG identities
-    const fundingAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(fundingAssertions.length).toBeGreaterThan(0);
     for (const a of fundingAssertions) {
       expect(a.identity.lineKind).toBe('OM_SAG');
@@ -612,9 +590,7 @@ describe('o1-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const funding = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const funding = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(funding).toHaveLength(2);
     const enacted = funding.find((f) => f.fiscalYear === 2026);
     const request = funding.find((f) => f.fiscalYear === 2027);

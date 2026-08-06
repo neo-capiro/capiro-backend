@@ -35,7 +35,10 @@ import {
   type PaidModeConfig,
 } from './llamaparse-page-executor.js';
 import type { ParserRuntimeResultV1 } from './parser-runtime-contract-v1.js';
-import { sealParserRuntimeResult, computeResultContentSha256 } from './parser-runtime-contract-v1.js';
+import {
+  sealParserRuntimeResult,
+  computeResultContentSha256,
+} from './parser-runtime-contract-v1.js';
 import type { LlamaParseJobResult, FetchLike } from '../llamaparse.client.js';
 import { LlamaParseClient } from '../llamaparse.client.js';
 
@@ -285,10 +288,7 @@ describe('llamaparse-page-executor', () => {
     });
 
     it('evidence precision is page_only when no cell geometry', () => {
-      const pages = normalizeLlamaParsePages(
-        [{ pdfPage: 1, markdown: 'Text', tables: [] }],
-        [1],
-      );
+      const pages = normalizeLlamaParsePages([{ pdfPage: 1, markdown: 'Text', tables: [] }], [1]);
       expect(pages[0]!.evidencePrecision).toBe('page_only');
     });
 
@@ -403,29 +403,27 @@ describe('llamaparse-page-executor', () => {
     });
 
     it('fails when flag set but no cap', () => {
-      expect(() =>
-        validatePaidAuthorization({ allowPaidParse: true, maxPaidPages: 0 }),
-      ).toThrow('--allow-paid-parse requires --max-paid-pages');
+      expect(() => validatePaidAuthorization({ allowPaidParse: true, maxPaidPages: 0 })).toThrow(
+        '--allow-paid-parse requires --max-paid-pages',
+      );
     });
 
     it('fails when flag set but negative cap', () => {
-      expect(() =>
-        validatePaidAuthorization({ allowPaidParse: true, maxPaidPages: -1 }),
-      ).toThrow('--allow-paid-parse requires --max-paid-pages');
+      expect(() => validatePaidAuthorization({ allowPaidParse: true, maxPaidPages: -1 })).toThrow(
+        '--allow-paid-parse requires --max-paid-pages',
+      );
     });
   });
 
   describe('J8: assertPaidPageCap', () => {
     it('passes when no paid pages and not authorized', () => {
-      expect(() =>
-        assertPaidPageCap([], { allowPaidParse: false, maxPaidPages: 0 }),
-      ).not.toThrow();
+      expect(() => assertPaidPageCap([], { allowPaidParse: false, maxPaidPages: 0 })).not.toThrow();
     });
 
     it('fails when paid pages but not authorized', () => {
-      expect(() =>
-        assertPaidPageCap([1, 2], { allowPaidParse: false, maxPaidPages: 0 }),
-      ).toThrow('not authorized');
+      expect(() => assertPaidPageCap([1, 2], { allowPaidParse: false, maxPaidPages: 0 })).toThrow(
+        'not authorized',
+      );
     });
 
     it('passes when within cap', () => {
@@ -557,7 +555,10 @@ describe('llamaparse-page-executor', () => {
       }),
     );
     // Corrupt the content SHA
-    const corruptResult = { ...cachedResult, contentSha256: '0'.repeat(64) } as ParserRuntimeResultV1;
+    const corruptResult = {
+      ...cachedResult,
+      contentSha256: '0'.repeat(64),
+    } as ParserRuntimeResultV1;
 
     await expect(
       executeLlamaParsePages({
@@ -581,7 +582,10 @@ describe('llamaparse-page-executor', () => {
         succeededPages: [1],
       }),
     );
-    const corruptResult = { ...cachedResult, contentSha256: '0'.repeat(64) } as ParserRuntimeResultV1;
+    const corruptResult = {
+      ...cachedResult,
+      contentSha256: '0'.repeat(64),
+    } as ParserRuntimeResultV1;
 
     const mockFetch = makeMockFetchOk();
     const { result, proof } = await executeLlamaParsePages({
@@ -641,23 +645,25 @@ describe('llamaparse-page-executor', () => {
   /* ─── J8: API key redacted from errors ─── */
   it('API key redacted from errors', async () => {
     const apiKey = 'secret-key-12345';
-    const mockFetch = jest.fn(async (url: string, init: { method: string; headers: Record<string, string> }) => {
-      if (url.includes('/api/v1/parsing/upload')) {
-        // Return an error that includes the API key in the body
+    const mockFetch = jest.fn(
+      async (url: string, init: { method: string; headers: Record<string, string> }) => {
+        if (url.includes('/api/v1/parsing/upload')) {
+          // Return an error that includes the API key in the body
+          return {
+            ok: false,
+            status: 401,
+            text: async () => `Unauthorized: ${apiKey} is invalid`,
+            json: async () => ({ error: 'unauthorized' }),
+          };
+        }
         return {
           ok: false,
-          status: 401,
-          text: async () => `Unauthorized: ${apiKey} is invalid`,
-          json: async () => ({ error: 'unauthorized' }),
+          status: 500,
+          text: async () => 'Error',
+          json: async () => ({}),
         };
-      }
-      return {
-        ok: false,
-        status: 500,
-        text: async () => 'Error',
-        json: async () => ({}),
-      };
-    }) as unknown as FetchLike;
+      },
+    ) as unknown as FetchLike;
 
     // The error is caught and turned into page failures (J7), not thrown
     const { result } = await executeLlamaParsePages({

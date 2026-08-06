@@ -28,8 +28,9 @@ export interface ContractFindingV1 {
 }
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ISO_DATETIME_RE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/;
 
 /** Parse unknown input into a schema-valid artifact. Throws on schema failure. */
 export function parseDefenseBudgetExtractionArtifactV1(
@@ -254,8 +255,7 @@ export function validateDefenseBudgetExtractionArtifactV1(
   }
 
   // Money/quantity facts must not feed more than one value assertion unless a
-  // duplicate warning explicitly exists.
-  const duplicateWarningExists = artifact.warnings.some((w) => w.code.includes('duplicate'));
+  // duplicate warning explicitly references that exact source fact.
   for (const [factId, assertions] of assertedFactIds) {
     const fact = artifact.sourceFacts.find((item) => item.factId === factId);
     if (!fact || (fact.category !== 'money' && fact.category !== 'quantity')) continue;
@@ -264,11 +264,15 @@ export function validateDefenseBudgetExtractionArtifactV1(
         assertion.assertionKind,
       ),
     );
-    if (valueAssertions.length > 1 && !duplicateWarningExists) {
+    const duplicateWarningForFact = artifact.warnings.some(
+      (warning) =>
+        warning.code.includes('duplicate') && warning.sourceFactIds.includes(factId),
+    );
+    if (valueAssertions.length > 1 && !duplicateWarningForFact) {
       error(
         'fact_consumed_by_multiple_value_assertions',
         'assertions',
-        `${fact.category} fact ${factId} feeds ${valueAssertions.length} value assertions without an explicit duplicate warning`,
+        `${fact.category} fact ${factId} feeds ${valueAssertions.length} value assertions without an explicit fact-scoped duplicate warning`,
       );
     }
   }
@@ -354,12 +358,10 @@ export function computeArtifactSummary(
     countsByOmissionReason[omission.reason] = (countsByOmissionReason[omission.reason] ?? 0) + 1;
   }
 
-  // Check for blocking conditions beyond uncovered required facts:
-  // - A blocking warning
-  const hasBlockingWarning = artifact.warnings.some((w) => w.severity === 'blocking');
-  // - A blocking omission
-  const hasBlockingOmission = artifact.omissions.some((o) => o.severity === 'blocking');
-  // - An UNKNOWN identity in any assertion carrying a budget-line identity
+  const hasBlockingWarning = artifact.warnings.some((warning) => warning.severity === 'blocking');
+  const hasBlockingOmission = artifact.omissions.some(
+    (omission) => omission.severity === 'blocking',
+  );
   const hasUnknownIdentity = artifact.assertions.some((assertion) =>
     assertionContainsUnknownIdentity(assertion),
   );
@@ -397,24 +399,16 @@ export function computeArtifactSummary(
  * assertion kind that carries a budget-line identity.
  */
 export function assertionContainsUnknownIdentity(assertion: DefenseBudgetAssertionV1): boolean {
-  // Direct identity: funding, narrative, quantity, unit_cost, om_line,
-  // milcon_project, program_element_identity (though PE identity is always
-  // RDTE_PE, the check is harmless).
   if ('identity' in assertion && assertion.identity != null) {
     if (assertion.identity.lineKind === 'UNKNOWN') return true;
   }
-  // Relationship endpoints.
   if ('from' in assertion && assertion.from != null) {
     if (assertion.from.lineKind === 'UNKNOWN') return true;
   }
   if ('to' in assertion && assertion.to != null) {
     if (assertion.to.lineKind === 'UNKNOWN') return true;
   }
-  // Procurement line parent identity.
   if ('parentIdentity' in assertion && assertion.parentIdentity != null) {
-    // parentIdentity is PROCUREMENT_BLIN which cannot be UNKNOWN, but check
-    // for completeness. Cast to string to satisfy the compiler — the runtime
-    // check is harmless and defensive.
     if ((assertion.parentIdentity.lineKind as string) === 'UNKNOWN') return true;
   }
   return false;
@@ -458,8 +452,9 @@ function checkEvidenceGranularity(
       }
       break;
     case 'page_only':
-      if (!hasPage)
+      if (!hasPage) {
         error('evidence_granularity_violation', path, 'page_only evidence requires page');
+      }
       if (hasBox || hasSpan) {
         error(
           'evidence_granularity_violation',
@@ -475,8 +470,8 @@ function checkEvidenceGranularity(
           path,
           'cell_bbox evidence requires page and bounding box',
         );
-      } else {
-        checkBoundingBox(evidence.boundingBox!, `${path}.boundingBox`, error);
+      } else if (evidence.boundingBox != null) {
+        checkBoundingBox(evidence.boundingBox, `${path}.boundingBox`, error);
       }
       break;
     case 'text_span':
@@ -525,7 +520,15 @@ function checkEvidencePageInParserRange(
 ): void {
   if (evidence.page == null) return;
   const run = artifact.parserRuns.find((item) => item.parserRunId === evidence.parserRunId);
-  if (!run || run.pageRanges.length === 0) return;
+  if (!run) return;
+  if (run.pageRanges.length === 0) {
+    error(
+      'evidence_page_without_parser_range',
+      `${path}.page`,
+      `page ${evidence.page} is attributed to parser run ${run.parserRunId}, but that run declares no page ranges`,
+    );
+    return;
+  }
   const contained = run.pageRanges.some(
     (range) => evidence.page! >= range.startPage && evidence.page! <= range.endPage,
   );
@@ -536,6 +539,61 @@ function checkEvidencePageInParserRange(
       `page ${evidence.page} is outside parser run ${run.parserRunId} page ranges`,
     );
   }
+}
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function isValidCalendarDate(year: number, month: number, day: number): boolean {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (month < 1 || month > 12 || day < 1) return false;
+  const daysInMonth = [
+    31,
+    isLeapYear(year) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+  return day <= daysInMonth[month - 1]!;
+}
+
+function isValidIsoDateOrDateTime(value: string): boolean {
+  const dateMatch = ISO_DATE_RE.exec(value);
+  if (dateMatch != null) {
+    return isValidCalendarDate(
+      Number(dateMatch[1]),
+      Number(dateMatch[2]),
+      Number(dateMatch[3]),
+    );
+  }
+
+  const dateTimeMatch = ISO_DATETIME_RE.exec(value);
+  if (dateTimeMatch == null) return false;
+  const validDate = isValidCalendarDate(
+    Number(dateTimeMatch[1]),
+    Number(dateTimeMatch[2]),
+    Number(dateTimeMatch[3]),
+  );
+  const hour = Number(dateTimeMatch[4]);
+  const minute = Number(dateTimeMatch[5]);
+  const second = dateTimeMatch[6] == null ? 0 : Number(dateTimeMatch[6]);
+  return (
+    validDate &&
+    hour >= 0 &&
+    hour <= 23 &&
+    minute >= 0 &&
+    minute <= 59 &&
+    second >= 0 &&
+    second <= 59
+  );
 }
 
 function checkAssertionSemantics(
@@ -584,11 +642,11 @@ function checkAssertionSemantics(
       ['plannedDate', assertion.plannedDate],
       ['actualDate', assertion.actualDate],
     ] as const) {
-      if (value != null && !ISO_DATE_RE.test(value) && !ISO_DATETIME_RE.test(value)) {
+      if (value != null && !isValidIsoDateOrDateTime(value)) {
         error(
           'invalid_date_format',
           `${path}.${field}`,
-          `expected ISO date or datetime, got ${value}`,
+          `expected a real ISO date or datetime, got ${value}`,
         );
       }
     }

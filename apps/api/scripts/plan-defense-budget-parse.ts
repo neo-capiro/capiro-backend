@@ -3,9 +3,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parseBudgetCycleManifestV1 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
-import {
-  parseDocumentProfileResultV1,
-} from '../src/defense-budget/parser-router/page-profiler.js';
+import { parseDocumentProfileResultV1 } from '../src/defense-budget/parser-router/page-profiler.js';
 import {
   buildInitialParsePlan,
   parseDefenseBudgetParsePlanV1,
@@ -49,11 +47,7 @@ function sha256File(filePath: string): string {
 }
 
 function runtimeTarget(engines: readonly string[]): 'table' | 'layout' | 'ocr' {
-  return engines.includes('paddleocr')
-    ? 'ocr'
-    : engines.includes('docling')
-      ? 'layout'
-      : 'table';
+  return engines.includes('paddleocr') ? 'ocr' : engines.includes('docling') ? 'layout' : 'table';
 }
 
 async function main(): Promise<void> {
@@ -95,9 +89,7 @@ async function main(): Promise<void> {
   const sourceSha256 = sha256File(sourcePath);
   let profile;
   try {
-    profile = parseDocumentProfileResultV1(
-      JSON.parse(fs.readFileSync(profilePath, 'utf8')),
-    );
+    profile = parseDocumentProfileResultV1(JSON.parse(fs.readFileSync(profilePath, 'utf8')));
   } catch (error) {
     console.error(`profile validation failed: ${(error as Error).message}`);
     process.exit(3);

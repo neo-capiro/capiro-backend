@@ -99,9 +99,7 @@ describe('p5-extractor-v1', () => {
     expect(result.parentReference?.printedCode).toBe('9670A00005');
     expect(result.costCategories.length).toBeGreaterThan(0);
     const recurring = result.costCategories.find((c) => c.costCategory === 'recurring');
-    const nonrecurring = result.costCategories.find(
-      (c) => c.costCategory === 'nonrecurring',
-    );
+    const nonrecurring = result.costCategories.find((c) => c.costCategory === 'nonrecurring');
     expect(recurring).toBeDefined();
     expect(nonrecurring).toBeDefined();
     expect(recurring?.valueMillions).toBe('120');
@@ -260,9 +258,7 @@ describe('p5-extractor-v1', () => {
     expect(() => parseDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
     expect(artifact.summary.assertionCount).toBeGreaterThan(0);
     // All identities are PROCUREMENT_BLIN, never RDTE_PE
-    const procLines = artifact.assertions.filter(
-      (a) => a.assertionKind === 'procurement_line',
-    );
+    const procLines = artifact.assertions.filter((a) => a.assertionKind === 'procurement_line');
     expect(procLines.length).toBeGreaterThan(0);
     for (const a of procLines) {
       expect(a.parentIdentity.lineKind).toBe('PROCUREMENT_BLIN');
@@ -289,9 +285,7 @@ describe('p5-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const relationships = artifact.assertions.filter(
-      (a) => a.assertionKind === 'relationship',
-    );
+    const relationships = artifact.assertions.filter((a) => a.assertionKind === 'relationship');
     expect(relationships.length).toBeGreaterThan(0);
     for (const r of relationships) {
       if (r.assertionKind === 'relationship') {

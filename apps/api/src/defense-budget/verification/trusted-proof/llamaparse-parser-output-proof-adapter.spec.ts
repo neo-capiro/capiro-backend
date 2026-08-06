@@ -88,14 +88,16 @@ function adapter(input?: {
     },
   };
   const reader: TrustedByteLocatorReader = {
-    read: jest.fn(async (locator: string): Promise<TrustedLocatedBytes> => ({
-      locator,
-      bytes,
-      kind: 's3',
-      bucket: 'proof-bucket',
-      key: 'parser/result.json',
-      versionId: 'v1',
-    })),
+    read: jest.fn(
+      async (locator: string): Promise<TrustedLocatedBytes> => ({
+        locator,
+        bytes,
+        kind: 's3',
+        bucket: 'proof-bucket',
+        key: 'parser/result.json',
+        versionId: 'v1',
+      }),
+    ),
   };
   return {
     row,
@@ -135,10 +137,7 @@ describe('LlamaParseParserOutputProofAdapter', () => {
       ...result,
       pages: [{ ...result.pages[0], page: 1, text: 'tampered' }, result.pages[1]],
     };
-    const bytes = Buffer.from(
-      canonicalJsonStringify(tampered as unknown as JsonValue),
-      'utf8',
-    );
+    const bytes = Buffer.from(canonicalJsonStringify(tampered as unknown as JsonValue), 'utf8');
     const { instance, row } = adapter({ result, bytes });
     row.metadata = {
       parserVersion: result.parserVersion,

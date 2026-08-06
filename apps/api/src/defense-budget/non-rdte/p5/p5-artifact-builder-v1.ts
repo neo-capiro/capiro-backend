@@ -38,25 +38,19 @@ export function buildP5Artifact(input: {
   const { source, parserRuns, extraction } = input;
   const builder = new ArtifactBuilderV1(source);
 
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual' as const,
-            parserVersion: 'p5-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual' as const,
+    parserVersion: 'p5-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   const parentRef = extraction.parentReference;
   const parentCode = parentRef?.identity.code ?? 'UNKNOWN';
@@ -90,9 +84,7 @@ export function buildP5Artifact(input: {
       rawValue: {
         printedCode: parentRef.printedCode,
         source: parentRef.source,
-        ...(parentRef.exhibitSnippet != null
-          ? { exhibitSnippet: parentRef.exhibitSnippet }
-          : {}),
+        ...(parentRef.exhibitSnippet != null ? { exhibitSnippet: parentRef.exhibitSnippet } : {}),
       },
       evidenceIds: [evidenceId],
     });
@@ -508,11 +500,12 @@ export function buildP5Artifact(input: {
       }),
       sourceFactId: factId,
       reason: mapOmissionReason(omission.reason),
-      severity: omission.reason.includes('parent') || omission.reason.includes('layout')
-        ? 'blocking'
-        : omission.reason.includes('ambiguous')
-          ? 'review'
-          : 'blocking',
+      severity:
+        omission.reason.includes('parent') || omission.reason.includes('layout')
+          ? 'blocking'
+          : omission.reason.includes('ambiguous')
+            ? 'review'
+            : 'blocking',
       message: `P-5 page ${omission.page}: ${omission.reason}`,
     });
   }
@@ -534,6 +527,10 @@ export function buildP5Artifact(input: {
     });
   }
 
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
+  }
+
   return builder.finalize();
 }
 
@@ -543,7 +540,14 @@ export function buildP5Artifact(input: {
 
 function mapNarrativeType(
   sectionType: string,
-): 'mission' | 'description' | 'accomplishments' | 'plans' | 'rationale' | 'schedule_notes' | 'other' {
+):
+  | 'mission'
+  | 'description'
+  | 'accomplishments'
+  | 'plans'
+  | 'rationale'
+  | 'schedule_notes'
+  | 'other' {
   switch (sectionType) {
     case 'program_status':
       return 'accomplishments';
@@ -562,7 +566,17 @@ function mapNarrativeType(
 
 function mapOmissionReason(
   reason: string,
-): 'unsupported_field' | 'missing_value' | 'invalid_number' | 'unsupported_unit' | 'invalid_identity' | 'missing_evidence' | 'ambiguous_layout' | 'legacy_artifact_missing_detail' | 'adapter_unimplemented' | 'other' {
+):
+  | 'unsupported_field'
+  | 'missing_value'
+  | 'invalid_number'
+  | 'unsupported_unit'
+  | 'invalid_identity'
+  | 'missing_evidence'
+  | 'ambiguous_layout'
+  | 'legacy_artifact_missing_detail'
+  | 'adapter_unimplemented'
+  | 'other' {
   if (reason.includes('parent')) return 'invalid_identity';
   if (reason.includes('layout')) return 'ambiguous_layout';
   if (reason.includes('unit')) return 'unsupported_unit';

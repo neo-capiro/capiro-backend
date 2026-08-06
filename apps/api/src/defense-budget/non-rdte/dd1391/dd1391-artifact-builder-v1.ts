@@ -45,25 +45,19 @@ export function buildDd1391Artifact(input: {
   const builder = new ArtifactBuilderV1(source);
 
   /* Register parser runs */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'dd1391-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'dd1391-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities — MILCON_PROJECT */
   for (const identity of extraction.identities) {
@@ -71,10 +65,7 @@ export function buildDd1391Artifact(input: {
   }
 
   const identityByKey = new Map(
-    extraction.identities.map((id: Dd1391ProjectIdentity) => [
-      id.identity.naturalKey,
-      id,
-    ]),
+    extraction.identities.map((id: Dd1391ProjectIdentity) => [id.identity.naturalKey, id]),
   );
 
   /* Cost values → document_fact assertions (each cost category is separate) */
@@ -85,24 +76,12 @@ export function buildDd1391Artifact(input: {
   /* Funding values → funding assertions */
   for (const value of extraction.funding) {
     const matchedIdentity = identityByKey.get(value.identityNaturalKey);
-    addFundingAssertion(
-      builder,
-      value,
-      matchedIdentity,
-      source,
-      defaultParserRunId,
-    );
+    addFundingAssertion(builder, value, matchedIdentity, source, defaultParserRunId);
   }
 
   /* Narrative sections → narrative assertions */
   for (const narrative of extraction.narratives) {
-    addNarrativeAssertion(
-      builder,
-      narrative,
-      identityByKey,
-      source,
-      defaultParserRunId,
-    );
+    addNarrativeAssertion(builder, narrative, identityByKey, source, defaultParserRunId);
   }
 
   /* Schedule dates → document_fact assertions */
@@ -131,9 +110,7 @@ export function buildDd1391Artifact(input: {
         message: omission.reason,
       }),
       sourceFactId: factId,
-      reason: omission.reason.includes('identity')
-        ? 'invalid_identity'
-        : 'missing_value',
+      reason: omission.reason.includes('identity') ? 'invalid_identity' : 'missing_value',
       severity: omission.severity,
       message: `DD1391 page ${omission.page}: ${omission.reason}`,
     });
@@ -179,6 +156,10 @@ export function buildDd1391Artifact(input: {
     }
   }
 
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
+  }
+
   return builder.finalize();
 }
 
@@ -219,13 +200,9 @@ function addIdentityAssertion(
     rawValue: {
       printedProjectCode: identity.printedProjectCode,
       projectTitle: identity.projectTitle,
-      ...(identity.installation != null
-        ? { installation: identity.installation }
-        : {}),
+      ...(identity.installation != null ? { installation: identity.installation } : {}),
       ...(identity.location != null ? { location: identity.location } : {}),
-      ...(identity.categoryCode != null
-        ? { categoryCode: identity.categoryCode }
-        : {}),
+      ...(identity.categoryCode != null ? { categoryCode: identity.categoryCode } : {}),
     },
     evidenceIds: [evidenceId],
   });
@@ -244,24 +221,16 @@ function addIdentityAssertion(
       lineKind: 'MILCON_PROJECT',
       projectCode: identity.identity.projectCode,
       component: identity.identity.component,
-      ...(identity.identity.location != null
-        ? { location: identity.identity.location }
-        : {}),
+      ...(identity.identity.location != null ? { location: identity.identity.location } : {}),
     },
     title: identity.projectTitle,
     ...(identity.location != null ? { location: identity.location } : {}),
     metadata: {
       exhibit: 'DD1391',
       physicalPage: identity.page,
-      ...(identity.printedPage != null
-        ? { printedPage: identity.printedPage }
-        : {}),
-      ...(identity.installation != null
-        ? { installation: identity.installation }
-        : {}),
-      ...(identity.categoryCode != null
-        ? { categoryCode: identity.categoryCode }
-        : {}),
+      ...(identity.printedPage != null ? { printedPage: identity.printedPage } : {}),
+      ...(identity.installation != null ? { installation: identity.installation } : {}),
+      ...(identity.categoryCode != null ? { categoryCode: identity.categoryCode } : {}),
     },
   });
 }
@@ -296,8 +265,8 @@ function addCostAssertion(
     factId,
     sourcePath: `milcon:${cost.identityNaturalKey}/cost:${cost.costCategory}/page:${cost.page}`,
     category: 'money',
-    requiredForCompleteness: cost.costCategory === 'total_request' ||
-      cost.costCategory === 'total_project_cost',
+    requiredForCompleteness:
+      cost.costCategory === 'total_request' || cost.costCategory === 'total_project_cost',
     rawValue: cost.originalValue,
     evidenceIds: [evidenceId],
   });

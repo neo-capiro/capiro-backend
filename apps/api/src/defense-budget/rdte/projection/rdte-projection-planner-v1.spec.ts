@@ -23,7 +23,7 @@ import {
   ProjectionPlanningError,
 } from './rdte-projection-planner-v1.js';
 import { planProofBoundRdteCanonicalProjection } from './rdte-proof-bound-projection-planner-v1.js';
-import { rdteCanonicalProjectionPlanV1Schema } from './rdte-canonical-projection-plan-v1.js';
+import { proofBoundRdteCanonicalProjectionPlanV1Schema } from './rdte-canonical-projection-plan-v1.js';
 
 const SOURCE_SHA = 'a'.repeat(64);
 const MANIFEST_SHA = 'b'.repeat(64);
@@ -392,11 +392,7 @@ function verification(
 ): RdteCycleVerificationRefV1 {
   const decision = state === 'pass' ? 'PASS' : state === 'reject' ? 'REJECT' : 'REVIEW';
   const status =
-    state === 'pass'
-      ? 'VERIFICATION_PASSED'
-      : state === 'reject'
-        ? 'REJECTED'
-        : 'NEEDS_REVIEW';
+    state === 'pass' ? 'VERIFICATION_PASSED' : state === 'reject' ? 'REJECTED' : 'NEEDS_REVIEW';
   const candidateId = `candidate-${artifact.source.manifestDocumentKey}`;
   const runId = `run-${artifact.source.manifestDocumentKey}`;
   return {
@@ -445,10 +441,7 @@ function certifiedBundle(input: {
     artifactByteSha256: artifactByteSha(artifact),
   }));
   const verifications = input.artifacts.map((artifact) =>
-    verification(
-      artifact,
-      input.states?.[artifact.source.manifestDocumentKey] ?? 'pass',
-    ),
+    verification(artifact, input.states?.[artifact.source.manifestDocumentKey] ?? 'pass'),
   );
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
@@ -461,8 +454,7 @@ function certifiedBundle(input: {
     comparisons: [],
     coverage: [],
     projectionPlanContentSha256: PROJECTION_SHA,
-    certification:
-      input.certification ?? 'CERTIFIED_RDTE_READY_FOR_PROJECTION',
+    certification: input.certification ?? 'CERTIFIED_RDTE_READY_FOR_PROJECTION',
     blockingFindings: [],
     nonBlockingFindings: [],
   };
@@ -481,7 +473,7 @@ describe('proof-bound RDT&E projection planner', () => {
     const artifacts = artifactSet();
     const bundle = certifiedBundle({ artifacts });
     const { plan } = planProofBoundRdteCanonicalProjection({ bundle, artifacts });
-    expect(rdteCanonicalProjectionPlanV1Schema.parse(plan)).toEqual(plan);
+    expect(proofBoundRdteCanonicalProjectionPlanV1Schema.parse(plan)).toEqual(plan);
     const targets = new Set(plan.candidates.map((candidate) => candidate.target));
     expect(targets).toEqual(
       expect.objectContaining({
@@ -525,13 +517,10 @@ describe('proof-bound RDT&E projection planner', () => {
     ).toBe(true);
     expect(
       plan.candidates.some(
-        (candidate) =>
-          candidate.target === 'ProgramElementYear' && candidate.values.fy === 2028,
+        (candidate) => candidate.target === 'ProgramElementYear' && candidate.values.fy === 2028,
       ),
     ).toBe(false);
-    expect(plan.exclusions.some((entry) => entry.reason === 'non_annual_cost_value')).toBe(
-      true,
-    );
+    expect(plan.exclusions.some((entry) => entry.reason === 'non_annual_cost_value')).toBe(true);
   });
 
   it('preserves fiscal-quarter schedule fidelity without fabricating a date', () => {

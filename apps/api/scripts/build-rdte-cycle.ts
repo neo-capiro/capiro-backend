@@ -190,18 +190,17 @@ function resolveSourcePath(input: {
   const locator = input.document.sourceLocator.replace(/^file:\/\//, '');
   const filename = path.basename(locator);
   if (!filename || filename === '.' || filename === path.sep) {
-    throw new Error(
-      `document ${input.document.documentKey} has no deterministic source filename`,
-    );
+    throw new Error(`document ${input.document.documentKey} has no deterministic source filename`);
   }
   return { sourcePath: path.resolve(input.sourceRoot, filename) };
 }
 
 function exhibitRank(exhibit: string): number {
-  return ({ 'R-1': 0, 'R-2': 1, 'R-2A': 2, 'R-3': 3, 'R-4': 4, 'R-4A': 5 } as Record<
-    string,
-    number
-  >)[exhibit] ?? 99;
+  return (
+    ({ 'R-1': 0, 'R-2': 1, 'R-2A': 2, 'R-3': 3, 'R-4': 4, 'R-4A': 5 } as Record<string, number>)[
+      exhibit
+    ] ?? 99
+  );
 }
 
 function resolveDocuments(input: {
@@ -229,7 +228,9 @@ function resolveDocuments(input: {
       }
       if (!fs.existsSync(resolved.sourcePath)) {
         if (!document.required) return [];
-        throw new Error(`source file not found for ${document.documentKey}: ${resolved.sourcePath}`);
+        throw new Error(
+          `source file not found for ${document.documentKey}: ${resolved.sourcePath}`,
+        );
       }
       const sourceSha256 = sha256File(resolved.sourcePath);
       if (document.expectedSourceSha256 && document.expectedSourceSha256 !== sourceSha256) {
@@ -336,9 +337,7 @@ async function profileDocument(input: {
       `profile failed for ${input.document.local.documentKey}: ${execution.stderr || execution.exitCode}`,
     );
   }
-  const profile = parseDocumentProfileResultV1(
-    JSON.parse(fs.readFileSync(resultPath, 'utf8')),
-  );
+  const profile = parseDocumentProfileResultV1(JSON.parse(fs.readFileSync(resultPath, 'utf8')));
   if (profile.sourceSha256 !== input.document.sourceSha256) {
     throw new Error(`profile source SHA mismatch for ${input.document.local.documentKey}`);
   }
@@ -510,21 +509,22 @@ async function runFinalVerifications(input: {
     if (!sourceDocumentId || !artifactLocator) {
       throw new Error(`final verification identity missing for ${built.documentKey}`);
     }
-    const references: NonNullable<VerificationRequestV1['referenceArtifacts']> = input.build.artifacts
-      .filter((candidate) => candidate.documentKey !== built.documentKey)
-      .map((candidate) => {
-        const candidateLocator = artifactPathByKey.get(candidate.documentKey);
-        const candidateSourceDocumentId = sourceDocumentIdByKey.get(candidate.documentKey);
-        if (!candidateLocator || !candidateSourceDocumentId) {
-          throw new Error(`reference identity missing for ${candidate.documentKey}`);
-        }
-        return {
-          artifactLocator: candidateLocator,
-          sourceDocumentId: candidateSourceDocumentId,
-          manifestDocumentKey: candidate.documentKey,
-          manifestLocator: input.manifestLocator,
-        };
-      });
+    const references: NonNullable<VerificationRequestV1['referenceArtifacts']> =
+      input.build.artifacts
+        .filter((candidate) => candidate.documentKey !== built.documentKey)
+        .map((candidate) => {
+          const candidateLocator = artifactPathByKey.get(candidate.documentKey);
+          const candidateSourceDocumentId = sourceDocumentIdByKey.get(candidate.documentKey);
+          if (!candidateLocator || !candidateSourceDocumentId) {
+            throw new Error(`reference identity missing for ${candidate.documentKey}`);
+          }
+          return {
+            artifactLocator: candidateLocator,
+            sourceDocumentId: candidateSourceDocumentId,
+            manifestDocumentKey: candidate.documentKey,
+            manifestLocator: input.manifestLocator,
+          };
+        });
     const result = await delegate.verify({
       manifestLocator: input.manifestLocator,
       manifestDocumentKey: built.documentKey,

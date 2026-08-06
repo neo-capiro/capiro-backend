@@ -161,10 +161,7 @@ describe('p3a-extractor-v1', () => {
       makeCell(1, 1, 'Upgrade sensor package'),
     ]);
     const result = extractP3aFromPages({
-      pages: [
-        makePage([modTable], P3A_EXHIBIT_TEXT, 1),
-        makePage([modTable], P3A_EXHIBIT_TEXT, 2),
-      ],
+      pages: [makePage([modTable], P3A_EXHIBIT_TEXT, 1), makePage([modTable], P3A_EXHIBIT_TEXT, 2)],
       cycleFiscalYear: CYCLE_FY,
       account: ACCOUNT,
       component: COMPONENT,
@@ -198,9 +195,7 @@ describe('p3a-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const fundingAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(fundingAssertions).toHaveLength(0);
   });
 
@@ -226,9 +221,7 @@ describe('p3a-extractor-v1', () => {
     });
     expect(() => parseDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
     expect(artifact.summary.assertionCount).toBeGreaterThan(0);
-    const procLines = artifact.assertions.filter(
-      (a) => a.assertionKind === 'procurement_line',
-    );
+    const procLines = artifact.assertions.filter((a) => a.assertionKind === 'procurement_line');
     expect(procLines.length).toBeGreaterThan(0);
     for (const a of procLines) {
       expect(a.parentIdentity.lineKind).toBe('PROCUREMENT_BLIN');
@@ -255,9 +248,7 @@ describe('p3a-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const relationships = artifact.assertions.filter(
-      (a) => a.assertionKind === 'relationship',
-    );
+    const relationships = artifact.assertions.filter((a) => a.assertionKind === 'relationship');
     expect(relationships.length).toBeGreaterThan(0);
     for (const r of relationships) {
       if (r.assertionKind === 'relationship') {
@@ -293,9 +284,7 @@ describe('p3a-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const narratives = artifact.assertions.filter(
-      (a) => a.assertionKind === 'narrative',
-    );
+    const narratives = artifact.assertions.filter((a) => a.assertionKind === 'narrative');
     expect(narratives.length).toBeGreaterThan(0);
     for (const n of narratives) {
       if (n.assertionKind === 'narrative') {

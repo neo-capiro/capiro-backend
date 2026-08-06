@@ -41,12 +41,7 @@ export interface MilconFundingValueV1 {
 /* Comparison result                                                    */
 /* ------------------------------------------------------------------ */
 
-export type MilconComparisonResult =
-  | 'pass'
-  | 'fail'
-  | 'review'
-  | 'not_applicable'
-  | 'not_run';
+export type MilconComparisonResult = 'pass' | 'fail' | 'review' | 'not_applicable' | 'not_run';
 
 export interface MilconFundingComparison {
   identityNaturalKey: string;
@@ -64,11 +59,7 @@ export interface MilconFundingComparison {
 /* ------------------------------------------------------------------ */
 
 /** Scope key: identity + FY + funding type. */
-function scopeKey(
-  identityNaturalKey: string,
-  fiscalYear: number,
-  fundingType: string,
-): string {
+function scopeKey(identityNaturalKey: string, fiscalYear: number, fundingType: string): string {
   return `${identityNaturalKey}|${fiscalYear}|${fundingType}`;
 }
 
@@ -126,9 +117,7 @@ export function reconcileMilconFunding(input: {
         fiscalYear,
         fundingType,
         ...(c1List.length > 0 ? { c1ValueMillions: c1List[0]!.valueMillions } : {}),
-        ...(dd1391List.length > 0
-          ? { dd1391ValueMillions: dd1391List[0]!.valueMillions }
-          : {}),
+        ...(dd1391List.length > 0 ? { dd1391ValueMillions: dd1391List[0]!.valueMillions } : {}),
         result: 'not_run',
         message: `Missing ${c1List.length === 0 ? 'C-1' : 'DD1391'} for ${printedCode} FY${fiscalYear} ${fundingType}`,
       });

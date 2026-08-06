@@ -8,6 +8,8 @@
  * adapter NEVER calls the legacy last-wins `dedupeByPe` helper.
  *
  * Truthfulness rules:
+ *   - The selected mode must agree with the source authority in the adapter
+ *     context; field ownership is never inferred from an arbitrary caller mode.
  *   - Rows without a page produce `document_only` evidence plus a
  *     `legacy_committee_artifact_missing_page` warning; pages are never coerced.
  *   - Money units must be declared (row-level requestUnit/markUnit, or the
@@ -72,6 +74,15 @@ export const COMMITTEE_MODE_AUTHORITY: Record<CommitteeAdapterMode, BudgetAuthor
   APPROPRIATIONS_CONFERENCE: 'appropriations_conference',
   PUBLIC_LAW: 'public_law',
 };
+
+export class CommitteeAdapterContextMismatchError extends Error {
+  readonly code = 'committee_mode_authority_mismatch';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'CommitteeAdapterContextMismatchError';
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* adapter-local strict input schema                                   */
@@ -146,6 +157,13 @@ export function adaptCommitteeArtifactToArtifactV1(
   options: CommitteeAdapterOptions,
 ): DefenseBudgetExtractionArtifactV1 {
   const artifact = committeeArtifactV1InputSchema.parse(input);
+  const expectedAuthority = COMMITTEE_MODE_AUTHORITY[options.mode];
+  if (context.authority !== expectedAuthority) {
+    throw new CommitteeAdapterContextMismatchError(
+      `committee mode ${options.mode} owns authority ${expectedAuthority}, but adapter context declares ${context.authority}`,
+    );
+  }
+
   const builder = new ArtifactBuilderV1(sourceFromContext(context));
   const parserRun = parserRunFromContext(context);
   builder.addParserRun(parserRun);

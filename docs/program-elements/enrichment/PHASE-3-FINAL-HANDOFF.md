@@ -221,13 +221,13 @@ Exact dependency versions are governed by
 uv run capiro-defense-budget-parser version --json
 ```
 
-| Engine | Runtime target | Persisted version source |
-|---|---|---|
-| pdfplumber | table/layout/ocr | explicit runtime identity |
-| Camelot | table/layout/ocr | explicit runtime identity |
-| Docling CPU | layout/ocr | installed package metadata without importing model code |
-| PaddleOCR CPU | ocr | explicit PP-StructureV3 runtime identity |
-| LlamaParse | Node provider boundary | `llamaparse-v1` plus exact mode/config SHA/provider job ID |
+| Engine        | Runtime target         | Persisted version source                                   |
+| ------------- | ---------------------- | ---------------------------------------------------------- |
+| pdfplumber    | table/layout/ocr       | explicit runtime identity                                  |
+| Camelot       | table/layout/ocr       | explicit runtime identity                                  |
+| Docling CPU   | layout/ocr             | installed package metadata without importing model code    |
+| PaddleOCR CPU | ocr                    | explicit PP-StructureV3 runtime identity                   |
+| LlamaParse    | Node provider boundary | `llamaparse-v1` plus exact mode/config SHA/provider job ID |
 
 The table image may report a Docling contract version while execution still
 returns parser-unavailable if Docling is not installed in that image. The route

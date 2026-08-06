@@ -31,11 +31,7 @@ const COMPONENT = 'ARMY' as const;
 const OP5_HEADER =
   'O&M, Army ($ in Millions)\nBA 01: Operating Forces\nBAG 1: Deployed Forces\nSAG 1A: Centralized Training';
 
-function makeCell(
-  rowIndex: number,
-  columnIndex: number,
-  text: string,
-): ParsedTableCellV1 {
+function makeCell(rowIndex: number, columnIndex: number, text: string): ParsedTableCellV1 {
   return { rowIndex, columnIndex, text };
 }
 
@@ -52,11 +48,7 @@ function makeTable(cells: ParsedTableCellV1[], label?: string): ParsedTableV1 {
   };
 }
 
-function makePage(
-  tables: ParsedTableV1[],
-  text?: string,
-  page = 1,
-): ParserPageResultV1 {
+function makePage(tables: ParsedTableV1[], text?: string, page = 1): ParserPageResultV1 {
   return {
     page,
     text,
@@ -132,9 +124,7 @@ describe('op5-extractor-v1', () => {
     // FY 2027 from page 2 (3 rows × 1 FY = 3) → 9 total funding values.
     // Total rows are extracted as funding values (they are source-printed).
     expect(result.funding).toHaveLength(9);
-    const fy2027Total = result.funding.find(
-      (f) => f.rowLabel === 'Total' && f.fiscalYear === 2027,
-    );
+    const fy2027Total = result.funding.find((f) => f.rowLabel === 'Total' && f.fiscalYear === 2027);
     expect(fy2027Total?.valueMillions).toBe('240');
     const fy2025Direct = result.funding.find(
       (f) => f.rowLabel === 'Direct Program' && f.fiscalYear === 2025,
@@ -179,18 +169,16 @@ describe('op5-extractor-v1', () => {
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const docFacts = artifact.assertions.filter(
-      (a) => a.assertionKind === 'document_fact',
-    );
+    const docFacts = artifact.assertions.filter((a) => a.assertionKind === 'document_fact');
     expect(docFacts.length).toBe(4);
-    const fundingAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(fundingAssertions.length).toBe(0);
     // Each document_fact has fieldName matching the change type.
     for (const df of docFacts) {
       if (df.assertionKind === 'document_fact') {
-        expect(['price_change', 'program_change', 'transfer', 'total_change']).toContain(df.fieldName);
+        expect(['price_change', 'program_change', 'transfer', 'total_change']).toContain(
+          df.fieldName,
+        );
       }
     }
   });
@@ -213,9 +201,7 @@ Budget Justification: The FY 2027 request supports 5% growth in training through
     const sectionTypes = result.narratives.map((n) => n.sectionType);
     expect(sectionTypes).toContain('mission');
     expect(sectionTypes).toContain('budget_justification');
-    const missionNarrative = result.narratives.find(
-      (n) => n.sectionType === 'mission',
-    );
+    const missionNarrative = result.narratives.find((n) => n.sectionType === 'mission');
     expect(missionNarrative?.narrativeType).toBe('mission');
     expect(missionNarrative?.text).toContain('centralized training');
     const justificationNarrative = result.narratives.find(
@@ -265,9 +251,7 @@ Budget Justification: The FY 2027 request supports 5% growth in training through
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const qtyAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'quantity',
-    );
+    const qtyAssertions = artifact.assertions.filter((a) => a.assertionKind === 'quantity');
     expect(qtyAssertions.length).toBeGreaterThan(0);
     for (const qa of qtyAssertions) {
       if (qa.assertionKind === 'quantity') {
@@ -317,10 +301,7 @@ Budget Justification: The FY 2027 request supports 5% growth in training through
     ]);
     // Both pages have the same SAG header → same natural key.
     const result = extractOp5FromPages({
-      pages: [
-        makePage([table1], OP5_HEADER, 1),
-        makePage([table2], OP5_HEADER, 2),
-      ],
+      pages: [makePage([table1], OP5_HEADER, 1), makePage([table2], OP5_HEADER, 2)],
       cycleFiscalYear: CYCLE_FY,
       account: ACCOUNT,
       component: COMPONENT,
@@ -418,14 +399,10 @@ Budget Justification: The request supports training readiness.`;
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    expect(() =>
-      parseDefenseBudgetExtractionArtifactV1(artifact),
-    ).not.toThrow();
+    expect(() => parseDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
     expect(artifact.summary.assertionCount).toBeGreaterThan(0);
     // All om_line identities are OM_SAG, never RDTE_PE or PROCUREMENT_BLIN.
-    const omLines = artifact.assertions.filter(
-      (a) => a.assertionKind === 'om_line',
-    );
+    const omLines = artifact.assertions.filter((a) => a.assertionKind === 'om_line');
     expect(omLines.length).toBeGreaterThan(0);
     for (const a of omLines) {
       if (a.assertionKind === 'om_line') {
@@ -433,9 +410,7 @@ Budget Justification: The request supports training readiness.`;
       }
     }
     // All funding assertions have OM_SAG identity.
-    const fundingAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(fundingAssertions.length).toBeGreaterThan(0);
     for (const a of fundingAssertions) {
       if (a.assertionKind === 'funding') {
@@ -443,9 +418,7 @@ Budget Justification: The request supports training readiness.`;
       }
     }
     // All narrative assertions have OM_SAG identity.
-    const narrativeAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'narrative',
-    );
+    const narrativeAssertions = artifact.assertions.filter((a) => a.assertionKind === 'narrative');
     expect(narrativeAssertions.length).toBeGreaterThan(0);
     for (const a of narrativeAssertions) {
       if (a.assertionKind === 'narrative') {
@@ -486,9 +459,7 @@ The program supports 1,200 training days annually.`;
       extraction: result,
       cycleFiscalYear: CYCLE_FY,
     });
-    const fundingAssertions = artifact.assertions.filter(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertions = artifact.assertions.filter((a) => a.assertionKind === 'funding');
     expect(fundingAssertions).toHaveLength(0);
     const docFactAssertions = artifact.assertions.filter(
       (a) => a.assertionKind === 'document_fact',

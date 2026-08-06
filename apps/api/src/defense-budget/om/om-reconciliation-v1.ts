@@ -43,12 +43,7 @@ export interface OmFundingValueV1 {
 /* Comparison result                                                    */
 /* ------------------------------------------------------------------ */
 
-export type OmComparisonResult =
-  | 'pass'
-  | 'fail'
-  | 'review'
-  | 'not_applicable'
-  | 'not_run';
+export type OmComparisonResult = 'pass' | 'fail' | 'review' | 'not_applicable' | 'not_run';
 
 export interface OmFundingComparison {
   identityNaturalKey: string;
@@ -280,8 +275,7 @@ export function checkOp5ChangeArithmetic(input: {
       continue;
     }
 
-    const toNum = (c: typeof priceChange): number =>
-      parseFloat(c.valueMillions ?? c.originalValue);
+    const toNum = (c: typeof priceChange): number => parseFloat(c.valueMillions ?? c.originalValue);
 
     const price = toNum(priceChange);
     const program = toNum(programChange);

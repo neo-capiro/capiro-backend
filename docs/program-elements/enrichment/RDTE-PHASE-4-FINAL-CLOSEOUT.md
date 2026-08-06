@@ -35,23 +35,23 @@ manual cycle manifest + supplied official source bytes
 
 ## A–O workstream evidence
 
-| Workstream | Closeout status | Evidence |
-|---|---|---|
-| A — contracts and baseline | Complete | final Phase 2 verification reference contract, exact artifact byte/content refs, deterministic bundle IDs |
-| B — header/unit/rounding | Complete | exact decimal arithmetic and source-unit tolerances retained |
-| C — R-1 extraction | Complete | semantic factory runs the existing R-1 extractor with exact parser lineage |
-| D — R-1 Phase 2 policy | Complete | router and final verification pass use the final trusted verifier contract |
-| E — R-2 segmentation/context | Complete | segmenter/context resolver run on selected Phase 3 page results |
-| F — R-2 narrative | Complete | identity and narrative are emitted into the R-2 artifact rather than discarded |
-| G — R-2 funding | Complete | funding artifact merged with complete R-2 semantic artifact; evidence-linked R-1/R-2 comparison |
-| H — R-2A identity/narrative | Complete | standalone and embedded R-2A sections supported |
-| I — project funding/reconciliation | Complete | exact project positions, expected-project denominators, printed-unit sum reconciliation |
-| J — R-3 performers | Complete | role-honest performers; total cost remains cost analysis, not annual funding |
-| K — R-4 milestones | Complete | exact dates only when printed; quarter/month/year/text period fidelity retained |
-| L — cycle certification | Complete | exact manifest/source/artifact/verifier binding and required projection-plan SHA |
-| M — projection/schema | Complete for Phase 4 | proof-bound read-only plan; additive provenance/relationship/period constraints prepared for Phase 7 |
-| N — commands/gates/rehearsal | Complete | real annual command, safety gate, 20 mutate-fail-restore controls, PostgreSQL rehearsal |
-| O — docs/handoff | Complete | annual runbook, this matrix, final acceptance command |
+| Workstream                         | Closeout status      | Evidence                                                                                                  |
+| ---------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| A — contracts and baseline         | Complete             | final Phase 2 verification reference contract, exact artifact byte/content refs, deterministic bundle IDs |
+| B — header/unit/rounding           | Complete             | exact decimal arithmetic and source-unit tolerances retained                                              |
+| C — R-1 extraction                 | Complete             | semantic factory runs the existing R-1 extractor with exact parser lineage                                |
+| D — R-1 Phase 2 policy             | Complete             | router and final verification pass use the final trusted verifier contract                                |
+| E — R-2 segmentation/context       | Complete             | segmenter/context resolver run on selected Phase 3 page results                                           |
+| F — R-2 narrative                  | Complete             | identity and narrative are emitted into the R-2 artifact rather than discarded                            |
+| G — R-2 funding                    | Complete             | funding artifact merged with complete R-2 semantic artifact; evidence-linked R-1/R-2 comparison           |
+| H — R-2A identity/narrative        | Complete             | standalone and embedded R-2A sections supported                                                           |
+| I — project funding/reconciliation | Complete             | exact project positions, expected-project denominators, printed-unit sum reconciliation                   |
+| J — R-3 performers                 | Complete             | role-honest performers; total cost remains cost analysis, not annual funding                              |
+| K — R-4 milestones                 | Complete             | exact dates only when printed; quarter/month/year/text period fidelity retained                           |
+| L — cycle certification            | Complete             | exact manifest/source/artifact/verifier binding and required projection-plan SHA                          |
+| M — projection/schema              | Complete for Phase 4 | proof-bound read-only plan; additive provenance/relationship/period constraints prepared for Phase 7      |
+| N — commands/gates/rehearsal       | Complete             | real annual command, safety gate, 20 mutate-fail-restore controls, PostgreSQL rehearsal                   |
+| O — docs/handoff                   | Complete             | annual runbook, this matrix, final acceptance command                                                     |
 
 ## Closed audit findings
 
