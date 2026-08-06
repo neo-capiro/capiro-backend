@@ -307,11 +307,23 @@ test('the stack references no historical Compute stack export', () => {
   assert.doesNotMatch(JSON.stringify(synth().toJSON()), /Capiro-[a-z]+-Compute/);
 });
 
-test('secrets are wired in micro-session 2.7, not silently omitted here', () => {
-  // Documents the deliberate seam: 2.6 ships the skeleton, 2.7 adds the exact
-  // boot-required secret fields with the tested least-privilege IAM helper.
-  // Deployment is Gate C, which comes after 2.7.
-  assert.equal(theContainer(synth()).Secrets, undefined);
+test('secrets come from the least-privilege helper, field by field', () => {
+  // The full permission surface is asserted in
+  // test/engagement-api-least-privilege.spec.ts; this only proves the service
+  // stack consumes the helper rather than inlining its own secret map.
+  const secrets = (theContainer(synth()).Secrets ?? []) as Array<{ Name: string }>;
+  const names = secrets.map((s) => s.Name).sort();
+  assert.deepEqual(names, [
+    'CLERK_SECRET_KEY',
+    'CLERK_WEBHOOK_SIGNING_SECRET',
+    'DB_HOST',
+    'DB_NAME',
+    'DB_PASSWORD',
+    'DB_PORT',
+    'DB_USER',
+    'NOTES_ENCRYPTION_KEY',
+    'OAUTH_TOKEN_ENCRYPTION_KEY',
+  ]);
 });
 
 // ────────────────────────────────────────────────────────── negative control

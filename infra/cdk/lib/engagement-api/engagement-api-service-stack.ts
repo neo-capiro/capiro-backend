@@ -13,6 +13,7 @@ import {
   uiContractSha256,
   type EngagementApiInfraConfig,
 } from './engagement-api-config';
+import { buildEngagementApiIam } from './engagement-api-iam';
 import { applyEngagementApiTags } from './engagement-api-tags';
 
 export interface EngagementApiServiceStackProps extends cdk.StackProps {
@@ -114,6 +115,10 @@ export class EngagementApiServiceStack extends cdk.Stack {
       taskDefinition.addVolume({ name });
     }
 
+    // Roles and the secret map come from the tested least-privilege helper, so
+    // the permission surface is reviewed in one place instead of inline here.
+    const iamRoles = buildEngagementApiIam(this, cfg, taskDefinition);
+
     const container = taskDefinition.addContainer('engagement-api', {
       containerName: 'engagement-api',
       // Digest-pinned. A tag would let the bytes behind a reviewed release SHA
@@ -129,10 +134,9 @@ export class EngagementApiServiceStack extends cdk.Stack {
         mode: ecs.AwsLogDriverMode.NON_BLOCKING,
       }),
       environment: engagementApiTaskEnvironment(cfg),
-      // Secrets are injected in micro-session 2.7 together with the tested
-      // least-privilege IAM helper. Deploying before that is Gate C, which is
-      // separately authorized and comes after 2.7.
-      secrets: {},
+      // Exact boot-required and safe-read fields only, mapped individually
+      // rather than as whole JSON documents. See engagement-api-iam.ts.
+      secrets: iamRoles.secrets,
       healthCheck: {
         command: [
           'CMD-SHELL',
