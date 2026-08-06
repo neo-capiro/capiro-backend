@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { App } from 'antd';
-import { CalendarClock, StickyNote } from 'lucide-react';
+import { AlertTriangle, CalendarClock, StickyNote } from 'lucide-react';
 import {
   useApproveNote,
   useCancelNotetaker,
@@ -173,6 +173,23 @@ export function NotesTab({
 
   if (notes.isLoading && m.meri === 'done') {
     return <GeneratingState label="Loading notes…" />;
+  }
+
+  // Meri was sent and did NOT capture the meeting (consent declined, provider
+  // error, no-show) — distinct from "never sent" so this must say so instead of
+  // quietly falling back to the same "No notes yet, Send Meri" prompt below.
+  if (m.meri === 'failed' && !hasNotes) {
+    return (
+      <Empty
+        icon={<AlertTriangle size={20} />}
+        title="Meri couldn't capture this meeting"
+        body={
+          m.meriError ??
+          'Meri was sent to this meeting but was unable to take notes.'
+        }
+        action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
+      />
+    );
   }
 
   if (!hasNotes) {

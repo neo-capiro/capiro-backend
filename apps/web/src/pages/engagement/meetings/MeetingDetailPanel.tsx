@@ -197,9 +197,14 @@ export function MeetingDetailPanel({
   // Debrief is locked until the meeting itself is over — debriefing something
   // that hasn't happened yet doesn't make sense, Meri notetaker or not. "Over"
   // means the scheduled end passed OR Meri detected the call ended early (all
-  // participants left) — meri is then 'attended' (summarizing) or 'done'.
+  // participants left, meri 'attended'/'done') OR Meri definitively won't
+  // produce anything (meri 'failed' — consent declined, provider error,
+  // no-show; no reason to keep waiting on the scheduled end time).
   const debriefLocked = m
-    ? new Date(m.endsAt).getTime() > Date.now() && m.meri !== 'attended' && m.meri !== 'done'
+    ? new Date(m.endsAt).getTime() > Date.now() &&
+      m.meri !== 'attended' &&
+      m.meri !== 'done' &&
+      m.meri !== 'failed'
     : false;
 
   // Direct URL navigation (?detail=debrief) could otherwise land on a locked

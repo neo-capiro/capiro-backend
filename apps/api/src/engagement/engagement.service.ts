@@ -2090,10 +2090,12 @@ export class EngagementService {
       meetingIds.length
         ? tx.meetingBotSession.findMany({
             where: { tenantId: ctx.tenantId, meetingId: { in: meetingIds } },
-            select: { meetingId: true, status: true },
+            select: { meetingId: true, status: true, error: true },
             orderBy: { createdAt: 'desc' },
           })
-        : Promise.resolve([] as Array<{ meetingId: string; status: string }>),
+        : Promise.resolve(
+            [] as Array<{ meetingId: string; status: string; error: string | null }>,
+          ),
     ]);
     const nameById = new Map(
       (
@@ -2105,10 +2107,10 @@ export class EngagementService {
         }>
       ).map((u) => [u.id, userDisplayName(u)]),
     );
-    const latestSessionByMeeting = new Map<string, string>();
+    const latestSessionByMeeting = new Map<string, { status: string; error: string | null }>();
     for (const s of sessions) {
       if (!latestSessionByMeeting.has(s.meetingId))
-        latestSessionByMeeting.set(s.meetingId, s.status);
+        latestSessionByMeeting.set(s.meetingId, { status: s.status, error: s.error });
     }
 
     return rows.map((row) => {
@@ -2130,10 +2132,12 @@ export class EngagementService {
             },
           ]
         : [];
+      const latestSession = latestSessionByMeeting.get(row.id) ?? null;
       return {
         ...row,
         notesApproved: hasApprovedNote,
-        meri: coarseMeriState(latestSessionByMeeting.get(row.id) ?? null),
+        meri: coarseMeriState(latestSession?.status ?? null),
+        meriError: meriFailureReason(latestSession?.status ?? null, latestSession?.error ?? null),
         contributors,
         sharedBy: row.sharedByUserId
           ? { userId: row.sharedByUserId, name: nameById.get(row.sharedByUserId) ?? null }
@@ -9455,8 +9459,9 @@ function debriefMetadataSelect() {
 
 // ── Meetings v2 response helpers ────────────────────────────────────────────
 // scheduled → attending (in the call) → attended (call ended, Meri summarizing)
-// → done (summary written to Meeting Notes).
-type MeriCoarseState = 'scheduled' | 'attending' | 'attended' | 'done';
+// → done (summary written to Meeting Notes). `failed` is a terminal non-success
+// (see coarseMeriState) distinct from null/never-sent.
+type MeriCoarseState = 'scheduled' | 'attending' | 'attended' | 'done' | 'failed';
 
 interface MeetingContributor {
   userId: string;
@@ -9542,9 +9547,18 @@ function mergeSharedMeetingsByICalUid<T extends GroupableMeeting>(
 
 /**
  * Collapse a raw MeetingBotSession.status into the coarse notetaker state the UI
- * renders (Meetings v2 §9): scheduled/attending/done, or null when there is no
- * active notetaker (never sent, or the last session failed/was denied/removed —
- * in which case "Send Meri" should be offered again).
+ * renders (Meetings v2 §9): scheduled/attending/attended/done/failed, or null
+ * when there is no active notetaker at all (never sent — or the user's own
+ * "Cancel Meri" kill switch, `removed`, which should silently re-offer "Send
+ * Meri" since the user asked for exactly that outcome).
+ *
+ * `failed` / `denied_consent` / `no_show` are different: Meri did NOT capture
+ * the meeting but the user never asked for that — most commonly a participant
+ * declining the recording-consent prompt (`denied_consent`), or a provider-side
+ * error (`failed`). Collapsing these to null (pre-fix behavior) silently
+ * reverted the UI to "Send Meri" as if nothing had ever happened, giving no
+ * indication a notetaker was sent, joined, and then produced nothing — see
+ * meriFailureReason for the surfaced message.
  */
 function coarseMeriState(status: string | null): MeriCoarseState | null {
   switch (status) {
@@ -9561,6 +9575,32 @@ function coarseMeriState(status: string | null): MeriCoarseState | null {
       return 'attended';
     case 'done':
       return 'done';
+    case 'denied_consent':
+    case 'failed':
+    case 'no_show':
+      return 'failed';
+    // 'removed' (user cancelled) and any unrecognized status fall through to
+    // null — no active notetaker, offer "Send Meri" fresh.
+    default:
+      return null;
+  }
+}
+
+/**
+ * User-facing reason Meri produced nothing, for the `failed` coarse state only
+ * (null for every other state, including `removed` — that one is intentional
+ * and needs no explanation). Recall's own error text is used for a provider
+ * `failed`; the other two codes carry no per-session detail from Recall, so we
+ * supply a fixed, accurate explanation instead of a raw status code.
+ */
+function meriFailureReason(status: string | null, error: string | null): string | null {
+  switch (status) {
+    case 'denied_consent':
+      return 'A participant declined to consent to recording, so Meri was removed from the call before it could take notes.';
+    case 'no_show':
+      return "Meri didn't make it into the call — it may not have been admitted from the waiting room in time.";
+    case 'failed':
+      return error ?? 'Meri hit an unexpected error and could not capture this meeting.';
     default:
       return null;
   }

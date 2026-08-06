@@ -139,6 +139,42 @@ describe('NotesTab', () => {
     expect(screen.queryByText('No notes yet')).toBeNull();
   });
 
+  // Regression coverage: a session that ended in denied_consent/failed/no_show
+  // must say so, not silently fall back to "No notes yet" as if Meri had never
+  // been sent — that's exactly what left this looking like nothing happened.
+  test('when Meri failed to capture the meeting, shows the failure reason, not "No notes yet"', async () => {
+    apiGetMock.mockResolvedValue({ data: [] });
+    const qc = new QueryClient();
+    render(
+      buildTree(
+        qc,
+        defaultProps({
+          meeting: makeMeeting({
+            meri: 'failed',
+            meriError:
+              'A participant declined to consent to recording, so Meri was removed from the call before it could take notes.',
+          }),
+        }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByText("Meri couldn't capture this meeting")).toBeTruthy());
+    expect(
+      screen.getByText(
+        'A participant declined to consent to recording, so Meri was removed from the call before it could take notes.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('No notes yet')).toBeNull();
+    expect(screen.getByText('Send Meri')).toBeTruthy();
+  });
+
+  test('a failed session with no meriError text still shows a generic failure reason', async () => {
+    apiGetMock.mockResolvedValue({ data: [] });
+    const qc = new QueryClient();
+    render(buildTree(qc, defaultProps({ meeting: makeMeeting({ meri: 'failed', meriError: null }) })));
+    await waitFor(() => expect(screen.getByText("Meri couldn't capture this meeting")).toBeTruthy());
+    expect(screen.getByText('Meri was sent to this meeting but was unable to take notes.')).toBeTruthy();
+  });
+
   test('a Draft note shows the "Draft" pill — completion (Summarized) is a SEPARATE signal from approval', async () => {
     apiGetMock.mockResolvedValue({ data: [makeNote({ status: 'draft' })] });
     const qc = new QueryClient();
