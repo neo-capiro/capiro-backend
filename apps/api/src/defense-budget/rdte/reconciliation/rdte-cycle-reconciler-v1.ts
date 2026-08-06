@@ -157,9 +157,7 @@ export function reconcileRdteCycle(input: RdteCycleReconcileInput): RdteCycleRec
   const projectSumsComplete = blockingColumns.length === 0;
 
   const projectSet = new Set(
-    input.projectRelationships.projects.map((value) =>
-      projectKey(value.peCode, value.projectCode),
-    ),
+    input.projectRelationships.projects.map((value) => projectKey(value.peCode, value.projectCode)),
   );
   const projectsWithoutParent = input.projectRelationships.projects.filter(
     (value) => value.peCode.trim() === '',

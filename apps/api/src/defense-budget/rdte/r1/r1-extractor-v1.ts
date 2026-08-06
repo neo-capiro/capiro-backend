@@ -22,10 +22,7 @@ import type { MoneyUnitV1 } from '../../contracts/decimal-string.js';
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
-import {
-  type RdteColumnRoleV1,
-  type RdteValueDispositionV1,
-} from '../rdte-column-role-v1.js';
+import { type RdteColumnRoleV1, type RdteValueDispositionV1 } from '../rdte-column-role-v1.js';
 import { detectR1TablesOnPage } from './r1-table-detector.js';
 
 /* ------------------------------------------------------------------ */

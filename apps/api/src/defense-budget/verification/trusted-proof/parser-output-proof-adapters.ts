@@ -171,9 +171,7 @@ export class LlamaParseParserOutputProofAdapter implements ParserOutputProofSour
 
     let normalizedResult;
     try {
-      normalizedResult = parseParserRuntimeResultV1(
-        JSON.parse(located.bytes.toString('utf8')),
-      );
+      normalizedResult = parseParserRuntimeResultV1(JSON.parse(located.bytes.toString('utf8')));
     } catch (error) {
       throw new Error(
         `persisted LlamaParse output is not a strict normalized parser result ` +

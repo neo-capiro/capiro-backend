@@ -33,15 +33,12 @@
  * Pure module. Never invokes a parser, never calls LlamaParse, never writes
  * to a database. No ProgramElementWriterService.
  */
-import type { ParserPageResultV1, ParsedTableV1 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type {
-  BudgetComponentV1,
-  NarrativeTypeV1,
-} from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildOmSagIdentity,
-  type OmSagIdentityV1,
-} from '../identity-v1.js';
+  ParserPageResultV1,
+  ParsedTableV1,
+} from '../../parser-router/parser-runtime-contract-v1.js';
+import type { BudgetComponentV1, NarrativeTypeV1 } from '../../contracts/extraction-artifact-v1.js';
+import { buildOmSagIdentity, type OmSagIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -86,11 +83,7 @@ export interface Op5FundingValue {
   rowIndex: number;
 }
 
-export type Op5ChangeType =
-  | 'price_change'
-  | 'program_change'
-  | 'transfer'
-  | 'total_change';
+export type Op5ChangeType = 'price_change' | 'program_change' | 'transfer' | 'total_change';
 
 export interface Op5ChangeValue {
   identityNaturalKey: string;
@@ -171,11 +164,14 @@ export interface Op5ExtractionResult {
 
 // SAG code detection from page text.
 // Matches: "SAG 1A: Centralized Training", "Sub-Activity Group 1A: Title", "SAG: 1A - Title"
-const SAG_TEXT_RE = /(?:SAG|Sub-?Activity\s*Group)\s*[:\-]?\s*([A-Za-z0-9]{1,8})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
+const SAG_TEXT_RE =
+  /(?:SAG|Sub-?Activity\s*Group)\s*[:\-]?\s*([A-Za-z0-9]{1,8})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
 // Budget Activity from page text: "BA 01: Operating Forces", "Budget Activity 1: ..."
-const BA_TEXT_RE = /(?:^|\n)\s*(?:BA|Budget\s*Activity)\s*[:\-]?\s*(\d{1,2})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
+const BA_TEXT_RE =
+  /(?:^|\n)\s*(?:BA|Budget\s*Activity)\s*[:\-]?\s*(\d{1,2})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
 // Budget Activity Group: "BAG 1: ...", "Budget Activity Group A: ..."
-const BAG_TEXT_RE = /(?:^|\n)\s*(?:BAG|Budget\s*Activity\s*Group)\s*[:\-]?\s*([A-Za-z0-9]{1,4})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
+const BAG_TEXT_RE =
+  /(?:^|\n)\s*(?:BAG|Budget\s*Activity\s*Group)\s*[:\-]?\s*([A-Za-z0-9]{1,4})(?:\s*[:\-\u2013]\s*([^\n\r]+))?/i;
 
 // Change row patterns — used to classify data rows and table types.
 const CHANGE_ROW_PATTERNS: Array<{
@@ -197,16 +193,56 @@ const NARRATIVE_SECTIONS: Array<{
   sectionType: string;
   narrativeType: NarrativeTypeV1;
 }> = [
-  { pattern: /(?:^|\n)\s*mission(?:\s+statement)?\s*[:\-\u2013]?/i, sectionType: 'mission', narrativeType: 'mission' },
-  { pattern: /(?:^|\n)\s*(?:activity\s+)?description\s*[:\-\u2013]?/i, sectionType: 'description', narrativeType: 'description' },
-  { pattern: /(?:^|\n)\s*budget\s+justification\s*[:\-\u2013]?/i, sectionType: 'budget_justification', narrativeType: 'rationale' },
-  { pattern: /(?:^|\n)\s*justification\s*[:\-\u2013]?/i, sectionType: 'budget_justification', narrativeType: 'rationale' },
-  { pattern: /(?:^|\n)\s*performance\s+(?:criteria|measures)\s*[:\-\u2013]?/i, sectionType: 'performance_criteria', narrativeType: 'other' },
-  { pattern: /(?:^|\n)\s*(?:program\s+(?:change\s+)?)?explanation\s*[:\-\u2013]?/i, sectionType: 'program_change_explanation', narrativeType: 'rationale' },
-  { pattern: /(?:^|\n)\s*force\s+structure\s*[:\-\u2013]?/i, sectionType: 'force_structure', narrativeType: 'other' },
-  { pattern: /(?:^|\n)\s*workload\s*(?:explanation|description)?\s*[:\-\u2013]?/i, sectionType: 'workload_explanation', narrativeType: 'other' },
-  { pattern: /(?:^|\n)\s*accomplishments?\s*[:\-\u2013]?/i, sectionType: 'accomplishments', narrativeType: 'accomplishments' },
-  { pattern: /(?:^|\n)\s*(?:future\s+)?plans?\s*[:\-\u2013]?/i, sectionType: 'plans', narrativeType: 'plans' },
+  {
+    pattern: /(?:^|\n)\s*mission(?:\s+statement)?\s*[:\-\u2013]?/i,
+    sectionType: 'mission',
+    narrativeType: 'mission',
+  },
+  {
+    pattern: /(?:^|\n)\s*(?:activity\s+)?description\s*[:\-\u2013]?/i,
+    sectionType: 'description',
+    narrativeType: 'description',
+  },
+  {
+    pattern: /(?:^|\n)\s*budget\s+justification\s*[:\-\u2013]?/i,
+    sectionType: 'budget_justification',
+    narrativeType: 'rationale',
+  },
+  {
+    pattern: /(?:^|\n)\s*justification\s*[:\-\u2013]?/i,
+    sectionType: 'budget_justification',
+    narrativeType: 'rationale',
+  },
+  {
+    pattern: /(?:^|\n)\s*performance\s+(?:criteria|measures)\s*[:\-\u2013]?/i,
+    sectionType: 'performance_criteria',
+    narrativeType: 'other',
+  },
+  {
+    pattern: /(?:^|\n)\s*(?:program\s+(?:change\s+)?)?explanation\s*[:\-\u2013]?/i,
+    sectionType: 'program_change_explanation',
+    narrativeType: 'rationale',
+  },
+  {
+    pattern: /(?:^|\n)\s*force\s+structure\s*[:\-\u2013]?/i,
+    sectionType: 'force_structure',
+    narrativeType: 'other',
+  },
+  {
+    pattern: /(?:^|\n)\s*workload\s*(?:explanation|description)?\s*[:\-\u2013]?/i,
+    sectionType: 'workload_explanation',
+    narrativeType: 'other',
+  },
+  {
+    pattern: /(?:^|\n)\s*accomplishments?\s*[:\-\u2013]?/i,
+    sectionType: 'accomplishments',
+    narrativeType: 'accomplishments',
+  },
+  {
+    pattern: /(?:^|\n)\s*(?:future\s+)?plans?\s*[:\-\u2013]?/i,
+    sectionType: 'plans',
+    narrativeType: 'plans',
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -466,8 +502,8 @@ export function extractOp5FromPages(input: {
       const first = list[0]!;
       const field = fundingStageToField(first.columnBinding.fundingStage);
       const printedCode =
-        identities.find((i) => i.identity.naturalKey === first.identityNaturalKey)
-          ?.printedCode ?? 'unknown';
+        identities.find((i) => i.identity.naturalKey === first.identityNaturalKey)?.printedCode ??
+        'unknown';
       conflicts.push({
         printedCode,
         fiscalYear: first.fiscalYear ?? 0,
@@ -522,13 +558,11 @@ function detectSagIdentityFromText(
 
   // Detect BA.
   const baMatch = BA_TEXT_RE.exec(text);
-  const budgetActivity =
-    baMatch != null ? `BA ${baMatch[1]!.padStart(2, '0')}` : undefined;
+  const budgetActivity = baMatch != null ? `BA ${baMatch[1]!.padStart(2, '0')}` : undefined;
 
   // Detect BAG.
   const bagMatch = BAG_TEXT_RE.exec(text);
-  const activityGroup =
-    bagMatch != null ? `BAG ${bagMatch[1]}` : undefined;
+  const activityGroup = bagMatch != null ? `BAG ${bagMatch[1]}` : undefined;
 
   // The sub-activity group is the SAG code itself.
   const subActivityGroup = code;
@@ -568,9 +602,7 @@ function groupCellsByRow(
   return new Map([...rows.entries()].sort((a, b) => a[0] - b[0]));
 }
 
-function rowsToText(
-  rows: Map<number, Array<{ columnIndex: number; text: string }>>,
-): string {
+function rowsToText(rows: Map<number, Array<{ columnIndex: number; text: string }>>): string {
   const parts: string[] = [];
   for (const [, cells] of rows) {
     parts.push(cells.map((c) => c.text).join(' '));
@@ -588,7 +620,10 @@ function findHeaderRow(
 }
 
 function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   const hasFyVocab =
     /\b(?:fy|fiscal|year|request|actual|enacted|base|oco|ooc|prior|outyear|total|dollars?|millions?|thousands?|quantity|qty)\b/i.test(
       text,
@@ -616,7 +651,10 @@ function classifyTable(
   // "Output Measure" as the first column header).
   for (const [, cells] of rows) {
     if (!isHeaderRow(cells)) continue;
-    const headerText = cells.map((c) => c.text).join(' ').toLowerCase();
+    const headerText = cells
+      .map((c) => c.text)
+      .join(' ')
+      .toLowerCase();
     if (/\b(?:workload|output\s*measure|quantity\s*measure)\b/i.test(headerText)) {
       return 'quantity';
     }
@@ -641,9 +679,7 @@ function classifyTable(
   return 'funding';
 }
 
-function matchChangeRow(
-  rowLabel: string,
-): { changeType: Op5ChangeType } | null {
+function matchChangeRow(rowLabel: string): { changeType: Op5ChangeType } | null {
   for (const { pattern, changeType } of CHANGE_ROW_PATTERNS) {
     if (pattern.test(rowLabel)) {
       return { changeType };
@@ -662,9 +698,7 @@ function hasNumericDataRows(
   return false;
 }
 
-function hasNumericDataInRowCells(
-  cells: Array<{ columnIndex: number; text: string }>,
-): boolean {
+function hasNumericDataInRowCells(cells: Array<{ columnIndex: number; text: string }>): boolean {
   return cells.some(
     (c, idx) =>
       idx > 0 &&
@@ -734,9 +768,7 @@ function extractNarrativesFromText(
  * Returns { applicable: false } when the source does not define equivalent
  * scope. Never derives values from partial data.
  */
-function checkTotalChangeArithmetic(
-  changes: Op5ChangeValue[],
-): Op5TotalChangeArithmetic {
+function checkTotalChangeArithmetic(changes: Op5ChangeValue[]): Op5TotalChangeArithmetic {
   // Group changes by identity + FY.
   const byKey = new Map<string, Op5ChangeValue[]>();
   for (const c of changes) {
@@ -760,8 +792,7 @@ function checkTotalChangeArithmetic(
 
     // Use valueMillions when available; otherwise use originalValue (assuming
     // all values from the same table share the same unit).
-    const toNum = (c: Op5ChangeValue): number =>
-      parseFloat(c.valueMillions ?? c.originalValue);
+    const toNum = (c: Op5ChangeValue): number => parseFloat(c.valueMillions ?? c.originalValue);
 
     const price = toNum(priceChange);
     const program = toNum(programChange);
@@ -793,9 +824,7 @@ function checkTotalChangeArithmetic(
  * OP-5 budget year → request; current/prior enacted years → enacted;
  * outyear projections → request.
  */
-export function fundingStageToField(
-  stage: FundingStageV1,
-): 'request' | 'enacted' {
+export function fundingStageToField(stage: FundingStageV1): 'request' | 'enacted' {
   switch (stage) {
     case 'current_enacted':
     case 'prior_actual':

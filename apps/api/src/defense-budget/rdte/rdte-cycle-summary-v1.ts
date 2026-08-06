@@ -20,9 +20,12 @@ export const RDTE_REQUIRED_CATEGORY_V1_VALUES = [
 export const rdteRequiredCategoryV1Schema = z.enum(RDTE_REQUIRED_CATEGORY_V1_VALUES);
 export type RdteRequiredCategoryV1 = z.infer<typeof rdteRequiredCategoryV1Schema>;
 
-const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
-  message: 'must be nonblank',
-});
+const nonBlank = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: 'must be nonblank',
+  });
 
 export interface CategoryCoverageInput {
   category: RdteRequiredCategoryV1;
@@ -71,16 +74,13 @@ export function computeDocumentPresence(input: DocumentPresenceInput): DocumentP
         verification !== undefined &&
         ((verification.phase2Decision === 'PASS' &&
           verification.status === 'VERIFICATION_PASSED') ||
-          (verification.phase2Decision === 'REVIEW' &&
-            verification.status === 'REVIEW_ACCEPTED'));
+          (verification.phase2Decision === 'REVIEW' && verification.status === 'REVIEW_ACCEPTED'));
       return {
         manifestDocumentKey: document.manifestDocumentKey,
         required: document.required,
         present: true,
         verified,
-        decision: verification
-          ? `${verification.phase2Decision}/${verification.status}`
-          : null,
+        decision: verification ? `${verification.phase2Decision}/${verification.status}` : null,
       };
     })
     .sort((left, right) => left.manifestDocumentKey.localeCompare(right.manifestDocumentKey));

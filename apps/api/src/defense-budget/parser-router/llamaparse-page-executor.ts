@@ -28,10 +28,7 @@ import {
   type FetchLike,
   type MultipartForm,
 } from '../llamaparse.client.js';
-import {
-  adaptLlamaParseJson,
-  parseMarkdownTables,
-} from '../extractors/llamaparse-adapter.js';
+import { adaptLlamaParseJson, parseMarkdownTables } from '../extractors/llamaparse-adapter.js';
 import type { ParsedPage } from '../extractors/rdte.extractor.types.js';
 import {
   sealParserRuntimeResult,
@@ -123,10 +120,7 @@ const DEFAULT_MODE_MAP: Record<LlamaParsePageType, ParseMode> = {
  *
  * The operator may override with --paid-mode.
  */
-export function selectParseMode(
-  pageType: LlamaParsePageType,
-  config?: PaidModeConfig,
-): ParseMode {
+export function selectParseMode(pageType: LlamaParsePageType, config?: PaidModeConfig): ParseMode {
   if (config?.operatorOverride) {
     return config.operatorOverride;
   }
@@ -307,10 +301,7 @@ export function buildLlamaParseRunProof(
   creditsUsed?: number,
 ): LlamaParseRunProofV1 {
   // Combine raw outputs for byte SHA
-  const combinedRaw = Buffer.from(
-    JSON.stringify({ markdown: rawMarkdown, json: rawJson }),
-    'utf8',
-  );
+  const combinedRaw = Buffer.from(JSON.stringify({ markdown: rawMarkdown, json: rawJson }), 'utf8');
   return {
     providerJobId,
     inputSourceSha256,
@@ -339,9 +330,7 @@ export interface PaidAuthorization {
  */
 export function validatePaidAuthorization(auth: PaidAuthorization): void {
   if (auth.allowPaidParse && (!auth.maxPaidPages || auth.maxPaidPages <= 0)) {
-    throw new Error(
-      '--allow-paid-parse requires --max-paid-pages with a positive integer',
-    );
+    throw new Error('--allow-paid-parse requires --max-paid-pages with a positive integer');
   }
 }
 
@@ -349,15 +338,10 @@ export function validatePaidAuthorization(auth: PaidAuthorization): void {
  * Check if a paid call is authorized for the given page count.
  * Throws if the plan exceeds the cap.
  */
-export function assertPaidPageCap(
-  plannedPages: number[],
-  auth: PaidAuthorization,
-): void {
+export function assertPaidPageCap(plannedPages: number[], auth: PaidAuthorization): void {
   if (!auth.allowPaidParse) {
     if (plannedPages.length > 0) {
-      throw new Error(
-        'paid parse is not authorized (--allow-paid-parse not set)',
-      );
+      throw new Error('paid parse is not authorized (--allow-paid-parse not set)');
     }
     return;
   }
@@ -383,7 +367,12 @@ export interface LlamaParseExecutorOptions {
   /** Existing client to reuse (tests can inject a mock). */
   client?: LlamaParseClient;
   /** Client config for constructing a new client if none provided. */
-  clientConfig?: { apiKey: string; baseUrl: string; pollIntervalMs?: number; pollTimeoutMs?: number };
+  clientConfig?: {
+    apiKey: string;
+    baseUrl: string;
+    pollIntervalMs?: number;
+    pollTimeoutMs?: number;
+  };
   fetchImpl?: FetchLike;
   /** Cached proven result — if present and valid, no paid call is made. */
   cachedResult?: ParserRuntimeResultV1 | null;
@@ -412,9 +401,7 @@ export async function executeLlamaParsePages(
   if (!opts.authorization.allowPaidParse) {
     if (opts.cachedResult) {
       // Check if cache is valid
-      const recomputed = computeResultContentSha256(
-        stripContentSha(opts.cachedResult),
-      );
+      const recomputed = computeResultContentSha256(stripContentSha(opts.cachedResult));
       if (recomputed === opts.cachedResult.contentSha256) {
         // Proven cache → no call
         return { result: opts.cachedResult, proof: null };
@@ -424,9 +411,7 @@ export async function executeLlamaParsePages(
         'cached result is corrupt (SHA mismatch) and no paid authorization is present to retry',
       );
     }
-    throw new Error(
-      'paid parse is not authorized (--allow-paid-parse not set)',
-    );
+    throw new Error('paid parse is not authorized (--allow-paid-parse not set)');
   }
 
   // Validate authorization
@@ -440,9 +425,7 @@ export async function executeLlamaParsePages(
 
   // J8: proven cache -> no call
   if (opts.cachedResult) {
-    const recomputed = computeResultContentSha256(
-      stripContentSha(opts.cachedResult),
-    );
+    const recomputed = computeResultContentSha256(stripContentSha(opts.cachedResult));
     if (recomputed === opts.cachedResult.contentSha256) {
       return { result: opts.cachedResult, proof: null };
     }
@@ -471,7 +454,7 @@ export async function executeLlamaParsePages(
         pollIntervalMs: opts.clientConfig.pollIntervalMs,
         pollTimeoutMs: opts.clientConfig.pollTimeoutMs,
       },
-      opts.fetchImpl ?? globalThis.fetch as FetchLike,
+      opts.fetchImpl ?? (globalThis.fetch as FetchLike),
     );
   }
 
@@ -574,10 +557,7 @@ export async function executeLlamaParsePages(
   let s3Locator: string | undefined;
   let s3Version: string | undefined;
   if (opts.artifactStore) {
-    const rawBuffer = Buffer.from(
-      JSON.stringify({ markdown: rawMarkdown, json: rawJson }),
-      'utf8',
-    );
+    const rawBuffer = Buffer.from(JSON.stringify({ markdown: rawMarkdown, json: rawJson }), 'utf8');
     const locator = await opts.artifactStore.writeRaw(opts.jobId, rawBuffer);
     s3Locator = locator;
     s3Version = computeByteSha256(rawBuffer);

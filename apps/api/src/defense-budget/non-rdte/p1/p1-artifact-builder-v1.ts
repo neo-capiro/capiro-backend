@@ -37,25 +37,19 @@ export function buildP1Artifact(input: {
   const builder = new ArtifactBuilderV1(source);
 
   /* Register parser runs. When none supplied (unit tests), use a synthetic run. */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'p1-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'p1-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities — PROCUREMENT_BLIN, never RDTE_PE */
   for (const identity of extraction.identities) {
@@ -130,9 +124,7 @@ export function buildP1Artifact(input: {
   }
 
   /* Build a lookup from natural key to identity for funding/quantity assertions. */
-  const identityByKey = new Map(
-    extraction.identities.map((id) => [id.identity.naturalKey, id]),
-  );
+  const identityByKey = new Map(extraction.identities.map((id) => [id.identity.naturalKey, id]));
 
   /* Funding values */
   for (const value of extraction.funding) {
@@ -296,6 +288,10 @@ export function buildP1Artifact(input: {
       severity: omission.reason.includes('ambiguous') ? 'review' : 'blocking',
       message: `P-1 page ${omission.page}: ${omission.reason}`,
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

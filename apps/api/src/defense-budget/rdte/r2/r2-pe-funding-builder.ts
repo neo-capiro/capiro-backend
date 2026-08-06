@@ -114,25 +114,20 @@ export function buildR2PeFundingArtifact(input: {
   const { source, parserRuns, cycleFiscalYear } = input;
   const builder = new ArtifactBuilderV1(source);
 
-  /* Deterministic synthetic parser run when none are supplied (unit tests). */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'r2-pe-funding-builder-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
-  for (const run of effectiveParserRuns) {
+  /* Deterministic synthetic parser run when none are supplied (unit tests).
+   * Registered after evidence collection so it declares the cited pages. */
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'r2-pe-funding-builder-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   for (const extraction of input.extractions) {
     for (const value of extraction.values) {
@@ -394,6 +389,10 @@ export function buildR2PeFundingArtifact(input: {
         independence: 'cross_document_independent_reference',
       },
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

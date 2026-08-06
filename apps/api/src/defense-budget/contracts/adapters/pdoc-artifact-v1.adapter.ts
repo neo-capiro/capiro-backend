@@ -9,6 +9,9 @@
  *   - Parent fyData request amounts carry the explicit `thousands` unit (P-1
  *     convention). Child line-item dollars need an explicit unit (row-level or
  *     declared legacy convention); otherwise they become blocking omissions.
+ *   - Legacy aliases are accepted only when exactly one alias is populated;
+ *     conflicting aliases fail closed and the chosen source path names the
+ *     field that actually supplied the value.
  *   - Quantities are quantity assertions, never money. Unit costs stay dollars.
  *   - Empty child descriptions become omissions rather than disappearing.
  */
@@ -112,6 +115,38 @@ export interface PdocAdapterOptions {
   defaultFiscalYear: number;
 }
 
+export class PdocAliasConflictError extends Error {
+  readonly code = 'pdoc_numeric_alias_conflict';
+
+  constructor(sourcePath: string, aliases: readonly string[]) {
+    super(`${sourcePath} contains multiple populated legacy aliases: ${aliases.join(', ')}`);
+    this.name = 'PdocAliasConflictError';
+  }
+}
+
+type NumericAliasSelection<K extends string> = {
+  key: K;
+  value: string | number;
+};
+
+function selectSingleNumericAlias<K extends string>(
+  record: Partial<Record<K, string | number | null | undefined>>,
+  keys: readonly K[],
+  sourcePath: string,
+): NumericAliasSelection<K> | null {
+  const populated = keys.flatMap((key) => {
+    const value = record[key];
+    return value == null ? [] : [{ key, value }];
+  });
+  if (populated.length > 1) {
+    throw new PdocAliasConflictError(
+      sourcePath,
+      populated.map((entry) => entry.key),
+    );
+  }
+  return populated[0] ?? null;
+}
+
 /* ------------------------------------------------------------------ */
 /* adapter                                                             */
 /* ------------------------------------------------------------------ */
@@ -184,9 +219,6 @@ export function adaptPdocArtifactToArtifactV1(
         }),
       );
     } else {
-      // Procurement parents keep native BLIN identity. The parent metadata
-      // (title/BA/line number/program of record) is preserved as a
-      // procurement_line parent-level assertion with no child-line values.
       builder.addAssertion({
         assertionId: assertionIdV1({ sourcePath: `${pePath}.identity`, kind: 'procurement_line' }),
         assertionKind: 'procurement_line',
@@ -208,9 +240,26 @@ export function adaptPdocArtifactToArtifactV1(
     /* ---------------- parent fyData rows ---------------- */
     (pe.fyData ?? []).forEach((row, fyIndex) => {
       const fyPath = `${pePath}.fyData[${fyIndex}]`;
+      const requestAlias = selectSingleNumericAlias(
+        row,
+        ['requestDollarsThousands', 'request_dollars_thousands', 'dollars'] as const,
+        `${fyPath}.request`,
+      );
+      const unitCostAlias = selectSingleNumericAlias(
+        row,
+        ['unitCostDollars', 'unit_cost_dollars', 'unitCost'] as const,
+        `${fyPath}.unitCost`,
+      );
+      const rawRequest = requestAlias?.value ?? null;
+      const requestPath =
+        requestAlias == null
+          ? `${fyPath}.requestDollarsThousands`
+          : `${fyPath}.${requestAlias.key}`;
+      const rawUnitCost = unitCostAlias?.value ?? null;
+      const unitCostPath =
+        unitCostAlias == null ? `${fyPath}.unitCostDollars` : `${fyPath}.${unitCostAlias.key}`;
       const fyResult = resolvePdocFiscalYear(row.fy, options.defaultFiscalYear);
 
-      // Phase A.4: Invalid FY must create an omission, not substitute.
       if (fyResult.kind === 'invalid') {
         const invalidFyEvidence = buildTruthfulEvidence(context, {
           parserRunId: parserRun.parserRunId,
@@ -235,23 +284,18 @@ export function adaptPdocArtifactToArtifactV1(
           }),
         );
 
-        // Phase A.4: Invalid FY must NOT silently drop other represented values
-        // on the same fyData row. Create a source fact + blocking omission for
-        // every represented value (request, quantity, unitCost). Do not create
-        // funding/quantity/unit-cost assertions.
         const invalidFyMessage = 'value cannot be asserted because the row fiscal year is invalid';
 
-        const rawRequest =
-          row.requestDollarsThousands ?? row.request_dollars_thousands ?? row.dollars ?? null;
-        const rawUnitCost = row.unitCostDollars ?? row.unit_cost_dollars ?? row.unitCost ?? null;
-
         if (rawRequest != null) {
-          const requestPath = `${fyPath}.requestDollarsThousands`;
           const moneyFact = buildSourceFact({
             sourcePath: requestPath,
             category: 'money',
             requiredForCompleteness: true,
-            rawValue: { value: rawRequest, unit: 'thousands' },
+            rawValue: {
+              value: rawRequest,
+              unit: 'thousands',
+              sourceField: requestAlias!.key,
+            },
             evidenceIds: [invalidFyEvidence.evidenceId],
           });
           builder.addSourceFact(moneyFact);
@@ -286,12 +330,15 @@ export function adaptPdocArtifactToArtifactV1(
         }
 
         if (rawUnitCost != null) {
-          const unitCostPath = `${fyPath}.unitCostDollars`;
           const unitCostFact = buildSourceFact({
             sourcePath: unitCostPath,
             category: 'money',
             requiredForCompleteness: true,
-            rawValue: { value: rawUnitCost, unit: 'dollars' },
+            rawValue: {
+              value: rawUnitCost,
+              unit: 'dollars',
+              sourceField: unitCostAlias!.key,
+            },
             evidenceIds: [invalidFyEvidence.evidenceId],
           });
           builder.addSourceFact(unitCostFact);
@@ -305,7 +352,6 @@ export function adaptPdocArtifactToArtifactV1(
           );
         }
 
-        // Do not create funding/quantity/unit-cost assertions for this row.
         return;
       }
 
@@ -317,7 +363,6 @@ export function adaptPdocArtifactToArtifactV1(
       });
       builder.addEvidence(rowEvidence);
 
-      // Phase A.4: Missing FY uses manifest FY with a review warning.
       if (fyResult.kind === 'missing') {
         builder.addWarning(
           buildWarning({
@@ -330,18 +375,16 @@ export function adaptPdocArtifactToArtifactV1(
         );
       }
 
-      const rawRequest =
-        row.requestDollarsThousands ?? row.request_dollars_thousands ?? row.dollars ?? null;
-      const rawUnitCost = row.unitCostDollars ?? row.unit_cost_dollars ?? row.unitCost ?? null;
-
-      // Request money — P-1 convention is explicitly thousands.
       if (rawRequest != null) {
-        const requestPath = `${fyPath}.requestDollarsThousands`;
         const moneyFact = buildSourceFact({
           sourcePath: requestPath,
           category: 'money',
           requiredForCompleteness: true,
-          rawValue: { value: rawRequest, unit: 'thousands' },
+          rawValue: {
+            value: rawRequest,
+            unit: 'thousands',
+            sourceField: requestAlias!.key,
+          },
           evidenceIds: [rowEvidence.evidenceId],
         });
         builder.addSourceFact(moneyFact);
@@ -376,13 +419,16 @@ export function adaptPdocArtifactToArtifactV1(
               sourceFactIds: [moneyFact.factId],
               evidenceIds: [rowEvidence.evidenceId],
               confidence: 1,
-              metadata: { declaredUnit: 'thousands', declaredUnitSource: 'p1_convention' },
+              metadata: {
+                declaredUnit: 'thousands',
+                declaredUnitSource: 'p1_convention',
+                sourceField: requestAlias!.key,
+              },
             });
           }
         }
       }
 
-      // Quantity — never money.
       if (row.quantity != null) {
         const quantityPath = `${fyPath}.quantity`;
         const quantityFact = buildSourceFact({
@@ -426,14 +472,16 @@ export function adaptPdocArtifactToArtifactV1(
         }
       }
 
-      // Unit cost — stays in dollars, its own assertion kind.
       if (rawUnitCost != null) {
-        const unitCostPath = `${fyPath}.unitCostDollars`;
         const unitCostFact = buildSourceFact({
           sourcePath: unitCostPath,
           category: 'money',
           requiredForCompleteness: true,
-          rawValue: { value: rawUnitCost, unit: 'dollars' },
+          rawValue: {
+            value: rawUnitCost,
+            unit: 'dollars',
+            sourceField: unitCostAlias!.key,
+          },
           evidenceIds: [rowEvidence.evidenceId],
         });
         builder.addSourceFact(unitCostFact);
@@ -466,7 +514,11 @@ export function adaptPdocArtifactToArtifactV1(
             sourceFactIds: [unitCostFact.factId],
             evidenceIds: [rowEvidence.evidenceId],
             confidence: 1,
-            metadata: { declaredUnit: 'dollars', declaredUnitSource: 'p1_convention' },
+            metadata: {
+              declaredUnit: 'dollars',
+              declaredUnitSource: 'p1_convention',
+              sourceField: unitCostAlias!.key,
+            },
           });
         }
       }
@@ -475,9 +527,18 @@ export function adaptPdocArtifactToArtifactV1(
     /* ---------------- child line items ---------------- */
     (pe.lineItems ?? []).forEach((lineItem, lineIndex) => {
       const linePath = `${pePath}.lineItems[${lineIndex}]`;
+      const lineUnitCostAlias = selectSingleNumericAlias(
+        lineItem,
+        ['unitCost', 'unit_cost'] as const,
+        `${linePath}.unitCost`,
+      );
+      const rawLineUnitCost = lineUnitCostAlias?.value ?? null;
+      const lineUnitCostPath =
+        lineUnitCostAlias == null
+          ? `${linePath}.unitCost`
+          : `${linePath}.${lineUnitCostAlias.key}`;
       const lineFyResult = resolvePdocFiscalYear(lineItem.fy, options.defaultFiscalYear);
 
-      // Phase A.4: Invalid FY must create an omission, not substitute.
       if (lineFyResult.kind === 'invalid') {
         const invalidFyEvidence = buildTruthfulEvidence(context, {
           parserRunId: parserRun.parserRunId,
@@ -506,14 +567,8 @@ export function adaptPdocArtifactToArtifactV1(
           }),
         );
 
-        // Phase A.4: Invalid FY must NOT silently drop other represented values
-        // on the same child line item. Create a source fact + blocking omission
-        // for every represented value (description, dollars, quantity,
-        // unitCost). Do not create a procurement_line assertion.
         const invalidFyMessage = 'value cannot be asserted because the row fiscal year is invalid';
 
-        // Description fact (always created — it is part of the identity)
-        const description = (lineItem.description ?? '').toString().trim();
         const descriptionFact = buildSourceFact({
           sourcePath: `${linePath}.description`,
           category: 'text',
@@ -531,7 +586,6 @@ export function adaptPdocArtifactToArtifactV1(
           }),
         );
 
-        // Dollars fact
         if (lineItem.dollars != null) {
           const dollarsUnit = lineItem.dollarsUnit ?? options.legacyLineItemDollarsUnit ?? null;
           const dollarsFact = buildSourceFact({
@@ -552,7 +606,6 @@ export function adaptPdocArtifactToArtifactV1(
           );
         }
 
-        // Quantity fact
         if (lineItem.quantity != null) {
           const quantityFact = buildSourceFact({
             sourcePath: `${linePath}.quantity`,
@@ -572,14 +625,16 @@ export function adaptPdocArtifactToArtifactV1(
           );
         }
 
-        // Unit cost fact
-        const rawLineUnitCost = lineItem.unitCost ?? lineItem.unit_cost ?? null;
         if (rawLineUnitCost != null) {
           const unitCostFact = buildSourceFact({
-            sourcePath: `${linePath}.unitCost`,
+            sourcePath: lineUnitCostPath,
             category: 'money',
             requiredForCompleteness: true,
-            rawValue: { value: rawLineUnitCost, unit: 'dollars' },
+            rawValue: {
+              value: rawLineUnitCost,
+              unit: 'dollars',
+              sourceField: lineUnitCostAlias!.key,
+            },
             evidenceIds: [invalidFyEvidence.evidenceId],
           });
           builder.addSourceFact(unitCostFact);
@@ -593,7 +648,6 @@ export function adaptPdocArtifactToArtifactV1(
           );
         }
 
-        // Do not create a procurement_line assertion for this line item.
         return;
       }
 
@@ -620,7 +674,6 @@ export function adaptPdocArtifactToArtifactV1(
       builder.addSourceFact(descriptionFact);
 
       if (description.length === 0) {
-        // Empty child descriptions become omissions rather than disappearing.
         builder.addOmission(
           buildOmission({
             sourceFactId: descriptionFact.factId,
@@ -629,8 +682,6 @@ export function adaptPdocArtifactToArtifactV1(
             message: `line item under ${peCode || '(no code)'} carries an empty description`,
           }),
         );
-        // Child money/quantity facts below still enumerate and resolve
-        // independently; the parent linkage omission is on the description.
       }
 
       const dollarsUnit = lineItem.dollarsUnit ?? options.legacyLineItemDollarsUnit ?? null;
@@ -705,14 +756,17 @@ export function adaptPdocArtifactToArtifactV1(
 
       let unitCost: string | null = null;
       let unitCostBlocked = false;
-      const rawLineUnitCost = lineItem.unitCost ?? lineItem.unit_cost ?? null;
       const unitCostFact =
         rawLineUnitCost != null
           ? buildSourceFact({
-              sourcePath: `${linePath}.unitCost`,
+              sourcePath: lineUnitCostPath,
               category: 'money',
               requiredForCompleteness: true,
-              rawValue: { value: rawLineUnitCost, unit: 'dollars' },
+              rawValue: {
+                value: rawLineUnitCost,
+                unit: 'dollars',
+                sourceField: lineUnitCostAlias!.key,
+              },
               evidenceIds: [lineEvidence.evidenceId],
             })
           : null;
@@ -732,10 +786,6 @@ export function adaptPdocArtifactToArtifactV1(
         }
       }
 
-      // Child-line assertion: only when the line is describable, the parent
-      // identity is valid, and every represented value resolved cleanly.
-      // Facts that cannot join the assertion (blocked or stranded) receive
-      // their own explicit omissions — nothing disappears silently.
       const descriptionBlocked = description.length === 0;
       const canAssert =
         parentIdentity != null &&
@@ -769,11 +819,10 @@ export function adaptPdocArtifactToArtifactV1(
               : options.legacyLineItemDollarsUnit != null && dollarsFact != null
                 ? { dollarsUnitSource: 'adapter_context' }
                 : {}),
+            ...(lineUnitCostAlias != null ? { unitCostSourceField: lineUnitCostAlias.key } : {}),
           },
         });
       } else {
-        // Strand every resolvable-but-unassertable fact with an explicit
-        // omission naming the blocking cause.
         const strandedReason =
           parentIdentity == null
             ? ('invalid_identity' as const)
@@ -847,12 +896,6 @@ type PdocFiscalYearResult =
   | { kind: 'missing'; fy: number }
   | { kind: 'invalid'; raw: string | number };
 
-/**
- * Phase A.4: Resolve P-doc row fiscal year.
- * - Missing FY may use the manifest FY with a review warning.
- * - A supplied but invalid FY must create an omission.
- * - Do not create assertions using a substituted year.
- */
 function resolvePdocFiscalYear(
   rowFy: number | string | null | undefined,
   defaultFiscalYear: number,

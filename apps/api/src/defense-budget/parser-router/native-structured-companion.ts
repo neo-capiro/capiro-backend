@@ -43,9 +43,7 @@ export async function verifyNativeStructuredCompanion(input: {
     );
   }
   const bytes = readFileSync(input.companionLocator);
-  const artifact = parseDefenseBudgetExtractionArtifactV1(
-    JSON.parse(bytes.toString('utf8')),
-  );
+  const artifact = parseDefenseBudgetExtractionArtifactV1(JSON.parse(bytes.toString('utf8')));
   const semanticErrors = validateDefenseBudgetExtractionArtifactV1(artifact).filter(
     (finding) => finding.severity === 'error',
   );

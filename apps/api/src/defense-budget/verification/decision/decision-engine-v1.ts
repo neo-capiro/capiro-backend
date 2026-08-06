@@ -102,10 +102,7 @@ export function computeDecisionV1(input: DecisionEngineInputV1): DecisionEngineR
   ) {
     return finish('REVIEW');
   }
-  if (
-    input.hasUncorroboratedEnacted &&
-    input.policy.enactedAlwaysReviewWhenUncorroborated
-  ) {
+  if (input.hasUncorroboratedEnacted && input.policy.enactedAlwaysReviewWhenUncorroborated) {
     return finish('REVIEW');
   }
 
@@ -113,8 +110,7 @@ export function computeDecisionV1(input: DecisionEngineInputV1): DecisionEngineR
 }
 
 function routeForReview(riskScore: number, policy: VerificationPolicyV1): VerificationRouteV1 {
-  const { automaticPassMax, targetedReextractionMax, paidVerifierMax } =
-    policy.riskThresholds;
+  const { automaticPassMax, targetedReextractionMax, paidVerifierMax } = policy.riskThresholds;
   void automaticPassMax;
   if (riskScore <= targetedReextractionMax) return 'targeted_local_reextraction';
   if (riskScore <= paidVerifierMax) return 'paid_page_verifier';
@@ -151,12 +147,9 @@ function finalizeResult(
         ? []
         : collectAcceptedAssertionIds(checks, discrepancies, allAssertionIds).sort(),
     rejectedAssertionIds: collectRejectedAssertionIds(checks, discrepancies).sort(),
-    blockingFailCount: checks.filter(
-      (check) => check.outcome === 'FAIL' && check.blocking,
-    ).length,
-    requiredNotRunCount: checks.filter(
-      (check) => check.outcome === 'NOT_RUN' && check.required,
-    ).length,
+    blockingFailCount: checks.filter((check) => check.outcome === 'FAIL' && check.blocking).length,
+    requiredNotRunCount: checks.filter((check) => check.outcome === 'NOT_RUN' && check.required)
+      .length,
   };
 }
 
@@ -173,9 +166,7 @@ function collectAcceptedAssertionIds(
 ): string[] {
   const eligible = new Set<string>(
     allAssertionIds ??
-      checks
-        .filter((check) => check.outcome === 'PASS')
-        .flatMap((check) => check.assertionIds),
+      checks.filter((check) => check.outcome === 'PASS').flatMap((check) => check.assertionIds),
   );
 
   for (const check of checks) {

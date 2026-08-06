@@ -132,9 +132,7 @@ export function buildOmSagIdentity(input: OmSagIdentityInput): OmSagIdentityV1 {
     throw new Error('O&M SAG identity requires a non-blank account');
   }
   if (input.component === 'UNKNOWN' || input.component === 'OTHER') {
-    throw new Error(
-      `O&M SAG identity requires a concrete component, got "${input.component}"`,
-    );
+    throw new Error(`O&M SAG identity requires a concrete component, got "${input.component}"`);
   }
 
   const normalizedCode = code.toUpperCase();

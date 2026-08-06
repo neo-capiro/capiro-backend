@@ -20,12 +20,12 @@
  * Pure module. Never invokes a parser, never calls LlamaParse, never writes
  * to a database.
  */
-import type { ParserPageResultV1, ParsedTableV1 } from '../../parser-router/parser-runtime-contract-v1.js';
+import type {
+  ParserPageResultV1,
+  ParsedTableV1,
+} from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildProcurementBlinIdentity,
-  type ProcurementBlinIdentityV1,
-} from '../identity-v1.js';
+import { buildProcurementBlinIdentity, type ProcurementBlinIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -182,7 +182,9 @@ export function extractP1FromPages(input: {
         allBindings = allBindings.concat(headerBinding.bindings);
         if (headerBinding.unresolvedColumnIndices.length > 0) {
           unresolvedColumnIndices.push(
-            ...headerBinding.unresolvedColumnIndices.map((ci: number) => ci + (page.page - 1) * 100),
+            ...headerBinding.unresolvedColumnIndices.map(
+              (ci: number) => ci + (page.page - 1) * 100,
+            ),
           );
         }
       }
@@ -210,8 +212,13 @@ export function extractP1FromPages(input: {
         if (codeMatch == null) continue;
 
         const printedCode = codeMatch;
-        const title = (cells[1]?.text.trim() ?? '').replace(firstCell, '').trim() ||
-          cells.slice(1).map((c) => c.text).join(' ').trim() ||
+        const title =
+          (cells[1]?.text.trim() ?? '').replace(firstCell, '').trim() ||
+          cells
+            .slice(1)
+            .map((c) => c.text)
+            .join(' ')
+            .trim() ||
           '(untitled)';
 
         // Detect advance procurement from row text
@@ -327,9 +334,9 @@ export function extractP1FromPages(input: {
     const values = new Set(list.map((f) => f.valueMillions));
     if (values.size > 1) {
       const first = list[0]!;
-      const printedCode = identities.find(
-        (i) => i.identity.naturalKey === first.identityNaturalKey,
-      )?.printedCode ?? 'unknown';
+      const printedCode =
+        identities.find((i) => i.identity.naturalKey === first.identityNaturalKey)?.printedCode ??
+        'unknown';
       conflicts.push({
         printedCode,
         fiscalYear: first.fiscalYear ?? 0,
@@ -385,13 +392,19 @@ function findHeaderRow(
 }
 
 function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   // Header rows contain FY or fiscal-year-like vocabulary AND are not data rows.
   // A data row's first cell might be "BLIN" (header label) vs a real BLIN code
   // like "9670A00005". Distinguish by checking if the row contains header
   // vocabulary words AND the first cell is not a valid long/short BLIN code
   // that we would extract as data.
-  const hasHeaderVocab = /\b(?:fy|fiscal|year|budget|request|actual|enacted|base|oco|total|quantity|qty|cost|title)\b/i.test(text);
+  const hasHeaderVocab =
+    /\b(?:fy|fiscal|year|budget|request|actual|enacted|base|oco|total|quantity|qty|cost|title)\b/i.test(
+      text,
+    );
   const firstCell = cells[0]?.text.trim() ?? '';
   // "BLIN", "Line", "Line Item" etc are header labels, not BLIN codes.
   // Real BLIN codes are 4+ chars of alnum. But "BLIN" (4 letters) matches
@@ -403,9 +416,13 @@ function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boole
 }
 
 function isTotalRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
-  return /\b(?:total|subtotal|sum|grand total)\b/i.test(text) &&
-    !looksLikeBlin(cells[0]?.text ?? '');
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
+  return (
+    /\b(?:total|subtotal|sum|grand total)\b/i.test(text) && !looksLikeBlin(cells[0]?.text ?? '')
+  );
 }
 
 function looksLikeBlin(text: string): boolean {

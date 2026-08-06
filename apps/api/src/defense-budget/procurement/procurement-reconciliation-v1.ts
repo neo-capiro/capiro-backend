@@ -63,12 +63,7 @@ export interface ProcurementUnitCostValueV1 {
 /* Comparison result                                                    */
 /* ------------------------------------------------------------------ */
 
-export type ProcurementComparisonResult =
-  | 'pass'
-  | 'fail'
-  | 'review'
-  | 'not_applicable'
-  | 'not_run';
+export type ProcurementComparisonResult = 'pass' | 'fail' | 'review' | 'not_applicable' | 'not_run';
 
 export interface ProcurementFundingComparison {
   identityNaturalKey: string;

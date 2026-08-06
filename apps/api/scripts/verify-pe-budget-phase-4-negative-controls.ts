@@ -50,10 +50,7 @@ function runJest(spec: string): { passed: boolean; output: string } {
     const value = error as { stdout?: string | Buffer; stderr?: string | Buffer; message?: string };
     return {
       passed: false,
-      output: [value.stdout, value.stderr, value.message]
-        .filter(Boolean)
-        .map(String)
-        .join('\n'),
+      output: [value.stdout, value.stderr, value.message].filter(Boolean).map(String).join('\n'),
     };
   }
 }
@@ -63,9 +60,7 @@ function whitespacePattern(value: string): RegExp {
     value
       .replace(/\r\n/g, '\n')
       .split(/(\s+)/)
-      .map((part) =>
-        /^\s+$/.test(part) ? '\\s+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-      )
+      .map((part) => (/^\s+$/.test(part) ? '\\s+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
       .join(''),
   );
 }
@@ -208,8 +203,8 @@ const CONTROLS: ReplacementControl[] = [
     file: path.join(RDTE, 'r3', 'r3-artifact-builder-v1.ts'),
     original: '/* Conflicting rows: blocking warnings, never last-wins. */',
     defect:
-      "for (const performer of result.performers) {\n" +
-      "  if (performer.totalCost && performer.fiscalYear) {\n" +
+      'for (const performer of result.performers) {\n' +
+      '  if (performer.totalCost && performer.fiscalYear) {\n' +
       "    builder.addAssertion({ assertionKind: 'funding', assertionId: `defect_${performer.naturalKey}`, sourceFactIds: [], evidenceIds: [], confidence: 1, identity: { lineKind: 'RDTE_PE', peCode: performer.parentPeCode }, fiscalYear: performer.fiscalYear, field: 'request', money: performer.totalCost });\n" +
       '  }\n' +
       '}\n' +

@@ -15,9 +15,7 @@ import type { R2NarrativeExtractionResult } from './r2-narrative-extractor-v1.js
 
 function parserRunForPage(parserRuns: readonly ParserRunV1[], page: number): string {
   const run = parserRuns.find((candidate) =>
-    candidate.pageRanges.some(
-      (range) => page >= range.startPage && page <= range.endPage,
-    ),
+    candidate.pageRanges.some((range) => page >= range.startPage && page <= range.endPage),
   );
   if (!run) throw new Error(`R-2 page ${page} has no contributing parser run`);
   return run.parserRunId;
@@ -119,9 +117,7 @@ export function buildCompleteR2Artifact(input: {
         parserRunId: parserRunForPage(input.parserRuns, page),
         granularity: 'page_only',
         page,
-        ...(section.printedPages[0]
-          ? { printedPage: section.printedPages[0] }
-          : {}),
+        ...(section.printedPages[0] ? { printedPage: section.printedPages[0] } : {}),
         excerpt: section.text.slice(0, 1000),
       });
     }

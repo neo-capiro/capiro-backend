@@ -52,8 +52,13 @@ for table in \
   "${PSQL[@]}" -tAc "SELECT to_regclass('public.$table');" | grep -q "$table" \
     || fail "Path A: $table is missing"
 done
+# The legacy PE-level milestone natural key is created with CREATE UNIQUE INDEX,
+# so it is an index rather than a pg_constraint row. Assert the index definition
+# is still UNIQUE; Path B additionally proves the key behaviourally.
+"${PSQL[@]}" -tAc "SELECT indexdef FROM pg_indexes WHERE schemaname='public' AND indexname='program_element_milestone_pe_code_type_key';" \
+  | grep -q "CREATE UNIQUE INDEX" \
+  || fail "Path A: unique index program_element_milestone_pe_code_type_key is missing"
 for constraint in \
-  program_element_milestone_pe_code_type_key \
   program_element_project_milestone_project_fkey \
   program_element_project_milestone_provenance_check \
   program_element_project_milestone_period_shape_check \

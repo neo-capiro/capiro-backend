@@ -3,9 +3,7 @@
  */
 import { z } from 'zod';
 import { sha256Schema } from '../contracts/extraction-artifact-v1.js';
-import {
-  DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,
-} from './parser-runtime-contract-v1.js';
+import { DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION } from './parser-runtime-contract-v1.js';
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 import type { ParserPolicyV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { PageProfileV1 } from './page-profiler.js';
@@ -223,9 +221,7 @@ export function buildEscalationPlan(input: {
     ordinal,
     engine,
     pages: [...pages].sort((a, b) => a - b),
-    reasonCodes: [
-      ...new Set(pages.flatMap((page) => [...(reasonsByPage.get(page) ?? [])])),
-    ].sort(),
+    reasonCodes: [...new Set(pages.flatMap((page) => [...(reasonsByPage.get(page) ?? [])]))].sort(),
     dependsOnStepIds: [],
     paid: engine === 'llamaparse',
     terminalIfSuccessful: engine === 'llamaparse',
@@ -273,9 +269,7 @@ function terminalPlan(
   };
 }
 
-function sealPlan(
-  value: Omit<DefenseBudgetParsePlanV1, 'planSha256'>,
-): DefenseBudgetParsePlanV1 {
+function sealPlan(value: Omit<DefenseBudgetParsePlanV1, 'planSha256'>): DefenseBudgetParsePlanV1 {
   return defenseBudgetParsePlanV1Schema.parse({
     ...value,
     planSha256: sha256CanonicalJson(value as unknown as JsonValue),

@@ -1,5 +1,6 @@
 /** Execute the complete Phase 3 validation matrix outside GitHub Actions. */
 import { spawnSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const API_ROOT = path.resolve(__dirname, '..');
@@ -17,64 +18,83 @@ interface Command {
   command: string;
   args: string[];
   cwd: string;
+  shell?: boolean;
 }
 
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+function resolvePnpm(): { command: string; prefixArgs: string[]; shell?: boolean } {
+  const bundledCorepack = path.join(
+    path.dirname(process.execPath),
+    'node_modules',
+    'corepack',
+    'dist',
+    'pnpm.js',
+  );
+  if (fs.existsSync(bundledCorepack)) {
+    return { command: process.execPath, prefixArgs: [bundledCorepack] };
+  }
+
+  const hermesCorepack =
+    'C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js';
+  if (fs.existsSync(hermesCorepack)) {
+    return { command: process.execPath, prefixArgs: [hermesCorepack] };
+  }
+
+  return process.platform === 'win32'
+    ? { command: 'pnpm', prefixArgs: [], shell: true }
+    : { command: 'pnpm', prefixArgs: [] };
+}
+
+const pnpm = resolvePnpm();
+
+function pnpmCommand(name: string, args: string[], cwd: string): Command {
+  return {
+    name,
+    command: pnpm.command,
+    args: [...pnpm.prefixArgs, ...args],
+    cwd,
+    shell: pnpm.shell,
+  };
+}
+
 const commands: Command[] = [
+  pnpmCommand(
+    'Phase 1 regression',
+    ['--filter', '@capiro/api', 'verify:pe-budget-phase-1'],
+    REPO_ROOT,
+  ),
+  pnpmCommand(
+    'Phase 2 regression',
+    ['--filter', '@capiro/api', 'verify:pe-budget-phase-2'],
+    REPO_ROOT,
+  ),
+  pnpmCommand(
+    'Phase 3 Jest gate',
+    ['--filter', '@capiro/api', 'verify:pe-budget-phase-3'],
+    REPO_ROOT,
+  ),
+  pnpmCommand(
+    'Phase 3 strict TypeScript',
+    ['exec', 'tsc', '-p', 'apps/api/tsconfig.budget-parser-router.json', '--noEmit'],
+    REPO_ROOT,
+  ),
+  pnpmCommand('Prisma generation', ['--dir', 'apps/api', 'exec', 'prisma', 'generate'], REPO_ROOT),
+  pnpmCommand('Prisma validation', ['--dir', 'apps/api', 'exec', 'prisma', 'validate'], REPO_ROOT),
+  pnpmCommand(
+    'Architecture and safety guard',
+    ['exec', 'tsx', 'scripts/verify-defense-budget-parser-architecture.ts'],
+    API_ROOT,
+  ),
+  pnpmCommand(
+    'Cross-language contract and hash gate',
+    ['exec', 'tsx', 'scripts/verify-defense-budget-parser-runtime.ts'],
+    API_ROOT,
+  ),
   {
-    name: 'Phase 1 regression',
-    command: pnpm,
-    args: ['--filter', '@capiro/api', 'verify:pe-budget-phase-1'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Phase 2 regression',
-    command: pnpm,
-    args: ['--filter', '@capiro/api', 'verify:pe-budget-phase-2'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Phase 3 Jest gate',
-    command: pnpm,
-    args: ['--filter', '@capiro/api', 'verify:pe-budget-phase-3'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Phase 3 strict TypeScript',
-    command: pnpm,
-    args: ['exec', 'tsc', '-p', 'apps/api/tsconfig.budget-parser-router.json', '--noEmit'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Prisma generation',
-    command: pnpm,
-    args: ['--dir', 'apps/api', 'exec', 'prisma', 'generate'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Prisma validation',
-    command: pnpm,
-    args: ['--dir', 'apps/api', 'exec', 'prisma', 'validate'],
-    cwd: REPO_ROOT,
-  },
-  {
-    name: 'Architecture and safety guard',
-    command: pnpm,
-    args: ['exec', 'tsx', 'scripts/verify-defense-budget-parser-architecture.ts'],
-    cwd: API_ROOT,
-  },
-  {
-    name: 'Cross-language contract and hash gate',
-    command: pnpm,
-    args: ['exec', 'tsx', 'scripts/verify-defense-budget-parser-runtime.ts'],
-    cwd: API_ROOT,
-  },
-  {
-      name: 'Python locked dependency sync',
+    name: 'Python locked dependency sync',
     command: 'uv',
     args: ['sync', '--locked', '--extra', 'dev'],
     cwd: PYTHON_ROOT,
-    },
+  },
   {
     name: 'Python tests',
     command: 'uv',
@@ -99,16 +119,14 @@ const commands: Command[] = [
     args: ['run', 'mypy', 'src'],
     cwd: PYTHON_ROOT,
   },
-  {
-    name: 'Twenty mutate-fail-restore controls',
-    command: pnpm,
-    args: ['exec', 'tsx', 'scripts/verify-pe-budget-phase-3-negative-controls.ts'],
-    cwd: API_ROOT,
-  },
-  {
-    name: 'Prettier',
-    command: pnpm,
-    args: [
+  pnpmCommand(
+    'Twenty mutate-fail-restore controls',
+    ['exec', 'tsx', 'scripts/verify-pe-budget-phase-3-negative-controls.ts'],
+    API_ROOT,
+  ),
+  pnpmCommand(
+    'Prettier',
+    [
       'exec',
       'prettier',
       '--check',
@@ -127,8 +145,8 @@ const commands: Command[] = [
       'docs/program-elements/enrichment/PHASE-3-FINAL-HANDOFF.md',
       'docs/runbooks/defense-budget-parser-router.md',
     ],
-    cwd: REPO_ROOT,
-  },
+    REPO_ROOT,
+  ),
   {
     name: 'Git whitespace check',
     command: 'git',
@@ -150,7 +168,10 @@ if (includeContainers) {
         target,
         '-f',
         'apps/defense-budget-parser/Dockerfile',
-        '.',
+        // The build context must be the parser package, not the repo root: the
+        // Dockerfile copies `pyproject.toml`, `uv.lock`, `src/`, and `tests/`
+        // by context-relative path, and none of those exist at the repo root.
+        'apps/defense-budget-parser',
       ],
       cwd: REPO_ROOT,
     });
@@ -163,6 +184,7 @@ for (const item of commands) {
     cwd: item.cwd,
     stdio: 'inherit',
     env: { ...process.env },
+    shell: item.shell === true,
   });
   if (result.error) {
     console.error(`${item.name} could not start: ${result.error.message}`);

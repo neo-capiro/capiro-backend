@@ -20,9 +20,7 @@ import {
   type TrustedVerificationProofResolverV1,
 } from './trusted-proof-types.js';
 
-function exactPages(
-  ranges: readonly { startPage: number; endPage: number }[],
-): number[] {
+function exactPages(ranges: readonly { startPage: number; endPage: number }[]): number[] {
   const pages = new Set<number>();
   for (const range of ranges) {
     for (let page = range.startPage; page <= range.endPage; page += 1) {
@@ -96,9 +94,7 @@ function proofForRun(input: {
   };
 }
 
-export class FilesystemParserArtifactProofResolver
-  implements TrustedVerificationProofResolverV1
-{
+export class FilesystemParserArtifactProofResolver implements TrustedVerificationProofResolverV1 {
   constructor(
     private readonly delegate: TrustedVerificationProofResolverV1,
     private readonly artifactStore: ParserArtifactStoreV1,

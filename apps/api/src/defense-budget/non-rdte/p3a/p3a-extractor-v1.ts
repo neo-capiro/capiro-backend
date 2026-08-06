@@ -26,10 +26,7 @@ import type {
   ParsedTableV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildProcurementBlinIdentity,
-  type ProcurementBlinIdentityV1,
-} from '../identity-v1.js';
+import { buildProcurementBlinIdentity, type ProcurementBlinIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -130,7 +127,10 @@ const NARRATIVE_RE = /narrative|justification|rationale|description|explanation/
 
 const NARRATIVE_SECTIONS = [
   { pattern: /justification|rationale|explanation/i, sectionType: 'rationale' },
-  { pattern: /modification\s*description|configuration\s*description/i, sectionType: 'modification_description' },
+  {
+    pattern: /modification\s*description|configuration\s*description/i,
+    sectionType: 'modification_description',
+  },
   { pattern: /program\s*status/i, sectionType: 'program_status' },
   { pattern: /acquisition\s*status/i, sectionType: 'acquisition_status' },
 ];
@@ -189,12 +189,7 @@ export function extractP3aFromPages(input: {
 
   for (const page of pages) {
     if (parentReference == null && page.text != null) {
-      parentReference = detectParentFromExhibitText(
-        page.text,
-        page.page,
-        account,
-        component,
-      );
+      parentReference = detectParentFromExhibitText(page.text, page.page, account, component);
     }
 
     if (unit == null && page.text != null) {
@@ -251,7 +246,11 @@ export function extractP3aFromPages(input: {
         const label = cells[0]?.text.trim() ?? '';
         if (label.length === 0) continue;
 
-        const description = cells.slice(1).map((c) => c.text).join(' ').trim();
+        const description = cells
+          .slice(1)
+          .map((c) => c.text)
+          .join(' ')
+          .trim();
 
         if (description.length > 0) {
           modifications.push({
@@ -287,17 +286,11 @@ export function extractP3aFromPages(input: {
                 });
                 continue;
               }
-              const valueMillions = convertUnit(
-                originalValue,
-                effectiveUnit,
-                'millions',
-              );
+              const valueMillions = convertUnit(originalValue, effectiveUnit, 'millions');
               funding.push({
                 identityNaturalKey: identityKey,
                 rowLabel: label,
-                ...(binding.fiscalYear != null
-                  ? { fiscalYear: binding.fiscalYear }
-                  : {}),
+                ...(binding.fiscalYear != null ? { fiscalYear: binding.fiscalYear } : {}),
                 columnBinding: binding,
                 originalValue,
                 originalUnit: effectiveUnit,
@@ -324,9 +317,10 @@ export function extractP3aFromPages(input: {
             const m = s.pattern.exec(page.text!);
             return m != null && m.index > match.index;
           });
-          const endIdx = nextSectionMatch != null
-            ? nextSectionMatch.pattern.exec(page.text)!.index
-            : Math.min(startIdx + 2000, page.text.length);
+          const endIdx =
+            nextSectionMatch != null
+              ? nextSectionMatch.pattern.exec(page.text)!.index
+              : Math.min(startIdx + 2000, page.text.length);
           const sectionText = page.text.slice(startIdx, endIdx).trim();
           if (sectionText.length > 0) {
             narratives.push({
@@ -364,8 +358,7 @@ export function extractP3aFromPages(input: {
   if (parentReference == null) {
     omissions.push({
       page: pages[0]?.page ?? 1,
-      reason:
-        'missing explicit parent BLIN reference — fuzzy title matching is prohibited',
+      reason: 'missing explicit parent BLIN reference — fuzzy title matching is prohibited',
       rawText: 'no manifest parentBlinCode and no explicit LI/BLIN in exhibit text',
     });
   }
@@ -374,8 +367,7 @@ export function extractP3aFromPages(input: {
   if (!recognizedLayout) {
     omissions.push({
       page: pages[0]?.page ?? 1,
-      reason:
-        'unsupported layout — no recognized Modification/Configuration table',
+      reason: 'unsupported layout — no recognized Modification/Configuration table',
       rawText: `pages: ${pages.map((p) => p.page).join(',')}`,
     });
   }
@@ -439,9 +431,7 @@ function buildParentRef(
     return {
       printedCode: code,
       source,
-      ...(source === 'exhibit_text'
-        ? { exhibitSnippet: text.slice(0, 200) }
-        : {}),
+      ...(source === 'exhibit_text' ? { exhibitSnippet: text.slice(0, 200) } : {}),
       page,
       identity,
     };
@@ -465,9 +455,7 @@ function groupCellsByRow(
   return new Map([...rows.entries()].sort((a, b) => a[0] - b[0]));
 }
 
-function rowsToText(
-  rows: Map<number, Array<{ columnIndex: number; text: string }>>,
-): string {
+function rowsToText(rows: Map<number, Array<{ columnIndex: number; text: string }>>): string {
   const parts: string[] = [];
   for (const [, cells] of rows) {
     parts.push(cells.map((c) => c.text).join(' '));
@@ -484,13 +472,12 @@ function findHeaderRow(
   return null;
 }
 
-function isHeaderRow(
-  cells: Array<{ columnIndex: number; text: string }>,
-): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
-  const hasHeaderVocab = /\b(?:fy|fiscal|year|budget|cost|amount|total)\b/i.test(
-    text,
-  );
+function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
+  const hasHeaderVocab = /\b(?:fy|fiscal|year|budget|cost|amount|total)\b/i.test(text);
   const firstCell = cells[0]?.text.trim() ?? '';
   const headerLabels = new Set([
     'blin',
@@ -517,9 +504,10 @@ function isHeaderRow(
   return hasHeaderVocab && !isDataCode && !hasNumericData;
 }
 
-function isTotalRow(
-  cells: Array<{ columnIndex: number; text: string }>,
-): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+function isTotalRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   return /\b(?:total|subtotal|sum|grand total)\b/i.test(text);
 }

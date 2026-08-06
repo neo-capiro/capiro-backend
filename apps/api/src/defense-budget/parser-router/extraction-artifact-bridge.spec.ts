@@ -149,7 +149,10 @@ describe('Phase 3 strict extraction artifact bridge', () => {
     );
     expect(output.artifact.warnings).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: 'parser_page_failure_pdf_parse_error', severity: 'blocking' }),
+        expect.objectContaining({
+          code: 'parser_page_failure_pdf_parse_error',
+          severity: 'blocking',
+        }),
       ]),
     );
   });

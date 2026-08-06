@@ -33,9 +33,7 @@ export interface VerificationResultMinimalV1 {
   }>;
 }
 
-function recommendEngineClass(
-  code: string,
-): 'table' | 'layout' | 'ocr' | 'complex' {
+function recommendEngineClass(code: string): 'table' | 'layout' | 'ocr' | 'complex' {
   if (code.includes('ocr') || code.includes('image')) return 'ocr';
   if (code.includes('layout') || code.includes('reading_order')) return 'layout';
   if (code.includes('complex') || code.includes('unimplemented')) return 'complex';

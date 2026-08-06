@@ -30,10 +30,7 @@ export interface OmVerificationFinding {
   identityNaturalKey?: string;
 }
 
-export type OmVerificationDecision =
-  | 'VERIFICATION_PASSED'
-  | 'NEEDS_REVIEW'
-  | 'REJECTED';
+export type OmVerificationDecision = 'VERIFICATION_PASSED' | 'NEEDS_REVIEW' | 'REJECTED';
 
 export interface OmVerificationResult {
   decision: OmVerificationDecision;
@@ -95,9 +92,7 @@ function nextFindingId(code: string): string {
  * certification. Missing comparison source is NOT_RUN and may block
  * when the manifest requires it.
  */
-export function verifyOmFamily(
-  input: OmVerificationInput,
-): OmVerificationResult {
+export function verifyOmFamily(input: OmVerificationInput): OmVerificationResult {
   findingSeq = 0;
   const findings: OmVerificationFinding[] = [];
 
@@ -122,10 +117,7 @@ export function verifyOmFamily(
   }
 
   /* 3. Account/component consistency: every identity must have non-blank account and component. */
-  const allIdentities = [
-    ...input.o1Identities,
-    ...input.op5Identities,
-  ];
+  const allIdentities = [...input.o1Identities, ...input.op5Identities];
   for (const id of allIdentities) {
     if (id.account.length === 0 || id.account === 'UNKNOWN') {
       findings.push({
@@ -154,7 +146,9 @@ export function verifyOmFamily(
         findingId: nextFindingId('funding_mismatch'),
         severity: 'blocking',
         code: 'o1_op5_funding_mismatch',
-        message: cmp.message ?? `O-1/OP-5 funding mismatch for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `O-1/OP-5 funding mismatch for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'not_run' && input.op5Required) {
@@ -162,7 +156,9 @@ export function verifyOmFamily(
         findingId: nextFindingId('funding_not_run'),
         severity: 'blocking',
         code: 'o1_op5_comparison_not_run',
-        message: cmp.message ?? `O-1/OP-5 comparison not run for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `O-1/OP-5 comparison not run for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'review') {
@@ -170,7 +166,9 @@ export function verifyOmFamily(
         findingId: nextFindingId('funding_review'),
         severity: 'review',
         code: 'o1_op5_funding_review',
-        message: cmp.message ?? `O-1/OP-5 funding needs review for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `O-1/OP-5 funding needs review for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     }

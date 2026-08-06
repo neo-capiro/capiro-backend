@@ -24,40 +24,44 @@ function coverageAllVerified(): CategoryCoverageInput[] {
     ['project_funding', [`${PE1}|A1|2027|request`]],
     ['performers', [`${PE1}|LOCKHEED`]],
     ['relationships', [`${PE1}|A1|project_of`]],
-  ].map(([category, keys]) => ({
-    category: category as CategoryCoverageInput['category'],
-    expectedKeys: keys as string[],
-    coveredKeys: keys as string[],
-    applicable: true,
-  })).concat([
-    {
-      category: 'milestones',
-      expectedKeys: [],
-      coveredKeys: [],
-      applicable: false,
-    },
-  ]);
+  ]
+    .map(([category, keys]) => ({
+      category: category as CategoryCoverageInput['category'],
+      expectedKeys: keys as string[],
+      coveredKeys: keys as string[],
+      applicable: true,
+    }))
+    .concat([
+      {
+        category: 'milestones',
+        expectedKeys: [],
+        coveredKeys: [],
+        applicable: false,
+      },
+    ]);
 }
 
-function reconciliation(overrides: Parameters<typeof reconcileRdteCycle>[0] = {
-  identity: { r1PeCodes: [PE1, PE2], otherExhibitPeCodes: [PE1, PE2] },
-  fundingComparisons: [
-    {
-      peCode: PE1,
-      fiscalYear: 2027,
-      columnRole: 'budget_year_request',
-      result: 'pass',
-      evidenceIds: ['evidence-r1', 'evidence-r2'],
+function reconciliation(
+  overrides: Parameters<typeof reconcileRdteCycle>[0] = {
+    identity: { r1PeCodes: [PE1, PE2], otherExhibitPeCodes: [PE1, PE2] },
+    fundingComparisons: [
+      {
+        peCode: PE1,
+        fiscalYear: 2027,
+        columnRole: 'budget_year_request',
+        result: 'pass',
+        evidenceIds: ['evidence-r1', 'evidence-r2'],
+      },
+    ],
+    projectSumReconciliations: [],
+    projectRelationships: {
+      projects: [{ peCode: PE1, projectCode: 'A1' }],
+      projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
+      referencedProjectKeys: [{ peCode: PE1, projectCode: 'A1' }],
     },
-  ],
-  projectSumReconciliations: [],
-  projectRelationships: {
-    projects: [{ peCode: PE1, projectCode: 'A1' }],
-    projectFundingKeys: [{ peCode: PE1, projectCode: 'A1' }],
-    referencedProjectKeys: [{ peCode: PE1, projectCode: 'A1' }],
+    coverageInputs: coverageAllVerified(),
   },
-  coverageInputs: coverageAllVerified(),
-}) {
+) {
   return reconcileRdteCycle(overrides);
 }
 
@@ -180,9 +184,7 @@ describe('rdte-cycle-reconciler-v1', () => {
       projectRelationships: { projects: [], projectFundingKeys: [] },
       coverageInputs: [],
     });
-    const finding = result.findings.find(
-      (entry) => entry.code === 'r1_r2_funding_mismatch',
-    );
+    const finding = result.findings.find((entry) => entry.code === 'r1_r2_funding_mismatch');
     expect(finding?.evidenceIds).toEqual(['left-evidence', 'right-evidence']);
   });
 
@@ -263,9 +265,7 @@ describe('rdte-cycle-certifier-v1', () => {
   });
 
   it('rejects a required rejected document and marks missing inventory incomplete', () => {
-    expect(certify({ verifications: verificationRefs('reject') }).certification).toBe(
-      'REJECTED',
-    );
+    expect(certify({ verifications: verificationRefs('reject') }).certification).toBe('REJECTED');
     const incomplete = certify({ requiredManifestDocumentKeys: ['r1', 'r2', 'r3'] });
     expect(incomplete.certification).toBe('INCOMPLETE');
     expect(

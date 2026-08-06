@@ -206,7 +206,9 @@ describe('post-merge Phase 1-4 audit repairs', () => {
       extraction,
       cycleFiscalYear: 2027,
     });
-    expect(artifact.assertions.filter((value) => value.assertionKind === 'funding')).toHaveLength(2);
+    expect(artifact.assertions.filter((value) => value.assertionKind === 'funding')).toHaveLength(
+      2,
+    );
   });
 
   it('does not leak R-4 milestone indexing across PE extraction groups', () => {
@@ -241,9 +243,9 @@ describe('post-merge Phase 1-4 audit repairs', () => {
   });
 
   it('rejects same-ID merge payloads that are not byte-identical', () => {
-    expect(() => mergeRdteArtifactsV1([artifactWithExcerpt('left'), artifactWithExcerpt('right')])).toThrow(
-      /merge conflict.*evidenceId/i,
-    );
+    expect(() =>
+      mergeRdteArtifactsV1([artifactWithExcerpt('left'), artifactWithExcerpt('right')]),
+    ).toThrow(/merge conflict.*evidenceId/i);
   });
 
   it('requires nonempty assertion-level proof bindings on production projection plans', () => {

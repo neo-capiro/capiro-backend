@@ -1,7 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { VerificationRequestV1, DefenseBudgetVerificationResultV1 } from '../verification/verification-contract-v1.js';
+import type {
+  VerificationRequestV1,
+  DefenseBudgetVerificationResultV1,
+} from '../verification/verification-contract-v1.js';
 import type { BudgetVerificationV1Service } from '../verification/services/budget-verification-v1.service.js';
 import { FilesystemParserArtifactStore } from './parser-artifact-store.js';
 import { getDefaultParserConfig } from './parser-engine-defaults.js';
@@ -12,10 +15,7 @@ import {
   sealParserRuntimeResult,
   type ParserRuntimeJobV1,
 } from './parser-runtime-contract-v1.js';
-import {
-  ParserRouterV1Service,
-  type ParserRouterConfigV1,
-} from './parser-router-v1.service.js';
+import { ParserRouterV1Service, type ParserRouterConfigV1 } from './parser-router-v1.service.js';
 
 let workDir: string;
 beforeEach(() => {
@@ -222,9 +222,9 @@ describe('ParserRouterV1Service executable workflow', () => {
     const verifier = verification(async (request) => {
       call++;
       if (call > 1) return result(request, 'PASS');
-      const artifact = JSON.parse(
-        readFileSync(request.extractionArtifactLocator, 'utf8'),
-      ) as { evidence: Array<{ evidenceId: string }> };
+      const artifact = JSON.parse(readFileSync(request.extractionArtifactLocator, 'utf8')) as {
+        evidence: Array<{ evidenceId: string }>;
+      };
       return result(request, 'REVIEW', [
         {
           checkId: 'check-missing-evidence',
@@ -257,8 +257,8 @@ describe('ParserRouterV1Service executable workflow', () => {
   });
 
   it('binds local parser config hashes to the registered cross-language defaults', () => {
-    expect(
-      computeParserConfigSha256(getDefaultParserConfig('deterministic_pdfplumber')),
-    ).toMatch(/^[a-f0-9]{64}$/);
+    expect(computeParserConfigSha256(getDefaultParserConfig('deterministic_pdfplumber'))).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
   });
 });

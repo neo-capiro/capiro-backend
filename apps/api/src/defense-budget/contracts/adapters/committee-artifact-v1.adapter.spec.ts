@@ -1,16 +1,32 @@
 import {
   adaptCommitteeArtifactToArtifactV1,
+  COMMITTEE_ADAPTER_MODE_VALUES,
+  COMMITTEE_MODE_AUTHORITY,
   COMMITTEE_MODE_FUNDING_FIELD,
   type CommitteeAdapterMode,
   type CommitteeArtifactV1Input,
 } from './committee-artifact-v1.adapter.js';
-import { adapterTestContext } from './testing-helpers.js';
+import { adapterTestContext as baseAdapterTestContext } from './testing-helpers.js';
 import type { DefenseBudgetAssertionV1, FundingFieldV1 } from '../extraction-artifact-v1.js';
 
 type FundingAssertion = Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }>;
 
 function fundingAssertions(assertions: DefenseBudgetAssertionV1[]): FundingAssertion[] {
   return assertions.filter((a): a is FundingAssertion => a.assertionKind === 'funding');
+}
+
+function adapterTestContext(mode: CommitteeAdapterMode = 'HASC') {
+  return baseAdapterTestContext({
+    family: mode === 'PUBLIC_LAW' ? 'public_law' : 'committee',
+    exhibit:
+      mode === 'PUBLIC_LAW'
+        ? 'public_law'
+        : mode === 'NDAA_CONFERENCE' || mode === 'APPROPRIATIONS_CONFERENCE'
+          ? 'conference_report'
+          : 'committee_report',
+    authority: COMMITTEE_MODE_AUTHORITY[mode],
+    documentType: 'committee_test',
+  });
 }
 
 function committeeInput(
@@ -44,13 +60,23 @@ const ALL_MODES: Array<{ mode: CommitteeAdapterMode; field: FundingFieldV1 }> = 
 ];
 
 describe('adaptCommitteeArtifactToArtifactV1', () => {
+  it('defines an authority for every adapter mode', () => {
+    expect(Object.keys(COMMITTEE_MODE_AUTHORITY).sort()).toEqual(
+      [...COMMITTEE_ADAPTER_MODE_VALUES].sort(),
+    );
+  });
+
   it('maps every mode to its exact owned funding field', () => {
     for (const { mode, field } of ALL_MODES) {
-      const artifact = adaptCommitteeArtifactToArtifactV1(committeeInput(), adapterTestContext(), {
-        mode,
-        legacyDeclaredUnit: 'dollars',
-        defaultFiscalYear: 2099,
-      });
+      const artifact = adaptCommitteeArtifactToArtifactV1(
+        committeeInput(),
+        adapterTestContext(mode),
+        {
+          mode,
+          legacyDeclaredUnit: 'dollars',
+          defaultFiscalYear: 2099,
+        },
+      );
       const funding = fundingAssertions(artifact.assertions);
       const mark = funding.find((a) => a.field !== 'request');
       expect(mark).toBeDefined();
@@ -59,17 +85,43 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     }
   });
 
+  it('rejects a caller-selected mode that disagrees with source authority', () => {
+    expect(() =>
+      adaptCommitteeArtifactToArtifactV1(
+        committeeInput(),
+        baseAdapterTestContext({
+          family: 'public_law',
+          exhibit: 'public_law',
+          authority: 'public_law',
+        }),
+        {
+          mode: 'HASC',
+          legacyDeclaredUnit: 'dollars',
+          defaultFiscalYear: 2099,
+        },
+      ),
+    ).toThrow(/mode HASC owns authority hasc.*declares public_law/);
+  });
+
   it('keeps authorization and appropriations conference marks separate', () => {
-    const ndaa = adaptCommitteeArtifactToArtifactV1(committeeInput(), adapterTestContext(), {
-      mode: 'NDAA_CONFERENCE',
-      legacyDeclaredUnit: 'dollars',
-      defaultFiscalYear: 2099,
-    });
-    const approps = adaptCommitteeArtifactToArtifactV1(committeeInput(), adapterTestContext(), {
-      mode: 'APPROPRIATIONS_CONFERENCE',
-      legacyDeclaredUnit: 'dollars',
-      defaultFiscalYear: 2099,
-    });
+    const ndaa = adaptCommitteeArtifactToArtifactV1(
+      committeeInput(),
+      adapterTestContext('NDAA_CONFERENCE'),
+      {
+        mode: 'NDAA_CONFERENCE',
+        legacyDeclaredUnit: 'dollars',
+        defaultFiscalYear: 2099,
+      },
+    );
+    const approps = adaptCommitteeArtifactToArtifactV1(
+      committeeInput(),
+      adapterTestContext('APPROPRIATIONS_CONFERENCE'),
+      {
+        mode: 'APPROPRIATIONS_CONFERENCE',
+        legacyDeclaredUnit: 'dollars',
+        defaultFiscalYear: 2099,
+      },
+    );
     expect(
       ndaa.assertions.some((a) => a.assertionKind === 'funding' && a.field === 'ndaaConference'),
     ).toBe(true);
@@ -82,11 +134,15 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
   });
 
   it('maps PUBLIC_LAW only to enacted, never to conference', () => {
-    const artifact = adaptCommitteeArtifactToArtifactV1(committeeInput(), adapterTestContext(), {
-      mode: 'PUBLIC_LAW',
-      legacyDeclaredUnit: 'dollars',
-      defaultFiscalYear: 2099,
-    });
+    const artifact = adaptCommitteeArtifactToArtifactV1(
+      committeeInput(),
+      adapterTestContext('PUBLIC_LAW'),
+      {
+        mode: 'PUBLIC_LAW',
+        legacyDeclaredUnit: 'dollars',
+        defaultFiscalYear: 2099,
+      },
+    );
     const fields = fundingAssertions(artifact.assertions).map((a) => a.field);
     expect(fields).toContain('enacted');
     expect(fields).not.toContain('conference');
@@ -173,10 +229,9 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
       defaultFiscalYear: 2099,
     });
     const unitOmissions = artifact.omissions.filter((o) => o.reason === 'unsupported_unit');
-    expect(unitOmissions.length).toBe(2); // request + mark
+    expect(unitOmissions.length).toBe(2);
     expect(unitOmissions.every((o) => o.severity === 'blocking')).toBe(true);
     expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
-    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
     expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
@@ -270,7 +325,6 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     });
     expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
     expect(artifact.omissions.some((o) => o.reason === 'invalid_identity')).toBe(true);
-    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
     expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
@@ -339,20 +393,13 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
       defaultFiscalYear: 2099,
     });
 
-    // The FY, request, mark, and explanation facts are all preserved.
     const paths = artifact.sourceFacts.map((f) => f.sourcePath);
     expect(paths).toContain('rows[0].fy');
     expect(paths).toContain('rows[0].request');
     expect(paths).toContain('rows[0].mark');
     expect(paths).toContain('rows[0].explanation');
 
-    // Every represented source fact gets an omission.
-    const factIds = artifact.sourceFacts.map((f) => f.factId);
     const omittedFactIds = new Set(artifact.omissions.map((o) => o.sourceFactId));
-    for (const factId of factIds) {
-      // identity fact is omitted separately (it may or may not be valid); the
-      // three value facts (fy, request, mark, explanation) must all be omitted.
-    }
     const fyFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].fy')!;
     const requestFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].request')!;
     const markFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].mark')!;
@@ -364,7 +411,6 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     expect(omittedFactIds.has(markFact.factId)).toBe(true);
     expect(omittedFactIds.has(explanationFact.factId)).toBe(true);
 
-    // The FY omission uses 'invalid_number'; the value omissions use 'other'.
     const fyOmission = artifact.omissions.find((o) => o.sourceFactId === fyFact.factId)!;
     expect(fyOmission.reason).toBe('invalid_number');
     expect(fyOmission.severity).toBe('blocking');
@@ -379,17 +425,12 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
       ),
     ).toBe(true);
 
-    // No funding or narrative assertions should be created with a substituted year.
     expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
     expect(artifact.assertions.some((a) => a.assertionKind === 'narrative')).toBe(false);
-
-    // No assertion should carry the default fiscal year.
     const assertionsWithDefaultFy = artifact.assertions.filter(
       (a) => 'fiscalYear' in a && a.fiscalYear === 2099,
     );
     expect(assertionsWithDefaultFy).toHaveLength(0);
-
-    // Artifact is incomplete because of the blocking omissions.
     expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 

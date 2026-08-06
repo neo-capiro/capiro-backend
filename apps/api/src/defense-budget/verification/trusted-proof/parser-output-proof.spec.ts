@@ -1,21 +1,5 @@
 /**
  * R8.2 Workstream C — independent parser-output proof.
- *
- * No parser run receives `proofStatus: 'verified'` unless independently
- * persisted output bytes were loaded and verified. Covers the required test
- * list:
- *
- *   1. local parser output missing (legacy);
- *   2. local parser output byte mismatch;
- *   3. local parser config mismatch;
- *   4. local parser version mismatch;
- *   5. source SHA mismatch;
- *   6. output locator points to wrong object;
- *   7. LlamaParse row exists but object is missing;
- *   8. LlamaParse object hash mismatch;
- *   9. provider job mismatch;
- *   10. incomplete page coverage;
- *   11. valid persisted parser output succeeds.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -80,11 +64,7 @@ function makeArtifact(overrides: Partial<DefenseBudgetExtractionArtifactV1> = {}
     },
     ...overrides,
   } as unknown as DefenseBudgetExtractionArtifactV1;
-  const contentSha = computeArtifactContentSha256(artifact);
-  artifact.contentSha256 = contentSha;
-  for (const run of artifact.parserRuns) {
-    run.outputArtifactSha256 = contentSha;
-  }
+  artifact.contentSha256 = computeArtifactContentSha256(artifact);
   return artifact;
 }
 
@@ -169,6 +149,7 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
 
   function artifactWithRun(identity: ParserRunIdentityV1) {
     const parserRunId = computeParserRunId(identity);
+    const parserResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
@@ -177,8 +158,9 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
           parserVersion: identity.parserVersion,
           parserConfigSha256: identity.parserConfigSha256,
           inputSourceSha256: identity.sourceSha256,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: parserResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: identity.pages.length }],
+          metadata: { parserOutputContentSha256: parserResult.contentSha256 },
         },
       ],
     });
@@ -188,7 +170,6 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
   it('1. local parser output missing (legacy) -> missing, never verified', async () => {
     const identity = makeIdentity();
     const { artifact } = artifactWithRun(identity);
-    // Store is empty: the output was never persisted independently.
     const adapter = new FilesystemParserOutputProofAdapter(storeDir);
     const resolver = new ParserRunProofResolver(undefined, adapter);
     const result = await resolver.resolve({ artifact, actualSourcePdfSha256: SOURCE_SHA });
@@ -200,11 +181,10 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
     const identity = makeIdentity();
     const { result: seededResult } = await seedStore(identity);
     const { artifact } = artifactWithRun(identity);
-    // Tamper with the persisted output bytes after persistence.
     const descriptorPath = path.join(
       storeDir,
       `source_sha256=${SOURCE_SHA}`,
-      `method=deterministic_pdfplumber`,
+      'method=deterministic_pdfplumber',
       `config_sha256=${CONFIG_SHA}`,
       'pages=1',
       'result.json',
@@ -222,20 +202,19 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
   });
 
   it('3. local parser config mismatch -> mismatch', async () => {
-    // Store persisted with CONFIG_SHA, artifact declares OTHER_CONFIG_SHA
-    // under the run ID computed from CONFIG_SHA.
     const identity = makeIdentity();
     await seedStore(identity);
     const parserRunId = computeParserRunId(identity);
+    const persistedResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
           parserRunId,
           method: identity.method,
           parserVersion: identity.parserVersion,
-          parserConfigSha256: OTHER_CONFIG_SHA, // declared config differs
+          parserConfigSha256: OTHER_CONFIG_SHA,
           inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: persistedResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
         },
       ],
@@ -251,15 +230,16 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
     const identity = makeIdentity();
     await seedStore(identity);
     const parserRunId = computeParserRunId(identity);
+    const persistedResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
           parserRunId,
           method: identity.method,
-          parserVersion: '2.0', // declared version differs
+          parserVersion: '2.0',
           parserConfigSha256: identity.parserConfigSha256,
           inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: persistedResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
         },
       ],
@@ -272,11 +252,10 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
   });
 
   it('5. source SHA mismatch between persisted output and actual bytes -> mismatch', async () => {
-    // Store persisted against OTHER_SOURCE_SHA; the verification resolved
-    // actual source bytes with SOURCE_SHA.
     const identity = makeIdentity({ sourceSha256: OTHER_SOURCE_SHA });
     await seedStore(identity);
     const parserRunId = computeParserRunId(identity);
+    const persistedResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
@@ -285,7 +264,7 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
           parserVersion: identity.parserVersion,
           parserConfigSha256: identity.parserConfigSha256,
           inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: persistedResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
         },
       ],
@@ -300,7 +279,7 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
   it('6. output locator points to wrong object -> missing (identity binding)', async () => {
     const identity = makeIdentity();
     await seedStore(identity);
-    // Artifact declares a parser run ID that matches NO persisted record.
+    const persistedResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
@@ -309,7 +288,7 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
           parserVersion: identity.parserVersion,
           parserConfigSha256: identity.parserConfigSha256,
           inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: persistedResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
         },
       ],
@@ -338,6 +317,7 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
     const identity = makeIdentity({ pages: [1] });
     await seedStore(identity);
     const parserRunId = computeParserRunId(identity);
+    const persistedResult = makeResult(identity);
     const artifact = makeArtifact({
       parserRuns: [
         {
@@ -346,11 +326,10 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
           parserVersion: identity.parserVersion,
           parserConfigSha256: identity.parserConfigSha256,
           inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          outputArtifactSha256: persistedResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
         },
       ],
-      // Evidence attributed to the run on a page the output never covered.
       evidence: [
         {
           evidenceId: 'ev-1',
@@ -370,6 +349,13 @@ describe('R8.2-C local parser output proof (real content-addressed store)', () =
 });
 
 describe('R8.2-C LlamaParse parser output proof', () => {
+  const llamaIdentity = makeIdentity({
+    method: 'llamaparse',
+    parserVersion: '2026-07',
+  });
+  const llamaResult = makeResult(llamaIdentity);
+  const llamaBytes = Buffer.from(JSON.stringify(llamaResult), 'utf8');
+
   function makeByteReader(bytes: Buffer | null) {
     return {
       async read(locator: string) {
@@ -396,10 +382,10 @@ describe('R8.2-C LlamaParse parser output proof', () => {
         {
           parserRunId: 'run-llama-1',
           method: 'llamaparse',
-          parserVersion: '2026-07',
-          parserConfigSha256: CONFIG_SHA,
-          inputSourceSha256: SOURCE_SHA,
-          outputArtifactSha256: '0'.repeat(64),
+          parserVersion: llamaResult.parserVersion,
+          parserConfigSha256: llamaResult.parserConfigSha256,
+          inputSourceSha256: llamaResult.inputSourceSha256,
+          outputArtifactSha256: llamaResult.contentSha256,
           pageRanges: [{ startPage: 1, endPage: 1 }],
           providerJobId: 'job-A',
           ...overrides,
@@ -425,10 +411,9 @@ describe('R8.2-C LlamaParse parser output proof', () => {
   });
 
   it('8. LlamaParse object hash mismatch (declared byte SHA binding) -> mismatch', async () => {
-    const outputBytes = Buffer.from('{"markdown":"# R-1"}');
     const adapter = new LlamaParseParserOutputProofAdapter({
       parseJobClient: makeParseJobClient(makeParseJob()),
-      byteLocatorReader: makeByteReader(outputBytes),
+      byteLocatorReader: makeByteReader(llamaBytes),
       outputBucket: 'bucket',
     });
     const resolver = new ParserRunProofResolver(makeParseJobClient(makeParseJob()), adapter);
@@ -445,17 +430,15 @@ describe('R8.2-C LlamaParse parser output proof', () => {
   });
 
   it('9. provider job mismatch -> mismatch with provider_job_mismatch finding', async () => {
-    const outputBytes = Buffer.from('{"markdown":"# R-1"}');
-    // Row exists for a DIFFERENT provider job than declared.
     const job = makeParseJob({ providerJobId: 'job-B' });
     const adapter = new LlamaParseParserOutputProofAdapter({
       parseJobClient: makeParseJobClient(job),
-      byteLocatorReader: makeByteReader(outputBytes),
+      byteLocatorReader: makeByteReader(llamaBytes),
       outputBucket: 'bucket',
     });
     const resolver = new ParserRunProofResolver(makeParseJobClient(job), adapter);
     const result = await resolver.resolve({
-      artifact: llamaRun(), // declares providerJobId 'job-A'
+      artifact: llamaRun(),
       actualSourcePdfSha256: SOURCE_SHA,
       sourceDocumentId: 'sd-1',
     });
@@ -464,11 +447,10 @@ describe('R8.2-C LlamaParse parser output proof', () => {
   });
 
   it('valid persisted LlamaParse output succeeds', async () => {
-    const outputBytes = Buffer.from('{"markdown":"# R-1"}');
     const job = makeParseJob();
     const adapter = new LlamaParseParserOutputProofAdapter({
       parseJobClient: makeParseJobClient(job),
-      byteLocatorReader: makeByteReader(outputBytes),
+      byteLocatorReader: makeByteReader(llamaBytes),
       outputBucket: 'bucket',
     });
     const resolver = new ParserRunProofResolver(makeParseJobClient(job), adapter);

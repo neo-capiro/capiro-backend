@@ -36,14 +36,8 @@
  * to a database. No ProgramElementWriterService.
  */
 import type { ParserPageResultV1 } from '../../parser-router/parser-runtime-contract-v1.js';
-import type {
-  BudgetComponentV1,
-  NarrativeTypeV1,
-} from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildMilconProjectIdentity,
-  type MilconProjectIdentityV1,
-} from '../identity-v1.js';
+import type { BudgetComponentV1, NarrativeTypeV1 } from '../../contracts/extraction-artifact-v1.js';
+import { buildMilconProjectIdentity, type MilconProjectIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -149,7 +143,8 @@ export interface Dd1391ExtractionResult {
 /* ------------------------------------------------------------------ */
 
 // Project number from page text: "Project No.: ABC-12345", "Project Number: XYZ-999"
-const PROJECT_NUMBER_TEXT_RE = /(?:Project\s*(?:No\.?|Number|#))\s*[:\s]*\s*([A-Z0-9][A-Z0-9\-]{2,19})/i;
+const PROJECT_NUMBER_TEXT_RE =
+  /(?:Project\s*(?:No\.?|Number|#))\s*[:\s]*\s*([A-Z0-9][A-Z0-9\-]{2,19})/i;
 // Project title from page text
 const PROJECT_TITLE_TEXT_RE = /(?:Project\s*Title)\s*[:\s]*\s*(.+?)(?:\n|$)/i;
 // Installation from page text
@@ -165,7 +160,10 @@ const COST_CATEGORY_PATTERNS: Array<{
   { pattern: /primary\s*(?:facility|construction)/i, category: 'primary_facility' },
   { pattern: /support(?:ing)?\s*facilit/i, category: 'supporting_facilities' },
   { pattern: /contingenc/i, category: 'contingency' },
-  { pattern: /(?:supervision|inspection|overhead|s&i|sioh)/i, category: 'supervision_inspection_overhead' },
+  {
+    pattern: /(?:supervision|inspection|overhead|s&i|sioh)/i,
+    category: 'supervision_inspection_overhead',
+  },
   { pattern: /design/i, category: 'design' },
   { pattern: /escalation/i, category: 'escalation' },
   { pattern: /equipment/i, category: 'equipment' },
@@ -180,12 +178,36 @@ const NARRATIVE_SECTIONS: Array<{
   sectionType: string;
   narrativeType: NarrativeTypeV1;
 }> = [
-  { pattern: /(?:^|\n)\s*requirement\s*[:\-\u2013]?/i, sectionType: 'requirement', narrativeType: 'rationale' },
-  { pattern: /(?:^|\n)\s*current\s*(?:situation|condition)\s*[:\-\u2013]?/i, sectionType: 'current_situation', narrativeType: 'description' },
-  { pattern: /(?:^|\n)\s*impact\s*(?:if\s*not\s*provided)?\s*[:\-\u2013]?/i, sectionType: 'impact', narrativeType: 'rationale' },
-  { pattern: /(?:^|\n)\s*(?:project\s*)?scope\s*[:\-\u2013]?/i, sectionType: 'scope', narrativeType: 'description' },
-  { pattern: /(?:^|\n)\s*environmental\s*(?:considerations?|impact)?\s*[:\-\u2013]?/i, sectionType: 'environmental', narrativeType: 'other' },
-  { pattern: /(?:^|\n)\s*host[\-\s]?nation\s*(?:support|considerations?)?\s*[:\-\u2013]?/i, sectionType: 'host_nation', narrativeType: 'other' },
+  {
+    pattern: /(?:^|\n)\s*requirement\s*[:\-\u2013]?/i,
+    sectionType: 'requirement',
+    narrativeType: 'rationale',
+  },
+  {
+    pattern: /(?:^|\n)\s*current\s*(?:situation|condition)\s*[:\-\u2013]?/i,
+    sectionType: 'current_situation',
+    narrativeType: 'description',
+  },
+  {
+    pattern: /(?:^|\n)\s*impact\s*(?:if\s*not\s*provided)?\s*[:\-\u2013]?/i,
+    sectionType: 'impact',
+    narrativeType: 'rationale',
+  },
+  {
+    pattern: /(?:^|\n)\s*(?:project\s*)?scope\s*[:\-\u2013]?/i,
+    sectionType: 'scope',
+    narrativeType: 'description',
+  },
+  {
+    pattern: /(?:^|\n)\s*environmental\s*(?:considerations?|impact)?\s*[:\-\u2013]?/i,
+    sectionType: 'environmental',
+    narrativeType: 'other',
+  },
+  {
+    pattern: /(?:^|\n)\s*host[\-\s]?nation\s*(?:support|considerations?)?\s*[:\-\u2013]?/i,
+    sectionType: 'host_nation',
+    narrativeType: 'other',
+  },
 ];
 
 // Schedule date patterns
@@ -193,9 +215,18 @@ const SCHEDULE_PATTERNS: Array<{
   pattern: RegExp;
   milestone: string;
 }> = [
-  { pattern: /(?:acquisition|award)\s*(?:date|plan|schedule)\s*[:\s]*\s*(.+?)(?:\n|$)/i, milestone: 'acquisition_award' },
-  { pattern: /(?:start|construction\s*start)\s*(?:date)?\s*[:\s]*\s*(.+?)(?:\n|$)/i, milestone: 'construction_start' },
-  { pattern: /(?:completion|complete)\s*(?:date)?\s*[:\s]*\s*(.+?)(?:\n|$)/i, milestone: 'completion' },
+  {
+    pattern: /(?:acquisition|award)\s*(?:date|plan|schedule)\s*[:\s]*\s*(.+?)(?:\n|$)/i,
+    milestone: 'acquisition_award',
+  },
+  {
+    pattern: /(?:start|construction\s*start)\s*(?:date)?\s*[:\s]*\s*(.+?)(?:\n|$)/i,
+    milestone: 'construction_start',
+  },
+  {
+    pattern: /(?:completion|complete)\s*(?:date)?\s*[:\s]*\s*(.+?)(?:\n|$)/i,
+    milestone: 'completion',
+  },
 ];
 
 // Money value pattern
@@ -315,19 +346,14 @@ export function extractDd1391FromPages(input: {
       if (ocrConfidenceThreshold != null && page.confidence != null) {
         const conf = parseFloat(page.confidence);
         if (!isNaN(conf) && conf < ocrConfidenceThreshold) {
-          const existing = ocrConfidence.find(
-            (o) => o.identityNaturalKey === identityKey,
-          );
+          const existing = ocrConfidence.find((o) => o.identityNaturalKey === identityKey);
           if (existing == null) {
             ocrConfidence.push({
               identityNaturalKey: identityKey,
               minValueConfidence: conf,
               requiresReview: true,
             });
-          } else if (
-            existing.minValueConfidence == null ||
-            conf < existing.minValueConfidence
-          ) {
+          } else if (existing.minValueConfidence == null || conf < existing.minValueConfidence) {
             existing.minValueConfidence = conf;
           }
         }
@@ -340,7 +366,10 @@ export function extractDd1391FromPages(input: {
       const effectiveUnit = unit ?? 'thousands';
 
       /* Request amount */
-      const requestMatch = /(?:request\s*amount|fy\s*\d{4}\s*request)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(page.text);
+      const requestMatch =
+        /(?:request\s*amount|fy\s*\d{4}\s*request)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(
+          page.text,
+        );
       if (requestMatch != null) {
         const originalValue = toCanonicalDecimal(requestMatch[1]!.replace(/,/g, ''));
         const valueMillions = convertUnit(originalValue, effectiveUnit, 'millions');
@@ -356,7 +385,8 @@ export function extractDd1391FromPages(input: {
       }
 
       /* Authorization amount */
-      const authMatch = /(?:authorization\s*amount|authorized)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(page.text);
+      const authMatch =
+        /(?:authorization\s*amount|authorized)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(page.text);
       if (authMatch != null) {
         const originalValue = toCanonicalDecimal(authMatch[1]!.replace(/,/g, ''));
         const valueMillions = convertUnit(originalValue, effectiveUnit, 'millions');
@@ -372,7 +402,8 @@ export function extractDd1391FromPages(input: {
       }
 
       /* Appropriation amount */
-      const appropMatch = /(?:appropriation\s*amount|appropriated)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(page.text);
+      const appropMatch =
+        /(?:appropriation\s*amount|appropriated)\s*[:\s]*\s*\$?([\d,]+(?:\.\d+)?)/i.exec(page.text);
       if (appropMatch != null) {
         const originalValue = toCanonicalDecimal(appropMatch[1]!.replace(/,/g, ''));
         const valueMillions = convertUnit(originalValue, effectiveUnit, 'millions');
@@ -433,9 +464,7 @@ function detectProjectIdentityFromText(
   if (printedProjectCode.length === 0) return null;
 
   const titleMatch = PROJECT_TITLE_TEXT_RE.exec(text);
-  const projectTitle = titleMatch != null
-    ? titleMatch[1]!.trim()
-    : '(untitled)';
+  const projectTitle = titleMatch != null ? titleMatch[1]!.trim() : '(untitled)';
 
   const instMatch = INSTALLATION_TEXT_RE.exec(text);
   const installation = instMatch?.[1]?.trim();

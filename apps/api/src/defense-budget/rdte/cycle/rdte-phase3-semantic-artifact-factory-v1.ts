@@ -1,15 +1,9 @@
 /** RDT&E semantic artifact factory for the Phase 3 parser-router seam. */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  ArtifactBuilderV1,
-  factIdV1,
-  omissionIdV1,
-} from '../../contracts/artifact-builders.js';
+import { ArtifactBuilderV1, factIdV1, omissionIdV1 } from '../../contracts/artifact-builders.js';
 import { sha256Bytes } from '../../contracts/canonical-json.js';
-import type {
-  BudgetCycleManifestDocumentV1,
-} from '../../contracts/budget-cycle-manifest-v1.js';
+import type { BudgetCycleManifestDocumentV1 } from '../../contracts/budget-cycle-manifest-v1.js';
 import type {
   DefenseBudgetExtractionArtifactV1,
   ExtractionSourceV1,

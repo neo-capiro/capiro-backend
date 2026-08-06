@@ -2,15 +2,13 @@
 import { z } from 'zod';
 import { jsonValueSchema, sha256Schema } from '../contracts/extraction-artifact-v1.js';
 
-export const DEFENSE_BUDGET_PROFILE_JOB_SCHEMA_VERSION =
-  'defense_budget_profile_job_v1' as const;
+export const DEFENSE_BUDGET_PROFILE_JOB_SCHEMA_VERSION = 'defense_budget_profile_job_v1' as const;
 
 const sortedUniquePositivePages = z
   .array(z.number().int().positive())
-  .refine(
-    (pages) => pages.every((page, index) => index === 0 || page > pages[index - 1]!),
-    { message: 'requestedPages must be sorted and unique' },
-  );
+  .refine((pages) => pages.every((page, index) => index === 0 || page > pages[index - 1]!), {
+    message: 'requestedPages must be sorted and unique',
+  });
 
 export const parserProfileJobV1Schema = z
   .object({

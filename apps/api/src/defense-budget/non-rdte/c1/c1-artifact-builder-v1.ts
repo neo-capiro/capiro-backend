@@ -38,25 +38,19 @@ export function buildC1Artifact(input: {
   const builder = new ArtifactBuilderV1(source);
 
   /* Register parser runs. When none supplied (unit tests), use a synthetic run. */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'c1-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'c1-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities — MILCON_PROJECT, never RDTE_PE or PROCUREMENT_BLIN */
   for (const identity of extraction.identities) {
@@ -65,10 +59,7 @@ export function buildC1Artifact(input: {
 
   /* Build a lookup from natural key to identity. */
   const identityByKey = new Map(
-    extraction.identities.map((id: C1ProjectIdentity) => [
-      id.identity.naturalKey,
-      id,
-    ]),
+    extraction.identities.map((id: C1ProjectIdentity) => [id.identity.naturalKey, id]),
   );
 
   /* Funding values */
@@ -166,13 +157,17 @@ export function buildC1Artifact(input: {
         message: omission.reason,
       }),
       sourceFactId: factId,
-      reason: omission.reason.includes('identity') ||
-        omission.reason.includes('project')
-        ? 'invalid_identity'
-        : 'missing_value',
+      reason:
+        omission.reason.includes('identity') || omission.reason.includes('project')
+          ? 'invalid_identity'
+          : 'missing_value',
       severity: omission.severity,
       message: `C-1 page ${omission.page}: ${omission.reason}`,
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();
@@ -218,13 +213,9 @@ function addIdentityAssertion(
     rawValue: {
       printedProjectCode: identity.printedProjectCode,
       projectTitle: identity.projectTitle,
-      ...(identity.installation != null
-        ? { installation: identity.installation }
-        : {}),
+      ...(identity.installation != null ? { installation: identity.installation } : {}),
       ...(identity.location != null ? { location: identity.location } : {}),
-      ...(identity.categoryCode != null
-        ? { categoryCode: identity.categoryCode }
-        : {}),
+      ...(identity.categoryCode != null ? { categoryCode: identity.categoryCode } : {}),
       ...(identity.newMission != null ? { newMission: identity.newMission } : {}),
     },
     evidenceIds: [evidenceId],
@@ -245,9 +236,7 @@ function addIdentityAssertion(
       lineKind: 'MILCON_PROJECT',
       projectCode: identity.identity.projectCode,
       component: identity.identity.component,
-      ...(identity.identity.location != null
-        ? { location: identity.identity.location }
-        : {}),
+      ...(identity.identity.location != null ? { location: identity.identity.location } : {}),
     },
     title: identity.projectTitle,
     ...(identity.location != null ? { location: identity.location } : {}),
@@ -257,17 +246,11 @@ function addIdentityAssertion(
     metadata: {
       exhibit: 'C-1',
       physicalPage: identity.page,
-      ...(identity.printedPage != null
-        ? { printedPage: identity.printedPage }
-        : {}),
+      ...(identity.printedPage != null ? { printedPage: identity.printedPage } : {}),
       tableIndex: identity.tableIndex,
       rowIndex: identity.rowIndex,
-      ...(identity.installation != null
-        ? { installation: identity.installation }
-        : {}),
-      ...(identity.categoryCode != null
-        ? { categoryCode: identity.categoryCode }
-        : {}),
+      ...(identity.installation != null ? { installation: identity.installation } : {}),
+      ...(identity.categoryCode != null ? { categoryCode: identity.categoryCode } : {}),
       ...(identity.newMission != null ? { newMission: identity.newMission } : {}),
     },
   });

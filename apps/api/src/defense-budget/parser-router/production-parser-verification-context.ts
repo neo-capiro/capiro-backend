@@ -39,24 +39,17 @@ export async function createProductionParserVerificationContext(input: {
     throw new Error('production parser verification requires a shared parser artifact root');
   }
   if (!isAbsolute(trimmedRoot)) {
-    throw new Error(
-      'BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT must be an absolute shared path',
-    );
+    throw new Error('BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT must be an absolute shared path');
   }
   const parserArtifactRoot = resolve(trimmedRoot);
-  const llamaOutputBucket =
-    process.env.BUDGET_VERIFICATION_LLAMAPARSE_OUTPUT_BUCKET?.trim() ?? '';
+  const llamaOutputBucket = process.env.BUDGET_VERIFICATION_LLAMAPARSE_OUTPUT_BUCKET?.trim() ?? '';
   if (input.allowPaidParse && !llamaOutputBucket) {
-    throw new Error(
-      'persisted paid parsing requires BUDGET_VERIFICATION_LLAMAPARSE_OUTPUT_BUCKET',
-    );
+    throw new Error('persisted paid parsing requires BUDGET_VERIFICATION_LLAMAPARSE_OUTPUT_BUCKET');
   }
 
   const prisma = new PrismaClient();
   const s3ProofClient = new SdkS3ProofClient();
-  let wired:
-    | Awaited<ReturnType<typeof wireProductionProofBoundary>>
-    | undefined;
+  let wired: Awaited<ReturnType<typeof wireProductionProofBoundary>> | undefined;
   let parserStoreDispose: (() => void) | undefined;
 
   try {
@@ -100,10 +93,7 @@ export async function createProductionParserVerificationContext(input: {
     let disposed = false;
 
     return {
-      verificationService: new BudgetVerificationV1Service(
-        wired.proofResolver,
-        wired.repository,
-      ),
+      verificationService: new BudgetVerificationV1Service(wired.proofResolver, wired.repository),
       artifactStore,
       parserRunRecorder,
       async dispose() {
