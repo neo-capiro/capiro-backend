@@ -20,7 +20,6 @@ import { MemoryReviewInboxService } from './memory-review-inbox.service.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { MemoryReviewNotificationDispatcherService } from './memory-review-notification-dispatcher.service.js';
-import { MemoryReviewNotificationEmailService } from './memory-review-notification-email.service.js';
 import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -82,7 +81,6 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryCandidateReviewService,
     MemoryReviewAdminInboxService,
     { provide: MemoryReviewInboxService, useExisting: MemoryReviewAdminInboxService },
-    MemoryReviewNotificationEmailService,
     MemoryReviewNotificationDispatcherService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
