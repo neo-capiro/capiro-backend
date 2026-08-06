@@ -15,7 +15,10 @@ import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const args = parse(process.argv.slice(2));
+// rawArgs stays an array for forwarding to child scripts; parse() returns an object,
+// so spreading `args` into an argv list throws "args is not iterable".
+const rawArgs = process.argv.slice(2);
+const args = parse(rawArgs);
 const SHA = args.sha ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const actualSha = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(SHA) || SHA !== actualSha) {
@@ -240,7 +243,7 @@ try {
   await run(
     'Successful-response and real-record verifier',
     process.execPath,
-    [path.join(ROOT, 'apps/web/scripts/engagement-phase1-post-acceptance.mjs'), ...args],
+    [path.join(ROOT, 'apps/web/scripts/engagement-phase1-post-acceptance.mjs'), ...rawArgs],
     commonEnv,
   );
   console.log('ENGAGEMENT_PHASE1_POST_RUNTIME_COMPLETE');
