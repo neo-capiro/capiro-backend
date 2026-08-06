@@ -21,9 +21,7 @@ describe('memory review inbox helpers', () => {
   });
 
   it('rejects malformed and oversized cursor/page input', () => {
-    expect(() => decodeMemoryReviewCursor('not-a-cursor')).toThrow(
-      BadRequestException,
-    );
+    expect(() => decodeMemoryReviewCursor('not-a-cursor')).toThrow(BadRequestException);
     expect(() => parseMemoryReviewPageSize(0)).toThrow(BadRequestException);
     expect(() => parseMemoryReviewPageSize(51)).toThrow(BadRequestException);
   });
@@ -38,7 +36,7 @@ describe('memory review inbox helpers', () => {
     expect(memoryReviewCandidateKindFromSource('memory_restore')).toBe('restore');
   });
 
-  it('derives blocked reasons from client and current reviewer eligibility', () => {
+  it('derives blocked reasons from client, assignment, and admin fallback eligibility', () => {
     expect(
       memoryReviewBlockedReason({
         clientId: null,
@@ -46,6 +44,7 @@ describe('memory review inbox helpers', () => {
         assignedReviewerId: null,
         assignedReviewerActive: false,
         assignedReviewerEligible: false,
+        fallbackApproverAvailable: false,
       }),
     ).toBe('no_reviewer');
     expect(
@@ -55,6 +54,7 @@ describe('memory review inbox helpers', () => {
         assignedReviewerId: '33333333-3333-4333-8333-333333333333',
         assignedReviewerActive: true,
         assignedReviewerEligible: true,
+        fallbackApproverAvailable: true,
       }),
     ).toBe('archived_client');
     expect(
@@ -64,11 +64,22 @@ describe('memory review inbox helpers', () => {
         assignedReviewerId: '33333333-3333-4333-8333-333333333333',
         assignedReviewerActive: true,
         assignedReviewerEligible: false,
+        fallbackApproverAvailable: false,
       }),
     ).toBe('reviewer_unavailable');
+    expect(
+      memoryReviewBlockedReason({
+        clientId: null,
+        clientStatus: null,
+        assignedReviewerId: null,
+        assignedReviewerActive: false,
+        assignedReviewerEligible: false,
+        fallbackApproverAvailable: true,
+      }),
+    ).toBeNull();
   });
 
-  it('makes current assignment and proposer state determine the next action', () => {
+  it('makes current authority and proposer state determine the next action', () => {
     expect(
       memoryReviewNextAction({
         status: 'pending',
@@ -79,6 +90,18 @@ describe('memory review inbox helpers', () => {
         canReject: true,
         canRevise: false,
         canReassign: false,
+      }),
+    ).toBe('review');
+    expect(
+      memoryReviewNextAction({
+        status: 'pending',
+        viewerIsSubmitter: true,
+        viewerIsAssignedReviewer: false,
+        viewerIsAdmin: true,
+        canApprove: true,
+        canReject: true,
+        canRevise: false,
+        canReassign: true,
       }),
     ).toBe('review');
     expect(
