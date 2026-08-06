@@ -16,7 +16,9 @@
     "src/reviews/memory-review-compatibility-guard.service.spec.ts",
     "src/reviews/reviews.controller.ts",
     "src/reviews/reviews.module.ts",
-    "scripts/lib/memory-phase3-review-inbox-contract.spec.ts"
+    "scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "scripts/verify-memory-phase3-review-inbox-database.ts",
+    "scripts/verify-memory-phase3-review-inbox-closeout.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
