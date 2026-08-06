@@ -1,0 +1,62 @@
+[
+  {
+    "page": 41,
+    "text": "TITLE II — RESEARCH, DEVELOPMENT, TEST AND EVALUATION\nComponent: ARMY",
+    "printedPage": "41",
+    "blocks": [{"blockIndex": 0, "blockType": "heading", "text": "TITLE II — RESEARCH, DEVELOPMENT, TEST AND EVALUATION", "readingOrder": 0}],
+    "tables": [{
+      "tableIndex": 0,
+      "label": "RDT&E Program Elements ($ in Thousands)",
+      "rowCount": 3,
+      "columnCount": 4,
+      "cells": [
+        {"rowIndex": 0, "columnIndex": 0, "text": "Program Element"},
+        {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 0, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 1, "columnIndex": 0, "text": "PE 0605053A Ground Robotics"},
+        {"rowIndex": 1, "columnIndex": 1, "text": "100000"},
+        {"rowIndex": 1, "columnIndex": 2, "text": "25000"},
+        {"rowIndex": 1, "columnIndex": 3, "text": "125000"},
+        {"rowIndex": 2, "columnIndex": 0, "text": "Program increase — PE 0605053A autonomy testing"},
+        {"rowIndex": 2, "columnIndex": 1, "text": ""},
+        {"rowIndex": 2, "columnIndex": 2, "text": "15000"},
+        {"rowIndex": 2, "columnIndex": 3, "text": ""}
+      ],
+      "warnings": []
+    }],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  },
+  {
+    "page": 42,
+    "text": "TITLE II — RESEARCH, DEVELOPMENT, TEST AND EVALUATION\nComponent: ARMY",
+    "printedPage": "42",
+    "blocks": [{"blockIndex": 0, "blockType": "heading", "text": "TITLE II — RESEARCH, DEVELOPMENT, TEST AND EVALUATION", "readingOrder": 0}],
+    "tables": [{
+      "tableIndex": 0,
+      "label": "RDT&E Program Elements ($ in Thousands)",
+      "rowCount": 3,
+      "columnCount": 4,
+      "cells": [
+        {"rowIndex": 0, "columnIndex": 0, "text": "Program Element"},
+        {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 0, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 1, "columnIndex": 0, "text": "Program Element"},
+        {"rowIndex": 1, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 1, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 1, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 2, "columnIndex": 0, "text": "PE 0603270A Electronic Warfare"},
+        {"rowIndex": 2, "columnIndex": 1, "text": "90000"},
+        {"rowIndex": 2, "columnIndex": 2, "text": "-5000"},
+        {"rowIndex": 2, "columnIndex": 3, "text": "85000"}
+      ],
+      "warnings": []
+    }],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

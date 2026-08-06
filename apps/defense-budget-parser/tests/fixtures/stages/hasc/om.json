@@ -1,0 +1,32 @@
+[
+  {
+    "page": 101,
+    "text": "TITLE IV — OPERATION AND MAINTENANCE\nAccount: 2020A\nComponent: ARMY",
+    "printedPage": "101",
+    "blocks": [{"blockIndex": 0, "blockType": "heading", "text": "TITLE IV — OPERATION AND MAINTENANCE", "readingOrder": 0}],
+    "tables": [{
+      "tableIndex": 0,
+      "label": "O&M SAG ($ in Thousands)",
+      "rowCount": 3,
+      "columnCount": 4,
+      "cells": [
+        {"rowIndex": 0, "columnIndex": 0, "text": "Subactivity Group"},
+        {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 0, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 1, "columnIndex": 0, "text": "SAG 121 Operating Forces"},
+        {"rowIndex": 1, "columnIndex": 1, "text": "40000"},
+        {"rowIndex": 1, "columnIndex": 2, "text": "2000"},
+        {"rowIndex": 1, "columnIndex": 3, "text": "42000"},
+        {"rowIndex": 2, "columnIndex": 0, "text": "Undistributed reduction"},
+        {"rowIndex": 2, "columnIndex": 1, "text": ""},
+        {"rowIndex": 2, "columnIndex": 2, "text": "(1000)"},
+        {"rowIndex": 2, "columnIndex": 3, "text": ""}
+      ],
+      "warnings": []
+    }],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "page": 133,
+    "text": "TITLE XXI — MILITARY CONSTRUCTION\nComponent: AIR FORCE\nLocation: Eglin AFB",
+    "printedPage": "133",
+    "blocks": [{"blockIndex": 0, "blockType": "heading", "text": "TITLE XXI — MILITARY CONSTRUCTION", "readingOrder": 0}],
+    "tables": [{
+      "tableIndex": 0,
+      "label": "MILCON Projects ($ in Thousands)",
+      "rowCount": 3,
+      "columnCount": 4,
+      "cells": [
+        {"rowIndex": 0, "columnIndex": 0, "text": "Project"},
+        {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 0, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 1, "columnIndex": 0, "text": "Project PN12345 Advanced Test Facility"},
+        {"rowIndex": 1, "columnIndex": 1, "text": "20000"},
+        {"rowIndex": 1, "columnIndex": 2, "text": "5000"},
+        {"rowIndex": 1, "columnIndex": 3, "text": "25000"},
+        {"rowIndex": 2, "columnIndex": 0, "text": "General Provision 2101"},
+        {"rowIndex": 2, "columnIndex": 1, "text": ""},
+        {"rowIndex": 2, "columnIndex": 2, "text": "-500"},
+        {"rowIndex": 2, "columnIndex": 3, "text": ""}
+      ],
+      "warnings": []
+    }],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

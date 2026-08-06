@@ -1,6 +1,4 @@
-/**
- * Barrel exports for comparison rules (Workstream I).
- */
+/** Barrel exports for comparison rules. */
 export type {
   ComparisonKindV1,
   ComparisonOutcomeV1,
@@ -19,6 +17,9 @@ export { createComparisonProvider } from './comparison-provider.js';
 
 export {
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
-  COMMITTEE_REQUEST_REFERENCE_RULE,
   HISTORICAL_CONSISTENCY_RULE,
 } from './comparison.rules.js';
+export {
+  COMMITTEE_REQUEST_REFERENCE_RULE,
+  committeeRequestComparablesV1,
+} from './committee-request-baseline.rules.js';

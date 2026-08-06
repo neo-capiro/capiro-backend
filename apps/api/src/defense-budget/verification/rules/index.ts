@@ -1,7 +1,4 @@
-/**
- * Barrel exports for verification rules (Workstreams E–H).
- */
-// Shared rule infrastructure
+/** Barrel exports for verification rules (Workstreams E–H + Phase 6 D). */
 export type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 export { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from './rule-types.js';
 export {
@@ -12,12 +9,9 @@ export {
   clearRuleRegistry,
 } from './rule-registry.js';
 
-// Workstream E — Manifest binding and completeness
 export { CONTRACT_INTEGRITY_RULE } from './contract-integrity.rules.js';
 export { MANIFEST_BINDING_RULE } from './manifest-binding.rules.js';
 export { COMPLETENESS_RULE } from './completeness.rules.js';
-
-// Workstream F — Evidence and parser-lineage
 export {
   EVIDENCE_BINDING_RULE,
   MONEY_EVIDENCE_RULE,
@@ -25,14 +19,10 @@ export {
   ARCHIVE_PROOF_RULE,
   PARSER_RUN_PROOF_RULE,
 } from './evidence.rules.js';
-
-// Workstream G — Identity, ownership, numeric, duplicate
 export { IDENTITY_RULE } from './identity.rules.js';
 export { FUNDING_FIELD_OWNERSHIP_RULE } from './funding-field-ownership.rules.js';
 export { NUMERIC_RULE } from './numeric.rules.js';
 export { DUPLICATE_RULE } from './duplicate.rules.js';
-
-// Workstream H — Exact arithmetic
 export {
   RDTE_SUMMARY_DETAIL_RULE,
   PROJECT_ROLLUP_RULE,
@@ -48,14 +38,8 @@ export {
   printedUnitToleranceMillions,
   sumDecimals,
 } from './arithmetic/exact-arithmetic.js';
-
-// Phase 4 WS D — R-1 specific verification
 export { R1_SPECIFIC_RULE } from './r1-verification.rules.js';
 
-/**
- * All verification rules E–H, in execution order.
- * The engine iterates this array to produce checks and discrepancies.
- */
 import { CONTRACT_INTEGRITY_RULE } from './contract-integrity.rules.js';
 import { MANIFEST_BINDING_RULE } from './manifest-binding.rules.js';
 import { COMPLETENESS_RULE } from './completeness.rules.js';
@@ -98,15 +82,9 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
 ];
 
 import { CROSS_DOCUMENT_SUMMARY_DETAIL_RULE } from './comparison/comparison.rules.js';
-import { COMMITTEE_REQUEST_REFERENCE_RULE } from './comparison/comparison.rules.js';
 import { HISTORICAL_CONSISTENCY_RULE } from './comparison/comparison.rules.js';
+import { COMMITTEE_REQUEST_REFERENCE_RULE } from './comparison/committee-request-baseline.rules.js';
 
-/**
- * Every rule code the engine can execute — base rules plus the comparison
- * rules the service appends. Used to validate policy rule-code configuration
- * (R8.1 §3.4): a policy must never name a rule code that has no
- * implementation.
- */
 export const ALL_EXECUTABLE_RULES: readonly VerificationRuleV1[] = [
   ...ALL_VERIFICATION_RULES,
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
@@ -114,18 +92,12 @@ export const ALL_EXECUTABLE_RULES: readonly VerificationRuleV1[] = [
   HISTORICAL_CONSISTENCY_RULE,
 ];
 
-const EXECUTABLE_RULE_CODES = new Set(ALL_EXECUTABLE_RULES.map((r) => r.code));
+const EXECUTABLE_RULE_CODES = new Set(ALL_EXECUTABLE_RULES.map((rule) => rule.code));
 
-/** True when a rule code maps to an implemented, executable rule. */
 export function isExecutableRuleCode(code: string): boolean {
   return EXECUTABLE_RULE_CODES.has(code);
 }
 
-/**
- * R8.1 §3.4 — Validate every policy-configured rule code against the
- * implemented rule set. Returns the list of invalid codes (empty = valid).
- * Throws nothing; callers decide how to surface invalid configuration.
- */
 export function validatePolicyRuleCodes(policy: {
   requiredComparisonRules: readonly string[];
   reviewComparisonRules: readonly string[];
@@ -137,9 +109,7 @@ export function validatePolicyRuleCodes(policy: {
     ...policy.reviewComparisonRules,
     ...policy.arithmeticRules,
   ]) {
-    if (!EXECUTABLE_RULE_CODES.has(code) && !invalid.includes(code)) {
-      invalid.push(code);
-    }
+    if (!EXECUTABLE_RULE_CODES.has(code) && !invalid.includes(code)) invalid.push(code);
   }
   return invalid;
 }
