@@ -1,31 +1,36 @@
-export interface SqlOwnedLineageColumn {
+export interface PrismaModeledLineageColumn {
   prismaField: string;
   databaseColumn: string;
-  sqlType: string;
+  prismaType: string;
+  migrationSqlType: string;
 }
 
-export const MEMORY_PHASE2_SQL_OWNED_LINEAGE_COLUMNS = [
+export const MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS = [
   {
     prismaField: 'revisionRootId',
     databaseColumn: 'revision_root_id',
-    sqlType: 'uuid',
+    prismaType: 'String?',
+    migrationSqlType: 'uuid',
   },
   {
     prismaField: 'predecessorCandidateId',
     databaseColumn: 'predecessor_candidate_id',
-    sqlType: 'uuid',
+    prismaType: 'String?',
+    migrationSqlType: 'uuid',
   },
   {
     prismaField: 'revisionNumber',
     databaseColumn: 'revision_number',
-    sqlType: 'integer',
+    prismaType: 'Int',
+    migrationSqlType: 'integer',
   },
   {
     prismaField: 'supersededById',
     databaseColumn: 'superseded_by_id',
-    sqlType: 'uuid',
+    prismaType: 'String?',
+    migrationSqlType: 'uuid',
   },
-] as const satisfies readonly SqlOwnedLineageColumn[];
+] as const satisfies readonly PrismaModeledLineageColumn[];
 
 export interface MemoryPhase2PersistenceSources {
   prismaSchema: string;
@@ -41,36 +46,83 @@ export class MemoryPhase2PersistenceContractError extends Error {
   }
 }
 
+const FIELD_ANCHOR = `  payload           Json      @map("payload_jsonb")
+  provenance        Json      @map("provenance_jsonb")
+`;
+
+const FIELD_REPLACEMENT = `  payload           Json      @map("payload_jsonb")
+  provenance        Json      @map("provenance_jsonb")
+
+  /// Phase 2 immutable revision lineage. Prisma owns the database shape,
+  /// while lifecycle mutations are restricted to the locked
+  /// create_memory_candidate_revision SQL function.
+  revisionRootId         String? @map("revision_root_id") @db.Uuid
+  predecessorCandidateId String? @map("predecessor_candidate_id") @db.Uuid
+  revisionNumber         Int     @default(1) @map("revision_number")
+  supersededById         String? @map("superseded_by_id") @db.Uuid
+`;
+
+const RELATION_ANCHOR = `  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
+`;
+
+const RELATION_REPLACEMENT = `  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
+
+  revisionRoot MemoryCandidate?  @relation("MemoryCandidateRevisionRoot", fields: [revisionRootId], references: [id], onDelete: Restrict)
+  revisions    MemoryCandidate[] @relation("MemoryCandidateRevisionRoot")
+  predecessor  MemoryCandidate?  @relation("MemoryCandidatePredecessor", fields: [predecessorCandidateId], references: [id], onDelete: Restrict)
+  successors   MemoryCandidate[] @relation("MemoryCandidatePredecessor")
+  supersededBy MemoryCandidate?  @relation("MemoryCandidateSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes   MemoryCandidate[] @relation("MemoryCandidateSupersession")
+`;
+
 /**
- * The Phase 2 lineage columns are deliberately SQL-owned for this release.
+ * Phase 2 lineage is Prisma-modeled but SQL-enforced.
  *
- * The revision service accesses them only through locked raw SQL and the
- * create_memory_candidate_revision function. Leaving them out of Prisma's DMMF
- * prevents generated delegates from offering unsafe partial updates to immutable
- * lineage while Prisma remains free to ignore additive database columns.
+ * Prisma must own the four additive columns and their self-relations so future
+ * schema reconciliation cannot classify them as unmanaged drift. The runtime
+ * service must still create and mutate lineage only through the row-locked
+ * create_memory_candidate_revision function; generated delegates are not a
+ * valid lifecycle mutation path.
  */
 export function assertMemoryPhase2PersistenceContract(
   sources: MemoryPhase2PersistenceSources,
 ): void {
   const candidateModel = extractPrismaModel(sources.prismaSchema, 'MemoryCandidate');
 
-  for (const column of MEMORY_PHASE2_SQL_OWNED_LINEAGE_COLUMNS) {
+  for (const column of MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS) {
     assert(
-      !new RegExp(`\\b${escapeRegex(column.prismaField)}\\b`).test(candidateModel),
-      `Prisma field ${column.prismaField} must remain absent while lineage is SQL-owned.`,
+      new RegExp(
+        `\\b${escapeRegex(column.prismaField)}\\s+${escapeRegex(column.prismaType)}[\\s\\S]{0,100}@map\\("${escapeRegex(column.databaseColumn)}"\\)`,
+      ).test(candidateModel),
+      `Prisma MemoryCandidate must model ${column.prismaField} -> ${column.databaseColumn}.`,
     );
     assert(
       new RegExp(
-        `ADD COLUMN IF NOT EXISTS\\s+${escapeRegex(column.databaseColumn)}\\s+${escapeRegex(column.sqlType)}`,
+        `ADD COLUMN IF NOT EXISTS\\s+${escapeRegex(column.databaseColumn)}\\s+${escapeRegex(column.migrationSqlType)}`,
         'i',
       ).test(sources.revisionMigration),
-      `Revision migration must own ${column.databaseColumn} as ${column.sqlType}.`,
+      `Revision migration must own ${column.databaseColumn} as ${column.migrationSqlType}.`,
+    );
+  }
+
+  for (const relationName of [
+    'MemoryCandidateRevisionRoot',
+    'MemoryCandidatePredecessor',
+    'MemoryCandidateSupersession',
+  ]) {
+    assert(
+      candidateModel.includes(`@relation("${relationName}"`),
+      `Prisma MemoryCandidate is missing ${relationName}.`,
     );
   }
 
   assert(
-    sources.revisionMigration.includes('SQL-OWNED LINEAGE CONTRACT'),
-    'Revision migration must document the SQL-owned lineage boundary.',
+    sources.revisionMigration.includes('PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT'),
+    'Revision migration must document the Prisma-modeled, SQL-enforced boundary.',
   );
   assert(
     sources.revisionMigration.includes('create_memory_candidate_revision'),
@@ -112,12 +164,12 @@ export function assertMemoryPhase2PersistenceContract(
     /FROM\s+create_memory_candidate_revision\s*\(/i.test(sources.revisionService),
     'Revision service must call the atomic SQL revision function.',
   );
-  for (const column of MEMORY_PHASE2_SQL_OWNED_LINEAGE_COLUMNS) {
+  for (const column of MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS) {
     assert(
-      !new RegExp(`memoryCandidate\\.[\\s\\S]{0,120}\\b${escapeRegex(column.prismaField)}\\b`).test(
-        sources.revisionService,
-      ),
-      `Revision service must not access SQL-owned ${column.prismaField} through a Prisma delegate.`,
+      !new RegExp(
+        `memoryCandidate\\.(?:create|update|upsert|createMany|updateMany)[\\s\\S]{0,500}\\b${escapeRegex(column.prismaField)}\\b`,
+      ).test(sources.revisionService),
+      `Revision service must not mutate ${column.prismaField} through a Prisma delegate.`,
     );
   }
 
@@ -137,6 +189,39 @@ export function assertMemoryPhase2PersistenceContract(
     sources.revisionMigration.includes('memory_candidate_root_revision_unique'),
     'Revision migration must retain root/revision uniqueness.',
   );
+}
+
+/**
+ * Guarded one-time transformation used only to reconcile the checked-in Prisma
+ * model with the already additive migration. It refuses ambiguous or partially
+ * applied input rather than guessing.
+ */
+export function applyMemoryPhase2PrismaLineageModel(schema: string): string {
+  const model = extractPrismaModel(schema, 'MemoryCandidate');
+  const presentFields = MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.filter((column) =>
+    new RegExp(`\\b${escapeRegex(column.prismaField)}\\b`).test(model),
+  );
+  if (presentFields.length === MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.length) {
+    return schema;
+  }
+  if (presentFields.length > 0) {
+    throw new MemoryPhase2PersistenceContractError(
+      'MemoryCandidate contains a partially applied Phase 2 lineage model.',
+    );
+  }
+  if (count(schema, FIELD_ANCHOR) !== 1) {
+    throw new MemoryPhase2PersistenceContractError(
+      `Expected one MemoryCandidate field anchor; found ${count(schema, FIELD_ANCHOR)}.`,
+    );
+  }
+  if (count(schema, RELATION_ANCHOR) !== 1) {
+    throw new MemoryPhase2PersistenceContractError(
+      `Expected one MemoryCandidate relation anchor; found ${count(schema, RELATION_ANCHOR)}.`,
+    );
+  }
+  return schema
+    .replace(FIELD_ANCHOR, FIELD_REPLACEMENT)
+    .replace(RELATION_ANCHOR, RELATION_REPLACEMENT);
 }
 
 export function extractPrismaModel(schema: string, modelName: string): string {
@@ -160,6 +245,10 @@ export function extractPrismaModel(schema: string, modelName: string): string {
   }
 
   throw new MemoryPhase2PersistenceContractError(`Prisma model ${modelName} is unterminated.`);
+}
+
+function count(value: string, search: string): number {
+  return value.split(search).length - 1;
 }
 
 function assert(condition: boolean, message: string): asserts condition {
