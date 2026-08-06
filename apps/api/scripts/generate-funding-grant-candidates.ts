@@ -14,8 +14,19 @@ import {
   computeEligibility,
   scoreOpportunityRelevance,
   MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
+  type ClientRelevanceProfile,
 } from '../src/district-nexus/grant-opportunity-relevance.js';
 import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+import type { ClientProfileFacts } from '../src/funding-opportunities/client-opportunity-profile.types.js';
+import {
+  DEFAULT_MAX_PAGES,
+  DEFAULT_PAGE_SIZE,
+  completeCoverage,
+  incompleteCoverage,
+  walkKeyset,
+  type KeysetWalkOutcome,
+  type ProducerCompletion,
+} from '../src/funding-opportunities/producer-pagination.js';
 import {
   buildAwardHistoryIdentity,
   contractorIdsToResolve,
@@ -32,14 +43,38 @@ dotenvConfig();
 const SOURCE = 'generate-funding-grant-candidates';
 const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
 export const DEFAULT_MIN_RELEVANCE = MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR;
-export const OPPORTUNITY_SCAN_CAP = 4000;
-export const CLIENT_CAP = 500;
+/**
+ * Page size for BOTH keyset walks. Not a coverage boundary — see
+ * producer-pagination.ts. Replaces OPPORTUNITY_SCAN_CAP (4000) and CLIENT_CAP
+ * (500), which were coverage boundaries and silently truncated the corpus.
+ */
+export const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+/** Runaway guard per walk. Reaching it is INCOMPLETE, never a clean success. */
+export const MAX_PAGES = DEFAULT_MAX_PAGES;
+
+/** Fields the grant scorer and the workflow snapshot need. */
+const GRANT_SELECT = {
+  id: true,
+  title: true,
+  agency: true,
+  category: true,
+  eligibility: true,
+  cfdaNumbers: true,
+  description: true,
+  status: true,
+  closeDate: true,
+  lastUpdatedAt: true,
+  detailSyncedAt: true,
+  syncedAt: true,
+} as const;
 
 interface Args {
   commit: boolean;
   tenantId: string | null;
   clientId: string | null;
   minRelevance: number;
+  /** Resume point from a prior INCOMPLETE run's reported cursor. */
+  resumeClient: string | null;
 }
 
 function flag(argv: string[], name: string): boolean {
@@ -62,6 +97,7 @@ export function parseArgs(argv: string[]): Args {
     tenantId: value(argv, 'tenant'),
     clientId: value(argv, 'client'),
     minRelevance: parsed,
+    resumeClient: value(argv, 'resume-client'),
   };
 }
 
@@ -91,18 +127,43 @@ export async function resolveTenantIds(
   return dedupe(rows.map((row) => row.tenant_id));
 }
 
+type GrantRow = {
+  id: string;
+  title: string;
+  agency: string | null;
+  category: string | null;
+  eligibility: string[];
+  cfdaNumbers: string[];
+  description: string | null;
+  status: string | null;
+  closeDate: Date | null;
+  lastUpdatedAt: Date | null;
+  detailSyncedAt: Date | null;
+  syncedAt: Date | null;
+};
+
 export interface GenerateResult extends RunCounts {
   evaluated: number;
   created: number;
   refreshed: number;
   markedStale: number;
   humanDecisionsPreserved: number;
-  capped: boolean;
+  /** Shared completion vocabulary — identical words in the SAM producer. */
+  completion: ProducerCompletion;
+  clientsRead: number;
+  opportunitiesRead: number;
+  resumeClientCursor: string | null;
 }
 
 export async function generateFundingGrantCandidates(
   prisma: PrismaClient,
-  options: { tenantIds: string[]; clientId: string | null; minRelevance: number; commit: boolean },
+  options: {
+    tenantIds: string[];
+    clientId: string | null;
+    minRelevance: number;
+    commit: boolean;
+    resumeClientCursor?: string | null;
+  },
 ): Promise<GenerateResult> {
   const counts = emptyCounts();
   let evaluated = 0;
@@ -110,200 +171,265 @@ export async function generateFundingGrantCandidates(
   let refreshed = 0;
   let markedStale = 0;
   let humanDecisionsPreserved = 0;
-  let capped = false;
+  let clientsRead = 0;
+  let opportunityCorpus = 0;
+  let opportunityWalkIncomplete = false;
+  let clientWalkOutcome: KeysetWalkOutcome | null = null;
   const now = new Date();
 
-  const grants = await prisma.federalGrant.findMany({
-    where: {
-      status: { in: ['posted', 'forecasted'] },
-      OR: [{ closeDate: null }, { closeDate: { gte: now } }],
-    },
-    select: {
-      id: true,
-      title: true,
-      agency: true,
-      category: true,
-      eligibility: true,
-      cfdaNumbers: true,
-      description: true,
-      status: true,
-      closeDate: true,
-      lastUpdatedAt: true,
-      detailSyncedAt: true,
-      syncedAt: true,
-    },
-    orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
-    take: OPPORTUNITY_SCAN_CAP,
-  });
-  if (grants.length >= OPPORTUNITY_SCAN_CAP) capped = true;
+  // Active, in-deadline grants. The predicate is unchanged; what changed is that
+  // the walk visits ALL of them instead of the first 4,000 by close date.
+  const activeGrantWhere: Prisma.FederalGrantWhereInput = {
+    status: { in: ['posted', 'forecasted'] },
+    OR: [{ closeDate: null }, { closeDate: { gte: now } }],
+  };
 
   for (const tenantId of options.tenantIds) {
-    const scoped = await withBypass(prisma, async (tx) => {
-      // One shared repository read, so this producer, the SAM producer and the
-      // HTTP read path all select the same client columns and apply the same
-      // reviewed-mapping filter. Before P01 this selected 6 fields and its own
-      // mapping query narrowed to `assistance_recipient`, which is a large part
-      // of why the three profiles could differ.
-      const clients = await readClientProfileFactsMany(asProfileReadClient(tx), {
-        tenantId,
-        clientId: options.clientId,
-        take: CLIENT_CAP,
-      });
-      const clientIds = clients.map((client) => client.clientId);
-      const existing = clientIds.length
-        ? await tx.clientFundingOpportunity.findMany({
-            where: { tenantId, clientId: { in: clientIds }, source: 'grants_gov' },
-            select: {
-              id: true,
-              clientId: true,
-              grantOpportunityId: true,
-              workflowStatus: true,
-              userCreated: true,
-              evidenceSourceType: true,
-              staleAt: true,
-            },
-          })
-        : [];
-      return { clients, existing };
-    });
-    if (scoped.clients.length >= CLIENT_CAP) capped = true;
+    // Outer walk: tenant clients, keyset on client id.
+    clientWalkOutcome = await walkKeyset<ClientProfileFacts>({
+      pageSize: PAGE_SIZE,
+      maxPages: MAX_PAGES,
+      startCursor: options.resumeClientCursor ?? null,
+      key: (client) => client.clientId,
+      // Once the opportunity walk has gone incomplete no later client can be
+      // fully evaluated either, so stop rather than issue hundreds more queries
+      // for coverage already known to be partial.
+      shouldStop: () => opportunityWalkIncomplete,
+      read: (cursor, take) =>
+        withBypass(prisma, (tx) =>
+          readClientProfileFactsMany(asProfileReadClient(tx), {
+            tenantId,
+            clientId: options.clientId,
+            cursor,
+            take,
+          }),
+        ),
+      onPage: async (clientPage) => {
+        clientsRead += clientPage.length;
+        const clientIds = clientPage.map((client) => client.clientId);
 
-    const existingByKey = new Map(
-      scoped.existing
-        .filter((row) => row.grantOpportunityId != null)
-        .map((row) => [`${row.clientId}:${row.grantOpportunityId}`, row]),
-    );
+        // Per PAGE, not per client: one contractor-UEI resolution for the page.
+        const contractorUeis = await resolveContractorUeis(
+          prisma,
+          contractorIdsToResolve(clientPage),
+        );
 
-    // Resolve federal_contractor.uei for the WHOLE page in one query, not per
-    // client. This is the join P02 adds: a contracting mapping's externalId is a
-    // federal_contractor UUID, so without it the contract rail has no verified
-    // identifier and falls back to matching on names.
-    const contractorUeis = await resolveContractorUeis(
-      prisma,
-      contractorIdsToResolve(scoped.clients),
-    );
+        // Award history is one read per client per rail, built ONCE per client and
+        // reused across every grant page below. Not wrapped in a try/catch,
+        // deliberately: a nightly job that scored every client against
+        // silently-empty award history would mark real suggestions stale. The read
+        // path degrades; this must crash.
+        const profileByClient = new Map<string, ClientRelevanceProfile>();
+        for (const client of clientPage) {
+          const history = await readAwardHistoryByBasis(
+            prisma,
+            buildAwardHistoryIdentity(client, contractorUeis),
+          );
+          profileByClient.set(
+            client.clientId,
+            buildClientOpportunityProfile(client, history).grant,
+          );
+        }
 
-    for (const client of scoped.clients) {
-      // One award-history read per client, never one per grant. This does BOTH
-      // rails now — the grant profile only reads the assistance half, but the
-      // profile is built whole so a parity test can compare it against the SAM
-      // producer and the read path byte for byte. That is one extra bounded query
-      // per client, which is the price of the three sites being checkable.
-      //
-      // Not wrapped in a try/catch, deliberately: a nightly job that scored every
-      // client against silently-empty award history would mark real suggestions
-      // stale. The read path degrades; this must crash.
-      const history = await readAwardHistoryByBasis(
-        prisma,
-        buildAwardHistoryIdentity(client, contractorUeis),
-      );
-      const profile = buildClientOpportunityProfile(client, history).grant;
-
-      for (const grant of grants) {
-        evaluated += 1;
-        try {
-          const opportunityProfile = {
-            assistanceListingNumber: grant.cfdaNumbers[0] ?? null,
-            agency: grant.agency,
-            fundingCategory: grant.category,
-            title: grant.title,
-            description: grant.description,
-            eligibleApplicantTypes: grant.eligibility,
-            geographicRestrictions: [] as string[],
-          };
-          const scored = scoreOpportunityRelevance(profile, opportunityProfile);
-          const eligibility = computeEligibility(profile, opportunityProfile);
-          const meetsSuggestionFloor =
-            scored.matchedSignals.some((signal) => signal.strength === 'strong') ||
-            scored.matchedSignals.filter((signal) => signal.strength === 'moderate').length >= 2;
-          const existing = existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
-          const decision = decideProducerAction({
-            existing,
-            relevanceScore: scored.relevanceScore,
-            meetsSuggestionFloor,
-            minRelevance: options.minRelevance,
-          });
-          const sourceUpdatedAt = grant.lastUpdatedAt ?? grant.detailSyncedAt ?? grant.syncedAt;
-
-          if (decision.action === 'skip_human_decision') {
-            humanDecisionsPreserved += 1;
-            counts.skipped += 1;
-            continue;
-          }
-          if (decision.action === 'skip_below_floor' || decision.action === 'noop') {
-            counts.skipped += 1;
-            continue;
-          }
-          if (decision.action === 'create') {
-            created += 1;
-            counts.inserted += 1;
-            if (options.commit) {
-              await withBypass(prisma, (tx) =>
-                tx.clientFundingOpportunity.create({
-                  data: {
-                    tenantId,
-                    clientId: client.clientId,
-                    source: 'grants_gov',
-                    grantOpportunityId: grant.id,
-                    samOpportunityId: null,
-                    workflowStatus: 'suggested',
-                    evidenceSourceType: EVIDENCE_SOURCE_TYPE,
-                    userCreated: false,
-                    relevanceScore: scored.relevanceScore,
-                    matchSignals: scored.matchedSignals as unknown as Prisma.InputJsonValue,
-                    eligibilityState: eligibility.state,
-                    eligibilityReason: eligibility.reason,
-                    sourceStatusSnapshot: grant.status,
-                    responseDeadlineSnapshot: grant.closeDate,
-                    sourceUpdatedAtSnapshot: sourceUpdatedAt,
-                  },
-                }),
-              );
-            }
-            continue;
-          }
-          if (decision.action === 'refresh') {
-            refreshed += 1;
-            counts.updated += 1;
-            if (options.commit) {
-              await withBypass(prisma, (tx) =>
-                tx.clientFundingOpportunity.update({
-                  where: { id: decision.id },
-                  data: {
-                    relevanceScore: scored.relevanceScore,
-                    matchSignals: scored.matchedSignals as unknown as Prisma.InputJsonValue,
-                    eligibilityState: eligibility.state,
-                    eligibilityReason: eligibility.reason,
-                    sourceStatusSnapshot: grant.status,
-                    responseDeadlineSnapshot: grant.closeDate,
-                    sourceUpdatedAtSnapshot: sourceUpdatedAt,
-                    staleAt: null,
-                  },
-                }),
-              );
-            }
-            continue;
-          }
-          markedStale += 1;
-          counts.updated += 1;
-          if (options.commit) {
-            await withBypass(prisma, (tx) =>
-              tx.clientFundingOpportunity.update({
-                where: { id: decision.id },
-                data: { staleAt: new Date() },
+        // Inner walk: global grants, keyset on grant id.
+        const grantWalk = await walkKeyset<GrantRow>({
+          pageSize: PAGE_SIZE,
+          maxPages: MAX_PAGES,
+          key: (grant) => grant.id,
+          read: (cursor, take) =>
+            prisma.federalGrant.findMany({
+              where: { ...activeGrantWhere, ...(cursor ? { id: { gt: cursor } } : {}) },
+              select: GRANT_SELECT,
+              // Keyset order, NOT close-date order. closeDate is nullable, not
+              // unique and mutable, so paging on it can show a row twice or never.
+              orderBy: { id: 'asc' },
+              take,
+            }),
+          onPage: async (grantPage) => {
+            // Existing rows for this (client page x grant page) only. Scoping to
+            // the grant page keeps memory bounded regardless of how many
+            // suggestions a client already has, and it is ONE query for the whole
+            // block rather than one per pair.
+            const existingRows = await withBypass(prisma, (tx) =>
+              tx.clientFundingOpportunity.findMany({
+                where: {
+                  tenantId,
+                  clientId: { in: clientIds },
+                  source: 'grants_gov',
+                  grantOpportunityId: { in: grantPage.map((grant) => grant.id) },
+                },
+                select: {
+                  id: true,
+                  clientId: true,
+                  grantOpportunityId: true,
+                  workflowStatus: true,
+                  userCreated: true,
+                  evidenceSourceType: true,
+                  staleAt: true,
+                },
               }),
             );
-          }
-        } catch (error) {
-          counts.errors += 1;
-          console.warn(`[${SOURCE}] failed ${client.clientId} × ${grant.id}: ${(error as Error).message}`);
-        }
-      }
-    }
+            const existingByKey = new Map(
+              existingRows
+                .filter((row) => row.grantOpportunityId != null)
+                .map((row) => [`${row.clientId}:${row.grantOpportunityId}`, row]),
+            );
+
+            for (const client of clientPage) {
+              const profile = profileByClient.get(client.clientId)!;
+              for (const grant of grantPage) {
+                evaluated += 1;
+                try {
+                  const opportunityProfile = {
+                    assistanceListingNumber: grant.cfdaNumbers[0] ?? null,
+                    agency: grant.agency,
+                    fundingCategory: grant.category,
+                    title: grant.title,
+                    description: grant.description,
+                    eligibleApplicantTypes: grant.eligibility,
+                    geographicRestrictions: [] as string[],
+                  };
+                  const scored = scoreOpportunityRelevance(profile, opportunityProfile);
+                  const eligibility = computeEligibility(profile, opportunityProfile);
+                  const meetsSuggestionFloor =
+                    scored.matchedSignals.some((signal) => signal.strength === 'strong') ||
+                    scored.matchedSignals.filter((signal) => signal.strength === 'moderate')
+                      .length >= 2;
+                  const existing =
+                    existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
+                  const decision = decideProducerAction({
+                    existing,
+                    relevanceScore: scored.relevanceScore,
+                    meetsSuggestionFloor,
+                    minRelevance: options.minRelevance,
+                  });
+                  const sourceUpdatedAt =
+                    grant.lastUpdatedAt ?? grant.detailSyncedAt ?? grant.syncedAt;
+
+                  if (decision.action === 'skip_human_decision') {
+                    humanDecisionsPreserved += 1;
+                    counts.skipped += 1;
+                    continue;
+                  }
+                  if (decision.action === 'skip_below_floor' || decision.action === 'noop') {
+                    counts.skipped += 1;
+                    continue;
+                  }
+                  if (decision.action === 'create') {
+                    created += 1;
+                    counts.inserted += 1;
+                    if (options.commit) {
+                      await withBypass(prisma, (tx) =>
+                        tx.clientFundingOpportunity.create({
+                          data: {
+                            tenantId,
+                            clientId: client.clientId,
+                            source: 'grants_gov',
+                            grantOpportunityId: grant.id,
+                            samOpportunityId: null,
+                            workflowStatus: 'suggested',
+                            evidenceSourceType: EVIDENCE_SOURCE_TYPE,
+                            userCreated: false,
+                            relevanceScore: scored.relevanceScore,
+                            matchSignals:
+                              scored.matchedSignals as unknown as Prisma.InputJsonValue,
+                            eligibilityState: eligibility.state,
+                            eligibilityReason: eligibility.reason,
+                            sourceStatusSnapshot: grant.status,
+                            responseDeadlineSnapshot: grant.closeDate,
+                            sourceUpdatedAtSnapshot: sourceUpdatedAt,
+                          },
+                        }),
+                      );
+                    }
+                    continue;
+                  }
+                  if (decision.action === 'refresh') {
+                    refreshed += 1;
+                    counts.updated += 1;
+                    if (options.commit) {
+                      await withBypass(prisma, (tx) =>
+                        tx.clientFundingOpportunity.update({
+                          where: { id: decision.id },
+                          data: {
+                            relevanceScore: scored.relevanceScore,
+                            matchSignals:
+                              scored.matchedSignals as unknown as Prisma.InputJsonValue,
+                            eligibilityState: eligibility.state,
+                            eligibilityReason: eligibility.reason,
+                            sourceStatusSnapshot: grant.status,
+                            responseDeadlineSnapshot: grant.closeDate,
+                            sourceUpdatedAtSnapshot: sourceUpdatedAt,
+                            staleAt: null,
+                          },
+                        }),
+                      );
+                    }
+                    continue;
+                  }
+                  markedStale += 1;
+                  counts.updated += 1;
+                  if (options.commit) {
+                    await withBypass(prisma, (tx) =>
+                      tx.clientFundingOpportunity.update({
+                        where: { id: decision.id },
+                        data: { staleAt: new Date() },
+                      }),
+                    );
+                  }
+                } catch (error) {
+                  counts.errors += 1;
+                  console.warn(
+                    `[${SOURCE}] failed ${client.clientId} x ${grant.id}: ${
+                      (error as Error).message
+                    }`,
+                  );
+                }
+              }
+            }
+          },
+        });
+
+        if (grantWalk.completion === 'INCOMPLETE') opportunityWalkIncomplete = true;
+        // Every grant walk covers the same corpus, so the largest is the corpus
+        // size rather than a sum across client pages.
+        opportunityCorpus = Math.max(opportunityCorpus, grantWalk.rowsRead);
+      },
+    });
   }
 
-  if (capped) counts.errors += 1;
-  return { ...counts, evaluated, created, refreshed, markedStale, humanDecisionsPreserved, capped };
+  const coverage =
+    opportunityWalkIncomplete || clientWalkOutcome?.completion === 'INCOMPLETE'
+      ? incompleteCoverage({
+          clientsRead,
+          opportunitiesRead: opportunityCorpus,
+          resumeClientCursor: clientWalkOutcome?.resumeCursor ?? null,
+          guard: opportunityWalkIncomplete ? 'opportunity_pages' : 'client_pages',
+          resumeFlag: '--resume-client',
+        })
+      : completeCoverage(clientsRead, opportunityCorpus);
+
+  // An INCOMPLETE run must not read as a clean success. `complete: false` makes
+  // statusFromCounts return 'partial', and lastSuccessfulWatermark only reads
+  // status='success' — so the unseen tail stays retryable and the incremental
+  // watermark does not advance past data nobody looked at.
+  if (coverage.completion === 'INCOMPLETE') {
+    counts.complete = false;
+    counts.incompleteReason = coverage.incompleteReason ?? undefined;
+  }
+
+  return {
+    ...counts,
+    evaluated,
+    created,
+    refreshed,
+    markedStale,
+    humanDecisionsPreserved,
+    completion: coverage.completion,
+    clientsRead: coverage.clientsRead,
+    opportunitiesRead: coverage.opportunitiesRead,
+    resumeClientCursor: coverage.resumeClientCursor,
+  };
 }
 
 async function main(): Promise<void> {
@@ -325,14 +451,18 @@ async function main(): Promise<void> {
         clientId: args.clientId,
         minRelevance: args.minRelevance,
         commit: args.commit,
+        resumeClientCursor: args.resumeClient,
       });
       console.log(
         `[${SOURCE}] ${args.commit ? 'COMMITTED' : 'DRY RUN'} tenants=${tenantIds.length} ` +
           `evaluated=${result.evaluated} created=${result.created} refreshed=${result.refreshed} ` +
-          `stale=${result.markedStale} preserved=${result.humanDecisionsPreserved} errors=${result.errors}`,
+          `stale=${result.markedStale} preserved=${result.humanDecisionsPreserved} errors=${result.errors} ` +
+          `coverage=${result.completion} clients=${result.clientsRead} grants=${result.opportunitiesRead}`,
       );
-      if (result.capped) {
-        console.warn(`[${SOURCE}] ⚠️ CAPPED: coverage is partial; narrow by --tenant/--client or raise the audited caps.`);
+      if (result.completion === 'INCOMPLETE') {
+        // Deliberately does NOT say "raise the cap" — there is no cap. It names
+        // the guard that tripped and the exact flag needed to finish the walk.
+        console.warn(`[${SOURCE}] ⚠️ INCOMPLETE: ${result.incompleteReason ?? 'coverage is partial'}`);
       }
       return result;
     };

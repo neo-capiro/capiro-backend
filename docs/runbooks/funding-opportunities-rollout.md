@@ -363,6 +363,41 @@ window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run close
 ... "command":["generate-funding-grant-candidates","--commit"]
 ```
 
+### Coverage is now algorithmic (P03)
+
+`OPPORTUNITY_SCAN_CAP` (4,000) and `CLIENT_CAP` (500) are gone. Both dimensions
+are walked with deterministic keyset pages (`id > cursor ORDER BY id`), so the run
+covers the whole corpus rather than the first N rows by close date.
+
+Read the last line of the run output:
+
+```text
+coverage=COMPLETE   clients=<n> grants=<n>     -> the whole corpus was evaluated
+coverage=INCOMPLETE                            -> a runaway guard tripped
+```
+
+`INCOMPLETE` is **not** the old `CAPPED`. It sets `complete: false` on the
+SyncRun, which `statusFromCounts` records as `partial`, and
+`lastSuccessfulWatermark` only reads `status='success'` — so a partial run does
+not advance the incremental watermark and the unseen tail stays retryable.
+
+There is no cap to raise. Finish the walk from where it stopped:
+
+```bash
+# The INCOMPLETE warning prints the exact cursor.
+... "command":["generate-funding-grant-candidates","--resume-client","<cursor>"]
+```
+
+The cursor is carried by the operator (it is printed and persisted in the
+SyncRun's `incompleteReason`), not stored in a dedicated column — P03 ships no
+migration. Re-running from a cursor is safe: the walk resumes at `id > cursor`,
+and every write is find-then-branch, so nothing is duplicated.
+
+**Expect this run to be slower than the pre-P03 one and to create more
+suggestions**, for two independent reasons: it now evaluates every grant instead
+of 4,000, and P01/P02 corrected award-history identity. Compare a dry run against
+the previous run's counts before committing.
+
 ## 15. SAM producer
 
 ```bash
