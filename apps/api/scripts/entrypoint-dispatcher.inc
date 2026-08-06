@@ -715,3 +715,4 @@ case "${1:-serve}" in
     exit 1
     ;;
 esac
+# lf-normalized-for-fargate-2026-08-06
