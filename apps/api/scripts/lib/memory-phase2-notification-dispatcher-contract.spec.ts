@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
 
-const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const apiRoot = resolve(scriptDirectory, '../..');
+function resolveApiRoot(): string {
+  const cwd = process.cwd();
+  if (existsSync(resolve(cwd, 'prisma/schema.prisma'))) return cwd;
+  const monorepoApi = resolve(cwd, 'apps/api');
+  if (existsSync(resolve(monorepoApi, 'prisma/schema.prisma'))) return monorepoApi;
+  throw new Error(`Could not resolve apps/api from ${cwd}.`);
+}
+
+const apiRoot = resolveApiRoot();
 const read = (path: string) => readFileSync(resolve(apiRoot, path), 'utf8');
 const migration = read(
   'prisma/migrations/20260818040200_memory_phase2_notification_dispatcher/migration.sql',
