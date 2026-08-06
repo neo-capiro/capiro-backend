@@ -15,6 +15,7 @@ from ..common.congressional_table import (
     CongressionalCellV1,
     CongressionalRowV1,
     CongressionalTableV1,
+    RowSemanticKindV1,
     StageExtractionResultV1,
 )
 from .semantics import (
@@ -45,7 +46,7 @@ from .semantics import (
 class _PendingContinuation:
     raw_label: str
     reference: BudgetLineReferenceV1
-    semantic_kind: str
+    semantic_kind: RowSemanticKindV1
     source_page: int
 
 
@@ -147,7 +148,7 @@ def _normalize_table(
     location = _match_group(_LOCATION_RE, context)
     canonical_header = [_normalize_text(value) for value in header]
     rows: list[CongressionalRowV1] = []
-    last_identity: tuple[str, BudgetLineReferenceV1, str] | None = None
+    last_identity: tuple[str, BudgetLineReferenceV1, RowSemanticKindV1] | None = None
     consumed = False
 
     for source_row_index, raw_row in enumerate(

@@ -165,9 +165,7 @@ def _row_semantic(label: str) -> RowSemanticKindV1:
         token in normalized for token in ('change', 'increase', 'decrease')
     ):
         return 'quantity_change'
-    if any(
-        token in normalized for token in ('increase', 'decrease', 'reduction', 'adjustment')
-    ):
+    if any(token in normalized for token in ('increase', 'decrease', 'reduction', 'adjustment')):
         return 'adjustment'
     return 'absolute_position'
 
@@ -207,8 +205,7 @@ def _row_reference(
     context: str,
 ) -> BudgetLineReferenceV1:
     if semantic_kind in {'general_provision', 'undistributed'} and not any(
-        pattern.search(raw_label)
-        for pattern in (_PE_RE, _PROCUREMENT_RE, _OM_RE, _MILCON_RE)
+        pattern.search(raw_label) for pattern in (_PE_RE, _PROCUREMENT_RE, _OM_RE, _MILCON_RE)
     ):
         return PackageScopeReferenceV1(scope=_package_scope(context), rowTitle=raw_label)
 

@@ -45,8 +45,7 @@ def test_cross_page_continuation_uses_prior_identity_and_current_amount_page() -
     assert row.cells[3].value == '125000'
     assert row.finding == 'continued from physical page 40'
     assert any(
-        'continued row from physical page 40 to 41' in warning
-        for warning in result.warnings
+        'continued row from physical page 40 to 41' in warning for warning in result.warnings
     )
 
 
@@ -110,6 +109,7 @@ def test_replay_is_deterministic() -> None:
 def test_extractor_has_no_paid_or_external_runtime_imports() -> None:
     source = (
         Path(__file__).parents[1]
+        / 'src'
         / 'capiro_defense_budget_parser'
         / 'extractors'
         / 'stages'
