@@ -217,33 +217,41 @@ describe('MemorySettingsReviewReadinessService', () => {
     expect(h.evaluateInTx).not.toHaveBeenCalled();
   });
 
-  it('blocks a shared submission when nobody else can approve it', async () => {
+  it('blocks a shared submission when no active authorized approver exists', async () => {
     enableReview();
     const h = harness({ authorization: () => false });
     await expect(h.service.assertSubmissionReady(ctx, firmInput())).rejects.toThrow(
-      'No eligible reviewer is available',
+      'No eligible administrator is available',
     );
   });
 
-  it('returns the eligible independent reviewers used by the real approval policy', async () => {
+  it('accepts the admin proposer as the only eligible approver', async () => {
+    enableReview();
+    const h = harness({
+      memberRows: [members[0]!],
+      authorization: (userId, _candidate, operation) =>
+        userId === PROPOSER && operation === 'approve',
+    });
+    await expect(h.service.assertSubmissionReady(ctx, firmInput())).resolves.toEqual({
+      eligibleReviewers: [expect.objectContaining({ userId: PROPOSER, name: 'Pat Proposer' })],
+    });
+  });
+
+  it('returns every currently authorized approver', async () => {
     enableReview();
     const h = harness({
       authorization: (userId, _candidate, operation) =>
-        userId === REVIEWER && operation === 'approve',
+        operation === 'approve' && (userId === PROPOSER || userId === REVIEWER),
     });
     await expect(h.service.assertSubmissionReady(ctx, firmInput())).resolves.toEqual({
-      eligibleReviewers: [expect.objectContaining({ userId: REVIEWER, name: 'Riley Reviewer' })],
+      eligibleReviewers: [
+        expect.objectContaining({ userId: PROPOSER, name: 'Pat Proposer' }),
+        expect.objectContaining({ userId: REVIEWER, name: 'Riley Reviewer' }),
+      ],
     });
-    expect(h.evaluateInTx).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: REVIEWER }),
-      expect.anything(),
-      'approve',
-      { emitDenialMetrics: false },
-    );
   });
 
-  it('returns the proposed sections, proposer, reviewers, and next step on reload', async () => {
+  it('gives the admin proposer review controls on reload', async () => {
     enableReview();
     const candidateId = '55555555-5555-4555-8555-555555555555';
     const h = harness({
@@ -265,7 +273,7 @@ describe('MemorySettingsReviewReadinessService', () => {
       },
       subjects: { [candidateId]: subject(candidateId, PROPOSER) },
       authorization: (userId, _candidate, operation) =>
-        userId === REVIEWER && operation === 'approve',
+        userId === PROPOSER && (operation === 'approve' || operation === 'review'),
     });
 
     await expect(
@@ -280,11 +288,13 @@ describe('MemorySettingsReviewReadinessService', () => {
         sections: [expect.objectContaining({ body: 'Proposed truth.' })],
       },
       submittedBy: { name: 'Pat Proposer' },
-      eligibleReviewers: [expect.objectContaining({ name: 'Riley Reviewer' })],
+      eligibleReviewers: [expect.objectContaining({ name: 'Pat Proposer' })],
       blocked: false,
       canWithdraw: true,
-      viewerCanReview: false,
-      nextAction: expect.stringContaining('You cannot approve your own'),
+      viewerCanReview: true,
+      viewerCanApprove: true,
+      viewerCanReject: true,
+      nextAction: expect.stringContaining('approve or reject'),
     });
   });
 
@@ -295,13 +305,7 @@ describe('MemorySettingsReviewReadinessService', () => {
     const h = harness({
       memberRows: [
         ...members,
-        {
-          userId: rejectOnly,
-          role: 'standard_user',
-          email: 'rejector@example.com',
-          firstName: 'Reese',
-          lastName: 'Reviewer',
-        },
+        { userId: rejectOnly, role: 'standard_user', email: 'rejector@example.com', firstName: 'Reese', lastName: 'Reviewer' },
       ],
       candidate: {
         id: candidateId,
@@ -310,12 +314,7 @@ describe('MemorySettingsReviewReadinessService', () => {
         scope: 'firm',
         clientId: null,
         createdAt: new Date('2026-08-05T12:00:00.000Z'),
-        payload: {
-          canonicalItem: {
-            title: 'Firm Soul',
-            sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Review me.' }],
-          },
-        },
+        payload: { canonicalItem: { title: 'Firm Soul', sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Review me.' }] } },
       },
       subjects: { [candidateId]: subject(candidateId, PROPOSER) },
       authorization: (userId, _candidate, operation) =>
@@ -345,13 +344,7 @@ describe('MemorySettingsReviewReadinessService', () => {
     const h = harness({
       memberRows: [
         ...members,
-        {
-          userId: unrelated,
-          role: 'standard_user',
-          email: 'viewer@example.com',
-          firstName: 'Una',
-          lastName: 'Related',
-        },
+        { userId: unrelated, role: 'standard_user', email: 'viewer@example.com', firstName: 'Una', lastName: 'Related' },
       ],
       candidate: {
         id: candidateId,
@@ -360,12 +353,7 @@ describe('MemorySettingsReviewReadinessService', () => {
         scope: 'firm',
         clientId: null,
         createdAt: new Date('2026-08-05T12:00:00.000Z'),
-        payload: {
-          canonicalItem: {
-            title: 'Firm Soul',
-            sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Unapproved.' }],
-          },
-        },
+        payload: { canonicalItem: { title: 'Firm Soul', sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Unapproved.' }] } },
       },
       subjects: { [candidateId]: subject(candidateId, PROPOSER) },
       authorization: (userId, _candidate, operation) =>
@@ -404,7 +392,7 @@ describe('MemorySettingsReviewReadinessService', () => {
         [blockedId]: subject(blockedId, blockedProposer, 'client'),
       },
       authorization: (userId, candidate, operation) => {
-        if (candidate.id === ownId) return userId === REVIEWER && operation === 'approve';
+        if (candidate.id === ownId) return userId === PROPOSER && operation === 'approve';
         if (candidate.id === otherId) return userId === PROPOSER && operation === 'approve';
         if (candidate.id === blockedId) return userId === PROPOSER && operation === 'read';
         return false;
@@ -414,28 +402,28 @@ describe('MemorySettingsReviewReadinessService', () => {
     await expect(h.service.summary(ctx)).resolves.toEqual({
       enabled: true,
       counts: {
-        awaitingMyReview: 1,
+        awaitingMyReview: 2,
         submittedByMe: 1,
         allPending: 3,
         blocked: 1,
       },
-      message: '1 pending submission has no eligible independent reviewer.',
+      message: '1 pending submission has no eligible approver.',
     });
   });
 });
 
 describe('nextActionForPendingReview', () => {
-  it('explains the proposer independence rule in plain English', () => {
+  it('tells an authorized admin proposer they can decide their own proposal', () => {
     expect(
       nextActionForPendingReview({
         blocked: false,
         viewerIsProposer: true,
-        viewerCanApprove: false,
-        viewerCanReject: false,
+        viewerCanApprove: true,
+        viewerCanReject: true,
         reviewers: [
-          { userId: REVIEWER, name: 'Riley Reviewer', email: 'r@example.com', role: 'user_admin' },
+          { userId: PROPOSER, name: 'Pat Proposer', email: 'p@example.com', role: 'user_admin' },
         ],
       }),
-    ).toContain('You cannot approve your own');
+    ).toContain('approve or reject');
   });
 });

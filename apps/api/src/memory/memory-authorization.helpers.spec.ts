@@ -21,11 +21,6 @@ const facts = (over: Partial<MemoryAuthorizationFacts> = {}): MemoryAuthorizatio
   ...over,
 });
 
-/**
- * This switch guards a live route, and the service behind it reads columns that
- * only exist after 20260729010000. Defaulting to armed would 500 every memory edit
- * on any environment that rolled the code before the migration.
- */
 describe('governedMemoryEnforcementEnabled', () => {
   it('is off when unset', () => {
     expect(governedMemoryEnforcementEnabled(undefined)).toBe(false);
@@ -182,56 +177,56 @@ describe('evaluateGovernedMemoryAuthorization', () => {
     ).toEqual({ allowed: false, reason: 'revoked_or_terminal' });
   });
 
-  it('denies shared-scope self-review, including for an admin proposer', () => {
+  it('allows an admin proposer to approve their own shared candidate', () => {
+    for (const subject of [
+      {
+        memoryClass: 'client_steering' as const,
+        scope: 'client' as const,
+        clientId: 'client-a',
+        status: 'pending_review' as const,
+        proposedByUserId: 'user-1',
+      },
+      {
+        memoryClass: 'institutional_authoritative' as const,
+        scope: 'firm' as const,
+        status: 'pending_review' as const,
+        proposedByUserId: 'user-1',
+      },
+    ]) {
+      expect(
+        evaluateGovernedMemoryAuthorization(
+          facts({ role: 'user_admin', operation: 'approve', subject }),
+        ),
+      ).toEqual({ allowed: true, basis: 'admin' });
+      expect(
+        evaluateGovernedMemoryAuthorization(
+          facts({ role: 'capiro_admin', operation: 'review', subject }),
+        ),
+      ).toEqual({ allowed: true, basis: 'admin' });
+    }
+  });
+
+  it('still denies standard-user self-review on shared memory', () => {
+    const subject = {
+      memoryClass: 'client_steering' as const,
+      scope: 'client' as const,
+      clientId: 'client-a',
+      status: 'pending_review' as const,
+      proposedByUserId: 'user-1',
+    };
     expect(
       evaluateGovernedMemoryAuthorization(
-        facts({
-          role: 'user_admin',
-          operation: 'approve',
-          subject: {
-            memoryClass: 'client_steering',
-            scope: 'client',
-            clientId: 'client-a',
-            status: 'pending_review',
-            proposedByUserId: 'user-1',
-          },
-        }),
+        facts({ operation: 'approve', grantPermissions: ['approve'], subject }),
       ),
     ).toEqual({ allowed: false, reason: 'self_review' });
     expect(
       evaluateGovernedMemoryAuthorization(
-        facts({
-          role: 'user_admin',
-          operation: 'approve',
-          subject: {
-            memoryClass: 'institutional_authoritative',
-            scope: 'firm',
-            status: 'pending_review',
-            proposedByUserId: 'user-1',
-          },
-        }),
+        facts({ operation: 'review', grantPermissions: ['review'], subject }),
       ),
     ).toEqual({ allowed: false, reason: 'self_review' });
   });
 
-  it('denies a proposer reviewing their own shared candidate, not just approving it', () => {
-    expect(
-      evaluateGovernedMemoryAuthorization(
-        facts({
-          role: 'user_admin',
-          operation: 'review',
-          subject: {
-            memoryClass: 'institutional_authoritative',
-            scope: 'firm',
-            status: 'pending_review',
-            proposedByUserId: 'user-1',
-          },
-        }),
-      ),
-    ).toEqual({ allowed: false, reason: 'self_review' });
-  });
-
-  it('allows an independent admin reviewer to approve the same firm candidate', () => {
+  it('allows a different admin reviewer to approve the same firm candidate', () => {
     expect(
       evaluateGovernedMemoryAuthorization(
         facts({
@@ -284,7 +279,7 @@ describe('evaluateGovernedMemoryAuthorization', () => {
     ).toEqual({ allowed: true, basis: 'owner' });
   });
 
-  it('leaves item subjects (no known proposer) unaffected by the independence rule', () => {
+  it('leaves item subjects with no proposer unaffected', () => {
     expect(
       evaluateGovernedMemoryAuthorization(
         facts({

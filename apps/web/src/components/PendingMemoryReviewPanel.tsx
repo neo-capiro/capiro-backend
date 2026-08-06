@@ -41,7 +41,7 @@ export interface PendingMemoryReviewState {
 }
 
 export function pendingReviewHeadline(pending: PendingMemoryReviewState): string {
-  return pending.blocked ? 'Review blocked' : 'Waiting for independent review';
+  return pending.blocked ? 'Review blocked' : 'Waiting for approval';
 }
 
 export function pendingReviewTone(pending: PendingMemoryReviewState): 'error' | 'info' | 'success' {
@@ -62,10 +62,10 @@ export function activeMemoryVersionPresentation(activeExists: boolean): {
 
 export function activeMemoryReviewExplanation(activeExists: boolean): string {
   return activeExists
-    ? 'Meri continues using the current version until an independent reviewer approves the ' +
-        'proposal.'
-    : 'No shared version is active yet. Meri will not use this proposal until an independent ' +
-        'reviewer approves it.';
+    ? 'Meri continues using the current version until an authorized administrator or reviewer ' +
+        'approves the proposal.'
+    : 'No shared version is active yet. Meri will not use this proposal until an authorized ' +
+        'administrator or reviewer approves it.';
 }
 
 export function PendingMemoryReviewPanel({
@@ -115,10 +115,10 @@ export function PendingMemoryReviewPanel({
           <Descriptions.Item label="Applies to">
             {pending.scope === 'client' ? 'This client' : 'The firm'}
           </Descriptions.Item>
-          <Descriptions.Item label="Reviewer needed">
-            {pending.reviewerRequirement ?? 'Another authorized reviewer'}
+          <Descriptions.Item label="Approver needed">
+            {pending.reviewerRequirement ?? 'An authorized administrator or reviewer'}
           </Descriptions.Item>
-          <Descriptions.Item label="Eligible reviewers">
+          <Descriptions.Item label="Eligible approvers">
             {reviewers.length > 0 ? (
               <Space wrap>
                 {reviewers.map((reviewer) => (
@@ -128,7 +128,7 @@ export function PendingMemoryReviewPanel({
             ) : pending.blocked ? (
               <Text type="danger">None currently available</Text>
             ) : (
-              <Text type="secondary">Available to authorized reviewers</Text>
+              <Text type="secondary">Available to authorized administrators and reviewers</Text>
             )}
           </Descriptions.Item>
         </Descriptions>

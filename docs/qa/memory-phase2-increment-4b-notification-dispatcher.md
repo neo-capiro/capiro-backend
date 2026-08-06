@@ -2,7 +2,7 @@
 
 ## Scope
 
-This increment turns the durable notification obligations from Increment 4A into a safe dispatcher. It creates recipient-only in-app notifications and optionally sends body-free email without performing either delivery inside the memory-review transaction.
+This increment turns the durable notification obligations from Increment 4A into a safe dispatcher. The current product posture is **in-app notifications only**. Memory Review has no email transport.
 
 ## Implemented
 
@@ -17,19 +17,20 @@ This increment turns the durable notification obligations from Increment 4A into
 - Canonical memory authorization is re-evaluated immediately before delivery.
 - Client-scoped notifications are suppressed after client archival.
 - In-app notifications are tenant-bound, recipient-only under FORCE RLS, and idempotent.
-- In-app metadata and email contain no proposal value, section body, source excerpt, review feedback, or rejection reason.
-- Email delivery is default-off and requires the exact token `MEMORY_REVIEW_EMAIL_DELIVERY=enforce`.
-- Email uses an at-most-once reservation: a crash after an uncertain send never causes an automatic duplicate.
-- Existing `sent`, `failed`, and `suppressed` email outcomes are preserved across retries.
+- In-app metadata contains no proposal value, section body, source excerpt, review feedback, or rejection reason.
 - Delivered events write body-free audit evidence.
 - Recipient foreign keys use `ON DELETE RESTRICT` so identity cleanup cannot erase governance evidence.
 - Added a bounded operator command; no schedule or production flag was added.
+- The prior SES adapter and `MEMORY_REVIEW_EMAIL_DELIVERY` runtime path were removed by the administrator self-approval follow-up.
+
+## Compatibility note
+
+The already-merged `20260818040200_memory_phase2_notification_dispatcher` migration contains legacy email bookkeeping columns. They are retained as inert compatibility columns rather than rewriting migration history or adding a risky drop-column migration. Runtime code does not read, write, or send through them.
 
 ## Files
 
 - `apps/api/prisma/migrations/20260818040200_memory_phase2_notification_dispatcher/migration.sql`
 - `apps/api/src/memory/memory-review-notification.helpers.ts`
-- `apps/api/src/memory/memory-review-notification-email.service.ts`
 - `apps/api/src/memory/memory-review-notification-dispatcher.service.ts`
 - `apps/api/src/memory/memory-review-notification.helpers.spec.ts`
 - `apps/api/scripts/lib/memory-phase2-notification-dispatcher-contract.spec.ts`
@@ -37,18 +38,9 @@ This increment turns the durable notification obligations from Increment 4A into
 - `apps/api/scripts/verify-memory-phase2-notification-closeout.ts`
 - `apps/api/src/memory/memory.module.ts`
 
-## Validation completed in the implementation environment
+## Validation
 
-- Manual migration review for tenant-bound foreign keys, recipient-only RLS, idempotency, leases, and audit retention.
-- Static dispatcher contract covering claim concurrency, retry bounds, tenant feature scope, membership, current workflow state, canonical authorization, archived-client suppression, body-free payloads, at-most-once email, module wiring, and delivery counters.
-- Strict isolated TypeScript compilation of the pure notification helper.
-- Runtime probes for exact email flag parsing, assignment-state matching, HTML escaping, and safe deep-link encoding.
-
-Marker from the isolated helper probe:
-
-```text
-MEMORY_PHASE2_NOTIFICATION_HELPERS_LOCAL_PASS
-```
+The dispatcher contract covers claim concurrency, retry bounds, tenant feature scope, membership, current workflow state, canonical authorization, archived-client suppression, body-free payloads, recipient RLS, module wiring, and the explicit absence of Memory Review email delivery.
 
 ## Required complete-checkout validation
 
@@ -72,11 +64,5 @@ MEMORY_PHASE2_NOTIFICATION_CLOSEOUT_COMPLETE
 ## Not included
 
 - Production schedule or EventBridge wiring.
-- Production email enablement.
-- In-app notification listing/read endpoints.
-- Review Inbox or proposer-history frontend.
+- Any email delivery for Memory Review.
 - Deployment or production migration application.
-
-## Next increment
-
-Implement the Review Inbox backend read model, including assigned-to-me, submitted-by-me, terminal history, revision lineage, and notification read-state endpoints under current tenant and ethical-wall authorization.

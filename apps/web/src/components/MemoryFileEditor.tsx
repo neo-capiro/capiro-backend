@@ -11,17 +11,6 @@ import {
 
 const { Text, Paragraph } = Typography;
 
-/**
- * Shared editor for a scoped memory file (firm / client / user). Renders a file
- * picker for the scope and the section editors (with greyed catalog help), plus
- * Save buttons at the top and bottom. All content is entered manually. Used by
- * both the Settings Memory tab (firm + user) and the client profile Overview
- * (client).
- *
- * The caller supplies the scope + slug (firm -> 'firm'; user -> 'me'; client ->
- * clientId) and whether the caller may edit (client/firm require admin).
- */
-
 interface SectionDef {
   key: string;
   heading: string;
@@ -59,7 +48,7 @@ interface SaveSectionsResp {
 }
 
 export function settingsMemorySuccessMessage(result: SaveSectionsResp): string {
-  return result.status === 'pending_review' ? 'Submitted for independent review' : 'Saved';
+  return result.status === 'pending_review' ? 'Submitted for approval' : 'Saved';
 }
 
 export function memorySaveErrorMessage(error: unknown): string {
@@ -93,7 +82,6 @@ export function MemoryFileEditor({
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
-
   const [fileType, setFileType] = useState<string>(() => defaultFileType(scope));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -107,9 +95,6 @@ export function MemoryFileEditor({
     [catalogQuery.data, scope],
   );
 
-  // Reset the file picker to the scope's default when the scope changes (e.g. the
-  // settings page toggles firm<->user), and clear drafts when the scope or the
-  // target entity (slug) changes so edits never bleed across files/clients.
   useEffect(() => {
     setFileType(defaultFileType(scope));
     setDrafts({});
@@ -145,10 +130,6 @@ export function MemoryFileEditor({
   });
 
   const bodyFor = (section: ItemSection): string => drafts[section.key] ?? section.body;
-
-  // Save persists the CURRENT value of every human-editable section (the server
-  // ignores engine-owned sections). We don't gate on "dirty" so the Save button
-  // is always actionable when you can edit — a no-op save is harmless.
   const onSave = () => {
     const human = (itemQuery.data?.sections ?? []).filter((section) => section.owner === 'human');
     saveMutation.mutate(human.map((section) => ({ key: section.key, body: bodyFor(section) })));
@@ -241,7 +222,6 @@ export function MemoryFileEditor({
                   </div>
                 ))}
               </Space>
-              {/* Bottom save so it's reachable after a long form. */}
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{saveButton}</div>
             </>
           )}

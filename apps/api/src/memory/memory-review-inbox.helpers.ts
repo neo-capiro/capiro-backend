@@ -133,8 +133,10 @@ export function memoryReviewBlockedReason(input: {
   assignedReviewerId: string | null;
   assignedReviewerActive: boolean;
   assignedReviewerEligible: boolean;
+  fallbackApproverAvailable?: boolean;
 }): MemoryReviewBlockedReason {
   if (input.clientId && input.clientStatus !== 'active') return 'archived_client';
+  if (input.assignedReviewerEligible || input.fallbackApproverAvailable === true) return null;
   if (!input.assignedReviewerId) return 'no_reviewer';
   if (!input.assignedReviewerActive || !input.assignedReviewerEligible) {
     return 'reviewer_unavailable';
@@ -154,7 +156,7 @@ export function memoryReviewNextAction(input: {
 }): MemoryReviewNextAction {
   if (
     input.status === 'pending' &&
-    input.viewerIsAssignedReviewer &&
+    (input.viewerIsAdmin || input.viewerIsAssignedReviewer) &&
     (input.canApprove || input.canReject)
   ) {
     return 'review';

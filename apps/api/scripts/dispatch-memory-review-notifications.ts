@@ -1,9 +1,10 @@
 /**
- * Drain a bounded batch of Memory Review notification obligations.
+ * Drain a bounded batch of Memory Review notification obligations into the
+ * recipient-scoped in-app notification table.
  *
- * This command never enables Memory Review or email delivery. The dispatcher
- * re-checks the exact feature flags and tenant selection for every claimed row;
- * email remains suppressed unless MEMORY_REVIEW_EMAIL_DELIVERY=enforce.
+ * This command never enables Memory Review and has no email transport.
+ * The dispatcher re-checks the exact feature flags and tenant selection for
+ * every claimed row.
  *
  *   pnpm exec tsx scripts/dispatch-memory-review-notifications.ts
  *   pnpm exec tsx scripts/dispatch-memory-review-notifications.ts --limit 100
