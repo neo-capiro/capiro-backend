@@ -48,6 +48,13 @@ function main(): void {
     '--filter',
     '@capiro/api',
     'exec',
+    'tsx',
+    'scripts/verify-memory-phase3-review-inbox-database.ts',
+  ]);
+  runPnpm([
+    '--filter',
+    '@capiro/api',
+    'exec',
     'tsc',
     '-p',
     'tsconfig.memory-review-phase3.json',
