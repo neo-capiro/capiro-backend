@@ -35,6 +35,11 @@ export function prepareMemoryReviewRevision(
   if (!hasValue && !hasSections) {
     throw new BadRequestException('A revised value or revised sections are required.');
   }
+  if (canonical && hasValue) {
+    throw new BadRequestException(
+      'Canonical memory revisions accept only the complete section set.',
+    );
+  }
 
   let nextSections: MemorySection[] | null = null;
   let sectionBodiesChanged = 0;
@@ -54,7 +59,9 @@ export function prepareMemoryReviewRevision(
   }
 
   let nextValue = existingValue;
-  if (hasValue) {
+  if (nextSections) {
+    nextValue = valueForSections(sourceKind, nextSections);
+  } else if (hasValue) {
     if (typeof input.value !== 'string') {
       throw new BadRequestException('Revised memory value must be text.');
     }
@@ -63,8 +70,6 @@ export function prepareMemoryReviewRevision(
     if (nextValue.length > MAX_VALUE_CHARS) {
       throw new BadRequestException('Revised memory value is too large.');
     }
-  } else if (nextSections) {
-    nextValue = valueForSections(sourceKind, nextSections);
   }
 
   const valueChanged = nextValue !== existingValue;
