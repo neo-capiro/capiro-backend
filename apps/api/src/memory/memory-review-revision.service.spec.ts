@@ -75,18 +75,14 @@ const workflowSnapshot = {
 };
 
 function harness(input: {
-  sourceRow?: typeof source | null;
   proposedBy?: string;
   allowed?: boolean;
   functionError?: Error;
-}) {
-  const sourceRow =
-    input.sourceRow === undefined
-      ? { ...source, proposedBy: input.proposedBy ?? source.proposedBy }
-      : input.sourceRow;
+} = {}) {
+  const sourceRow = { ...source, proposedBy: input.proposedBy ?? source.proposedBy };
   const queryRaw = jest
-    .fn()
-    .mockResolvedValueOnce(sourceRow ? [sourceRow] : [])
+    .fn<(...args: unknown[]) => Promise<unknown[]>>()
+    .mockResolvedValueOnce([sourceRow])
     .mockImplementationOnce(async () => {
       if (input.functionError) throw input.functionError;
       return [
@@ -100,10 +96,16 @@ function harness(input: {
   const auditCreate = jest.fn(async () => ({}));
   const tx = { $queryRaw: queryRaw, auditLog: { create: auditCreate } };
   const prisma = {
-    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, work) => work(tx)),
+    withTenantUser: jest.fn(
+      async (
+        _tenantId: string,
+        _userId: string,
+        work: (value: typeof tx) => unknown,
+      ) => work(tx),
+    ),
   } as unknown as PrismaService;
   const loadCandidateInTx = jest
-    .fn()
+    .fn<(...args: unknown[]) => Promise<typeof subject>>()
     .mockResolvedValueOnce(subject)
     .mockResolvedValueOnce({ ...subject, id: SUCCESSOR });
   const evaluateInTx = jest.fn(async () =>
@@ -121,20 +123,19 @@ function harness(input: {
     service: new MemoryReviewRevisionService(prisma, authorization, workflow),
     queryRaw,
     auditCreate,
-    loadCandidateInTx,
     evaluateInTx,
     ensureAndDescribeInTx,
   };
 }
 
+const revisedSections = [
+  { key: 'mission', heading: 'Mission', owner: 'human' as const, body: 'Revised mission.' },
+];
+
 describe('MemoryReviewRevisionService', () => {
   it('creates one immutable successor, preserves active memory, and opens fresh review', async () => {
-    const h = harness({});
-    const result = await h.service.revise(ctx, PREDECESSOR, {
-      sections: [
-        { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised mission.' },
-      ],
-    });
+    const h = harness();
+    const result = await h.service.revise(ctx, PREDECESSOR, { sections: revisedSections });
 
     expect(result).toMatchObject({
       predecessorCandidateId: PREDECESSOR,
@@ -174,47 +175,29 @@ describe('MemoryReviewRevisionService', () => {
   it('rejects anybody other than the original proposer before cloning', async () => {
     const h = harness({ proposedBy: '77777777-7777-4777-8777-777777777777' });
     await expect(
-      h.service.revise(ctx, PREDECESSOR, {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-        ],
-      }),
+      h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(h.evaluateInTx).not.toHaveBeenCalled();
     expect(h.queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('re-evaluates ethical-wall and client-status policy before resubmission', async () => {
+  it('re-evaluates wall and client-status policy before resubmission', async () => {
     const h = harness({ allowed: false });
     await expect(
-      h.service.revise(ctx, PREDECESSOR, {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-        ],
-      }),
+      h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(h.queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('maps a concurrent successor race to a stable conflict', async () => {
-    const h = harness({ functionError: new Error('MEMORY_REVISION_SUCCESSOR_EXISTS') });
-    await expect(
-      h.service.revise(ctx, PREDECESSOR, {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-        ],
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
-  });
-
-  it('maps a stale workflow to a stable conflict', async () => {
-    const h = harness({ functionError: new Error('MEMORY_REVISION_CHANGES_NOT_REQUESTED') });
-    await expect(
-      h.service.revise(ctx, PREDECESSOR, {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-        ],
-      }),
-    ).rejects.toThrow('not awaiting a revision');
+  it('maps concurrent successor and stale-workflow races to stable conflicts', async () => {
+    for (const error of [
+      new Error('MEMORY_REVISION_SUCCESSOR_EXISTS'),
+      new Error('MEMORY_REVISION_CHANGES_NOT_REQUESTED'),
+    ]) {
+      const h = harness({ functionError: error });
+      await expect(
+        h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    }
   });
 });
