@@ -40,15 +40,6 @@ const apiTests = [
 function main(): void {
   requireDisposableDatabaseUrl('MEMORY_PHASE2_CLEAN_DATABASE_URL');
   requireDisposableDatabaseUrl('MEMORY_PHASE2_UPGRADE_DATABASE_URL');
-  if (
-    String(process.env.MEMORY_REVIEW_EMAIL_DELIVERY ?? '')
-      .trim()
-      .toLowerCase() === 'enforce'
-  ) {
-    throw new Error(
-      'Unset MEMORY_REVIEW_EMAIL_DELIVERY before local Memory Review closeout.',
-    );
-  }
 
   runPnpm([
     '--filter',
