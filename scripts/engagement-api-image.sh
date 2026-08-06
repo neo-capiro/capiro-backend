@@ -175,8 +175,16 @@ case "$command" in
     "$AWS_BIN" ecr get-login-password --region "$AWS_REGION" |
       "$DOCKER_BIN" login --username AWS --password-stdin "${REPOSITORY_URI%%/*}" ||
       gate "ECR login failed"
+    # --provenance=false --sbom=false: without them, buildx pushes an OCI
+    # image INDEX (the real manifest plus a build-provenance attestation
+    # manifest) under the tag. ECR basic scanning cannot scan an index
+    # (UnsupportedImageTypeException) and scans the child manifest instead,
+    # so `describe`/`verify-scan` below — which look up the tag directly —
+    # would see no scan status forever. Found via a real push (2.16).
     "$DOCKER_BIN" buildx build \
       --platform linux/arm64 \
+      --provenance=false \
+      --sbom=false \
       -f "$DOCKERFILE" \
       --tag "$IMAGE_REF" \
       --push \

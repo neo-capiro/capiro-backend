@@ -25,7 +25,12 @@ WORKDIR /workspace
 FROM base AS build
 # Prisma's binary engine wants libssl. Bookworm ships OpenSSL 3 but Prisma
 # can't detect it without the package present.
+# `apt-get upgrade` pulls Debian security-patched versions of packages already
+# in the base image (perl, gnutls28, glibc, etc.) — without it, the base
+# image's OS packages drift out of date against every CVE patched after the
+# node:bookworm-slim tag was published. Found via a real ECR scan (2.16).
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
@@ -64,6 +69,7 @@ ENV NODE_OPTIONS=--enable-source-maps
 RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
  && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/tmp /tmp \
