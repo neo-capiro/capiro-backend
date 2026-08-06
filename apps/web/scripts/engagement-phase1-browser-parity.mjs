@@ -49,11 +49,17 @@ const ORGLESS = !ORG_ID;
 const NC8_REHEARSAL = process.env.ENGAGEMENT_PHASE1_NC8_REHEARSAL === '1';
 const SCREENSHOTS = path.join(EVIDENCE, 'screenshots');
 
+// Product drift from the Phase 1 plan: EngagementPage serves only meetings/outreach/reports and
+// deliberately falls back to Meetings for any other section ("so we never select a non-existent
+// tab"), so /engagement/integrations renders Meetings. The Integrations surface now lives at
+// /settings/integrations, and it is still an Engagement consumer — it calls
+// /api/engagement/integrations and the provider capability/sync routes. Probing it there keeps
+// M9 honest; probing the old path would have proved nothing about Integrations at all.
 const STATES = [
   { pathname: '/engagement/meetings', label: 'Meetings' },
   { pathname: '/engagement/outreach', label: 'Outreach' },
   { pathname: '/engagement/reports', label: 'Reports' },
-  { pathname: '/engagement/integrations', label: 'Integrations' },
+  { pathname: '/settings/integrations', label: 'Integrations' },
 ];
 
 function required(name) {
