@@ -22,10 +22,19 @@ const COOKIE = requiredAny(
   'ENGAGEMENT_PHASE1_USER_COOKIE',
   'ENGAGEMENT_PHASE0_USER_COOKIE',
 );
-const ORG_ID = requiredAny(
+// Organization id is OPTIONAL. A valid Clerk session with no active organization is a
+// supported acceptance mode: TenantContextMiddleware already selects the user's sole active
+// membership when no tenant id, org id, tenant slug, or X-Capiro-Tenant hint is supplied.
+// When an org id IS given, the original organization-based path is preserved unchanged.
+const ORG_ID = optionalAny(
   'ENGAGEMENT_PHASE1_CLERK_ORG_ID',
   'ENGAGEMENT_PHASE0_CLERK_ORG_ID',
 );
+const ORGLESS = !ORG_ID;
+// Negative-control rehearsal: deliberately emit shadow traffic from the page so the
+// routing verifier below has something real to reject. Used by NC8; never set in a
+// normal acceptance run.
+const NC8_REHEARSAL = process.env.ENGAGEMENT_PHASE1_NC8_REHEARSAL === '1';
 const SCREENSHOTS = path.join(EVIDENCE, 'screenshots');
 
 const STATES = [
@@ -47,6 +56,70 @@ function requiredAny(...names) {
     if (value) return value;
   }
   throw new Error(`One of ${names.join(', ')} is required`);
+}
+
+function optionalAny(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+/**
+ * Acceptance-runtime-only shim, injected into the disposable CDP browser and nowhere else.
+ *
+ * The unchanged product calls `getToken({ template: 'capiro' })`. In an orgless session that
+ * template cannot resolve organization-derived claims, so for the acceptance run only we
+ * delegate that one case to the default `getToken()`, whose claims carry no tenant/org hint
+ * and therefore land on the middleware's sole-membership fallback. Every other invocation
+ * keeps its original behavior.
+ *
+ * Installed via Page.addScriptToEvaluateOnNewDocument because each surface navigation is a
+ * full document load, which would discard a shim applied with Runtime.evaluate.
+ *
+ * Nothing under apps/web/src is touched, so this cannot reach the product bundle.
+ */
+function orglessTokenShimSource() {
+  return `(() => {
+    const FLAG = '__capiroAcceptanceOrglessTokenShim';
+    if (window[FLAG]) return;
+    const stats = { installed: false, delegated: 0, passthrough: 0 };
+    window[FLAG] = stats;
+    const patch = (session) => {
+      if (!session || typeof session.getToken !== 'function') return;
+      if (session.__capiroAcceptanceShimmed) return;
+      const original = session.getToken.bind(session);
+      session.getToken = function (options) {
+        try {
+          const wantsCapiro = Boolean(options) && options.template === 'capiro';
+          const hasOrg = Boolean(
+            window.Clerk && window.Clerk.organization && window.Clerk.organization.id,
+          );
+          if (wantsCapiro && !hasOrg) {
+            stats.delegated += 1;
+            return original();
+          }
+        } catch (error) {
+          // fall through to the original call
+        }
+        stats.passthrough += 1;
+        return original(options);
+      };
+      session.__capiroAcceptanceShimmed = true;
+      stats.installed = true;
+    };
+    const tick = () => {
+      try {
+        patch(window.Clerk && window.Clerk.session);
+      } catch (error) {
+        // Clerk not ready yet
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 25);
+    setTimeout(() => clearInterval(timer), 60000);
+  })();`;
 }
 
 function requestHost(url) {
@@ -232,17 +305,47 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
   );
   await page.navigate('/');
   await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 35_000);
-  await page.evaluate(`(async () => {
-    if (window.Clerk?.organization?.id !== ${JSON.stringify(orgId)}) {
-      await window.Clerk?.setActive({ organization: ${JSON.stringify(orgId)} });
-    }
-    return window.Clerk?.organization?.id ?? null;
-  })()`);
-  await page.waitFor(
-    () => page.evaluate(`window.Clerk?.organization?.id === ${JSON.stringify(orgId)}`),
-    25_000,
+
+  if (orgId) {
+    // Unchanged organization-based path.
+    await page.evaluate(`(async () => {
+      if (window.Clerk?.organization?.id !== ${JSON.stringify(orgId)}) {
+        await window.Clerk?.setActive({ organization: ${JSON.stringify(orgId)} });
+      }
+      return window.Clerk?.organization?.id ?? null;
+    })()`);
+    await page.waitFor(
+      () => page.evaluate(`window.Clerk?.organization?.id === ${JSON.stringify(orgId)}`),
+      25_000,
+    );
+    return { page, orgless: false, shimInstalled: false };
+  }
+
+  // Orgless mode: assert the session genuinely has no active organization. Never call
+  // setActive, never wait on Clerk.organization, never fabricate organization state.
+  const activeOrganization = await page.evaluate(
+    'window.Clerk?.organization?.id ?? null',
+    false,
   );
-  return page;
+  if (activeOrganization) {
+    throw new Error(
+      'Orgless acceptance requires a session with no active organization; found ' +
+        String(activeOrganization),
+    );
+  }
+  // Each surface navigation is a full document load, so register the shim for every new
+  // document, then also apply it to the document already open.
+  await cdp.send(
+    'Page.addScriptToEvaluateOnNewDocument',
+    { source: orglessTokenShimSource() },
+    page.sessionId,
+  );
+  await page.evaluate(orglessTokenShimSource(), false);
+  await page.waitFor(
+    () => page.evaluate('Boolean(window.__capiroAcceptanceOrglessTokenShim?.installed)', false),
+    20_000,
+  );
+  return { page, orgless: true, shimInstalled: true };
 }
 
 async function main() {
@@ -260,13 +363,17 @@ async function main() {
   const requests = [];
 
   try {
-    const page = await createActor({
+    const actor = await createActor({
       cdp,
       cookie: COOKIE,
       orgId: ORG_ID,
       baseUrl: BASE_URL,
       evidenceDir: SCREENSHOTS,
     });
+    const page = actor.page;
+    if (actor.orgless !== ORGLESS) {
+      throw new Error('Actor auth mode did not match the configured organization posture');
+    }
 
     const networkKey = `${page.sessionId}:Network.requestWillBeSent`;
     const listener = (params) => {
@@ -283,11 +390,22 @@ async function main() {
     };
     cdp.listeners.set(networkKey, [...(cdp.listeners.get(networkKey) ?? []), listener]);
 
-    const bearerToken = await page.evaluate(`(async () => {
+    // Orgless mode takes the default session token: the `capiro` template resolves
+    // organization-derived claims that do not exist here, and a claimless token is exactly
+    // what the sole-membership fallback needs.
+    const bearerToken = await page.evaluate(
+      ORGLESS
+        ? `(async () => {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) throw new Error('Clerk default session token unavailable');
+      return token;
+    })()`
+        : `(async () => {
       const token = await window.Clerk?.session?.getToken({ template: 'capiro' });
       if (!token) throw new Error('Clerk capiro token unavailable');
       return token;
-    })()`);
+    })()`,
+    );
     if (typeof bearerToken !== 'string' || bearerToken.length < 20) {
       throw new Error('Authenticated browser did not produce a bearer token');
     }
@@ -348,6 +466,24 @@ async function main() {
       if (stateEngagementRequests.length === 0) {
         throw new Error(`No Engagement API request was observed for ${state.pathname}`);
       }
+      // Shim state is per-document, so read it on each surface rather than once at the end.
+      const tokenShim = ORGLESS
+        ? await page.evaluate(
+            `(() => {
+              const s = window.__capiroAcceptanceOrglessTokenShim;
+              return s
+                ? { installed: Boolean(s.installed), delegated: s.delegated, passthrough: s.passthrough }
+                : null;
+            })()`,
+            false,
+          )
+        : null;
+      if (ORGLESS && tokenShim?.installed !== true) {
+        throw new Error(
+          `Acceptance token shim was not installed at ${state.pathname}; refusing to ` +
+            'report an orgless browser proof that ran without it',
+        );
+      }
       const screenshot = await page.screenshot(`phase1-${state.label}`);
       stateResults.push({
         ...state,
@@ -356,10 +492,31 @@ async function main() {
         requestCount: stateRequests.length,
         engagementApiRequestCount: stateEngagementRequests.length,
         engagementRequests: stateEngagementRequests,
+        tokenShim,
         errorBoundary: false,
-        authenticated: true,
+        authenticated: browserState.hasSession === true,
         fullyLoaded: true,
       });
+    }
+
+    if (NC8_REHEARSAL) {
+      // Emit real shadow traffic from the page so the routing assertions below have an actual
+      // violation to detect. This run is EXPECTED to fail from here; that rejection is what
+      // NC8 measures. Nothing about this path can run in a normal acceptance run.
+      console.log('==> NC8 rehearsal: emitting shadow-service traffic from the page');
+      await page.evaluate(
+        `(async () => {
+          try {
+            await fetch(${JSON.stringify(`${SHADOW_URL}/api/engagement/meetings`)}, {
+              mode: 'no-cors',
+            });
+          } catch (error) {
+            // A network or CORS error is fine: Network.requestWillBeSent already fired.
+          }
+          return true;
+        })()`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
     }
 
     const engagementRequests = requests.filter((entry) =>
@@ -413,8 +570,37 @@ async function main() {
       throw new Error('Static web routing boundary contains a Phase 2 preview token');
     }
 
+    // Reaching this line during a rehearsal means the injected violation went undetected,
+    // which is a verifier failure, not a pass.
+    if (NC8_REHEARSAL) {
+      throw new Error(
+        'NC8 rehearsal emitted shadow-service traffic but the routing verifier did not ' +
+          'reject it; the negative control is not effective',
+      );
+    }
+
+    const tokenShimInstalled = ORGLESS
+      ? stateResults.length > 0 && stateResults.every((state) => state.tokenShim?.installed === true)
+      : false;
+    const tokenShimDelegations = stateResults.reduce(
+      (total, state) => total + (state.tokenShim?.delegated ?? 0),
+      0,
+    );
+    if (ORGLESS && !tokenShimInstalled) {
+      throw new Error('Orgless proof completed without the acceptance token shim installed');
+    }
+
     const evidence = {
       marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
+      browserProofPerformed: true,
+      authMode: ORGLESS
+        ? 'orgless_existing_clerk_session'
+        : 'organization_existing_clerk_session',
+      organizationRequired: false,
+      acceptanceTokenShim: tokenShimInstalled,
+      acceptanceTokenShimDelegations: tokenShimDelegations,
+      clerkOrganizationUsed: ORGLESS ? null : ORG_ID,
+      clerkConfigurationChanged: false,
       mode: 'authenticated_existing_session_cookie',
       baseUrl: BASE_URL,
       mainApiUrl: MAIN_URL,
@@ -429,7 +615,8 @@ async function main() {
       sourceChecks,
       currentOutreachRoute: '/engagement/outreach',
       previewRoutingEnabled: false,
-      authenticated: true,
+      authenticated:
+        stateResults.length > 0 && stateResults.every((state) => state.authenticated === true),
       everySurfaceLoaded: stateResults.every((state) => state.fullyLoaded),
       everySurfaceCalledMainApi: stateResults.every(
         (state) => state.engagementApiRequestCount > 0,

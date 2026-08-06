@@ -54,10 +54,22 @@ const CONTAINER = `engagement-phase1-post-${process.pid}`;
 const DOCKER = process.platform === 'win32' ? 'docker.exe' : 'docker';
 const children = [];
 
+// Still required for the post-acceptance seed (tenants.clerk_org_id).
 const clerkOrgId = requiredAny(
   'ENGAGEMENT_PHASE1_CLERK_ORG_ID',
   'ENGAGEMENT_PHASE0_CLERK_ORG_ID',
 );
+// See run-engagement-phase1-local.mjs: withheld from the browser child so the proof runs
+// against a session with no active organization.
+const ORGLESS_BROWSER = process.env.ENGAGEMENT_PHASE1_ORGLESS_BROWSER === '1';
+
+function browserEnv(base) {
+  if (!ORGLESS_BROWSER) return base;
+  const next = { ...base };
+  delete next.ENGAGEMENT_PHASE1_CLERK_ORG_ID;
+  delete next.ENGAGEMENT_PHASE0_CLERK_ORG_ID;
+  return next;
+}
 const clerkUserId = requiredAny(
   'ENGAGEMENT_PHASE1_USER_CLERK_ID',
   'ENGAGEMENT_PHASE0_USER_CLERK_ID',
@@ -245,7 +257,7 @@ try {
         'Rerun hardened authenticated browser proof',
         process.execPath,
         [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs')],
-        commonEnv,
+        browserEnv(commonEnv),
       );
     }
   await run(

@@ -52,10 +52,25 @@ const TAR =
 const BACKGROUND_OBSERVE_MS = Math.max(Number(args.backgroundObserveMs ?? 65_000), 65_000);
 const children = [];
 
+// The seed still needs an organization id to populate tenants.clerk_org_id, so it stays
+// required here.
 const clerkOrgId = requiredAny(
   'ENGAGEMENT_PHASE1_CLERK_ORG_ID',
   'ENGAGEMENT_PHASE0_CLERK_ORG_ID',
 );
+// Orgless browser acceptance. The browser proof must run against a session with no active
+// organization, resolving its tenant through the middleware's sole-membership fallback, so the
+// organization id is withheld from the browser child only. Nothing else changes: the tenant row
+// keeps its clerk_org_id, and the fallback depends on the JWT claims, not on that column.
+const ORGLESS_BROWSER = process.env.ENGAGEMENT_PHASE1_ORGLESS_BROWSER === '1';
+
+function browserEnv(base) {
+  if (!ORGLESS_BROWSER) return base;
+  const next = { ...base };
+  delete next.ENGAGEMENT_PHASE1_CLERK_ORG_ID;
+  delete next.ENGAGEMENT_PHASE0_CLERK_ORG_ID;
+  return next;
+}
 const clerkUserId = requiredAny(
   'ENGAGEMENT_PHASE1_USER_CLERK_ID',
   'ENGAGEMENT_PHASE0_USER_CLERK_ID',
@@ -302,6 +317,18 @@ async function main() {
 
     } else {
 
+      // The orgless browser path resolves its tenant through the existing middleware
+      // sole-membership fallback, so assert that fixture shape before the browser runs.
+      await run(
+        'Assert fixture user has exactly one active tenant membership',
+        process.execPath,
+        [
+          path.join(ROOT, 'apps/api/node_modules/tsx/dist/cli.mjs'),
+          path.join(ROOT, 'apps/api/scripts/engagement-phase1-assert-sole-membership.ts'),
+        ],
+        mainEnv,
+      );
+
       await run(
 
         'Authenticated browser routing and current-UI parity',
@@ -310,9 +337,11 @@ async function main() {
 
         ['apps/web/scripts/engagement-phase1-browser-parity.mjs'],
 
-        mainEnv,
+        browserEnv(mainEnv),
 
       );
+
+      await rehearseNc8(browserEnv(mainEnv));
 
     }
 
@@ -641,6 +670,96 @@ async function buildAndInspectImages() {
   );
 }
 
+/**
+ * NC8 for real. Rerun the same browser-routing verifier with shadow traffic deliberately
+ * emitted from the page, into a throwaway evidence directory so the passing run's evidence is
+ * untouched, and require the verifier to reject it. The result is derived from the observed
+ * exit code and rejection message; it is never hardcoded.
+ */
+async function rehearseNc8(env) {
+  const directory = path.join(EVIDENCE, 'nc8-rehearsal');
+  await mkdir(directory, { recursive: true });
+  const tokenFile = path.join(directory, 'rehearsal-token.txt');
+  const code = await run(
+    'NC8 rehearsal: routing verifier must reject injected shadow traffic',
+    process.execPath,
+    ['apps/web/scripts/engagement-phase1-browser-parity.mjs'],
+    {
+      ...env,
+      ENGAGEMENT_PHASE1_NC8_REHEARSAL: '1',
+      ENGAGEMENT_PHASE1_EVIDENCE_DIR: directory,
+      ENGAGEMENT_PHASE1_TOKEN_FILE: tokenFile,
+    },
+    true,
+  );
+
+  let failure = null;
+  try {
+    failure = JSON.parse(
+      await readFile(path.join(directory, 'browser-parity-failure.json'), 'utf8'),
+    );
+  } catch {
+    failure = null;
+  }
+  const rejection = String(failure?.error ?? '');
+  const rejected =
+    code !== 0 &&
+    failure?.marker === 'ENGAGEMENT_PHASE1_BROWSER_FAILED' &&
+    /port 4500|engagement-api|exclusively target/i.test(rejection);
+
+  const result = {
+    measured: true,
+    passed: rejected,
+    injected: 'page-issued fetch to the shadow service origin',
+    verifierExitCode: code,
+    verifierRejection: rejection || null,
+  };
+  await writeFile(
+    path.join(EVIDENCE, 'nc8-rehearsal.json'),
+    `${JSON.stringify(result, null, 2)}\n`,
+  );
+  await rm(tokenFile, { force: true }).catch(() => undefined);
+  if (!rejected) {
+    throw new Error(
+      `NC8 rehearsal failed to prove shadow-routing detection: ${JSON.stringify(result)}`,
+    );
+  }
+  return result;
+}
+
+async function nc8Control(browser) {
+  if (browser.browserProofPerformed === false) {
+    return {
+      passed: null,
+      measured: false,
+      proof:
+        'not measured: ENGAGEMENT_PHASE1_SKIP_BROWSER=1 launched no browser, so no ' +
+        'shadow-traffic observation exists',
+    };
+  }
+  let rehearsal = null;
+  try {
+    rehearsal = JSON.parse(await readFile(path.join(EVIDENCE, 'nc8-rehearsal.json'), 'utf8'));
+  } catch {
+    rehearsal = null;
+  }
+  const cleanRun =
+    browser.previewRoutingEnabled === false &&
+    Array.isArray(browser.shadowRequests) &&
+    browser.shadowRequests.length === 0 &&
+    Array.isArray(browser.previewHeaderRequests) &&
+    browser.previewHeaderRequests.length === 0;
+  return {
+    measured: rehearsal?.measured === true,
+    passed: cleanRun && rehearsal?.passed === true,
+    proof:
+      'the passing run observed no shadow or preview traffic, and a deliberately injected ' +
+      'shadow request was rejected by the same routing verifier',
+    cleanRun,
+    rehearsal,
+  };
+}
+
 async function writeNegativeControlEvidence() {
   const browser = JSON.parse(await readFile(path.join(EVIDENCE, 'browser-parity.json'), 'utf8'));
   const denials = JSON.parse(
@@ -672,24 +791,9 @@ async function writeNegativeControlEvidence() {
       passed: image.migrateExit === 64,
       proof: 'serve-only image refused migrate',
     },
-    // NC8 is an observation, not an assertion: with no browser there is no traffic record to
-    // check, so report it unmeasured (null) instead of passing on a self-written empty array.
-    NC8:
-      browser.browserProofPerformed === false
-        ? {
-            passed: null,
-            measured: false,
-            proof:
-              'not measured: ENGAGEMENT_PHASE1_SKIP_BROWSER=1 launched no browser, so no ' +
-              'shadow-traffic observation exists',
-          }
-        : {
-            passed:
-              browser.previewRoutingEnabled === false &&
-              Array.isArray(browser.shadowRequests) &&
-              browser.shadowRequests.length === 0,
-            proof: 'authenticated browser and static routing checks observed no shadow traffic',
-          },
+    // NC8 combines the clean observation with a rehearsed violation. Without a browser it is
+    // unmeasured (null) rather than passing on a self-written empty array.
+    NC8: await nc8Control(browser),
   };
   if (Object.values(controls).some((value) => value?.passed === false)) {
     throw new Error(`A Phase 1 negative control failed: ${JSON.stringify(controls)}`);
