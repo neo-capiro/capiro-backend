@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -14,6 +15,7 @@ import {
   prepareMemoryReviewRevision,
   type MemoryReviewRevisionInput,
 } from './memory-review-revision.helpers.js';
+import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import {
   MemoryReviewWorkflowService,
   type MemoryReviewWorkflowSnapshot,
@@ -65,6 +67,11 @@ export class MemoryReviewRevisionService {
     predecessorCandidateId: string,
     input: MemoryReviewRevisionInput,
   ): Promise<MemoryReviewRevisionResult> {
+    if (!memoryReviewSurfaceEnabled()) {
+      throw new ServiceUnavailableException(
+        'Client-scoped memory review is not enabled for this environment.',
+      );
+    }
     const successorCandidateId = randomUUID();
 
     try {
@@ -260,7 +267,8 @@ function translateRevisionError(error: unknown): never {
     error instanceof BadRequestException ||
     error instanceof ConflictException ||
     error instanceof ForbiddenException ||
-    error instanceof NotFoundException
+    error instanceof NotFoundException ||
+    error instanceof ServiceUnavailableException
   ) {
     throw error;
   }
