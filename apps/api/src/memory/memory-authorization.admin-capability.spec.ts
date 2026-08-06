@@ -26,7 +26,7 @@ function harness() {
 }
 
 describe('MemoryAuthorizationService administrator decision capability', () => {
-  it('sets the transaction-local capability after an allowed admin decision', async () => {
+  it('sets candidate- and actor-bound transaction capabilities after an allowed admin decision', async () => {
     const h = harness();
     await expect(
       h.service.evaluateInTx(
@@ -36,12 +36,19 @@ describe('MemoryAuthorizationService administrator decision capability', () => {
         'approve',
       ),
     ).resolves.toEqual({ allowed: true, basis: 'admin' });
-    expect(h.executeRawUnsafe).toHaveBeenCalledWith(
-      "SELECT set_config('app.memory_admin_review_decision', 'on', true)",
+    expect(h.executeRawUnsafe).toHaveBeenNthCalledWith(
+      1,
+      "SELECT set_config('app.memory_admin_review_candidate_id', $1, true)",
+      subject.id,
+    );
+    expect(h.executeRawUnsafe).toHaveBeenNthCalledWith(
+      2,
+      "SELECT set_config('app.memory_admin_review_actor_id', $1, true)",
+      ADMIN,
     );
   });
 
-  it('does not arm the capability during read-model simulations', async () => {
+  it('does not arm capabilities during read-model simulations', async () => {
     const h = harness();
     await expect(
       h.service.evaluateInTx(
