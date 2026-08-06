@@ -352,8 +352,22 @@ export function loadBalancerFullNameFromListenerArn(listenerArn: string): string
   return match[1];
 }
 
-/** `targetgroup/<name>/<id>` from a target group ARN. */
+/**
+ * `targetgroup/<name>/<id>` from a LITERAL target group ARN.
+ *
+ * Only usable where the ARN is a real string — discovery output, preflight,
+ * the acceptance harness. Inside a stack the ARN is usually a cross-stack
+ * token, and the CDK attribute `targetGroup.targetGroupFullName` must be used
+ * instead; the explicit token check makes that failure legible rather than
+ * producing a regex miss at synth time.
+ */
 export function targetGroupFullNameFromArn(targetGroupArn: string): string {
+  if (cdk.Token.isUnresolved(targetGroupArn)) {
+    throw new Error(
+      'targetGroupFullNameFromArn received an unresolved token. Use ' +
+        'targetGroup.targetGroupFullName inside a stack.',
+    );
+  }
   const match = /:(targetgroup\/[^/]+\/[^/]+)$/.exec(targetGroupArn);
   if (!match?.[1]) {
     throw new Error(`cannot derive target group full name from ARN: ${targetGroupArn}`);

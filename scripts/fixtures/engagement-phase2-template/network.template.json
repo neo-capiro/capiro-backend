@@ -1,0 +1,136 @@
+{
+ "Resources": {
+  "TargetGroup3D7CD9B8": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckIntervalSeconds": 30,
+    "HealthCheckPath": "/health",
+    "HealthCheckPort": "traffic-port",
+    "HealthCheckProtocol": "HTTP",
+    "HealthCheckTimeoutSeconds": 5,
+    "HealthyThresholdCount": 2,
+    "Matcher": {
+     "HttpCode": "200"
+    },
+    "Name": "capiro-dev-engagement-api",
+    "Port": 4500,
+    "Protocol": "HTTP",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "TargetGroupAttributes": [
+     {
+      "Key": "deregistration_delay.timeout_seconds",
+      "Value": "30"
+     },
+     {
+      "Key": "stickiness.enabled",
+      "Value": "false"
+     }
+    ],
+    "TargetType": "ip",
+    "UnhealthyThresholdCount": 3,
+    "VpcId": "vpc-0000000000000face"
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiNetwork/TargetGroup/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/03HMQ7CMAwAwLd0TwwY8QDEwIhU2JGbmsptSKLEaYeqf0eIhel0CHhC2De0FOv6yXrpYL0rucm0XGLNjg0t5cmeiorzkfqOPAUnYZgR1nNKXhypxPCgPLBec6zJXF7/3b6/VU1VNxNizzCW3YwIeIRDMxYRm2tQeTO0Pz/lnKm8lwAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiNetwork/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "TargetGroupArn": {
+   "Description": "engagement-api target group ARN (empty until the Service stack deploys)",
+   "Value": {
+    "Ref": "TargetGroup3D7CD9B8"
+   }
+  },
+  "TargetGroupName": {
+   "Description": "engagement-api target group name",
+   "Value": "capiro-dev-engagement-api"
+  },
+  "ServiceSecurityGroupId": {
+   "Description": "Imported service security group (not modified by this stack)",
+   "Value": "sg-00000000000000fac"
+  },
+  "ExportsOutputRefTargetGroup3D7CD9B851D89F1E": {
+   "Value": {
+    "Ref": "TargetGroup3D7CD9B8"
+   },
+   "Export": {
+    "Name": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

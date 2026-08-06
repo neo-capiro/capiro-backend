@@ -16,7 +16,6 @@ import {
 import {
   EngagementApiObservability,
   loadBalancerFullNameFromListenerArn,
-  targetGroupFullNameFromArn,
 } from './engagement-api-alarms';
 import { buildEngagementApiIam } from './engagement-api-iam';
 import { applyEngagementApiTags } from './engagement-api-tags';
@@ -214,8 +213,13 @@ export class EngagementApiServiceStack extends cdk.Stack {
       cfg,
       service: this.service,
       logGroup: this.logGroup,
+      // The listener ARN is a literal from config, so it can be parsed in JS.
+      // The target group ARN is a cross-stack token, so its full name has to be
+      // derived with CFN intrinsics at deploy time. An ELB target group ARN is
+      // `arn:aws:elasticloadbalancing:<region>:<account>:targetgroup/<name>/<id>`,
+      // so the sixth colon-separated segment is exactly the metric dimension.
       loadBalancerFullName: loadBalancerFullNameFromListenerArn(cfg.httpsListenerArn),
-      targetGroupFullName: targetGroupFullNameFromArn(targetGroupArn),
+      targetGroupFullName: cdk.Fn.select(5, cdk.Fn.split(':', targetGroupArn)),
     });
 
     new cdk.CfnOutput(this, 'ServiceName', { value: names.service });
