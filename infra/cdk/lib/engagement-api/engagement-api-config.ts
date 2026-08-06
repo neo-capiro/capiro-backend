@@ -80,7 +80,17 @@ export interface EngagementApiInfraConfig {
   previewRulePriority: number;
 
   auroraClusterIdentifier: string;
-  databaseSecretArn: string;
+
+  // Live discovery (Phase 2 micro-session 2.15, capiro-dev, 2026-08-06) found
+  // the main API task splits DB credentials across TWO secrets, not one:
+  // /capiro/<env>/aurora/master supplies host/port, /capiro/<env>/aurora/app
+  // supplies username/password. DB_NAME is not a secret at all — the main
+  // task injects it as a literal env var. Modeled that way here rather than
+  // the single-secret shape this contract originally assumed.
+  databaseHostSecretArn: string;
+  databaseAppSecretArn: string;
+  databaseName: string;
+
   appConfigSecretArn: string;
   requiredSecretArns: string[];
 
@@ -228,8 +238,14 @@ export function collectConfigFailures(
   if (!isArn(c.mainApiTargetGroupArn, 'elasticloadbalancing', 'targetgroup/')) {
     fail(`mainApiTargetGroupArn is malformed: ${c.mainApiTargetGroupArn}`);
   }
-  if (!isArn(c.databaseSecretArn, 'secretsmanager')) {
-    fail(`databaseSecretArn is malformed: ${c.databaseSecretArn}`);
+  if (!isArn(c.databaseHostSecretArn, 'secretsmanager')) {
+    fail(`databaseHostSecretArn is malformed: ${c.databaseHostSecretArn}`);
+  }
+  if (!isArn(c.databaseAppSecretArn, 'secretsmanager')) {
+    fail(`databaseAppSecretArn is malformed: ${c.databaseAppSecretArn}`);
+  }
+  if (typeof c.databaseName !== 'string' || c.databaseName.length === 0) {
+    fail('databaseName is required (it is a plain env var on the live task, not a secret)');
   }
   if (!isArn(c.appConfigSecretArn, 'secretsmanager')) {
     fail(`appConfigSecretArn is malformed: ${c.appConfigSecretArn}`);

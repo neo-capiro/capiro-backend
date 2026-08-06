@@ -26,7 +26,9 @@
   "previewRulePriority": 6,
 
   "auroraClusterIdentifier": "capiro-test-aurora",
-  "databaseSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/db-AAAAAA",
+  "databaseHostSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
+  "databaseAppSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
+  "databaseName": "capiro",
   "appConfigSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB",
   "requiredSecretArns": [
     "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk-secret-key-CCCCCC",

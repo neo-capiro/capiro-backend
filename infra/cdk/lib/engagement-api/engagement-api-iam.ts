@@ -30,9 +30,18 @@ import type { EngagementApiInfraConfig } from './engagement-api-config';
  * API config schema hard-requires. The two encryption keys are needed to READ
  * existing rows — OAuth connection state and meeting notes are stored
  * encrypted, so safe read parity fails without them.
+ *
+ * DB_HOST/DB_PORT and DB_USER/DB_PASSWORD come from two DIFFERENT secrets, not
+ * one. Live discovery (2.15, capiro-dev, 2026-08-06) against the main API's
+ * actual task definition found it splits them the same way: a "master" secret
+ * (host/port) and a separate "app" secret (username/password) —
+ * /capiro/<env>/aurora/master and /capiro/<env>/aurora/app. DB_NAME is not a
+ * secret at all there; it's a literal env var (see engagementApiTaskEnvironment).
+ * The single-secret shape this contract originally assumed did not match.
  */
 export const ENGAGEMENT_API_SECRET_FIELDS = {
-  fromDatabaseSecret: ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const,
+  fromDatabaseHostSecret: ['DB_HOST', 'DB_PORT'] as const,
+  fromDatabaseAppSecret: ['DB_USER', 'DB_PASSWORD'] as const,
   fromAppConfigSecret: [
     'CLERK_SECRET_KEY',
     'CLERK_WEBHOOK_SIGNING_SECRET',
@@ -41,13 +50,16 @@ export const ENGAGEMENT_API_SECRET_FIELDS = {
   ] as const,
 } as const;
 
-/** JSON keys inside the database secret, in injection order. */
-const DATABASE_SECRET_JSON_KEYS: Record<string, string> = {
+/** JSON keys inside the database host secret (host/port), in injection order. */
+const DATABASE_HOST_SECRET_JSON_KEYS: Record<string, string> = {
   DB_HOST: 'host',
   DB_PORT: 'port',
+};
+
+/** JSON keys inside the database app secret (username/password). */
+const DATABASE_APP_SECRET_JSON_KEYS: Record<string, string> = {
   DB_USER: 'username',
   DB_PASSWORD: 'password',
-  DB_NAME: 'dbname',
 };
 
 /**
@@ -88,10 +100,15 @@ export function buildEngagementApiIam(
   cfg: EngagementApiInfraConfig,
   taskDefinition: ecs.TaskDefinition,
 ): EngagementApiRoles {
-  const databaseSecret = secretsmanager.Secret.fromSecretCompleteArn(
+  const databaseHostSecret = secretsmanager.Secret.fromSecretCompleteArn(
     scope,
-    'DatabaseSecret',
-    cfg.databaseSecretArn,
+    'DatabaseHostSecret',
+    cfg.databaseHostSecretArn,
+  );
+  const databaseAppSecret = secretsmanager.Secret.fromSecretCompleteArn(
+    scope,
+    'DatabaseAppSecret',
+    cfg.databaseAppSecretArn,
   );
   const appConfigSecret = secretsmanager.Secret.fromSecretCompleteArn(
     scope,
@@ -100,10 +117,15 @@ export function buildEngagementApiIam(
   );
 
   const secrets: Record<string, ecs.Secret> = {};
-  for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseSecret) {
-    const jsonKey = DATABASE_SECRET_JSON_KEYS[name];
+  for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret) {
+    const jsonKey = DATABASE_HOST_SECRET_JSON_KEYS[name];
     if (!jsonKey) throw new Error(`no JSON key mapped for ${name}`);
-    secrets[name] = ecs.Secret.fromSecretsManager(databaseSecret, jsonKey);
+    secrets[name] = ecs.Secret.fromSecretsManager(databaseHostSecret, jsonKey);
+  }
+  for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseAppSecret) {
+    const jsonKey = DATABASE_APP_SECRET_JSON_KEYS[name];
+    if (!jsonKey) throw new Error(`no JSON key mapped for ${name}`);
+    secrets[name] = ecs.Secret.fromSecretsManager(databaseAppSecret, jsonKey);
   }
   for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromAppConfigSecret) {
     // Field-scoped, never the whole JSON document.

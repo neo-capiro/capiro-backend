@@ -253,6 +253,11 @@ export function engagementApiTaskEnvironment(
     // reach a task definition unset.
     CLERK_JWT_ISSUER: cfg.clerkJwtIssuer,
 
+    // Not a secret on the live main API task either — a literal env var.
+    // Live discovery (2.15, capiro-dev, 2026-08-06) found it: DB_NAME is
+    // never in Secrets Manager, unlike DB_HOST/PORT/USER/PASSWORD.
+    DB_NAME: cfg.databaseName,
+
     ENGAGEMENT_API_PORT: String(ENGAGEMENT_API_CONTRACT.containerPort),
     ENGAGEMENT_API_BIND_HOST: '0.0.0.0',
 

@@ -93,10 +93,25 @@ function containerSecrets(template: Template): Record<string, unknown> {
 test('exactly the boot-required and safe-read fields are injected', () => {
   const injected = Object.keys(containerSecrets(synth())).sort();
   const expected = [
-    ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseSecret,
+    ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret,
+    ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseAppSecret,
     ...ENGAGEMENT_API_SECRET_FIELDS.fromAppConfigSecret,
   ].sort();
   assert.deepEqual(injected, expected);
+});
+
+test('DB_HOST/DB_PORT and DB_USER/DB_PASSWORD resolve from two DIFFERENT secrets', () => {
+  // Live discovery (2.15, capiro-dev) found the main API's own task splits
+  // these across a "master" secret (host/port) and an "app" secret
+  // (username/password) — not one secret with all four fields.
+  const secrets = containerSecrets(synth());
+  // A rendered ValueFrom is "<arn-prefix>:secret:<name>:<jsonKey>::" — compare
+  // only <name>. The prefix is shared by every secret in this account, and
+  // DB_HOST vs DB_PORT differ only in <jsonKey> despite sharing one secret.
+  const arnOf = (valueFrom: unknown) => String(valueFrom).split(':secret:')[1]?.split(':')[0];
+  assert.equal(arnOf(secrets.DB_HOST), arnOf(secrets.DB_PORT));
+  assert.equal(arnOf(secrets.DB_USER), arnOf(secrets.DB_PASSWORD));
+  assert.notEqual(arnOf(secrets.DB_HOST), arnOf(secrets.DB_USER));
 });
 
 test('NC-2.7-B no provider or LLM key is injected', () => {

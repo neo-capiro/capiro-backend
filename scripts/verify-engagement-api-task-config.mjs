@@ -26,13 +26,17 @@ const REQUIRED_SECRETS = [
   'CLERK_SECRET_KEY',
   'CLERK_WEBHOOK_SIGNING_SECRET',
   'DB_HOST',
-  'DB_NAME',
   'DB_PASSWORD',
   'DB_PORT',
   'DB_USER',
   'NOTES_ENCRYPTION_KEY',
   'OAUTH_TOKEN_ENCRYPTION_KEY',
 ];
+
+// DB_NAME is not in Secrets Manager on the live main API task either — a
+// literal env var. Live discovery (2.15, capiro-dev, 2026-08-06) found this;
+// checked in the environment block below, not here.
+const REQUIRED_PLAIN_ENV = ['DB_NAME'];
 
 const FORBIDDEN_SECRETS = [
   'OPENAI_API_KEY',
@@ -209,6 +213,14 @@ for (const name of FORBIDDEN_SECRETS) {
 }
 for (const name of injected) {
   if (!REQUIRED_SECRETS.includes(name)) fail(`unexpected secret ${name} is injected`);
+}
+
+// Live discovery (2.15, capiro-dev, 2026-08-06) found the main API's own
+// task carries this as a plain env var, not a Secrets Manager field — the
+// database itself has no separate boot-time secret to hold it.
+for (const name of REQUIRED_PLAIN_ENV) {
+  if (!environment[name]) fail(`required plain environment variable ${name} is missing`);
+  if (injected.includes(name)) fail(`${name} must be a plain environment variable, not a secret`);
 }
 
 // Whole-JSON injection has no field selector after the secret ARN.

@@ -329,13 +329,23 @@ test('secrets come from the least-privilege helper, field by field', () => {
     'CLERK_SECRET_KEY',
     'CLERK_WEBHOOK_SIGNING_SECRET',
     'DB_HOST',
-    'DB_NAME',
     'DB_PASSWORD',
     'DB_PORT',
     'DB_USER',
     'NOTES_ENCRYPTION_KEY',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
   ]);
+});
+
+test('DB_NAME is a literal environment variable, not a secret', () => {
+  // Live discovery (2.15, capiro-dev) found DB_NAME is never in Secrets
+  // Manager on the main API's own task either.
+  const cfg = base();
+  cfg.databaseName = 'capiro';
+  const env = envOf(synth(cfg));
+  assert.equal(env.DB_NAME, 'capiro');
+  const secrets = (theContainer(synth(cfg)).Secrets ?? []) as Array<{ Name: string }>;
+  assert.ok(!secrets.some((s) => s.Name === 'DB_NAME'));
 });
 
 // ────────────────────────────────────────────────────────── negative control
