@@ -1,0 +1,234 @@
+{
+  "contractVersion": "baseline-contract-v1",
+  "frozenAtBaseSha": "cf2934faa07c0d2e7c704e1aacd9ebccd066e45e",
+  "provenance": "Hand-authored from funding-opportunities.types.ts, then VERIFIED against typed static constructors by funding-opportunities.baseline-contract.spec.ts. No live tenant, no production row, and no recorded HTTP response contributed to this file.",
+  "whyThisExists": "Every phase after P00 adds fields, tables and surfaces. This file is the answer to 'what did the contract look like before any of that', so an accidental removal, rename or blended total is a failing test rather than a discovery in production.",
+
+  "responseKeys": {
+    "FundingOpportunity": [
+      "agency",
+      "assistanceListings",
+      "baseKind",
+      "category",
+      "clientId",
+      "closeOrArchiveDate",
+      "contractValue",
+      "districtBasis",
+      "districtKey",
+      "eligibility",
+      "eligibleApplicantTypes",
+      "fundingInstrument",
+      "grantFunding",
+      "id",
+      "isActive",
+      "isPursuable",
+      "kind",
+      "kindRaw",
+      "matchedSignals",
+      "missingProfileFields",
+      "naicsCodes",
+      "office",
+      "placeOfPerformance",
+      "postedDate",
+      "pscCodes",
+      "relevanceScore",
+      "responseDeadline",
+      "responseDeadlineNote",
+      "setAside",
+      "setAsideCode",
+      "source",
+      "sourceRecordId",
+      "sourceReference",
+      "sourceUpdatedAt",
+      "sourceUrl",
+      "status",
+      "subAgency",
+      "summary",
+      "summaryIsLink",
+      "title",
+      "workflow"
+    ],
+    "FundingOpportunity.eligibility": ["reason", "state"],
+    "FundingOpportunity.placeOfPerformance": ["city", "country", "state", "zip"],
+    "GrantFunding": [
+      "awardCeiling",
+      "awardFloor",
+      "costSharingRequired",
+      "estimatedProgramFunding",
+      "expectedAwardCount"
+    ],
+    "ContractValue": ["basis", "estimatedValue"],
+    "OpportunityWorkflow": [
+      "createdAt",
+      "dismissedReason",
+      "facility",
+      "id",
+      "notes",
+      "outcomeNote",
+      "owner",
+      "staleAt",
+      "status",
+      "updatedAt",
+      "userCreated"
+    ],
+    "OpportunityWorkflow.owner": ["email", "name", "userId"],
+    "OpportunityWorkflow.facility": ["districtKey", "id", "name", "state"],
+    "OpportunityMatchedSignal": ["matchedOn", "signal", "strength", "weight"],
+    "MissingProfileField": ["field", "href", "impact", "label"],
+    "FundingOpportunityCounts": [
+      "activeContracts",
+      "activeGrants",
+      "deadlinesIn30Days",
+      "dismissed",
+      "pursuing",
+      "saved"
+    ],
+    "OpportunitySourceFreshness": [
+      "activeRecordCount",
+      "countsUnavailable",
+      "enrichment",
+      "hoursSinceLastSuccess",
+      "label",
+      "lastAttemptAt",
+      "lastFailureAt",
+      "lastRunDegraded",
+      "lastRunErrorCount",
+      "lastRunStatus",
+      "lastSyncedAt",
+      "neverSynced",
+      "recordCount",
+      "source",
+      "verb"
+    ],
+    "GrantEnrichmentHealth": [
+      "activeAwaitingEnrichment",
+      "degraded",
+      "detailedRecordCount",
+      "lastAttemptAt",
+      "lastSuccessAt"
+    ],
+    "FundingOpportunityListResponse": [
+      "counts",
+      "emptyExplanation",
+      "emptyReason",
+      "freshness",
+      "generatedAt",
+      "missingProfileFields",
+      "opportunities",
+      "page",
+      "pageSize",
+      "total",
+      "totalIsCapped"
+    ],
+    "ClientFundingOpportunitySummary": [
+      "clientId",
+      "counts",
+      "emptyExplanation",
+      "emptyReason",
+      "freshness",
+      "generatedAt",
+      "missingProfileFields",
+      "nextDeadline",
+      "topContracts",
+      "topGrants"
+    ],
+    "ClientFundingOpportunitySummary.nextDeadline": [
+      "opportunityId",
+      "responseDeadline",
+      "source",
+      "title"
+    ]
+  },
+
+  "vocabularies": {
+    "OPPORTUNITY_SOURCES": ["grants_gov", "sam_gov"],
+    "OPPORTUNITY_KINDS": [
+      "grant",
+      "cooperative_agreement",
+      "sources_sought",
+      "presolicitation",
+      "solicitation",
+      "combined_synopsis_solicitation",
+      "special_notice",
+      "amendment",
+      "award_notice",
+      "other"
+    ],
+    "NON_PURSUABLE_KINDS": ["award_notice", "special_notice"],
+    "OPPORTUNITY_WORKFLOW_STATUSES": [
+      "suggested",
+      "saved",
+      "pursuing",
+      "dismissed",
+      "won",
+      "lost",
+      "expired"
+    ],
+    "HUMAN_DECISION_STATUSES": ["dismissed", "lost", "pursuing", "saved", "won"],
+    "WORKFLOW_SORT_PRIORITY": {
+      "pursuing": 0,
+      "saved": 1,
+      "suggested": 2,
+      "won": 3,
+      "lost": 4,
+      "expired": 5,
+      "dismissed": 6
+    },
+    "ELIGIBILITY_STATES": ["eligible", "ineligible", "needs_review", "unknown"],
+    "EMPTY_REASONS": [
+      "client_profile_too_thin",
+      "no_match_above_threshold",
+      "no_results_for_filters",
+      "no_saved_opportunities",
+      "no_source_records",
+      "source_never_synced"
+    ],
+    "WRITE_DTO_ACCEPTED_STATUSES": ["saved", "pursuing", "won", "lost"]
+  },
+
+  "moneyFields": [
+    "GrantFunding.estimatedProgramFunding",
+    "GrantFunding.awardFloor",
+    "GrantFunding.awardCeiling",
+    "ContractValue.estimatedValue"
+  ],
+
+  "blendedTotalAllowlist": {
+    "FundingOpportunityListResponse.total": "Row count matching the filters before pagination. Not money.",
+    "FundingOpportunityListResponse.totalIsCapped": "Whether that row count hit the scan bound. Not money."
+  },
+
+  "invariants": {
+    "noBlendedMoney": "No response key sums grant money with contract money, and no key named totalAmount (or any *Amount) exists. grantFunding is null on a sam_gov row; contractValue is null on a grants_gov row.",
+    "nullMoneyIsNotZero": "Every field listed in moneyFields is `number | null`. Null means the source stated no figure. Nothing in the read path coerces it to 0.",
+    "relevanceIsNotEligibility": "relevanceScore (number) and eligibility ({state, reason}) are separate keys, computed by separate functions, and neither is derived from the other.",
+    "explicitFeatureFlag": "Every route is gated by an explicit enabled row in intel_feature_flag for feature 'funding_opportunities'. There is no implicit internal-tenant fallback. A missing row, a missing tenant context, and a failing flag read all produce 404.",
+    "portalDenial": "client_portal_user ranks below the controller's declared standard_user minimum, so RolesGuard denies every route with 403. This module exposes no separate portal read path.",
+    "failureIsNotEmpty": "A failing catalog read propagates as a non-2xx. EmptyReason has no member meaning 'the request failed', so a broken query can never render as zero results.",
+    "closedCannotBePursued": "assertPursuable rejects status 'pursuing' for a closed grant, a closed SAM notice, and any NON_PURSUABLE_KINDS notice. Every other status, 'saved' included, stays available.",
+    "producerNeverOverwritesHumanDecision": "A row whose workflowStatus is in HUMAN_DECISION_STATUSES, or whose userCreated is true, is left untouched by both candidate producers."
+  },
+
+  "featureFlag": "funding_opportunities",
+
+  "migrations": [
+    "20260810010000_funding_opportunities",
+    "20260810020000_funding_opportunities_closeout",
+    "20260810040000_funding_opportunities_lifecycle_truth"
+  ],
+
+  "testFloors": {
+    "note": "Floors enforced by scripts/assert-test-summary.mjs in .github/workflows/funding-opportunities-ci.yml. A floor may be RAISED freely. Lowering one is indistinguishable from the gate shrinking and requires a written reason in the PR description.",
+    "measuredAtFreeze": { "api": { "suites": 20, "tests": 584 }, "web": { "suites": 26, "tests": 79 } },
+    "api": { "suites": 20, "tests": 575 },
+    "web": { "suites": 25, "tests": 75 }
+  },
+
+  "sourceFreshnessSemantics": {
+    "lastSyncedAt": "Last SUCCESSFUL sync. This is what the UI's 'current to ...' line means.",
+    "lastAttemptAt": "Latest run of any outcome, reported independently of the last success so a rail failing nightly cannot read as healthy.",
+    "neverSynced": "True only when the rail has never completed a successful run. On a degraded freshness read it stays false, because 'we do not know' must not be reported as 'it has never synced'.",
+    "countsUnavailable": "True when catalog counts could not be read. Distinct from a count of zero.",
+    "degradedReadIsNotNeverSynced": "readFreshness catches its own failure and returns countsUnavailable=true with null timestamps rather than propagating. The opportunities themselves still render."
+  }
+}
