@@ -13,13 +13,27 @@ pnpm exec tsx scripts/apply-memory-phase2-prisma-lineage-model.ts
 pnpm exec prisma format --schema prisma/schema.prisma
 pnpm exec prisma validate --schema prisma/schema.prisma
 pnpm exec prisma generate --schema prisma/schema.prisma
+```
 
-export MEMORY_PHASE2_CLEAN_DATABASE_URL='postgresql://.../capiro_memory_phase2_clean'
-export MEMORY_PHASE2_UPGRADE_DATABASE_URL='postgresql://.../capiro_memory_phase2_upgrade'
+### Bash or zsh
+
+```bash
+export MEMORY_PHASE2_CLEAN_DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:5432/capiro_memory_phase2_clean'
+export MEMORY_PHASE2_UPGRADE_DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:5432/capiro_memory_phase2_upgrade'
 pnpm exec tsx scripts/verify-memory-phase2-persistence-closeout.ts
 ```
 
-The database URLs must identify two different, empty, local PostgreSQL/pgvector databases whose names contain `memory_phase2`. The closeout refuses databases with existing public tables.
+### Windows PowerShell
+
+```powershell
+$env:MEMORY_PHASE2_CLEAN_DATABASE_URL = 'postgresql://USER:PASSWORD@127.0.0.1:5432/capiro_memory_phase2_clean'
+$env:MEMORY_PHASE2_UPGRADE_DATABASE_URL = 'postgresql://USER:PASSWORD@127.0.0.1:5432/capiro_memory_phase2_upgrade'
+pnpm exec tsx scripts/verify-memory-phase2-persistence-closeout.ts
+```
+
+The closeout automatically prefers Node-adjacent Corepack on Windows and falls back to a Windows shell only when Corepack cannot be resolved. For an unusual Node installation, set `CAPIRO_COREPACK_PNPM_JS` to the absolute path of Corepack's `dist/pnpm.js` before running the command.
+
+The database URLs must identify two different, empty, local PostgreSQL/pgvector databases whose names contain `memory_phase2`. The closeout refuses databases with existing public tables. Command diagnostics redact database URLs and other recognized secret-bearing environment values.
 
 ## Required outcomes
 
