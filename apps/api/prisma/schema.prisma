@@ -6024,6 +6024,25 @@ model ClientFundingOpportunity {
   sourceActiveSnapshot     Boolean?  @map("source_active_snapshot")
   alertState               Json      @default("{}") @map("alert_state_jsonb")
 
+  /// The team's DECISION, kept separate from `workflowStatus` (where a pursuit is)
+  /// and from the machine recommendation (which is recomputed on read, never
+  /// stored). A team can decide to monitor something with no pursuit, or to pass on
+  /// something whose source is still wide open — folding those into workflowStatus
+  /// makes "we chose not to bid" indistinguishable from "the source closed", and
+  /// only one of those is a decision somebody can be asked about later.
+  /// NULL means nobody has decided yet, correct for every producer-created row.
+  /// CHECK-constrained to pursue|monitor|pass (migration 20260819010000), and the
+  /// same migration CHECKs that a decision always carries its actor and timestamp.
+  humanDecision    String?   @map("human_decision") @db.VarChar(16)
+  decisionReason   String?   @map("decision_reason") @db.Text
+  decisionAt       DateTime? @map("decision_at") @db.Timestamptz(6)
+  decisionByUserId String?   @map("decision_by_user_id") @db.Uuid
+  /// What happens next, and by when. A due date with no action is a reminder about
+  /// nothing, so the migration CHECKs that direction; an action with no due date is
+  /// fine.
+  nextAction       String?   @map("next_action") @db.Text
+  nextActionDueAt  DateTime? @map("next_action_due_at") @db.Timestamptz(6)
+
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
   outcomeNote     String? @map("outcome_note") @db.Text
@@ -6057,6 +6076,10 @@ model ClientFundingOpportunity {
   // beyond 5,000 tracked rows the pass was silently partial — rows after the cap
   // were never expired and never alerted. It now walks `id > cursor ORDER BY id`.
   @@index([tenantId, id], map: "client_funding_opportunity_tenant_cursor_idx")
+  // Partial on human_decision: only decided rows are indexed, which is a small
+  // fraction of a table that is overwhelmingly machine suggestions. Read by the
+  // P10 triage inbox as "decided rows for this tenant, soonest action first".
+  @@index([tenantId, humanDecision, nextActionDueAt], map: "client_funding_opportunity_decision_idx")
   @@map("client_funding_opportunity")
 }
 

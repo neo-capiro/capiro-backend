@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -234,7 +234,23 @@ jobs:
             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='source_active_snapshot'" \
             "YES"
 
-          # The three indexes this migration creates.
+          # P07 decision columns. ALL nullable, and none may carry a DEFAULT: a
+          # default would fabricate a decision for the entire existing corpus, and
+          # NOT NULL would need a backfill that invents one.
+          for col in human_decision decision_reason decision_at decision_by_user_id next_action next_action_due_at; do
+            check "$col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='$col'"               "YES"
+          done
+          check "no decision column has a DEFAULT"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name IN ('human_decision','decision_reason','decision_at','decision_by_user_id','next_action','next_action_due_at') AND column_default IS NOT NULL"             "0"
+
+          # The three P07 CHECKs. The actor one is a three-way all-or-nothing, so a
+          # decision can never exist without the person and the moment it was made.
+          check "human_decision vocabulary CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_human_decision_chk'" "1"
+          check "decision actor+timestamp CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_decision_actor_chk'" "1"
+          check "next-action due-date CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_next_action_chk'" "1"
+          check "decision index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_decision_idx'" "1"
+          check "decision index is PARTIAL"             "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_decision_idx'"             "yes"
+
+          # The three indexes the lifecycle migration creates.
           check "lifecycle keyset cursor index" \
             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_tenant_cursor_idx'" "1"
           check "grant discovery/enrichment index" \
@@ -322,14 +338,15 @@ jobs:
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
 
-      # Floors: jest counts FILES in numTotalTestSuites. Measured 25 files / 798 tests
+      # Floors: jest counts FILES in numTotalTestSuites. Measured 26 files / 847 tests
       # on this branch; the floor sits just under so adding a test does not require
       # editing this line, while REMOVING a suite fails the gate.
       #
       # History: 19/500 before P00, 20/575 after P00 (baseline-contract.spec.ts),
       # 21/630 after P01 (client-opportunity-profile.spec.ts), 22/660 after P02
       # (award-history-identity.spec.ts), 23/700 after P03 (producer-pagination.spec.ts), 23/710 after P04, 24/740 after P05 (intelligence.mapping-governance.spec.ts), 25/790 after P06
-      # (opportunity-recommendation.spec.ts).
+      # (opportunity-recommendation.spec.ts), 26/840 after P07
+      # (funding-opportunity-decision.spec.ts).
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -338,7 +355,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 25 790
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 26 840
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

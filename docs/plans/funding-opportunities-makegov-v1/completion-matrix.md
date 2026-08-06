@@ -39,7 +39,7 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 | P04 | Complete SAM producer keyset walk | in progress | *pending commit* | api 23/717, web 26/79, 0 skipped. Floor raised 23/700 → **23/710** | *pending* | n/a | n/a — schedule still `enabled: false`, dry-run still default | 4,001 notices x 501 clients: last row of both dimensions evaluated, `completion=COMPLETE`, 2,004,501 pairs. Informational notices excluded at every page boundary (interleaved fixture, not just edges). Never orders by `responseDeadline`. Same completion vocabulary as P03, asserted. `SAM_OPPORTUNITY_SCAN_CAP` / `SAM_CANDIDATE_CLIENT_CAP` removed. | Revert producer. No data deletion; persisted suggestions intact. |
 | P05 | Mapping governance hardening | in progress | *pending commit* | api 24/748, web 26/81, 0 skipped. Floor raised 23/710 → **24/740** | *pending* | **n/a — no migration needed.** Every review/audit column already exists (`reviewStatus`, `reviewedBy`, `reviewedAt`, `rejectionReason`, `matchBasis`, `matchTier`, `relationshipType`, `rollUpAwards`). | API + web deploy together — the web fix and the DTO gate are two halves of one change | Body `id` rejected (DTO validation + web behavioural test, mutation-verified). Award-bearing confirm requires explicit relationship + roll-up **on the request**; reject requires a written reason. PATCH now `user_admin`; portal AND standard user denied. Cross-tenant → 404, no write. Prune script no longer erases rejections. | Revert API + web together. No schema change to roll back. Any mapping already confirmed keeps its recorded relationship/roll-up. |
 | P06 | Deterministic recommendation contract | in progress | *pending commit* | api 25/798, web 26/81, 0 skipped. Floor raised 24/740 → **25/790** | *pending* | n/a | API may deploy before web — the field is additive and nothing in the UI reads it yet | 2,304-row exhaustive sweep: every combination yields a valid result, and BOTH hard invariants hold on every row (closed/informational never `pursue`; unresolved eligibility never `pursue`). Stable under signal reordering. Reads the supplied `asOf`, never the wall clock. No raw camelCase key in any output string. | Revert the additive `recommendation` field and restore the P05 fixture keys. Nothing persisted, so no data rollback. |
-| P07 | Human decision and next-action persistence | not started | | | | **required** | | Clean + ordered replay; 4 RLS policies and FORCE intact | Roll back code, leave additive nullable columns |
+| P07 | Human decision and next-action persistence | in progress | *pending commit* | api 26/847, web 27/81, 0 skipped. Floor raised 25/790 → **26/840** | *pending* | `20260819010000_funding_opportunity_decisions` — **clean** replay from verified-empty pgvector:pg16 AND **ordered** upgrade from the prior FO schema, both green. Retry-as-no-op verified by re-running the SQL by hand. | Migration first, then API. Web unchanged (no UI reads it yet). | 6 additive nullable columns, no DEFAULT, no backfill. All 3 CHECKs proven against real Postgres to reject: an out-of-vocabulary decision, a machine state as a decision, a decision with no actor, a decision with no timestamp, an actor/timestamp with no decision, and a due date with no action. RLS still ENABLED + FORCED with exactly 4 policies. Pre-P07 API insert (omitting all 6 columns) still succeeds → rolling deploy safe. | Roll back code; LEAVE the columns. They are additive and nullable, the previous code ignores all six, and dropping them would destroy any decision already recorded. |
 | P08 | Atomic review/pursuit task action | not started | | | | n/a | | Failure at either step rolls back both; retry creates one task | Revert UI to prior endpoint |
 | P09 | Human-readable match explanations | not started | | | | n/a | | No raw camelCase signal key in default card text | Revert web display |
 | P10 | Cross-client triage API | not started | | | | n/a | | Cursor pagination neither repeats nor skips; query count stays bounded | Revert route/service |
@@ -115,6 +115,45 @@ which the runbook already requires before a schedule is enabled.
 Nothing scores *differently on the basis itself* yet — `identityBasis` is carried on
 the profile and rendered in P09. Changing signal strength is a scoring change and
 was deliberately kept out of an identity phase.
+
+## P07 — migration rehearsal evidence
+
+Run locally against `pgvector/pgvector:pg16` (Postgres 16.14), which is the same
+image the CI gate provisions.
+
+| Rehearsal | Result |
+|---|---|
+| Clean replay from a verified-empty database | 226 migrations applied, P07 included |
+| Ordered upgrade from the prior FO schema | applied P07 only, nothing re-run |
+| Retry after apply (re-ran the SQL by hand) | no-op, exit 0, only `already exists, skipping` notices |
+| RLS after migration | ENABLED + FORCED, exactly 4 policies |
+| Legacy columns after migration | `grant_opportunity_id`, `sam_opportunity_id`, `workflow_status` all intact |
+| Pre-P07 API insert omitting all 6 columns | succeeds, row lands with `human_decision IS NULL` |
+
+Constraint behaviour, proven by attempting each write:
+
+| Attempted | Outcome |
+|---|---|
+| `human_decision` in (pursue, monitor, pass) with actor + timestamp | accepted |
+| `human_decision = 'reviewing'` | **rejected** |
+| `human_decision = 'suggested'` (a machine state) | **rejected** |
+| decision with no actor | **rejected** |
+| decision with no timestamp | **rejected** |
+| actor + timestamp with no decision | **rejected** |
+| all three NULL (undecided row) | accepted |
+| `next_action_due_at` with no `next_action` | **rejected** |
+| `next_action` with no due date | accepted |
+
+**Process note.** During this rehearsal I started a container with a host port that
+was already taken, suppressed the error, and read `$?` after a pipe — so a failed
+start looked like success and one `migrate deploy` ran against an unrelated
+leftover scratch container (`capiro-phase-pg-r82`). That database was empty: no
+migrations, no data, and afterwards its only rows were the 226 migration-bookkeeping
+rows. Nothing was overwritten and nothing was lost. Recorded here because a
+migration reaching a database nobody intended is exactly the class of event this
+program's rules exist to prevent, whether or not it did damage. The fix for the
+habit: verify the port is free, confirm the target database is empty, and never
+read an exit code through a pipe.
 
 ## Out-of-scope observations
 

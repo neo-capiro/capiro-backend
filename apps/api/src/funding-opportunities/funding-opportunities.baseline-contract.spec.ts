@@ -7,6 +7,7 @@ import {
   RECOMMENDATION_CONFIDENCES,
 } from './opportunity-recommendation.js';
 import {
+  HUMAN_DECISIONS,
   ELIGIBILITY_STATES,
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
@@ -142,6 +143,15 @@ const RECOMMENDATION: NonNullable<FundingOpportunity['recommendation']> = {
   reasonCodes: ['below_evidence_floor'],
 };
 
+const DECISION: NonNullable<FundingOpportunity['decision']> = {
+  decision: 'monitor',
+  reason: null,
+  decidedAt: '2026-08-06T00:00:00.000Z',
+  decidedByUserId: 'u-1',
+  nextAction: null,
+  nextActionDueAt: null,
+};
+
 const OPPORTUNITY: FundingOpportunity = {
   id: 'grants_gov:ABC-123',
   source: 'grants_gov',
@@ -186,6 +196,8 @@ const OPPORTUNITY: FundingOpportunity = {
   missingProfileFields: [],
   sourceUpdatedAt: null,
   workflow: null,
+  // Null is the honest value: nobody has decided. NOT the same as 'pass'.
+  decision: null,
   clientId: null,
 };
 
@@ -345,6 +357,7 @@ const CONSTRUCTED_KEYS: Record<string, string[]> = {
   OpportunitySourceFreshness: Object.keys(FRESHNESS),
   GrantEnrichmentHealth: Object.keys(ENRICHMENT),
   OpportunityRecommendationView: Object.keys(RECOMMENDATION),
+  OpportunityDecision: Object.keys(DECISION),
   FundingOpportunityListResponse: Object.keys(LIST_RESPONSE),
   ClientFundingOpportunitySummary: Object.keys(SUMMARY),
   'ClientFundingOpportunitySummary.nextDeadline': Object.keys(NEXT_DEADLINE),
@@ -373,6 +386,7 @@ describe('the frozen response contract still matches the code', () => {
     'OpportunitySourceFreshness',
     'GrantEnrichmentHealth',
     'OpportunityRecommendationView',
+    'OpportunityDecision',
     'FundingOpportunityListResponse',
     'ClientFundingOpportunitySummary',
   ])('the %s INTERFACE declares exactly the frozen keys (catches an added optional)', (name) => {
@@ -530,6 +544,16 @@ describe('the frozen vocabularies still match the runtime constants', () => {
     );
     for (const member of unionMembers('EmptyReason')) {
       expect(member).not.toMatch(/error|fail|unavailable|degraded/i);
+    }
+  });
+
+  test('the human-decision vocabulary is frozen, and is NOT the workflow list', () => {
+    expect([...HUMAN_DECISIONS]).toEqual(baseline.vocabularies.HUMAN_DECISIONS);
+    // The distinction P07 rests on. 'monitor' and 'pass' have no workflow
+    // equivalent; 'suggested' and 'expired' are machine states nobody decides.
+    expect([...HUMAN_DECISIONS]).not.toEqual([...OPPORTUNITY_WORKFLOW_STATUSES]);
+    for (const machineOnly of ['suggested', 'expired'] as const) {
+      expect([...HUMAN_DECISIONS]).not.toContain(machineOnly);
     }
   });
 

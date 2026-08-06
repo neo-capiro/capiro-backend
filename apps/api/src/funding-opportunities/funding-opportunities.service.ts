@@ -48,6 +48,8 @@ import { recommendOpportunity } from './opportunity-recommendation.js';
 import {
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
+  type HumanDecision,
+  type OpportunityDecision,
   WORKFLOW_SORT_PRIORITY,
   type ClientFundingOpportunitySummary,
   type EmptyReason,
@@ -374,6 +376,191 @@ export class FundingOpportunitiesService {
         return this.shapeWorkflow(saved, null, null);
       });
     }
+  }
+
+  /**
+   * Record the team's DECISION on one opportunity.
+   *
+   * A DEDICATED endpoint, not an overload of the generic PATCH. The generic patch
+   * takes five independent optional fields and any subset of them; a decision is a
+   * single atomic assertion that must always carry its actor and timestamp, and the
+   * database CHECKs that. Threading it through the patch would mean a body with
+   * `{notes}` and nothing else could not be told apart from one that also meant to
+   * clear a decision.
+   *
+   * THE THREE CONCEPTS STAY SEPARATE
+   *   - `humanDecision` is what the team decided.
+   *   - `workflowStatus` is where a pursuit is.
+   *   - the machine recommendation is recomputed on read and never stored.
+   * All three can disagree, and that is information rather than corruption.
+   *
+   * WHAT EACH DECISION DOES TO WORKFLOW
+   *   `pursue`  -> moves workflow to `pursuing`, subject to the SAME source guard
+   *                as every other pursuit. A closed or informational notice is
+   *                refused here exactly as it is on the save path.
+   *   `monitor` -> keeps (or creates) a `saved` workflow row. It is NOT a pursuit.
+   *   `pass`    -> records the decision and leaves workflow alone. Deliberately
+   *                does NOT set `dismissed`: dismissing is a UI-visibility action,
+   *                whereas passing is a judgement, and collapsing them would make
+   *                "we declined to bid" unrecoverable from "somebody hid the row".
+   */
+  async decide(
+    tenantId: string,
+    clientId: string,
+    source: OpportunitySource,
+    sourceRecordId: string,
+    input: {
+      decision: HumanDecision;
+      actorUserId: string;
+      reason?: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: string | null;
+    },
+  ): Promise<OpportunityDecision> {
+    await this.assertClientInTenant(tenantId, clientId);
+    const row = await this.fetchOneSourceRow(source, sourceRecordId);
+    if (!row) throw new NotFoundException('Opportunity not found');
+
+    // A due date with no action is a reminder about nothing. Rejected here as well
+    // as by the CHECK so the caller gets a 400 explaining it rather than a 500.
+    if (input.nextActionDueAt != null && !input.nextAction?.trim()) {
+      throw new BadRequestException(
+        'A next-action due date needs a next action. Describe what is due, or leave the date empty.',
+      );
+    }
+    const dueAt = input.nextActionDueAt != null ? new Date(input.nextActionDueAt) : null;
+    if (dueAt != null && Number.isNaN(dueAt.getTime())) {
+      throw new BadRequestException('nextActionDueAt must be an ISO-8601 timestamp.');
+    }
+
+    // `pursue` is a pursuit, so it faces the same guard as the save path: a closed
+    // or informational notice cannot be pursued however the request is spelled.
+    const workflowStatus: OpportunityWorkflowStatus | null =
+      input.decision === 'pursue' ? 'pursuing' : input.decision === 'monitor' ? 'saved' : null;
+    if (workflowStatus) this.assertPursuable(row, workflowStatus);
+
+    const decidedAt = new Date();
+    const facts = await this.readClientFacts(tenantId, clientId);
+    const score = this.scoreRow(row, facts);
+    const snapshot = this.sourceSnapshot(row);
+
+    const decisionData = {
+      humanDecision: input.decision,
+      decisionReason: input.reason?.trim() ? input.reason.trim() : null,
+      decisionAt: decidedAt,
+      decisionByUserId: input.actorUserId,
+      ...(input.nextAction !== undefined
+        ? { nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null }
+        : {}),
+      ...(input.nextActionDueAt !== undefined ? { nextActionDueAt: dueAt } : {}),
+      updatedBy: input.actorUserId,
+    };
+
+    const write = async () =>
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        const data = {
+          ...decisionData,
+          // `pass` leaves workflow untouched. A pass is a judgement, not a
+          // visibility action, and overwriting the workflow status would destroy
+          // whatever the team had actually been doing with the row.
+          ...(workflowStatus ? { workflowStatus } : {}),
+          relevanceScore: score.relevanceScore,
+          matchSignals: score.matchedSignals as unknown as Prisma.InputJsonValue,
+          eligibilityState: score.eligibility.state,
+          eligibilityReason: score.eligibility.reason,
+          sourceStatusSnapshot: snapshot.status,
+          responseDeadlineSnapshot: snapshot.deadline,
+          sourceUpdatedAtSnapshot: snapshot.updatedAt,
+          userCreated: true,
+          staleAt: null,
+        };
+        const saved = existing
+          ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+          : await tx.clientFundingOpportunity.create({
+              data: {
+                tenantId,
+                clientId,
+                source,
+                grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
+                samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+                // A decision IS a human action, so the row it creates is
+                // user-created and the producer must never overwrite it.
+                evidenceSourceType: 'user_action',
+                workflowStatus: workflowStatus ?? 'saved',
+                createdBy: input.actorUserId,
+                ...data,
+              },
+            });
+
+        // Same transaction as the write. An audit row written afterwards can be
+        // lost exactly when it matters most.
+        await this.writeWorkflowAudit(tx, {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: `funding_opportunity.decision.${input.decision}`,
+          entityId: saved.id,
+          before: existing
+            ? {
+                humanDecision: existing.humanDecision ?? null,
+                workflowStatus: existing.workflowStatus,
+                nextAction: existing.nextAction ?? null,
+              }
+            : null,
+          after: {
+            humanDecision: saved.humanDecision ?? null,
+            workflowStatus: saved.workflowStatus,
+            nextAction: saved.nextAction ?? null,
+          },
+        });
+        return this.shapeDecision(saved)!;
+      });
+
+    try {
+      return await write();
+    } catch (error) {
+      // The partial unique indexes are the concurrency backstop: two simultaneous
+      // first decisions can both observe no row, and the loser must retry as an
+      // update rather than leak a P2002.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (!existing) throw error;
+        const saved = await tx.clientFundingOpportunity.update({
+          where: { id: existing.id },
+          data: { ...decisionData, ...(workflowStatus ? { workflowStatus } : {}) },
+        });
+        return this.shapeDecision(saved)!;
+      });
+    }
+  }
+
+  /**
+   * Read-model for the persisted decision. Null when nobody has decided.
+   *
+   * The actor/timestamp pair is required by a CHECK, so a row with a decision
+   * always has both — but this reads defensively rather than asserting, because a
+   * legacy row predating the constraint would otherwise crash a list request.
+   */
+  private shapeDecision(row: {
+    humanDecision: string | null;
+    decisionReason: string | null;
+    decisionAt: Date | null;
+    decisionByUserId: string | null;
+    nextAction: string | null;
+    nextActionDueAt: Date | null;
+  }): OpportunityDecision | null {
+    if (!row.humanDecision || !row.decisionAt || !row.decisionByUserId) return null;
+    return {
+      decision: row.humanDecision as HumanDecision,
+      reason: row.decisionReason ?? null,
+      decidedAt: row.decisionAt.toISOString(),
+      decidedByUserId: row.decisionByUserId,
+      nextAction: row.nextAction ?? null,
+      nextActionDueAt: row.nextActionDueAt ? row.nextActionDueAt.toISOString() : null,
+    };
   }
 
   /**
@@ -1207,6 +1394,9 @@ export class FundingOpportunitiesService {
         : base.districtKey,
       districtBasis: linkedFacility ? 'linked_project_site' : base.districtBasis,
       workflow: wf ? this.shapeWorkflow(wf.row, wf.owner, wf.facility) : null,
+      // Null when nobody has decided. NOT the same as `pass`: "nobody looked"
+      // and "we looked and declined" are different facts.
+      decision: wf ? this.shapeDecision(wf.row) : null,
       _meetsFloor: scored.meetsSuggestionFloor,
     } as FundingOpportunity & { _meetsFloor: boolean };
   }
@@ -1270,6 +1460,7 @@ export class FundingOpportunitiesService {
         missingProfileFields: [],
         sourceUpdatedAt: (g.lastUpdatedAt ?? g.detailSyncedAt ?? g.syncedAt)?.toISOString() ?? null,
         workflow: null,
+        decision: null,
         clientId: null,
       };
     }
@@ -1336,6 +1527,7 @@ export class FundingOpportunitiesService {
       missingProfileFields: [],
       sourceUpdatedAt: (s.updatedAt ?? s.lastSyncedAt)?.toISOString() ?? null,
       workflow: null,
+      decision: null,
       clientId: null,
     };
   }
@@ -1934,6 +2126,15 @@ interface WorkflowRowWithRefs {
     notes: string | null;
     dismissedReason: string | null;
     outcomeNote: string | null;
+    // P07 decision columns. Read on the list path so a row's decision travels with
+    // it — otherwise every card would need a second round trip to learn whether
+    // anybody had decided anything.
+    humanDecision: string | null;
+    decisionReason: string | null;
+    decisionAt: Date | null;
+    decisionByUserId: string | null;
+    nextAction: string | null;
+    nextActionDueAt: Date | null;
     userCreated: boolean;
     staleAt: Date | null;
     createdAt: Date;

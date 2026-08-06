@@ -117,6 +117,36 @@ export const WORKFLOW_SORT_PRIORITY: Readonly<Record<OpportunityWorkflowStatus, 
     dismissed: 6,
   });
 
+// ── Human decision ──────────────────────────────────────────────────────────
+
+/**
+ * What the TEAM decided. Deliberately NOT the same list as
+ * `OPPORTUNITY_WORKFLOW_STATUSES`.
+ *
+ * `monitor` and `pass` have no workflow equivalent, and `suggested` / `expired`
+ * are machine states nobody decides. Reusing the workflow vocabulary here is what
+ * makes "we chose not to bid this" indistinguishable from "the source closed" —
+ * and only one of those is a decision somebody can be asked about later.
+ */
+export const HUMAN_DECISIONS = ['pursue', 'monitor', 'pass'] as const;
+export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
+
+/**
+ * The persisted decision and its next action.
+ *
+ * Separate from both the machine recommendation (recomputed on read, never
+ * stored) and the workflow status (where a pursuit is). All three can legitimately
+ * disagree, and that disagreement is signal.
+ */
+export interface OpportunityDecision {
+  decision: HumanDecision;
+  reason: string | null;
+  decidedAt: IsoTimestamp;
+  decidedByUserId: string;
+  nextAction: string | null;
+  nextActionDueAt: IsoTimestamp | null;
+}
+
 // ── Eligibility ─────────────────────────────────────────────────────────────
 
 export const ELIGIBILITY_STATES = ['eligible', 'ineligible', 'needs_review', 'unknown'] as const;
@@ -392,6 +422,15 @@ export interface FundingOpportunity {
 
   /** Null when no workflow row exists yet — the common case for a suggestion. */
   workflow: OpportunityWorkflow | null;
+
+  /**
+   * The team's persisted decision, or null when nobody has decided yet.
+   *
+   * Null is the honest state for every producer-created suggestion. It is NOT the
+   * same as `pass`: "nobody has looked at this" and "we looked and declined" are
+   * different facts, and a default would erase the difference for the whole corpus.
+   */
+  decision: OpportunityDecision | null;
 
   /** The client this scoring is relative to. Null on the unscoped catalog read. */
   clientId: string | null;

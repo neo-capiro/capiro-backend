@@ -13,6 +13,7 @@
       "clientId",
       "closeOrArchiveDate",
       "contractValue",
+      "decision",
       "districtBasis",
       "districtKey",
       "eligibility",
@@ -50,6 +51,14 @@
       "workflow"
     ],
     "FundingOpportunity.eligibility": ["reason", "state"],
+    "OpportunityDecision": [
+      "decidedAt",
+      "decidedByUserId",
+      "decision",
+      "nextAction",
+      "nextActionDueAt",
+      "reason"
+    ],
     "OpportunityRecommendationView": [
       "machineRecommendation",
       "primaryReason",
@@ -194,7 +203,8 @@
     ],
     "WRITE_DTO_ACCEPTED_STATUSES": ["saved", "pursuing", "won", "lost"],
     "MACHINE_RECOMMENDATIONS": ["pursue", "monitor", "pass", "needs_review"],
-    "RECOMMENDATION_CONFIDENCES": ["high", "medium", "low"]
+    "RECOMMENDATION_CONFIDENCES": ["high", "medium", "low"],
+    "HUMAN_DECISIONS": ["pursue", "monitor", "pass"]
   },
 
   "moneyFields": [
@@ -210,6 +220,7 @@
   },
 
   "amendedByPhase": {
+    "P07": "Added FundingOpportunity.decision (additive, nullable) plus the OpportunityDecision shape and the HUMAN_DECISIONS vocabulary. HUMAN_DECISIONS is deliberately NOT the same list as OPPORTUNITY_WORKFLOW_STATUSES: 'monitor' and 'pass' have no workflow equivalent, and 'suggested'/'expired' are machine states nobody decides. Null means nobody has decided yet, which is NOT the same as 'pass'. Backed by migration 20260819010000_funding_opportunity_decisions (additive, nullable, no backfill).",
     "P06": "Added FundingOpportunity.recommendation (additive, nullable) plus the OpportunityRecommendationView shape and the two recommendation vocabularies. The field is COMPUTED on read, never persisted, and is null on the unscoped catalog read because a recommendation is always relative to a specific client. Relevance and eligibility are unchanged; this is a fourth concept, not a replacement."
   },
 
@@ -223,6 +234,8 @@
     "portalDenial": "client_portal_user ranks below the controller's declared standard_user minimum, so RolesGuard denies every route with 403. This module exposes no separate portal read path.",
     "failureIsNotEmpty": "A failing catalog read propagates as a non-2xx. EmptyReason has no member meaning 'the request failed', so a broken query can never render as zero results.",
     "closedCannotBePursued": "assertPursuable rejects status 'pursuing' for a closed grant, a closed SAM notice, and any NON_PURSUABLE_KINDS notice. Every other status, 'saved' included, stays available.",
+    "decisionIsNotWorkflowStatus": "humanDecision (what the team decided), workflowStatus (where a pursuit is) and the machine recommendation (recomputed on read) are three separate concepts that may legitimately disagree. A `pass` records a judgement and does NOT set workflowStatus='dismissed', because dismissing is a visibility action and passing is a judgement.",
+    "decisionCarriesActorAndTimestamp": "A CHECK constraint enforces that humanDecision, decisionAt and decisionByUserId are either all NULL or all present. A decision without an actor is not reviewable.",
     "producerNeverOverwritesHumanDecision": "A row whose workflowStatus is in HUMAN_DECISION_STATUSES, or whose userCreated is true, is left untouched by both candidate producers."
   },
 
@@ -231,14 +244,15 @@
   "migrations": [
     "20260810010000_funding_opportunities",
     "20260810020000_funding_opportunities_closeout",
-    "20260810040000_funding_opportunities_lifecycle_truth"
+    "20260810040000_funding_opportunities_lifecycle_truth",
+    "20260819010000_funding_opportunity_decisions"
   ],
 
   "testFloors": {
     "note": "Floors enforced by scripts/assert-test-summary.mjs in .github/workflows/funding-opportunities-ci.yml. A floor may be RAISED freely. Lowering one is indistinguishable from the gate shrinking and requires a written reason in the PR description.",
     "measuredAtFreeze": { "api": { "suites": 20, "tests": 584 }, "web": { "suites": 26, "tests": 79 } },
-    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740", "P06": "24/740 -> 25/790" },
-    "api": { "suites": 25, "tests": 790 },
+    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740", "P06": "24/740 -> 25/790", "P07": "25/790 -> 26/840" },
+    "api": { "suites": 26, "tests": 840 },
     "web": { "suites": 25, "tests": 75 }
   },
 

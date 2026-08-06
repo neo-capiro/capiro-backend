@@ -32,9 +32,11 @@ import {
 } from './funding-opportunities.service.js';
 import {
   ELIGIBILITY_STATES,
+  HUMAN_DECISIONS,
   OPPORTUNITY_KINDS,
   OPPORTUNITY_SOURCES,
   OPPORTUNITY_WORKFLOW_STATUSES,
+  type HumanDecision,
   type OpportunityKind,
   type OpportunitySource,
   type OpportunityWorkflowStatus,
@@ -189,6 +191,41 @@ class PatchOpportunityDto {
   outcomeNote?: string | null;
 }
 
+/**
+ * The decision body.
+ *
+ * A DEDICATED DTO, not a widening of PatchOpportunityDto. `decision` is REQUIRED:
+ * a decision request that forgot to say what was decided is a mistake, not a
+ * partial update, and an optional field here would let one through as a no-op that
+ * still stamped an actor and timestamp.
+ *
+ * There is no `clientId`, `source` or `id` in the body. All three come from the
+ * path, so a request cannot name one opportunity in its URL and another in its
+ * payload — the same reason P05 removed `id` from the mapping DTO.
+ */
+class DecideOpportunityDto {
+  @IsIn(HUMAN_DECISIONS)
+  decision!: HumanDecision;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  nextAction?: string;
+
+  /**
+   * ISO-8601. Rejected by the service when `nextAction` is absent — a due date
+   * with no action is a reminder about nothing.
+   */
+  @IsOptional()
+  @IsISO8601()
+  nextActionDueAt?: string;
+}
+
 class DismissOpportunityDto {
   @IsOptional()
   @IsString()
@@ -307,6 +344,34 @@ export class FundingOpportunitiesController {
       ...(body.facilityId !== undefined ? { facilityId: body.facilityId } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       ...(body.outcomeNote !== undefined ? { outcomeNote: body.outcomeNote } : {}),
+    });
+  }
+
+  /**
+   * Record the team's decision. Separate route from the generic PATCH because a
+   * decision is one atomic assertion that always carries its actor and timestamp,
+   * not a subset of independently-optional fields.
+   *
+   * `standard_user` deliberately: deciding whether to bid is the everyday work of
+   * the people who use this feature. Admin-only here would push the decision to
+   * somebody who is not doing the pursuing. (Contrast P05's mapping approval, which
+   * IS admin-only — that attributes federal award money rather than recording a
+   * team's own intent.)
+   */
+  @Post('clients/:clientId/opportunities/:source/:id/decision')
+  decide(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+    @Body() body: DecideOpportunityDto,
+  ) {
+    return this.service.decide(ctx.tenantId, clientId, params.source, id, {
+      decision: body.decision,
+      actorUserId: ctx.userId,
+      reason: body.reason ?? null,
+      ...(body.nextAction !== undefined ? { nextAction: body.nextAction } : {}),
+      ...(body.nextActionDueAt !== undefined ? { nextActionDueAt: body.nextActionDueAt } : {}),
     });
   }
 
