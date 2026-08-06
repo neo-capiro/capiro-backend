@@ -3,19 +3,14 @@ import { Alert, Card, Segmented, Space, Typography } from 'antd';
 import { useMe } from '../../lib/me.js';
 import { MemoryFileEditor } from '../../components/MemoryFileEditor.js';
 import { MemoryGovernanceCenterHost } from '../../components/MemoryGovernanceCenterHost.js';
-import { MemoryReviewStatusSummary } from '../../components/MemoryReviewStatusSummary.js';
 
 const { Text, Title } = Typography;
 
-/**
- * Settings → Memory.
- *
- * The Governance Center host preserves standard-user queues and the pre-Phase-15
- * administrator experience until the server explicitly arms the new center.
- */
+/** Settings → Memory: review work first, then active/personal memory files. */
 export function MemorySettingsPage() {
   const me = useMe();
-  const isAdmin = me.data?.role === 'user_admin' || me.data?.role === 'capiro_admin';
+  const isAdmin =
+    me.data?.role === 'user_admin' || me.data?.role === 'capiro_admin';
 
   const [scope, setScope] = useState<'firm' | 'user'>('firm');
   const slug = scope === 'firm' ? 'firm' : 'me';
@@ -23,7 +18,6 @@ export function MemorySettingsPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <MemoryReviewStatusSummary />
       <MemoryGovernanceCenterHost isAdmin={isAdmin} />
 
       <Card>
@@ -33,9 +27,9 @@ export function MemorySettingsPage() {
               Memory Files
             </Title>
             <Text type="secondary">
-              Firm knowledge and your personal profile that ground Meri and the knowledge graph.
-              Write in your own voice; the greyed hints show what belongs in each section.
-              Per-client memory now lives on each client&rsquo;s profile (Overview tab).
+              Firm knowledge and your personal profile ground Meri and the
+              knowledge graph. Shared edits enter the Review Inbox before they
+              become active. Per-client memory lives on each client&rsquo;s profile.
             </Text>
           </div>
 
