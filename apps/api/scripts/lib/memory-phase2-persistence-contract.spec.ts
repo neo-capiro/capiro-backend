@@ -27,20 +27,6 @@ const committed: MemoryPhase2PersistenceSources = {
 const target: MemoryPhase2PersistenceSources = {
   ...committed,
   prismaSchema: applyMemoryPhase2PrismaLineageModel(committed.prismaSchema),
-  revisionMigration: committed.revisionMigration.replace(
-    `-- SQL-OWNED LINEAGE CONTRACT
--- The four additive lineage columns remain intentionally absent from Prisma's
--- MemoryCandidate model during Phase 2. The application reads/writes them only
--- through locked raw SQL and create_memory_candidate_revision. This prevents a
--- generated Prisma delegate from offering unsafe partial lineage mutations while
--- Prisma safely ignores additive database columns during validate/generate.`,
-    `-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
--- Prisma models the four additive columns and self-relations so future schema
--- reconciliation cannot classify them as unmanaged drift. The application
--- creates and mutates lineage only through locked raw SQL and
--- create_memory_candidate_revision; generated delegates are not a valid
--- lifecycle mutation path.`,
-  ),
 };
 
 function expectContractFailure(mutated: MemoryPhase2PersistenceSources): void {
@@ -50,7 +36,7 @@ function expectContractFailure(mutated: MemoryPhase2PersistenceSources): void {
 }
 
 describe('memory Phase 2 persistence ownership contract', () => {
-  it('accepts the Prisma-modeled, SQL-enforced target contract', () => {
+  it('accepts the Prisma-modeled, SQL-enforced tenant-bound target contract', () => {
     expect(() => assertMemoryPhase2PersistenceContract(target)).not.toThrow();
   });
 
@@ -76,7 +62,7 @@ describe('memory Phase 2 persistence ownership contract', () => {
     ).toThrow(MemoryPhase2PersistenceContractError);
   });
 
-  it('fails if a modeled lineage field or self-relation is removed', () => {
+  it('fails if a modeled lineage field, tenant key, or self-relation is removed', () => {
     expectContractFailure({
       ...target,
       prismaSchema: target.prismaSchema.replace(
@@ -86,8 +72,40 @@ describe('memory Phase 2 persistence ownership contract', () => {
     });
     expectContractFailure({
       ...target,
-      prismaSchema: target.prismaSchema.replace('MemoryCandidatePredecessor', 'RemovedRelation'),
+      prismaSchema: target.prismaSchema.replace(
+        '@@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")',
+        '',
+      ),
     });
+    expectContractFailure({
+      ...target,
+      prismaSchema: target.prismaSchema.replace(
+        'fields: [tenantId, predecessorCandidateId], references: [tenantId, id]',
+        'fields: [predecessorCandidateId], references: [id]',
+      ),
+    });
+  });
+
+  it('fails if any migration lineage FK loses its tenant binding', () => {
+    for (const [composite, unsafe] of [
+      [
+        'FOREIGN KEY (tenant_id, revision_root_id)\n    REFERENCES memory_candidate(tenant_id, id)',
+        'FOREIGN KEY (revision_root_id)\n    REFERENCES memory_candidate(id)',
+      ],
+      [
+        'FOREIGN KEY (tenant_id, predecessor_candidate_id)\n    REFERENCES memory_candidate(tenant_id, id)',
+        'FOREIGN KEY (predecessor_candidate_id)\n    REFERENCES memory_candidate(id)',
+      ],
+      [
+        'FOREIGN KEY (tenant_id, superseded_by_id)\n    REFERENCES memory_candidate(tenant_id, id)',
+        'FOREIGN KEY (superseded_by_id)\n    REFERENCES memory_candidate(id)',
+      ],
+    ] as const) {
+      expectContractFailure({
+        ...target,
+        revisionMigration: target.revisionMigration.replace(composite, unsafe),
+      });
+    }
   });
 
   it('fails if production code attempts a Prisma delegate lineage mutation', () => {
