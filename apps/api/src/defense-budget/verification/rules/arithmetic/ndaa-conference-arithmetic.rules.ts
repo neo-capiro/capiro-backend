@@ -4,7 +4,13 @@ import {
   parseNdaaConferenceChamberPositionsV1,
 } from '../../../stages/authorization/ndaa-conference/ndaa-conference-facts-v1.js';
 import { addDecimals } from './exact-arithmetic.js';
-import { failCheck, makeDiscrepancy, passCheck, skippedCheck, type VerificationRuleV1 } from '../rule-types.js';
+import {
+  failCheck,
+  makeDiscrepancy,
+  passCheck,
+  skippedCheck,
+  type VerificationRuleV1,
+} from '../rule-types.js';
 
 export const NDAA_CONFERENCE_ARITHMETIC_RULE: VerificationRuleV1 = {
   code: 'ndaa_conference_arithmetic',
@@ -16,19 +22,26 @@ export const NDAA_CONFERENCE_ARITHMETIC_RULE: VerificationRuleV1 = {
 
   execute(ctx) {
     if (!ctx.policy.arithmeticRules.includes(this.code)) {
-      return { check: skippedCheck(this, ctx.verificationRunId, `${this.code} not in policy`), discrepancies: [] };
+      return {
+        check: skippedCheck(this, ctx.verificationRunId, `${this.code} not in policy`),
+        discrepancies: [],
+      };
     }
     const rows = ctx.input.artifact.assertions.flatMap((assertion) => {
       if (
         assertion.assertionKind !== 'document_fact' ||
         assertion.fieldName !== NDAA_CONFERENCE_CHAMBER_POSITIONS_FIELD
-      ) return [];
+      )
+        return [];
       return [{ assertion, value: parseNdaaConferenceChamberPositionsV1(assertion.value) }];
     });
-    const defined = rows.filter((item) => item.value.requestBaseline != null && item.value.change != null);
-    const mismatches = defined.filter((item) =>
-      addDecimals(item.value.requestBaseline!.valueMillions, item.value.change!.valueMillions) !==
-      item.value.conference.money.valueMillions,
+    const defined = rows.filter(
+      (item) => item.value.requestBaseline != null && item.value.change != null,
+    );
+    const mismatches = defined.filter(
+      (item) =>
+        addDecimals(item.value.requestBaseline!.valueMillions, item.value.change!.valueMillions) !==
+        item.value.conference.money.valueMillions,
     );
     const overrides = { required: true, blocking: true };
     if (mismatches.length > 0) {

@@ -9,9 +9,12 @@ import {
   reportingRecipientV1Schema,
 } from '../provisions/authorization-provision-v1.js';
 
-const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
-  message: 'must be nonblank',
-});
+const nonBlank = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: 'must be nonblank',
+  });
 
 export const ndaaConferenceChamberDispositionV1Schema = z
   .object({

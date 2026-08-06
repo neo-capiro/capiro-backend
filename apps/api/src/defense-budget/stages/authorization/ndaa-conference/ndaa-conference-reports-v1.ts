@@ -57,7 +57,10 @@ export interface NdaaConferenceUnresolvedReportV1 {
     rowIndex: number;
     rawLabel: string;
     lineKind: NdaaConferenceLineKindV1;
-    status: Extract<ResolvedBudgetLineBindingV1['status'], 'candidate' | 'unresolved' | 'conflicting'>;
+    status: Extract<
+      ResolvedBudgetLineBindingV1['status'],
+      'candidate' | 'unresolved' | 'conflicting'
+    >;
     basis: ResolvedBudgetLineBindingV1['basis'];
     candidateIdentityKeys: string[];
     evidenceIds: string[];

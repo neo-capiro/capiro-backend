@@ -6,15 +6,25 @@ import {
   factIdV1,
   omissionIdV1,
 } from '../../../contracts/artifact-builders.js';
-import { moneyToMillionsString, parseCanonicalDecimalString } from '../../../contracts/decimal-string.js';
-import type { BudgetLineIdentityV1, MoneyUnitV1 } from '../../../contracts/extraction-artifact-v1.js';
+import {
+  moneyToMillionsString,
+  parseCanonicalDecimalString,
+} from '../../../contracts/decimal-string.js';
+import type {
+  BudgetLineIdentityV1,
+  MoneyUnitV1,
+} from '../../../contracts/extraction-artifact-v1.js';
 import { nativeIdentityKeyV1 } from '../../budget-line-reference-v1.js';
 import type { CongressionalRowV1, CongressionalTableV1 } from '../../congressional-table-v1.js';
 import {
   stageSourceProfileHashV1,
   type DefenseBudgetStageSourceProfileV1,
 } from '../../stage-source-profile-v1.js';
-import type { StageActionDraftV1, StageBaselineFactV1, StagePositionV1 } from '../../stage-row-emitter-v1.js';
+import type {
+  StageActionDraftV1,
+  StageBaselineFactV1,
+  StagePositionV1,
+} from '../../stage-row-emitter-v1.js';
 import {
   COMMITTEE_REQUEST_BASELINE_FIELD,
   COMMITTEE_REQUEST_BASELINE_SCHEMA_VERSION,
@@ -55,9 +65,8 @@ export function addNdaaConferenceEvidenceV1(
   row: CongressionalRowV1,
   parserRunId: string,
 ): string[] {
-  const cells = row.cells.length === 0
-    ? [{ rowIndex: row.rowIndex, columnIndex: -1, rawText: '' }]
-    : row.cells;
+  const cells =
+    row.cells.length === 0 ? [{ rowIndex: row.rowIndex, columnIndex: -1, rawText: '' }] : row.cells;
   return cells.map((cell) => {
     const evidenceId = evidenceIdV1({
       stage: 'ndaa_conference',
@@ -66,15 +75,16 @@ export function addNdaaConferenceEvidenceV1(
       column: cell.columnIndex,
       rawText: cell.rawText,
     });
-    const box = cell.boundingBox == null
-      ? undefined
-      : {
-          x0: Number(cell.boundingBox.x0),
-          y0: Number(cell.boundingBox.y0),
-          x1: Number(cell.boundingBox.x1),
-          y1: Number(cell.boundingBox.y1),
-          coordinateSystem: 'pdf_points' as const,
-        };
+    const box =
+      cell.boundingBox == null
+        ? undefined
+        : {
+            x0: Number(cell.boundingBox.x0),
+            y0: Number(cell.boundingBox.y0),
+            x1: Number(cell.boundingBox.x1),
+            y1: Number(cell.boundingBox.y1),
+            coordinateSystem: 'pdf_points' as const,
+          };
     const validBox = box != null && [box.x0, box.y0, box.x1, box.y1].every(Number.isFinite);
     builder.addEvidence({
       evidenceId,
@@ -86,7 +96,8 @@ export function addNdaaConferenceEvidenceV1(
       ...(validBox ? { boundingBox: box } : {}),
       ...(cell.textSpan != null ? { textSpan: cell.textSpan } : {}),
       rowLabel: row.rawLabel,
-      columnLabel: table.columns.find((column) => column.columnIndex === cell.columnIndex)?.headerText,
+      columnLabel: table.columns.find((column) => column.columnIndex === cell.columnIndex)
+        ?.headerText,
       ...(cell.rawText ? { excerpt: cell.rawText } : {}),
     });
     return evidenceId;
@@ -221,7 +232,10 @@ export function emitNdaaConferencePositionV1(
       physicalPage: table.page,
       ...(table.printedPage != null ? { printedPage: table.printedPage } : {}),
       ...(position.derivation != null
-        ? { derivationBaseline: position.derivation.baseline, derivationChange: position.derivation.change }
+        ? {
+            derivationBaseline: position.derivation.baseline,
+            derivationChange: position.derivation.change,
+          }
         : {}),
     },
   });
@@ -242,24 +256,29 @@ export function emitNdaaConferenceChamberFactV1(input: {
     const value = byRole.get(role);
     return value == null
       ? { status: 'NOT_PRINTED' as const }
-      : { status: 'PRINTED' as const, money: money(value.value, value.unit), evidenceIds: input.evidenceIds };
+      : {
+          status: 'PRINTED' as const,
+          money: money(value.value, value.unit),
+          evidenceIds: input.evidenceIds,
+        };
   };
   const conferencePrinted = byRole.get('ndaa_conference');
   const request = byRole.get('request_baseline');
   const change = byRole.get('change');
-  const conference = conferencePrinted != null
-    ? {
-        status: 'PRINTED' as const,
-        money: money(conferencePrinted.value, conferencePrinted.unit),
-        evidenceIds: input.evidenceIds,
-      }
-    : {
-        status: 'DERIVED' as const,
-        money: money(input.position.value, input.position.unit),
-        baseline: money(input.position.derivation!.baseline, input.position.unit),
-        change: money(input.position.derivation!.change, input.position.unit),
-        evidenceIds: input.evidenceIds,
-      };
+  const conference =
+    conferencePrinted != null
+      ? {
+          status: 'PRINTED' as const,
+          money: money(conferencePrinted.value, conferencePrinted.unit),
+          evidenceIds: input.evidenceIds,
+        }
+      : {
+          status: 'DERIVED' as const,
+          money: money(input.position.value, input.position.unit),
+          baseline: money(input.position.derivation!.baseline, input.position.unit),
+          change: money(input.position.derivation!.change, input.position.unit),
+          evidenceIds: input.evidenceIds,
+        };
   const value = ndaaConferenceChamberPositionsV1Schema.parse({
     schemaVersion: 'ndaa_conference_chamber_positions_v1',
     stage: 'ndaa_conference',
@@ -357,11 +376,21 @@ export function omitNdaaConferenceRowV1(
   table: CongressionalTableV1,
   row: CongressionalRowV1,
   evidenceIds: string[],
-  reason: 'invalid_identity' | 'ambiguous_layout' | 'unsupported_unit' | 'missing_value' | 'unsupported_field',
+  reason:
+    | 'invalid_identity'
+    | 'ambiguous_layout'
+    | 'unsupported_unit'
+    | 'missing_value'
+    | 'unsupported_field',
   severity: 'review' | 'blocking',
   message: string,
 ): void {
-  const factId = factIdV1({ stage: 'ndaa_conference', page: table.page, row: row.rowIndex, reason });
+  const factId = factIdV1({
+    stage: 'ndaa_conference',
+    page: table.page,
+    row: row.rowIndex,
+    reason,
+  });
   builder.addSourceFact({
     factId,
     sourcePath: sourcePath(table, row, 'omission'),
@@ -388,8 +417,13 @@ function money(value: string, unit: MoneyUnitV1) {
 }
 
 function uniqueFiscalYear(table: CongressionalTableV1): number {
-  const years = [...new Set(table.columns.flatMap((column) => column.fiscalYear == null ? [] : [column.fiscalYear]))];
-  if (years.length !== 1) throw new Error('NDAA conference row requires one unambiguous fiscal year');
+  const years = [
+    ...new Set(
+      table.columns.flatMap((column) => (column.fiscalYear == null ? [] : [column.fiscalYear])),
+    ),
+  ];
+  if (years.length !== 1)
+    throw new Error('NDAA conference row requires one unambiguous fiscal year');
   return years[0]!;
 }
 

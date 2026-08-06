@@ -4,7 +4,10 @@ import type {
   ExtractionSourceV1,
   ParserRunV1,
 } from '../../../contracts/extraction-artifact-v1.js';
-import { CONGRESSIONAL_TABLE_SCHEMA_VERSION, type CongressionalTableV1 } from '../../congressional-table-v1.js';
+import {
+  CONGRESSIONAL_TABLE_SCHEMA_VERSION,
+  type CongressionalTableV1,
+} from '../../congressional-table-v1.js';
 import type { NativeIdentityIndexEntry } from '../../line-reference-resolver.js';
 import { FUNDING_FIELD_OWNERSHIP_RULE } from '../../../verification/rules/funding-field-ownership.rules.js';
 import { lookupPolicyForManifestDocument } from '../../../verification/authority-policy-resolution.js';
@@ -76,17 +79,38 @@ const PROOF: NdaaConferenceVehicleProofV1 = {
 
 type Role = NdaaConferenceTableV1['columnRoles'][number]['role'];
 function bundle(
-  values: Array<{ house?: string; senate?: string; request?: string; change?: string; conference?: string }>,
+  values: Array<{
+    house?: string;
+    senate?: string;
+    request?: string;
+    change?: string;
+    conference?: string;
+  }>,
 ): NdaaConferenceTableV1 {
-  const roles: Array<{ role: Role; header: string; semantic?: 'request_baseline' | 'change' | 'authorized_total' }> = [
-    { role: 'label', header: 'Program Element' },
-  ];
+  const roles: Array<{
+    role: Role;
+    header: string;
+    semantic?: 'request_baseline' | 'change' | 'authorized_total';
+  }> = [{ role: 'label', header: 'Program Element' }];
   const sample = values[0] ?? {};
-  if ('request' in sample) roles.push({ role: 'request_baseline', header: 'FY 2027 Request', semantic: 'request_baseline' });
-  if ('house' in sample) roles.push({ role: 'hasc', header: 'House Position FY 2027', semantic: 'authorized_total' });
-  if ('senate' in sample) roles.push({ role: 'sasc', header: 'Senate Position FY 2027', semantic: 'authorized_total' });
-  if ('change' in sample) roles.push({ role: 'change', header: 'Conference Change FY 2027', semantic: 'change' });
-  if ('conference' in sample) roles.push({ role: 'ndaa_conference', header: 'Conference Agreement FY 2027', semantic: 'authorized_total' });
+  if ('request' in sample)
+    roles.push({
+      role: 'request_baseline',
+      header: 'FY 2027 Request',
+      semantic: 'request_baseline',
+    });
+  if ('house' in sample)
+    roles.push({ role: 'hasc', header: 'House Position FY 2027', semantic: 'authorized_total' });
+  if ('senate' in sample)
+    roles.push({ role: 'sasc', header: 'Senate Position FY 2027', semantic: 'authorized_total' });
+  if ('change' in sample)
+    roles.push({ role: 'change', header: 'Conference Change FY 2027', semantic: 'change' });
+  if ('conference' in sample)
+    roles.push({
+      role: 'ndaa_conference',
+      header: 'Conference Agreement FY 2027',
+      semantic: 'authorized_total',
+    });
   const columns: CongressionalTableV1['columns'] = roles.map((item, index) => ({
     columnIndex: index,
     headerText: item.header,
@@ -107,7 +131,8 @@ function bundle(
       reference: { referenceKind: 'pe_code', peCode: '0605053A', rowTitle: 'Ground Robotics' },
       semanticKind: 'absolute_position',
       cells: roles.map((role, columnIndex) => {
-        const rawText = role.role === 'label' ? 'PE 0605053A Ground Robotics' : (mapping[role.role] ?? '');
+        const rawText =
+          role.role === 'label' ? 'PE 0605053A Ground Robotics' : (mapping[role.role] ?? '');
         return {
           rowIndex,
           columnIndex,
@@ -195,7 +220,11 @@ function chamberReference(
         identity: PE,
         fiscalYear: FY,
         field,
-        money: { originalValue: value, originalUnit: 'thousands', valueMillions: thousandsToMillions(value) },
+        money: {
+          originalValue: value,
+          originalUnit: 'thousands',
+          valueMillions: thousandsToMillions(value),
+        },
       },
     ],
   } as DefenseBudgetExtractionArtifactV1;
@@ -207,9 +236,13 @@ describe('NDAA conference composer and verification', () => {
     const funding = result.artifact.assertions.filter((item) => item.assertionKind === 'funding');
     expect(funding).toHaveLength(1);
     expect(funding[0]!.field).toBe('ndaaConference');
-    expect(funding.some((item) => item.field === 'conference' || item.field === 'enacted')).toBe(false);
+    expect(funding.some((item) => item.field === 'conference' || item.field === 'enacted')).toBe(
+      false,
+    );
     const chamber = result.artifact.assertions.find(
-      (item) => item.assertionKind === 'document_fact' && item.fieldName === 'ndaa_conference_chamber_positions_v1',
+      (item) =>
+        item.assertionKind === 'document_fact' &&
+        item.fieldName === 'ndaa_conference_chamber_positions_v1',
     );
     expect(chamber).toBeDefined();
   });
@@ -218,7 +251,9 @@ describe('NDAA conference composer and verification', () => {
     const result = compose([bundle([{ conference: '125' }])]);
     expect(result.coverage.status).toBe('complete');
     const chamber = result.artifact.assertions.find(
-      (item) => item.assertionKind === 'document_fact' && item.fieldName === 'ndaa_conference_chamber_positions_v1',
+      (item) =>
+        item.assertionKind === 'document_fact' &&
+        item.fieldName === 'ndaa_conference_chamber_positions_v1',
     );
     if (chamber?.assertionKind !== 'document_fact') throw new Error('expected chamber fact');
     const value = chamber.value as { house: { status: string }; senate: { status: string } };
@@ -246,9 +281,14 @@ describe('NDAA conference composer and verification', () => {
   });
 
   it('reconciles exact HASC and SASC references while allowing a negotiated conference delta', () => {
-    const artifact = compose([bundle([{ house: '100', senate: '120', conference: '110' }])]).artifact;
+    const artifact = compose([
+      bundle([{ house: '100', senate: '120', conference: '110' }]),
+    ]).artifact;
     const result = NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE.execute(
-      context(artifact, [chamberReference(artifact, 'hascMark', '100'), chamberReference(artifact, 'sascMark', '120')]),
+      context(artifact, [
+        chamberReference(artifact, 'hascMark', '100'),
+        chamberReference(artifact, 'sascMark', '120'),
+      ]),
     );
     expect(result.check?.outcome).toBe('PASS');
   });
@@ -263,10 +303,16 @@ describe('NDAA conference composer and verification', () => {
   });
 
   it('verifies request + conference change only when those semantics are printed', () => {
-    const artifact = compose([bundle([{ request: '100', change: '25', conference: '125' }])]).artifact;
+    const artifact = compose([
+      bundle([{ request: '100', change: '25', conference: '125' }]),
+    ]).artifact;
     expect(NDAA_CONFERENCE_ARITHMETIC_RULE.execute(context(artifact)).check?.outcome).toBe('PASS');
-    const mismatched = compose([bundle([{ request: '100', change: '25', conference: '130' }])]).artifact;
-    expect(NDAA_CONFERENCE_ARITHMETIC_RULE.execute(context(mismatched)).check?.outcome).toBe('FAIL');
+    const mismatched = compose([
+      bundle([{ request: '100', change: '25', conference: '130' }]),
+    ]).artifact;
+    expect(NDAA_CONFERENCE_ARITHMETIC_RULE.execute(context(mismatched)).check?.outcome).toBe(
+      'FAIL',
+    );
   });
 
   it('requires only the authorization conference field and rules', () => {

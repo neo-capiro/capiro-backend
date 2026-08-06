@@ -14,9 +14,12 @@ export const NDAA_CONFERENCE_VEHICLE_PROOF_SCHEMA_VERSION =
 export const NDAA_CONFERENCE_CHAMBER_POSITIONS_SCHEMA_VERSION =
   'ndaa_conference_chamber_positions_v1' as const;
 
-const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
-  message: 'must be nonblank',
-});
+const nonBlank = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: 'must be nonblank',
+  });
 
 const sourceProofSchema = z
   .object({
@@ -58,7 +61,10 @@ const printedPositionSchema = z
   })
   .strict();
 const notPrintedSchema = z.object({ status: z.literal('NOT_PRINTED') }).strict();
-const chamberPositionSchema = z.discriminatedUnion('status', [printedPositionSchema, notPrintedSchema]);
+const chamberPositionSchema = z.discriminatedUnion('status', [
+  printedPositionSchema,
+  notPrintedSchema,
+]);
 const conferencePositionSchema = z.discriminatedUnion('status', [
   printedPositionSchema,
   z

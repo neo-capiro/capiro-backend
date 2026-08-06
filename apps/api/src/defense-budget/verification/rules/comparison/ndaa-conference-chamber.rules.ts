@@ -36,11 +36,13 @@ export function ndaaConferenceComparablesV1(
     ) {
       return [];
     }
-    return [{
-      assertionId: assertion.assertionId,
-      evidenceIds: assertion.evidenceIds,
-      value: parseNdaaConferenceChamberPositionsV1(assertion.value),
-    }];
+    return [
+      {
+        assertionId: assertion.assertionId,
+        evidenceIds: assertion.evidenceIds,
+        value: parseNdaaConferenceChamberPositionsV1(assertion.value),
+      },
+    ];
   });
 }
 
@@ -56,7 +58,10 @@ export const NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE: VerificationRuleV1 = {
     const required = ctx.policy.requiredComparisonRules.includes(this.code);
     const review = ctx.policy.reviewComparisonRules.includes(this.code);
     if (!required && !review) {
-      return { check: skippedCheck(this, ctx.verificationRunId, `${this.code} not in policy`), discrepancies: [] };
+      return {
+        check: skippedCheck(this, ctx.verificationRunId, `${this.code} not in policy`),
+        discrepancies: [],
+      };
     }
     const overrides = { required, blocking: required };
     const referenceIds = ctx.input.referenceArtifacts.map((artifact) => artifact.artifactId);
@@ -90,7 +95,16 @@ export const NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE: VerificationRuleV1 = {
           overrides,
         ),
         discrepancies: required
-          ? [makeDiscrepancy('ndaa_conference_comparison_missing', 'blocking', 'required chamber comparison fact missing', [], [], referenceIds)]
+          ? [
+              makeDiscrepancy(
+                'ndaa_conference_comparison_missing',
+                'blocking',
+                'required chamber comparison fact missing',
+                [],
+                [],
+                referenceIds,
+              ),
+            ]
           : [],
       };
     }
@@ -154,7 +168,12 @@ export const NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE: VerificationRuleV1 = {
         };
       }
 
-      if (house.kind === 'one' && senate.kind === 'one' && house.value.valueMillions != null && senate.value.valueMillions != null) {
+      if (
+        house.kind === 'one' &&
+        senate.kind === 'one' &&
+        house.value.valueMillions != null &&
+        senate.value.valueMillions != null
+      ) {
         rowDetails.houseVsSenateDelta = signedDifference(
           senate.value.valueMillions,
           house.value.valueMillions,

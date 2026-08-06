@@ -51,7 +51,10 @@ export const ndaaConferenceTableV1Schema = z
     for (const column of value.table.columns) {
       const role = roles.get(column.columnIndex);
       if (role === 'quantity' && (!column.isQuantity || column.moneySemantic != null)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'quantity role requires quantity-only column' });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'quantity role requires quantity-only column',
+        });
       }
       const expectedSemantic =
         role === 'request_baseline'
@@ -82,7 +85,10 @@ export const ndaaConferenceTableV1Schema = z
 export type NdaaConferenceTableV1 = z.infer<typeof ndaaConferenceTableV1Schema>;
 
 export interface PrintedConferenceMoneyV1 {
-  role: Extract<NdaaConferenceColumnRole, 'request_baseline' | 'hasc' | 'sasc' | 'ndaa_conference' | 'change'>;
+  role: Extract<
+    NdaaConferenceColumnRole,
+    'request_baseline' | 'hasc' | 'sasc' | 'ndaa_conference' | 'change'
+  >;
   value: string;
   unit: MoneyUnitV1;
   fiscalYear?: number;
@@ -101,7 +107,9 @@ export function ndaaConferenceRoleMapV1(
  * Senate money columns are intentionally removed so the generic absolute-total
  * selector can only see the conference position (or explicit request+change).
  */
-export function ndaaConferenceEmissionTableV1(bundleInput: NdaaConferenceTableV1): CongressionalTableV1 {
+export function ndaaConferenceEmissionTableV1(
+  bundleInput: NdaaConferenceTableV1,
+): CongressionalTableV1 {
   const bundle = ndaaConferenceTableV1Schema.parse(bundleInput);
   const roles = ndaaConferenceRoleMapV1(bundle);
   const allowed = new Set<NdaaConferenceColumnRole>([
@@ -115,7 +123,9 @@ export function ndaaConferenceEmissionTableV1(bundleInput: NdaaConferenceTableV1
     .filter((column) => allowed.has(roles.get(column.columnIndex) ?? 'other'))
     .map((column) => {
       const role = roles.get(column.columnIndex);
-      return role === 'ndaa_conference' ? { ...column, moneySemantic: 'authorized_total' as const } : column;
+      return role === 'ndaa_conference'
+        ? { ...column, moneySemantic: 'authorized_total' as const }
+        : column;
     });
   const indices = new Set(columns.map((column) => column.columnIndex));
   return {

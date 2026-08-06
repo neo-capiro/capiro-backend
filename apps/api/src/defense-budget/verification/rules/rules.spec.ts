@@ -25,12 +25,13 @@ import {
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
+  NDAA_CONFERENCE_ARITHMETIC_RULE,
   ALL_VERIFICATION_RULES,
 } from './index.js';
 
 describe('rule infrastructure', () => {
-  it('exports all 17 verification rules', () => {
-    expect(ALL_VERIFICATION_RULES).toHaveLength(17);
+  it('exports all 18 verification rules', () => {
+    expect(ALL_VERIFICATION_RULES).toHaveLength(18);
   });
 
   it('each rule has a unique code', () => {
@@ -146,5 +147,9 @@ describe('rule codes match plan', () => {
 
   it('Workstream H: committee_adjustment', () => {
     expect(COMMITTEE_ADJUSTMENT_RULE.code).toBe('committee_adjustment');
+  });
+
+  it('Workstream G: ndaa_conference_arithmetic', () => {
+    expect(NDAA_CONFERENCE_ARITHMETIC_RULE.code).toBe('ndaa_conference_arithmetic');
   });
 });

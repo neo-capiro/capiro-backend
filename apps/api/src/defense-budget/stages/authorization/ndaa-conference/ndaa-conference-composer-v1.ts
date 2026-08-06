@@ -100,7 +100,10 @@ export function composeNdaaConferenceStageV1(
     const duplicates = duplicateDisposition(bundle, emissionTable);
     const evidenceByRow = new Map<number, string[]>();
     for (const row of bundle.table.rows) {
-      evidenceByRow.set(row.rowIndex, addNdaaConferenceEvidenceV1(builder, bundle.table, row, runId));
+      evidenceByRow.set(
+        row.rowIndex,
+        addNdaaConferenceEvidenceV1(builder, bundle.table, row, runId),
+      );
     }
 
     for (const row of bundle.table.rows) {
@@ -124,9 +127,7 @@ export function composeNdaaConferenceStageV1(
       }
       if (duplicates.secondary.has(row.rowIndex)) continue;
       const groupedRows = duplicates.groups.get(row.rowIndex) ?? [row];
-      const allEvidence = groupedRows.flatMap(
-        (item) => evidenceByRow.get(item.rowIndex) ?? [],
-      );
+      const allEvidence = groupedRows.flatMap((item) => evidenceByRow.get(item.rowIndex) ?? []);
 
       const binding = resolveBudgetLineReferenceV1(row.reference, input.resolutionContext);
       binding.supportingEvidenceIds = allEvidence;
@@ -201,7 +202,11 @@ export function composeNdaaConferenceStageV1(
         );
         countNdaaConferenceOmissionV1(bucket, coverage.totals, severity);
       }
-      if (emission.positions.length === 0 && emission.actions.length === 0 && emission.omissions.length === 0) {
+      if (
+        emission.positions.length === 0 &&
+        emission.actions.length === 0 &&
+        emission.omissions.length === 0
+      ) {
         omitNdaaConferenceRowV1(
           builder,
           bundle.table,
@@ -226,11 +231,16 @@ function assertNdaaConferenceSourceBinding(
   source: ExtractionSourceV1,
   proof: NdaaConferenceVehicleProofV1,
 ): void {
-  if (profile.stage !== 'ndaa_conference' || profile.authority !== 'ndaa_conference_authorization') {
+  if (
+    profile.stage !== 'ndaa_conference' ||
+    profile.authority !== 'ndaa_conference_authorization'
+  ) {
     throw new Error('NDAA conference composer requires ndaa_conference authorization profile');
   }
   if (source.authority !== 'ndaa_conference' || source.exhibit !== 'conference_report') {
-    throw new Error('NDAA conference source must use authority=ndaa_conference and conference_report exhibit');
+    throw new Error(
+      'NDAA conference source must use authority=ndaa_conference and conference_report exhibit',
+    );
   }
   if (source.fiscalYear !== profile.fiscalYear || proof.fiscalYear !== profile.fiscalYear) {
     throw new Error('NDAA conference fiscal-year mismatch');
@@ -244,7 +254,10 @@ function assertNdaaConferenceSourceBinding(
   if (proof.primary.manifestDocumentKey !== source.manifestDocumentKey) {
     throw new Error('NDAA conference primary manifest-document mismatch');
   }
-  if (source.sourceDocumentId == null || proof.primary.sourceDocumentId !== source.sourceDocumentId) {
+  if (
+    source.sourceDocumentId == null ||
+    proof.primary.sourceDocumentId !== source.sourceDocumentId
+  ) {
     throw new Error('NDAA conference primary source-document mismatch');
   }
   if (proof.primary.sourceSha256 !== source.sourcePdfSha256) {
@@ -271,9 +284,12 @@ function assertTableBinding(
   profile: DefenseBudgetStageSourceProfileV1,
   source: ExtractionSourceV1,
 ): void {
-  if (bundle.table.profileId !== profile.profileId) throw new Error('NDAA conference table profile mismatch');
-  if (bundle.table.sourceSha256 !== source.sourcePdfSha256) throw new Error('NDAA conference table source SHA mismatch');
-  if (bundle.table.sourceDocumentId !== source.sourceDocumentId) throw new Error('NDAA conference table source-document mismatch');
+  if (bundle.table.profileId !== profile.profileId)
+    throw new Error('NDAA conference table profile mismatch');
+  if (bundle.table.sourceSha256 !== source.sourcePdfSha256)
+    throw new Error('NDAA conference table source SHA mismatch');
+  if (bundle.table.sourceDocumentId !== source.sourceDocumentId)
+    throw new Error('NDAA conference table source-document mismatch');
 }
 
 function duplicateDisposition(bundle: NdaaConferenceTableV1, table: CongressionalTableV1) {
@@ -298,7 +314,10 @@ function duplicateDisposition(bundle: NdaaConferenceTableV1, table: Congressiona
   return { conflicts, secondary, groups };
 }
 
-function printedSignature(bundle: NdaaConferenceTableV1, row: CongressionalTableV1['rows'][number]): string {
+function printedSignature(
+  bundle: NdaaConferenceTableV1,
+  row: CongressionalTableV1['rows'][number],
+): string {
   return printedConferenceMoneyForRowV1(bundle, row)
     .map((item) => `${item.role}:${item.value}:${item.unit}:${item.fiscalYear ?? 'none'}`)
     .sort()
