@@ -126,6 +126,13 @@ function queryForRoute(route: RouteEntry, fixtures: Fixtures): string {
   if (route.handler === 'meetingLibrary') params.set('limit', '20');
   if (route.handler === 'listContacts') params.set('limit', '20');
   if (route.handler === 'listOutreachAudiences') params.set('kind', 'list');
+  // listAttachments requires an attachment parent (or unlinked=true), so an unqualified
+  // probe is a legitimate 400. Scope it to the seeded meeting — matching the
+  // post-acceptance verifier — so the route is exercised against real rows instead of
+  // comparing two identical BadRequest bodies.
+  if (route.handler === 'attachments') {
+    params.set('meetingId', fixtures.meetingIds.current ?? MISSING_ID);
+  }
   if (route.handler === 'callback') {
     params.set('code', 'phase1-local');
     params.set('state', 'phase1-local');
