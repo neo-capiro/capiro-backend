@@ -191,10 +191,16 @@ BEGIN
     RAISE EXCEPTION 'MEMORY_REVISION_PREDECESSOR_NOT_PENDING'
       USING ERRCODE = 'P0002';
   END IF;
+  IF predecessor.proposed_by <> p_proposer_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PROPOSER_REQUIRED'
+      USING ERRCODE = '42501';
+  END IF;
 
   -- The predecessor row lock serializes concurrent revisions. Once the first
-  -- transaction commits, every retry observes the durable successor and gets a
-  -- deterministic conflict instead of an ambiguous terminal-state response.
+  -- transaction commits, every retry by the legitimate proposer observes the
+  -- durable successor and gets a deterministic conflict instead of an ambiguous
+  -- terminal-state response. Proposer validation runs first to avoid leaking
+  -- successor existence to another tenant member through a direct SQL path.
   IF EXISTS (
     SELECT 1
     FROM memory_candidate
@@ -208,10 +214,6 @@ BEGIN
   IF predecessor.status <> 'pending' THEN
     RAISE EXCEPTION 'MEMORY_REVISION_PREDECESSOR_NOT_PENDING'
       USING ERRCODE = 'P0002';
-  END IF;
-  IF predecessor.proposed_by <> p_proposer_id THEN
-    RAISE EXCEPTION 'MEMORY_REVISION_PROPOSER_REQUIRED'
-      USING ERRCODE = '42501';
   END IF;
 
   SELECT *
