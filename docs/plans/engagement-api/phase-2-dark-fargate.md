@@ -1,8 +1,8 @@
 # Phase 2 — Engagement API Dark Fargate Deployment
 
-**Status:** Micro-sessions 2.0–2.13 code-complete. 2.14 (independent
-validation) pending. 2.15–2.20 (live AWS work) not started — this
-environment has no AWS credentials.
+**Status:** Micro-sessions 2.0–2.14 complete. 2.14's independent validator
+found one blocking bug (below), which is fixed and re-verified. 2.15–2.20
+(live AWS work) not started — this environment has no AWS credentials.
 
 **Branch:** `agent/engagement-api-phase-2-dark-fargate`
 **Base:** the accepted Phase 1 head `47902517c7dd64a408a87cef57323812407c29c8`
@@ -55,8 +55,9 @@ Full architecture: [phase-2-engagement-api-dark-fargate-executable-plan.md](../.
 | 2.11 | Fail-closed ALB preview rule manager | [preview-rule runbook](../runbooks/engagement-api-preview-rule.md) |
 | 2.12 | UI-aware preview probe manifest | [acceptance runbook](../runbooks/engagement-api-ui-aware-preview-acceptance.md) |
 | 2.13 | CI wiring, deploy/rollback runbooks, this document | — |
+| 2.14 | Independent validation — found and fixed a boot-blocking config gap | see below |
 
-**282 assertions** across every spec file, all passing against synthetic
+**287 assertions** across every spec file, all passing against synthetic
 fixtures and fake AWS/docker binaries. `cdk synth` succeeds for all three
 stacks. Verify locally with:
 
@@ -93,6 +94,27 @@ tenant, role, and ownership check still runs downstream.
 
 ---
 
+## What 2.14 found
+
+An independent validator (fresh context, no memory of writing the code)
+found that **the service as originally committed would crash-loop at boot.**
+`engagement-api.app.module.ts` boots the identical NestJS `ConfigModule`
+validator as the main API, which fatally throws `"CLERK_JWT_ISSUER is
+required outside tests"` whenever `NODE_ENV !== 'test'` — the service stack
+set `NODE_ENV: 'production'` but never set `CLERK_JWT_ISSUER`, and no
+automated gate (32/32 passing at the time) caught it, because every check
+only ever asserted what *was* present, never that this specific boot-required
+value was present too. Confirmed by direct inspection of the actual
+synthesized template before accepting the finding.
+
+Fixed: `clerkJwtIssuer` is now a required, URL-validated field on the config
+contract, injected as a literal task environment variable, and checked at
+three independent layers (config validation, the template safety verifier,
+and the task-config verifier) — plus two minor findings from the same
+review (unused dead code in the IAM helper; a CRLF line-ending regression in
+`ci-pr.yml` that inflated its diff 9×). All fixed and re-verified; see the
+2.14 fix commit for detail.
+
 ## Findings worth carrying past Phase 2
 
 1. **A GET route generates.** `GET /api/engagement/outreach/ai-templates/:id/preview`
@@ -118,8 +140,13 @@ tenant, role, and ownership check still runs downstream.
 
 ## What remains
 
-- **2.14** — independent code and architecture validation. Exit
-  `APPROVED_FOR_DEV_DEPLOYMENT` or `NOT_APPROVED`.
+- **2.14's own exit result:** the independent validator's initial pass
+  returned `NOT_APPROVED` on the `CLERK_JWT_ISSUER` finding above. The fix is
+  applied, tested at three layers, and the full `verify:engagement-phase-2`
+  suite re-run clean (287/287) — but that re-check was performed by the
+  authoring session, not a second independent pass. A fresh confirmation
+  pass before Gate B is recommended, though the finding itself is narrow and
+  closed.
 - **2.15–2.20** — live AWS work. Requires credentials this environment does
   not have, and Gates B/C/D each require separate, explicit human
   authorization naming the exact environment/account/region/stack.

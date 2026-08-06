@@ -14,9 +14,11 @@ that head. Phase 0's commits are ancestors of Phase 1 and have no separate PR.
 
 ## Scope
 
-Micro-sessions 2.0 through 2.13 (code-and-contract). 2.14 (independent
-validation) is the next step; 2.15–2.20 (live AWS work) are **not included** —
-this branch was produced without AWS credentials and deploys nothing.
+Micro-sessions 2.0 through 2.14 (code-and-contract). 2.14's independent
+validator found one blocking bug (below); it is fixed and re-verified, though
+a fresh confirmation pass before Gate B is recommended. 2.15–2.20 (live AWS
+work) are **not included** — this branch was produced without AWS
+credentials and deploys nothing.
 
 ## Infrastructure architecture
 
@@ -113,7 +115,7 @@ for "safe" could otherwise invoke generation against a live service.
 
 ## Automated tests
 
-**282 assertions**, all against synthetic fixtures, a stateful fake AWS
+**287 assertions**, all against synthetic fixtures, a stateful fake AWS
 binary, and a fake docker binary — the real behavior a test claims (e.g.
 "second create refuses rather than duplicating") is proven against actual
 state transitions the fake records, not asserted about static JSON.
@@ -168,6 +170,12 @@ Not performed.
 
 ## Known limitations
 
+- 2.14's independent validator initially found that the service would
+  crash-loop at boot: `CLERK_JWT_ISSUER` is required by the shared NestJS
+  config validator outside `NODE_ENV=test` and was never injected. Fixed —
+  now a required, URL-validated config field, injected as a literal env var,
+  checked at three layers. Re-run by the authoring session, not a second
+  independent pass; a fresh confirmation before Gate B is recommended.
 - Repo-wide `pnpm turbo run typecheck` is red on `main` for four pre-existing
   `defense-budget` rootDir violations, unrelated to this work (reproduced on
   a clean `origin/main` checkout). CI's Phase 2 gate is therefore a
@@ -183,5 +191,6 @@ Not performed.
 
 ## Ready for Phase 3
 
-Not yet — 2.14 (independent validation) is next, then 2.15–2.20 (live AWS,
+Not yet — a fresh confirmation pass on the 2.14 fix is recommended, then
+2.15–2.20 (live AWS,
 requires credentials this branch's environment does not have).
