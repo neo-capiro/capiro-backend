@@ -1,0 +1,92 @@
+name: Memory Phase 2 schema patch
+
+on:
+  push:
+    branches:
+      - feat/memory-phase2-review-workflow
+    paths:
+      - .github/workflows/memory-phase2-schema-patch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: memory-phase2-schema-patch
+  cancel-in-progress: false
+
+jobs:
+  patch-schema:
+    if: github.repository == 'neo-capiro/capirov2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/memory-phase2-review-workflow
+          fetch-depth: 0
+
+      - name: Apply guarded Prisma schema patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/api/prisma/schema.prisma')
+          text = path.read_text(encoding='utf-8')
+
+          if 'revisionRootId' in text:
+              print('Revision lineage is already modeled; no change required.')
+              raise SystemExit(0)
+
+          field_anchor = '''  payload           Json      @map("payload_jsonb")
+          provenance        Json      @map("provenance_jsonb")
+          '''
+          field_replacement = '''  payload           Json      @map("payload_jsonb")
+          provenance        Json      @map("provenance_jsonb")
+
+          /// Phase 2 immutable revision lineage. Prisma owns the database shape,
+          /// while lifecycle mutations are restricted to the locked
+          /// create_memory_candidate_revision SQL function.
+          revisionRootId         String? @map("revision_root_id") @db.Uuid
+          predecessorCandidateId String? @map("predecessor_candidate_id") @db.Uuid
+          revisionNumber         Int     @default(1) @map("revision_number")
+          supersededById         String? @map("superseded_by_id") @db.Uuid
+          '''
+
+          relation_anchor = '''  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+          duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+          duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
+          '''
+          relation_replacement = '''  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+          duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+          duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
+
+          revisionRoot MemoryCandidate?  @relation("MemoryCandidateRevisionRoot", fields: [revisionRootId], references: [id], onDelete: Restrict)
+          revisions    MemoryCandidate[] @relation("MemoryCandidateRevisionRoot")
+          predecessor  MemoryCandidate?  @relation("MemoryCandidatePredecessor", fields: [predecessorCandidateId], references: [id], onDelete: Restrict)
+          successors   MemoryCandidate[] @relation("MemoryCandidatePredecessor")
+          supersededBy MemoryCandidate?  @relation("MemoryCandidateSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+          supersedes   MemoryCandidate[] @relation("MemoryCandidateSupersession")
+          '''
+
+          if text.count(field_anchor) != 1:
+              raise SystemExit(f'Expected one MemoryCandidate field anchor; found {text.count(field_anchor)}.')
+          if text.count(relation_anchor) != 1:
+              raise SystemExit(f'Expected one MemoryCandidate relation anchor; found {text.count(relation_anchor)}.')
+
+          text = text.replace(field_anchor, field_replacement, 1)
+          text = text.replace(relation_anchor, relation_replacement, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit schema patch
+        shell: bash
+        run: |
+          if git diff --quiet -- apps/api/prisma/schema.prisma; then
+            echo 'No schema change to commit.'
+            exit 0
+          fi
+          git config user.name 'capiro-phase2-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add apps/api/prisma/schema.prisma
+          git commit -m 'feat(memory): model revision lineage in Prisma schema'
+          git push origin HEAD:feat/memory-phase2-review-workflow
