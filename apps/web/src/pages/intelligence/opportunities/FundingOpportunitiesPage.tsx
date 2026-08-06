@@ -201,18 +201,23 @@ export function FundingOpportunitiesPage() {
       const o = editor.opportunity;
       const base = `/api/intelligence/clients/${clientId}/opportunities/${o.source}/${o.sourceRecordId}`;
       if (editor.action === 'task') {
-        return api.post('/api/engagement/tasks', {
-          clientId,
+        // ONE atomic server action since P08, replacing a direct POST to
+        // /api/engagement/tasks. That call created a task titled "Pursue: X" and
+        // changed nothing else, so a task saying "pursue this" could exist while the
+        // opportunity was still an untouched machine suggestion — two facts in two
+        // tables written by two requests, either able to succeed alone.
+        //
+        // The server derives the title, description, due date and the idempotency
+        // key. Sending them from here is what let the two drift apart, and it is why
+        // the task's due date and the opportunity's next-action date could disagree.
+        //
+        // `pursuit` for a live, pursuable opportunity; `review` otherwise. An award
+        // or special notice is real intelligence worth putting on somebody's list,
+        // but it is not a pursuit and the server refuses to record it as one.
+        return api.post(`${base}/action`, {
+          intent: o.isPursuable && o.isActive ? 'pursuit' : 'review',
           ownerUserId: ownerUserId ?? undefined,
-          title: `Pursue: ${o.title}`.slice(0, 240),
-          description: [
-            `${o.source === 'grants_gov' ? 'Grants.gov' : 'SAM.gov'} opportunity ${o.sourceReference ?? o.sourceRecordId}`,
-            o.sourceUrl ?? null,
-            notes.trim() || null,
-          ]
-            .filter(Boolean)
-            .join('\n'),
-          dueDate: o.responseDeadline ?? undefined,
+          notes: notes.trim() || undefined,
         });
       }
       const body =

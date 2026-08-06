@@ -31,6 +31,11 @@ import {
   type OpportunityQuery,
 } from './funding-opportunities.service.js';
 import {
+  FundingOpportunityActionsService,
+  OPPORTUNITY_ACTION_INTENTS,
+  type OpportunityActionIntent,
+} from './funding-opportunity-actions.service.js';
+import {
   ELIGIBILITY_STATES,
   HUMAN_DECISIONS,
   OPPORTUNITY_KINDS,
@@ -226,6 +231,37 @@ class DecideOpportunityDto {
   nextActionDueAt?: string;
 }
 
+/**
+ * The atomic action body.
+ *
+ * `intent` is required and bounded. It is the only thing that distinguishes a
+ * review from a pursuit, and both the decision recorded and the task's idempotency
+ * key derive from it — so an optional intent would mean guessing which action a
+ * caller meant.
+ *
+ * There is no idempotency key in the body: it is DERIVED from
+ * (source, sourceRecordId, intent) inside the service, so two clients cannot
+ * disagree about what "the same action" is.
+ */
+class OpportunityActionDto {
+  @IsIn(OPPORTUNITY_ACTION_INTENTS)
+  intent!: OpportunityActionIntent;
+
+  @IsOptional()
+  @IsUUID()
+  ownerUserId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  nextAction?: string;
+}
+
 class DismissOpportunityDto {
   @IsOptional()
   @IsString()
@@ -270,7 +306,10 @@ class SourceParamDto {
 @UseGuards(RolesGuard, FundingOpportunitiesFlagGuard)
 @Roles('standard_user')
 export class FundingOpportunitiesController {
-  constructor(private readonly service: FundingOpportunitiesService) {}
+  constructor(
+    private readonly service: FundingOpportunitiesService,
+    private readonly actions: FundingOpportunityActionsService,
+  ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
   @Get('opportunities')
@@ -372,6 +411,33 @@ export class FundingOpportunitiesController {
       reason: body.reason ?? null,
       ...(body.nextAction !== undefined ? { nextAction: body.nextAction } : {}),
       ...(body.nextActionDueAt !== undefined ? { nextActionDueAt: body.nextActionDueAt } : {}),
+    });
+  }
+
+  /**
+   * Create the task AND record the decision, atomically.
+   *
+   * Replaces the web page's direct POST to `/api/engagement/tasks`, which created a
+   * task titled "Pursue: X" while leaving the opportunity an untouched machine
+   * suggestion — two facts in two tables written by two requests, either able to
+   * succeed alone.
+   *
+   * Retrying with the same intent returns the SAME task rather than a second one.
+   */
+  @Post('clients/:clientId/opportunities/:source/:id/action')
+  act(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+    @Body() body: OpportunityActionDto,
+  ) {
+    return this.actions.act(ctx.tenantId, clientId, params.source, id, {
+      intent: body.intent,
+      actorUserId: ctx.userId,
+      ...(body.ownerUserId !== undefined ? { ownerUserId: body.ownerUserId } : {}),
+      ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      ...(body.nextAction !== undefined ? { nextAction: body.nextAction } : {}),
     });
   }
 

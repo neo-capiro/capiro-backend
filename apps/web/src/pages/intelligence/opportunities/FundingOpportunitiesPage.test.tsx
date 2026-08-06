@@ -658,7 +658,11 @@ describe('workflow actions', () => {
     );
   });
 
-  test('create task uses the existing engagement task route', async () => {
+  test('create task goes through the ATOMIC action, not the raw task route', async () => {
+    // P08. The old call posted straight to /api/engagement/tasks, which created a
+    // task titled "Pursue: X" and changed nothing else — so a task saying "pursue
+    // this" could exist while the opportunity was still an untouched machine
+    // suggestion. Asserting the ROUTE is what keeps that from coming back.
     mockApi(listResponse({ opportunities: [contract()] }));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
@@ -667,16 +671,17 @@ describe('workflow actions', () => {
       target: { value: 'Prepare bid/no-bid review.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
-    await waitFor(() =>
-      expect(apiPostMock).toHaveBeenCalledWith(
-        '/api/engagement/tasks',
-        expect.objectContaining({
-          clientId: 'client-1',
-          title: expect.stringContaining('Pursue:'),
-          description: expect.stringContaining('Prepare bid/no-bid review.'),
-        }),
-      ),
-    );
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalled());
+
+    const [url, body] = apiPostMock.mock.calls[0]!;
+    expect(String(url)).not.toContain('/api/engagement/tasks');
+    expect(String(url)).toMatch(/\/opportunities\/sam_gov\/[^/]+\/action$/);
+    // The server derives title, description, due date and the idempotency key.
+    // Sending them from here is what let the two rows drift apart.
+    expect(body).not.toHaveProperty('title');
+    expect(body).not.toHaveProperty('dueDate');
+    expect(body).toMatchObject({ notes: 'Prepare bid/no-bid review.' });
+    expect(['review', 'pursuit']).toContain((body as { intent: string }).intent);
   });
 });
 

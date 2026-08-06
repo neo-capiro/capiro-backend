@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FundingOpportunitiesController } from './funding-opportunities.controller.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunitiesFlagGuard } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -25,7 +26,16 @@ import { FundingOpportunitiesFlagGuard } from './funding-opportunities-flag.guar
  */
 @Module({
   controllers: [FundingOpportunitiesController],
-  providers: [FundingOpportunitiesService, FundingOpportunitiesFlagGuard],
+  providers: [
+    FundingOpportunitiesService,
+    // P08. Depends only on PrismaService and FundingOpportunitiesService, so it
+    // adds no import to this module and cannot introduce a bootstrap cycle —
+    // deliberately, per the note above. It creates the Engagement task row
+    // directly rather than calling EngagementService, because that service opens
+    // its own transaction and the whole point of P08 is one transaction.
+    FundingOpportunityActionsService,
+    FundingOpportunitiesFlagGuard,
+  ],
   exports: [FundingOpportunitiesService],
 })
 export class FundingOpportunitiesModule {}

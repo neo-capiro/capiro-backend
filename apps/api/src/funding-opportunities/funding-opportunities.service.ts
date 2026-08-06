@@ -537,6 +537,144 @@ export class FundingOpportunitiesService {
     }
   }
 
+  // ── P08: the atomic action surface ────────────────────────────────────────
+
+  /**
+   * Everything the action service needs to build a task, plus whether a pursuit is
+   * allowed and why not.
+   *
+   * The refusal REASON is returned rather than thrown so the caller can validate
+   * before writing anything. Throwing here would mean the check had to happen
+   * after the task insert to know the title, which is the ordering that leaves an
+   * orphan task behind on a refused pursuit.
+   */
+  async describeForAction(
+    tenantId: string,
+    clientId: string,
+    source: OpportunitySource,
+    sourceRecordId: string,
+  ): Promise<{
+    title: string;
+    sourceReference: string | null;
+    sourceUrl: string | null;
+    responseDeadline: string | null;
+    isPursuable: boolean;
+    pursuitRefusal: string | null;
+  }> {
+    await this.assertClientInTenant(tenantId, clientId);
+    const row = await this.fetchOneSourceRow(source, sourceRecordId);
+    if (!row) throw new NotFoundException('Opportunity not found');
+    const base = this.shapeUnscored(row);
+
+    let pursuitRefusal: string | null = null;
+    try {
+      this.assertPursuable(row, 'pursuing');
+    } catch (error) {
+      pursuitRefusal = error instanceof BadRequestException ? error.message : 'Not pursuable';
+    }
+
+    return {
+      title: base.title,
+      sourceReference: base.sourceReference,
+      sourceUrl: base.sourceUrl,
+      responseDeadline: base.responseDeadline,
+      isPursuable: pursuitRefusal == null,
+      pursuitRefusal,
+    };
+  }
+
+  /** An owner must belong to the tenant. Same check the save path applies. */
+  async assertOwnerAssignable(tenantId: string, ownerUserId: string): Promise<void> {
+    await this.assertUserInTenant(tenantId, ownerUserId);
+  }
+
+  /**
+   * Write the decision and workflow change on an EXISTING transaction.
+   *
+   * Takes `tx` rather than opening its own, which is the whole reason P08 can be
+   * atomic: the caller has already inserted the Engagement task on this same
+   * transaction, so a failure here rolls both back together.
+   */
+  async applyActionDecision(
+    tx: Prisma.TransactionClient,
+    input: {
+      tenantId: string;
+      clientId: string;
+      source: OpportunitySource;
+      sourceRecordId: string;
+      actorUserId: string;
+      decision: HumanDecision;
+      workflowStatus: OpportunityWorkflowStatus;
+      ownerUserId?: string | null;
+      notes?: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: Date | null;
+      taskId: string;
+    },
+  ): Promise<{ id: string; workflowStatus: string }> {
+    const existing = await this.findWorkflowRow(
+      tx,
+      input.clientId,
+      input.source,
+      input.sourceRecordId,
+    );
+
+    const data = {
+      workflowStatus: input.workflowStatus,
+      humanDecision: input.decision,
+      decisionAt: new Date(),
+      decisionByUserId: input.actorUserId,
+      ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+      ...(input.notes !== undefined
+        ? { notes: input.notes?.trim() ? input.notes.trim() : null }
+        : {}),
+      nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null,
+      // The SAME date the task carries. Two dates that could drift is how a task
+      // says one thing and the inbox says another.
+      nextActionDueAt: input.nextActionDueAt ?? null,
+      userCreated: true,
+      staleAt: null,
+      updatedBy: input.actorUserId,
+    };
+
+    const saved = existing
+      ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+      : await tx.clientFundingOpportunity.create({
+          data: {
+            tenantId: input.tenantId,
+            clientId: input.clientId,
+            source: input.source,
+            grantOpportunityId: input.source === 'grants_gov' ? input.sourceRecordId : null,
+            samOpportunityId: input.source === 'sam_gov' ? input.sourceRecordId : null,
+            evidenceSourceType: 'user_action',
+            createdBy: input.actorUserId,
+            ...data,
+          },
+        });
+
+    await this.writeWorkflowAudit(tx, {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      action: `funding_opportunity.action.${input.decision}`,
+      entityId: saved.id,
+      before: existing
+        ? {
+            workflowStatus: existing.workflowStatus,
+            humanDecision: existing.humanDecision ?? null,
+          }
+        : null,
+      after: {
+        workflowStatus: saved.workflowStatus,
+        humanDecision: saved.humanDecision ?? null,
+        // The link between the two rows this action wrote, so an auditor can join
+        // them without guessing.
+        engagementTaskId: input.taskId,
+      },
+    });
+
+    return { id: saved.id, workflowStatus: saved.workflowStatus };
+  }
+
   /**
    * Read-model for the persisted decision. Null when nobody has decided.
    *
