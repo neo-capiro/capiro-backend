@@ -82,7 +82,10 @@ export function composeHacdStageV1(input: ComposeHacdStageV1Input): ComposeHacdS
 
   const builder = new ArtifactBuilderV1(input.source);
   const standInRun = {
-    parserRunId: parserRunIdV1({ source: input.source.sourcePdfSha256, profile: profile.profileId }),
+    parserRunId: parserRunIdV1({
+      source: input.source.sourcePdfSha256,
+      profile: profile.profileId,
+    }),
     method: 'manual' as const,
     parserVersion: 'hacd-stage-composer-v1',
     parserConfigSha256: stageSourceProfileHashV1(profile),
@@ -154,7 +157,13 @@ export function composeHacdStageV1(input: ComposeHacdStageV1Input): ComposeHacdS
       bindings.push(binding);
       countHacdBinding(bucket, coverage.totals, binding.status);
       if (binding.status !== 'accepted' || binding.targetIdentity == null) {
-        addHacdUnresolvedBinding({ report: unresolved, table, row, binding, evidenceIds: allEvidence });
+        addHacdUnresolvedBinding({
+          report: unresolved,
+          table,
+          row,
+          binding,
+          evidenceIds: allEvidence,
+        });
         const severity = binding.status === 'candidate' ? 'review' : 'blocking';
         omitHacdRow(
           builder,
@@ -172,14 +181,7 @@ export function composeHacdStageV1(input: ComposeHacdStageV1Input): ComposeHacdS
       if (row.semanticKind === 'general_provision') {
         const amount = hacdActionMoney(rowMoneyV1(table, row));
         if (amount != null) {
-          emitHacdDirectAction(
-            builder,
-            table,
-            row,
-            binding.targetIdentity,
-            amount,
-            allEvidence,
-          );
+          emitHacdDirectAction(builder, table, row, binding.targetIdentity, amount, allEvidence);
           countHacdAction(bucket, coverage.totals, account);
         } else {
           omitHacdRow(
@@ -231,12 +233,7 @@ export function composeHacdStageV1(input: ComposeHacdStageV1Input): ComposeHacdS
 
       for (const omission of emission.omissions) {
         emitHacdStageOmission(builder, table, row, allEvidence, omission);
-        countHacdOmission(
-          bucket,
-          coverage.totals,
-          account,
-          hacdStageOmissionSeverity(omission),
-        );
+        countHacdOmission(bucket, coverage.totals, account, hacdStageOmissionSeverity(omission));
       }
       if (
         emission.positions.length === 0 &&

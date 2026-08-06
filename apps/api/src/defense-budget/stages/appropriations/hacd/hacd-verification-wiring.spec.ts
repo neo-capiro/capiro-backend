@@ -159,7 +159,11 @@ describe('HAC-D Phase 6 verification wiring', () => {
       ...artifact,
       artifactId: 'request-reference-artifact',
       contentSha256: 'e'.repeat(64),
-      source: { ...artifact.source, sourceDocumentId: 'request-source', authority: 'dod-comptroller' },
+      source: {
+        ...artifact.source,
+        sourceDocumentId: 'request-source',
+        authority: 'dod-comptroller',
+      },
       assertions: [
         {
           assertionKind: 'funding',
@@ -174,8 +178,8 @@ describe('HAC-D Phase 6 verification wiring', () => {
         },
       ],
     } as DefenseBudgetExtractionArtifactV1;
-    expect(COMMITTEE_REQUEST_REFERENCE_RULE.execute(context(artifact, [reference])).check?.outcome).toBe(
-      'PASS',
-    );
+    expect(
+      COMMITTEE_REQUEST_REFERENCE_RULE.execute(context(artifact, [reference])).check?.outcome,
+    ).toBe('PASS');
   });
 });

@@ -79,13 +79,22 @@ const INDEX: NativeIdentityIndexEntry[] = [
 function column(
   overrides: Partial<CongressionalColumnV1> & { columnIndex: number },
 ): CongressionalColumnV1 {
-  return { headerText: `column-${overrides.columnIndex}`, isQuantity: false, ...overrides } as CongressionalColumnV1;
+  return {
+    headerText: `column-${overrides.columnIndex}`,
+    isQuantity: false,
+    ...overrides,
+  } as CongressionalColumnV1;
 }
 
 function row(
   overrides: Partial<CongressionalRowV1> & Pick<CongressionalRowV1, 'rowIndex' | 'reference'>,
 ): CongressionalRowV1 {
-  return { rawLabel: 'row', semanticKind: 'absolute_position', cells: [], ...overrides } as CongressionalRowV1;
+  return {
+    rawLabel: 'row',
+    semanticKind: 'absolute_position',
+    cells: [],
+    ...overrides,
+  } as CongressionalRowV1;
 }
 
 function table(
@@ -171,7 +180,12 @@ describe('HAC-D composer V1', () => {
         positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125'),
         positionRow(
           1,
-          { referenceKind: 'procurement_line', lineCode: 'W12002', account: '2035A', component: 'ARMY' },
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'W12002',
+            account: '2035A',
+            component: 'ARMY',
+          },
           '80',
           '-5',
           '75',
@@ -185,7 +199,12 @@ describe('HAC-D composer V1', () => {
         ),
         positionRow(
           3,
-          { referenceKind: 'milcon_project', projectCode: 'PN12345', component: 'AF', location: 'Eglin AFB' },
+          {
+            referenceKind: 'milcon_project',
+            projectCode: 'PN12345',
+            component: 'AF',
+            location: 'Eglin AFB',
+          },
           '20',
           '5',
           '25',
@@ -195,7 +214,9 @@ describe('HAC-D composer V1', () => {
     const funding = fundingAssertions(result);
     expect(funding).toHaveLength(4);
     expect(funding.every((assertion) => assertion.field === 'hacDMark')).toBe(true);
-    expect(funding.some((assertion) => ['hascMark', 'sascMark'].includes(assertion.field))).toBe(false);
+    expect(funding.some((assertion) => ['hascMark', 'sascMark'].includes(assertion.field))).toBe(
+      false,
+    );
     expect(result.coverage.byLineFamily.RDTE_PE.positionsEmitted).toBe(1);
     expect(result.coverage.byLineFamily.PROCUREMENT_BLIN.positionsEmitted).toBe(1);
     expect(result.coverage.byLineFamily.OM_SAG.positionsEmitted).toBe(1);
@@ -206,7 +227,9 @@ describe('HAC-D composer V1', () => {
     const result = compose([
       table([positionRow(0, { referenceKind: 'pe_code', peCode: '0605053A' }, '100', '25', '125')]),
     ]);
-    expect(fundingAssertions(result).some((assertion) => assertion.field === 'request')).toBe(false);
+    expect(fundingAssertions(result).some((assertion) => assertion.field === 'request')).toBe(
+      false,
+    );
     expect(
       result.artifact.assertions.some(
         (assertion) =>
@@ -264,7 +287,12 @@ describe('HAC-D composer V1', () => {
       table([
         positionRow(
           0,
-          { referenceKind: 'procurement_line', lineCode: 'W12002', account: '2035A', component: 'ARMY' },
+          {
+            referenceKind: 'procurement_line',
+            lineCode: 'W12002',
+            account: '2035A',
+            component: 'ARMY',
+          },
           '80',
           '-5',
           '75',
@@ -278,8 +306,14 @@ describe('HAC-D composer V1', () => {
         ),
       ]),
     ]);
-    expect(result.coverage.byAccount['2035A']).toMatchObject({ representedRows: 1, positionsEmitted: 1 });
-    expect(result.coverage.byAccount['2020A']).toMatchObject({ representedRows: 1, positionsEmitted: 1 });
+    expect(result.coverage.byAccount['2035A']).toMatchObject({
+      representedRows: 1,
+      positionsEmitted: 1,
+    });
+    expect(result.coverage.byAccount['2020A']).toMatchObject({
+      representedRows: 1,
+      positionsEmitted: 1,
+    });
   });
 
   it('blocks conflicting duplicate HAC-D rows instead of choosing a winner', () => {
@@ -307,7 +341,10 @@ describe('HAC-D composer V1', () => {
     ]);
     expect(fundingAssertions(result)).toHaveLength(0);
     expect(result.coverage.status).toBe('complete_with_review');
-    expect(result.unresolved.entries[0]).toMatchObject({ status: 'candidate', lineFamily: 'PROCUREMENT_BLIN' });
+    expect(result.unresolved.entries[0]).toMatchObject({
+      status: 'candidate',
+      lineFamily: 'PROCUREMENT_BLIN',
+    });
   });
 
   it('replays deterministically', () => {
