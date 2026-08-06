@@ -13,24 +13,9 @@ export const MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS = [
 ] as const satisfies readonly PrismaModeledLineageColumn[];
 
 const TENANT_BOUND_LINEAGE_REFERENCES = [
-  {
-    prismaField: 'revisionRootId',
-    databaseColumn: 'revision_root_id',
-    relation: 'MemoryCandidateRevisionRoot',
-    constraint: 'memory_candidate_revision_root_fk',
-  },
-  {
-    prismaField: 'predecessorCandidateId',
-    databaseColumn: 'predecessor_candidate_id',
-    relation: 'MemoryCandidatePredecessor',
-    constraint: 'memory_candidate_predecessor_fk',
-  },
-  {
-    prismaField: 'supersededById',
-    databaseColumn: 'superseded_by_id',
-    relation: 'MemoryCandidateSupersession',
-    constraint: 'memory_candidate_superseded_by_fk',
-  },
+  { prismaField: 'revisionRootId', databaseColumn: 'revision_root_id', relation: 'MemoryCandidateRevisionRoot', constraint: 'memory_candidate_revision_root_fk' },
+  { prismaField: 'predecessorCandidateId', databaseColumn: 'predecessor_candidate_id', relation: 'MemoryCandidatePredecessor', constraint: 'memory_candidate_predecessor_fk' },
+  { prismaField: 'supersededById', databaseColumn: 'superseded_by_id', relation: 'MemoryCandidateSupersession', constraint: 'memory_candidate_superseded_by_fk' },
 ] as const;
 
 export interface MemoryPhase2PersistenceSources {
@@ -78,98 +63,72 @@ const INDEX_ANCHOR = `  @@index([tenantId, status], map: "memory_candidate_tenan
 const INDEX_REPLACEMENT = `  @@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")
 ${INDEX_ANCHOR}`;
 
+const LEGACY_OWNERSHIP_COMMENT = `-- SQL-OWNED LINEAGE CONTRACT
+-- The four additive lineage columns remain intentionally absent from Prisma's
+-- MemoryCandidate model during Phase 2. The application reads/writes them only
+-- through locked raw SQL and create_memory_candidate_revision. This prevents a
+-- generated Prisma delegate from offering unsafe partial lineage mutations while
+-- Prisma safely ignores additive database columns during validate/generate.`;
+
+const CURRENT_OWNERSHIP_COMMENT = `-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
+-- Prisma models the four additive columns and tenant-bound self-relations so
+-- future schema reconciliation cannot classify them as unmanaged drift. The
+-- application creates and mutates lineage only through locked raw SQL and
+-- create_memory_candidate_revision; generated delegates are not a valid
+-- lifecycle mutation path.`;
+
 export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2PersistenceSources): void {
   const model = extractPrismaModel(sources.prismaSchema, 'MemoryCandidate');
   for (const column of MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS) {
-    required(
-      new RegExp(`\\b${escapeRegex(column.prismaField)}\\s+${escapeRegex(column.prismaType)}[\\s\\S]{0,100}@map\\("${escapeRegex(column.databaseColumn)}"\\)`).test(model),
-      `Prisma MemoryCandidate must model ${column.prismaField} -> ${column.databaseColumn}.`,
-    );
-    required(
-      new RegExp(`ADD COLUMN IF NOT EXISTS\\s+${escapeRegex(column.databaseColumn)}\\s+${escapeRegex(column.migrationSqlType)}`, 'i').test(sources.revisionMigration),
-      `Revision migration must own ${column.databaseColumn}.`,
-    );
+    required(new RegExp(`\\b${escapeRegex(column.prismaField)}\\s+${escapeRegex(column.prismaType)}[\\s\\S]{0,100}@map\\("${escapeRegex(column.databaseColumn)}"\\)`).test(model), `Prisma MemoryCandidate must model ${column.prismaField} -> ${column.databaseColumn}.`);
+    required(new RegExp(`ADD COLUMN IF NOT EXISTS\\s+${escapeRegex(column.databaseColumn)}\\s+${escapeRegex(column.migrationSqlType)}`, 'i').test(sources.revisionMigration), `Revision migration must own ${column.databaseColumn}.`);
   }
   required(model.includes('@@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")'), 'Prisma MemoryCandidate must model the tenant/id composite key.');
-  required(
-    /CREATE UNIQUE INDEX IF NOT EXISTS\s+memory_candidate_tenant_id_id_unique\s+ON memory_candidate\s*\(\s*tenant_id\s*,\s*id\s*\)/i.test(sources.revisionMigration),
-    'Migration must retain the tenant/id composite key.',
-  );
+  required(/CREATE UNIQUE INDEX IF NOT EXISTS\s+memory_candidate_tenant_id_id_unique\s+ON memory_candidate\s*\(\s*tenant_id\s*,\s*id\s*\)/i.test(sources.revisionMigration), 'Migration must retain the tenant/id composite key.');
   for (const reference of TENANT_BOUND_LINEAGE_REFERENCES) {
     const prismaRelation = `@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "${reference.constraint}")`;
     required(model.includes(prismaRelation), `Prisma MemoryCandidate is missing exact relation ${prismaRelation}.`);
-    required(
-      new RegExp(
-        `ADD CONSTRAINT\\s+${escapeRegex(reference.constraint)}[\\s\\S]{0,160}FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)[\\s\\S]{0,80}ON UPDATE NO ACTION[\\s\\S]{0,80}ON DELETE RESTRICT`,
-        'i',
-      ).test(sources.revisionMigration),
-      `Migration must match Prisma relation ${reference.relation}, including constraint name and referential actions.`,
-    );
-    required(
-      !new RegExp(
-        `FOREIGN KEY\\s*\\(\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate`,
-        'i',
-      ).test(sources.revisionMigration),
-      `Migration must not use a UUID-only FK for ${reference.databaseColumn}.`,
-    );
+    required(new RegExp(`ADD CONSTRAINT\\s+${escapeRegex(reference.constraint)}[\\s\\S]{0,160}FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)[\\s\\S]{0,80}ON UPDATE NO ACTION[\\s\\S]{0,80}ON DELETE RESTRICT`, 'i').test(sources.revisionMigration), `Migration must match Prisma relation ${reference.relation}, including constraint name and referential actions.`);
+    required(!new RegExp(`FOREIGN KEY\\s*\\(\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate`, 'i').test(sources.revisionMigration), `Migration must not use a UUID-only FK for ${reference.databaseColumn}.`);
   }
-  required(sources.revisionMigration.includes('PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT'), 'Revision migration must document the ownership boundary.');
+  required(sources.revisionMigration.includes(CURRENT_OWNERSHIP_COMMENT), 'Revision migration must contain the exact current ownership contract.');
   required(sources.revisionMigration.includes('create_memory_candidate_revision'), 'Atomic revision function is required.');
   required(!/SECURITY\s+DEFINER/i.test(sources.revisionMigration), 'Revision function must remain SECURITY INVOKER.');
   required(/SET\s+search_path\s*=\s*public,\s*pg_temp/i.test(sources.revisionMigration), 'Revision function must pin search_path.');
-
-  const contextCodes = [
-    'MEMORY_REVISION_TENANT_CONTEXT_REQUIRED',
-    'MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED',
-    'MEMORY_REVISION_SYSTEM_BYPASS_DENIED',
-  ];
-  for (const guard of [
-    "current_setting('app.current_tenant', true)",
-    "current_setting('app.current_user', true)",
-    "current_setting('app.bypass_rls', true)",
-    ...contextCodes,
-  ]) required(sources.revisionMigration.includes(guard), `Missing database guard ${guard}.`);
+  const contextCodes = ['MEMORY_REVISION_TENANT_CONTEXT_REQUIRED','MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED','MEMORY_REVISION_SYSTEM_BYPASS_DENIED'];
+  for (const guard of ["current_setting('app.current_tenant', true)","current_setting('app.current_user', true)","current_setting('app.bypass_rls', true)",...contextCodes]) required(sources.revisionMigration.includes(guard), `Missing database guard ${guard}.`);
   for (const code of contextCodes) required(sources.revisionService.includes(code), `Service must translate ${code}.`);
-
   required(/FROM\s+create_memory_candidate_revision\s*\(/i.test(sources.revisionService), 'Service must call atomic SQL function.');
-  for (const column of MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS) {
-    required(
-      !new RegExp(`memoryCandidate\\.(?:create|update|upsert|createMany|updateMany)[\\s\\S]{0,500}\\b${escapeRegex(column.prismaField)}\\b`).test(sources.revisionService),
-      `Service must not mutate ${column.prismaField} through Prisma.`,
-    );
-  }
-  for (const invariant of [
-    'review_request_memory_candidate_unique',
-    'memory_candidate_enforce_review_assignment',
-    'memory_candidate_one_successor_per_predecessor',
-    'memory_candidate_root_revision_unique',
-  ]) required(`${sources.workflowMigration}\n${sources.revisionMigration}`.includes(invariant), `Missing invariant ${invariant}.`);
+  for (const column of MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS) required(!new RegExp(`memoryCandidate\\.(?:create|update|upsert|createMany|updateMany)[\\s\\S]{0,500}\\b${escapeRegex(column.prismaField)}\\b`).test(sources.revisionService), `Service must not mutate ${column.prismaField} through Prisma.`);
+  for (const invariant of ['review_request_memory_candidate_unique','memory_candidate_enforce_review_assignment','memory_candidate_one_successor_per_predecessor','memory_candidate_root_revision_unique']) required(`${sources.workflowMigration}\n${sources.revisionMigration}`.includes(invariant), `Missing invariant ${invariant}.`);
 }
 
 export function applyMemoryPhase2PrismaLineageModel(schema: string): string {
   const model = extractPrismaModel(schema, 'MemoryCandidate');
   const present = MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.filter((column) => new RegExp(`\\b${escapeRegex(column.prismaField)}\\b`).test(model));
-  if (present.length === MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.length) {
-    assertTransformedModel(model);
-    return schema;
-  }
+  if (present.length === MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS.length) { assertTransformedModel(model); return schema; }
   if (present.length > 0) throw new MemoryPhase2PersistenceContractError('MemoryCandidate contains a partially applied Phase 2 lineage model.');
-  for (const [anchor, label] of [[FIELD_ANCHOR, 'field'], [RELATION_ANCHOR, 'relation'], [INDEX_ANCHOR, 'index']] as const) {
-    if (count(schema, anchor) !== 1) throw new MemoryPhase2PersistenceContractError(`Expected one MemoryCandidate ${label} anchor; found ${count(schema, anchor)}.`);
-  }
+  for (const [anchor, label] of [[FIELD_ANCHOR, 'field'], [RELATION_ANCHOR, 'relation'], [INDEX_ANCHOR, 'index']] as const) if (count(schema, anchor) !== 1) throw new MemoryPhase2PersistenceContractError(`Expected one MemoryCandidate ${label} anchor; found ${count(schema, anchor)}.`);
   const transformed = schema.replace(FIELD_ANCHOR, FIELD_REPLACEMENT).replace(RELATION_ANCHOR, RELATION_REPLACEMENT).replace(INDEX_ANCHOR, INDEX_REPLACEMENT);
   assertTransformedModel(extractPrismaModel(transformed, 'MemoryCandidate'));
   return transformed;
+}
+
+export function applyMemoryPhase2MigrationOwnershipContract(migration: string): string {
+  if (migration.includes(CURRENT_OWNERSHIP_COMMENT)) return migration;
+  if (migration.includes('-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT')) {
+    throw new MemoryPhase2PersistenceContractError('Revision migration contains a drifted or partially applied current ownership comment.');
+  }
+  const occurrences = count(migration, LEGACY_OWNERSHIP_COMMENT);
+  if (occurrences !== 1) throw new MemoryPhase2PersistenceContractError(`Expected one legacy revision ownership comment; found ${occurrences}.`);
+  return migration.replace(LEGACY_OWNERSHIP_COMMENT, CURRENT_OWNERSHIP_COMMENT);
 }
 
 export function extractPrismaModel(schema: string, modelName: string): string {
   const start = schema.indexOf(`model ${modelName} {`);
   if (start < 0) throw new MemoryPhase2PersistenceContractError(`Prisma model ${modelName} was not found.`);
   let depth = 0;
-  for (let index = start; index < schema.length; index += 1) {
-    if (schema[index] === '{') depth += 1;
-    if (schema[index] === '}' && --depth === 0) return schema.slice(start, index + 1);
-  }
+  for (let index = start; index < schema.length; index += 1) { if (schema[index] === '{') depth += 1; if (schema[index] === '}' && --depth === 0) return schema.slice(start, index + 1); }
   throw new MemoryPhase2PersistenceContractError(`Prisma model ${modelName} is unterminated.`);
 }
 
