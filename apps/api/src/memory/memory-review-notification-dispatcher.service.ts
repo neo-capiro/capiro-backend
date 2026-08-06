@@ -19,6 +19,13 @@ const MAX_ATTEMPTS = 8;
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 200;
 
+type DispatchOutcome =
+  | 'deferred'
+  | 'terminated'
+  | 'emailSent'
+  | 'emailSuppressed'
+  | 'emailFailed';
+
 interface ClaimedNotificationRow {
   id: string;
   tenantId: string;
@@ -46,7 +53,6 @@ interface RecipientWorkflowRow {
 interface AuthorizedDelivery {
   email: string;
   title: string;
-  candidateKind: string;
   sendEmail: boolean;
   uncertainPriorEmailAttempt: boolean;
 }
@@ -93,6 +99,13 @@ export class MemoryReviewNotificationDispatcherService {
         const outcome = await runWithMemoryGovernanceTenant(row.tenantId, () =>
           this.dispatchClaimed(row),
         );
+        if (
+          outcome === 'emailSent' ||
+          outcome === 'emailSuppressed' ||
+          outcome === 'emailFailed'
+        ) {
+          summary.delivered += 1;
+        }
         summary[outcome] += 1;
       } catch (error) {
         const retried = await this.releaseAfterFailure(row, error);
@@ -103,16 +116,7 @@ export class MemoryReviewNotificationDispatcherService {
     return summary;
   }
 
-  private async dispatchClaimed(
-    row: ClaimedNotificationRow,
-  ): Promise<
-    | 'delivered'
-    | 'deferred'
-    | 'terminated'
-    | 'emailSent'
-    | 'emailSuppressed'
-    | 'emailFailed'
-  > {
+  private async dispatchClaimed(row: ClaimedNotificationRow): Promise<DispatchOutcome> {
     if (!memoryReviewSurfaceEnabled()) {
       await this.deferFeatureDisabled(row);
       return 'deferred';
@@ -319,7 +323,6 @@ export class MemoryReviewNotificationDispatcherService {
         return {
           email: workflow.email,
           title,
-          candidateKind,
           sendEmail,
           uncertainPriorEmailAttempt,
         };
