@@ -12,6 +12,7 @@ import {
   MemoryAuthorizationService,
   type GovernedMemorySubjectRow,
 } from './memory-authorization.service.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import {
   memoryReviewStatusFromDb,
   memoryReviewStatusToDb,
@@ -23,7 +24,7 @@ import {
 
 const MEMORY_REVIEW_SURFACE = 'memory';
 const MEMORY_REVIEW_SUBJECT = 'memory_candidate';
-const PENDING_REASON = 'Memory candidate awaiting independent review.';
+const PENDING_REASON = 'Memory candidate awaiting administrator review.';
 
 export interface MemoryReviewWorkflowCandidate {
   id: string;
@@ -102,11 +103,11 @@ interface EligibleReviewer extends MemoryReviewIdentity {
 }
 
 /**
- * Phase 2 workflow state for shared-memory review.
+ * Workflow state for shared-memory review.
  *
- * The candidate remains the canonical proposed content. review_request owns only
- * workflow authority: named reviewer, workflow status, bounded feedback, and
- * decision stamps. Its payload is deliberately body-free metadata.
+ * Assignment remains a routing and notification aid. Any active administrator
+ * who passes current authorization may decide a review, including the proposer.
+ * Non-admin reviewers still require current assignment and may not self-review.
  */
 @Injectable()
 export class MemoryReviewWorkflowService {
@@ -158,11 +159,13 @@ export class MemoryReviewWorkflowService {
           `Memory review is already in ${workflow.status.replaceAll('_', ' ')} status.`,
         );
       }
-      if (workflow.requestedBy === ctx.userId) {
-        throw new ForbiddenException('A proposer cannot request changes on their own submission.');
-      }
-      if (workflow.assignedTo !== ctx.userId) {
-        throw new ForbiddenException('Only the assigned reviewer may request changes.');
+      if (!isMemoryReviewAdminRole(ctx.role)) {
+        if (workflow.requestedBy === ctx.userId) {
+          throw new ForbiddenException('A non-admin proposer cannot review their own submission.');
+        }
+        if (workflow.assignedTo !== ctx.userId) {
+          throw new ForbiddenException('Only the assigned reviewer or an administrator may request changes.');
+        }
       }
 
       const decidedAt = new Date();
@@ -210,7 +213,7 @@ export class MemoryReviewWorkflowService {
     reviewerUserId: string,
     rawReason: unknown,
   ): Promise<MemoryReviewWorkflowSnapshot> {
-    if (ctx.role !== 'user_admin' && ctx.role !== 'capiro_admin') {
+    if (!isMemoryReviewAdminRole(ctx.role)) {
       throw new ForbiddenException('Only an administrator may reassign memory review.');
     }
     const reason = normalizeMemoryReviewReason(rawReason);
@@ -229,12 +232,7 @@ export class MemoryReviewWorkflowService {
         throw new BadRequestException('Only pending memory review may be reassigned.');
       }
 
-      const eligible = await this.eligibleReviewersInTx(
-        tx,
-        ctx.tenantId,
-        candidate.proposedBy,
-        subject,
-      );
+      const eligible = await this.eligibleReviewersInTx(tx, ctx.tenantId, subject);
       const target = eligible.find((reviewer) => reviewer.userId === reviewerUserId);
       if (!target) {
         throw new BadRequestException('The selected reviewer is not currently eligible.');
@@ -280,11 +278,13 @@ export class MemoryReviewWorkflowService {
           `Memory review is already in ${memoryReviewStatusFromDb(workflow.status).replaceAll('_', ' ')} status.`,
         );
       }
-      if (workflow.requestedBy === ctx.userId) {
-        throw new ForbiddenException('A proposer cannot decide their own memory submission.');
-      }
-      if (workflow.assignedTo !== ctx.userId) {
-        throw new ForbiddenException('Only the assigned reviewer may decide this submission.');
+      if (!isMemoryReviewAdminRole(ctx.role)) {
+        if (workflow.requestedBy === ctx.userId) {
+          throw new ForbiddenException('A non-admin proposer cannot decide their own memory submission.');
+        }
+        if (workflow.assignedTo !== ctx.userId) {
+          throw new ForbiddenException('Only the assigned reviewer or an administrator may decide this submission.');
+        }
       }
       const decision = await this.authorization.evaluateInTx(tx, ctx, subject, operation);
       if (!decision.allowed) {
@@ -301,7 +301,7 @@ export class MemoryReviewWorkflowService {
   ): Promise<MemoryReviewWorkflowSnapshot> {
     const reason =
       status === 'approved'
-        ? 'Approved by the assigned independent reviewer.'
+        ? 'Approved by an authorized administrator or assigned reviewer.'
         : normalizeMemoryReviewReason(rawReason);
     if (!reason) throw new BadRequestException('A rejection reason is required.');
 
@@ -313,8 +313,13 @@ export class MemoryReviewWorkflowService {
           `Memory review is already in ${current.replaceAll('_', ' ')} status.`,
         );
       }
-      if (workflow.requestedBy === ctx.userId || workflow.assignedTo !== ctx.userId) {
-        throw new ForbiddenException('Only the assigned independent reviewer may complete review.');
+      if (
+        !isMemoryReviewAdminRole(ctx.role) &&
+        (workflow.requestedBy === ctx.userId || workflow.assignedTo !== ctx.userId)
+      ) {
+        throw new ForbiddenException(
+          'Only the assigned reviewer or an administrator may complete review.',
+        );
       }
       if (
         current === status &&
@@ -369,12 +374,7 @@ export class MemoryReviewWorkflowService {
     subject: GovernedMemorySubjectRow,
   ): Promise<MemoryReviewRequestRow> {
     let row = await this.loadWorkflowInTx(tx, ctx.tenantId, candidate.id);
-    const eligibleReviewers = await this.eligibleReviewersInTx(
-      tx,
-      ctx.tenantId,
-      candidate.proposedByUserId,
-      subject,
-    );
+    const eligibleReviewers = await this.eligibleReviewersInTx(tx, ctx.tenantId, subject);
 
     if (!row) {
       const assignedTo = eligibleReviewers[0]?.userId ?? null;
@@ -456,7 +456,6 @@ export class MemoryReviewWorkflowService {
   private async eligibleReviewersInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,
-    proposedByUserId: string,
     subject: GovernedMemorySubjectRow,
   ): Promise<EligibleReviewer[]> {
     const rows = await tx.$queryRaw<ActiveMemberRow[]>(Prisma.sql`
@@ -469,7 +468,6 @@ export class MemoryReviewWorkflowService {
       JOIN users u ON u.id = tm.user_id
       WHERE tm.tenant_id = ${tenantId}::uuid
         AND tm.status = 'active'
-        AND tm.user_id <> ${proposedByUserId}::uuid
     `);
 
     const eligible: EligibleReviewer[] = [];
@@ -524,6 +522,7 @@ export class MemoryReviewWorkflowService {
     const status = memoryReviewStatusFromDb(row.status);
     const viewerIsAssignedReviewer = row.assignedTo === ctx.userId;
     const viewerIsSubmitter = row.requestedBy === ctx.userId;
+    const admin = isMemoryReviewAdminRole(ctx.role);
 
     return {
       requestId: row.id,
@@ -537,9 +536,10 @@ export class MemoryReviewWorkflowService {
       viewerIsSubmitter,
       viewerIsAssignedReviewer,
       capabilities: {
-        requestChanges: status === 'pending' && viewerIsAssignedReviewer && !viewerIsSubmitter,
-        reassign:
-          status === 'pending' && (ctx.role === 'user_admin' || ctx.role === 'capiro_admin'),
+        requestChanges:
+          status === 'pending' &&
+          (admin || (viewerIsAssignedReviewer && !viewerIsSubmitter)),
+        reassign: status === 'pending' && admin,
       },
     };
   }
