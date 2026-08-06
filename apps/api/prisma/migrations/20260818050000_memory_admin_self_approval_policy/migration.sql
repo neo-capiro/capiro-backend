@@ -6,7 +6,7 @@
 --
 -- The database exception is capability-bound: direct/generic writes do not gain
 -- admin authority merely from role membership. The canonical application path
--- must set app.memory_admin_review_decision=on transaction-locally after tenant,
+-- must set transaction-local candidate and actor capabilities after tenant,
 -- membership, ethical-wall, client-status, and operation authorization passes.
 
 ALTER TABLE review_request
@@ -100,6 +100,8 @@ DECLARE
   workflow_status text;
   workflow_assignment_enforced boolean;
   actor_is_active_admin boolean;
+  capability_candidate_id text;
+  capability_actor_id text;
   admin_decision_capability boolean;
 BEGIN
   IF OLD.status = 'pending' AND NEW.status IN ('approved', 'rejected')
@@ -140,12 +142,17 @@ BEGIN
         AND tm.role IN ('user_admin'::tenant_role, 'capiro_admin'::tenant_role)
     ) INTO actor_is_active_admin;
 
+    capability_candidate_id :=
+      current_setting('app.memory_admin_review_candidate_id', true);
+    capability_actor_id :=
+      current_setting('app.memory_admin_review_actor_id', true);
     admin_decision_capability :=
-      current_setting('app.memory_admin_review_decision', true) = 'on';
+      capability_candidate_id = NEW.id::text
+      AND capability_actor_id = NEW.decided_by::text;
 
-    -- Active administrators may decide any review they are otherwise authorized
+    -- Active administrators may decide this exact review they were authorized
     -- to see, including their own proposal, only through the canonical
-    -- capability-bearing application transaction.
+    -- candidate-and-actor-bound application transaction.
     IF actor_is_active_admin AND admin_decision_capability THEN
       RETURN NEW;
     END IF;
