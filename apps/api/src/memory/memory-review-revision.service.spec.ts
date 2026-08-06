@@ -1,5 +1,9 @@
-import { describe, expect, it, jest } from '@jest/globals';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  ConflictException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -128,6 +132,7 @@ function harness(
   const workflow = { ensureAndDescribeInTx } as unknown as MemoryReviewWorkflowService;
   return {
     service: new MemoryReviewRevisionService(prisma, authorization, workflow),
+    withTenantUser: (prisma as unknown as { withTenantUser: jest.Mock }).withTenantUser,
     queryRaw,
     auditCreate,
     evaluateInTx,
@@ -139,7 +144,28 @@ const revisedSections = [
   { key: 'mission', heading: 'Mission', owner: 'human' as const, body: 'Revised mission.' },
 ];
 
+beforeEach(() => {
+  process.env.MEMORY_CLIENT_REVIEW = 'enforce';
+  process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+  process.env.MEMORY_GOVERNANCE_ENFORCE = 'enforce';
+});
+
+afterEach(() => {
+  delete process.env.MEMORY_CLIENT_REVIEW;
+  delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+  delete process.env.MEMORY_GOVERNANCE_ENFORCE;
+});
+
 describe('MemoryReviewRevisionService', () => {
+  it('stays fail-closed when the review surface is dark', async () => {
+    delete process.env.MEMORY_CLIENT_REVIEW;
+    const h = harness();
+    await expect(
+      h.service.revise(ctx, PREDECESSOR, { sections: revisedSections }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(h.withTenantUser).not.toHaveBeenCalled();
+  });
+
   it('creates one immutable successor, refreshes content identity, and opens fresh review', async () => {
     const h = harness();
     const result = await h.service.revise(ctx, PREDECESSOR, { sections: revisedSections });
