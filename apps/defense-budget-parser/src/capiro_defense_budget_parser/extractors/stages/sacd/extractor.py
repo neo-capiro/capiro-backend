@@ -249,10 +249,10 @@ def _normalize_table(
                 semantic_kind=semantic_kind,
                 context=context,
             )
-            if (
-                not has_value
-                and reference.referenceKind not in {'unresolved_reference', 'package_scope'}
-            ):
+            if not has_value and reference.referenceKind not in {
+                'unresolved_reference',
+                'package_scope',
+            }:
                 pending = _PendingContinuation(
                     raw_label=raw_label,
                     reference=reference,
