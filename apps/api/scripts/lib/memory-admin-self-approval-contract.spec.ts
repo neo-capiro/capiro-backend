@@ -75,11 +75,13 @@ describe('memory administrator self-approval policy contract', () => {
     expect(immutable).toContain('!isMemoryReviewAdminRole(ctx.role)');
   });
 
-  it('expands only the admin inbox path and leaves the base service as the security boundary', () => {
+  it('expands only the admin inbox path and batches current authorization checks', () => {
     expect(adminInbox).toContain('extends MemoryReviewInboxService');
     expect(adminInbox).toContain('if (!isMemoryReviewAdminRole(ctx.role)) return super.list');
     expect(adminInbox).toContain("requestedView === 'needs_my_review' ? 'all_pending'");
-    expect(adminInbox).toContain("this.allowed(ctx, item.candidateId, 'approve')");
+    expect(adminInbox).toContain('this.adminPrisma.withTenantUser');
+    expect(adminInbox).toContain('this.adminAuthorization.loadCandidateInTx');
+    expect(adminInbox).toContain("this.adminAuthorization.evaluateInTx(tx, ctx, subject, 'approve'");
     expect(moduleSource).toContain(
       '{ provide: MemoryReviewInboxService, useExisting: MemoryReviewAdminInboxService }',
     );
