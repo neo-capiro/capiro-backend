@@ -37,7 +37,13 @@ describe('MemoryCandidateReviewService assignment authorization', () => {
     await withReviewEnabled(async () => {
       const tx = {};
       const prisma = {
-        withTenantUser: jest.fn(async (_tenantId, _userId, work) => work(tx)),
+        withTenantUser: jest.fn(
+          async (
+            _tenantId: string,
+            _userId: string,
+            work: (value: typeof tx) => unknown,
+          ) => work(tx),
+        ),
       } as unknown as PrismaService;
       const authorization = {
         loadCandidateInTx: jest.fn(async () => ({
