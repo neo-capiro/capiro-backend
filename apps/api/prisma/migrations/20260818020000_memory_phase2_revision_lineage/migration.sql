@@ -3,6 +3,13 @@
 -- root/predecessor/revision metadata, and exactly one successor may derive from
 -- a predecessor. The clone function runs lineage creation, predecessor
 -- supersession, and successor workflow creation in one transaction.
+--
+-- SQL-OWNED LINEAGE CONTRACT
+-- The four additive lineage columns remain intentionally absent from Prisma's
+-- MemoryCandidate model during Phase 2. The application reads/writes them only
+-- through locked raw SQL and create_memory_candidate_revision. This prevents a
+-- generated Prisma delegate from offering unsafe partial lineage mutations while
+-- Prisma safely ignores additive database columns during validate/generate.
 
 ALTER TABLE memory_candidate
   ADD COLUMN IF NOT EXISTS revision_root_id uuid,
@@ -93,6 +100,11 @@ CREATE INDEX IF NOT EXISTS memory_candidate_revision_root_idx
 -- stamps, revision-owned source identity, and lineage fields are replaced. This
 -- preserves versionProposal, canonical identity, memory class/scope, client
 -- boundary, and source evidence without carrying a stale content hash/version.
+--
+-- The application database role bypasses PostgreSQL RLS (tenant isolation is
+-- normally enforced by PrismaService's scoped client). Therefore this function
+-- independently binds its tenant and proposer arguments to the transaction-local
+-- GUCs set by withTenantUser and explicitly rejects system-bypass execution.
 CREATE OR REPLACE FUNCTION create_memory_candidate_revision(
   p_tenant_id uuid,
   p_predecessor_id uuid,
@@ -116,7 +128,34 @@ DECLARE
   root_id uuid;
   next_revision integer;
   superseded_at timestamptz;
+  tenant_context text;
+  actor_context text;
+  bypass_context text;
 BEGIN
+  tenant_context := NULLIF(current_setting('app.current_tenant', true), '');
+  actor_context := NULLIF(current_setting('app.current_user', true), '');
+  bypass_context := lower(COALESCE(current_setting('app.bypass_rls', true), ''));
+
+  IF bypass_context IN ('on', 'true', '1') THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_SYSTEM_BYPASS_DENIED'
+      USING ERRCODE = '42501';
+  END IF;
+  IF tenant_context IS NULL
+     OR tenant_context !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+     OR tenant_context::uuid <> p_tenant_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_TENANT_CONTEXT_REQUIRED'
+      USING ERRCODE = '42501';
+  END IF;
+  IF actor_context IS NULL
+     OR actor_context !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+     OR actor_context::uuid <> p_proposer_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED'
+      USING ERRCODE = '42501';
+  END IF;
+  IF p_successor_id = p_predecessor_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_SUCCESSOR_ID_REQUIRED'
+      USING ERRCODE = '22023';
+  END IF;
   IF p_payload IS NULL OR jsonb_typeof(p_payload) <> 'object' THEN
     RAISE EXCEPTION 'MEMORY_REVISION_PAYLOAD_REQUIRED'
       USING ERRCODE = '22023';
