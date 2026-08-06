@@ -1,6 +1,7 @@
 import type { TenantRole } from '@capiro/shared';
 import type { GovernedMemoryScope, GovernedMemoryStatus, MemoryClass } from '@capiro/meriv2-core';
 import { memoryGovernanceSelectedForCurrentTenant } from './memory-governance-tenant-scope.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 
 export const MEMORY_PERMISSIONS = [
   'propose',
@@ -40,11 +41,7 @@ export interface MemoryAuthorizationSubject {
   clientId?: string | null;
   status?: GovernedMemoryStatus | string | null;
   legalHold?: boolean | null;
-  /**
-   * Candidate subjects only: who proposed the pending change. Shared-scope
-   * review/approval must come from somebody else (segregation of duties). Item
-   * subjects carry no proposer, so the rule stays inert for them.
-   */
+  /** Candidate subjects only: who proposed the pending change. */
   proposedByUserId?: string | null;
 }
 
@@ -77,10 +74,6 @@ export type MemoryAuthorizationDecision =
         | 'unsupported_operation';
     };
 
-function isAdmin(role: TenantRole | null | undefined): boolean {
-  return role === 'user_admin' || role === 'capiro_admin';
-}
-
 function isTerminal(status: string | null | undefined): boolean {
   return ['revoked', 'superseded', 'rejected', 'expired'].includes(status ?? '');
 }
@@ -90,14 +83,17 @@ function isDestructive(operation: MemoryOperation): boolean {
 }
 
 /**
- * Segregation of duties on shared memory: the reviewer must not be the proposer.
- * Enforced only when the proposer is actually known, so item subjects (no
- * proposer) and user-private memory (deliberately self-approvable by its owner)
- * are unaffected. An admin proposer is not an exception — being able to write a
- * firm-wide institutional claim and then ratify it alone is the whole hole.
+ * Standard users may not review their own shared-memory proposal. Active
+ * administrators are an explicit exception: product policy allows any
+ * user_admin or capiro_admin to decide a review, including one they proposed.
+ * Ethical-wall, client-status, and active-membership checks still apply.
  */
-function isSelfReview(facts: MemoryAuthorizationFacts): boolean {
+function isDisallowedSelfReview(
+  facts: MemoryAuthorizationFacts,
+  effectiveRole: TenantRole,
+): boolean {
   if (facts.operation !== 'approve' && facts.operation !== 'review') return false;
+  if (isMemoryReviewAdminRole(effectiveRole)) return false;
   const proposer = facts.subject.proposedByUserId;
   return Boolean(proposer) && proposer === facts.userId;
 }
@@ -113,7 +109,7 @@ export function evaluateGovernedMemoryAuthorization(
 ): MemoryAuthorizationDecision {
   const { operation, subject } = facts;
   const effectiveRole = facts.impersonating ? (facts.actorRole ?? facts.role) : facts.role;
-  const admin = isAdmin(effectiveRole);
+  const admin = isMemoryReviewAdminRole(effectiveRole);
   const readOnly = operation === 'read' || operation === 'export';
 
   if (isTerminal(subject.status) && !readOnly) {
@@ -145,7 +141,9 @@ export function evaluateGovernedMemoryAuthorization(
     if (readOnly || operation === 'propose') {
       return { allowed: true, basis: 'tenant_read' };
     }
-    if (isSelfReview(facts)) return { allowed: false, reason: 'self_review' };
+    if (isDisallowedSelfReview(facts, effectiveRole)) {
+      return { allowed: false, reason: 'self_review' };
+    }
     const grants = new Set(facts.grantPermissions ?? []);
     if (grants.has(operation)) return { allowed: true, basis: 'explicit_grant' };
     if (admin) return { allowed: true, basis: 'admin' };
@@ -154,7 +152,9 @@ export function evaluateGovernedMemoryAuthorization(
 
   if (subject.scope === 'firm' || subject.memoryClass === 'institutional_authoritative') {
     if (readOnly || operation === 'propose') return { allowed: true, basis: 'tenant_read' };
-    if (isSelfReview(facts)) return { allowed: false, reason: 'self_review' };
+    if (isDisallowedSelfReview(facts, effectiveRole)) {
+      return { allowed: false, reason: 'self_review' };
+    }
     if (admin) return { allowed: true, basis: 'admin' };
     return { allowed: false, reason: 'admin_required' };
   }
