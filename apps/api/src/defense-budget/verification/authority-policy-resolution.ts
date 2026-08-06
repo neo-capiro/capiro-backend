@@ -16,12 +16,19 @@ const AUTHORITY_POLICY_KEYS: Readonly<Record<string, string>> = {
 
 const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
   Partial<
-    Record<string, Extract<FundingFieldV1, 'hascMark' | 'sascMark' | 'hacDMark' | 'ndaaConference'>>
+    Record<
+      string,
+      Extract<
+        FundingFieldV1,
+        'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'ndaaConference'
+      >
+    >
   >
 > = {
   hasc: 'hascMark',
   sasc: 'sascMark',
   hac_d: 'hacDMark',
+  sac_d: 'sacDMark',
   ndaa_conference: 'ndaaConference',
 };
 

@@ -1,0 +1,72 @@
+[
+  {
+    "page": 190,
+    "text": "TITLE IV — RESEARCH, DEVELOPMENT, TEST AND EVALUATION",
+    "printedPage": "S. Rept. 119-200, p. 190",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "TITLE IV — RDT&E",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "RDT&E Program Elements ($ in Thousands)",
+        "rowCount": 2,
+        "columnCount": 4,
+        "cells": [
+          {"rowIndex": 0, "columnIndex": 0, "text": "Program Element"},
+          {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Budget Estimate"},
+          {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+          {"rowIndex": 0, "columnIndex": 3, "text": "Senate Recommendation"},
+          {"rowIndex": 1, "columnIndex": 0, "text": "PE 0603270A Electronic Warfare"},
+          {"rowIndex": 1, "columnIndex": 1, "text": ""},
+          {"rowIndex": 1, "columnIndex": 2, "text": ""},
+          {"rowIndex": 1, "columnIndex": 3, "text": ""}
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  },
+  {
+    "page": 191,
+    "text": "TITLE IV — RESEARCH, DEVELOPMENT, TEST AND EVALUATION",
+    "printedPage": "S. Rept. 119-200, p. 191",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "TITLE IV — RDT&E",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "RDT&E Program Elements ($ in Thousands)",
+        "rowCount": 2,
+        "columnCount": 4,
+        "cells": [
+          {"rowIndex": 0, "columnIndex": 0, "text": "Program Element"},
+          {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Budget Estimate"},
+          {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+          {"rowIndex": 0, "columnIndex": 3, "text": "Senate Recommendation"},
+          {"rowIndex": 1, "columnIndex": 0, "text": "Continued"},
+          {"rowIndex": 1, "columnIndex": 1, "text": "90000"},
+          {"rowIndex": 1, "columnIndex": 2, "text": "(5,000)a"},
+          {"rowIndex": 1, "columnIndex": 3, "text": "85,000†"}
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]
