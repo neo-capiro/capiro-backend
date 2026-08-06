@@ -96,9 +96,10 @@ export function targetExists(
 ): boolean {
   const key = targetKey(target);
   return [
-    ...index.budgetLines.map(
-      (item) => ({ targetKind: 'budget_line' as const, identity: item.identity }),
-    ),
+    ...index.budgetLines.map((item) => ({
+      targetKind: 'budget_line' as const,
+      identity: item.identity,
+    })),
     ...index.projects.map((item) => ({
       targetKind: 'rdte_project' as const,
       parentPeCode: item.parentPeCode,

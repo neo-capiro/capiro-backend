@@ -72,9 +72,7 @@ export function linkAuthorizationProvisionReferencesV1(
         title: reference.title,
         target: targetKey(target),
       });
-      candidateLinks.push(
-        linkFor(provision, target, 'candidate', 'title_only', 0.7, reviewId),
-      );
+      candidateLinks.push(linkFor(provision, target, 'candidate', 'title_only', 0.7, reviewId));
       reviewQueue.push({
         reviewId,
         provisionId: provision.provisionId,

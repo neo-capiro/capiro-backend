@@ -8,7 +8,10 @@ import {
   type AuthorizationProvisionProjectionPlanV1,
   type AuthorizationProvisionReviewEntryV1,
 } from './authorization-provision-v1.js';
-import { dedupeProvisions, validateEvidence } from './authorization-provision-evidence-dedupe-v1.js';
+import {
+  dedupeProvisions,
+  validateEvidence,
+} from './authorization-provision-evidence-dedupe-v1.js';
 import { reviewEntry, sortLinks } from './authorization-provision-link-utils-v1.js';
 import { linkAuthorizationProvisionReferencesV1 } from './authorization-provision-reference-linking-v1.js';
 
@@ -128,4 +131,3 @@ export function composeAuthorizationProvisionProjectionV1(
   };
   return authorizationProvisionProjectionPlanV1Schema.parse(plan);
 }
-

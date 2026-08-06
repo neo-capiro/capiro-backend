@@ -124,9 +124,7 @@ describe('authorization provision V1', () => {
 
   it('accepts a project only by exact project code under exact PE', () => {
     const accepted = compose([
-      provision([
-        { referenceKind: 'rdte_project', peCode: '0605053A', projectCode: 'TRX-01' },
-      ]),
+      provision([{ referenceKind: 'rdte_project', peCode: '0605053A', projectCode: 'TRX-01' }]),
     ]);
     expect(accepted.acceptedLinks[0]).toMatchObject({
       matchBasis: 'exact_project_code',
@@ -138,9 +136,7 @@ describe('authorization provision V1', () => {
     });
 
     const rejected = compose([
-      provision([
-        { referenceKind: 'rdte_project', peCode: '0603270A', projectCode: 'TRX-01' },
-      ]),
+      provision([{ referenceKind: 'rdte_project', peCode: '0603270A', projectCode: 'TRX-01' }]),
     ]);
     expect(rejected.verification.status).toBe('BLOCKED');
     expect(rejected.acceptedLinks).toHaveLength(0);

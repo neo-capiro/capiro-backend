@@ -29,9 +29,7 @@ export function validateEvidence(
   if (resolved.some((item) => item == null)) {
     return 'one or more provision evidence IDs are missing';
   }
-  const evidence = resolved.filter(
-    (item): item is NonNullable<typeof item> => item != null,
-  );
+  const evidence = resolved.filter((item): item is NonNullable<typeof item> => item != null);
   if (evidence.some((item) => item.sourceSha256 !== provision.sourceSha256)) {
     return 'provision evidence source SHA does not match the provision source';
   }
@@ -42,7 +40,9 @@ export function validateEvidence(
   return null;
 }
 
-export function dedupeProvisions(provisions: readonly AuthorizationProvisionV1[]): DedupedProvisions {
+export function dedupeProvisions(
+  provisions: readonly AuthorizationProvisionV1[],
+): DedupedProvisions {
   const byNaturalKey = new Map<string, AuthorizationProvisionV1[]>();
   for (const provision of provisions) {
     const key = [

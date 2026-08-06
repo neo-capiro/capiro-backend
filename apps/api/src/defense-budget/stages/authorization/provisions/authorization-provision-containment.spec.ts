@@ -1,10 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const ROOT = path.resolve(
-  process.cwd(),
-  'src/defense-budget/stages/authorization/provisions',
-);
+const ROOT = path.resolve(process.cwd(), 'src/defense-budget/stages/authorization/provisions');
 const PRODUCTION_FILES = [
   'authorization-provision-v1.ts',
   'authorization-provision-linker-v1.ts',
