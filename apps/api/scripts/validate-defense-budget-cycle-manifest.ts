@@ -27,12 +27,32 @@ export interface ManifestValidationResult {
   schemaErrors?: string[];
 }
 
+export interface ManifestValidatorArgs {
+  manifestPath: string;
+}
+
+export class ManifestValidatorArgError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ManifestValidatorArgError';
+  }
+}
+
+function errorMessages(cause: unknown): string[] {
+  if (cause != null && typeof cause === 'object' && 'issues' in cause) {
+    return (cause as { issues: Array<{ path: PropertyKey[]; message: string }> }).issues.map(
+      (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+    );
+  }
+  if (cause instanceof Error) return [cause.message];
+  return [String(cause)];
+}
+
 /** Pure validation entry — importable for unit tests without spawning. */
 export function validateManifestFile(manifestPath: string): ManifestValidationResult {
-  const raw = fs.readFileSync(manifestPath, 'utf8');
-  const json = JSON.parse(raw) as unknown;
-
   try {
+    const raw = fs.readFileSync(manifestPath, 'utf8');
+    const json = JSON.parse(raw) as unknown;
     const manifest = parseBudgetCycleManifestV1(json);
     const findings = validateBudgetCycleManifestV1(manifest);
     const valid = findings.every((finding) => finding.severity !== 'error');
@@ -45,31 +65,51 @@ export function validateManifestFile(manifestPath: string): ManifestValidationRe
       findings,
     };
   } catch (cause) {
-    const schemaErrors =
-      cause != null && typeof cause === 'object' && 'issues' in cause
-        ? (cause as { issues: Array<{ path: PropertyKey[]; message: string }> }).issues.map(
-            (issue) => `${issue.path.join('.')}: ${issue.message}`,
-          )
-        : [(cause as Error).message];
-    return { valid: false, manifestPath, findings: [], schemaErrors };
+    return {
+      valid: false,
+      manifestPath,
+      findings: [],
+      schemaErrors: errorMessages(cause),
+    };
   }
 }
 
-function argValue(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 ? process.argv[index + 1] : undefined;
+export function parseManifestValidatorArgs(argv: readonly string[]): ManifestValidatorArgs {
+  let manifestPath: string | undefined;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index]!;
+    if (token !== '--manifest') {
+      throw new ManifestValidatorArgError(`unknown argument: ${token}`);
+    }
+    if (manifestPath != null) {
+      throw new ManifestValidatorArgError('duplicate --manifest');
+    }
+    const value = argv[index + 1];
+    if (value == null || value.startsWith('--') || value.trim() === '') {
+      throw new ManifestValidatorArgError('--manifest requires a nonblank file path');
+    }
+    manifestPath = value;
+    index += 1;
+  }
+  if (manifestPath == null) {
+    throw new ManifestValidatorArgError('missing required --manifest');
+  }
+  return { manifestPath };
 }
 
 function main(): void {
-  const manifestPath = argValue('manifest');
-  if (manifestPath == null) {
-    console.error('Usage: validate-defense-budget-cycle-manifest.ts --manifest <manifest.json>');
+  try {
+    const args = parseManifestValidatorArgs(process.argv.slice(2));
+    const result = validateManifestFile(args.manifestPath);
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.valid ? 0 : 1);
+  } catch (cause) {
+    console.error(
+      'Usage: validate-defense-budget-cycle-manifest.ts --manifest <manifest.json>',
+    );
+    console.error(`validate-defense-budget-cycle-manifest: ${errorMessages(cause).join('; ')}`);
     process.exit(1);
   }
-
-  const result = validateManifestFile(manifestPath);
-  console.log(JSON.stringify(result, null, 2));
-  process.exit(result.valid ? 0 : 1);
 }
 
 const invokedDirectly =

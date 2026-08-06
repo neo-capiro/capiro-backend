@@ -18,6 +18,13 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# camelot imports cv2, which needs X/GL shared libraries absent from python:3.11-slim,
+# and camelot shells out to ghostscript. Without these, "import camelot" raises
+# ImportError: libxcb.so.1.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libxcb1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libgomp1 ghostscript \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --gid 1001 parser && \
     useradd --uid 1001 --gid parser --shell /bin/bash --create-home parser
 
@@ -32,14 +39,16 @@ COPY src/ ./src/
 COPY tests/ ./tests/
 
 # Install base dependencies (locked)
-RUN uv sync --locked --no-dev --extra camelot 2>/dev/null || uv sync --locked --no-dev
+RUN uv sync --locked --no-dev --extra camelot
 
 # ── table target: base + pdfplumber + Camelot ───────────────────────
 
 FROM base AS table
 
-RUN uv sync --locked --no-dev --extra camelot || true
+USER root
+RUN uv sync --locked --no-dev --extra camelot
 
+RUN chown -R parser:parser /app/.venv
 USER parser
 ENTRYPOINT ["uv", "run", "capiro-defense-budget-parser"]
 CMD ["version"]
@@ -48,8 +57,10 @@ CMD ["version"]
 
 FROM table AS layout
 
-RUN uv sync --locked --no-dev --extra camelot --extra docling || true
+USER root
+RUN uv sync --locked --no-dev --extra camelot --extra docling
 
+RUN chown -R parser:parser /app/.venv
 USER parser
 ENTRYPOINT ["uv", "run", "capiro-defense-budget-parser"]
 CMD ["version"]
@@ -58,12 +69,14 @@ CMD ["version"]
 
 FROM layout AS ocr
 
-RUN uv sync --locked --no-dev --extra camelot --extra docling --extra ocr || true
+USER root
+RUN uv sync --locked --no-dev --extra camelot --extra docling --extra ocr
 
 # PaddleOCR model cache directory
 ENV PADDLE_OCR_MODEL_DIR=/home/parser/.paddleocr
 RUN mkdir -p /home/parser/.paddleocr && chown parser:parser /home/parser/.paddleocr
 
+RUN chown -R parser:parser /app/.venv
 USER parser
 ENTRYPOINT ["uv", "run", "capiro-defense-budget-parser"]
 CMD ["version"]

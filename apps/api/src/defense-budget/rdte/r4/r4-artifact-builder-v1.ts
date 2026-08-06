@@ -36,24 +36,20 @@ export function buildR4MilestoneArtifact(input: {
   const { source, parserRuns } = input;
   const builder = new ArtifactBuilderV1(source);
 
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'r4-artifact-builder-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
-  for (const run of effectiveParserRuns) {
+  /* Synthetic run for callers supplying none; registered after evidence
+   * collection so it declares the pages that evidence cites. */
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'r4-artifact-builder-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   for (const result of input.extractions) {
     const assertions = buildR4MilestoneAssertions({
@@ -169,6 +165,10 @@ export function buildR4MilestoneArtifact(input: {
         message: `R-4 omission: ${omission.reason} at page ${omission.page}: ${omission.rawText}`,
       });
     }
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

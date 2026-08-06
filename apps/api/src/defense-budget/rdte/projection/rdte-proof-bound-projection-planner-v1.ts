@@ -173,9 +173,7 @@ function isProjectScopedMilestone(assertion: DefenseBudgetAssertionV1 | undefine
 
 function stableValues(values: CandidateValues): string {
   return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(values).sort(([left], [right]) => left.localeCompare(right)),
-    ),
+    Object.fromEntries(Object.entries(values).sort(([left], [right]) => left.localeCompare(right))),
   );
 }
 
@@ -266,7 +264,8 @@ function buildDiffSummary(
       insertCount: targetCandidates.filter((candidate) => candidate.operation === 'insert').length,
       updateCount: targetCandidates.filter((candidate) => candidate.operation === 'update').length,
       noOpCount: targetCandidates.filter((candidate) => candidate.operation === 'no_op').length,
-      conflictCount: targetCandidates.filter((candidate) => candidate.operation === 'conflict').length,
+      conflictCount: targetCandidates.filter((candidate) => candidate.operation === 'conflict')
+        .length,
     };
   }).filter(
     (summary) =>
@@ -309,9 +308,7 @@ export function planProofBoundRdteCanonicalProjection(input: {
     for (const assertion of artifact.assertions) {
       const existing = assertionIndex.get(assertion.assertionId);
       if (existing && existing.artifact.artifactId !== artifact.artifactId) {
-        throw new Error(
-          `assertion ${assertion.assertionId} appears in multiple RDT&E artifacts`,
-        );
+        throw new Error(`assertion ${assertion.assertionId} appears in multiple RDT&E artifacts`);
       }
       assertionIndex.set(assertion.assertionId, { artifact, assertion });
     }
@@ -351,9 +348,7 @@ export function planProofBoundRdteCanonicalProjection(input: {
      * assertions here rather than accepting an unrelated document-level pass. */
     if (assertionIds.length === 0) {
       if (candidate.target !== 'ProgramElementSource') {
-        throw new Error(
-          `projection candidate ${candidate.candidateId} has no assertion basis`,
-        );
+        throw new Error(`projection candidate ${candidate.candidateId} has no assertion basis`);
       }
       const artifact = artifactById.get(candidate.artifactId);
       const peCode = candidate.values.peCode;
@@ -366,9 +361,7 @@ export function planProofBoundRdteCanonicalProjection(input: {
         (assertion) => peCodeOfAssertion(assertion) === peCode && assertion.evidenceIds.length > 0,
       );
       assertionIds = supporting.map((assertion) => assertion.assertionId).sort();
-      evidenceIds = [
-        ...new Set(supporting.flatMap((assertion) => assertion.evidenceIds)),
-      ].sort();
+      evidenceIds = [...new Set(supporting.flatMap((assertion) => assertion.evidenceIds))].sort();
     }
 
     if (assertionIds.length === 0 || evidenceIds.length === 0) {
@@ -455,8 +448,7 @@ export function planProofBoundRdteCanonicalProjection(input: {
         singleBinding?.verificationCandidateId ?? primaryVerification.candidateId;
       const verificationRunId =
         singleBinding?.verificationRunId ?? primaryVerification.verificationRunId;
-      const sourceDocumentKey =
-        singleBinding?.manifestDocumentKey ?? candidate.sourceDocumentKey;
+      const sourceDocumentKey = singleBinding?.manifestDocumentKey ?? candidate.sourceDocumentKey;
       const sourcePdfSha256 = singleBinding?.sourcePdfSha256 ?? candidate.sourcePdfSha256;
       const candidateId = rdteProjectionCandidateId({
         target: normalized.target,
@@ -484,8 +476,7 @@ export function planProofBoundRdteCanonicalProjection(input: {
         verificationStatus: singleBinding?.verificationStatus ?? primaryVerification.status,
         verificationPolicySha256:
           singleBinding?.verificationPolicySha256 ?? primaryVerification.policySha256,
-        sourceDocumentId:
-          singleBinding?.sourceDocumentId ?? primaryVerification.sourceDocumentId,
+        sourceDocumentId: singleBinding?.sourceDocumentId ?? primaryVerification.sourceDocumentId,
         assertionBindings: groupBindings,
       };
     });

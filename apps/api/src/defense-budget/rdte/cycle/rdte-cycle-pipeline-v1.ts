@@ -139,8 +139,7 @@ function orderedDocuments(
 ): RdteCycleDocumentInputV1[] {
   return [...documents].sort((left, right) => {
     const exhibit =
-      (EXHIBIT_ORDER[left.document.exhibit] ?? 99) -
-      (EXHIBIT_ORDER[right.document.exhibit] ?? 99);
+      (EXHIBIT_ORDER[left.document.exhibit] ?? 99) - (EXHIBIT_ORDER[right.document.exhibit] ?? 99);
     return exhibit || left.document.documentKey.localeCompare(right.document.documentKey);
   });
 }
@@ -221,10 +220,7 @@ function projectRelationships(
   return { projects, projectFundingKeys, referencedProjectKeys };
 }
 
-function r2aExtractionParts(input: {
-  document: RdteCycleDocumentInputV1;
-  fiscalYear: number;
-}): {
+function r2aExtractionParts(input: { document: RdteCycleDocumentInputV1; fiscalYear: number }): {
   artifact: DefenseBudgetExtractionArtifactV1 | null;
   projectCount: number;
   fundingValues: R2aProjectFundingValue[];
@@ -297,10 +293,7 @@ export function buildRdteCycleArtifacts(
         cycleFiscalYear: input.fiscalYear,
       });
       for (const funding of extraction.funding) {
-        if (
-          funding.disposition === 'canonical_request_candidate' &&
-          funding.fiscalYear != null
-        ) {
+        if (funding.disposition === 'canonical_request_candidate' && funding.fiscalYear != null) {
           r1RequestKeys.add(`${funding.peCode}|${funding.fiscalYear}`);
         }
       }
@@ -406,7 +399,9 @@ export function buildRdteCycleArtifacts(
     if (value.document.exhibit === 'R-2A') {
       const projectPart = r2aExtractionParts({ document: value, fiscalYear: input.fiscalYear });
       if (!projectPart.artifact) {
-        throw new Error(`required R-2A document ${value.document.documentKey} produced no project ledger`);
+        throw new Error(
+          `required R-2A document ${value.document.documentKey} produced no project ledger`,
+        );
       }
       r2aProjectCount += projectPart.projectCount;
       r2aProjectValues.push(...projectPart.fundingValues);
@@ -648,9 +643,7 @@ const R2A_MARKER_RE = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
 const PE_RE = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
 const PROJECT_CODE_RE = /\bproject\s+code\s*[:.\-]?\s*(\S+(?:\s+\S+)*)/i;
 
-function groupR2aPages(
-  pages: RdteCycleDocumentInputV1['pages'],
-): R2aProjectPageGroup[] {
+function groupR2aPages(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGroup[] {
   const groups: R2aProjectPageGroup[] = [];
   let currentKey: string | null = null;
   let currentParentPe = '';

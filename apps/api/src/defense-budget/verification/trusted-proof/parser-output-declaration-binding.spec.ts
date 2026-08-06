@@ -16,7 +16,7 @@ import {
 const SOURCE_SHA = 'a'.repeat(64);
 const CONFIG_SHA = 'b'.repeat(64);
 
-function identity(): ParserRunIdentityV1 {
+function identity(overrides: Partial<ParserRunIdentityV1> = {}): ParserRunIdentityV1 {
   return {
     sourceSha256: SOURCE_SHA,
     method: 'deterministic_pdfplumber',
@@ -24,6 +24,7 @@ function identity(): ParserRunIdentityV1 {
     parserConfigSha256: CONFIG_SHA,
     pages: [1],
     runtimeContractVersion: 'defense_budget_parser_job_v1',
+    ...overrides,
   };
 }
 
@@ -35,26 +36,24 @@ function resultFor(runIdentity: ParserRunIdentityV1) {
     parserVersion: runIdentity.parserVersion,
     parserConfigSha256: runIdentity.parserConfigSha256,
     inputSourceSha256: runIdentity.sourceSha256,
-    requestedPages: [1],
-    succeededPages: [1],
+    requestedPages: [...runIdentity.pages],
+    succeededPages: [...runIdentity.pages],
     failedPages: [],
-    pages: [
-      {
-        page: 1,
-        blocks: [],
-        tables: [],
-        images: [],
-        evidencePrecision: 'page_only',
-        warnings: [],
-      },
-    ],
+    pages: runIdentity.pages.map((page) => ({
+      page,
+      blocks: [],
+      tables: [],
+      images: [],
+      evidencePrecision: 'page_only' as const,
+      warnings: [],
+    })),
     warnings: [],
     metrics: {
       durationMillis: 1,
-      pagesProcessed: 1,
-      pagesSucceeded: 1,
+      pagesProcessed: runIdentity.pages.length,
+      pagesSucceeded: runIdentity.pages.length,
       pagesFailed: 0,
-      engineVersion: '1.0.0',
+      engineVersion: runIdentity.parserVersion,
     },
   });
 }
@@ -116,9 +115,14 @@ describe('R8.3 strict parser output declaration binding', () => {
   });
 
   it('requires LlamaParse normalized-result and raw-byte SHA metadata', async () => {
-    const bytes = Buffer.from('{"raw":"llamaparse"}', 'utf8');
+    const llamaIdentity = identity({
+      method: 'llamaparse',
+      parserVersion: 'llamaparse-v1',
+    });
+    const normalizedResult = resultFor(llamaIdentity);
+    const bytes = Buffer.from(JSON.stringify(normalizedResult), 'utf8');
     const byteSha = sha256Bytes(bytes);
-    const normalizedSha = 'c'.repeat(64);
+    const normalizedSha = normalizedResult.contentSha256;
     const parseJobClient = {
       documentParseJob: {
         findFirst: jest.fn(async () => ({
@@ -136,8 +140,8 @@ describe('R8.3 strict parser output declaration binding', () => {
           status: 'succeeded',
           error: null,
           metadata: {
-            parserVersion: 'llamaparse-v1',
-            parserConfigSha256: CONFIG_SHA,
+            parserVersion: normalizedResult.parserVersion,
+            parserConfigSha256: normalizedResult.parserConfigSha256,
             normalizedResultSha256: normalizedSha,
             outputByteSha256: byteSha,
           },
@@ -167,7 +171,7 @@ describe('R8.3 strict parser output declaration binding', () => {
         providerJobId: 'provider-1',
         declaredOutputSha256: 'd'.repeat(64),
       }),
-    ).rejects.toThrow(/does not match persisted normalized result SHA/);
+    ).rejects.toThrow(/does not match independently recomputed normalized result SHA/);
 
     const proof = await adapter.resolveParserOutput({
       parserRunId: 'llama-run-1',

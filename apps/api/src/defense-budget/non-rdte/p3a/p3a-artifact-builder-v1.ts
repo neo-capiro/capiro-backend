@@ -38,25 +38,19 @@ export function buildP3aArtifact(input: {
   const { source, parserRuns, extraction } = input;
   const builder = new ArtifactBuilderV1(source);
 
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual' as const,
-            parserVersion: 'p3a-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual' as const,
+    parserVersion: 'p3a-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   const parentRef = extraction.parentReference;
   const parentCode = parentRef?.identity.code ?? 'UNKNOWN';
@@ -90,9 +84,7 @@ export function buildP3aArtifact(input: {
       rawValue: {
         printedCode: parentRef.printedCode,
         source: parentRef.source,
-        ...(parentRef.exhibitSnippet != null
-          ? { exhibitSnippet: parentRef.exhibitSnippet }
-          : {}),
+        ...(parentRef.exhibitSnippet != null ? { exhibitSnippet: parentRef.exhibitSnippet } : {}),
       },
       evidenceIds: [evidenceId],
     });
@@ -414,6 +406,10 @@ export function buildP3aArtifact(input: {
       sourceFactIds: [],
       evidenceIds: [],
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

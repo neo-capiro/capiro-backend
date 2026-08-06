@@ -258,17 +258,17 @@ refuses to silently discover AWS credentials.
 
 ## 11. Interpret terminal results
 
-| Exit | Meaning |
-|---:|---|
-| 0 | Phase 2 verification passed |
-| 2 | argument, manifest, or contract failure |
-| 3 | source, artifact, manifest, or proof failure |
-| 4 | parser runtime/engine unavailable |
-| 5 | parsing incomplete |
-| 6 | Phase 2 rejected |
-| 7 | Phase 2 needs review |
-| 8 | paid-page cap exceeded |
-| 9 | internal failure |
+| Exit | Meaning                                      |
+| ---: | -------------------------------------------- |
+|    0 | Phase 2 verification passed                  |
+|    2 | argument, manifest, or contract failure      |
+|    3 | source, artifact, manifest, or proof failure |
+|    4 | parser runtime/engine unavailable            |
+|    5 | parsing incomplete                           |
+|    6 | Phase 2 rejected                             |
+|    7 | Phase 2 needs review                         |
+|    8 | paid-page cap exceeded                       |
+|    9 | internal failure                             |
 
 The execution report contains:
 

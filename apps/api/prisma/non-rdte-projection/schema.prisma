@@ -1,0 +1,340 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/non-rdte-projection-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Projection-only schema for the native Procurement, O&M, and MILCON tables
+// added by Phase 5. Phase 5 does not instantiate this client for writes; it is
+// used by validation, migration rehearsal, and the future Phase 7 mapper.
+
+model ProcurementBudgetLine {
+  id                  String   @id @default(uuid()) @db.Uuid
+  naturalKey          String   @unique(map: "procurement_budget_line_natural_key") @map("natural_key")
+  component           String   @db.VarChar(16)
+  account             String   @db.Text
+  lineCode            String   @map("line_code") @db.VarChar(64)
+  printedLineCode     String   @map("printed_line_code") @db.VarChar(64)
+  advanceProcurement  Boolean  @default(false) @map("advance_procurement")
+  title               String?  @db.Text
+  budgetActivity      String?  @map("budget_activity") @db.VarChar(64)
+  metadata            Json     @default("{}") @map("metadata_jsonb")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  years        ProcurementBudgetLineYear[]
+  distributions ProcurementDistributionLine[]
+  details       ProcurementDetailFact[]
+
+  @@unique([component, account, lineCode, advanceProcurement], map: "procurement_budget_line_native_key")
+  @@index([component, account], map: "procurement_budget_line_component_account_idx")
+  @@map("procurement_budget_line")
+}
+
+model ProcurementBudgetLineYear {
+  id                              String   @id @default(uuid()) @db.Uuid
+  budgetLineId                    String   @map("budget_line_id") @db.Uuid
+  fiscalYear                      Int      @map("fiscal_year")
+  fundingField                    String   @default("request") @map("funding_field") @db.VarChar(32)
+  amountMillions                  Decimal  @map("amount_millions") @db.Decimal(20, 6)
+  quantity                        Decimal? @db.Decimal(20, 6)
+  originalValue                   String   @map("original_value") @db.Text
+  originalUnit                    String   @map("original_unit") @db.VarChar(16)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  budgetLine ProcurementBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([budgetLineId, fiscalYear, fundingField], map: "procurement_budget_line_year_natural_key")
+  @@index([fiscalYear], map: "procurement_budget_line_year_fy_idx")
+  @@index([sourceDocumentId], map: "procurement_budget_line_year_source_document_idx")
+  @@index([verificationRunId], map: "procurement_budget_line_year_verification_run_idx")
+  @@map("procurement_budget_line_year")
+}
+
+model ProcurementDistributionLine {
+  id                              String   @id @default(uuid()) @db.Uuid
+  budgetLineId                    String   @map("budget_line_id") @db.Uuid
+  fiscalYear                      Int      @map("fiscal_year")
+  distributionKey                 String   @map("distribution_key") @db.Text
+  recipient                       String?  @db.Text
+  description                     String?  @db.Text
+  quantity                        Decimal? @db.Decimal(20, 6)
+  amountMillions                  Decimal? @map("amount_millions") @db.Decimal(20, 6)
+  unitCostDollars                 Decimal? @map("unit_cost_dollars") @db.Decimal(24, 6)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  budgetLine ProcurementBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([budgetLineId, fiscalYear, distributionKey], map: "procurement_distribution_line_natural_key")
+  @@index([sourceDocumentId], map: "procurement_distribution_line_source_document_idx")
+  @@map("procurement_distribution_line")
+}
+
+model ProcurementDetailFact {
+  id                              String   @id @default(uuid()) @db.Uuid
+  budgetLineId                    String   @map("budget_line_id") @db.Uuid
+  fiscalYear                      Int?     @map("fiscal_year")
+  factKind                        String   @map("fact_kind") @db.VarChar(64)
+  factKey                         String   @map("fact_key") @db.Text
+  textValue                       String?  @map("text_value") @db.Text
+  amountMillions                  Decimal? @map("amount_millions") @db.Decimal(20, 6)
+  quantityValue                   Decimal? @map("quantity_value") @db.Decimal(20, 6)
+  unitCostDollars                 Decimal? @map("unit_cost_dollars") @db.Decimal(24, 6)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  budgetLine ProcurementBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([budgetLineId, fiscalYear, factKind, factKey], map: "procurement_detail_fact_natural_key")
+  @@index([factKind], map: "procurement_detail_fact_kind_idx")
+  @@map("procurement_detail_fact")
+}
+
+model OmSag {
+  id               String   @id @default(uuid()) @db.Uuid
+  naturalKey       String   @unique(map: "om_sag_natural_key") @map("natural_key")
+  component        String   @db.VarChar(16)
+  account          String   @db.Text
+  sagCode          String   @map("sag_code") @db.VarChar(64)
+  printedSagCode   String   @map("printed_sag_code") @db.VarChar(64)
+  title            String?  @db.Text
+  budgetActivity   String?  @map("budget_activity") @db.VarChar(64)
+  activityGroup    String?  @map("activity_group") @db.VarChar(64)
+  subActivityGroup String?  @map("subactivity_group") @db.VarChar(64)
+  metadata         Json     @default("{}") @map("metadata_jsonb")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  years   OmSagYear[]
+  details OmDetailFact[]
+
+  @@unique([component, account, sagCode], map: "om_sag_native_key")
+  @@index([component, account], map: "om_sag_component_account_idx")
+  @@map("om_sag")
+}
+
+model OmSagYear {
+  id                              String   @id @default(uuid()) @db.Uuid
+  omSagId                         String   @map("om_sag_id") @db.Uuid
+  fiscalYear                      Int      @map("fiscal_year")
+  fundingField                    String   @default("request") @map("funding_field") @db.VarChar(32)
+  amountMillions                  Decimal  @map("amount_millions") @db.Decimal(20, 6)
+  originalValue                   String   @map("original_value") @db.Text
+  originalUnit                    String   @map("original_unit") @db.VarChar(16)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sag OmSag @relation(fields: [omSagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([omSagId, fiscalYear, fundingField], map: "om_sag_year_natural_key")
+  @@index([fiscalYear], map: "om_sag_year_fy_idx")
+  @@index([verificationRunId], map: "om_sag_year_verification_run_idx")
+  @@map("om_sag_year")
+}
+
+model OmDetailFact {
+  id                              String   @id @default(uuid()) @db.Uuid
+  omSagId                         String   @map("om_sag_id") @db.Uuid
+  fiscalYear                      Int?     @map("fiscal_year")
+  factKind                        String   @map("fact_kind") @db.VarChar(64)
+  factKey                         String   @map("fact_key") @db.Text
+  textValue                       String?  @map("text_value") @db.Text
+  amountMillions                  Decimal? @map("amount_millions") @db.Decimal(20, 6)
+  quantityValue                   Decimal? @map("quantity_value") @db.Decimal(20, 6)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sag OmSag @relation(fields: [omSagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([omSagId, fiscalYear, factKind, factKey], map: "om_detail_fact_natural_key")
+  @@index([factKind], map: "om_detail_fact_kind_idx")
+  @@map("om_detail_fact")
+}
+
+model MilconProject {
+  id                 String   @id @default(uuid()) @db.Uuid
+  naturalKey         String   @unique(map: "milcon_project_natural_key") @map("natural_key")
+  component          String   @db.VarChar(16)
+  account            String   @db.Text
+  projectCode        String   @map("project_code") @db.VarChar(64)
+  printedProjectCode String   @map("printed_project_code") @db.VarChar(64)
+  installation       String?  @db.Text
+  location           String?  @db.Text
+  title              String?  @db.Text
+  categoryCode       String?  @map("category_code") @db.VarChar(64)
+  scope              String?  @db.Text
+  metadata           Json     @default("{}") @map("metadata_jsonb")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  years   MilconProjectYear[]
+  details MilconDetailFact[]
+
+  @@unique([component, account, projectCode, location], map: "milcon_project_native_key")
+  @@index([component, account], map: "milcon_project_component_account_idx")
+  @@index([installation], map: "milcon_project_installation_idx")
+  @@map("milcon_project")
+}
+
+model MilconProjectYear {
+  id                              String   @id @default(uuid()) @db.Uuid
+  milconProjectId                 String   @map("milcon_project_id") @db.Uuid
+  fiscalYear                      Int      @map("fiscal_year")
+  fundingType                     String   @map("funding_type") @db.VarChar(64)
+  amountMillions                  Decimal  @map("amount_millions") @db.Decimal(20, 6)
+  originalValue                   String   @map("original_value") @db.Text
+  originalUnit                    String   @map("original_unit") @db.VarChar(16)
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project MilconProject @relation(fields: [milconProjectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([milconProjectId, fiscalYear, fundingType], map: "milcon_project_year_natural_key")
+  @@index([fiscalYear], map: "milcon_project_year_fy_idx")
+  @@index([verificationRunId], map: "milcon_project_year_verification_run_idx")
+  @@map("milcon_project_year")
+}
+
+model MilconDetailFact {
+  id                              String   @id @default(uuid()) @db.Uuid
+  milconProjectId                 String   @map("milcon_project_id") @db.Uuid
+  fiscalYear                      Int?     @map("fiscal_year")
+  factKind                        String   @map("fact_kind") @db.VarChar(64)
+  factKey                         String   @map("fact_key") @db.Text
+  textValue                       String?  @map("text_value") @db.Text
+  amountMillions                  Decimal? @map("amount_millions") @db.Decimal(20, 6)
+  scheduleValue                   String?  @map("schedule_value") @db.Text
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  project MilconProject @relation(fields: [milconProjectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([milconProjectId, fiscalYear, factKind, factKey], map: "milcon_detail_fact_natural_key")
+  @@index([factKind], map: "milcon_detail_fact_kind_idx")
+  @@map("milcon_detail_fact")
+}
+
+model NonRdteBudgetLineSourceObservation {
+  id                              String   @id @default(uuid()) @db.Uuid
+  identityFamily                  String   @map("identity_family") @db.VarChar(32)
+  identityNaturalKey              String   @map("identity_natural_key") @db.Text
+  exhibit                         String   @db.VarChar(32)
+  fiscalYear                      Int      @map("fiscal_year")
+  sourceUrl                       String   @map("source_url") @db.Text
+  pageNumber                      Int      @map("page_number")
+  pageEnd                         Int?     @map("page_end")
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([identityNaturalKey, sourceDocumentId, assertionId], map: "non_rdte_budget_line_source_observation_natural_key")
+  @@index([identityFamily, fiscalYear], map: "non_rdte_source_observation_family_fy_idx")
+  @@index([verificationRunId], map: "non_rdte_source_observation_verification_run_idx")
+  @@map("non_rdte_budget_line_source_observation")
+}
+
+model NonRdteBudgetLineRelationship {
+  id                              String   @id @default(uuid()) @db.Uuid
+  fromFamily                      String   @map("from_family") @db.VarChar(32)
+  fromNaturalKey                  String   @map("from_natural_key") @db.Text
+  toFamily                        String   @map("to_family") @db.VarChar(32)
+  toNaturalKey                    String   @map("to_natural_key") @db.Text
+  relationshipType                String   @map("relationship_type") @db.VarChar(64)
+  explicitInSource                Boolean  @map("explicit_in_source")
+  sourceDocumentId                String   @map("source_document_id") @db.Uuid
+  extractionArtifactId            String   @map("extraction_artifact_id")
+  extractionArtifactContentSha256 String   @map("extraction_artifact_content_sha256") @db.Char(64)
+  assertionId                     String   @map("assertion_id")
+  verificationCandidateId         String   @map("verification_candidate_id")
+  verificationRunId               String   @map("verification_run_id")
+  verificationDecisionId          String   @map("verification_decision_id")
+  sourcePdfSha256                 String   @map("source_pdf_sha256") @db.Char(64)
+  evidenceIds                     Json     @map("evidence_ids_jsonb")
+  metadata                        Json     @default("{}") @map("metadata_jsonb")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([fromNaturalKey, toNaturalKey, relationshipType, sourceDocumentId], map: "non_rdte_budget_line_relationship_natural_key")
+  @@index([fromNaturalKey], map: "non_rdte_budget_line_relationship_from_idx")
+  @@index([toNaturalKey], map: "non_rdte_budget_line_relationship_to_idx")
+  @@map("non_rdte_budget_line_relationship")
+}

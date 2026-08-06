@@ -29,27 +29,22 @@ export function buildR1Artifact(input: {
   const { source, parserRuns, extraction, cycleFiscalYear } = input;
   const builder = new ArtifactBuilderV1(source);
 
-  /* When no parser runs are supplied (e.g. unit tests), register a
-   * deterministic synthetic run so evidence references resolve. */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'r1-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  /* When no parser runs are supplied (e.g. unit tests), a deterministic
+   * synthetic run is registered after the evidence is collected so it can
+   * declare the pages that evidence actually cites. */
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'r1-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities. */
   for (const identity of extraction.identities) {
@@ -268,6 +263,10 @@ export function buildR1Artifact(input: {
       sourceFactIds: [],
       evidenceIds: [],
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

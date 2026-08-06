@@ -29,11 +29,7 @@ function makeCell(
   };
 }
 
-function makeTable(
-  tableIndex: number,
-  cells: ParsedTableCellV1[],
-  label?: string,
-): ParsedTableV1 {
+function makeTable(tableIndex: number, cells: ParsedTableCellV1[], label?: string): ParsedTableV1 {
   return {
     tableIndex,
     ...(label != null ? { label } : {}),
@@ -77,16 +73,20 @@ Impact if not provided: Continued degradation of living conditions.
 
 describe('dd1391-extractor-v1', () => {
   it('extracts digital DD1391 with project identity and narratives', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '30,000'),
-      makeCell(2, 0, 'Contingency'),
-      makeCell(2, 1, '3,000'),
-      makeCell(3, 0, 'Total Request'),
-      makeCell(3, 1, '33,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '30,000'),
+        makeCell(2, 0, 'Contingency'),
+        makeCell(2, 1, '3,000'),
+        makeCell(3, 0, 'Total Request'),
+        makeCell(3, 1, '33,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT)],
@@ -116,22 +116,26 @@ describe('dd1391-extractor-v1', () => {
   });
 
   it('multiple cost categories are separate facts', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '20,000'),
-      makeCell(2, 0, 'Supporting Facilities'),
-      makeCell(2, 1, '5,000'),
-      makeCell(3, 0, 'Contingency'),
-      makeCell(3, 1, '2,500'),
-      makeCell(4, 0, 'S&I/Overhead'),
-      makeCell(4, 1, '1,500'),
-      makeCell(5, 0, 'Design'),
-      makeCell(5, 1, '1,000'),
-      makeCell(6, 0, 'Total Request'),
-      makeCell(6, 1, '30,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '20,000'),
+        makeCell(2, 0, 'Supporting Facilities'),
+        makeCell(2, 1, '5,000'),
+        makeCell(3, 0, 'Contingency'),
+        makeCell(3, 1, '2,500'),
+        makeCell(4, 0, 'S&I/Overhead'),
+        makeCell(4, 1, '1,500'),
+        makeCell(5, 0, 'Design'),
+        makeCell(5, 1, '1,000'),
+        makeCell(6, 0, 'Total Request'),
+        makeCell(6, 1, '30,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT)],
@@ -170,14 +174,18 @@ Installation: Fort Hood, TX
   });
 
   it('OCR low-confidence value requires review', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '30,000'),
-      makeCell(2, 0, 'Total Request'),
-      makeCell(2, 1, '30,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '30,000'),
+        makeCell(2, 0, 'Total Request'),
+        makeCell(2, 1, '30,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT, '0.75')],
@@ -243,16 +251,20 @@ Impact if not provided: Training capability degraded.
   });
 
   it('total arithmetic passes when sum equals total', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '30,000'),
-      makeCell(2, 0, 'Contingency'),
-      makeCell(2, 1, '3,000'),
-      makeCell(3, 0, 'Total Request'),
-      makeCell(3, 1, '33,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '30,000'),
+        makeCell(2, 0, 'Contingency'),
+        makeCell(2, 1, '3,000'),
+        makeCell(3, 0, 'Total Request'),
+        makeCell(3, 1, '33,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT)],
@@ -266,16 +278,20 @@ Impact if not provided: Training capability degraded.
   });
 
   it('total arithmetic fails when sum does not equal total', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '30,000'),
-      makeCell(2, 0, 'Contingency'),
-      makeCell(2, 1, '3,000'),
-      makeCell(3, 0, 'Total Request'),
-      makeCell(3, 1, '50,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '30,000'),
+        makeCell(2, 0, 'Contingency'),
+        makeCell(2, 1, '3,000'),
+        makeCell(3, 0, 'Total Request'),
+        makeCell(3, 1, '50,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT)],
@@ -326,10 +342,7 @@ Current Situation: Continued from page 1.
 Impact if not provided: Impact text.
 `;
     const result = extractDd1391FromPages({
-      pages: [
-        makePage(1, [], page1Text),
-        makePage(2, [], page2Text),
-      ],
+      pages: [makePage(1, [], page1Text), makePage(2, [], page2Text)],
       cycleFiscalYear: CYCLE_FY,
       component: COMPONENT,
       account: ACCOUNT,
@@ -340,16 +353,20 @@ Impact if not provided: Impact text.
   });
 
   it('builds V1 artifact from extraction', () => {
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '30,000'),
-      makeCell(2, 0, 'Contingency'),
-      makeCell(2, 1, '3,000'),
-      makeCell(3, 0, 'Total Request'),
-      makeCell(3, 1, '33,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '30,000'),
+        makeCell(2, 0, 'Contingency'),
+        makeCell(2, 1, '3,000'),
+        makeCell(3, 0, 'Total Request'),
+        makeCell(3, 1, '33,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], DD1391_TEXT)],
@@ -379,9 +396,7 @@ Impact if not provided: Impact text.
     expect(artifact.schemaVersion).toBe('defense_budget_extraction_v1');
     expect(artifact.assertions.length).toBeGreaterThan(0);
 
-    const identityAssertion = artifact.assertions.find(
-      (a) => a.assertionKind === 'milcon_project',
-    );
+    const identityAssertion = artifact.assertions.find((a) => a.assertionKind === 'milcon_project');
     expect(identityAssertion).toBeDefined();
 
     /* No canonical writer import */
@@ -389,9 +404,7 @@ Impact if not provided: Impact text.
       require('path').join(__dirname, 'dd1391-artifact-builder-v1.ts'),
       'utf-8',
     );
-    const importLines = source
-      .split('\n')
-      .filter((l: string) => l.trim().startsWith('import '));
+    const importLines = source.split('\n').filter((l: string) => l.trim().startsWith('import '));
     for (const line of importLines) {
       expect(line).not.toContain('ProgramElementWriterService');
     }
@@ -404,21 +417,25 @@ Project No.: SCAN-001
 Project Title: Scanned Form Test
 Installation: Fort Riley, KS
 `;
-    const costTable = makeTable(0, [
-      makeCell(0, 0, 'Cost Category'),
-      makeCell(0, 1, 'Amount'),
-      makeCell(1, 0, 'Primary Facility'),
-      makeCell(1, 1, '25,000'),
-      makeCell(2, 0, 'Total Request'),
-      makeCell(2, 1, '25,000'),
-    ], 'Cost in Thousands');
+    const costTable = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Cost Category'),
+        makeCell(0, 1, 'Amount'),
+        makeCell(1, 0, 'Primary Facility'),
+        makeCell(1, 1, '25,000'),
+        makeCell(2, 0, 'Total Request'),
+        makeCell(2, 1, '25,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractDd1391FromPages({
       pages: [makePage(1, [costTable], text, '0.65')],
       cycleFiscalYear: CYCLE_FY,
       component: COMPONENT,
       account: ACCOUNT,
-      ocrConfidenceThreshold: 0.80,
+      ocrConfidenceThreshold: 0.8,
     });
 
     expect(result.ocrConfidence).toHaveLength(1);

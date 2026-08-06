@@ -3,26 +3,22 @@
  */
 import { extractC1FromPages } from './c1-extractor-v1.js';
 import { buildC1Artifact } from './c1-artifact-builder-v1.js';
-import type { ParserPageResultV1, ParsedTableV1, ParsedTableCellV1 } from '../../parser-router/parser-runtime-contract-v1.js';
+import type {
+  ParserPageResultV1,
+  ParsedTableV1,
+  ParsedTableCellV1,
+} from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
 
 const CYCLE_FY = 2027;
 const COMPONENT: BudgetComponentV1 = 'ARMY';
 const ACCOUNT = 'Military Construction, Army';
 
-function makeCell(
-  rowIndex: number,
-  columnIndex: number,
-  text: string,
-): ParsedTableCellV1 {
+function makeCell(rowIndex: number, columnIndex: number, text: string): ParsedTableCellV1 {
   return { rowIndex, columnIndex, text };
 }
 
-function makeTable(
-  tableIndex: number,
-  cells: ParsedTableCellV1[],
-  label?: string,
-): ParsedTableV1 {
+function makeTable(tableIndex: number, cells: ParsedTableCellV1[], label?: string): ParsedTableV1 {
   return {
     tableIndex,
     ...(label != null ? { label } : {}),
@@ -33,11 +29,7 @@ function makeTable(
   };
 }
 
-function makePage(
-  page: number,
-  tables: ParsedTableV1[],
-  text?: string,
-): ParserPageResultV1 {
+function makePage(page: number, tables: ParsedTableV1[], text?: string): ParserPageResultV1 {
   return {
     page,
     blocks: [],
@@ -51,17 +43,21 @@ function makePage(
 
 describe('c1-extractor-v1', () => {
   it('extracts domestic project with funding', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Installation'),
-      makeCell(0, 3, 'Request'),
-      /* Data row */
-      makeCell(1, 0, 'ABC-12345'),
-      makeCell(1, 1, 'New Barracks'),
-      makeCell(1, 2, 'Fort Bragg, NC'),
-      makeCell(1, 3, '45,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Installation'),
+        makeCell(0, 3, 'Request'),
+        /* Data row */
+        makeCell(1, 0, 'ABC-12345'),
+        makeCell(1, 1, 'New Barracks'),
+        makeCell(1, 2, 'Fort Bragg, NC'),
+        makeCell(1, 3, '45,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -83,29 +79,34 @@ describe('c1-extractor-v1', () => {
   });
 
   it('same project number with different component/location remains distinct', () => {
-    const table1 = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Installation'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'XYZ-999'),
-      makeCell(1, 1, 'Fort Hood, TX'),
-      makeCell(1, 2, '30,000'),
-    ], 'Cost in Thousands');
+    const table1 = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Installation'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'XYZ-999'),
+        makeCell(1, 1, 'Fort Hood, TX'),
+        makeCell(1, 2, '30,000'),
+      ],
+      'Cost in Thousands',
+    );
 
-    const table2 = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Installation'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'XYZ-999'),
-      makeCell(1, 1, 'Naval Base San Diego, CA'),
-      makeCell(1, 2, '25,000'),
-    ], 'Cost in Thousands');
+    const table2 = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Installation'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'XYZ-999'),
+        makeCell(1, 1, 'Naval Base San Diego, CA'),
+        makeCell(1, 2, '25,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
-      pages: [
-        makePage(1, [table1]),
-        makePage(2, [table2]),
-      ],
+      pages: [makePage(1, [table1]), makePage(2, [table2])],
       cycleFiscalYear: CYCLE_FY,
       component: COMPONENT,
       account: ACCOUNT,
@@ -118,17 +119,21 @@ describe('c1-extractor-v1', () => {
   });
 
   it('phased project preserves both instances', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'PH1-001'),
-      makeCell(1, 1, 'Phase 1 Barracks'),
-      makeCell(1, 2, '20,000'),
-      makeCell(2, 0, 'PH2-001'),
-      makeCell(2, 1, 'Phase 2 Barracks'),
-      makeCell(2, 2, '15,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'PH1-001'),
+        makeCell(1, 1, 'Phase 1 Barracks'),
+        makeCell(1, 2, '20,000'),
+        makeCell(2, 0, 'PH2-001'),
+        makeCell(2, 1, 'Phase 2 Barracks'),
+        makeCell(2, 2, '15,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -142,14 +147,18 @@ describe('c1-extractor-v1', () => {
   });
 
   it('summary/subtotal row is not a project identity', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Request'),
-      makeCell(1, 0, 'ABC-111'),
-      makeCell(1, 1, '10,000'),
-      makeCell(2, 0, 'Total'),
-      makeCell(2, 1, '10,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Request'),
+        makeCell(1, 0, 'ABC-111'),
+        makeCell(1, 1, '10,000'),
+        makeCell(2, 0, 'Total'),
+        makeCell(2, 1, '10,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -163,16 +172,20 @@ describe('c1-extractor-v1', () => {
   });
 
   it('multiple funding fields remain separate', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Request'),
-      makeCell(0, 2, 'Authorization'),
-      makeCell(0, 3, 'Total Project Cost'),
-      makeCell(1, 0, 'MUL-001'),
-      makeCell(1, 1, '50,000'),
-      makeCell(1, 2, '45,000'),
-      makeCell(1, 3, '120,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Request'),
+        makeCell(0, 2, 'Authorization'),
+        makeCell(0, 3, 'Total Project Cost'),
+        makeCell(1, 0, 'MUL-001'),
+        makeCell(1, 1, '50,000'),
+        makeCell(1, 2, '45,000'),
+        makeCell(1, 3, '120,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -188,14 +201,18 @@ describe('c1-extractor-v1', () => {
   });
 
   it('missing project number is blocking omission', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, ''),
-      makeCell(1, 1, 'Unknown Project'),
-      makeCell(1, 2, '5,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, ''),
+        makeCell(1, 1, 'Unknown Project'),
+        makeCell(1, 2, '5,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -211,14 +228,18 @@ describe('c1-extractor-v1', () => {
   });
 
   it('wrapped title is captured', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'WRP-001'),
-      makeCell(1, 1, 'Construction of New Medical Facility and Supporting Infrastructure'),
-      makeCell(1, 2, '85,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'WRP-001'),
+        makeCell(1, 1, 'Construction of New Medical Facility and Supporting Infrastructure'),
+        makeCell(1, 2, '85,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -252,18 +273,22 @@ describe('c1-extractor-v1', () => {
   });
 
   it('overseas project with location', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Installation'),
-      makeCell(0, 3, 'Location'),
-      makeCell(0, 4, 'Request'),
-      makeCell(1, 0, 'OVS-001'),
-      makeCell(1, 1, 'Overseas Facility'),
-      makeCell(1, 2, 'Ramstein AB'),
-      makeCell(1, 3, 'Germany'),
-      makeCell(1, 4, '60,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Installation'),
+        makeCell(0, 3, 'Location'),
+        makeCell(0, 4, 'Request'),
+        makeCell(1, 0, 'OVS-001'),
+        makeCell(1, 1, 'Overseas Facility'),
+        makeCell(1, 2, 'Ramstein AB'),
+        makeCell(1, 3, 'Germany'),
+        makeCell(1, 4, '60,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -278,14 +303,18 @@ describe('c1-extractor-v1', () => {
   });
 
   it('category code is captured', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Category Code'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'CAT-001'),
-      makeCell(1, 1, '17120'),
-      makeCell(1, 2, '25,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Category Code'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'CAT-001'),
+        makeCell(1, 1, '17120'),
+        makeCell(1, 2, '25,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -298,14 +327,18 @@ describe('c1-extractor-v1', () => {
   });
 
   it('builds V1 artifact from extraction', () => {
-    const table = makeTable(0, [
-      makeCell(0, 0, 'Project Number'),
-      makeCell(0, 1, 'Project Title'),
-      makeCell(0, 2, 'Request'),
-      makeCell(1, 0, 'ART-001'),
-      makeCell(1, 1, 'Test Project'),
-      makeCell(1, 2, '42,000'),
-    ], 'Cost in Thousands');
+    const table = makeTable(
+      0,
+      [
+        makeCell(0, 0, 'Project Number'),
+        makeCell(0, 1, 'Project Title'),
+        makeCell(0, 2, 'Request'),
+        makeCell(1, 0, 'ART-001'),
+        makeCell(1, 1, 'Test Project'),
+        makeCell(1, 2, '42,000'),
+      ],
+      'Cost in Thousands',
+    );
 
     const result = extractC1FromPages({
       pages: [makePage(1, [table])],
@@ -336,15 +369,11 @@ describe('c1-extractor-v1', () => {
     expect(artifact.assertions.length).toBeGreaterThan(0);
 
     /* Verify the identity assertion is milcon_project */
-    const identityAssertion = artifact.assertions.find(
-      (a) => a.assertionKind === 'milcon_project',
-    );
+    const identityAssertion = artifact.assertions.find((a) => a.assertionKind === 'milcon_project');
     expect(identityAssertion).toBeDefined();
 
     /* Verify the funding assertion is funding */
-    const fundingAssertion = artifact.assertions.find(
-      (a) => a.assertionKind === 'funding',
-    );
+    const fundingAssertion = artifact.assertions.find((a) => a.assertionKind === 'funding');
     expect(fundingAssertion).toBeDefined();
 
     /* No canonical writer import */
@@ -352,9 +381,7 @@ describe('c1-extractor-v1', () => {
       require('path').join(__dirname, 'c1-artifact-builder-v1.ts'),
       'utf-8',
     );
-    const importLines = source
-      .split('\n')
-      .filter((l: string) => l.trim().startsWith('import '));
+    const importLines = source.split('\n').filter((l: string) => l.trim().startsWith('import '));
     for (const line of importLines) {
       expect(line).not.toContain('ProgramElementWriterService');
     }

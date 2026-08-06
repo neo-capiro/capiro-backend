@@ -21,9 +21,7 @@ import type { PrintedUnitV1 } from '../non-rdte/unit-semantics-v1.js';
 
 const CYCLE_FY = 2027;
 
-function makeFundingValue(
-  overrides: Partial<MilconFundingValueV1> = {},
-): MilconFundingValueV1 {
+function makeFundingValue(overrides: Partial<MilconFundingValueV1> = {}): MilconFundingValueV1 {
   return {
     identityNaturalKey: 'MILCON_PROJECT:ARMY:ABC-12345:NO_LOC:NO_LOC',
     printedProjectCode: 'ABC-12345',
@@ -37,9 +35,7 @@ function makeFundingValue(
   };
 }
 
-function makeIdentityInput(
-  overrides: Partial<MilconIdentityInput> = {},
-): MilconIdentityInput {
+function makeIdentityInput(overrides: Partial<MilconIdentityInput> = {}): MilconIdentityInput {
   return {
     naturalKey: 'MILCON_PROJECT:ARMY:ABC-12345:NO_LOC:NO_LOC',
     printedProjectCode: 'ABC-12345',
@@ -297,7 +293,9 @@ describe('milcon-verification-policy-v1', () => {
     /* DD1391 identity without a C-1 counterpart by natural key → review */
     const result = verifyMilconFamily(
       makeVerificationInput({
-        c1Identities: [makeIdentityInput({ naturalKey: 'MILCON_PROJECT:ARMY:C1-001:NO_LOC:NO_LOC' })],
+        c1Identities: [
+          makeIdentityInput({ naturalKey: 'MILCON_PROJECT:ARMY:C1-001:NO_LOC:NO_LOC' }),
+        ],
         dd1391Identities: [
           makeIdentityInput({
             exhibit: 'DD1391',
@@ -348,9 +346,7 @@ describe('milcon-composer-v1', () => {
 describe('checkDd1391CostArithmetic', () => {
   it('returns not applicable when no total_request', () => {
     const result = checkDd1391CostArithmetic({
-      costs: [
-        { identityNaturalKey: 'k', costCategory: 'primary_facility', valueMillions: '30' },
-      ],
+      costs: [{ identityNaturalKey: 'k', costCategory: 'primary_facility', valueMillions: '30' }],
     });
     expect(result.applicable).toBe(false);
   });

@@ -71,9 +71,7 @@ const forbiddenRouterSymbols = [
   'promotionReady',
   'canonicalEligible',
 ];
-const productionTs = filesUnder(ROUTER_ROOT, ['.ts']).filter(
-  (file) => !file.endsWith('.spec.ts'),
-);
+const productionTs = filesUnder(ROUTER_ROOT, ['.ts']).filter((file) => !file.endsWith('.spec.ts'));
 const operatorFiles = [
   'apps/api/scripts/profile-defense-budget-document.ts',
   'apps/api/scripts/plan-defense-budget-parse.ts',
@@ -96,13 +94,12 @@ findings.push({
 });
 
 const dockerSource = read('apps/api/Dockerfile').toLowerCase();
-const forbiddenDockerLines = dockerSource
-  .split('\n')
-  .filter((line) =>
-    /\b(apt|apt-get|pip|uv|pnpm|npm)\b.*\b(python|camelot|docling|paddle|paddleocr|torch)\b/.test(
-      line,
-    ),
-  );
+const forbiddenDockerLines = dockerSource.split('\n').filter((line) =>
+  // python3 / python3.x must match: \bpython\b does not (digit continues the word).
+  /\b(apt|apt-get|pip|uv|pnpm|npm)\b.*\b(python\d*(?:\.\d+)*|camelot|docling|paddle|paddleocr|torch)\b/.test(
+    line,
+  ),
+);
 findings.push({
   name: 'API Dockerfile contains no Python or parser-ML installation',
   passed: forbiddenDockerLines.length === 0,
@@ -115,9 +112,7 @@ for (const file of filesUnder(PYTHON_ROOT, ['.py'])) {
   const source = fs.readFileSync(file, 'utf8');
   for (const moduleName of forbiddenPythonImports) {
     if (
-      new RegExp(`(^|\\n)\\s*(from\\s+${moduleName}\\b|import\\s+${moduleName}\\b)`).test(
-        source,
-      )
+      new RegExp(`(^|\\n)\\s*(from\\s+${moduleName}\\b|import\\s+${moduleName}\\b)`).test(source)
     ) {
       pythonViolations.push(`${path.relative(REPO_ROOT, file)}:${moduleName}`);
     }

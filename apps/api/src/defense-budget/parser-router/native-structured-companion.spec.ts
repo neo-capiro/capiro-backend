@@ -43,7 +43,10 @@ const manifest = {
   documents: [document],
 } as BudgetCycleManifestV1;
 
-function writeCompanion(overrides?: { sourceSha?: string; method?: 'native_structured' | 'manual' }) {
+function writeCompanion(overrides?: {
+  sourceSha?: string;
+  method?: 'native_structured' | 'manual';
+}) {
   const builder = new ArtifactBuilderV1({
     manifestDocumentKey: document.documentKey,
     sourceDocumentId,

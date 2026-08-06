@@ -89,13 +89,7 @@ const steps: Step[] = [
     '--noEmit',
   ]),
   pnpmStep('Prisma generation', ['--filter', '@capiro/api', 'prisma:generate']),
-  pnpmStep('Primary Prisma schema validation', [
-    '--dir',
-    'apps/api',
-    'exec',
-    'prisma',
-    'validate',
-  ]),
+  pnpmStep('Primary Prisma schema validation', ['--dir', 'apps/api', 'exec', 'prisma', 'validate']),
   pnpmStep('RDT&E projection Prisma schema validation', [
     '--dir',
     'apps/api',

@@ -33,10 +33,7 @@ export interface ProcurementVerificationFinding {
   identityNaturalKey?: string;
 }
 
-export type ProcurementVerificationDecision =
-  | 'VERIFICATION_PASSED'
-  | 'NEEDS_REVIEW'
-  | 'REJECTED';
+export type ProcurementVerificationDecision = 'VERIFICATION_PASSED' | 'NEEDS_REVIEW' | 'REJECTED';
 
 export interface ProcurementVerificationResult {
   decision: ProcurementVerificationDecision;
@@ -159,7 +156,9 @@ export function verifyProcurementFamily(
         findingId: nextFindingId('funding_mismatch'),
         severity: 'blocking',
         code: 'p1_p40_funding_mismatch',
-        message: cmp.message ?? `P-1/P-40 funding mismatch for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `P-1/P-40 funding mismatch for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'not_run' && input.p40Required) {
@@ -167,7 +166,9 @@ export function verifyProcurementFamily(
         findingId: nextFindingId('funding_not_run'),
         severity: 'blocking',
         code: 'p1_p40_comparison_not_run',
-        message: cmp.message ?? `P-1/P-40 comparison not run for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `P-1/P-40 comparison not run for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'review') {
@@ -175,7 +176,9 @@ export function verifyProcurementFamily(
         findingId: nextFindingId('funding_review'),
         severity: 'review',
         code: 'p1_p40_funding_review',
-        message: cmp.message ?? `P-1/P-40 funding needs review for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
+        message:
+          cmp.message ??
+          `P-1/P-40 funding needs review for ${cmp.printedCode} FY${cmp.fiscalYear} ${cmp.columnRole}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     }

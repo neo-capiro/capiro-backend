@@ -79,9 +79,9 @@ describe('PrismaParserRunRecorder', () => {
   it('fails closed when SourceDocument or exact pages are absent', async () => {
     const prisma = fakePrisma();
     const recorder = new PrismaParserRunRecorder(prisma.client);
-    await expect(
-      recorder.record({ ...recordInput, sourceDocumentId: undefined }),
-    ).rejects.toThrow(/sourceDocumentId/);
+    await expect(recorder.record({ ...recordInput, sourceDocumentId: undefined })).rejects.toThrow(
+      /sourceDocumentId/,
+    );
     await expect(
       recorder.record({
         ...recordInput,

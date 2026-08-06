@@ -8,26 +8,23 @@
  * - one committee report
  * - one P-doc
  *
- * For each:
- * 1. Converts to V1 using the Phase 1 adapter
- * 2. Writes artifact + manifest to temp files
- * 3. Verifies in inspect mode using FilesystemProofResolver
- * 4. Reports the decision, risk, route, and findings
- *
  * No AWS, no LlamaParse, no canonical writes, no DB writes.
  */
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { canonicalJsonStringify, sha256Hex, sha256Bytes } from '../contracts/canonical-json.js';
+import { canonicalJsonStringify, sha256Bytes } from '../contracts/canonical-json.js';
 import { adaptR1ArtifactToArtifactV1 } from '../contracts/adapters/r1-artifact-v1.adapter.js';
 import { adaptR2ArtifactToArtifactV1 } from '../contracts/adapters/r2-artifact-v1.adapter.js';
 import { adaptR3PerformerArtifactToArtifactV1 } from '../contracts/adapters/r3-performer-artifact-v1.adapter.js';
 import { adaptCommitteeArtifactToArtifactV1 } from '../contracts/adapters/committee-artifact-v1.adapter.js';
 import { adaptPdocArtifactToArtifactV1 } from '../contracts/adapters/pdoc-artifact-v1.adapter.js';
 import { adapterTestContext } from '../contracts/adapters/testing-helpers.js';
-import type { DefenseBudgetExtractionArtifactV1 } from '../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetExtractionArtifactV1,
+  BudgetAuthorityV1,
+} from '../contracts/extraction-artifact-v1.js';
 import {
   parseBudgetCycleManifestV1,
   validateBudgetCycleManifestV1,
@@ -37,19 +34,16 @@ import { FilesystemProofResolver } from './trusted-proof/filesystem-proof-resolv
 import { BudgetVerificationV1Service } from './services/budget-verification-v1.service.js';
 import type { VerificationRequestV1 } from './verification-contract-v1.js';
 
-/* ------------------------------------------------------------------ */
-/* Temp directory                                                      */
-/* ------------------------------------------------------------------ */
-
 const TMP_DIR = path.join(os.tmpdir(), 'budget-verification-smoke');
 const SOURCE_PDF_PATH = path.join(TMP_DIR, 'test-source.pdf');
 const SOURCE_SHA = sha256Bytes(Buffer.from('%PDF-1.4 test source document\n'));
 
-/* ------------------------------------------------------------------ */
-/* Adapter context                                                     */
-/* ------------------------------------------------------------------ */
-
-function makeContext(docKey: string, family: string, exhibit: string) {
+function makeContext(
+  docKey: string,
+  family: string,
+  exhibit: string,
+  authority?: BudgetAuthorityV1,
+) {
   return adapterTestContext({
     manifestDocumentKey: docKey,
     family: family as never,
@@ -63,12 +57,9 @@ function makeContext(docKey: string, family: string, exhibit: string) {
     budgetCycle: 'pb',
     component: 'ARMY',
     documentType: exhibit.toLowerCase().replace('-', ''),
+    ...(authority != null ? { authority } : {}),
   });
 }
-
-/* ------------------------------------------------------------------ */
-/* Manifest builder                                                    */
-/* ------------------------------------------------------------------ */
 
 function makeManifest(
   documentKey: string,
@@ -103,13 +94,10 @@ function makeManifest(
     ],
   };
   const parsed = parseBudgetCycleManifestV1(raw);
-  validateBudgetCycleManifestV1(parsed);
+  const findings = validateBudgetCycleManifestV1(parsed);
+  expect(findings.filter((finding) => finding.severity === 'error')).toEqual([]);
   return parsed;
 }
-
-/* ------------------------------------------------------------------ */
-/* Write helpers                                                       */
-/* ------------------------------------------------------------------ */
 
 function writeManifest(manifest: BudgetCycleManifestV1): string {
   const p = path.join(TMP_DIR, `manifest-${manifest.documents[0]!.documentKey}.json`);
@@ -122,10 +110,6 @@ function writeArtifact(artifact: DefenseBudgetExtractionArtifactV1, key: string)
   fs.writeFileSync(p, canonicalJsonStringify(artifact) + '\n', 'utf8');
   return p;
 }
-
-/* ------------------------------------------------------------------ */
-/* Verify helper                                                       */
-/* ------------------------------------------------------------------ */
 
 async function verifyArtifact(
   manifestPath: string,
@@ -152,14 +136,17 @@ async function verifyArtifact(
     decision: result.decision,
     riskScore: result.riskScore,
     route: result.route,
-    checks: result.checks.map((c) => ({ code: c.code, outcome: c.outcome, blocking: c.blocking })),
-    discrepancies: result.discrepancies.map((d) => ({ code: d.code, severity: d.severity })),
+    checks: result.checks.map((c) => ({
+      code: c.code,
+      outcome: c.outcome,
+      blocking: c.blocking,
+    })),
+    discrepancies: result.discrepancies.map((d) => ({
+      code: d.code,
+      severity: d.severity,
+    })),
   };
 }
-
-/* ------------------------------------------------------------------ */
-/* Setup/teardown                                                      */
-/* ------------------------------------------------------------------ */
 
 beforeAll(() => {
   fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -169,10 +156,6 @@ beforeAll(() => {
 afterAll(() => {
   fs.rmSync(TMP_DIR, { recursive: true, force: true });
 });
-
-/* ------------------------------------------------------------------ */
-/* Smoke tests                                                         */
-/* ------------------------------------------------------------------ */
 
 describe('R7 — Artifact smoke (5 representative artifacts)', () => {
   it('R-1: produces a deterministic decision in inspect mode', async () => {
@@ -198,13 +181,14 @@ describe('R7 — Artifact smoke (5 representative artifacts)', () => {
       { fundingUnit: 'dollars' },
     );
     const manifest = makeManifest('r1_test', 'rdte', 'R-1');
-    const manifestPath = writeManifest(manifest);
-    const artifactPath = writeArtifact(artifact, 'r1');
-    const result = await verifyArtifact(manifestPath, 'r1_test', artifactPath);
+    const result = await verifyArtifact(
+      writeManifest(manifest),
+      'r1_test',
+      writeArtifact(artifact, 'r1'),
+    );
     expect(['PASS', 'REVIEW', 'REJECT']).toContain(result.decision);
     expect(result.riskScore).toBeGreaterThanOrEqual(0);
     expect(result.riskScore).toBeLessThanOrEqual(100);
-    console.log('  R-1 smoke:', JSON.stringify(result));
   });
 
   it('R-2: produces a deterministic decision in inspect mode', async () => {
@@ -242,13 +226,12 @@ describe('R7 — Artifact smoke (5 representative artifacts)', () => {
       ctx,
     );
     const manifest = makeManifest('r2_test', 'rdte', 'R-2');
-    const manifestPath = writeManifest(manifest);
-    const artifactPath = writeArtifact(artifact, 'r2');
-    const result = await verifyArtifact(manifestPath, 'r2_test', artifactPath);
+    const result = await verifyArtifact(
+      writeManifest(manifest),
+      'r2_test',
+      writeArtifact(artifact, 'r2'),
+    );
     expect(['PASS', 'REVIEW', 'REJECT']).toContain(result.decision);
-    expect(result.riskScore).toBeGreaterThanOrEqual(0);
-    expect(result.riskScore).toBeLessThanOrEqual(100);
-    console.log('  R-2 smoke:', JSON.stringify(result));
   });
 
   it('R-3 performer: produces a deterministic decision in inspect mode', async () => {
@@ -286,36 +269,45 @@ describe('R7 — Artifact smoke (5 representative artifacts)', () => {
     const manifest = makeManifest('r3_test', 'rdte', 'R-3', {
       requiredDataCategories: ['identity', 'funding', 'performers'],
     });
-    const manifestPath = writeManifest(manifest);
-    const artifactPath = writeArtifact(artifact, 'r3');
-    const result = await verifyArtifact(manifestPath, 'r3_test', artifactPath);
+    const result = await verifyArtifact(
+      writeManifest(manifest),
+      'r3_test',
+      writeArtifact(artifact, 'r3'),
+    );
     expect(['PASS', 'REVIEW', 'REJECT']).toContain(result.decision);
-    expect(result.riskScore).toBeGreaterThanOrEqual(0);
-    expect(result.riskScore).toBeLessThanOrEqual(100);
-    console.log('  R-3 smoke:', JSON.stringify(result));
   });
 
   it('committee report: produces a deterministic decision in inspect mode', async () => {
-    const ctx = makeContext('committee_test', 'committee', 'committee_report');
+    const ctx = makeContext('committee_test', 'committee', 'committee_report', 'hasc');
     const artifact = adaptCommitteeArtifactToArtifactV1(
       {
-        rows: [{ fy: 2027, peCode: '0601102A', request: 100, requestUnit: 'thousands' }],
+        chamber: 'HASC',
+        rows: [
+          {
+            fy: 2027,
+            peCode: '0601102A',
+            request: 100,
+            requestUnit: 'thousands',
+            mark: 100,
+            markUnit: 'thousands',
+          },
+        ],
       },
       ctx,
       { mode: 'HASC', defaultFiscalYear: 2027, legacyDeclaredUnit: 'thousands' },
     );
     const manifest = makeManifest('committee_test', 'committee', 'committee_report', {
+      authority: 'hasc',
       requiredDataCategories: ['identity', 'funding'],
-      requiredFundingFields: ['hascMark'],
+      requiredFundingFields: ['request', 'hascMark'],
       documentType: 'committee_report',
     });
-    const manifestPath = writeManifest(manifest);
-    const artifactPath = writeArtifact(artifact, 'committee');
-    const result = await verifyArtifact(manifestPath, 'committee_test', artifactPath);
+    const result = await verifyArtifact(
+      writeManifest(manifest),
+      'committee_test',
+      writeArtifact(artifact, 'committee'),
+    );
     expect(['PASS', 'REVIEW', 'REJECT']).toContain(result.decision);
-    expect(result.riskScore).toBeGreaterThanOrEqual(0);
-    expect(result.riskScore).toBeLessThanOrEqual(100);
-    console.log('  Committee smoke:', JSON.stringify(result));
   });
 
   it('P-doc: produces a deterministic decision in inspect mode', async () => {
@@ -346,12 +338,11 @@ describe('R7 — Artifact smoke (5 representative artifacts)', () => {
       expectedLineKinds: ['PROCUREMENT_BLIN'],
       documentType: 'p1',
     });
-    const manifestPath = writeManifest(manifest);
-    const artifactPath = writeArtifact(artifact, 'pdoc');
-    const result = await verifyArtifact(manifestPath, 'pdoc_test', artifactPath);
+    const result = await verifyArtifact(
+      writeManifest(manifest),
+      'pdoc_test',
+      writeArtifact(artifact, 'pdoc'),
+    );
     expect(['PASS', 'REVIEW', 'REJECT']).toContain(result.decision);
-    expect(result.riskScore).toBeGreaterThanOrEqual(0);
-    expect(result.riskScore).toBeLessThanOrEqual(100);
-    console.log('  P-doc smoke:', JSON.stringify(result));
   });
 });

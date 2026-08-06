@@ -64,21 +64,18 @@ export interface MilconFamilyReport {
 /* Composer                                                             */
 /* ------------------------------------------------------------------ */
 
-export function composeMilconFamily(
-  input: MilconCompositionInput,
-): MilconFamilyReport {
-  const {
-    artifacts,
-    requiredIdentityKeys,
-    requiredNarrativeSections,
-  } = input;
+export function composeMilconFamily(input: MilconCompositionInput): MilconFamilyReport {
+  const { artifacts, requiredIdentityKeys, requiredNarrativeSections } = input;
 
-  const identityMap = new Map<string, {
-    naturalKey: string;
-    printedProjectCode: string;
-    component: string;
-    exhibits: Set<string>;
-  }>();
+  const identityMap = new Map<
+    string,
+    {
+      naturalKey: string;
+      printedProjectCode: string;
+      component: string;
+      exhibits: Set<string>;
+    }
+  >();
 
   const c1Identities: MilconIdentityInput[] = [];
   const dd1391Identities: MilconIdentityInput[] = [];
@@ -96,9 +93,10 @@ export function composeMilconFamily(
     for (const assertion of artifact.assertions) {
       if (assertion.assertionKind === 'milcon_project') {
         const id = assertion.identity;
-        const naturalKey = id.lineKind === 'MILCON_PROJECT'
-          ? `MILCON_PROJECT:${id.component}:${id.projectCode.toUpperCase()}:${id.location?.toUpperCase() ?? 'NO_LOC'}:${(assertion.metadata?.installation as string)?.toUpperCase() ?? 'NO_LOC'}`
-          : '';
+        const naturalKey =
+          id.lineKind === 'MILCON_PROJECT'
+            ? `MILCON_PROJECT:${id.component}:${id.projectCode.toUpperCase()}:${id.location?.toUpperCase() ?? 'NO_LOC'}:${(assertion.metadata?.installation as string)?.toUpperCase() ?? 'NO_LOC'}`
+            : '';
 
         /* Use the identity's natural key from the identity builder pattern */
         const printedCode = id.projectCode;
@@ -134,7 +132,10 @@ export function composeMilconFamily(
             : {}),
         });
       }
-      if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'MILCON_PROJECT') {
+      if (
+        assertion.assertionKind === 'funding' &&
+        assertion.identity.lineKind === 'MILCON_PROJECT'
+      ) {
         const fi = assertion.identity;
         const locPart = fi.location?.toUpperCase() ?? 'NO_LOC';
         const composedKey = `MILCON_PROJECT:${fi.component}:${fi.projectCode.toUpperCase()}:${locPart}:${locPart}`;
@@ -188,7 +189,10 @@ export function composeMilconFamily(
             : {}),
         });
       }
-      if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'MILCON_PROJECT') {
+      if (
+        assertion.assertionKind === 'funding' &&
+        assertion.identity.lineKind === 'MILCON_PROJECT'
+      ) {
         const fi = assertion.identity;
         const locPart = fi.location?.toUpperCase() ?? 'NO_LOC';
         const composedKey = `MILCON_PROJECT:${fi.component}:${fi.projectCode.toUpperCase()}:${locPart}:${locPart}`;
@@ -218,13 +222,14 @@ export function composeMilconFamily(
           });
 
           /* Mark the DD1391 identity as having cost category */
-          const dd1391Entry = dd1391Identities.find(
-            (di) => di.naturalKey === identityNaturalKey,
-          );
+          const dd1391Entry = dd1391Identities.find((di) => di.naturalKey === identityNaturalKey);
           if (dd1391Entry != null) dd1391Entry.hasCostCategory = true;
         }
       }
-      if (assertion.assertionKind === 'narrative' && assertion.identity.lineKind === 'MILCON_PROJECT') {
+      if (
+        assertion.assertionKind === 'narrative' &&
+        assertion.identity.lineKind === 'MILCON_PROJECT'
+      ) {
         const fi = assertion.identity;
         const locPart = fi.location?.toUpperCase() ?? 'NO_LOC';
         const composedKey = `MILCON_PROJECT:${fi.component}:${fi.projectCode.toUpperCase()}:${locPart}:${locPart}`;
@@ -258,9 +263,7 @@ export function composeMilconFamily(
         if (identityNaturalKey == null) continue;
 
         if (fieldName === 'schedule') {
-          const dd1391Entry = dd1391Identities.find(
-            (di) => di.naturalKey === identityNaturalKey,
-          );
+          const dd1391Entry = dd1391Identities.find((di) => di.naturalKey === identityNaturalKey);
           if (dd1391Entry != null) dd1391Entry.hasSchedule = true;
         }
       }
@@ -272,9 +275,7 @@ export function composeMilconFamily(
           if (fi.lineKind === 'MILCON_PROJECT') {
             const locPart = fi.location?.toUpperCase() ?? 'NO_LOC';
             const composedKey = `MILCON_PROJECT:${fi.component}:${fi.projectCode.toUpperCase()}:${locPart}:${locPart}`;
-            const dd1391Entry = dd1391Identities.find(
-              (di) => di.naturalKey === composedKey,
-            );
+            const dd1391Entry = dd1391Identities.find((di) => di.naturalKey === composedKey);
             if (dd1391Entry != null) dd1391Entry.hasScope = true;
           }
         }
@@ -322,22 +323,18 @@ export function composeMilconFamily(
   }
 
   /* Build identity list */
-  const identities = [...identityMap.values()].map((id) => ({
-    naturalKey: id.naturalKey,
-    printedProjectCode: id.printedProjectCode,
-    component: id.component,
-    exhibits: [...id.exhibits].sort(),
-  })).sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
+  const identities = [...identityMap.values()]
+    .map((id) => ({
+      naturalKey: id.naturalKey,
+      printedProjectCode: id.printedProjectCode,
+      component: id.component,
+      exhibits: [...id.exhibits].sort(),
+    }))
+    .sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
 
   /* Count artifacts and assertions */
-  const allArtifacts = [
-    ...artifacts.c1Artifacts,
-    ...artifacts.dd1391Artifacts,
-  ];
-  const assertionCount = allArtifacts.reduce(
-    (sum, a) => sum + a.assertions.length,
-    0,
-  );
+  const allArtifacts = [...artifacts.c1Artifacts, ...artifacts.dd1391Artifacts];
+  const assertionCount = allArtifacts.reduce((sum, a) => sum + a.assertions.length, 0);
 
   return {
     identities,

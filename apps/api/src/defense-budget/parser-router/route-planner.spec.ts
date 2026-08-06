@@ -118,7 +118,10 @@ describe('route-planner', () => {
         sourceSha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
         pageProfiles: [makeProfile({ page: 1, likelyMixedLayout: true })],
       };
-      const plan1 = buildInitialParsePlan({ ...baseInput, parserPolicy: 'deterministic_table' });
+      const plan1 = buildInitialParsePlan({
+        ...baseInput,
+        parserPolicy: 'deterministic_table',
+      });
       const plan2 = buildInitialParsePlan({ ...baseInput, parserPolicy: 'mixed_layout' });
       expect(plan1.planSha256).not.toBe(plan2.planSha256);
     });
@@ -313,7 +316,7 @@ describe('route-planner', () => {
         currentRound: 0,
       });
       expect(result.terminal).toBe(true);
-      expect(result.terminalReason).toBe('paid_not_authorized');
+      expect(result.terminalReason).toBe('paid_page_cap_exceeded');
     });
 
     it('never repeats the same engine for a page', () => {

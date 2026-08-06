@@ -34,9 +34,7 @@ function main(): void {
     console.error('cycle-bundle.json and artifacts/ are required');
     process.exit(EXIT_ERROR);
   }
-  const bundle = rdteCycleBundleV1Schema.parse(
-    JSON.parse(fs.readFileSync(bundlePath, 'utf8')),
-  );
+  const bundle = rdteCycleBundleV1Schema.parse(JSON.parse(fs.readFileSync(bundlePath, 'utf8')));
   const artifacts = fs
     .readdirSync(artifactsDir)
     .filter((file) => file.endsWith('.extraction-v1.json'))

@@ -153,15 +153,14 @@ function bundle(input: {
   artifact: DefenseBudgetExtractionArtifactV1;
   acceptedAssertionIds: string[];
 }): RdteCycleBundleV1 {
-  const byteSha = sha256Bytes(
-    Buffer.from(`${JSON.stringify(input.artifact, null, 2)}\n`, 'utf8'),
-  );
+  const byteSha = sha256Bytes(Buffer.from(`${JSON.stringify(input.artifact, null, 2)}\n`, 'utf8'));
   const documentKey = input.artifact.source.manifestDocumentKey;
   const sourceDocumentId = input.artifact.source.sourceDocumentId;
   if (!sourceDocumentId) throw new Error('test artifact requires sourceDocumentId');
   const candidateId = `candidate-${documentKey}`;
   const runId = `verification-run-${documentKey}`;
-  const exhibitRole = input.artifact.source.exhibit === 'R-4' ? 'r4_schedule' : 'r1_catalog';
+  const exhibitRole =
+    input.artifact.source.exhibit === 'R-4' ? ('r4_schedule' as const) : ('r1_catalog' as const);
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
     cycleId: `rdte-cycle-${documentKey}-test`,
@@ -274,8 +273,7 @@ describe('proof-bound projection assertion ledger', () => {
     ]);
 
     const periods = result.plan.candidates.filter(
-      (candidate) =>
-        candidate.target === 'ProgramElementProjectMilestoneSchedulePeriod',
+      (candidate) => candidate.target === 'ProgramElementProjectMilestoneSchedulePeriod',
     );
     expect(periods).toHaveLength(2);
     expect(periods.map((candidate) => candidate.operation)).toEqual(['insert', 'insert']);

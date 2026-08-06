@@ -27,12 +27,12 @@
  * Pure module. Never invokes a parser, never calls LlamaParse, never writes
  * to a database.
  */
-import type { ParserPageResultV1, ParsedTableV1 } from '../../parser-router/parser-runtime-contract-v1.js';
+import type {
+  ParserPageResultV1,
+  ParsedTableV1,
+} from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildOmSagIdentity,
-  type OmSagIdentityV1,
-} from '../identity-v1.js';
+import { buildOmSagIdentity, type OmSagIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -180,14 +180,41 @@ function mapLabelColumns(
 const SAG_CODE_RE = /^[A-Z0-9]{1,8}$/;
 
 const HEADER_LABELS = new Set([
-  'ba', 'bag', 'sag', 'sag code', 'subactivity group', 'subactivity',
-  'code', 'title', 'description', 'name', 'account', 'appropriation',
-  'component', 'service', 'line', 'line item', 'li', 'blin', 'pe',
-  'budget activity', 'budget activity group', 'activity', 'activity group',
-  'subactivity group code', 'subactivity group title', 'sag title',
-  'budget activity (ba)', 'budget activity group (bag)',
-  'budget activity no.', 'sag no.', 'sag/subactivity',
-  'total', 'subtotal', 'sum', 'grand total',
+  'ba',
+  'bag',
+  'sag',
+  'sag code',
+  'subactivity group',
+  'subactivity',
+  'code',
+  'title',
+  'description',
+  'name',
+  'account',
+  'appropriation',
+  'component',
+  'service',
+  'line',
+  'line item',
+  'li',
+  'blin',
+  'pe',
+  'budget activity',
+  'budget activity group',
+  'activity',
+  'activity group',
+  'subactivity group code',
+  'subactivity group title',
+  'sag title',
+  'budget activity (ba)',
+  'budget activity group (bag)',
+  'budget activity no.',
+  'sag no.',
+  'sag/subactivity',
+  'total',
+  'subtotal',
+  'sum',
+  'grand total',
 ]);
 
 // BA section header detection from row text (e.g. "BA 01: Operating Forces")
@@ -294,12 +321,14 @@ export function extractO1FromPages(input: {
         if (isHeaderRow(cells)) continue;
 
         // Update BA/BAG context from columns or section headers
-        const baFromCol = labelMap.ba != null
-          ? (cells.find((c) => c.columnIndex === labelMap.ba)?.text.trim() ?? '')
-          : '';
-        const bagFromCol = labelMap.bag != null
-          ? (cells.find((c) => c.columnIndex === labelMap.bag)?.text.trim() ?? '')
-          : '';
+        const baFromCol =
+          labelMap.ba != null
+            ? (cells.find((c) => c.columnIndex === labelMap.ba)?.text.trim() ?? '')
+            : '';
+        const bagFromCol =
+          labelMap.bag != null
+            ? (cells.find((c) => c.columnIndex === labelMap.bag)?.text.trim() ?? '')
+            : '';
 
         if (baFromCol.length > 0) {
           currentBa = baFromCol;
@@ -370,9 +399,7 @@ export function extractO1FromPages(input: {
           );
           title =
             cells
-              .filter(
-                (c) => !dataCols.has(c.columnIndex) && !labelCols.has(c.columnIndex),
-              )
+              .filter((c) => !dataCols.has(c.columnIndex) && !labelCols.has(c.columnIndex))
               .map((c) => c.text.trim())
               .filter((t) => t.length > 0)
               .join(' ') || '(untitled)';
@@ -389,7 +416,10 @@ export function extractO1FromPages(input: {
               page: page.page,
               rowIndex,
               reason: 'missing SAG code — cannot build OM_SAG identity',
-              rawText: cells.map((c) => c.text).join(' ').slice(0, 200),
+              rawText: cells
+                .map((c) => c.text)
+                .join(' ')
+                .slice(0, 200),
             });
           }
           // Otherwise it's a section header or empty row — skip
@@ -490,8 +520,8 @@ export function extractO1FromPages(input: {
     if (values.size > 1) {
       const first = list[0]!;
       const printedCode =
-        identities.find((i) => i.identity.naturalKey === first.identityNaturalKey)
-          ?.printedCode ?? 'unknown';
+        identities.find((i) => i.identity.naturalKey === first.identityNaturalKey)?.printedCode ??
+        'unknown';
       conflicts.push({
         printedCode,
         fiscalYear: first.fiscalYear ?? 0,
@@ -545,11 +575,12 @@ function findHeaderRow(
 }
 
 function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   const hasFyVocab =
-    /\b(?:fy|fiscal|year|request|actual|enacted|base|oco|ooc|prior|outyear|total)\b/i.test(
-      text,
-    );
+    /\b(?:fy|fiscal|year|request|actual|enacted|base|oco|ooc|prior|outyear|total)\b/i.test(text);
   const hasLabelHeader = cells.some((c) => {
     const role = classifyLabelColumn(c.text);
     return role === 'ba' || role === 'bag' || role === 'sag_code' || role === 'title';
@@ -563,9 +594,11 @@ function isTotalRow(
   cells: Array<{ columnIndex: number; text: string }>,
   labelMap: LabelColumnMap,
 ): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
-  const hasTotalWord =
-    /\b(?:total|subtotal|sum|grand total)\b/i.test(text);
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
+  const hasTotalWord = /\b(?:total|subtotal|sum|grand total)\b/i.test(text);
   if (!hasTotalWord) return false;
   // If the row carries a valid SAG code, it's a data row, not a total.
   if (labelMap.sagCode != null) {
@@ -611,9 +644,7 @@ function hasMoneyInDataColumns(
  * O-1 budget year → request; current/prior enacted years → enacted;
  * outyear projections → request.
  */
-export function fundingStageToField(
-  stage: FundingStageV1,
-): 'request' | 'enacted' {
+export function fundingStageToField(stage: FundingStageV1): 'request' | 'enacted' {
   switch (stage) {
     case 'current_enacted':
     case 'prior_actual':
