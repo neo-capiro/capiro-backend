@@ -40,6 +40,15 @@ const CONTAINER = `engagement-phase1-${process.pid}`;
 const IMAGE = `capiro-engagement-api:phase1-${SHA.slice(0, 12)}`;
 const ARM64_OCI = path.join(EVIDENCE, 'engagement-api-arm64.oci.tar');
 const DOCKER = process.platform === 'win32' ? 'docker.exe' : 'docker';
+// On Windows, GNU tar (shipped with Git for Windows and usually first in PATH) reads the
+// `C:` drive prefix of an absolute path as a remote host:path and dies with
+// "Cannot connect to C: resolve failed". Windows ships bsdtar at System32\tar.exe, which
+// handles native absolute paths in either slash style, so pin it rather than depending on
+// PATH order deciding which tar we get.
+const TAR =
+  process.platform === 'win32'
+    ? path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')
+    : 'tar';
 const BACKGROUND_OBSERVE_MS = Math.max(Number(args.backgroundObserveMs ?? 65_000), 65_000);
 const children = [];
 
@@ -695,7 +704,7 @@ async function assertRequiredEvidence() {
 async function inspectOci(filename) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'capiro-engagement-oci-'));
   try {
-    await run('Extract ARM64 OCI metadata', 'tar', ['-xf', filename, '-C', directory], commonEnv);
+    await run('Extract ARM64 OCI metadata', TAR, ['-xf', filename, '-C', directory], commonEnv);
     const index = JSON.parse(await readFile(path.join(directory, 'index.json'), 'utf8'));
     const manifestDigest = index.manifests?.[0]?.digest;
     if (!manifestDigest) throw new Error('OCI index has no manifest');
