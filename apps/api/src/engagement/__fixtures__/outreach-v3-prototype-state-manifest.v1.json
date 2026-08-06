@@ -1,0 +1,773 @@
+{
+  "schemaVersion": 1,
+  "prototypeSha256": "84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453",
+  "extractedAt": null,
+  "layout": {
+    "workbench": "single",
+    "conversation": "bottom_docked",
+    "history": "expandable_overlay",
+    "mobile": "stacked_conversation_first"
+  },
+  "visibleStages": [
+    "Goal",
+    "Targets",
+    "Delivery",
+    "Context",
+    "Drafts",
+    "Send"
+  ],
+  "internalStages": [
+    "goal",
+    "readback",
+    "sponsor",
+    "criteria",
+    "targets",
+    "coverage",
+    "delivery",
+    "context",
+    "strategy",
+    "samples",
+    "drafts",
+    "preflight",
+    "sent"
+  ],
+  "stageEntryPoints": [
+    "goal",
+    "targets",
+    "delivery",
+    "context",
+    "drafts",
+    "preflight"
+  ],
+  "primaryFlowStates": [
+    {
+      "id": "outreach-landing",
+      "label": "1 · Outreach landing",
+      "menuGroup": "Flow",
+      "order": 0,
+      "flowNumber": 1
+    },
+    {
+      "id": "read-back-no-client-required",
+      "label": "2 · Read-back, no client required",
+      "menuGroup": "Flow",
+      "order": 1,
+      "flowNumber": 2
+    },
+    {
+      "id": "sponsor-ambiguity",
+      "label": "3 · Sponsor ambiguity",
+      "menuGroup": "Flow",
+      "order": 2,
+      "flowNumber": 3
+    },
+    {
+      "id": "target-criteria",
+      "label": "4 · Target criteria",
+      "menuGroup": "Flow",
+      "order": 3,
+      "flowNumber": 4
+    },
+    {
+      "id": "recommended-targets",
+      "label": "5 · Recommended targets",
+      "menuGroup": "Flow",
+      "order": 4,
+      "flowNumber": 5
+    },
+    {
+      "id": "directory-search",
+      "label": "6 · Directory search",
+      "menuGroup": "Flow",
+      "order": 5,
+      "flowNumber": 6
+    },
+    {
+      "id": "expanded-office-with-staff",
+      "label": "7 · Expanded office with staff",
+      "menuGroup": "Flow",
+      "order": 6,
+      "flowNumber": 7
+    },
+    {
+      "id": "client-contacts-several-clients",
+      "label": "8 · Client contacts, several clients",
+      "menuGroup": "Flow",
+      "order": 7,
+      "flowNumber": 8
+    },
+    {
+      "id": "saved-audiences",
+      "label": "9 · Saved audiences",
+      "menuGroup": "Flow",
+      "order": 8,
+      "flowNumber": 9
+    },
+    {
+      "id": "manual-target-entry",
+      "label": "10 · Manual target entry",
+      "menuGroup": "Flow",
+      "order": 9,
+      "flowNumber": 10
+    },
+    {
+      "id": "selected-targets-and-health",
+      "label": "11 · Selected targets and health",
+      "menuGroup": "Flow",
+      "order": 10,
+      "flowNumber": 11
+    },
+    {
+      "id": "target-profile",
+      "label": "12 · Target profile",
+      "menuGroup": "Flow",
+      "order": 11,
+      "flowNumber": 12
+    },
+    {
+      "id": "coverage-gap-review",
+      "label": "13 · Coverage gap review",
+      "menuGroup": "Flow",
+      "order": 12,
+      "flowNumber": 13
+    },
+    {
+      "id": "delivery-recommendation",
+      "label": "14 · Delivery recommendation",
+      "menuGroup": "Flow",
+      "order": 13,
+      "flowNumber": 14
+    },
+    {
+      "id": "context-recommendations",
+      "label": "15 · Context recommendations",
+      "menuGroup": "Flow",
+      "order": 14,
+      "flowNumber": 15
+    },
+    {
+      "id": "strategy-review",
+      "label": "16 · Strategy review",
+      "menuGroup": "Flow",
+      "order": 15,
+      "flowNumber": 16
+    },
+    {
+      "id": "representative-samples",
+      "label": "17 · Representative samples",
+      "menuGroup": "Flow",
+      "order": 16,
+      "flowNumber": 17
+    },
+    {
+      "id": "draft-summary-12-drafts",
+      "label": "18 · Draft summary, 12 drafts",
+      "menuGroup": "Flow",
+      "order": 17,
+      "flowNumber": 18
+    },
+    {
+      "id": "exception-review",
+      "label": "19 · Exception review",
+      "menuGroup": "Flow",
+      "order": 18,
+      "flowNumber": 19
+    },
+    {
+      "id": "preflight-nothing-eligible-yet",
+      "label": "20 · Preflight · nothing eligible yet",
+      "menuGroup": "Flow",
+      "order": 19,
+      "flowNumber": 20
+    },
+    {
+      "id": "preflight-partial-send-ready",
+      "label": "21 · Preflight · partial send ready",
+      "menuGroup": "Flow",
+      "order": 20,
+      "flowNumber": 21
+    },
+    {
+      "id": "post-send-partial-failure",
+      "label": "22 · Post-send, partial failure",
+      "menuGroup": "Flow",
+      "order": 21,
+      "flowNumber": 22
+    }
+  ],
+  "edgeStates": [
+    {
+      "id": "bottom-chat-bar-conversation-led-flow",
+      "label": "Bottom chat bar · conversation-led flow",
+      "menuGroup": "New in this version",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "express-path-meri-takes-it-from-here",
+      "label": "Express path · Meri takes it from here",
+      "menuGroup": "New in this version",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "express-path-already-running",
+      "label": "Express path already running",
+      "menuGroup": "New in this version",
+      "order": 2,
+      "flowNumber": null
+    },
+    {
+      "id": "typed-instruction-pending-proposal",
+      "label": "Typed instruction · pending proposal",
+      "menuGroup": "New in this version",
+      "order": 3,
+      "flowNumber": null
+    },
+    {
+      "id": "resumed-two-days-later",
+      "label": "Resumed two days later",
+      "menuGroup": "New in this version",
+      "order": 4,
+      "flowNumber": null
+    },
+    {
+      "id": "generation-interrupted-at-7-of-12",
+      "label": "Generation interrupted at 7 of 12",
+      "menuGroup": "New in this version",
+      "order": 5,
+      "flowNumber": null
+    },
+    {
+      "id": "draft-sources-view-line-provenance",
+      "label": "Draft sources view · line provenance",
+      "menuGroup": "New in this version",
+      "order": 6,
+      "flowNumber": null
+    },
+    {
+      "id": "post-send-learning-proposals",
+      "label": "Post-send learning proposals",
+      "menuGroup": "New in this version",
+      "order": 7,
+      "flowNumber": null
+    },
+    {
+      "id": "scenario-coalition-to-federal-agency",
+      "label": "Scenario · coalition to federal agency",
+      "menuGroup": "New in this version",
+      "order": 8,
+      "flowNumber": null
+    },
+    {
+      "id": "scenario-firm-to-congressional-default",
+      "label": "Scenario · firm to congressional (default)",
+      "menuGroup": "New in this version",
+      "order": 9,
+      "flowNumber": null
+    },
+    {
+      "id": "missing-target-email",
+      "label": "Missing target email",
+      "menuGroup": "Target and context edge cases",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "stale-target-role",
+      "label": "Stale target role",
+      "menuGroup": "Target and context edge cases",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "no-prior-relationship",
+      "label": "No prior relationship",
+      "menuGroup": "Target and context edge cases",
+      "order": 2,
+      "flowNumber": null
+    },
+    {
+      "id": "excluded-context-wrong-client",
+      "label": "Excluded context · wrong client",
+      "menuGroup": "Target and context edge cases",
+      "order": 3,
+      "flowNumber": null
+    },
+    {
+      "id": "target-specific-context",
+      "label": "Target-specific context",
+      "menuGroup": "Target and context edge cases",
+      "order": 4,
+      "flowNumber": null
+    },
+    {
+      "id": "held-draft-claim-level-remediation",
+      "label": "Held draft · claim-level remediation",
+      "menuGroup": "Target and context edge cases",
+      "order": 5,
+      "flowNumber": null
+    },
+    {
+      "id": "dirty-draft-approval-cleared-by-an-edit",
+      "label": "Dirty draft · approval cleared by an edit",
+      "menuGroup": "Target and context edge cases",
+      "order": 6,
+      "flowNumber": null
+    },
+    {
+      "id": "stale-drafts-upstream-change",
+      "label": "Stale drafts · upstream change",
+      "menuGroup": "Target and context edge cases",
+      "order": 7,
+      "flowNumber": null
+    },
+    {
+      "id": "audit-trail-unavailable",
+      "label": "Audit trail unavailable",
+      "menuGroup": "Target and context edge cases",
+      "order": 8,
+      "flowNumber": null
+    },
+    {
+      "id": "sponsor-several-clients",
+      "label": "Sponsor · several clients",
+      "menuGroup": "Target and context edge cases",
+      "order": 9,
+      "flowNumber": null
+    },
+    {
+      "id": "sponsor-coalition",
+      "label": "Sponsor · coalition",
+      "menuGroup": "Target and context edge cases",
+      "order": 10,
+      "flowNumber": null
+    },
+    {
+      "id": "sponsor-internal-only-blocks-sending",
+      "label": "Sponsor · internal only blocks sending",
+      "menuGroup": "Target and context edge cases",
+      "order": 11,
+      "flowNumber": null
+    }
+  ],
+  "loadingStates": [
+    {
+      "id": "meri-interpreting-the-request",
+      "label": "Meri interpreting the request",
+      "menuGroup": "Loading",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "searching-the-directory",
+      "label": "Searching the Directory",
+      "menuGroup": "Loading",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "loading-a-target-profile",
+      "label": "Loading a target profile",
+      "menuGroup": "Loading",
+      "order": 2,
+      "flowNumber": null
+    },
+    {
+      "id": "generating-samples",
+      "label": "Generating samples",
+      "menuGroup": "Loading",
+      "order": 3,
+      "flowNumber": null
+    },
+    {
+      "id": "generating-remaining-drafts",
+      "label": "Generating remaining drafts",
+      "menuGroup": "Loading",
+      "order": 4,
+      "flowNumber": null
+    },
+    {
+      "id": "sending-the-campaign",
+      "label": "Sending the campaign",
+      "menuGroup": "Loading",
+      "order": 5,
+      "flowNumber": null
+    }
+  ],
+  "errorStates": [
+    {
+      "id": "directory-search-failed",
+      "label": "Directory search failed",
+      "menuGroup": "Error and timeout",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "target-profile-failed-to-load",
+      "label": "Target profile failed to load",
+      "menuGroup": "Error and timeout",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "one-draft-failed-to-generate",
+      "label": "One draft failed to generate",
+      "menuGroup": "Error and timeout",
+      "order": 2,
+      "flowNumber": null
+    },
+    {
+      "id": "critical-context-failure",
+      "label": "Critical context failure",
+      "menuGroup": "Error and timeout",
+      "order": 3,
+      "flowNumber": null
+    },
+    {
+      "id": "autosave-failed",
+      "label": "Autosave failed",
+      "menuGroup": "Error and timeout",
+      "order": 4,
+      "flowNumber": null
+    },
+    {
+      "id": "generation-taking-longer-than-expected",
+      "label": "Generation taking longer than expected",
+      "menuGroup": "Error and timeout",
+      "order": 5,
+      "flowNumber": null
+    }
+  ],
+  "emptyStates": [
+    {
+      "id": "no-targets-selected",
+      "label": "No targets selected",
+      "menuGroup": "Empty",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "no-recommendations-found",
+      "label": "No recommendations found",
+      "menuGroup": "Empty",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "no-saved-audiences",
+      "label": "No saved audiences",
+      "menuGroup": "Empty",
+      "order": 2,
+      "flowNumber": null
+    }
+  ],
+  "systemStates": [
+    {
+      "id": "meri-unavailable-options-still-work",
+      "label": "Meri unavailable · options still work",
+      "menuGroup": "System",
+      "order": 0,
+      "flowNumber": null
+    },
+    {
+      "id": "mobile-stacked-layout",
+      "label": "Mobile stacked layout",
+      "menuGroup": "System",
+      "order": 1,
+      "flowNumber": null
+    },
+    {
+      "id": "implementation-notes",
+      "label": "Implementation notes",
+      "menuGroup": "System",
+      "order": 2,
+      "flowNumber": null
+    }
+  ],
+  "sponsorScopes": [
+    {
+      "id": "firm",
+      "label": "Our firm"
+    },
+    {
+      "id": "client",
+      "label": "A client"
+    },
+    {
+      "id": "clients",
+      "label": "Several clients"
+    },
+    {
+      "id": "coalition",
+      "label": "A coalition"
+    },
+    {
+      "id": "internal",
+      "label": "Internal only"
+    },
+    {
+      "id": "none",
+      "label": "No formal sponsor"
+    }
+  ],
+  "targetSources": [
+    {
+      "id": "recommended",
+      "label": "Recommended"
+    },
+    {
+      "id": "directory",
+      "label": "Directory"
+    },
+    {
+      "id": "clients",
+      "label": "Client contacts"
+    },
+    {
+      "id": "saved",
+      "label": "Saved audiences"
+    },
+    {
+      "id": "recent",
+      "label": "Recent contacts"
+    },
+    {
+      "id": "manual",
+      "label": "Add manually"
+    },
+    {
+      "id": "selected",
+      "label": "Selected"
+    }
+  ],
+  "deliveryPatterns": [
+    {
+      "id": "personalized",
+      "label": "Personalized emails"
+    },
+    {
+      "id": "same",
+      "label": "Same message, sent separately"
+    },
+    {
+      "id": "shared",
+      "label": "One shared email"
+    }
+  ],
+  "contextCategories": [
+    "facts",
+    "required",
+    "target",
+    "writing"
+  ],
+  "draftStatuses": [
+    "Not generated",
+    "Failed",
+    "Held",
+    "Stale",
+    "Dirty",
+    "Verifying",
+    "Approved",
+    "Ready for review"
+  ],
+  "commands": [
+    {
+      "id": "ADD_GAPS",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "ADD_HIGH",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "APPROVE_ALL",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "APPROVE_APPROACH",
+      "staticLabels": [
+        "Approve approach and write the rest"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "COMMIT_DELIVERY",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "CONFIRM_READBACK",
+      "staticLabels": [
+        "That’s right"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "CONFIRM_SPONSOR",
+      "staticLabels": [
+        "Confirm sponsor"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "CONTINUE_COVERAGE",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "DONE_TARGETS",
+      "staticLabels": [
+        "I’m done selecting"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "FIND_TARGETS",
+      "staticLabels": [
+        "Find targets"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "FINISH_LATER",
+      "staticLabels": [
+        "Finish later"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "GEN_SAMPLES",
+      "staticLabels": [
+        "Generate representative samples"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "OPEN_DIRECTORY",
+      "staticLabels": [
+        "Open the Directory"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "OPEN_SPONSOR",
+      "staticLabels": [
+        "Change sponsor"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    },
+    {
+      "id": "REVIEW_EXCEPTIONS",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "SEND",
+      "staticLabels": [
+        "Resolve blockers"
+      ],
+      "dynamicLabel": true,
+      "kinds": [
+        "blocked",
+        "review",
+        "send"
+      ]
+    },
+    {
+      "id": "TO_PREFLIGHT",
+      "staticLabels": [],
+      "dynamicLabel": true,
+      "kinds": []
+    },
+    {
+      "id": "USE_SOURCES",
+      "staticLabels": [
+        "Use these sources"
+      ],
+      "dynamicLabel": false,
+      "kinds": []
+    }
+  ],
+  "commandLabels": [
+    "Approve approach and write the rest",
+    "Change sponsor",
+    "Confirm sponsor",
+    "Find targets",
+    "Finish later",
+    "Generate representative samples",
+    "I’m done selecting",
+    "Open the Directory",
+    "Resolve blockers",
+    "That’s right",
+    "Use these sources"
+  ],
+  "scenarios": [
+    "agency",
+    "hill"
+  ],
+  "responsive": {
+    "desktop": {
+      "name": "Desktop ≥1280px",
+      "note": "One workbench. Full-width work surface capped at 1060px of content, with the conversation bar docked underneath. The target profile is a nested overlay on the workbench, never a page of its own."
+    },
+    "tablet": {
+      "name": "Tablet 900–1280px",
+      "note": "Resizable split with a 360px conversation minimum. Target tabs wrap; the brief stays collapsed."
+    },
+    "mobile": {
+      "name": "Mobile <900px",
+      "note": "Stacked. Conversation first with the live question pinned, work surface below, sticky segmented jump control, composer always reachable, brief becomes a one-line expandable header. Hit targets stay at 44px."
+    }
+  },
+  "invariantRules": [
+    "The conversation is visible on every stage, including target selection, profiles, drafts and preflight.",
+    "The first question is about the goal. No client is required, and none is ever selected automatically.",
+    "A campaign can have no client, one client, several clients, a coalition, or an internal sponsor.",
+    "The Directory lives inside target selection. Users can also add targets by hand.",
+    "Meri recommends targets but never pre-adds them.",
+    "Every target row opens a profile, and profile facts are labelled verified, needs confirmation, stale, conflicting, or restricted.",
+    "Target-specific context is scoped to one person and cannot appear in another target’s draft.",
+    "Saved audiences are a source of targets, never a delivery mode.",
+    "Personalized separate, same-message separate, and shared-thread delivery are three distinct choices.",
+    "Large campaigns generate representative samples first and review exceptions first.",
+    "Sending always requires the dedicated preflight confirmation. Typing “send it” opens preflight and never sends.",
+    "The screen is not split. One workbench, with the conversation docked across the bottom and its history expandable over the work.",
+    "Meri’s live question is always on screen next to the input, and the full transcript is one click away without leaving the stage.",
+    "A typed instruction is never applied on its own. Meri proposes, the effects are named, and the user applies.",
+    "The workflow is resumable. Leaving and returning restores the same checkpoint, and interrupted generation resumes without rewriting finished drafts.",
+    "Sponsor, audience class and target class are separate. A coalition sponsor writing to agency staff and member companies is a supported campaign, not an exception.",
+    "Nothing is written to memory after a send unless each proposal is approved individually."
+  ],
+  "assetSummary": {
+    "textAssets": 3,
+    "opaqueAssets": 16,
+    "mimes": [
+      "font/woff2",
+      "text/javascript"
+    ]
+  },
+  "provenance": {
+    "sourceBlock": "template > script[type=\"text/x-dc\"]",
+    "scenarioDataIsFictional": true,
+    "note": "Scenario people, offices, bills and campaign text in the prototype are fictional fixture content authored for the mockup. They are not production data and must never be treated as truth. No contact detail is extracted here."
+  }
+}
