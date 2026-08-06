@@ -269,6 +269,13 @@ async function probe(base, pathname) {
   };
 }
 
+function isIsoInstant(value) {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(value)
+  );
+}
+
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize);
   if (!value || typeof value !== 'object') return value;
@@ -280,6 +287,14 @@ function normalize(value) {
         key,
       )
     ) {
+      output[key] = '<normalized>';
+      continue;
+    }
+    // Request-time window bounds (outreach/outbound/contact-data derives from/to from
+    // `new Date()` per request) differ between the main and shadow probes. Mask them only
+    // when the value is an ISO instant, so mail-shaped `from`/`to` addresses keep
+    // participating in parity. Mirrors engagement-phase1-read-parity.ts.
+    if (/^(from|to)$/i.test(key) && isIsoInstant(raw)) {
       output[key] = '<normalized>';
       continue;
     }
