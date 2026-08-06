@@ -22,11 +22,18 @@ const apiTests = [
   'scripts/lib/memory-phase2-notification-outbox-contract.spec.ts',
   'scripts/lib/memory-phase2-notification-assignment-contract.spec.ts',
   'scripts/lib/memory-phase2-notification-dispatcher-contract.spec.ts',
+  'src/memory/memory-authorization.helpers.spec.ts',
+  'src/memory/memory-candidate-review.service.spec.ts',
+  'src/memory/immutable-memory-version.service.spec.ts',
+  'src/memory/memory-review-workflow.service.spec.ts',
+  'src/memory/memory-settings-review-readiness.service.spec.ts',
   'src/memory/memory-review-inbox.helpers.spec.ts',
   'src/memory/memory-review-inbox.service.spec.ts',
+  'src/memory/memory-review-admin-inbox.service.spec.ts',
   'src/memory/memory-review-inbox.controller.spec.ts',
   'src/reviews/memory-review-compatibility-guard.service.spec.ts',
   'scripts/lib/memory-phase3-review-inbox-contract.spec.ts',
+  'scripts/lib/memory-admin-self-approval-contract.spec.ts',
 ];
 
 function main(): void {
@@ -38,7 +45,7 @@ function main(): void {
       .toLowerCase() === 'enforce'
   ) {
     throw new Error(
-      'Unset MEMORY_REVIEW_EMAIL_DELIVERY before local Phase 3 closeout.',
+      'Unset MEMORY_REVIEW_EMAIL_DELIVERY before local Memory Review closeout.',
     );
   }
 
@@ -57,6 +64,13 @@ function main(): void {
     'exec',
     'tsx',
     'scripts/verify-memory-phase3-review-inbox-database.ts',
+  ]);
+  runPnpm([
+    '--filter',
+    '@capiro/api',
+    'exec',
+    'tsx',
+    'scripts/verify-memory-admin-self-approval-database.ts',
   ]);
   runPnpm([
     '--filter',
@@ -85,12 +99,14 @@ function main(): void {
     'vitest',
     'run',
     'src/components/MemoryReviewInbox.phase3.test.tsx',
+    'src/components/MemoryFileEditor.phase3.test.ts',
     '--testTimeout=20000',
     '--hookTimeout=20000',
   ]);
   runPnpm(['--filter', '@capiro/web', 'build']);
 
   process.stdout.write('MEMORY_PHASE3_REVIEW_INBOX_CLOSEOUT_COMPLETE\n');
+  process.stdout.write('MEMORY_ADMIN_SELF_APPROVAL_CLOSEOUT_COMPLETE\n');
 }
 
 function runPnpm(args: string[]): void {
