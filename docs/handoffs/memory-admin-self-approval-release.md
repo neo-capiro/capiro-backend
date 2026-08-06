@@ -13,6 +13,9 @@ shared-memory review, including their own proposal and regardless of assignment.
 
 Standard-user reviewers remain assignment-bound and cannot self-review.
 
+Memory Review notifications are in-app only. There is no email delivery path or
+email rollout step.
+
 ## Pre-merge acceptance
 
 Synchronize with `main`, recreate both disposable databases, and run:
@@ -37,10 +40,10 @@ Enable only the tenant UUIDs corresponding to:
 - `capiro-internal`
 - `dualsiight`
 
-Keep email delivery unset during initial canary acceptance.
+Run the existing Memory Review notification dispatcher for recipient-scoped
+in-app notifications only.
 
 ## Safety
 
-No production migration, deployment, dispatcher schedule, flag change, email
-enablement, Clerk mutation, backfill, or customer-data mutation is performed by
-this branch.
+No production migration, deployment, dispatcher schedule, flag change, Clerk
+mutation, backfill, or customer-data mutation is performed by this branch.
