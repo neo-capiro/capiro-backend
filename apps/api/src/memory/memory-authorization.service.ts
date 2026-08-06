@@ -138,9 +138,9 @@ export class MemoryAuthorizationService {
       (operation === 'approve' || operation === 'review') &&
       subject.status === 'pending_review'
     ) {
-      await tx.$executeRaw(Prisma.sql`
-        SELECT set_config('app.memory_admin_review_decision', 'on', true)
-      `);
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_decision', 'on', true)`,
+      );
     }
 
     return decision;
