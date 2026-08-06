@@ -1,0 +1,89 @@
+[
+  {
+    "page": 119,
+    "text": "GENERAL TRANSFER AUTHORITY \u2014 DEFENSE-WIDE",
+    "printedPage": "119",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "GENERAL TRANSFER AUTHORITY \u2014 DEFENSE-WIDE",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "General Transfer Table ($ in Thousands)",
+        "rowCount": 3,
+        "columnCount": 4,
+        "cells": [
+          {
+            "rowIndex": 0,
+            "columnIndex": 0,
+            "text": "Action"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 1,
+            "text": "FY 2027 Request"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 2,
+            "text": "Transfer"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 3,
+            "text": "Committee Recommendation"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 0,
+            "text": "Transfer out \u2014 Department-wide general transfer authority"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 1,
+            "text": ""
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 2,
+            "text": "-5000"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 3,
+            "text": ""
+          },
+          {
+            "rowIndex": 2,
+            "columnIndex": 0,
+            "text": "General provision \u2014 transfer reserve"
+          },
+          {
+            "rowIndex": 2,
+            "columnIndex": 1,
+            "text": ""
+          },
+          {
+            "rowIndex": 2,
+            "columnIndex": 2,
+            "text": "2500"
+          },
+          {
+            "rowIndex": 2,
+            "columnIndex": 3,
+            "text": ""
+          }
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

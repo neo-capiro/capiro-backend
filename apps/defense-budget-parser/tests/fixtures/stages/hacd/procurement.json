@@ -1,0 +1,79 @@
+[
+  {
+    "page": 72,
+    "text": "TITLE III \u2014 PROCUREMENT\nACCOUNT: 2035A\nComponent: ARMY",
+    "printedPage": "72",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "TITLE III \u2014 PROCUREMENT",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "Procurement Committee Allowance ($ in Millions)",
+        "rowCount": 2,
+        "columnCount": 5,
+        "cells": [
+          {
+            "rowIndex": 0,
+            "columnIndex": 0,
+            "text": "Line Item"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 1,
+            "text": "FY 2027 Budget Request"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 2,
+            "text": "Change"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 3,
+            "text": "Committee Allowance"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 4,
+            "text": "Quantity"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 0,
+            "text": "BLIN W12002 Robotics and Applique Systems"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 1,
+            "text": "80"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 2,
+            "text": "-5"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 3,
+            "text": "75"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 4,
+            "text": "12"
+          }
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]
