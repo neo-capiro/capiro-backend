@@ -8,9 +8,9 @@ import {
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type {
-  GovernedMemorySubjectRow,
+import {
   MemoryAuthorizationService,
+  type GovernedMemorySubjectRow,
 } from './memory-authorization.service.js';
 import {
   memoryReviewStatusFromDb,
