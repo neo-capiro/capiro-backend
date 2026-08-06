@@ -23,13 +23,15 @@ describe('memory Phase 2 deterministic revision conflict contract', () => {
   const service = read('src/memory/memory-review-revision.service.ts');
   const fn = revisionFunction(migration);
 
-  it('checks for the durable successor after locking and before terminal status', () => {
+  it('validates proposer before exposing a durable successor conflict', () => {
     const lock = fn.indexOf('FOR UPDATE;');
+    const proposerGuard = fn.indexOf('predecessor.proposed_by <> p_proposer_id');
     const successorConflict = fn.indexOf('MEMORY_REVISION_SUCCESSOR_EXISTS');
     const terminalStatusGuard = fn.indexOf("IF predecessor.status <> 'pending'");
 
     expect(lock).toBeGreaterThanOrEqual(0);
-    expect(successorConflict).toBeGreaterThan(lock);
+    expect(proposerGuard).toBeGreaterThan(lock);
+    expect(successorConflict).toBeGreaterThan(proposerGuard);
     expect(terminalStatusGuard).toBeGreaterThan(successorConflict);
   });
 
