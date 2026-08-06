@@ -13,9 +13,24 @@ export const MEMORY_PHASE2_PRISMA_MODELED_LINEAGE_COLUMNS = [
 ] as const satisfies readonly PrismaModeledLineageColumn[];
 
 const TENANT_BOUND_LINEAGE_REFERENCES = [
-  { prismaField: 'revisionRootId', databaseColumn: 'revision_root_id', relation: 'MemoryCandidateRevisionRoot' },
-  { prismaField: 'predecessorCandidateId', databaseColumn: 'predecessor_candidate_id', relation: 'MemoryCandidatePredecessor' },
-  { prismaField: 'supersededById', databaseColumn: 'superseded_by_id', relation: 'MemoryCandidateSupersession' },
+  {
+    prismaField: 'revisionRootId',
+    databaseColumn: 'revision_root_id',
+    relation: 'MemoryCandidateRevisionRoot',
+    constraint: 'memory_candidate_revision_root_fk',
+  },
+  {
+    prismaField: 'predecessorCandidateId',
+    databaseColumn: 'predecessor_candidate_id',
+    relation: 'MemoryCandidatePredecessor',
+    constraint: 'memory_candidate_predecessor_fk',
+  },
+  {
+    prismaField: 'supersededById',
+    databaseColumn: 'superseded_by_id',
+    relation: 'MemoryCandidateSupersession',
+    constraint: 'memory_candidate_superseded_by_fk',
+  },
 ] as const;
 
 export interface MemoryPhase2PersistenceSources {
@@ -50,11 +65,11 @@ const RELATION_ANCHOR = `  tenant      Tenant            @relation(fields: [tena
   duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
 `;
 const RELATION_REPLACEMENT = `${RELATION_ANCHOR}
-  revisionRoot MemoryCandidate?  @relation("MemoryCandidateRevisionRoot", fields: [tenantId, revisionRootId], references: [tenantId, id], onDelete: Restrict)
+  revisionRoot MemoryCandidate?  @relation("MemoryCandidateRevisionRoot", fields: [tenantId, revisionRootId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_revision_root_fk")
   revisions    MemoryCandidate[] @relation("MemoryCandidateRevisionRoot")
-  predecessor  MemoryCandidate?  @relation("MemoryCandidatePredecessor", fields: [tenantId, predecessorCandidateId], references: [tenantId, id], onDelete: Restrict)
+  predecessor  MemoryCandidate?  @relation("MemoryCandidatePredecessor", fields: [tenantId, predecessorCandidateId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_predecessor_fk")
   successors   MemoryCandidate[] @relation("MemoryCandidatePredecessor")
-  supersededBy MemoryCandidate?  @relation("MemoryCandidateSupersession", fields: [tenantId, supersededById], references: [tenantId, id], onDelete: Restrict)
+  supersededBy MemoryCandidate?  @relation("MemoryCandidateSupersession", fields: [tenantId, supersededById], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_superseded_by_fk")
   supersedes   MemoryCandidate[] @relation("MemoryCandidateSupersession")
 `;
 
@@ -81,14 +96,14 @@ export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2Persi
     'Migration must retain the tenant/id composite key.',
   );
   for (const reference of TENANT_BOUND_LINEAGE_REFERENCES) {
-    const prismaRelation = `@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id]`;
-    required(model.includes(prismaRelation), `Prisma MemoryCandidate is missing tenant-bound relation ${prismaRelation}.`);
+    const prismaRelation = `@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "${reference.constraint}")`;
+    required(model.includes(prismaRelation), `Prisma MemoryCandidate is missing exact relation ${prismaRelation}.`);
     required(
       new RegExp(
-        `FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)`,
+        `ADD CONSTRAINT\\s+${escapeRegex(reference.constraint)}[\\s\\S]{0,160}FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)[\\s\\S]{0,80}ON UPDATE NO ACTION[\\s\\S]{0,80}ON DELETE RESTRICT`,
         'i',
       ).test(sources.revisionMigration),
-      `Migration must tenant-bind ${reference.databaseColumn}.`,
+      `Migration must match Prisma relation ${reference.relation}, including constraint name and referential actions.`,
     );
     required(
       !new RegExp(
@@ -161,10 +176,8 @@ export function extractPrismaModel(schema: string, modelName: string): string {
 function assertTransformedModel(model: string): void {
   required(model.includes('@@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")'), 'Transformed MemoryCandidate is missing the tenant/id composite key.');
   for (const reference of TENANT_BOUND_LINEAGE_REFERENCES) {
-    required(
-      model.includes(`@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id]`),
-      `Transformed MemoryCandidate relation ${reference.relation} is not tenant-bound.`,
-    );
+    const expected = `@relation("${reference.relation}", fields: [tenantId, ${reference.prismaField}], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "${reference.constraint}")`;
+    required(model.includes(expected), `Transformed MemoryCandidate relation ${reference.relation} does not exactly match the migration.`);
   }
 }
 
