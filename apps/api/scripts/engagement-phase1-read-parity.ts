@@ -343,6 +343,18 @@ async function main(): Promise<void> {
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
         headers: authHeaders(),
       });
+      // An authenticated read must never be 401. A 401 means the bearer token itself was
+      // rejected, and because both services reject identically, every read would then "match"
+      // and the whole stage would pass while proving nothing. Fail loudly instead.
+      if (mainResult.status === 401 || engagementResult.status === 401) {
+        throw new Error(
+          `Authenticated read returned 401 for ${route.method} ${pathname} ` +
+            `(main=${mainResult.status}, engagement=${engagementResult.status}). The bearer ` +
+            'token was rejected, so read parity here would be vacuous: two matching 401s ' +
+            'satisfy the comparator. Clerk session tokens live ~60s, so mint one immediately ' +
+            'before this stage.',
+        );
+      }
       const matched = parity(mainResult, engagementResult);
       readResults.push({
         route: `${route.method} ${pathname}`,

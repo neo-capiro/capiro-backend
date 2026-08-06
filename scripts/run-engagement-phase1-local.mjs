@@ -258,19 +258,8 @@ async function main() {
 
       console.log('\n==> Skipping browser parity (ENGAGEMENT_PHASE1_SKIP_BROWSER=1)');
 
-      console.log('==> Minting Clerk Backend API JWT for API parity');
-
-      await run(
-
-        'Clerk Backend API JWT mint',
-
-        process.execPath,
-
-        ['scripts/mint-engagement-phase1-jwt.mjs'],
-
-        mainEnv,
-
-      );
+      // The API bearer token is minted unconditionally just before the parity stage, so this
+      // branch no longer mints its own.
 
       // No browser ran, so nothing about the web surfaces was measured. Record that as
       // unmeasured (null) rather than asserting it: claiming everySurfaceLoaded/
@@ -346,6 +335,22 @@ async function main() {
     }
 
 
+
+    // Mint the API bearer token immediately before the parity stage, in every mode.
+    //
+    // Clerk session tokens live ~60 seconds. The browser proof mints its own token at the
+    // start of its run and the NC8 rehearsal then spends another browser run, so by the time
+    // parity started the handed-off token had already expired. Every request was rejected with
+    // 401 in tenant middleware, and because both services rejected identically, all 33 reads
+    // "passed" parity vacuously — two matching 401s satisfy the comparator. Only the
+    // wrong_tenant_header case, which requires 403, exposed it.
+    console.log('\n==> Minting a fresh Clerk bearer token for API parity');
+    await run(
+      'Clerk Backend API JWT mint for API parity',
+      process.execPath,
+      ['scripts/mint-engagement-phase1-jwt.mjs'],
+      mainEnv,
+    );
 
     const bearerToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
     if (bearerToken.length < 20) {
