@@ -26,12 +26,15 @@ The revision migration now enforces self-lineage within one tenant by using:
 
 - a composite `(tenant_id, id)` unique key;
 - composite revision-root, predecessor, and supersession foreign keys;
+- exact named constraints shared with the Prisma relations;
+- explicit `ON UPDATE NO ACTION` and `ON DELETE RESTRICT` actions;
 - one-successor-per-predecessor uniqueness;
 - root/revision-number uniqueness.
 
 The target Prisma contract is **Prisma-modeled but SQL-enforced**:
 
 - Prisma must model the four lineage columns, three tenant-bound self-relations, and the composite tenant/id key;
+- every self-relation must map to the exact committed PostgreSQL constraint name and referential actions;
 - lifecycle creation and mutation remain restricted to `create_memory_candidate_revision` under row locks;
 - production code is prohibited from mutating lineage through generated Prisma delegates.
 
@@ -42,9 +45,9 @@ Added:
 - `apps/api/scripts/apply-memory-phase2-prisma-lineage-model.ts`
 - `apps/api/scripts/lib/memory-phase2-persistence-contract.ts`
 - `apps/api/scripts/verify-memory-phase2-persistence-contract.ts`
-- focused mutation-control coverage for ownership, database context, concurrency indexes, and unsafe delegate writes.
+- focused mutation-control coverage for ownership, database context, concurrency indexes, unsafe delegate writes, tenant binding, constraint-name drift, and referential-action drift.
 
-The transformer is idempotent and refuses ambiguous or partially applied schema input. It also reconciles the migration ownership comment before evaluating the target contract.
+The transformer is idempotent and refuses ambiguous or partially applied schema input. It inserts the exact composite relations, constraint mappings, and referential actions required by the committed migration.
 
 ### Disposable persistence closeout harness
 
@@ -71,9 +74,11 @@ MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
 ## Validation actually completed
 
 - strict TypeScript compilation of the exact persistence contract helper: **PASS**;
-- target transformer/runtime contract: **PASS — 5 scenarios**;
-- idempotence and partial-application refusal: **PASS**;
+- target transformer/runtime contract: **PASS**;
+- transformer idempotence and partial-application refusal: **PASS**;
 - tenant-bound composite relation and unique-key insertion: **PASS**;
+- exact relation constraint-name and referential-action matching: **PASS**;
+- five runtime drift controls covering action drift, constraint-name drift, and unsafe delegate mutation: **PASS**;
 - unsafe Prisma delegate lineage mutation control: **PASS**;
 - static review of disposable-database safeguards: **PASS**;
 - post-change security review of tenant GUC binding and system-bypass rejection: **PASS**.
