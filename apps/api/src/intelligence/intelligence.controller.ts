@@ -396,7 +396,21 @@ export class IntelligenceController {
     return this.service.resolveMapping(clientId, ctx.tenantId);
   }
 
+  /**
+   * Approve or reject one mapping.
+   *
+   * `user_admin` since P05. It inherited `standard_user` from the class, which put
+   * approving a federal award-attribution claim at the same rank as saving an
+   * opportunity — while the two neighbouring routes that write the same column
+   * (`manual`, `reject-candidate`) both already required `user_admin`. The Settings
+   * tab is admin-only in the UI, so this route was the way in that had no gate.
+   *
+   * The mapping id comes from the PATH ONLY. `ConfirmMappingDto` declares no `id`,
+   * and the global pipe runs `forbidNonWhitelisted`, so a body carrying one is a
+   * 400 rather than a second, disagreeing source of truth about which row to write.
+   */
   @Patch('mappings/:mappingId')
+  @Roles('user_admin')
   confirmMapping(
     @CurrentTenant() ctx: TenantContext,
     @Param('mappingId') mappingId: string,
