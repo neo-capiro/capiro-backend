@@ -1,0 +1,216 @@
+-- Phase 2 increment 2: immutable candidate revision and resubmission lineage.
+-- Existing candidates remain revision 1. Revised candidates receive explicit
+-- root/predecessor/revision metadata, and exactly one successor may derive from
+-- a predecessor. The clone function runs lineage creation, predecessor
+-- supersession, and successor workflow creation in one transaction.
+
+ALTER TABLE memory_candidate
+  ADD COLUMN IF NOT EXISTS revision_root_id uuid,
+  ADD COLUMN IF NOT EXISTS predecessor_candidate_id uuid,
+  ADD COLUMN IF NOT EXISTS revision_number integer NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS superseded_by_id uuid;
+
+DO $$
+BEGIN
+  ALTER TABLE memory_candidate
+    ADD CONSTRAINT memory_candidate_revision_root_fk
+    FOREIGN KEY (revision_root_id)
+    REFERENCES memory_candidate(id)
+    ON DELETE RESTRICT
+    NOT VALID;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE memory_candidate
+    ADD CONSTRAINT memory_candidate_predecessor_fk
+    FOREIGN KEY (predecessor_candidate_id)
+    REFERENCES memory_candidate(id)
+    ON DELETE RESTRICT
+    NOT VALID;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE memory_candidate
+    ADD CONSTRAINT memory_candidate_superseded_by_fk
+    FOREIGN KEY (superseded_by_id)
+    REFERENCES memory_candidate(id)
+    ON DELETE SET NULL
+    NOT VALID;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE memory_candidate
+    ADD CONSTRAINT memory_candidate_revision_shape_check
+    CHECK (
+      revision_number >= 1
+      AND (
+        predecessor_candidate_id IS NULL
+        OR (
+          revision_root_id IS NOT NULL
+          AND revision_number > 1
+          AND predecessor_candidate_id <> id
+          AND revision_root_id <> id
+        )
+      )
+      AND (superseded_by_id IS NULL OR superseded_by_id <> id)
+    ) NOT VALID;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE memory_candidate
+  VALIDATE CONSTRAINT memory_candidate_revision_root_fk;
+ALTER TABLE memory_candidate
+  VALIDATE CONSTRAINT memory_candidate_predecessor_fk;
+ALTER TABLE memory_candidate
+  VALIDATE CONSTRAINT memory_candidate_superseded_by_fk;
+ALTER TABLE memory_candidate
+  VALIDATE CONSTRAINT memory_candidate_revision_shape_check;
+
+CREATE UNIQUE INDEX IF NOT EXISTS memory_candidate_one_successor_per_predecessor
+  ON memory_candidate (tenant_id, predecessor_candidate_id)
+  WHERE predecessor_candidate_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS memory_candidate_root_revision_unique
+  ON memory_candidate (tenant_id, revision_root_id, revision_number)
+  WHERE revision_root_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS memory_candidate_revision_root_idx
+  ON memory_candidate (tenant_id, revision_root_id, revision_number DESC)
+  WHERE revision_root_id IS NOT NULL;
+
+-- Clone the complete predecessor row rather than rebuilding a partial candidate
+-- from browser input. Only immutable-content payload/provenance, lifecycle
+-- stamps, and lineage fields are replaced. This preserves versionProposal,
+-- canonical identity, memory class/scope, client boundary, and source evidence.
+CREATE OR REPLACE FUNCTION create_memory_candidate_revision(
+  p_tenant_id uuid,
+  p_predecessor_id uuid,
+  p_proposer_id uuid,
+  p_successor_id uuid,
+  p_payload jsonb,
+  p_provenance jsonb
+)
+RETURNS TABLE (
+  candidate_id uuid,
+  root_candidate_id uuid,
+  candidate_revision_number integer
+)
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  predecessor memory_candidate%ROWTYPE;
+  workflow review_request%ROWTYPE;
+  root_id uuid;
+  next_revision integer;
+BEGIN
+  IF p_payload IS NULL OR jsonb_typeof(p_payload) <> 'object' THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PAYLOAD_REQUIRED'
+      USING ERRCODE = '22023';
+  END IF;
+  IF p_provenance IS NULL OR jsonb_typeof(p_provenance) <> 'object' THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PROVENANCE_REQUIRED'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT *
+    INTO predecessor
+  FROM memory_candidate
+  WHERE tenant_id = p_tenant_id
+    AND id = p_predecessor_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR predecessor.status <> 'pending' THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PREDECESSOR_NOT_PENDING'
+      USING ERRCODE = 'P0002';
+  END IF;
+  IF predecessor.proposed_by <> p_proposer_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PROPOSER_REQUIRED'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT *
+    INTO workflow
+  FROM review_request
+  WHERE tenant_id = p_tenant_id
+    AND surface = 'memory'
+    AND subject_type = 'memory_candidate'
+    AND subject_id = p_predecessor_id::text
+  FOR UPDATE;
+
+  IF NOT FOUND OR workflow.status <> 'changes_needed' THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_CHANGES_NOT_REQUESTED'
+      USING ERRCODE = '55000';
+  END IF;
+  IF workflow.requested_by <> p_proposer_id THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_WORKFLOW_PROPOSER_MISMATCH'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM memory_candidate
+    WHERE tenant_id = p_tenant_id
+      AND predecessor_candidate_id = p_predecessor_id
+  ) THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_SUCCESSOR_EXISTS'
+      USING ERRCODE = '23505';
+  END IF;
+
+  root_id := COALESCE(predecessor.revision_root_id, predecessor.id);
+  next_revision := predecessor.revision_number + 1;
+
+  INSERT INTO memory_candidate
+  SELECT (
+    jsonb_populate_record(
+      NULL::memory_candidate,
+      to_jsonb(predecessor)
+      || jsonb_build_object(
+        'id', p_successor_id,
+        'payload_jsonb', p_payload,
+        'provenance_jsonb', p_provenance,
+        'status', 'pending',
+        'committed_memory_id', NULL,
+        'committed_memory_item_id', NULL,
+        'decided_by', NULL,
+        'decided_at', NULL,
+        'created_at', now(),
+        'revision_root_id', root_id,
+        'predecessor_candidate_id', predecessor.id,
+        'revision_number', next_revision,
+        'superseded_by_id', NULL
+      )
+    )
+  ).*;
+
+  UPDATE memory_candidate
+  SET status = 'superseded',
+      superseded_by_id = p_successor_id,
+      decided_by = p_proposer_id,
+      decided_at = now()
+  WHERE tenant_id = p_tenant_id
+    AND id = p_predecessor_id;
+
+  UPDATE review_request
+  SET status = 'superseded',
+      decided_by = p_proposer_id,
+      decided_at = now(),
+      payload_jsonb = payload_jsonb || jsonb_build_object(
+        'supersededByCandidateId', p_successor_id::text
+      )
+  WHERE id = workflow.id;
+
+  RETURN QUERY
+  SELECT p_successor_id, root_id, next_revision;
+END;
+$$;
