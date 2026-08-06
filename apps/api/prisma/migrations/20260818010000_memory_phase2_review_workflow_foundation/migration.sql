@@ -44,6 +44,82 @@ CREATE INDEX IF NOT EXISTS review_request_memory_assignment_idx
   ON review_request (tenant_id, assigned_to, status, created_at DESC)
   WHERE surface = 'memory';
 
+-- Body-free display metadata is derived once at the database boundary so
+-- trigger-created rows, migration backfills, and application-created rows use
+-- the same title and candidate-kind vocabulary. Only canonical title or the
+-- stable candidate key may enter review_request; proposal bodies remain solely
+-- in memory_candidate.payload_jsonb.
+CREATE OR REPLACE FUNCTION memory_review_workflow_title(p_payload jsonb)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+SET search_path = public, pg_temp
+AS $$
+  SELECT left(
+    COALESCE(
+      NULLIF(
+        regexp_replace(
+          btrim(p_payload #>> '{canonicalItem,title}'),
+          '[[:space:][:cntrl:]]+',
+          ' ',
+          'g'
+        ),
+        ''
+      ),
+      NULLIF(
+        regexp_replace(
+          btrim(p_payload ->> 'key'),
+          '[[:space:][:cntrl:]]+',
+          ' ',
+          'g'
+        ),
+        ''
+      ),
+      'Memory proposal'
+    ),
+    300
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION memory_review_workflow_candidate_kind(p_source_kind text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+STRICT
+PARALLEL SAFE
+SET search_path = public, pg_temp
+AS $$
+  SELECT CASE p_source_kind
+    WHEN 'memory_correction' THEN 'correction'
+    WHEN 'memory_restore' THEN 'restore'
+    WHEN 'memory_contradiction' THEN 'contradiction'
+    ELSE 'standard'
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION memory_review_workflow_metadata(
+  p_source_kind text,
+  p_scope text,
+  p_assignment_enforced boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+STRICT
+PARALLEL SAFE
+SET search_path = public, pg_temp
+AS $$
+  SELECT jsonb_build_object(
+    'workflow', 'memory_review_v2',
+    'schemaVersion', 1,
+    'candidateKind', memory_review_workflow_candidate_kind(p_source_kind),
+    'sourceKind', p_source_kind,
+    'scope', p_scope,
+    'assignmentEnforced', p_assignment_enforced
+  )
+$$;
+
 -- Whenever the enabled application names a reviewer, mark this workflow as
 -- assignment-enforced in the same row write. Trigger-created/backfilled rows
 -- stay false while unassigned, preserving dark-rollout compatibility.
@@ -96,15 +172,9 @@ SELECT
   'memory_candidate',
   mc.id::text,
   mc.client_id,
-  'Memory proposal',
+  memory_review_workflow_title(mc.payload_jsonb),
   'Memory candidate awaiting independent review.',
-  jsonb_build_object(
-    'workflow', 'memory_review_v2',
-    'schemaVersion', 1,
-    'sourceKind', mc.source_kind,
-    'scope', mc.scope,
-    'assignmentEnforced', false
-  ),
+  memory_review_workflow_metadata(mc.source_kind, mc.scope, false),
   'pending',
   mc.proposed_by,
   NULL,
@@ -113,6 +183,26 @@ FROM memory_candidate mc
 WHERE mc.status = 'pending'
   AND mc.scope IN ('firm', 'client')
 ON CONFLICT DO NOTHING;
+
+-- If a prior interrupted attempt already created the workflow row, reconcile
+-- its display metadata without touching assignment, decision state, feedback,
+-- or any extension metadata. The merge remains body-free and idempotent.
+UPDATE review_request rr
+SET title = memory_review_workflow_title(mc.payload_jsonb),
+    payload_jsonb = rr.payload_jsonb
+      || memory_review_workflow_metadata(
+        mc.source_kind,
+        mc.scope,
+        COALESCE((rr.payload_jsonb->>'assignmentEnforced')::boolean, false)
+      )
+FROM memory_candidate mc
+WHERE rr.tenant_id = mc.tenant_id
+  AND rr.surface = 'memory'
+  AND rr.subject_type = 'memory_candidate'
+  AND rr.subject_id = mc.id::text
+  AND rr.status = 'pending'
+  AND mc.status = 'pending'
+  AND mc.scope IN ('firm', 'client');
 
 -- Create the workflow obligation in the SAME transaction as every future
 -- shared-candidate insert. It is body-free and intentionally starts unassigned;
@@ -146,15 +236,9 @@ BEGIN
       'memory_candidate',
       NEW.id::text,
       NEW.client_id,
-      'Memory proposal',
+      memory_review_workflow_title(NEW.payload_jsonb),
       'Memory candidate awaiting independent review.',
-      jsonb_build_object(
-        'workflow', 'memory_review_v2',
-        'schemaVersion', 1,
-        'sourceKind', NEW.source_kind,
-        'scope', NEW.scope,
-        'assignmentEnforced', false
-      ),
+      memory_review_workflow_metadata(NEW.source_kind, NEW.scope, false),
       'pending',
       NEW.proposed_by,
       NULL,
