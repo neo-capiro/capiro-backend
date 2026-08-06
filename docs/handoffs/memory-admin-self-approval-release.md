@@ -31,7 +31,13 @@ The administrator must still be currently authorized for the memory. Tenant scop
 
 Standard-user reviewers remain assignment-bound and cannot self-review.
 
-Memory Review notifications are in-app only. There is no email delivery path or email rollout step.
+## Notifications
+
+Memory Review notifications are recipient-scoped **in-app notifications only**.
+
+There is no Memory Review email transport, SES adapter, email feature flag, email configuration, email testing step, or email rollout step.
+
+The already-merged dispatcher migration has inert legacy email bookkeeping columns. They remain only to avoid rewriting migration history or introducing an unnecessary destructive migration; runtime code does not use them.
 
 ## Pre-merge acceptance
 
