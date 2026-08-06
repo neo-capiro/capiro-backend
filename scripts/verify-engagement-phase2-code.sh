@@ -219,16 +219,31 @@ bold "2.10  Image publication"
 gate "image script syntax" bash -n scripts/engagement-api-image.sh
 node_test "image publication (fake docker and AWS)" scripts/engagement-api-image.spec.mjs
 
+# ── 2.11 fail-closed ALB preview rule manager ────────────────────────────────
+echo ""
+bold "2.11  ALB preview rule manager"
+gate "ALB rules script syntax" bash -n scripts/engagement-api-alb-rules.sh
+node_test "ALB preview rules (stateful fake AWS)" scripts/engagement-api-alb-rules.spec.mjs
+
+# ── 2.12 UI-aware preview acceptance ─────────────────────────────────────────
+echo ""
+bold "2.12  UI-aware preview acceptance"
+gate "preview probe manifest is current and passes every invariant" \
+  node scripts/engagement-api-preview-ui-contract.mjs \
+  --check apps/api/src/engagement/__fixtures__/outreach-v3-preview-probe-manifest.v1.json
+node_test "preview probe manifest contract" scripts/engagement-api-preview-ui-contract.spec.mjs
+gate "preview parity runner self-check (no network call)" bash -c \
+  'cd apps/api && pnpm exec tsx scripts/engagement-phase2-preview-parity.ts --self-check'
+
 # ── cross-cutting safety ─────────────────────────────────────────────────────
 echo ""
 bold "Cross-cutting safety"
 
-if git diff --quiet HEAD -- infra/cdk/lib/compute-stack.ts infra/cdk/bin/capiro.ts 2>/dev/null &&
-  git diff --quiet "$(git merge-base origin/main HEAD 2>/dev/null || echo HEAD)" HEAD \
-    -- infra/cdk/lib/compute-stack.ts 2>/dev/null; then
-  pass "frozen Compute stack untouched"
+if git diff --quiet "$PHASE2_BASE" HEAD -- \
+  infra/cdk/lib/compute-stack.ts infra/cdk/bin/capiro.ts infra/cdk/lib/config.ts 2>/dev/null; then
+  pass "frozen Compute stack, root CDK app and shared config untouched"
 else
-  fail "the frozen Compute stack was modified"
+  fail "the frozen Compute stack or root CDK app was modified since the Phase 2 base"
 fi
 
 if [ -z "$(git status --porcelain)" ]; then
@@ -249,11 +264,8 @@ else
   pass "no database migration"
 fi
 
-if grep -rlE 'X-Capiro-Engagement-Preview' apps/web/src >/dev/null 2>&1; then
-  fail "the current web sends the preview header"
-else
-  pass "current web sends no preview header"
-fi
+gate "current web sends no preview header (dedicated guard)" \
+  node scripts/verify-engagement-web-no-preview-header.mjs
 
 # ── summary ──────────────────────────────────────────────────────────────────
 echo ""

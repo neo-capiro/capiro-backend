@@ -14,7 +14,10 @@
     "synth:meriv2-ops": "cdk synth --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
     "diff:meriv2-ops": "cdk diff --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
     "deploy:meriv2-ops": "cdk deploy --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:engagement-api": "node scripts/run-engagement-api-tests.mjs",
+    "synth:engagement-api:test": "node scripts/synth-engagement-api-test.mjs",
+    "verify:engagement-api": "pnpm run typecheck && pnpm run test:engagement-api && pnpm run synth:engagement-api:test"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.161.1",
