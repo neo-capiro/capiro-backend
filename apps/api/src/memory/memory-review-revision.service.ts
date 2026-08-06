@@ -285,6 +285,16 @@ function translateRevisionError(error: unknown): never {
   ) {
     throw new ForbiddenException('Only the original proposer may submit a revision.');
   }
+  if (
+    message.includes('MEMORY_REVISION_TENANT_CONTEXT_REQUIRED') ||
+    message.includes('MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED') ||
+    message.includes('MEMORY_REVISION_SYSTEM_BYPASS_DENIED')
+  ) {
+    throw new ForbiddenException('Memory revision context is not authorized.');
+  }
+  if (message.includes('MEMORY_REVISION_SUCCESSOR_ID_REQUIRED')) {
+    throw new BadRequestException('A memory revision requires a distinct successor identity.');
+  }
   if (message.includes('MEMORY_REVISION_PREDECESSOR_NOT_PENDING')) {
     throw new ConflictException('This proposal can no longer be revised.');
   }
