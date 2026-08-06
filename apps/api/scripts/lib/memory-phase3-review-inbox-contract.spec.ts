@@ -20,6 +20,13 @@ const compatibility = read(
   'src/reviews/memory-review-compatibility-guard.service.ts',
 );
 const genericController = read('src/reviews/reviews.controller.ts');
+const notificationHelpers = read(
+  'src/memory/memory-review-notification.helpers.ts',
+);
+const databaseAcceptance = read(
+  'scripts/verify-memory-phase3-review-inbox-database.ts',
+);
+const closeout = read('scripts/verify-memory-phase3-review-inbox-closeout.ts');
 const host = readWeb('src/components/MemoryGovernanceCenterHost.tsx');
 const inboxUi = readWeb('src/components/MemoryReviewInbox.tsx');
 const settingsPage = readWeb('src/pages/settings/MemorySettingsPage.tsx');
@@ -103,5 +110,23 @@ describe('Memory Review Phase 3 inbox contract', () => {
     }
     expect(inboxUi).toContain('/api/memory/review/inbox/requests/');
     expect(inboxUi).toContain('/api/memory/review/notifications/read-all');
+  });
+
+  it('uses the real nested Settings route for email deep links', () => {
+    expect(notificationHelpers).toContain('/settings/memory?review=');
+    expect(notificationHelpers).not.toContain('/settings?tab=memory-review');
+  });
+
+  it('rehearses the real database boundaries before printing the Phase 3 marker', () => {
+    expect(databaseAcceptance).toContain('PHASE3_SECRET_BODY_MUST_NOT_ENTER_THE_INBOX_LIST');
+    expect(databaseAcceptance).toContain('former reviewer retained detail access');
+    expect(databaseAcceptance).toContain('cross-tenant candidate id was readable');
+    expect(databaseAcceptance).toContain('another member marked the recipient notification read');
+    expect(databaseAcceptance).toContain('generic review compatibility guard accepted a memory row');
+    expect(databaseAcceptance).toContain('MEMORY_PHASE3_DATABASE_ACCEPTANCE_COMPLETE');
+    expect(closeout).toContain('verify-memory-phase2-notification-closeout.ts');
+    expect(closeout).toContain('verify-memory-phase3-review-inbox-database.ts');
+    expect(closeout).toContain('MEMORY_PHASE3_REVIEW_INBOX_CLOSEOUT_COMPLETE');
+    expect(closeout).not.toContain("process.env.MEMORY_REVIEW_EMAIL_DELIVERY = 'enforce'");
   });
 });
