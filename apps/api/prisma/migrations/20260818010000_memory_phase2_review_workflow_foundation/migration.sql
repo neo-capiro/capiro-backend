@@ -44,10 +44,36 @@ CREATE INDEX IF NOT EXISTS review_request_memory_assignment_idx
   ON review_request (tenant_id, assigned_to, status, created_at DESC)
   WHERE surface = 'memory';
 
+-- Whenever the enabled application names a reviewer, mark this workflow as
+-- assignment-enforced in the same row write. Trigger-created/backfilled rows
+-- stay false while unassigned, preserving dark-rollout compatibility.
+CREATE OR REPLACE FUNCTION mark_memory_review_assignment_enforced()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.surface = 'memory'
+     AND NEW.subject_type = 'memory_candidate'
+     AND NEW.assigned_to IS NOT NULL THEN
+    NEW.payload_jsonb = COALESCE(NEW.payload_jsonb, '{}'::jsonb)
+      || '{"assignmentEnforced":true}'::jsonb;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS review_request_mark_memory_assignment_enforced ON review_request;
+CREATE TRIGGER review_request_mark_memory_assignment_enforced
+BEFORE INSERT OR UPDATE OF assigned_to ON review_request
+FOR EACH ROW
+EXECUTE FUNCTION mark_memory_review_assignment_enforced();
+
 -- Every existing shared pending candidate receives a body-free workflow row.
 -- Assignment remains NULL until the application evaluates current role, grant,
 -- expiry, archived-client, and ethical-wall policy. A NULL assignment blocks a
--- decision rather than guessing who may review it.
+-- Phase 2 decision. assignmentEnforced remains false until an enabled Phase 2
+-- service evaluates and names a reviewer, preserving dark-rollout compatibility.
 INSERT INTO review_request (
   tenant_id,
   risk_tier,
@@ -76,7 +102,8 @@ SELECT
     'workflow', 'memory_review_v2',
     'schemaVersion', 1,
     'sourceKind', mc.source_kind,
-    'scope', mc.scope
+    'scope', mc.scope,
+    'assignmentEnforced', false
   ),
   'pending',
   mc.proposed_by,
@@ -89,7 +116,8 @@ ON CONFLICT DO NOTHING;
 
 -- Create the workflow obligation in the SAME transaction as every future
 -- shared-candidate insert. It is body-free and intentionally starts unassigned;
--- the application assigns only after evaluating the live authorization policy.
+-- the enabled application service evaluates live policy, assigns a reviewer,
+-- and the review_request trigger flips assignmentEnforced before a decision.
 CREATE OR REPLACE FUNCTION ensure_memory_review_request_for_candidate()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -124,7 +152,8 @@ BEGIN
         'workflow', 'memory_review_v2',
         'schemaVersion', 1,
         'sourceKind', NEW.source_kind,
-        'scope', NEW.scope
+        'scope', NEW.scope,
+        'assignmentEnforced', false
       ),
       'pending',
       NEW.proposed_by,
@@ -144,8 +173,8 @@ FOR EACH ROW
 EXECUTE FUNCTION ensure_memory_review_request_for_candidate();
 
 -- Enforce named-reviewer authority at the same database write that changes the
--- candidate's terminal state. This closes assignment-change races and prevents
--- an older compatibility route from bypassing the Phase 2 workflow service.
+-- candidate's terminal state. This closes assignment-change races after an
+-- enabled Phase 2 service has activated assignment enforcement for the row.
 CREATE OR REPLACE FUNCTION enforce_memory_review_assignment_on_decision()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -155,11 +184,18 @@ DECLARE
   workflow_requested_by uuid;
   workflow_assigned_to uuid;
   workflow_status text;
+  workflow_assignment_enforced boolean;
 BEGIN
   IF OLD.status = 'pending' AND NEW.status IN ('approved', 'rejected')
      AND OLD.scope IN ('firm', 'client') THEN
-    SELECT requested_by, assigned_to, status
-      INTO workflow_requested_by, workflow_assigned_to, workflow_status
+    SELECT requested_by,
+           assigned_to,
+           status,
+           COALESCE((payload_jsonb->>'assignmentEnforced')::boolean, false)
+      INTO workflow_requested_by,
+           workflow_assigned_to,
+           workflow_status,
+           workflow_assignment_enforced
     FROM review_request
     WHERE tenant_id = NEW.tenant_id
       AND surface = 'memory'
@@ -167,9 +203,8 @@ BEGIN
       AND subject_id = NEW.id::text
     FOR UPDATE;
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'MEMORY_REVIEW_WORKFLOW_REQUIRED'
-        USING ERRCODE = '42501';
+    IF NOT FOUND OR NOT workflow_assignment_enforced THEN
+      RETURN NEW;
     END IF;
     IF workflow_status <> 'pending' THEN
       RAISE EXCEPTION 'MEMORY_REVIEW_NOT_PENDING'
