@@ -1,4 +1,4 @@
-/** Barrel exports for verification rules (Workstreams E–H + Phase 6 D). */
+/** Barrel exports for verification rules (Workstreams E–H + Phase 6 D/G). */
 export type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 export { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from './rule-types.js';
 export {
@@ -28,6 +28,7 @@ export {
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
+  NDAA_CONFERENCE_ARITHMETIC_RULE,
 } from './arithmetic/index.js';
 export {
   addDecimals,
@@ -58,6 +59,7 @@ import { RDTE_SUMMARY_DETAIL_RULE } from './arithmetic/rdte-summary-detail.rules
 import { PROJECT_ROLLUP_RULE } from './arithmetic/project-rollup.rules.js';
 import { PROCUREMENT_ROLLUP_RULE } from './arithmetic/procurement-rollup.rules.js';
 import { COMMITTEE_ADJUSTMENT_RULE } from './arithmetic/committee-adjustment.rules.js';
+import { NDAA_CONFERENCE_ARITHMETIC_RULE } from './arithmetic/ndaa-conference-arithmetic.rules.js';
 import { R1_SPECIFIC_RULE } from './r1-verification.rules.js';
 import type { VerificationRuleV1 } from './rule-types.js';
 
@@ -78,17 +80,20 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
+  NDAA_CONFERENCE_ARITHMETIC_RULE,
   R1_SPECIFIC_RULE,
 ];
 
 import { CROSS_DOCUMENT_SUMMARY_DETAIL_RULE } from './comparison/comparison.rules.js';
 import { HISTORICAL_CONSISTENCY_RULE } from './comparison/comparison.rules.js';
 import { COMMITTEE_REQUEST_REFERENCE_RULE } from './comparison/committee-request-baseline.rules.js';
+import { NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE } from './comparison/ndaa-conference-chamber.rules.js';
 
 export const ALL_EXECUTABLE_RULES: readonly VerificationRuleV1[] = [
   ...ALL_VERIFICATION_RULES,
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
   COMMITTEE_REQUEST_REFERENCE_RULE,
+  NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE,
   HISTORICAL_CONSISTENCY_RULE,
 ];
 

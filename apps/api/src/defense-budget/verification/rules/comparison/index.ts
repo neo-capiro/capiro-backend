@@ -23,3 +23,7 @@ export {
   COMMITTEE_REQUEST_REFERENCE_RULE,
   committeeRequestComparablesV1,
 } from './committee-request-baseline.rules.js';
+export {
+  NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE,
+  ndaaConferenceComparablesV1,
+} from './ndaa-conference-chamber.rules.js';

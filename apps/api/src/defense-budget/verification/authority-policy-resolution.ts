@@ -1,11 +1,4 @@
-/**
- * R8.3 — Authority-aware verification policy selection.
- *
- * Phase 6 addition: HASC and SASC request values are non-owning comparison
- * facts. Their resolved policies require only the chamber-owned mark, while
- * exact request comparison is enforced over typed baseline document facts.
- * This prevents either congressional authority from claiming `request`.
- */
+/** R8.3 — Authority-aware verification policy selection. */
 import type { BudgetCycleManifestDocumentV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
 import type { VerificationPolicyV1 } from './verification-policy-v1.js';
@@ -21,11 +14,12 @@ const AUTHORITY_POLICY_KEYS: Readonly<Record<string, string>> = {
   public_law: 'PUBLIC_LAW',
 };
 
-const PHASE6_COMMITTEE_MARK_FIELDS: Readonly<
-  Partial<Record<string, Extract<FundingFieldV1, 'hascMark' | 'sascMark'>>>
+const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
+  Partial<Record<string, Extract<FundingFieldV1, 'hascMark' | 'sascMark' | 'ndaaConference'>>>
 > = {
   hasc: 'hascMark',
   sasc: 'sascMark',
+  ndaa_conference: 'ndaaConference',
 };
 
 export class AmbiguousVerificationPolicyError extends Error {
@@ -39,8 +33,18 @@ function phase6AuthorityOverrides(
   authority: string,
   policy: VerificationPolicyV1,
 ): VerificationPolicyV1 {
-  const ownedField = PHASE6_COMMITTEE_MARK_FIELDS[authority];
+  const ownedField = PHASE6_AUTHORITY_MARK_FIELDS[authority];
   if (ownedField == null) return policy;
+  if (authority === 'ndaa_conference') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['ndaaConference'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: ['ndaa_conference_chamber_reference'],
+      arithmeticRules: ['ndaa_conference_arithmetic'],
+    };
+  }
   return {
     ...policy,
     requiredDataCategories: ['funding'],
