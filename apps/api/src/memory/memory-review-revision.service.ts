@@ -87,10 +87,12 @@ export class MemoryReviewRevisionService {
         }
 
         const prepared = prepareMemoryReviewRevision(source.sourceKind, source.payload, input);
+        const sourceContentHash = revisionContentHash(prepared.payload);
         const provenance = revisionProvenance(
           source.provenance,
           predecessorCandidateId,
           ctx.userId,
+          successorCandidateId,
           prepared.revisionSummary,
         );
 
@@ -104,7 +106,8 @@ export class MemoryReviewRevisionService {
             ${ctx.userId}::uuid,
             ${successorCandidateId}::uuid,
             ${JSON.stringify(prepared.payload)}::jsonb,
-            ${JSON.stringify(provenance)}::jsonb
+            ${JSON.stringify(provenance)}::jsonb,
+            ${sourceContentHash}
           )
         `);
         const created = rows[0];
@@ -116,6 +119,18 @@ export class MemoryReviewRevisionService {
           created.candidate_id,
         );
         if (!successorSubject) throw new Error('Created memory revision could not be loaded.');
+
+        // Re-evaluate after creation so a wall/grant/client-status change between
+        // the predecessor check and clone rolls back the entire revision transaction.
+        const successorPropose = await this.authorization.evaluateInTx(
+          tx,
+          ctx,
+          successorSubject,
+          'propose',
+        );
+        if (!successorPropose.allowed) {
+          throw new ForbiddenException(`Memory operation denied: ${successorPropose.reason}`);
+        }
 
         const workflow = await this.workflow.ensureAndDescribeInTx(
           tx,
@@ -153,6 +168,7 @@ export class MemoryReviewRevisionService {
               payloadHash: createHash('sha256')
                 .update(JSON.stringify(prepared.payload))
                 .digest('hex'),
+              sourceContentHash,
               ...prepared.revisionSummary,
             },
           },
@@ -198,6 +214,7 @@ function revisionProvenance(
   existing: unknown,
   predecessorCandidateId: string,
   revisedByUserId: string,
+  successorCandidateId: string,
   summary: { valueChanged: boolean; sectionBodiesChanged: number },
 ): Record<string, unknown> {
   const base =
@@ -208,11 +225,17 @@ function revisionProvenance(
     ...base,
     reviewRevision: {
       predecessorCandidateId,
+      successorCandidateId,
       revisedByUserId,
       revisedAt: new Date().toISOString(),
       ...summary,
     },
   };
+}
+
+function revisionContentHash(payload: Record<string, unknown>): string {
+  const value = typeof payload.value === 'string' ? payload.value : JSON.stringify(payload);
+  return createHash('sha256').update(value).digest('hex');
 }
 
 function candidateKindForSource(sourceKind: string): string {
