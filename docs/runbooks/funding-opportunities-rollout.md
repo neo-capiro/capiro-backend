@@ -407,6 +407,35 @@ the previous run's counts before committing.
 ... "command":["generate-sam-opportunity-candidates","--commit"]
 ```
 
+### Coverage is now algorithmic (P04)
+
+Same contract as §14, same words, same `--resume-client` flag — deliberately, so
+one operator habit covers both producers.
+
+```text
+coverage=COMPLETE clients=<n> notices=<n> pursuable=<n>
+coverage=INCOMPLETE
+```
+
+`SAM_OPPORTUNITY_SCAN_CAP` and `SAM_CANDIDATE_CLIENT_CAP` **no longer exist**.
+They were env-overridable purely so an operator could raise the cap for a full
+sweep; with a keyset walk every run is a full sweep, so setting them now does
+nothing. Remove them from any task definition that carries them.
+
+**This is the run whose cost changes most.** Measured on `capiro-dev` on
+2026-07-29 there were 17,915 active in-deadline notices against a 4,000 bound, so
+this producer previously evaluated ~22% of the corpus. It will now evaluate all of
+it: expect roughly 4.5x the pairs, and a corresponding rise in `created`.
+
+`pursuable` is reported separately from `notices` because award and special notices
+are excluded from the scored set entirely. A corpus that is entirely informational
+is `COMPLETE` with `evaluated=0` — which is a fully covered run, not a truncated
+one, and is exactly what the old `capped` flag could not express.
+
+Before committing, dry-run and compare `created` against the last run. A large
+jump is expected here for three independent reasons (full corpus, P01 profile
+unification, P02 identity correction) and none of them is a defect.
+
 ## 16. Lifecycle pass
 
 ```bash

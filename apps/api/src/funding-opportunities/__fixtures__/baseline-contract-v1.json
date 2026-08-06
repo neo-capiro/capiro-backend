@@ -220,8 +220,8 @@
   "testFloors": {
     "note": "Floors enforced by scripts/assert-test-summary.mjs in .github/workflows/funding-opportunities-ci.yml. A floor may be RAISED freely. Lowering one is indistinguishable from the gate shrinking and requires a written reason in the PR description.",
     "measuredAtFreeze": { "api": { "suites": 20, "tests": 584 }, "web": { "suites": 26, "tests": 79 } },
-    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700" },
-    "api": { "suites": 23, "tests": 700 },
+    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710" },
+    "api": { "suites": 23, "tests": 710 },
     "web": { "suites": 25, "tests": 75 }
   },
 
