@@ -18,6 +18,7 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
   const adminId = randomUUID();
   const standardId = randomUUID();
   const adminCandidateId = randomUUID();
+  const otherAdminCandidateId = randomUUID();
   const standardCandidateId = randomUUID();
   try {
     await prisma.$transaction(async (tx) => {
@@ -53,13 +54,18 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
       }
     });
 
-    await createCandidate(prisma, {
-      tenantId,
-      proposerId: adminId,
-      candidateId: adminCandidateId,
-      key: `admin-self-${label}`,
-    });
-    await assignReviewer(prisma, tenantId, adminCandidateId, adminId);
+    for (const [candidateId, key] of [
+      [adminCandidateId, `admin-self-${label}`],
+      [otherAdminCandidateId, `admin-other-${label}`],
+    ] as const) {
+      await createCandidate(prisma, {
+        tenantId,
+        proposerId: adminId,
+        candidateId,
+        key,
+      });
+      await assignReviewer(prisma, tenantId, candidateId, adminId);
+    }
 
     let rawAdminDenied = false;
     try {
@@ -74,11 +80,23 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
       throw new Error(`${label}: raw admin self-approval bypassed the canonical capability.`);
     }
 
+    let crossCandidateDenied = false;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await setContext(tx, tenantId, adminId);
+        await setAdminCapability(tx, adminCandidateId, adminId);
+        await updateCandidateApproved(tx, tenantId, adminId, otherAdminCandidateId);
+      });
+    } catch (error) {
+      crossCandidateDenied = String(error).includes('MEMORY_REVIEW_SELF_DECISION_DENIED');
+    }
+    if (!crossCandidateDenied) {
+      throw new Error(`${label}: one candidate capability authorized a different candidate.`);
+    }
+
     const approved = await prisma.$transaction(async (tx) => {
       await setContext(tx, tenantId, adminId);
-      await tx.$executeRawUnsafe(
-        `SELECT set_config('app.memory_admin_review_decision', 'on', true)`,
-      );
+      await setAdminCapability(tx, adminCandidateId, adminId);
       return updateCandidateApproved(tx, tenantId, adminId, adminCandidateId);
     });
     if (approved !== 1) {
@@ -115,9 +133,7 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
     try {
       await prisma.$transaction(async (tx) => {
         await setContext(tx, tenantId, standardId);
-        await tx.$executeRawUnsafe(
-          `SELECT set_config('app.memory_admin_review_decision', 'on', true)`,
-        );
+        await setAdminCapability(tx, standardCandidateId, standardId);
         await updateCandidateApproved(tx, tenantId, standardId, standardCandidateId);
       });
     } catch (error) {
@@ -130,6 +146,21 @@ async function assertDatabasePolicy(databaseUrl: string, label: string): Promise
   } finally {
     await prisma.$disconnect();
   }
+}
+
+async function setAdminCapability(
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
+  candidateId: string,
+  actorId: string,
+): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `SELECT set_config('app.memory_admin_review_candidate_id', $1, true)`,
+    candidateId,
+  );
+  await tx.$executeRawUnsafe(
+    `SELECT set_config('app.memory_admin_review_actor_id', $1, true)`,
+    actorId,
+  );
 }
 
 async function updateCandidateApproved(
