@@ -26,11 +26,11 @@ describe('memory Phase 2 deterministic revision conflict contract', () => {
   it('checks for the durable successor after locking and before terminal status', () => {
     const lock = fn.indexOf('FOR UPDATE;');
     const successorConflict = fn.indexOf('MEMORY_REVISION_SUCCESSOR_EXISTS');
-    const terminalConflict = fn.indexOf('MEMORY_REVISION_PREDECESSOR_NOT_PENDING');
+    const terminalStatusGuard = fn.indexOf("IF predecessor.status <> 'pending'");
 
     expect(lock).toBeGreaterThanOrEqual(0);
     expect(successorConflict).toBeGreaterThan(lock);
-    expect(terminalConflict).toBeGreaterThan(successorConflict);
+    expect(terminalStatusGuard).toBeGreaterThan(successorConflict);
   });
 
   it('retains the database uniqueness boundary and API conflict translation', () => {
