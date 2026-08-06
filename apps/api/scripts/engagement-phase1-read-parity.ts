@@ -135,6 +135,13 @@ function queryForRoute(route: RouteEntry, fixtures: Fixtures): string {
   return query ? `?${query}` : '';
 }
 
+function isIsoInstant(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(value)
+  );
+}
+
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (!value || typeof value !== 'object') return value;
@@ -146,6 +153,14 @@ function normalize(value: unknown): unknown {
         key,
       )
     ) {
+      output[key] = '<normalized>';
+      continue;
+    }
+    // Request-time window bounds (outreach/outbound/contact-data derives from/to from
+    // `new Date()` per request) cannot match across two sequential probes. Mask them only
+    // when the value is an ISO instant, so mail-shaped `from`/`to` addresses keep
+    // participating in parity.
+    if (/^(from|to)$/i.test(key) && isIsoInstant(raw)) {
       output[key] = '<normalized>';
       continue;
     }
@@ -172,6 +187,31 @@ async function probe(
     }
   }
   return { status: response.status, contentType, serviceHeader, body: normalize(body) };
+}
+
+function truncateBody(value: string, max = 1500): string {
+  return value.length > max ? `${value.slice(0, max)}…(${value.length} bytes total)` : value;
+}
+
+function describeMismatch(left: ProbeResult, right: ProbeResult): string {
+  const reasons: string[] = [];
+  if (left.status !== right.status) {
+    reasons.push(`  status: main=${left.status} engagement=${right.status}`);
+  }
+  if (left.contentType.split(';')[0] !== right.contentType.split(';')[0]) {
+    reasons.push(`  content-type: main=${left.contentType} engagement=${right.contentType}`);
+  }
+  if (right.serviceHeader !== 'engagement-api') {
+    reasons.push(`  x-capiro-service on engagement response: "${right.serviceHeader}"`);
+  }
+  const leftBody = JSON.stringify(left.body);
+  const rightBody = JSON.stringify(right.body);
+  if (leftBody !== rightBody) {
+    reasons.push(
+      `  body differs:\n    main:       ${truncateBody(leftBody)}\n    engagement: ${truncateBody(rightBody)}`,
+    );
+  }
+  return reasons.length ? reasons.join('\n') : '  (no facet diverged; parity predicate changed?)';
 }
 
 function parity(left: ProbeResult, right: ProbeResult): boolean {
@@ -305,7 +345,30 @@ async function main(): Promise<void> {
         engagementResult,
         matched,
       });
-      if (!matched) throw new Error(`Read parity mismatch: ${route.method} ${pathname}`);
+      if (!matched) {
+        // Persist the failing pair before throwing; the success-path evidence write below is
+        // never reached on failure, which is what makes these mismatches hard to diagnose.
+        await writeFile(
+          path.join(EVIDENCE_DIR, 'read-parity-mismatch.json'),
+          JSON.stringify(
+            {
+              route: `${route.method} ${pathname}`,
+              controller: route.controller,
+              handler: route.handler,
+              mainResult,
+              engagementResult,
+            },
+            null,
+            2,
+          ),
+        );
+        throw new Error(
+          `Read parity mismatch: ${route.method} ${pathname}\n${describeMismatch(
+            mainResult,
+            engagementResult,
+          )}`,
+        );
+      }
     }
 
     for (const authCase of [
