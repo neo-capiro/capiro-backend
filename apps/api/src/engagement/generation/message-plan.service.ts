@@ -118,9 +118,13 @@ export class MessagePlanService {
       jsonSchema: MESSAGE_PLAN_JSON_SCHEMA as unknown as Record<string, unknown>,
       jsonSchemaName: 'message_plan',
       maxTokens: 2000,
-      // Planning is a structured extraction, not prose: low variance is what
-      // makes the deterministic checks below stable run-to-run.
-      temperature: 0.2,
+      // RC8 (zero-trust Wave 1) pinned temperature: 0.2 here to cut sampling
+      // variance on figure-heavy plans. Removed: the pinned outreach planning
+      // model now rejects any non-default temperature outright ("temperature
+      // is deprecated for this model"), which made EVERY outreach generation
+      // fail at the planning step — see PLAN_GENERATION_FAILED in
+      // generation-gateway.service.ts. Omit until this is reworked as a
+      // model-aware, provider-verified capability rather than a flat constant.
     });
 
     const parsed = this.parsePlan(result.text);
