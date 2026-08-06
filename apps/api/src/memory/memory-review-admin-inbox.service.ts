@@ -162,7 +162,7 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
         canReassign: capabilities.reassign,
       }),
       capabilities,
-    };
+    } as T;
   }
 
   private async allowed(
