@@ -4,12 +4,12 @@
 -- a predecessor. The clone function runs lineage creation, predecessor
 -- supersession, and successor workflow creation in one transaction.
 --
--- SQL-OWNED LINEAGE CONTRACT
--- The four additive lineage columns remain intentionally absent from Prisma's
--- MemoryCandidate model during Phase 2. The application reads/writes them only
--- through locked raw SQL and create_memory_candidate_revision. This prevents a
--- generated Prisma delegate from offering unsafe partial lineage mutations while
--- Prisma safely ignores additive database columns during validate/generate.
+-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
+-- Prisma models the four additive columns and tenant-bound self-relations so
+-- future schema reconciliation cannot classify them as unmanaged drift. The
+-- application creates and mutates lineage only through locked raw SQL and
+-- create_memory_candidate_revision; generated delegates are not a valid
+-- lifecycle mutation path.
 
 ALTER TABLE memory_candidate
   ADD COLUMN IF NOT EXISTS revision_root_id uuid,
