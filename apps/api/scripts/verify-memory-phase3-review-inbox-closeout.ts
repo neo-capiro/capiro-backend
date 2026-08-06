@@ -23,6 +23,7 @@ const apiTests = [
   'scripts/lib/memory-phase2-notification-assignment-contract.spec.ts',
   'scripts/lib/memory-phase2-notification-dispatcher-contract.spec.ts',
   'src/memory/memory-authorization.helpers.spec.ts',
+  'src/memory/memory-authorization.admin-capability.spec.ts',
   'src/memory/memory-candidate-review.service.spec.ts',
   'src/memory/immutable-memory-version.service.spec.ts',
   'src/memory/memory-review-workflow.service.spec.ts',
