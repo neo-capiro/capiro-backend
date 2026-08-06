@@ -14,6 +14,7 @@ const subject = {
   memoryClass: 'institutional_authoritative' as const,
   scope: 'firm' as const,
   status: 'pending_review' as const,
+  legacyCandidateStatus: 'pending',
   legalHold: false,
   clientStatus: null,
 };
@@ -46,6 +47,49 @@ describe('MemoryAuthorizationService administrator decision capability', () => {
       "SELECT set_config('app.memory_admin_review_actor_id', $1, true)",
       ADMIN,
     );
+  });
+
+  it('arms the same exact capability for a real legacy-pending candidate whose governed status is still suggested', async () => {
+    const h = harness();
+    await expect(
+      h.service.evaluateInTx(
+        h.tx as never,
+        { tenantId: TENANT, userId: ADMIN, role: 'user_admin' },
+        {
+          ...subject,
+          status: 'suggested',
+          legacyCandidateStatus: 'pending',
+        },
+        'approve',
+      ),
+    ).resolves.toEqual({ allowed: true, basis: 'admin' });
+    expect(h.executeRawUnsafe).toHaveBeenNthCalledWith(
+      1,
+      "SELECT set_config('app.memory_admin_review_candidate_id', $1, true)",
+      subject.id,
+    );
+    expect(h.executeRawUnsafe).toHaveBeenNthCalledWith(
+      2,
+      "SELECT set_config('app.memory_admin_review_actor_id', $1, true)",
+      ADMIN,
+    );
+  });
+
+  it('does not arm a capability for a suggested candidate that is not legacy-pending', async () => {
+    const h = harness();
+    await expect(
+      h.service.evaluateInTx(
+        h.tx as never,
+        { tenantId: TENANT, userId: ADMIN, role: 'user_admin' },
+        {
+          ...subject,
+          status: 'suggested',
+          legacyCandidateStatus: 'approved',
+        },
+        'approve',
+      ),
+    ).resolves.toEqual({ allowed: true, basis: 'admin' });
+    expect(h.executeRawUnsafe).not.toHaveBeenCalled();
   });
 
   it('does not arm capabilities during read-model simulations', async () => {
