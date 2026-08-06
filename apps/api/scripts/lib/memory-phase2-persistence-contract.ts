@@ -91,6 +91,9 @@ export function assertMemoryPhase2PersistenceContract(sources: MemoryPhase2Persi
     required(new RegExp(`ADD CONSTRAINT\\s+${escapeRegex(reference.constraint)}[\\s\\S]{0,160}FOREIGN KEY\\s*\\(\\s*tenant_id\\s*,\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate\\s*\\(\\s*tenant_id\\s*,\\s*id\\s*\\)[\\s\\S]{0,80}ON UPDATE NO ACTION[\\s\\S]{0,80}ON DELETE RESTRICT`, 'i').test(sources.revisionMigration), `Migration must match Prisma relation ${reference.relation}, including constraint name and referential actions.`);
     required(!new RegExp(`FOREIGN KEY\\s*\\(\\s*${escapeRegex(reference.databaseColumn)}\\s*\\)\\s*REFERENCES\\s+memory_candidate`, 'i').test(sources.revisionMigration), `Migration must not use a UUID-only FK for ${reference.databaseColumn}.`);
   }
+
+  assertBodyFreeWorkflowMetadataContract(sources.workflowMigration);
+
   required(sources.revisionMigration.includes(CURRENT_OWNERSHIP_COMMENT), 'Revision migration must contain the exact current ownership contract.');
   required(sources.revisionMigration.includes('create_memory_candidate_revision'), 'Atomic revision function is required.');
   required(!/SECURITY\s+DEFINER/i.test(sources.revisionMigration), 'Revision function must remain SECURITY INVOKER.');
@@ -130,6 +133,107 @@ export function extractPrismaModel(schema: string, modelName: string): string {
   let depth = 0;
   for (let index = start; index < schema.length; index += 1) { if (schema[index] === '{') depth += 1; if (schema[index] === '}' && --depth === 0) return schema.slice(start, index + 1); }
   throw new MemoryPhase2PersistenceContractError(`Prisma model ${modelName} is unterminated.`);
+}
+
+function assertBodyFreeWorkflowMetadataContract(workflowMigration: string): void {
+  const titleFunction = extractSqlFunction(workflowMigration, 'memory_review_workflow_title');
+  const kindFunction = extractSqlFunction(
+    workflowMigration,
+    'memory_review_workflow_candidate_kind',
+  );
+  const metadataFunction = extractSqlFunction(
+    workflowMigration,
+    'memory_review_workflow_metadata',
+  );
+
+  required(
+    titleFunction.includes("p_payload #>> '{canonicalItem,title}'"),
+    'Workflow title must prefer the canonical item title.',
+  );
+  required(
+    titleFunction.includes("p_payload ->> 'key'"),
+    'Workflow title must fall back to the stable candidate key.',
+  );
+  required(
+    /left\([\s\S]*,\s*300\s*\)/i.test(titleFunction),
+    'Workflow title must remain bounded to 300 characters.',
+  );
+  for (const forbidden of ["->> 'value'", 'sections', 'sourceExcerpt', 'source_excerpt']) {
+    required(
+      !titleFunction.includes(forbidden),
+      `Workflow title must not derive from proposal body field ${forbidden}.`,
+    );
+  }
+
+  for (const [sourceKind, candidateKind] of [
+    ['memory_correction', 'correction'],
+    ['memory_restore', 'restore'],
+    ['memory_contradiction', 'contradiction'],
+  ] as const) {
+    required(
+      kindFunction.includes(`WHEN '${sourceKind}' THEN '${candidateKind}'`),
+      `Workflow candidate kind mapping is missing ${sourceKind}.`,
+    );
+  }
+  required(kindFunction.includes("ELSE 'standard'"), 'Workflow candidate kind needs a safe default.');
+
+  for (const key of [
+    'workflow',
+    'schemaVersion',
+    'candidateKind',
+    'sourceKind',
+    'scope',
+    'assignmentEnforced',
+  ]) {
+    required(
+      metadataFunction.includes(`'${key}'`),
+      `Workflow metadata is missing body-free key ${key}.`,
+    );
+  }
+  for (const forbidden of [
+    'p_payload',
+    "'value'",
+    "'sections'",
+    "'body'",
+    "'sourceExcerpt'",
+    "'source_excerpt'",
+  ]) {
+    required(
+      !metadataFunction.includes(forbidden),
+      `Workflow metadata must not persist proposal body field ${forbidden}.`,
+    );
+  }
+
+  required(
+    count(workflowMigration, 'memory_review_workflow_title(') >= 4,
+    'Workflow title helper must cover definition, backfill, reconciliation, and trigger creation.',
+  );
+  required(
+    count(workflowMigration, 'memory_review_workflow_metadata(') >= 4,
+    'Workflow metadata helper must cover definition, backfill, reconciliation, and trigger creation.',
+  );
+  required(
+    /UPDATE\s+review_request\s+rr[\s\S]{0,1200}FROM\s+memory_candidate\s+mc/i.test(
+      workflowMigration,
+    ),
+    'Workflow migration must reconcile rows from interrupted or partial application.',
+  );
+}
+
+function extractSqlFunction(migration: string, functionName: string): string {
+  const start = migration.indexOf(`CREATE OR REPLACE FUNCTION ${functionName}(`);
+  if (start < 0) {
+    throw new MemoryPhase2PersistenceContractError(
+      `SQL function ${functionName} was not found.`,
+    );
+  }
+  const end = migration.indexOf('$$;', start);
+  if (end < 0) {
+    throw new MemoryPhase2PersistenceContractError(
+      `SQL function ${functionName} is unterminated.`,
+    );
+  }
+  return migration.slice(start, end + 3);
 }
 
 function assertTransformedModel(model: string): void {
