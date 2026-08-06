@@ -12,15 +12,24 @@ function resolveApiRoot(): string {
 
 const apiRoot = resolveApiRoot();
 const read = (path: string) => readFileSync(resolve(apiRoot, path), 'utf8');
+const readWeb = (path: string) =>
+  readFileSync(resolve(apiRoot, '../web', path), 'utf8');
 const service = read('src/memory/memory-review-inbox.service.ts');
 const controller = read('src/memory/memory-review-inbox.controller.ts');
-const compatibility = read('src/reviews/memory-review-compatibility-guard.service.ts');
+const compatibility = read(
+  'src/reviews/memory-review-compatibility-guard.service.ts',
+);
 const genericController = read('src/reviews/reviews.controller.ts');
+const host = readWeb('src/components/MemoryGovernanceCenterHost.tsx');
+const inboxUi = readWeb('src/components/MemoryReviewInbox.tsx');
+const settingsPage = readWeb('src/pages/settings/MemorySettingsPage.tsx');
 
 describe('Memory Review Phase 3 inbox contract', () => {
   it('uses explicit tenant and actor predicates instead of relying on RLS', () => {
     expect(service).toContain('rr.tenant_id = ${ctx.tenantId}::uuid');
-    expect(service).toContain('notification.tenant_id = ${ctx.tenantId}::uuid');
+    expect(service).toContain(
+      'notification.tenant_id = ${ctx.tenantId}::uuid',
+    );
     expect(service).toContain(
       'notification.recipient_user_id = ${ctx.userId}::uuid',
     );
@@ -61,7 +70,38 @@ describe('Memory Review Phase 3 inbox contract', () => {
   it('prevents the generic review API from reading or deciding memory rows', () => {
     expect(compatibility).toContain("surface = 'memory'");
     expect(compatibility).toContain('tenant_id = ${ctx.tenantId}::uuid');
-    expect(genericController).toContain('this.memoryGuard.assertNotMemoryReview');
-    expect(genericController).toContain('this.memoryGuard.filterNonMemoryReviews');
+    expect(genericController).toContain(
+      'this.memoryGuard.assertNotMemoryReview',
+    );
+    expect(genericController).toContain(
+      'this.memoryGuard.filterNonMemoryReviews',
+    );
+  });
+
+  it('mounts one canonical inbox instead of the legacy broad body queues', () => {
+    expect(host).toContain('MemoryReviewInbox');
+    expect(host).not.toContain('MemoryProposalQueue');
+    expect(host).not.toContain('MemoryReviewQueue');
+    expect(settingsPage).toContain('MemoryGovernanceCenterHost');
+    expect(settingsPage).not.toContain('MemoryReviewStatusSummary');
+  });
+
+  it('supports every required plain-English workflow and notification action', () => {
+    for (const label of [
+      'Needs my review',
+      'Submitted by me',
+      'All pending',
+      'Blocked',
+      'History',
+      'Request changes',
+      'Revise and resubmit',
+      'Assign reviewer',
+      'Review notifications',
+      'Mark all read',
+    ]) {
+      expect(inboxUi).toContain(label);
+    }
+    expect(inboxUi).toContain('/api/memory/review/inbox/requests/');
+    expect(inboxUi).toContain('/api/memory/review/notifications/read-all');
   });
 });
