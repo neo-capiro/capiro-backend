@@ -119,6 +119,25 @@ export interface OpportunityRecommendationView {
   reasonCodes: string[];
 }
 
+export const HUMAN_DECISIONS = ['pursue', 'monitor', 'pass'] as const;
+export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
+
+/**
+ * Mirrors OpportunityDecision in apps/api.
+ *
+ * Deliberately NOT the same vocabulary as OpportunityWorkflowStatus: `monitor` and
+ * `pass` have no workflow equivalent, and `suggested`/`expired` are machine states
+ * nobody decides.
+ */
+export interface OpportunityDecision {
+  decision: HumanDecision;
+  reason: string | null;
+  decidedAt: string;
+  decidedByUserId: string;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+}
+
 export interface OpportunityWorkflow {
   id: string;
   status: OpportunityWorkflowStatus;
@@ -184,6 +203,16 @@ export interface FundingOpportunity {
    * is deliberate — an additive API field deploys before the web that consumes it.
    */
   recommendation: OpportunityRecommendationView | null;
+  /**
+   * The team's persisted DECISION, or null when nobody has decided yet.
+   *
+   * Null is NOT the same as `pass`: "nobody has looked at this" and "we looked and
+   * declined" are different facts, which is why the column has no default.
+   *
+   * Separate from `workflow.status` (where a pursuit is) and from
+   * `recommendation` (recomputed on read). All three can legitimately disagree.
+   */
+  decision: OpportunityDecision | null;
   missingProfileFields: MissingProfileField[];
   sourceUpdatedAt: string | null;
   workflow: OpportunityWorkflow | null;

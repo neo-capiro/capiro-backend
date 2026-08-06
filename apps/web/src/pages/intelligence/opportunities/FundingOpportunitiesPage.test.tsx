@@ -90,9 +90,11 @@ function grant(partial: Partial<FundingOpportunity> = {}): FundingOpportunity {
     kind: 'grant',
     kindRaw: 'Grant',
     baseKind: null,
-    // P06 additive field. Null here: nothing in the page reads it yet, and a
-    // fixture that invented a recommendation would assert behaviour P09 owns.
+    // P06/P07 additive fields. Null here: an undecided machine suggestion is the
+    // common case, and a fixture that invented either would assert behaviour these
+    // tests do not own.
     recommendation: null,
+    decision: null,
     title: 'Advanced Manufacturing Research',
     agency: 'Department of Energy',
     subAgency: null,
@@ -380,15 +382,22 @@ describe('grant versus contract labels, and null money', () => {
 });
 
 describe('relevance and eligibility are shown separately', () => {
-  test('both a relevance number and an eligibility badge appear', async () => {
+  test('fit and eligibility appear as two separate facts', async () => {
     mockApi(listResponse({ opportunities: [grant()] }));
     renderPage();
     const card = await screen.findByTestId('fo-card-grants_gov:GRANT-1');
-    // Two separate facts on the card, never one merged score. "Eligibility" also
-    // appears as a filter label, so this asserts against the CARD, not the page.
-    expect(card).toHaveTextContent('Relevance');
+    // Still two separate facts, never one merged score — that is the invariant this
+    // test has always been about. P09 changed the FIT side from a bare number
+    // ("Relevance 54") to a band plus a reason, because a number is not a claim
+    // anybody can check. The number is still on the card, inside the evidence
+    // disclosure. "Eligibility" also appears as a filter label, so this asserts
+    // against the CARD, not the page.
+    expect(card).toHaveTextContent('Fit');
+    expect(card).toHaveTextContent('Strong fit');
     expect(card).toHaveTextContent('Eligibility');
     expect(card).toHaveTextContent('Eligible');
+    // The two are still distinguishable from each other, which is the point.
+    expect(card).toHaveTextContent(/relevance 54/);
   });
 
   test('a contract eligibility of unknown is labelled Unknown, not Eligible', async () => {
@@ -397,10 +406,21 @@ describe('relevance and eligibility are shown separately', () => {
     expect(await screen.findByText('Unknown')).toBeInTheDocument();
   });
 
-  test('matched signals are listed with the value that matched', async () => {
+  test('the matched value is shown, under a human label rather than a machine key', async () => {
+    // This test used to assert `assistanceListing: 81.086` — i.e. it asserted the
+    // defect. A raw camelCase key rendered as prose taught operators a private
+    // vocabulary and made an exact classification match indistinguishable from the
+    // word "defense" appearing in a DoD notice.
+    //
+    // What actually matters is preserved and strengthened: the matched VALUE is
+    // still on the card, because the whole point of `matchedOn` is that somebody
+    // can go and check it.
     mockApi(listResponse({ opportunities: [grant()] }));
     renderPage();
-    expect(await screen.findByText(/assistanceListing: 81\.086/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Prior award under this Assistance Listing: 81\.086/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/assistanceListing:/)).not.toBeInTheDocument();
   });
 });
 
