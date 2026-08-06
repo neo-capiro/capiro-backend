@@ -1,9 +1,19 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { IsUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { MemoryReviewCompatibilityGuardService } from './memory-review-compatibility-guard.service.js';
 import { ReviewsService } from './reviews.service.js';
 
 class AssignReviewDto {
@@ -11,53 +21,62 @@ class AssignReviewDto {
 }
 
 /**
- * G4 review queue (blueprint §3.3). Listing is standard_user (you can see
- * your own requests/assignments; admins see everything — enforced in the
- * service). ASSIGNING the named reviewer is user_admin-only. Deciding
- * (approve/reject) is authorized in the service: user_admin OR the assigned
- * reviewer — deliberately never the requester alone.
+ * G4 review queue for held deliverables other than governed memory.
+ *
+ * Memory review rows are filtered and rejected here so the generic release
+ * service can never become a compatibility bypass around memory assignment,
+ * ethical-wall, grant, lineage, or segregation-of-duties controls.
  */
 @Controller('reviews')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class ReviewsController {
-  constructor(private readonly reviews: ReviewsService) {}
+  constructor(
+    private readonly reviews: ReviewsService,
+    private readonly memoryGuard: MemoryReviewCompatibilityGuardService,
+  ) {}
 
   @Get()
-  list(@CurrentTenant() ctx: TenantContext, @Query('status') status?: string) {
-    return this.reviews.list(ctx, status);
+  async list(@CurrentTenant() ctx: TenantContext, @Query('status') status?: string) {
+    const rows = await this.reviews.list(ctx, status);
+    return this.memoryGuard.filterNonMemoryReviews(rows);
   }
 
-  /**
-   * Phase 0 §3.f2 — the protected detail view, including the held outreach
-   * draft's actual subject/body.
-   *
-   * Access is checked in the service (tenant admin, assigned reviewer, or the
-   * requester as view-only). Declared AFTER the static routes above so it cannot
-   * shadow them.
-   */
   @Get(':id')
-  detail(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
+  async detail(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.memoryGuard.assertNotMemoryReview(ctx, id);
     return this.reviews.detail(ctx, id);
   }
 
   @Post(':id/assign')
   @Roles('user_admin')
-  assign(
+  async assign(
     @CurrentTenant() ctx: TenantContext,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignReviewDto,
   ) {
+    await this.memoryGuard.assertNotMemoryReview(ctx, id);
     return this.reviews.assign(ctx, id, dto.userId);
   }
 
   @Post(':id/approve')
-  approve(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
+  async approve(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.memoryGuard.assertNotMemoryReview(ctx, id);
     return this.reviews.approve(ctx, id);
   }
 
   @Post(':id/reject')
-  reject(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
+  async reject(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.memoryGuard.assertNotMemoryReview(ctx, id);
     return this.reviews.reject(ctx, id);
   }
 }

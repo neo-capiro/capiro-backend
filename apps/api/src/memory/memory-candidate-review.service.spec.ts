@@ -9,6 +9,7 @@ import {
   MemoryCandidateReviewService,
   candidateKindForSource,
 } from './memory-candidate-review.service.js';
+import type { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { clientMemoryReviewEnabled, memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -51,6 +52,8 @@ function harness(input: {
   reviewAllowed?: boolean;
   scope?: 'client' | 'firm';
   sourceKind?: string;
+  assignedToViewer?: boolean;
+  workflowStatus?: 'pending' | 'changes_requested';
 }) {
   const scope = input.scope ?? 'client';
   const sourceKind = input.sourceKind ?? 'settings_sections';
@@ -134,12 +137,56 @@ function harness(input: {
     approveCandidate: approveVersion,
     rejectCandidate: rejectVersion,
   } as unknown as ImmutableMemoryVersionService;
+  const workflowSnapshot = {
+    requestId: 'request-1',
+    status: input.workflowStatus ?? ('pending' as const),
+    submittedBy: { userId: row.proposedBy, name: 'Pat Proposer' },
+    assignedReviewer:
+      input.assignedToViewer === false
+        ? { userId: 'other-reviewer', name: 'Other Reviewer' }
+        : { userId: USER, name: 'Riley Reviewer' },
+    decidedBy: null,
+    feedbackReason: input.workflowStatus === 'changes_requested' ? 'Add the source.' : null,
+    createdAt: '2026-07-31T12:00:00.000Z',
+    decidedAt: null,
+    viewerIsSubmitter: false,
+    viewerIsAssignedReviewer: input.assignedToViewer !== false,
+    capabilities: { requestChanges: input.assignedToViewer !== false, reassign: false },
+  };
+  const ensureAndDescribeInTx = jest.fn(async () => workflowSnapshot);
+  const requestChanges = jest.fn(async () => ({
+    ...workflowSnapshot,
+    status: 'changes_requested' as const,
+    feedbackReason: 'Add the source.',
+    capabilities: { requestChanges: false, reassign: false },
+  }));
+  const assignReviewer = jest.fn(async () => workflowSnapshot);
+  const assertAssignedForDecision = jest.fn(async () => undefined);
+  const completeDecision = jest.fn(async () => workflowSnapshot);
+  const workflow = {
+    ensureAndDescribeInTx,
+    requestChanges,
+    assignReviewer,
+    assertAssignedForDecision,
+    completeDecision,
+  } as unknown as MemoryReviewWorkflowService;
   return {
-    service: new MemoryCandidateReviewService(prisma, authorization, candidates, versions),
+    service: new MemoryCandidateReviewService(
+      prisma,
+      authorization,
+      candidates,
+      versions,
+      workflow,
+    ),
     approve,
     reject,
     approveVersion,
     rejectVersion,
+    ensureAndDescribeInTx,
+    requestChanges,
+    assignReviewer,
+    assertAssignedForDecision,
+    completeDecision,
     authorization,
     tx,
     findFirst,
@@ -195,11 +242,11 @@ describe('MemoryCandidateReviewService', () => {
     });
   });
 
-  it('shows candidate kind and content only after server authorization', async () => {
+  it('shows content only to the named reviewer and includes human workflow identities', async () => {
     await withGovernance(true, async () => {
       const h = harness({
         approveAllowed: true,
-        reviewAllowed: false,
+        reviewAllowed: true,
         sourceKind: 'memory_correction',
       });
       const result = await h.service.listReviewable(ctx);
@@ -207,12 +254,36 @@ describe('MemoryCandidateReviewService', () => {
         expect.objectContaining({
           id: 'candidate-1',
           candidateKind: 'correction',
-          capabilities: { approve: true, reject: false },
+          workflow: expect.objectContaining({
+            submittedBy: { userId: 'proposer-1', name: 'Pat Proposer' },
+            assignedReviewer: { userId: USER, name: 'Riley Reviewer' },
+          }),
+          capabilities: {
+            approve: true,
+            reject: true,
+            requestChanges: true,
+            reassign: false,
+          },
           proposal: expect.objectContaining({
             canonicalItem: expect.objectContaining({ title: 'Client Soul' }),
           }),
         }),
       ]);
+      expect(h.ensureAndDescribeInTx).toHaveBeenCalled();
+    });
+  });
+
+  it('withholds a candidate from an authorized but unassigned reviewer', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({
+        approveAllowed: true,
+        reviewAllowed: true,
+        assignedToViewer: false,
+      });
+      await expect(h.service.listReviewable(ctx)).resolves.toEqual({
+        enabled: true,
+        candidates: [],
+      });
     });
   });
 
@@ -224,6 +295,33 @@ describe('MemoryCandidateReviewService', () => {
         candidates: [],
       });
       expect(h.findFirst).not.toHaveBeenCalled();
+      expect(h.ensureAndDescribeInTx).not.toHaveBeenCalled();
+    });
+  });
+
+  it('delegates request changes to the durable workflow service', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true, reviewAllowed: true });
+      await expect(
+        h.service.requestChanges(ctx, 'candidate-1', 'Add the source.'),
+      ).resolves.toMatchObject({
+        status: 'changes_requested',
+        feedbackReason: 'Add the source.',
+      });
+      expect(h.requestChanges).toHaveBeenCalledWith(ctx, 'candidate-1', 'Add the source.');
+    });
+  });
+
+  it('delegates administrator reassignment to the workflow service', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true, reviewAllowed: true });
+      await h.service.assignReviewer(ctx, 'candidate-1', 'reviewer-2', 'Coverage changed.');
+      expect(h.assignReviewer).toHaveBeenCalledWith(
+        ctx,
+        'candidate-1',
+        'reviewer-2',
+        'Coverage changed.',
+      );
     });
   });
 
@@ -236,13 +334,24 @@ describe('MemoryCandidateReviewService', () => {
         outcome: 'activated',
         memoryId: 'memory-1',
       });
-      await expect(h.service.reject(ctx, 'candidate-1')).resolves.toEqual({
+      await expect(
+        h.service.reject(ctx, 'candidate-1', 'Not supported by the source.'),
+      ).resolves.toEqual({
         candidateId: 'candidate-1',
         candidateKind: 'standard',
         outcome: 'rejected',
       });
       expect(h.approve).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
       expect(h.reject).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
+      expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approve');
+      expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'review');
+      expect(h.completeDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approved');
+      expect(h.completeDecision).toHaveBeenCalledWith(
+        ctx,
+        'candidate-1',
+        'rejected',
+        'Not supported by the source.',
+      );
       expect(h.approveVersion).not.toHaveBeenCalled();
     });
   });
@@ -274,7 +383,7 @@ describe('MemoryCandidateReviewService', () => {
     });
   });
 
-  it('requires a rejection reason for immutable version candidates', async () => {
+  it('requires a rejection reason for every candidate kind', async () => {
     await withGovernance(true, async () => {
       const h = harness({ sourceKind: 'memory_restore' });
       await expect(h.service.reject(ctx, 'candidate-1')).rejects.toBeInstanceOf(

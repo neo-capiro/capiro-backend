@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/memory/memory-review-inbox.helpers.ts",
+    "src/memory/memory-review-inbox.helpers.spec.ts",
+    "src/memory/memory-review-inbox.service.ts",
+    "src/memory/memory-review-inbox.service.spec.ts",
+    "src/memory/memory-review-inbox.controller.ts",
+    "src/memory/memory-review-inbox.controller.spec.ts",
+    "src/reviews/memory-review-compatibility-guard.service.ts",
+    "src/reviews/memory-review-compatibility-guard.service.spec.ts",
+    "src/reviews/reviews.controller.ts",
+    "src/reviews/reviews.module.ts",
+    "scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "scripts/verify-memory-phase3-review-inbox-database.ts",
+    "scripts/verify-memory-phase3-review-inbox-closeout.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
