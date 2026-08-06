@@ -3,9 +3,9 @@
 ## Branch and pull request
 
 - Branch: `feat/memory-phase2-review-workflow`
-- Draft PR: `#761` — `feat(memory): Phase 2 review workflow foundation`
+- Draft PR: `#761`
 - Base: `main@af9ef9d2b6bf08f08b548d8a7807337fc24d038d`
-- Branch relation at Increment 2 closeout: 0 commits behind `main`
+- Keep the PR draft; do not merge or deploy.
 
 ## Completed increments
 
@@ -17,11 +17,7 @@
 - ethical-wall-aware reassignment;
 - assigned-reviewer enforcement after Phase 2 activates assignment.
 
-Evidence:
-
-- `docs/qa/memory-phase2-increment-1-foundation.md`
-- `apps/api/src/memory/memory-review-workflow.service.ts`
-- `apps/api/prisma/migrations/20260818010000_memory_phase2_review_workflow_foundation/migration.sql`
+Evidence: `docs/qa/memory-phase2-increment-1-foundation.md`.
 
 ### Increment 2 — immutable revision and resubmission lineage
 
@@ -29,50 +25,60 @@ Evidence:
 - root/predecessor/revision lineage and one-successor concurrency guards;
 - atomic predecessor and workflow supersession;
 - fresh authorization before and after successor creation;
-- fresh reviewer assignment for the successor;
-- server-derived canonical content and regenerated source identity;
-- preserved original reviewer attribution;
-- no active-memory mutation during revision.
+- fresh reviewer assignment and no active-memory mutation.
 
-Evidence:
+Evidence: `docs/qa/memory-phase2-increment-2-revision-lineage.md`.
 
-- `docs/qa/memory-phase2-increment-2-revision-lineage.md`
-- `apps/api/src/memory/memory-review-revision.service.ts`
-- `apps/api/prisma/migrations/20260818020000_memory_phase2_revision_lineage/migration.sql`
+### Increment 3A — persistence gate and database-boundary hardening
 
-## Validation status
+- revision SQL bound to `app.current_tenant` and `app.current_user`;
+- system-bypass revision calls denied;
+- tenant-bound composite lineage foreign keys and unique key;
+- target ownership contract changed to Prisma-modeled but SQL-enforced;
+- guarded idempotent schema/migration transformer;
+- executable clean/upgrade PostgreSQL, concurrency, compatibility-route, and active-memory closeout harness;
+- disposable-database refusal safeguards.
 
-Passed in the available environment:
+Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
 
-- strict isolated TypeScript for the exact production workflow and revision sources;
-- focused workflow and revision runtime probes;
-- migration structural/static contract probes;
-- post-publication GitHub diff and security review.
+## Validation completed in the available environment
 
-Not yet established:
+- strict isolated TypeScript for the persistence contract helper;
+- target transformer/runtime contract: 5 scenarios;
+- partial-application and unsafe Prisma-mutation controls;
+- tenant-context and system-bypass security review;
+- disposable-database harness safety review.
 
-- full repository install/typecheck/tests and pinned Prettier;
-- Prisma ownership parity for the lineage columns;
-- Prisma validate/generate;
-- clean and upgrade PostgreSQL migration replay;
-- real concurrent-transaction and RLS behavior;
-- web build/Vitest and authenticated browser acceptance;
-- GitHub Actions.
+## Persistence gate still open
+
+The current environment has no `pnpm`, Docker, PostgreSQL, or `psql`. The checked-in Prisma schema could not be rewritten safely through the connector, and GitHub Actions returned `startup_failure` for a temporary guarded patch workflow. The workflow was removed and made no product or data change.
+
+The executable persistence marker has therefore **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema/migration comment, and passes:
+
+```text
+MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
+```
 
 ## Phase 2 is not complete
 
-Remaining work includes persistence compatibility closeout, notifications and email obligations, Review Inbox UX, proposer history/status surfaces, compatibility-route closeout, full repository validation, PostgreSQL migration replay, real-role RLS tests, web build/Vitest, and authenticated browser acceptance.
+Still required:
+
+- execute and repair the persistence closeout;
+- commit the reconciled Prisma schema;
+- notifications and email obligations;
+- Review Inbox and proposer-history UX;
+- compatibility-route closeout;
+- full API/monorepo tests, typecheck, pinned formatting, real-role RLS, web build/Vitest, and browser acceptance.
 
 ## Next increment
 
-Close the revision persistence compatibility gate before beginning notifications:
+In a complete checkout:
 
-1. reconcile Prisma ownership of the four lineage columns;
-2. add clean and upgrade PostgreSQL replay evidence;
-3. execute real concurrent successor tests;
-4. test proposer/reviewer/walled/cross-tenant RLS identities;
-5. verify compatibility decision routes cannot bypass lineage or named assignment.
+1. run `pnpm exec tsx scripts/apply-memory-phase2-prisma-lineage-model.ts` from `apps/api`;
+2. run Prisma format, validate, and generate;
+3. provide two different empty local pgvector/PostgreSQL databases named with `memory_phase2`;
+4. run `scripts/verify-memory-phase2-persistence-closeout.ts`;
+5. repair every failure and require the exact completion marker;
+6. review and commit the resulting schema/migration diff.
 
-## Operating rule
-
-Continue in tested increments on this branch. Keep PR #761 draft. Do not merge, deploy, apply production migrations, or enable production flags until the final Phase 2 acceptance gate and explicit human authorization.
+Do not begin notifications or frontend work until this gate is green.
