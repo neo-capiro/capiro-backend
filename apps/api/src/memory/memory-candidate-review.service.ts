@@ -9,6 +9,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import {
+  MemoryReviewWorkflowService,
+  type MemoryReviewWorkflowSnapshot,
+} from './memory-review-workflow.service.js';
+import { normalizeMemoryReviewReason } from './memory-review-workflow.helpers.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
 
@@ -32,9 +37,12 @@ export interface ReviewableMemoryCandidate {
       sections: MemorySection[];
     } | null;
   };
+  workflow: MemoryReviewWorkflowSnapshot;
   capabilities: {
     approve: boolean;
     reject: boolean;
+    requestChanges: boolean;
+    reassign: boolean;
   };
 }
 
@@ -69,10 +77,10 @@ const VERSION_SOURCE_KIND = {
 /**
  * Scope-aware review facade for standard authenticated users.
  *
- * Candidate visibility and capabilities are server-owned. Generic saves delegate
- * to MemoryCandidateService; correction/restore/contradiction candidates delegate
- * to ImmutableMemoryVersionService so they can never fall through the legacy
- * canonical-upsert approval path.
+ * Phase 2 adds a durable named-reviewer workflow. The candidate remains the
+ * proposed content; review_request stores only assignment, status, bounded
+ * feedback, and decision stamps. This queue returns only work assigned to the
+ * authenticated reviewer.
  */
 @Injectable()
 export class MemoryCandidateReviewService {
@@ -81,6 +89,7 @@ export class MemoryCandidateReviewService {
     private readonly authorization: MemoryAuthorizationService,
     private readonly candidates: MemoryCandidateService,
     private readonly versions: ImmutableMemoryVersionService,
+    private readonly workflow: MemoryReviewWorkflowService,
   ) {}
 
   enabled(): boolean {
@@ -111,8 +120,12 @@ export class MemoryCandidateReviewService {
         const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.id);
         if (!subject) continue;
 
-        const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve');
-        const review = await this.authorization.evaluateInTx(tx, ctx, subject, 'review');
+        const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve', {
+          emitDenialMetrics: false,
+        });
+        const review = await this.authorization.evaluateInTx(tx, ctx, subject, 'review', {
+          emitDenialMetrics: false,
+        });
         if (!approve.allowed && !review.allowed) continue;
 
         const authorizedRow = await tx.memoryCandidate.findFirst({
@@ -121,18 +134,43 @@ export class MemoryCandidateReviewService {
         });
         if (!authorizedRow) continue;
 
+        const proposal = proposalFromPayload(authorizedRow.payload);
+        const candidateKind = candidateKindForSource(row.sourceKind);
+        const workflow = await this.workflow.ensureAndDescribeInTx(
+          tx,
+          ctx,
+          {
+            id: row.id,
+            tenantId: ctx.tenantId,
+            clientId: row.clientId,
+            proposedByUserId: row.proposedBy,
+            sourceKind: row.sourceKind,
+            scope: row.scope,
+            candidateKind,
+            title: proposal.canonicalItem?.title ?? proposal.key ?? 'Memory proposal',
+          },
+          subject,
+        );
+
+        if (workflow.status !== 'pending' || workflow.assignedReviewer?.userId !== ctx.userId) {
+          continue;
+        }
+
         visible.push({
           id: row.id,
-          candidateKind: candidateKindForSource(row.sourceKind),
+          candidateKind,
           scope: row.scope,
           clientId: row.clientId,
           proposedByUserId: row.proposedBy,
           sourceKind: row.sourceKind,
           createdAt: row.createdAt.toISOString(),
-          proposal: proposalFromPayload(authorizedRow.payload),
+          proposal,
+          workflow,
           capabilities: {
             approve: approve.allowed,
             reject: review.allowed,
+            requestChanges: review.allowed && workflow.capabilities.requestChanges,
+            reassign: workflow.capabilities.reassign,
           },
         });
       }
@@ -142,14 +180,43 @@ export class MemoryCandidateReviewService {
     return { enabled: true, candidates };
   }
 
+  requestChanges(
+    ctx: TenantContext,
+    candidateId: string,
+    reason: unknown,
+  ): Promise<MemoryReviewWorkflowSnapshot> {
+    this.requireEnabled();
+    return this.workflow.requestChanges(ctx, candidateId, reason);
+  }
+
+  assignReviewer(
+    ctx: TenantContext,
+    candidateId: string,
+    reviewerUserId: string,
+    reason: unknown,
+  ): Promise<MemoryReviewWorkflowSnapshot> {
+    this.requireEnabled();
+    return this.workflow.assignReviewer(ctx, candidateId, reviewerUserId, reason);
+  }
+
   async approve(ctx: TenantContext, candidateId: string): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
+    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'approve');
     const kind = await this.loadCandidateKind(ctx, candidateId);
+    let result: MemoryReviewDecisionResult;
     if (kind !== 'standard') {
-      return { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
+      result = { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
+    } else {
+      const { memoryId } = await this.candidates.approve(
+        ctx.tenantId,
+        candidateId,
+        ctx.userId,
+        ctx,
+      );
+      result = { candidateId, candidateKind: 'standard', outcome: 'activated', memoryId };
     }
-    const { memoryId } = await this.candidates.approve(ctx.tenantId, candidateId, ctx.userId, ctx);
-    return { candidateId, candidateKind: 'standard', outcome: 'activated', memoryId };
+    await this.workflow.completeDecision(ctx, candidateId, 'approved');
+    return result;
   }
 
   async reject(
@@ -158,19 +225,22 @@ export class MemoryCandidateReviewService {
     reason = '',
   ): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
+    const cleanReason = normalizeMemoryReviewReason(reason);
+    if (!cleanReason) throw new BadRequestException('A rejection reason is required.');
+    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'review');
     const kind = await this.loadCandidateKind(ctx, candidateId);
+    let result: MemoryReviewDecisionResult;
     if (kind !== 'standard') {
-      const cleanReason = reason.trim();
-      if (!cleanReason) {
-        throw new BadRequestException('A rejection reason is required for a memory version.');
-      }
-      return {
+      result = {
         candidateKind: kind,
         ...(await this.versions.rejectCandidate(ctx, candidateId, cleanReason)),
       };
+    } else {
+      await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
+      result = { candidateId, candidateKind: 'standard', outcome: 'rejected' };
     }
-    await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
-    return { candidateId, candidateKind: 'standard', outcome: 'rejected' };
+    await this.workflow.completeDecision(ctx, candidateId, 'rejected', cleanReason);
+    return result;
   }
 
   private async loadCandidateKind(
