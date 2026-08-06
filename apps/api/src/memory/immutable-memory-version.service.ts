@@ -15,6 +15,7 @@ import { embedAndUpsert } from '../embeddings/embedder.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import {
   classifyMemoryVersionActivation,
@@ -177,9 +178,13 @@ export class ImmutableMemoryVersionService {
         throw new BadRequestException('Version candidate source kind does not match its payload.');
       }
       await this.authorizeCandidate(tx, ctx, candidateId, 'approve');
-      if (payload.scope !== 'user_private' && candidate.proposed_by === ctx.userId) {
+      if (
+        payload.scope !== 'user_private' &&
+        candidate.proposed_by === ctx.userId &&
+        !isMemoryReviewAdminRole(ctx.role)
+      ) {
         throw new ForbiddenException(
-          'Shared-scope memory must be approved by a reviewer other than the proposer.',
+          'Shared-scope memory self-approval requires an active administrator.',
         );
       }
 
@@ -201,8 +206,8 @@ export class ImmutableMemoryVersionService {
       const activation = classifyMemoryVersionActivation(kind, proposedText, targetText);
 
       // A migration trigger rejects version-candidate approval from every other
-      // code path. This transaction-local capability is set only after row locks,
-      // server-owned authorization, wall checks, and independent-review checks.
+      // code path. This capability is set only after locks, server-owned
+      // authorization, walls, client status, and approval policy checks.
       await tx.$queryRaw<Array<{ set_config: string }>>`
         SELECT set_config('app.memory_version_activation', 'on', true)
       `;
@@ -466,9 +471,6 @@ export class ImmutableMemoryVersionService {
     const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
     if (!read.allowed) throw new ForbiddenException(`Memory operation denied: ${read.reason}`);
 
-    // Restore never reopens or mutates the terminal source. Evaluate the proposal
-    // against the same server-owned scope with an active synthetic lifecycle only
-    // after read access to the actual historical row has succeeded.
     const mutationSubject =
       kind === 'restore' ? { ...subject, status: 'active' as const } : subject;
     const operation = scopeFor(source) === 'user_private' ? 'edit' : 'propose';
@@ -551,7 +553,7 @@ export class ImmutableMemoryVersionService {
       clientId: input.source.client_id,
       toStatus: 'pending_review',
       reasonCode: 'submitted_for_review',
-      reason: `Shared memory ${input.kind} submitted for independent review.`,
+      reason: `Shared memory ${input.kind} submitted for administrator review.`,
       sourceType: 'user_message',
       sourceId: input.source.id,
       metadata: {
