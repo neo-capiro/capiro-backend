@@ -1,0 +1,1621 @@
+{
+  "schemaVersion": 1,
+  "prototypeSha256": "84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453",
+  "prototypeStateCount": 62,
+  "extractedAt": null,
+  "phase": 2,
+  "note": "Phase 2 behaviour and future ownership for every Outreach V3 prototype state. No entry claims V3 functionality is implemented. Phase 2 ships no V3 UI.",
+  "entries": [
+    {
+      "stateId": "outreach-landing",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "engagement capabilities for the tenant"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/capabilities"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_6",
+      "futureOwnerNote": "Roadmap says Phase 5–6; Phase 5 owns the state, Phase 6 the shell.",
+      "sensitiveScopes": [
+        "tenant",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a tenant with engagement enabled and no in-progress campaign"
+      ],
+      "observabilityFamily": "outreach_records",
+      "stateLabel": "1 · Outreach landing",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/capabilities"
+      ]
+    },
+    {
+      "stateId": "read-back-no-client-required",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "model interpretation of the typed goal"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "futureOwnerNote": "Roadmap says Phase 5–6.",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "user",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a goal string that resolves without a client"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "2 · Read-back, no client required",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "sponsor-ambiguity",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "sponsor scope options",
+        "clients visible to the user"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "futureOwnerNote": "Roadmap says Phase 5–6.",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "user",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a user with at least two clients and one coalition"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "3 · Sponsor ambiguity",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "target-criteria",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "criteria derived from the goal"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "criteria covering jurisdiction, committee and portfolio"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "4 · Target criteria",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "recommended-targets",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "ranked target recommendations with reasons"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "targets with mixed relationship strength and confidence"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "5 · Recommended targets",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "directory-search",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "directory offices and people matching a query"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a directory office with staff"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "6 · Directory search",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "expanded-office-with-staff",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "staff roster for one office"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "an office with at least three staff and one vacancy"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "7 · Expanded office with staff",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "client-contacts-several-clients",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "contacts grouped by client"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/contacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "two clients with contacts and one ethical-wall separation"
+      ],
+      "observabilityFamily": "targets",
+      "stateLabel": "8 · Client contacts, several clients",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/contacts"
+      ]
+    },
+    {
+      "stateId": "saved-audiences",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "saved audience lists"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/audiences"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "group",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "at least one saved audience owned by the test user"
+      ],
+      "observabilityFamily": "targets",
+      "stateLabel": "9 · Saved audiences",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/audiences"
+      ]
+    },
+    {
+      "stateId": "manual-target-entry",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "a manually typed name, role, office and address"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a manual target with an unverified address"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "10 · Manual target entry",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "selected-targets-and-health",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "selected targets with health indicators"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "targets covering verified, missing-email and stale-role health"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "Target health and audience-coverage analysis have no current route. Phase 7 owns them.",
+      "stateLabel": "11 · Selected targets and health",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "target-profile",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "identity, relationship, intelligence and personalization safety"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a profile with verified, needs-confirmation, stale, conflicting and restricted facts"
+      ],
+      "observabilityFamily": "profiles",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "12 · Target profile",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "coverage-gap-review",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "audience coverage analysis against the goal"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "group"
+      ],
+      "fixtureRequirements": [
+        "a selection missing majority policy and appropriations coverage"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "Target health and audience-coverage analysis have no current route. Phase 7 owns them.",
+      "stateLabel": "13 · Coverage gap review",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "delivery-recommendation",
+      "visibleStage": "Delivery",
+      "requiredData": [
+        "delivery pattern options and the recommended one"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "group",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a twelve-target campaign where personalized is recommended"
+      ],
+      "observabilityFamily": "delivery_history",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "14 · Delivery recommendation",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "context-recommendations",
+      "visibleStage": "Context",
+      "requiredData": [
+        "governed context items by category with scope and exclusions"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/context/:clientId",
+        "GET /api/engagement/outreach/context-library"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "context items in every category plus one excluded for wrong client"
+      ],
+      "observabilityFamily": "context",
+      "stateLabel": "15 · Context recommendations",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/context/:clientId",
+        "GET /api/engagement/outreach/context-library"
+      ]
+    },
+    {
+      "stateId": "strategy-review",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "assembled campaign plan for review"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "group",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a plan line per send unit with context and target health"
+      ],
+      "observabilityFamily": "drafts",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "16 · Strategy review",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "representative-samples",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "generated sample drafts"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/jobs/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+      ],
+      "capabilityClass": "external_action_blocked_in_shadow",
+      "shadowExpectation": "503_external_action_disabled",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "targets spanning relationship, no-relationship and other office"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "17 · Representative samples",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
+        "POST /api/engagement/outreach/jobs/generate"
+      ]
+    },
+    {
+      "stateId": "draft-summary-12-drafts",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "draft artifacts and immutable versions with status"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/jobs/:id"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "twelve drafts with mixed statuses"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "18 · Draft summary, 12 drafts",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/jobs/:id"
+      ]
+    },
+    {
+      "stateId": "exception-review",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "drafts filtered to the exception set"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "one held, one missing-address and one failed draft"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "19 · Exception review",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "preflight-nothing-eligible-yet",
+      "visibleStage": "Send",
+      "requiredData": [
+        "deterministic preflight checks with nothing eligible"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a campaign where no draft is approved"
+      ],
+      "observabilityFamily": "preflight",
+      "gap": "The thirteen deterministic preflight checks are prototype-side. No current route computes them. Phase 9 owns preflight.",
+      "stateLabel": "20 · Preflight · nothing eligible yet",
+      "menuGroup": "Flow",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "preflight-partial-send-ready",
+      "visibleStage": "Send",
+      "requiredData": [
+        "preflight with some eligible and some held-out drafts"
+      ],
+      "currentRouteRefs": [
+        "POST /api/engagement/campaigns/:id/send-test",
+        "POST /api/engagement/campaigns/:id/send",
+        "POST /api/engagement/outreach/:id/send-campaign",
+        "POST /api/engagement/outreach/jobs/send",
+        "POST /api/engagement/outreach/send-batch",
+        "POST /api/engagement/outreach/send-intents"
+      ],
+      "capabilityClass": "external_action_blocked_in_shadow",
+      "shadowExpectation": "503_external_action_disabled",
+      "futureOwner": "phase_11",
+      "futureOwnerNote": "Roadmap says Phase 9/11; Phase 9 builds it, Phase 11 canaries it.",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "group",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "nine eligible and three held-out drafts"
+      ],
+      "observabilityFamily": "preflight",
+      "stateLabel": "21 · Preflight · partial send ready",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "POST /api/engagement/campaigns/:id/send",
+        "POST /api/engagement/campaigns/:id/send-test",
+        "POST /api/engagement/outreach/:id/send-campaign",
+        "POST /api/engagement/outreach/jobs/send",
+        "POST /api/engagement/outreach/send-batch",
+        "POST /api/engagement/outreach/send-intents"
+      ]
+    },
+    {
+      "stateId": "post-send-partial-failure",
+      "visibleStage": "Send",
+      "requiredData": [
+        "send-intent outcomes including a failure"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/send-intents/:id",
+        "GET /api/engagement/outreach/:id"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a send intent with delivered, bounced and unknown outcomes"
+      ],
+      "observabilityFamily": "delivery_history",
+      "stateLabel": "22 · Post-send, partial failure",
+      "menuGroup": "Flow",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:id",
+        "GET /api/engagement/outreach/send-intents/:id"
+      ]
+    },
+    {
+      "stateId": "bottom-chat-bar-conversation-led-flow",
+      "visibleStage": "any",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_6",
+      "sensitiveScopes": [],
+      "fixtureRequirements": [],
+      "observabilityFamily": "health",
+      "gap": "Visual contract only. No backend capability.",
+      "stateLabel": "Bottom chat bar · conversation-led flow",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "express-path-meri-takes-it-from-here",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "a proposed setup covering criteria, delivery and sources"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a goal that yields a complete proposed setup"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Express path · Meri takes it from here",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "express-path-already-running",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "a campaign advanced to strategy by the express path"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a campaign with criteria, delivery and sources preset"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Express path already running",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "typed-instruction-pending-proposal",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "a parsed instruction with named effects awaiting Apply"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "futureOwnerNote": "Roadmap says Phase 5–6. The allowlisted command boundary is Phase 5 work.",
+      "sensitiveScopes": [
+        "tenant",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "an instruction naming four high-confidence targets"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Typed instruction · pending proposal",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "resumed-two-days-later",
+      "visibleStage": "Context",
+      "requiredData": [
+        "a checkpoint restored with targets, decisions and approvals"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a campaign checkpoint at least two days old"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Resumed two days later",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "generation-interrupted-at-7-of-12",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "job status showing partial completion"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/jobs/:id",
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a generation job stopped after seven of twelve items"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Generation interrupted at 7 of 12",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/jobs/:id"
+      ]
+    },
+    {
+      "stateId": "draft-sources-view-line-provenance",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "per-line provenance for a draft version"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a draft version with grounded source attribution per line"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Draft sources view · line provenance",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "post-send-learning-proposals",
+      "visibleStage": "Send",
+      "requiredData": [
+        "post-send outcomes and proposed memory writes"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/send-intents/:id"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_11",
+      "futureOwnerNote": "The roadmap defers governed memory writes to the separate institutional-memory remediation, outside the numbered phases. No memory write may occur in Phase 2.",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a completed send with at least one learning proposal"
+      ],
+      "observabilityFamily": "delivery_history",
+      "stateLabel": "Post-send learning proposals",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/send-intents/:id"
+      ]
+    },
+    {
+      "stateId": "scenario-coalition-to-federal-agency",
+      "visibleStage": "any",
+      "requiredData": [
+        "a coalition sponsor writing to agency staff"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "group",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a coalition with member companies and agency targets"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "Fictional scenario dataset. Phase 3 must create an equivalent fixture, not reuse prototype data.",
+      "stateLabel": "Scenario · coalition to federal agency",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "scenario-firm-to-congressional-default",
+      "visibleStage": "any",
+      "requiredData": [
+        "a firm sponsor writing to congressional staff"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a firm-sponsored campaign to committee staff"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "Fictional scenario dataset. Phase 3 must create an equivalent fixture, not reuse prototype data.",
+      "stateLabel": "Scenario · firm to congressional (default)",
+      "menuGroup": "New in this version",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "missing-target-email",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "a target with no verified address"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a selected target with no verified address"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "Target health and audience-coverage analysis have no current route. Phase 7 owns them.",
+      "stateLabel": "Missing target email",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "stale-target-role",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "a target whose role verification is old"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a target verified more than twelve months ago"
+      ],
+      "observabilityFamily": "profiles",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "Stale target role",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "no-prior-relationship",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "a target with no interaction history"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a target with an empty relationship history"
+      ],
+      "observabilityFamily": "profiles",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "No prior relationship",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "excluded-context-wrong-client",
+      "visibleStage": "Context",
+      "requiredData": [
+        "a context item excluded because it belongs to another client"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/context/:clientId"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "two clients whose context must not commingle"
+      ],
+      "observabilityFamily": "context",
+      "stateLabel": "Excluded context · wrong client",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/context/:clientId"
+      ]
+    },
+    {
+      "stateId": "target-specific-context",
+      "visibleStage": "Context",
+      "requiredData": [
+        "a context item scoped to exactly one target"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/context/:clientId",
+        "GET /api/engagement/outreach/context-library"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a prior interaction belonging to one target only"
+      ],
+      "observabilityFamily": "context",
+      "stateLabel": "Target-specific context",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/context/:clientId",
+        "GET /api/engagement/outreach/context-library"
+      ]
+    },
+    {
+      "stateId": "held-draft-claim-level-remediation",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "a held draft with the unsupported claim identified"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a draft held for an unsupported figure"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Held draft · claim-level remediation",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "dirty-draft-approval-cleared-by-an-edit",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "a draft whose approval was cleared by a later edit"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "an approved draft edited into a new version"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Dirty draft · approval cleared by an edit",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "stale-drafts-upstream-change",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "drafts invalidated by an upstream change"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/draft-versions/:versionId",
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "drafts marked stale after a target-set change"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Stale drafts · upstream change",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "audit-trail-unavailable",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "a draft whose grounding audit cannot be read"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a draft version whose audit record is unavailable"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Audit trail unavailable",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/draft-versions/:versionId"
+      ]
+    },
+    {
+      "stateId": "sponsor-several-clients",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "a shared position across several clients"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "group",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "two clients approving a shared position"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Sponsor · several clients",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "sponsor-coalition",
+      "visibleStage": "Goal",
+      "requiredData": [
+        "a named coalition sponsor"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "group",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a coalition whose member context stays with each member"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Sponsor · coalition",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "sponsor-internal-only-blocks-sending",
+      "visibleStage": "Send",
+      "requiredData": [
+        "an internal-only sponsor that blocks external delivery"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "user",
+        "group",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "an internal sponsor with only internal recipients"
+      ],
+      "observabilityFamily": "preflight",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Sponsor · internal only blocks sending",
+      "menuGroup": "Target and context edge cases",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "meri-interpreting-the-request",
+      "visibleStage": "Goal",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Meri interpreting the request",
+      "menuGroup": "Loading",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "searching-the-directory",
+      "visibleStage": "Targets",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "Searching the Directory",
+      "menuGroup": "Loading",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "loading-a-target-profile",
+      "visibleStage": "Targets",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "profiles",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "Loading a target profile",
+      "menuGroup": "Loading",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "generating-samples",
+      "visibleStage": "Drafts",
+      "requiredData": [],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/jobs/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+      ],
+      "capabilityClass": "external_action_blocked_in_shadow",
+      "shadowExpectation": "503_external_action_disabled",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Generating samples",
+      "menuGroup": "Loading",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
+        "POST /api/engagement/outreach/jobs/generate"
+      ]
+    },
+    {
+      "stateId": "generating-remaining-drafts",
+      "visibleStage": "Drafts",
+      "requiredData": [],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/jobs/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+      ],
+      "capabilityClass": "external_action_blocked_in_shadow",
+      "shadowExpectation": "503_external_action_disabled",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Generating remaining drafts",
+      "menuGroup": "Loading",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/ai-templates/:id/preview",
+        "POST /api/engagement/campaigns/:id/generate",
+        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
+        "POST /api/engagement/outreach/generate-batch",
+        "POST /api/engagement/outreach/insights/talking-points",
+        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
+        "POST /api/engagement/outreach/jobs/generate"
+      ]
+    },
+    {
+      "stateId": "sending-the-campaign",
+      "visibleStage": "Send",
+      "requiredData": [],
+      "currentRouteRefs": [
+        "POST /api/engagement/campaigns/:id/send-test",
+        "POST /api/engagement/campaigns/:id/send",
+        "POST /api/engagement/outreach/:id/send-campaign",
+        "POST /api/engagement/outreach/jobs/send",
+        "POST /api/engagement/outreach/send-batch",
+        "POST /api/engagement/outreach/send-intents"
+      ],
+      "capabilityClass": "external_action_blocked_in_shadow",
+      "shadowExpectation": "503_external_action_disabled",
+      "futureOwner": "phase_11",
+      "futureOwnerNote": "Roadmap says Phase 9/11.",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target",
+        "user"
+      ],
+      "fixtureRequirements": [],
+      "observabilityFamily": "delivery_history",
+      "stateLabel": "Sending the campaign",
+      "menuGroup": "Loading",
+      "routeManifestKeys": [
+        "POST /api/engagement/campaigns/:id/send",
+        "POST /api/engagement/campaigns/:id/send-test",
+        "POST /api/engagement/outreach/:id/send-campaign",
+        "POST /api/engagement/outreach/jobs/send",
+        "POST /api/engagement/outreach/send-batch",
+        "POST /api/engagement/outreach/send-intents"
+      ]
+    },
+    {
+      "stateId": "directory-search-failed",
+      "visibleStage": "Targets",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant"
+      ],
+      "fixtureRequirements": [
+        "a directory backend failure"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "Directory search failed",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "target-profile-failed-to-load",
+      "visibleStage": "Targets",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a profile read failure scoped to one target"
+      ],
+      "observabilityFamily": "profiles",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "Target profile failed to load",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "one-draft-failed-to-generate",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "job item status for the failed draft"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/jobs/:id"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a job with one failed item"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "One draft failed to generate",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/jobs/:id"
+      ]
+    },
+    {
+      "stateId": "critical-context-failure",
+      "visibleStage": "Context",
+      "requiredData": [
+        "a required context item that cannot be loaded"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/context/:clientId"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_8",
+      "sensitiveScopes": [
+        "tenant",
+        "client",
+        "ethical_wall"
+      ],
+      "fixtureRequirements": [
+        "a required policy item that fails to load"
+      ],
+      "observabilityFamily": "context",
+      "stateLabel": "Critical context failure",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": [
+        "GET /api/engagement/context/:clientId"
+      ]
+    },
+    {
+      "stateId": "autosave-failed",
+      "visibleStage": "any",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_5",
+      "sensitiveScopes": [
+        "tenant",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a campaign save failure"
+      ],
+      "observabilityFamily": "outreach_records",
+      "gap": "No Campaign Spec persistence exists. Phase 2 creates none. Phase 5 owns session, event, checkpoint and canonical state storage.",
+      "stateLabel": "Autosave failed",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "generation-taking-longer-than-expected",
+      "visibleStage": "Drafts",
+      "requiredData": [
+        "job status past the expected budget"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/jobs/:id"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_9",
+      "sensitiveScopes": [
+        "tenant",
+        "client"
+      ],
+      "fixtureRequirements": [
+        "a long-running generation job"
+      ],
+      "observabilityFamily": "drafts",
+      "stateLabel": "Generation taking longer than expected",
+      "menuGroup": "Error and timeout",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/jobs/:id"
+      ]
+    },
+    {
+      "stateId": "no-targets-selected",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "an empty selection"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "a campaign with no targets selected"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "Empty-state rendering only. No backend capability.",
+      "stateLabel": "No targets selected",
+      "menuGroup": "Empty",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "no-recommendations-found",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "an empty recommendation result"
+      ],
+      "currentRouteRefs": [],
+      "capabilityClass": "future_phase_not_implemented",
+      "shadowExpectation": "not_implemented",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "target"
+      ],
+      "fixtureRequirements": [
+        "criteria that match no target"
+      ],
+      "observabilityFamily": "targets",
+      "gap": "The Capiro Directory is not part of the Engagement route manifest. Directory search, office expansion and target profiles have no current /api/engagement route. Phase 7 owns the V3 composition; Phase 3 must not claim Directory parity through the preview route.",
+      "stateLabel": "No recommendations found",
+      "menuGroup": "Empty",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "no-saved-audiences",
+      "visibleStage": "Targets",
+      "requiredData": [
+        "an empty saved-audience list"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/outreach/audiences"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_7",
+      "sensitiveScopes": [
+        "tenant",
+        "user"
+      ],
+      "fixtureRequirements": [
+        "a tenant with no saved audience"
+      ],
+      "observabilityFamily": "targets",
+      "stateLabel": "No saved audiences",
+      "menuGroup": "Empty",
+      "routeManifestKeys": [
+        "GET /api/engagement/outreach/audiences"
+      ]
+    },
+    {
+      "stateId": "meri-unavailable-options-still-work",
+      "visibleStage": "any",
+      "requiredData": [
+        "deterministic controls remain usable without the model"
+      ],
+      "currentRouteRefs": [
+        "GET /api/engagement/capabilities"
+      ],
+      "capabilityClass": "safe_read",
+      "shadowExpectation": "same_as_main",
+      "futureOwner": "phase_6",
+      "sensitiveScopes": [
+        "tenant"
+      ],
+      "fixtureRequirements": [
+        "a tenant with the model provider unavailable"
+      ],
+      "observabilityFamily": "health",
+      "stateLabel": "Meri unavailable · options still work",
+      "menuGroup": "System",
+      "routeManifestKeys": [
+        "GET /api/engagement/capabilities"
+      ]
+    },
+    {
+      "stateId": "mobile-stacked-layout",
+      "visibleStage": "any",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_6",
+      "futureOwnerNote": "Roadmap says Phase 6–9 as each surface is built.",
+      "sensitiveScopes": [],
+      "fixtureRequirements": [],
+      "observabilityFamily": "health",
+      "gap": "Responsive contract only. No backend capability.",
+      "stateLabel": "Mobile stacked layout",
+      "menuGroup": "System",
+      "routeManifestKeys": []
+    },
+    {
+      "stateId": "implementation-notes",
+      "visibleStage": "any",
+      "requiredData": [],
+      "currentRouteRefs": [],
+      "capabilityClass": "prototype_only",
+      "shadowExpectation": "not_called",
+      "futureOwner": "phase_6",
+      "sensitiveScopes": [],
+      "fixtureRequirements": [],
+      "observabilityFamily": "health",
+      "gap": "Prototype documentation surface. Never shipped.",
+      "stateLabel": "Implementation notes",
+      "menuGroup": "System",
+      "routeManifestKeys": []
+    }
+  ]
+}
