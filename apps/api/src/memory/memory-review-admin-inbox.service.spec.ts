@@ -20,6 +20,19 @@ const adminCtx: TenantContext = {
   role: 'user_admin',
 };
 
+const subject = {
+  id: CANDIDATE,
+  tenantId: adminCtx.tenantId,
+  clientId: null,
+  ownerUserId: ADMIN,
+  proposedByUserId: ADMIN,
+  memoryClass: 'institutional_authoritative' as const,
+  scope: 'firm' as const,
+  status: 'pending_review' as const,
+  legalHold: false,
+  clientStatus: null,
+};
+
 function item(): MemoryReviewInboxItem {
   return {
     candidateId: CANDIDATE,
@@ -55,15 +68,25 @@ function item(): MemoryReviewInboxItem {
 }
 
 function harness(allowed = true) {
-  const requireCandidate = jest.fn(async () => {
-    if (!allowed) throw new Error('denied');
-    return {};
-  });
-  const service = new MemoryReviewAdminInboxService(
-    {} as PrismaService,
-    { requireCandidate } as unknown as MemoryAuthorizationService,
+  const tx = {};
+  const withTenantUser = jest.fn(
+    async (
+      _tenantId: string,
+      _userId: string,
+      work: (value: typeof tx) => unknown,
+    ) => work(tx),
   );
-  return { service, requireCandidate };
+  const loadCandidateInTx = jest.fn(async () => subject);
+  const evaluateInTx = jest.fn(async () =>
+    allowed
+      ? ({ allowed: true, basis: 'admin' } as const)
+      : ({ allowed: false, reason: 'admin_required' } as const),
+  );
+  const service = new MemoryReviewAdminInboxService(
+    { withTenantUser } as unknown as PrismaService,
+    { loadCandidateInTx, evaluateInTx } as unknown as MemoryAuthorizationService,
+  );
+  return { service, withTenantUser, loadCandidateInTx, evaluateInTx };
 }
 
 afterEach(() => jest.restoreAllMocks());
@@ -104,9 +127,12 @@ describe('MemoryReviewAdminInboxService', () => {
       adminCtx,
       expect.objectContaining({ view: 'all_pending' }),
     );
-    expect(h.requireCandidate).toHaveBeenCalledWith(
+    expect(h.withTenantUser).toHaveBeenCalledTimes(1);
+    expect(h.loadCandidateInTx).toHaveBeenCalledWith(txMatcher(), adminCtx.tenantId, CANDIDATE);
+    expect(h.evaluateInTx).toHaveBeenCalledWith(
+      txMatcher(),
       adminCtx,
-      CANDIDATE,
+      subject,
       'approve',
       { emitDenialMetrics: false },
     );
@@ -142,6 +168,11 @@ describe('MemoryReviewAdminInboxService', () => {
 
     await expect(h.service.list(standardCtx, { view: 'needs_my_review' })).resolves.toBe(page);
     expect(baseList).toHaveBeenCalledWith(standardCtx, { view: 'needs_my_review' });
-    expect(h.requireCandidate).not.toHaveBeenCalled();
+    expect(h.withTenantUser).not.toHaveBeenCalled();
+    expect(h.evaluateInTx).not.toHaveBeenCalled();
   });
 });
+
+function txMatcher(): object {
+  return expect.any(Object) as object;
+}
