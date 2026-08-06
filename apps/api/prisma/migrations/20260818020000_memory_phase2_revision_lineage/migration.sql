@@ -17,12 +17,19 @@ ALTER TABLE memory_candidate
   ADD COLUMN IF NOT EXISTS revision_number integer NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS superseded_by_id uuid;
 
+-- Self-referential lineage must remain in the same tenant even under direct SQL.
+-- `id` is globally unique, but UUID-only foreign keys do not encode the tenant
+-- boundary. This non-partial unique index lets every lineage FK bind the owning
+-- tenant and candidate identity together.
+CREATE UNIQUE INDEX IF NOT EXISTS memory_candidate_tenant_id_id_unique
+  ON memory_candidate (tenant_id, id);
+
 DO $$
 BEGIN
   ALTER TABLE memory_candidate
     ADD CONSTRAINT memory_candidate_revision_root_fk
-    FOREIGN KEY (revision_root_id)
-    REFERENCES memory_candidate(id)
+    FOREIGN KEY (tenant_id, revision_root_id)
+    REFERENCES memory_candidate(tenant_id, id)
     ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
@@ -33,8 +40,8 @@ DO $$
 BEGIN
   ALTER TABLE memory_candidate
     ADD CONSTRAINT memory_candidate_predecessor_fk
-    FOREIGN KEY (predecessor_candidate_id)
-    REFERENCES memory_candidate(id)
+    FOREIGN KEY (tenant_id, predecessor_candidate_id)
+    REFERENCES memory_candidate(tenant_id, id)
     ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
@@ -45,9 +52,9 @@ DO $$
 BEGIN
   ALTER TABLE memory_candidate
     ADD CONSTRAINT memory_candidate_superseded_by_fk
-    FOREIGN KEY (superseded_by_id)
-    REFERENCES memory_candidate(id)
-    ON DELETE SET NULL
+    FOREIGN KEY (tenant_id, superseded_by_id)
+    REFERENCES memory_candidate(tenant_id, id)
+    ON DELETE RESTRICT
     NOT VALID;
 EXCEPTION
   WHEN duplicate_object THEN NULL;
