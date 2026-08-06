@@ -2,7 +2,18 @@
 
 ## Product decision
 
-Independent approval is no longer required for shared firm or client memory.
+The same active administrator may create and approve the same shared-memory proposal.
+
+Example:
+
+```text
+Admin A proposes firm/client memory
+→ pending review
+→ Admin A approves the same proposal
+→ memory activates
+```
+
+No second administrator or independent approver is required.
 
 Any **active** tenant administrator may approve, reject, request changes, or
 reassign a governed-memory review they are currently authorized to access,
