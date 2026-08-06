@@ -46,17 +46,24 @@ It:
 
 1. removes the `assigned_to <> requested_by` shape restriction;
 2. preserves the shape, status, reason-size, and body-free metadata checks;
-3. permits a decision only when the decider is an active `user_admin` or
-   `capiro_admin`, or the existing assigned non-admin reviewer;
-4. preserves standard-user self-decision denial;
-5. updates existing pending workflow wording without changing status,
+3. permits the administrator exception only when the decider is an active
+   `user_admin` or `capiro_admin` **and** the canonical application transaction
+   set `app.memory_admin_review_decision=on` after authorization;
+4. preserves assignment enforcement for direct/generic and non-admin writes;
+5. preserves standard-user self-decision denial even when the capability string
+   is forged;
+6. updates existing pending workflow wording without changing status,
    assignment, candidate content, or active memory;
-6. updates future trigger-created workflow wording.
+7. updates future trigger-created workflow wording.
 
 ## Application boundary
 
 - Canonical authorization exempts administrators from the self-review denial
   only after wall and client-status checks.
+- The authorization service grants the transaction-local database capability
+  only for an allowed, non-simulated admin `approve` or `review` decision on a
+  pending candidate.
+- Read-model and eligibility simulations never receive the capability.
 - Candidate and immutable-version activation retain defense-in-depth self-review
   checks for non-admin actors.
 - Workflow decisions no longer require current assignment for administrators.
@@ -83,6 +90,13 @@ MEMORY_ADMIN_SELF_APPROVAL_DATABASE_ACCEPTANCE_COMPLETE
 MEMORY_PHASE3_REVIEW_INBOX_CLOSEOUT_COMPLETE
 MEMORY_ADMIN_SELF_APPROVAL_CLOSEOUT_COMPLETE
 ```
+
+The database acceptance proves:
+
+- a raw admin self-decision without the capability is denied;
+- a capability-bearing active admin self-decision succeeds;
+- the workflow decision evidence synchronizes;
+- a standard user cannot self-approve even when attempting to set the same GUC.
 
 The closeout also runs focused TypeScript, the existing Phase 2/3 tests, the
 administrator policy tests, web Vitest, and a production web build.
