@@ -219,16 +219,24 @@ try {
         [path.join(ROOT, 'scripts/mint-engagement-phase1-jwt.mjs')],
         commonEnv,
       );
+      // Unmeasured claims stay null. Writing `true` here would let the M9 web-containment gate
+      // be satisfied by this script's own output rather than by an observation.
       const { writeFile: wf } = await import('node:fs/promises');
       await wf(
         path.join(EVIDENCE, 'browser-parity.json'),
         `${JSON.stringify({
-          marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
-          authenticated: true,
-          everySurfaceLoaded: true,
-          everySurfaceCalledMainApi: true,
-          previewRoutingEnabled: false,
-          shadowRequests: [],
+          marker: 'ENGAGEMENT_PHASE1_BROWSER_SKIPPED',
+          browserProofPerformed: false,
+          skipBrowser: true,
+          clerkAuthentication: 'backend_api_jwt',
+          reason:
+            'ENGAGEMENT_PHASE1_SKIP_BROWSER=1: no browser was launched, so web-surface loading ' +
+            'and client-side shadow containment were not measured.',
+          authenticated: null,
+          everySurfaceLoaded: null,
+          everySurfaceCalledMainApi: null,
+          previewRoutingEnabled: null,
+          shadowRequests: null,
           states: [],
         }, null, 2)}\n`,
       );

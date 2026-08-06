@@ -40,13 +40,23 @@ const summary = JSON.parse(await readFile(summaryPath, 'utf8'));
 if (summary.sha !== actualSha || summary.actualHeadSha !== actualSha) {
   throw new Error('Post-acceptance proof SHA does not match the primary summary');
 }
-if (
-  browserEvidence.marker !== 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE' ||
-  browserEvidence.authenticated !== true ||
-  browserEvidence.everySurfaceLoaded !== true ||
-  browserEvidence.everySurfaceCalledMainApi !== true
-) {
-  throw new Error('The isolated hardened browser proof did not complete successfully');
+// A skipped browser proof is an allowed run mode, but it is never a passing one: it carries
+// forward as browserProofPerformed=false so the final gate cannot be satisfied by a run that
+// measured nothing about the web surfaces.
+const browserProofPerformed =
+  browserEvidence.marker === 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE';
+if (browserProofPerformed) {
+  if (
+    browserEvidence.authenticated !== true ||
+    browserEvidence.everySurfaceLoaded !== true ||
+    browserEvidence.everySurfaceCalledMainApi !== true
+  ) {
+    throw new Error('The isolated hardened browser proof did not complete successfully');
+  }
+} else if (browserEvidence.marker !== 'ENGAGEMENT_PHASE1_BROWSER_SKIPPED') {
+  throw new Error(
+    `Unrecognized browser evidence marker: ${String(browserEvidence.marker)}`,
+  );
 }
 
 const browserReplays = await replayBrowserGets();
@@ -59,7 +69,12 @@ const proof = {
   browserReplays,
   realReads,
   manifestClassification,
+  // The replays really did return 2xx; what differs when the browser is skipped is where the
+  // replayed URLs came from, and whether the web surfaces themselves were ever exercised.
   browserResponsesSuccessful: true,
+  replaySource: browserProofPerformed ? 'browser-observed' : 'canonical-fallback',
+  browserProofPerformed,
+  webSurfaceContainmentProven: browserProofPerformed,
   realSeededReadParity: true,
   unmatchedManifestReads: 0,
   unclassifiedNon2xxReads: 0,
@@ -73,7 +88,9 @@ await writeFile(
   `${JSON.stringify(
     {
       ...summary,
-      browserResponsesVerified: true,
+      browserResponsesVerified: browserProofPerformed,
+      browserProofPerformed,
+      webSurfaceContainmentProven: browserProofPerformed,
       realSeededReadParity: true,
       postAcceptanceMarker: proof.marker,
     },

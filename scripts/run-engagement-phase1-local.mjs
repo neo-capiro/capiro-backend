@@ -257,29 +257,38 @@ async function main() {
 
       );
 
-      // Write synthetic browser-parity.json so post-acceptance and NC8 can proceed.
+      // No browser ran, so nothing about the web surfaces was measured. Record that as
+      // unmeasured (null) rather than asserting it: claiming everySurfaceLoaded/
+      // everySurfaceCalledMainApi/shadowRequests here would make the M9 web-containment gate
+      // and NC8 pass on values this script wrote itself. Phase 1 plan §36.14: partial honest
+      // completion beats a false green.
 
-      // Browser CDP proof is skipped; API parity + post-acceptance remain authoritative.
+      const skippedBrowser = {
 
-      const syntheticBrowser = {
+        marker: 'ENGAGEMENT_PHASE1_BROWSER_SKIPPED',
 
-        marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
-
-        authenticated: true,
-
-        everySurfaceLoaded: true,
-
-        everySurfaceCalledMainApi: true,
-
-        previewRoutingEnabled: false,
-
-        shadowRequests: [],
-
-        states: [],
+        browserProofPerformed: false,
 
         skipBrowser: true,
 
         clerkAuthentication: 'backend_api_jwt',
+
+        reason:
+          'ENGAGEMENT_PHASE1_SKIP_BROWSER=1: no browser was launched, so web-surface loading ' +
+          'and client-side shadow containment were not measured. The static no-preview-routing ' +
+          'assertion in the DB-free verifier still applies.',
+
+        authenticated: null,
+
+        everySurfaceLoaded: null,
+
+        everySurfaceCalledMainApi: null,
+
+        previewRoutingEnabled: null,
+
+        shadowRequests: null,
+
+        states: [],
 
       };
 
@@ -287,7 +296,7 @@ async function main() {
 
         path.join(EVIDENCE, 'browser-parity.json'),
 
-        JSON.stringify(syntheticBrowser, null, 2) + '\n',
+        JSON.stringify(skippedBrowser, null, 2) + '\n',
 
       );
 
@@ -663,13 +672,24 @@ async function writeNegativeControlEvidence() {
       passed: image.migrateExit === 64,
       proof: 'serve-only image refused migrate',
     },
-    NC8: {
-      passed:
-        browser.previewRoutingEnabled === false &&
-        Array.isArray(browser.shadowRequests) &&
-        browser.shadowRequests.length === 0,
-      proof: 'authenticated browser and static routing checks observed no shadow traffic',
-    },
+    // NC8 is an observation, not an assertion: with no browser there is no traffic record to
+    // check, so report it unmeasured (null) instead of passing on a self-written empty array.
+    NC8:
+      browser.browserProofPerformed === false
+        ? {
+            passed: null,
+            measured: false,
+            proof:
+              'not measured: ENGAGEMENT_PHASE1_SKIP_BROWSER=1 launched no browser, so no ' +
+              'shadow-traffic observation exists',
+          }
+        : {
+            passed:
+              browser.previewRoutingEnabled === false &&
+              Array.isArray(browser.shadowRequests) &&
+              browser.shadowRequests.length === 0,
+            proof: 'authenticated browser and static routing checks observed no shadow traffic',
+          },
   };
   if (Object.values(controls).some((value) => value?.passed === false)) {
     throw new Error(`A Phase 1 negative control failed: ${JSON.stringify(controls)}`);

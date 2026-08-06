@@ -69,6 +69,18 @@ try {
   ]);
 
   const finalSummary = JSON.parse(await readFile(summary, 'utf8'));
+  // Distinguish "a stage broke" from "a gate was deliberately not measured", so a skipped
+  // browser proof reads as an honestly incomplete acceptance rather than a generic failure.
+  if (finalSummary.browserProofPerformed === false) {
+    throw new Error(
+      'Phase 1 acceptance is INCOMPLETE (not failed): ENGAGEMENT_PHASE1_SKIP_BROWSER=1 launched ' +
+        'no browser, so the M9 current-web containment gate and NC8 were not measured. Every ' +
+        'other stage passed — see post-acceptance-proof.json, read-parity.json, ' +
+        'external-action-denials.json, and background-containment.json in the evidence ' +
+        'directory. To close this gate, rerun without ENGAGEMENT_PHASE1_SKIP_BROWSER against a ' +
+        'Clerk actor whose session carries an active organization.',
+    );
+  }
   if (
     finalSummary.sha !== sha ||
     finalSummary.actualHeadSha !== sha ||
