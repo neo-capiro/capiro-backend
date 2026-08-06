@@ -5,6 +5,7 @@
 This increment implements immutable proposer revision and resubmission after an assigned reviewer records `changes_requested`:
 
 - proposer-only `POST /memory/review/candidates/:id/revise` route;
+- fail-closed revision boundary when Memory Review, governed lifecycle, or authorization enforcement is dark;
 - immutable successor candidate rather than in-place candidate mutation;
 - root, predecessor, successor, and monotonic revision-number lineage;
 - row locks on the predecessor candidate and its review workflow;
@@ -23,14 +24,15 @@ This increment implements immutable proposer revision and resubmission after an 
 
 ## Security and correctness repairs made during review
 
-The recovered draft implementation had four defects that were corrected before acceptance:
+The recovered draft implementation had five defects that were corrected before acceptance:
 
 1. Canonical proposals could carry conflicting browser-provided `value` and `sections`.
 2. A successor inherited stale `source_content_hash`, `source_version`, and `origin_trace_id` from its predecessor.
 3. Predecessor workflow supersession replaced the reviewer's `decided_by` and `decided_at` with the proposer.
 4. Authorization was evaluated only before cloning, not again on the created successor before its new review workflow opened.
+5. The revision route could still execute against an older `changes_requested` row after the review feature had been switched dark.
 
-The accepted implementation rejects the second content channel, regenerates revision-owned identity, preserves reviewer attribution, and rolls the transaction back when successor authorization is no longer valid.
+The accepted implementation rejects the second content channel, regenerates revision-owned identity, preserves reviewer attribution, rolls the transaction back when successor authorization is no longer valid, and rejects revision before any database access when the review surface is disabled.
 
 ## Focused validation completed
 
@@ -38,11 +40,11 @@ Passed in the available isolated environment:
 
 - strict TypeScript check for the exact production revision helper and service sources;
 - helper runtime probes for canonical dual-channel rejection, derived canonical consistency, correction text encoding, and non-canonical value revision;
-- service runtime probes for successful immutable revision, successor authorization denial, and concurrent-successor conflict translation;
+- service runtime probes for dark-surface rejection before database access, successful immutable revision, successor authorization denial, and concurrent-successor conflict translation;
 - migration structural/static contract: 13 checks covering locks, uniqueness, workflow state, source identity refresh, attribution preservation, and absence of active-memory DML;
 - post-change GitHub diff and tenant/security review.
 
-Committed focused Jest coverage additionally covers proposer-only behavior, first and second authorization gates, immutable correction encoding, lineage/audit fields, stale-workflow conflicts, migration invariants, and no memory-body audit leakage. The full repository Jest suite was not executable in this environment and is not claimed as run.
+Committed focused Jest coverage additionally covers dark-surface rejection, proposer-only behavior, first and second authorization gates, immutable correction encoding, lineage/audit fields, stale-workflow conflicts, migration invariants, and no memory-body audit leakage. The full repository Jest suite was not executable in this environment and is not claimed as run.
 
 ## Prisma ownership and remaining executable gate
 
