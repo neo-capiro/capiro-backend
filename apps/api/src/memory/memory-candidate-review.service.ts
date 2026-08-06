@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import {
   MemoryReviewWorkflowService,
   type MemoryReviewWorkflowSnapshot,
@@ -76,12 +77,12 @@ const VERSION_SOURCE_KIND = {
 } as const;
 
 /**
- * Scope-aware review facade for standard authenticated users.
+ * Scope-aware review facade for authenticated users.
  *
- * Phase 2 adds a durable named-reviewer workflow. The candidate remains the
- * proposed content; review_request stores only assignment, status, bounded
- * feedback, and decision stamps. This queue returns only work assigned to the
- * authenticated reviewer.
+ * Administrators may act on every currently authorized pending review,
+ * including their own proposal. Non-admin reviewers still see only work that is
+ * currently assigned to them. The candidate body is loaded only after current
+ * authorization succeeds.
  */
 @Injectable()
 export class MemoryCandidateReviewService {
@@ -117,6 +118,7 @@ export class MemoryCandidateReviewService {
       });
 
       const visible: ReviewableMemoryCandidate[] = [];
+      const admin = isMemoryReviewAdminRole(ctx.role);
       for (const row of rows as PendingCandidateRow[]) {
         const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.id);
         if (!subject) continue;
@@ -153,7 +155,10 @@ export class MemoryCandidateReviewService {
           subject,
         );
 
-        if (workflow.status !== 'pending' || workflow.assignedReviewer?.userId !== ctx.userId) {
+        if (
+          workflow.status !== 'pending' ||
+          (!admin && workflow.assignedReviewer?.userId !== ctx.userId)
+        ) {
           continue;
         }
 
