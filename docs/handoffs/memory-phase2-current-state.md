@@ -4,7 +4,7 @@
 
 - Branch: `feat/memory-phase2-review-workflow`
 - Draft PR: `#761`
-- Base: `main@af9ef9d2b6bf08f08b548d8a7807337fc24d038d`
+- Base: `main`
 - Keep the PR draft; do not merge or deploy.
 
 ## Completed increments
@@ -29,93 +29,83 @@ Evidence: `docs/qa/memory-phase2-increment-1-foundation.md`.
 
 Evidence: `docs/qa/memory-phase2-increment-2-revision-lineage.md`.
 
-### Increment 3A — persistence gate and database-boundary hardening
+### Increment 3 — persistence integrity and closeout
 
-- revision SQL bound to `app.current_tenant` and `app.current_user`;
+- revision SQL bound to tenant and actor context;
 - system-bypass revision calls denied;
-- tenant-bound composite lineage foreign keys and unique key;
-- exact Prisma/PostgreSQL constraint-name mapping;
-- explicit matching `ON UPDATE NO ACTION` and `ON DELETE RESTRICT` behavior;
-- target ownership contract changed to Prisma-modeled but SQL-enforced;
-- guarded idempotent schema and migration-ownership transformers;
-- executable clean/upgrade PostgreSQL, concurrency, compatibility-route, and active-memory closeout harness;
-- disposable-database refusal safeguards.
+- Prisma-modeled, SQL-enforced tenant-bound lineage;
+- deterministic concurrent-successor conflicts;
+- body-free workflow metadata;
+- portable Windows/Corepack closeout runner;
+- clean and exact upgrade migration replay;
+- compatibility-route and active-memory mutation checks.
 
-Evidence: `docs/qa/memory-phase2-increment-3-persistence-gate.md`.
-
-### Increment 3B — workflow metadata and conflict integrity
-
-- normalized body-free workflow titles for backfills and future trigger-created rows;
-- canonical candidate-kind metadata for standard, correction, restore, and contradiction proposals;
-- idempotent tenant-bound reconciliation for partial migration application;
-- executable contract controls that reject title or metadata body leakage;
-- deterministic successor-conflict behavior for legitimate concurrent-revision retries;
-- original-proposer validation before successor-existence checks;
-- stable API conflict translation protected by the persistence contract.
-
-Evidence: `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`.
-
-### Increment 3C — persistence closeout runner portability
-
-- removed direct `pnpm.cmd` spawning from the Windows closeout path;
-- prefers Node + Corepack and uses a deliberate Windows shell fallback only when required;
-- added a bounded 64 MB process-output buffer;
-- redacts database URLs and other secret-bearing environment values from diagnostics;
-- distinguishes startup errors, exit failures, and terminating signals;
-- added helper regression tests and an integration contract pinning the portable runner;
-- preserved every existing Prisma, migration, concurrency, tenant-context, compatibility-route, and active-memory assertion.
-
-Evidence: `docs/qa/memory-phase2-increment-3c-closeout-runner-portability.md`.
-
-## Validation completed in the available environment
-
-- strict isolated TypeScript for the persistence contract, closeout runner, portable command helper, and focused specifications;
-- target transformer and runtime contract;
-- schema and migration-transformer idempotence;
-- partial-application and drift refusal;
-- composite tenant relation, constraint-name, and referential-action controls;
-- tenant-context and system-bypass security review;
-- body-free workflow title and metadata mutation controls;
-- candidate-kind vocabulary and reconciliation controls;
-- predecessor lock, proposer validation, successor conflict, and terminal-state ordering controls;
-- database uniqueness-boundary and API conflict-translation checks;
-- disposable-database harness safety review;
-- Windows/Corepack resolution, bounded-output, credential-redaction, and startup-error probes;
-- post-publication diff review.
-
-## Persistence gate still open
-
-The current environment has no complete repository checkout with `pnpm`, Docker, PostgreSQL, and `psql`. The checked-in Prisma schema has therefore not been rewritten and validated through the full repository toolchain, and the executable PostgreSQL closeout has not run.
-
-The executable persistence marker has **not** been achieved. The branch intentionally remains fail-closed until a full checkout runs the guarded transformer, commits the resulting Prisma schema, and passes:
+The complete-checkout marker has passed on the persisted branch state:
 
 ```text
 MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
 ```
 
+Evidence:
+
+- `docs/qa/memory-phase2-increment-3-persistence-gate.md`
+- `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`
+- `docs/qa/memory-phase2-increment-3c-closeout-runner-portability.md`
+
+### Increment 4A — notification obligations
+
+- durable, tenant-isolated notification outbox;
+- atomic obligations for assignment, revision assignment, reassignment, changes requested, approval, and rejection;
+- body-free and reason-free payloads;
+- pending-only backfill;
+- correct first-assignment classification.
+
+Evidence: `docs/qa/memory-phase2-increment-4a-notification-obligations.md`.
+
+### Increment 4B — notification dispatcher
+
+- concurrent leased claims with `FOR UPDATE SKIP LOCKED`;
+- bounded retries and terminal handling;
+- active membership, current workflow, exact tenant feature scope, canonical memory authorization, ethical-wall, and archived-client checks;
+- tenant-bound, recipient-only in-app notifications under FORCE RLS;
+- default-off, at-most-once SES email;
+- body-free delivery audit evidence;
+- audit-retaining recipient foreign keys;
+- operator and complete-checkout validation commands without production scheduling.
+
+Evidence: `docs/qa/memory-phase2-increment-4b-notification-dispatcher.md`.
+
+## Validation completed
+
+- Prisma validate and generate passed after the persisted lineage reconciliation.
+- Clean and upgrade Phase 2 persistence replay passed.
+- `MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE` passed.
+- Notification helper passed strict isolated TypeScript and runtime probes.
+- Static contracts cover notification leases, retries, tenant scope, membership, workflow state, authorization, archived-client suppression, RLS, idempotency, body-free channels, default-off email, at-most-once email state, and module wiring.
+
+## Notification gate still open
+
+Increment 4B is persisted but still requires complete-checkout execution against two freshly recreated disposable databases.
+
+Required marker:
+
+```text
+MEMORY_PHASE2_NOTIFICATION_CLOSEOUT_COMPLETE
+```
+
+The notification closeout first reruns the established persistence closeout, then validates the complete clean and upgrade migration chains, event obligations, concurrent claims, recipient-only RLS, cross-tenant isolation, in-app idempotency, and database rejection of feedback/body fields.
+
 ## Phase 2 is not complete
 
 Still required:
 
-- execute and repair the persistence closeout;
-- commit the reconciled Prisma schema;
-- notifications and email obligations;
-- Review Inbox and proposer-history UX;
-- compatibility-route closeout;
-- full API/monorepo tests, typecheck, pinned formatting, real-role RLS, web build/Vitest, and browser acceptance.
+- execute and repair the notification closeout;
+- Review Inbox backend read model;
+- Review Inbox and proposer-history frontend;
+- notification list/read-state endpoints;
+- remaining compatibility-route closeout;
+- full API/monorepo tests, typecheck, pinned formatting, web build/Vitest, authenticated browser acceptance, and final security review.
 
-## Next increment
+## Branch synchronization note
 
-In a complete checkout:
-
-1. run `pnpm exec tsx scripts/apply-memory-phase2-prisma-lineage-model.ts` from `apps/api`;
-2. run Prisma format, validate, and generate;
-3. review the generated relation constraints and confirm no schema drift;
-4. provide two different empty local pgvector/PostgreSQL databases named with `memory_phase2`;
-5. run `scripts/verify-memory-phase2-persistence-closeout.ts`;
-6. repair every failure and require the exact completion marker;
-7. review and commit the resulting schema/migration diff.
-
-On Windows, the closeout now resolves Node-adjacent Corepack automatically. `CAPIRO_COREPACK_PNPM_JS` may be set to an absolute `pnpm.js` path when an unusual Node installation cannot be discovered automatically.
-
-Do not begin notifications or frontend work until this gate is green.
+At Increment 4B closeout the feature branch is two commits behind `main`. Both upstream commits are Defense Budget / parser changes and do not overlap the Memory Review files in this increment. Synchronize before final acceptance and rerun affected checks.
