@@ -25,7 +25,16 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { FundingOpportunitiesFlagGuard } from './funding-opportunities-flag.guard.js';
+import {
+  FundingOpportunitiesFlagGuard,
+  FundingOpportunitiesInboxFlagGuard,
+} from './funding-opportunities-flag.guard.js';
+import {
+  FundingOpportunityInboxService,
+  INBOX_FILTERS,
+  INBOX_MAX_PAGE_SIZE,
+  type InboxFilter,
+} from './funding-opportunity-inbox.service.js';
 import {
   FundingOpportunitiesService,
   type OpportunityQuery,
@@ -262,6 +271,31 @@ class OpportunityActionDto {
   nextAction?: string;
 }
 
+/**
+ * Inbox query.
+ *
+ * `cursor` is OPAQUE — base64 of `(sortValue, id)`. It is validated as a string
+ * here and decoded in the service, which throws a 400 naming the fix rather than a
+ * 500, because a hand-built cursor is a client bug worth telling somebody about.
+ */
+class InboxQueryDto {
+  @IsOptional()
+  @IsIn(INBOX_FILTERS)
+  filter?: InboxFilter;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INBOX_MAX_PAGE_SIZE)
+  pageSize?: number;
+}
+
 class DismissOpportunityDto {
   @IsOptional()
   @IsString()
@@ -309,9 +343,34 @@ export class FundingOpportunitiesController {
   constructor(
     private readonly service: FundingOpportunitiesService,
     private readonly actions: FundingOpportunityActionsService,
+    private readonly inboxService: FundingOpportunityInboxService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
+  /**
+   * The cross-client triage inbox.
+   *
+   * Declared BEFORE `opportunities/:source/:id` for clarity, though the two cannot
+   * actually collide: `inbox` is one path segment and that route needs two.
+   *
+   * TWO guards. The class-level guard proves the tenant has Funding Opportunities
+   * at all; this one proves they have the inbox specifically. A tenant already
+   * using the catalog must be able to keep it while the inbox is canaried, and
+   * turning the inbox on must never be a side effect of turning the feature on.
+   *
+   * Raw catalog exploration stays on `GET opportunities` — this replaces the
+   * DEFAULT experience, not the research tool.
+   */
+  @Get('opportunities/inbox')
+  @UseGuards(FundingOpportunitiesInboxFlagGuard)
+  inbox(@CurrentTenant() ctx: TenantContext, @Query() query: InboxQueryDto) {
+    return this.inboxService.list(ctx.tenantId, ctx.userId, {
+      filter: query.filter,
+      cursor: query.cursor,
+      pageSize: query.pageSize,
+    });
+  }
+
   @Get('opportunities')
   list(@CurrentTenant() ctx: TenantContext, @Query() q: OpportunityListQueryDto) {
     return this.service.listOpportunities(ctx.tenantId, q as OpportunityQuery);

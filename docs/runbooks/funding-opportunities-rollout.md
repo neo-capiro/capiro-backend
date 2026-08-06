@@ -473,6 +473,38 @@ old defect resurfacing, and the schedule must not be enabled.
 
 # Part G — rollout
 
+## 16b. Triage inbox flag (P10)
+
+The inbox is gated on a SECOND flag, `funding_opportunities_client_inbox`, and it
+stays off after §17 turns the master flag on. Two flags on purpose: a tenant already
+using the raw catalog must keep it while the inbox is canaried, and turning the inbox
+on must never be a side effect of turning the feature on.
+
+```sql
+-- MUTATING — Neo approval. Note tenant_id is TEXT; do NOT cast to uuid.
+INSERT INTO intel_feature_flag (tenant_id, feature, enabled)
+VALUES ('<capiro-internal-uuid>', 'funding_opportunities_client_inbox', true)
+ON CONFLICT (tenant_id, feature) DO UPDATE SET enabled = true;
+```
+
+Before enabling it, confirm the endpoint is dark:
+
+```bash
+# Expect 404 while the flag is absent — the same 404 a disabled master flag gives,
+# so the route leaks nothing about whether the feature exists.
+curl -sS -o /dev/null -w '%{http_code}
+'   -H "Authorization: Bearer <token>"   https://<host>/api/intelligence/opportunities/inbox
+```
+
+After enabling, check the wall holds. Pick a client with `memory_wall = true` and a
+user with no `client_memory_access` grant: that client's rows must not appear in the
+inbox for that user. A walled client with zero grants is invisible to everyone,
+admins included — that is by construction, and it is the property most worth
+re-verifying on live data.
+
+Counts of `-1` in the response mean a count query failed, not that a queue is empty.
+`countsUnavailableReason` says why.
+
 ## 17. Internal feature flag
 
 ```bash

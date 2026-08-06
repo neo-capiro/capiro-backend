@@ -6,6 +6,16 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export const FUNDING_OPPORTUNITIES_FEATURE = 'funding_opportunities';
 
 /**
+ * The client-first triage inbox, gated SEPARATELY from the master surface.
+ *
+ * Two flags, not one, because the inbox changes what the default experience IS.
+ * A tenant already using the catalog must be able to keep it while the inbox is
+ * canaried, and turning the inbox on must not be a side effect of turning the
+ * feature on.
+ */
+export const FUNDING_OPPORTUNITIES_INBOX_FEATURE = 'funding_opportunities_client_inbox';
+
+/**
  * Gates every Funding Opportunities endpoint on a per-tenant
  * `funding_opportunities` row in `intel_feature_flag`.
  *
@@ -42,7 +52,16 @@ export const FUNDING_OPPORTUNITIES_FEATURE = 'funding_opportunities';
 export class FundingOpportunitiesFlagGuard implements CanActivate {
   private readonly logger = new Logger(FundingOpportunitiesFlagGuard.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(protected readonly prisma: PrismaService) {}
+
+  /**
+   * Which flag this guard reads. Overridden by the inbox guard below; everything
+   * else about the check — including every fail-closed path — is shared, so a
+   * second flag cannot accidentally get weaker semantics than the first.
+   */
+  protected feature(): string {
+    return FUNDING_OPPORTUNITIES_FEATURE;
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request & { tenantContext?: TenantContext }>();
@@ -57,7 +76,7 @@ export class FundingOpportunitiesFlagGuard implements CanActivate {
         tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
           FROM intel_feature_flag
-          WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE}
+          WHERE feature = ${this.feature()}
             AND tenant_id = ${tenantId}
             AND enabled = true
           LIMIT 1
@@ -75,5 +94,24 @@ export class FundingOpportunitiesFlagGuard implements CanActivate {
       );
       throw new NotFoundException();
     }
+  }
+}
+
+/**
+ * The inbox guard: the SAME fail-closed logic, keyed on the inbox flag.
+ *
+ * Subclassed rather than parameterized because Nest resolves guards by class, and
+ * `@UseGuards(FlagGuard('x'))` would need a factory whose instances the DI
+ * container cannot inject `PrismaService` into. Overriding one field keeps the
+ * fail-closed behaviour — no tenant context, no row, or a THROWING read all 404 —
+ * in exactly one place, so the inbox cannot drift into failing open.
+ *
+ * Routes carrying this guard also carry the master guard, so a tenant without
+ * `funding_opportunities` never reaches the inbox check at all.
+ */
+@Injectable()
+export class FundingOpportunitiesInboxFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_INBOX_FEATURE;
   }
 }

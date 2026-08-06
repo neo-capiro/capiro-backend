@@ -338,7 +338,7 @@ jobs:
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
 
-      # Floors: jest counts FILES in numTotalTestSuites. Measured 28 files / 911 tests
+      # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
       # editing this line, while REMOVING a suite fails the gate.
       #
@@ -348,7 +348,8 @@ jobs:
       # (opportunity-recommendation.spec.ts), 26/840 after P07
       # (funding-opportunity-decision.spec.ts), 27/865 after P08
       # (funding-opportunity-actions.spec.ts), 28/905 after P09
-      # (opportunity-explanation.spec.ts).
+      # (opportunity-explanation.spec.ts), 29/950 after P10
+      # (funding-opportunity-inbox.spec.ts).
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -357,7 +358,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 28 905
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 29 950
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

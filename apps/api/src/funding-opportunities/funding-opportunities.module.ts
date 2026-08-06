@@ -2,7 +2,11 @@ import { Module } from '@nestjs/common';
 import { FundingOpportunitiesController } from './funding-opportunities.controller.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
-import { FundingOpportunitiesFlagGuard } from './funding-opportunities-flag.guard.js';
+import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
+import {
+  FundingOpportunitiesFlagGuard,
+  FundingOpportunitiesInboxFlagGuard,
+} from './funding-opportunities-flag.guard.js';
 
 /**
  * Funding Opportunities (Grants.gov + SAM.gov contract opportunities).
@@ -34,7 +38,9 @@ import { FundingOpportunitiesFlagGuard } from './funding-opportunities-flag.guar
     // directly rather than calling EngagementService, because that service opens
     // its own transaction and the whole point of P08 is one transaction.
     FundingOpportunityActionsService,
+    FundingOpportunityInboxService,
     FundingOpportunitiesFlagGuard,
+    FundingOpportunitiesInboxFlagGuard,
   ],
   exports: [FundingOpportunitiesService],
 })
