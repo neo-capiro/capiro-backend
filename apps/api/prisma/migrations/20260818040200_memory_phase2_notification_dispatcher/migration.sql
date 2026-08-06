@@ -56,7 +56,7 @@ BEGIN
     FOREIGN KEY (recipient_user_id)
     REFERENCES users (id)
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
+    ON DELETE RESTRICT;
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS memory_review_in_app_notification (
     FOREIGN KEY (recipient_user_id)
     REFERENCES users (id)
     ON UPDATE NO ACTION
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS memory_review_in_app_notification_idempotency_unique
