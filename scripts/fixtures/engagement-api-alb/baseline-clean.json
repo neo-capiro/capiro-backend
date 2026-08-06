@@ -1,0 +1,34 @@
+{
+  "Rules": [
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/aaa/bbb/r9",
+      "Priority": "9",
+      "Conditions": [{ "Field": "path-pattern", "Values": ["/onboard-api/*"] }],
+      "Actions": [{ "Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-onboard/999" }]
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/aaa/bbb/r10",
+      "Priority": "10",
+      "Conditions": [{ "Field": "path-pattern", "Values": ["/api/*"] }],
+      "Actions": [{ "Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api/111" }]
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/aaa/bbb/r13",
+      "Priority": "13",
+      "Conditions": [{ "Field": "path-pattern", "Values": ["/meri-api/*"] }],
+      "Actions": [{ "Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-meriv2-orch/131" }]
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/aaa/bbb/r15",
+      "Priority": "15",
+      "Conditions": [{ "Field": "path-pattern", "Values": ["/webhooks/*"] }],
+      "Actions": [{ "Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api/111" }]
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/aaa/bbb/default",
+      "Priority": "default",
+      "Conditions": [],
+      "Actions": [{ "Type": "forward", "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-web/200" }]
+    }
+  ]
+}
