@@ -30,22 +30,32 @@ const pendingPanel = readFileSync(
 );
 
 describe('memory administrator self-approval policy contract', () => {
-  it('permits only capability-bearing active tenant administrators at the database boundary', () => {
+  it('permits only candidate- and actor-bound active tenant administrators at the database boundary', () => {
     expect(migration).toContain("tm.status = 'active'::membership_status");
     expect(migration).toContain("'user_admin'::tenant_role");
     expect(migration).toContain("'capiro_admin'::tenant_role");
-    expect(migration).toContain("current_setting('app.memory_admin_review_decision', true)");
+    expect(migration).toContain(
+      "current_setting('app.memory_admin_review_candidate_id', true)",
+    );
+    expect(migration).toContain(
+      "current_setting('app.memory_admin_review_actor_id', true)",
+    );
+    expect(migration).toContain('capability_candidate_id = NEW.id::text');
+    expect(migration).toContain('capability_actor_id = NEW.decided_by::text');
     expect(migration).toContain('actor_is_active_admin AND admin_decision_capability');
     expect(migration).toContain('MEMORY_REVIEW_SELF_DECISION_DENIED');
     expect(migration).toContain('MEMORY_REVIEW_ASSIGNED_REVIEWER_REQUIRED');
   });
 
-  it('sets the transaction-local capability only after canonical admin authorization', () => {
+  it('sets exact transaction-local capabilities only after canonical admin authorization', () => {
     expect(authorizationService).toContain('decision.allowed');
     expect(authorizationService).toContain('options.emitDenialMetrics !== false');
     expect(authorizationService).toContain('isMemoryReviewAdminRole(effectiveRole)');
     expect(authorizationService).toContain(
-      "set_config('app.memory_admin_review_decision', 'on', true)",
+      "set_config('app.memory_admin_review_candidate_id', $1, true)",
+    );
+    expect(authorizationService).toContain(
+      "set_config('app.memory_admin_review_actor_id', $1, true)",
     );
   });
 
