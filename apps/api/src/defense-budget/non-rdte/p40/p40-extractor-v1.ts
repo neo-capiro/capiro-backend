@@ -28,10 +28,7 @@ import type {
   ParsedTableV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildProcurementBlinIdentity,
-  type ProcurementBlinIdentityV1,
-} from '../identity-v1.js';
+import { buildProcurementBlinIdentity, type ProcurementBlinIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -170,37 +167,64 @@ export function extractP40FromPages(input: {
   for (const page of pages) {
     if (parentIdentity == null && page.text != null) {
       parentIdentity = detectParentIdentityFromText(
-        page.text, page.page, page.printedPage, account, component,
+        page.text,
+        page.page,
+        page.printedPage,
+        account,
+        component,
       );
     }
 
     for (const table of page.tables) {
       if (unit == null && table.label != null) {
         const detected = detectPrintedUnit(table.label);
-        if (detected != null) { unit = detected; unitSource = `table label: "${table.label}"`; }
+        if (detected != null) {
+          unit = detected;
+          unitSource = `table label: "${table.label}"`;
+        }
       }
       if (unit == null && page.text != null) {
         const detected = detectPrintedUnit(page.text.slice(0, 2000));
-        if (detected != null) { unit = detected; unitSource = 'page text'; }
+        if (detected != null) {
+          unit = detected;
+          unitSource = 'page text';
+        }
       }
 
       const rows = groupCellsByRow(table);
       const tableText = rowsToText(rows);
 
-      if (RESOURCE_SUMMARY_RE.test(tableText) || NET_PROC_RE.test(tableText) || GROSS_UNIT_COST_RE.test(tableText)) {
+      if (
+        RESOURCE_SUMMARY_RE.test(tableText) ||
+        NET_PROC_RE.test(tableText) ||
+        GROSS_UNIT_COST_RE.test(tableText)
+      ) {
         const headerRow = findHeaderRow(rows);
         let headerBinding: HeaderBindingResultV1 | null = null;
         if (headerRow != null) {
-          const headers = headerRow.map((cell, idx) => ({ columnIndex: idx, text: cell.text.trim() }));
+          const headers = headerRow.map((cell, idx) => ({
+            columnIndex: idx,
+            text: cell.text.trim(),
+          }));
           headerBinding = bindHeaders({ headers, cycleFiscalYear });
           allBindings = allBindings.concat(headerBinding.bindings);
         }
         if (headerBinding == null) {
-          omissions.push({ page: page.page, reason: 'ambiguous header in Resource Summary table', rawText: `table ${table.tableIndex}` });
+          omissions.push({
+            page: page.page,
+            reason: 'ambiguous header in Resource Summary table',
+            rawText: `table ${table.tableIndex}`,
+          });
           continue;
         }
         if (parentIdentity == null) {
-          parentIdentity = detectParentIdentityFromText(tableText, page.page, page.printedPage, account, component);
+          parentIdentity = detectParentIdentityFromText(
+            tableText,
+            page.page,
+            page.printedPage,
+            account,
+            component,
+          );
         }
         const identityKey = parentIdentity?.identity.naturalKey ?? 'UNKNOWN';
 
@@ -224,24 +248,40 @@ export function extractP40FromPages(input: {
               // Store quantity values with a placeholder unit
               const qtyUnit: PrintedUnitV1 = effectiveUnit ?? 'dollars';
               resourceSummary.push({
-                identityNaturalKey: identityKey, rowLabel,
+                identityNaturalKey: identityKey,
+                rowLabel,
                 ...(binding.fiscalYear != null ? { fiscalYear: binding.fiscalYear } : {}),
-                columnBinding: binding, originalValue, originalUnit: qtyUnit,
+                columnBinding: binding,
+                originalValue,
+                originalUnit: qtyUnit,
                 valueMillions: originalValue,
-                columnIndex: binding.columnIndex, headerText: binding.headerText, page: page.page,
+                columnIndex: binding.columnIndex,
+                headerText: binding.headerText,
+                page: page.page,
               });
             } else if (binding.valueKind === 'money' || binding.valueKind === 'unit_cost') {
               if (effectiveUnit == null) {
-                omissions.push({ page: page.page, rowIndex, columnIndex: binding.columnIndex, reason: 'missing printed unit for money value', rawText });
+                omissions.push({
+                  page: page.page,
+                  rowIndex,
+                  columnIndex: binding.columnIndex,
+                  reason: 'missing printed unit for money value',
+                  rawText,
+                });
                 continue;
               }
               const valueMillions = convertUnit(originalValue, effectiveUnit, 'millions');
               resourceSummary.push({
-                identityNaturalKey: identityKey, rowLabel,
+                identityNaturalKey: identityKey,
+                rowLabel,
                 ...(binding.fiscalYear != null ? { fiscalYear: binding.fiscalYear } : {}),
-                columnBinding: binding, originalValue, originalUnit: effectiveUnit,
+                columnBinding: binding,
+                originalValue,
+                originalUnit: effectiveUnit,
                 valueMillions,
-                columnIndex: binding.columnIndex, headerText: binding.headerText, page: page.page,
+                columnIndex: binding.columnIndex,
+                headerText: binding.headerText,
+                page: page.page,
               });
             }
           }
@@ -253,7 +293,10 @@ export function extractP40FromPages(input: {
         const headerRow = findHeaderRow(rows);
         let headerBinding: HeaderBindingResultV1 | null = null;
         if (headerRow != null) {
-          const headers = headerRow.map((cell, idx) => ({ columnIndex: idx, text: cell.text.trim() }));
+          const headers = headerRow.map((cell, idx) => ({
+            columnIndex: idx,
+            text: cell.text.trim(),
+          }));
           headerBinding = bindHeaders({ headers, cycleFiscalYear });
         }
         for (const [rowIndex, cells] of rows) {
@@ -262,7 +305,10 @@ export function extractP40FromPages(input: {
           const recipient = cells[0]?.text.trim() ?? '';
           if (recipient.length === 0) continue;
           const distLine: P40SecondaryDistributionLine = {
-            identityNaturalKey: identityKey, recipient, page: page.page, rowIndex,
+            identityNaturalKey: identityKey,
+            recipient,
+            page: page.page,
+            rowIndex,
           };
           if (headerBinding != null) {
             for (const binding of headerBinding.bindings) {
@@ -286,7 +332,9 @@ export function extractP40FromPages(input: {
             }
           }
           const desc = cells[1]?.text.trim();
-          if (desc != null && desc.length > 0 && desc !== recipient) { distLine.description = desc; }
+          if (desc != null && desc.length > 0 && desc !== recipient) {
+            distLine.description = desc;
+          }
           secondaryDistribution.push(distLine);
         }
       }
@@ -303,12 +351,18 @@ export function extractP40FromPages(input: {
             const m = s.pattern.exec(page.text!);
             return m != null && m.index > match.index;
           });
-          const endIdx = nextSectionMatch != null
-            ? nextSectionMatch.pattern.exec(page.text)!.index
-            : Math.min(startIdx + 2000, page.text.length);
+          const endIdx =
+            nextSectionMatch != null
+              ? nextSectionMatch.pattern.exec(page.text)!.index
+              : Math.min(startIdx + 2000, page.text.length);
           const sectionText = page.text.slice(startIdx, endIdx).trim();
           if (sectionText.length > 0) {
-            narratives.push({ identityNaturalKey: identityKey, sectionType, text: sectionText.slice(0, 1000), page: page.page });
+            narratives.push({
+              identityNaturalKey: identityKey,
+              sectionType,
+              text: sectionText.slice(0, 1000),
+              page: page.page,
+            });
           }
         }
       }
@@ -319,29 +373,60 @@ export function extractP40FromPages(input: {
   let arithmeticCheckResult: P40ExtractionResult['arithmeticCheckResult'];
   if (parentIdentity != null) {
     const identityKey = parentIdentity.identity.naturalKey;
-    const quantityValues = resourceSummary.filter((v) => v.identityNaturalKey === identityKey && (QUANTITY_RE.test(v.rowLabel) || v.columnBinding.valueKind === 'quantity'));
-    const unitCostValues = resourceSummary.filter((v) => v.identityNaturalKey === identityKey && (GROSS_UNIT_COST_RE.test(v.rowLabel) || v.columnBinding.valueKind === 'unit_cost'));
-    const netProcValues = resourceSummary.filter((v) => v.identityNaturalKey === identityKey && NET_PROC_RE.test(v.rowLabel));
+    const quantityValues = resourceSummary.filter(
+      (v) =>
+        v.identityNaturalKey === identityKey &&
+        (QUANTITY_RE.test(v.rowLabel) || v.columnBinding.valueKind === 'quantity'),
+    );
+    const unitCostValues = resourceSummary.filter(
+      (v) =>
+        v.identityNaturalKey === identityKey &&
+        (GROSS_UNIT_COST_RE.test(v.rowLabel) || v.columnBinding.valueKind === 'unit_cost'),
+    );
+    const netProcValues = resourceSummary.filter(
+      (v) => v.identityNaturalKey === identityKey && NET_PROC_RE.test(v.rowLabel),
+    );
     if (quantityValues.length > 0 && unitCostValues.length > 0 && netProcValues.length > 0) {
       const qty = quantityValues[0]!;
       const ucost = unitCostValues[0]!;
       const netProc = netProcValues[0]!;
-      if (qty.fiscalYear === ucost.fiscalYear && ucost.fiscalYear === netProc.fiscalYear && qty.columnBinding.baseOcoStatus === netProc.columnBinding.baseOcoStatus) {
+      if (
+        qty.fiscalYear === ucost.fiscalYear &&
+        ucost.fiscalYear === netProc.fiscalYear &&
+        qty.columnBinding.baseOcoStatus === netProc.columnBinding.baseOcoStatus
+      ) {
         arithmeticCheckApplicable = true;
         const qtyVal = parseFloat(qty.originalValue);
-        const ucostDollars = parseFloat(convertUnit(ucost.originalValue, ucost.originalUnit, 'dollars'));
-        const netProcDollars = parseFloat(convertUnit(netProc.originalValue, netProc.originalUnit, 'dollars'));
+        const ucostDollars = parseFloat(
+          convertUnit(ucost.originalValue, ucost.originalUnit, 'dollars'),
+        );
+        const netProcDollars = parseFloat(
+          convertUnit(netProc.originalValue, netProc.originalUnit, 'dollars'),
+        );
         const expected = qtyVal * ucostDollars;
         const actual = netProcDollars;
         const tolerance = Math.abs(actual) * 0.01;
-        arithmeticCheckResult = { passed: Math.abs(expected - actual) <= tolerance, expected: expected.toString(), actual: actual.toString(), tolerance: tolerance.toString() };
+        arithmeticCheckResult = {
+          passed: Math.abs(expected - actual) <= tolerance,
+          expected: expected.toString(),
+          actual: actual.toString(),
+          tolerance: tolerance.toString(),
+        };
       }
     }
   }
 
   return {
-    parentIdentity, resourceSummary, narratives, secondaryDistribution, omissions,
-    headerBinding: { bindings: allBindings, hasAmbiguousColumns: unresolvedColumnIndices.length > 0, unresolvedColumnIndices },
+    parentIdentity,
+    resourceSummary,
+    narratives,
+    secondaryDistribution,
+    omissions,
+    headerBinding: {
+      bindings: allBindings,
+      hasAmbiguousColumns: unresolvedColumnIndices.length > 0,
+      unresolvedColumnIndices,
+    },
     unitResolution: { unit, source: unitSource },
     arithmeticCheckApplicable,
     ...(arithmeticCheckResult != null ? { arithmeticCheckResult } : {}),
@@ -352,7 +437,13 @@ export function extractP40FromPages(input: {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function detectParentIdentityFromText(text: string, page: number, printedPage: string | undefined, account: string, component: BudgetComponentV1): P40ParentIdentity | null {
+function detectParentIdentityFromText(
+  text: string,
+  page: number,
+  printedPage: string | undefined,
+  account: string,
+  component: BudgetComponentV1,
+): P40ParentIdentity | null {
   const headerMatch = /\b([0-9]{4}[A-Z]{1,2}[0-9A-Z]{4,5})\s*\/\s*(.+)$/m.exec(text);
   if (headerMatch != null) {
     const code = headerMatch[1]!;
@@ -377,61 +468,116 @@ function detectParentIdentityFromText(text: string, page: number, printedPage: s
   return null;
 }
 
-function buildParentIdentity(code: string, title: string, text: string, page: number, printedPage: string | undefined, account: string, component: BudgetComponentV1, tableIndex: number): P40ParentIdentity | null {
+function buildParentIdentity(
+  code: string,
+  title: string,
+  text: string,
+  page: number,
+  printedPage: string | undefined,
+  account: string,
+  component: BudgetComponentV1,
+  tableIndex: number,
+): P40ParentIdentity | null {
   const isAdvance = ADVANCE_PROC_RE.test(text);
   const baMatch = BA_RE.exec(text);
   const bsaMatch = BSA_RE.exec(text);
   const peRefs = Array.from(new Set(text.match(PE_REF_RE) ?? []));
   try {
-    const identity = buildProcurementBlinIdentity({ code, account, component, advanceProcurement: isAdvance });
+    const identity = buildProcurementBlinIdentity({
+      code,
+      account,
+      component,
+      advanceProcurement: isAdvance,
+    });
     return {
-      printedCode: code, title, page,
+      printedCode: code,
+      title,
+      page,
       ...(printedPage != null ? { printedPage } : {}),
       tableIndex,
       ...(baMatch != null ? { budgetActivity: `BA ${baMatch[1]}` } : {}),
       ...(bsaMatch != null ? { budgetSubActivity: `BSA ${bsaMatch[1]}` } : {}),
-      advanceProcurement: isAdvance, identity, referencedPeCodes: peRefs,
+      advanceProcurement: isAdvance,
+      identity,
+      referencedPeCodes: peRefs,
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-function groupCellsByRow(table: ParsedTableV1): Map<number, Array<{ columnIndex: number; text: string }>> {
+function groupCellsByRow(
+  table: ParsedTableV1,
+): Map<number, Array<{ columnIndex: number; text: string }>> {
   const rows = new Map<number, Array<{ columnIndex: number; text: string }>>();
   for (const cell of table.cells) {
     const row = rows.get(cell.rowIndex) ?? [];
     row.push({ columnIndex: cell.columnIndex, text: cell.text });
     rows.set(cell.rowIndex, row);
   }
-  for (const [, row] of rows) { row.sort((a, b) => a.columnIndex - b.columnIndex); }
+  for (const [, row] of rows) {
+    row.sort((a, b) => a.columnIndex - b.columnIndex);
+  }
   return new Map([...rows.entries()].sort((a, b) => a[0] - b[0]));
 }
 
 function rowsToText(rows: Map<number, Array<{ columnIndex: number; text: string }>>): string {
   const parts: string[] = [];
-  for (const [, cells] of rows) { parts.push(cells.map((c) => c.text).join(' ')); }
+  for (const [, cells] of rows) {
+    parts.push(cells.map((c) => c.text).join(' '));
+  }
   return parts.join('\n');
 }
 
-function findHeaderRow(rows: Map<number, Array<{ columnIndex: number; text: string }>>): Array<{ columnIndex: number; text: string }> | null {
-  for (const [, cells] of rows) { if (isHeaderRow(cells)) return cells; }
+function findHeaderRow(
+  rows: Map<number, Array<{ columnIndex: number; text: string }>>,
+): Array<{ columnIndex: number; text: string }> | null {
+  for (const [, cells] of rows) {
+    if (isHeaderRow(cells)) return cells;
+  }
   return null;
 }
 
 function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
-  const hasHeaderVocab = /\b(?:fy|fiscal|year|budget|request|actual|enacted|base|oco|ooc|total|quantity|qty|cost|prior|years)\b/i.test(text);
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
+  const hasHeaderVocab =
+    /\b(?:fy|fiscal|year|budget|request|actual|enacted|base|oco|ooc|total|quantity|qty|cost|prior|years)\b/i.test(
+      text,
+    );
   const firstCell = cells[0]?.text.trim() ?? '';
-  const headerLabels = new Set(['blin', 'line', 'title', 'code', 'pe', 'li', 'line item', 'resource', 'summary']);
+  const headerLabels = new Set([
+    'blin',
+    'line',
+    'title',
+    'code',
+    'pe',
+    'li',
+    'line item',
+    'resource',
+    'summary',
+  ]);
   const isHeaderLabel = headerLabels.has(firstCell.toLowerCase());
-  const isDataCode = !isHeaderLabel && (LONG_BLIN_RE.test(firstCell) || SHORT_LI_RE.test(firstCell));
+  const isDataCode =
+    !isHeaderLabel && (LONG_BLIN_RE.test(firstCell) || SHORT_LI_RE.test(firstCell));
   // A row with numeric data cells is a data row, not a header row.
   // Resource Summary data rows like "Procurement Quantity 8 -" contain
   // header vocabulary words ("quantity") but also numeric values.
-  const hasNumericData = cells.some((c, idx) => idx > 0 && /^-?[\d,]+(?:\.\d+)?$/.test(c.text.trim()) || c.text.trim() === '-' || c.text.trim() === '\u2014');
+  const hasNumericData = cells.some(
+    (c, idx) =>
+      (idx > 0 && /^-?[\d,]+(?:\.\d+)?$/.test(c.text.trim())) ||
+      c.text.trim() === '-' ||
+      c.text.trim() === '\u2014',
+  );
   return hasHeaderVocab && !isDataCode && !hasNumericData;
 }
 
 function isTotalRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   return /\b(?:total|subtotal|sum|grand total)\b/i.test(text);
 }

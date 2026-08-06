@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { computeProfileContentSha256 } from './page-profiler.js';
 
 let workDir: string;
@@ -12,14 +12,45 @@ beforeEach(() => {
 afterEach(() => rmSync(workDir, { recursive: true, force: true }));
 
 const apiRoot = join(__dirname, '..', '..', '..');
+
+function resolvePnpm(): { command: string; prefix: string[]; shell: boolean } {
+  const bundledCorepack = join(
+    dirname(process.execPath),
+    'node_modules',
+    'corepack',
+    'dist',
+    'pnpm.js',
+  );
+  if (existsSync(bundledCorepack)) {
+    return { command: process.execPath, prefix: [bundledCorepack], shell: false };
+  }
+
+  const hermesCorepack =
+    'C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js';
+  if (existsSync(hermesCorepack)) {
+    return { command: process.execPath, prefix: [hermesCorepack], shell: false };
+  }
+
+  return {
+    command: 'pnpm',
+    prefix: [],
+    shell: process.platform === 'win32',
+  };
+}
+
+const pnpm = resolvePnpm();
+
 function runScript(script: string, args: string[]) {
   return spawnSync(
-    'pnpm',
-    ['exec', 'tsx', join(apiRoot, 'scripts', script), ...args],
+    pnpm.command,
+    [...pnpm.prefix, 'exec', 'tsx', join(apiRoot, 'scripts', script), ...args],
     {
       cwd: apiRoot,
       encoding: 'utf8',
       env: { ...process.env, DATABASE_URL: '' },
+      shell: pnpm.shell,
+      timeout: 60_000,
+      maxBuffer: 16 * 1024 * 1024,
     },
   );
 }
@@ -115,6 +146,7 @@ function profileFile(sourceSha256: string) {
 describe('Phase 3 operator commands', () => {
   it('rejects unknown extraction flags before parser or database work', () => {
     const result = runScript('extract-defense-budget-cycle.ts', ['--unknown']);
+    expect(result.error).toBeUndefined();
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('unknown flag');
   });
@@ -133,6 +165,7 @@ describe('Phase 3 operator commands', () => {
       'x',
       '--allow-paid-parse',
     ]);
+    expect(result.error).toBeUndefined();
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('--max-paid-pages');
   });
@@ -151,6 +184,7 @@ describe('Phase 3 operator commands', () => {
       '--out',
       join(workDir, 'out.json'),
     ]);
+    expect(result.error).toBeUndefined();
     expect(result.status).toBe(3);
     expect(result.stderr).toContain('--structured-companion');
   });
@@ -172,8 +206,12 @@ describe('Phase 3 operator commands', () => {
       '--profile',
       profile,
     ];
-    expect(runScript('plan-defense-budget-parse.ts', [...baseArgs, '--out', out1]).status).toBe(0);
-    expect(runScript('plan-defense-budget-parse.ts', [...baseArgs, '--out', out2]).status).toBe(0);
+    const first = runScript('plan-defense-budget-parse.ts', [...baseArgs, '--out', out1]);
+    const second = runScript('plan-defense-budget-parse.ts', [...baseArgs, '--out', out2]);
+    expect(first.error).toBeUndefined();
+    expect(second.error).toBeUndefined();
+    expect(first.status).toBe(0);
+    expect(second.status).toBe(0);
     expect(readFileSync(out1, 'utf8')).toBe(readFileSync(out2, 'utf8'));
   });
 
@@ -183,6 +221,7 @@ describe('Phase 3 operator commands', () => {
       'x',
       '--unknown',
     ]);
+    expect(result.error).toBeUndefined();
     expect(result.status).toBe(2);
   });
 });

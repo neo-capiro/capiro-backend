@@ -46,12 +46,7 @@ export class AwsParserArtifactObjectStore implements ParserArtifactObjectStoreV1
     }
   }
 
-  async putObject(input: {
-    bucket: string;
-    key: string;
-    bytes: Uint8Array;
-    contentType: string;
-  }) {
+  async putObject(input: { bucket: string; key: string; bytes: Uint8Array; contentType: string }) {
     const result = await this.client.send(
       new PutObjectCommand({
         Bucket: input.bucket,

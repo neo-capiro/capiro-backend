@@ -1,8 +1,5 @@
 /** Exact Phase 3 composed-output adapter for Phase 4 semantic extraction. */
-import type {
-  ExtractionSourceV1,
-  ParserRunV1,
-} from '../../contracts/extraction-artifact-v1.js';
+import type { ExtractionSourceV1, ParserRunV1 } from '../../contracts/extraction-artifact-v1.js';
 import type { BudgetCycleManifestDocumentV1 } from '../../contracts/budget-cycle-manifest-v1.js';
 import { buildContributingParserRuns } from '../../parser-router/extraction-artifact-bridge.js';
 import type { ComposedPageOutputV1 } from '../../parser-router/page-result-compositor.js';

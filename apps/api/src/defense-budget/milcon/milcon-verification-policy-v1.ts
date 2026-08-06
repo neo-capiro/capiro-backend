@@ -36,10 +36,7 @@ export interface MilconVerificationFinding {
   identityNaturalKey?: string;
 }
 
-export type MilconVerificationDecision =
-  | 'VERIFICATION_PASSED'
-  | 'NEEDS_REVIEW'
-  | 'REJECTED';
+export type MilconVerificationDecision = 'VERIFICATION_PASSED' | 'NEEDS_REVIEW' | 'REJECTED';
 
 export interface MilconVerificationResult {
   decision: MilconVerificationDecision;
@@ -91,9 +88,7 @@ function nextFindingId(code: string): string {
   return `milcon_vf_${code}_${++findingSeq}`;
 }
 
-export function verifyMilconFamily(
-  input: MilconVerificationInput,
-): MilconVerificationResult {
+export function verifyMilconFamily(input: MilconVerificationInput): MilconVerificationResult {
   findingSeq = 0;
   const findings: MilconVerificationFinding[] = [];
 
@@ -138,7 +133,9 @@ export function verifyMilconFamily(
         findingId: nextFindingId('funding_mismatch'),
         severity: 'blocking',
         code: 'c1_dd1391_funding_mismatch',
-        message: cmp.message ?? `C-1/DD1391 funding mismatch for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
+        message:
+          cmp.message ??
+          `C-1/DD1391 funding mismatch for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'not_run' && input.dd1391Required) {
@@ -146,7 +143,9 @@ export function verifyMilconFamily(
         findingId: nextFindingId('funding_not_run'),
         severity: 'blocking',
         code: 'c1_dd1391_comparison_not_run',
-        message: cmp.message ?? `C-1/DD1391 comparison not run for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
+        message:
+          cmp.message ??
+          `C-1/DD1391 comparison not run for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     } else if (cmp.result === 'review') {
@@ -154,7 +153,9 @@ export function verifyMilconFamily(
         findingId: nextFindingId('funding_review'),
         severity: 'review',
         code: 'c1_dd1391_funding_review',
-        message: cmp.message ?? `C-1/DD1391 funding needs review for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
+        message:
+          cmp.message ??
+          `C-1/DD1391 funding needs review for ${cmp.printedProjectCode} FY${cmp.fiscalYear} ${cmp.fundingType}`,
         identityNaturalKey: cmp.identityNaturalKey,
       });
     }

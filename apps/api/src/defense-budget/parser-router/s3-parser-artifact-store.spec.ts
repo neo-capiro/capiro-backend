@@ -2,10 +2,7 @@ import {
   S3ParserArtifactStore,
   type ParserArtifactObjectStoreV1,
 } from './parser-artifact-store.js';
-import {
-  sealParserRuntimeResult,
-  type ParserRunIdentityV1,
-} from './parser-runtime-contract-v1.js';
+import { sealParserRuntimeResult, type ParserRunIdentityV1 } from './parser-runtime-contract-v1.js';
 import { canonicalJsonStringify, type JsonValue } from '../contracts/canonical-json.js';
 
 class MemoryObjectStore implements ParserArtifactObjectStoreV1 {
@@ -19,12 +16,7 @@ class MemoryObjectStore implements ParserArtifactObjectStoreV1 {
     return object;
   }
 
-  async putObject(input: {
-    bucket: string;
-    key: string;
-    bytes: Uint8Array;
-    contentType: string;
-  }) {
+  async putObject(input: { bucket: string; key: string; bytes: Uint8Array; contentType: string }) {
     void input.contentType;
     const versionId = `version-${++this.sequence}`;
     this.objects.set(`${input.bucket}/${input.key}`, { bytes: input.bytes, versionId });

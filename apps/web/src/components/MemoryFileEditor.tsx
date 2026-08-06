@@ -3,6 +3,11 @@ import { Alert, App, Button, Empty, Input, Select, Space, Spin, Tag, Typography 
 import { SaveOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/use-api.js';
+import {
+  PendingMemoryReviewPanel,
+  type MemoryReviewSection,
+  type PendingMemoryReviewState,
+} from './PendingMemoryReviewPanel.js';
 
 const { Text, Paragraph } = Typography;
 
@@ -30,18 +35,9 @@ interface FileDef {
   blurb: string;
   sections: SectionDef[];
 }
-interface ItemSection {
-  key: string;
-  heading: string;
-  owner: 'engine' | 'human';
-  body: string;
+interface ItemSection extends MemoryReviewSection {
   prompt: string;
   example: string;
-}
-interface PendingReviewState {
-  candidateId: string;
-  status: 'pending_review';
-  submittedAt: string;
 }
 interface ItemSectionsResp {
   type: string;
@@ -50,7 +46,8 @@ interface ItemSectionsResp {
   visibility: string;
   clientId: string | null;
   updatedAt: string | null;
-  pendingReview: PendingReviewState | null;
+  exists: boolean;
+  pendingReview: PendingMemoryReviewState | null;
   sections: ItemSection[];
 }
 interface SaveSectionsResp {
@@ -63,6 +60,19 @@ interface SaveSectionsResp {
 
 export function settingsMemorySuccessMessage(result: SaveSectionsResp): string {
   return result.status === 'pending_review' ? 'Submitted for independent review' : 'Saved';
+}
+
+export function memorySaveErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const response = (error as { response?: { data?: { message?: unknown } } }).response;
+    if (typeof response?.data?.message === 'string') return response.data.message;
+    if (Array.isArray(response?.data?.message)) {
+      return response.data.message
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ');
+    }
+  }
+  return error instanceof Error ? error.message : 'Save failed';
 }
 
 function defaultFileType(scope: 'firm' | 'client' | 'user'): string {
@@ -127,18 +137,21 @@ export function MemoryFileEditor({
       message.success(settingsMemorySuccessMessage(result));
       setDrafts({});
       qc.invalidateQueries({ queryKey: ['memory-item', fileType, slug] });
+      qc.invalidateQueries({ queryKey: ['memory-review-summary'] });
+      qc.invalidateQueries({ queryKey: ['memory-own-proposals'] });
+      qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
     },
-    onError: (e: unknown) => message.error(e instanceof Error ? e.message : 'Save failed'),
+    onError: (error: unknown) => message.error(memorySaveErrorMessage(error)),
   });
 
-  const bodyFor = (s: ItemSection): string => drafts[s.key] ?? s.body;
+  const bodyFor = (section: ItemSection): string => drafts[section.key] ?? section.body;
 
   // Save persists the CURRENT value of every human-editable section (the server
   // ignores engine-owned sections). We don't gate on "dirty" so the Save button
   // is always actionable when you can edit — a no-op save is harmless.
   const onSave = () => {
-    const human = (itemQuery.data?.sections ?? []).filter((s) => s.owner === 'human');
-    saveMutation.mutate(human.map((s) => ({ key: s.key, body: bodyFor(s) })));
+    const human = (itemQuery.data?.sections ?? []).filter((section) => section.owner === 'human');
+    saveMutation.mutate(human.map((section) => ({ key: section.key, body: bodyFor(section) })));
   };
 
   const sharedPending = scope !== 'user' && !!itemQuery.data?.pendingReview;
@@ -152,7 +165,11 @@ export function MemoryFileEditor({
       loading={saveMutation.isPending}
       disabled={!canSave}
     >
-      {scope === 'user' ? 'Save changes' : 'Submit for review'}
+      {sharedPending
+        ? 'Waiting for review'
+        : scope === 'user'
+          ? 'Save changes'
+          : 'Submit for review'}
     </Button>
   );
 
@@ -162,11 +179,11 @@ export function MemoryFileEditor({
         <Select
           style={{ width: 200 }}
           value={fileType}
-          onChange={(v) => {
-            setFileType(v);
+          onChange={(value) => {
+            setFileType(value);
             setDrafts({});
           }}
-          options={filesForScope.map((f) => ({ label: f.label, value: f.type }))}
+          options={filesForScope.map((file) => ({ label: file.label, value: file.type }))}
         />
         {saveButton}
       </Space>
@@ -178,47 +195,56 @@ export function MemoryFileEditor({
           message="You can view this file. Editing requires an admin role."
         />
       )}
-      {itemQuery.data?.pendingReview && (
-        <Alert
-          type="success"
-          showIcon
-          message="Submitted for independent review"
-          description={`Candidate ${itemQuery.data.pendingReview.candidateId}. Active content remains unchanged until approval.`}
-        />
-      )}
 
       {ready && itemQuery.isLoading && <Spin />}
       {ready && itemQuery.isError && <Empty description="Couldn't load this file. Try again." />}
 
       {ready && itemQuery.data && (
         <>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {itemQuery.data.sections.map((s) => (
-              <div key={s.key}>
-                <Space>
-                  <Text strong>{s.heading}</Text>
-                  {s.owner === 'engine' && <Tag color="default">auto-generated</Tag>}
-                </Space>
-                <Paragraph type="secondary" style={{ margin: '2px 0', fontSize: 12 }}>
-                  {s.prompt}{' '}
-                  {s.example && (
-                    <Text type="secondary" italic>
-                      e.g. “{s.example}”
-                    </Text>
-                  )}
-                </Paragraph>
-                <Input.TextArea
-                  value={bodyFor(s)}
-                  autoSize={{ minRows: s.key === 'samples' ? 6 : 2, maxRows: 16 }}
-                  readOnly={s.owner === 'engine' || !canEdit}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
-                  style={s.owner === 'engine' ? { background: '#f5f5f5' } : undefined}
-                />
-              </div>
-            ))}
-          </Space>
-          {/* Bottom save so it's reachable after a long form. */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{saveButton}</div>
+          {itemQuery.data.pendingReview && (
+            <PendingMemoryReviewPanel
+              activeExists={itemQuery.data.exists}
+              activeSections={itemQuery.data.sections}
+              pending={itemQuery.data.pendingReview}
+            />
+          )}
+
+          {!sharedPending && (
+            <>
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                {itemQuery.data.sections.map((section) => (
+                  <div key={section.key}>
+                    <Space>
+                      <Text strong>{section.heading}</Text>
+                      {section.owner === 'engine' && <Tag color="default">Auto-generated</Tag>}
+                    </Space>
+                    <Paragraph type="secondary" style={{ margin: '2px 0', fontSize: 12 }}>
+                      {section.prompt}{' '}
+                      {section.example && (
+                        <Text type="secondary" italic>
+                          e.g. “{section.example}”
+                        </Text>
+                      )}
+                    </Paragraph>
+                    <Input.TextArea
+                      value={bodyFor(section)}
+                      autoSize={{ minRows: section.key === 'samples' ? 6 : 2, maxRows: 16 }}
+                      readOnly={section.owner === 'engine' || !canEdit}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [section.key]: event.target.value,
+                        }))
+                      }
+                      style={section.owner === 'engine' ? { background: '#f5f5f5' } : undefined}
+                    />
+                  </div>
+                ))}
+              </Space>
+              {/* Bottom save so it's reachable after a long form. */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{saveButton}</div>
+            </>
+          )}
         </>
       )}
     </Space>

@@ -51,21 +51,13 @@ export class LocalParserRuntimeClient {
     const resultPath = join(this.options.workDir, `${safeJobId}.result.json`);
     writeFileSync(jobPath, `${JSON.stringify(job, null, 2)}\n`, 'utf8');
 
-    const processResult = await this.invokeRuntime([
-      'run',
-      '--job',
-      jobPath,
-      '--out',
-      resultPath,
-    ]);
+    const processResult = await this.invokeRuntime(['run', '--job', jobPath, '--out', resultPath]);
     if (processResult.exitCode !== 0 && processResult.exitCode !== 5) {
       throw new Error(
         `parser runtime exited ${processResult.exitCode}: ${processResult.stderr || 'no stderr'}`,
       );
     }
-    const result = parseParserRuntimeResultV1(
-      JSON.parse(readFileSync(resultPath, 'utf8')),
-    );
+    const result = parseParserRuntimeResultV1(JSON.parse(readFileSync(resultPath, 'utf8')));
     if (result.engine !== job.engine) {
       throw new Error(
         `parser method relabeling detected: job=${job.engine} result=${result.engine}`,

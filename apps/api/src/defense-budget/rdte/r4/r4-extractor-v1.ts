@@ -402,6 +402,10 @@ export function buildR4MilestoneAssertions(input: {
       ...(m.printedPage != null ? { printedPage: m.printedPage } : {}),
       tableIndex: m.tableIndex,
       rowIndex: m.rowIndex,
+      /* The strict milestone schema has no top-level projectCode, so project
+       * scope has to travel in metadata for the projection planner to scope
+       * milestones per project instead of collapsing them onto the PE. */
+      ...(m.projectCode != null ? { projectCode: m.projectCode } : {}),
     };
     return {
       assertionId: `${input.assertionIdPrefix}_${i}`,

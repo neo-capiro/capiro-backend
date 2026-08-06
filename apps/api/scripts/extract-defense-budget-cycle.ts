@@ -195,16 +195,11 @@ function sha256File(filePath: string): string {
   return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-function sourcePathForDocument(
-  document: BudgetCycleManifestDocumentV1,
-  args: CommandArgs,
-): string {
+function sourcePathForDocument(document: BudgetCycleManifestDocumentV1, args: CommandArgs): string {
   if (!args.allDocuments) return path.resolve(args.source!);
   const filename = path.basename(document.sourceLocator.replace(/^file:\/\//, ''));
   if (!filename || filename === '.' || filename === path.sep) {
-    throw new Error(
-      `document ${document.documentKey} sourceLocator has no deterministic filename`,
-    );
+    throw new Error(`document ${document.documentKey} sourceLocator has no deterministic filename`);
   }
   return path.resolve(args.sourceRoot!, filename);
 }
@@ -215,9 +210,7 @@ function companionPathForDocument(
 ): string {
   if (!args.allDocuments) {
     if (!args.structuredCompanion) {
-      throw new Error(
-        'native_structured requires --structured-companion <Phase 1 V1 artifact>',
-      );
+      throw new Error('native_structured requires --structured-companion <Phase 1 V1 artifact>');
     }
     return path.resolve(args.structuredCompanion);
   }
@@ -226,16 +219,10 @@ function companionPathForDocument(
       'native_structured in --all-documents mode requires --structured-companion-root',
     );
   }
-  return path.resolve(
-    args.structuredCompanionRoot,
-    `${document.documentKey}.extraction-v1.json`,
-  );
+  return path.resolve(args.structuredCompanionRoot, `${document.documentKey}.extraction-v1.json`);
 }
 
-function outputPathForDocument(
-  args: CommandArgs,
-  document: BudgetCycleManifestDocumentV1,
-): string {
+function outputPathForDocument(args: CommandArgs, document: BudgetCycleManifestDocumentV1): string {
   return args.allDocuments
     ? path.join(args.workDir, `${document.documentKey}.extraction-v1.json`)
     : path.resolve(args.out!);

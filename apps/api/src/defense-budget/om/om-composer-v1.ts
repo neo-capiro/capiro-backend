@@ -75,24 +75,21 @@ export interface OmFamilyReport {
  *
  * No canonical writer or legacy loader call is permitted.
  */
-export function composeOmFamily(
-  input: OmCompositionInput,
-): OmFamilyReport {
-  const {
-    artifacts,
-    requiredIdentityKeys,
-    requiredNarrativeSections,
-    requiredQuantityCategories,
-  } = input;
+export function composeOmFamily(input: OmCompositionInput): OmFamilyReport {
+  const { artifacts, requiredIdentityKeys, requiredNarrativeSections, requiredQuantityCategories } =
+    input;
 
   /* Collect all identities from all artifacts. */
-  const identityMap = new Map<string, {
-    naturalKey: string;
-    printedCode: string;
-    account: string;
-    component: string;
-    exhibits: Set<string>;
-  }>();
+  const identityMap = new Map<
+    string,
+    {
+      naturalKey: string;
+      printedCode: string;
+      account: string;
+      component: string;
+      exhibits: Set<string>;
+    }
+  >();
 
   const o1Identities: OmIdentityInput[] = [];
   const op5Identities: OmIdentityInput[] = [];
@@ -138,12 +135,8 @@ export function composeOmFamily(
           hasNarrative: false,
           hasQuantity: false,
           hasFunding: false,
-          ...(assertion.budgetActivity != null
-            ? { budgetActivity: assertion.budgetActivity }
-            : {}),
-          ...(assertion.activityGroup != null
-            ? { activityGroup: assertion.activityGroup }
-            : {}),
+          ...(assertion.budgetActivity != null ? { budgetActivity: assertion.budgetActivity } : {}),
+          ...(assertion.activityGroup != null ? { activityGroup: assertion.activityGroup } : {}),
         });
       }
       if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'OM_SAG') {
@@ -205,12 +198,8 @@ export function composeOmFamily(
           hasNarrative: false,
           hasQuantity: false,
           hasFunding: false,
-          ...(assertion.budgetActivity != null
-            ? { budgetActivity: assertion.budgetActivity }
-            : {}),
-          ...(assertion.activityGroup != null
-            ? { activityGroup: assertion.activityGroup }
-            : {}),
+          ...(assertion.budgetActivity != null ? { budgetActivity: assertion.budgetActivity } : {}),
+          ...(assertion.activityGroup != null ? { activityGroup: assertion.activityGroup } : {}),
         });
       }
       if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'OM_SAG') {
@@ -315,19 +304,18 @@ export function composeOmFamily(
   }
 
   /* Build identity list */
-  const identities = [...identityMap.values()].map((id) => ({
-    naturalKey: id.naturalKey,
-    printedCode: id.printedCode,
-    account: id.account,
-    component: id.component,
-    exhibits: [...id.exhibits].sort(),
-  })).sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
+  const identities = [...identityMap.values()]
+    .map((id) => ({
+      naturalKey: id.naturalKey,
+      printedCode: id.printedCode,
+      account: id.account,
+      component: id.component,
+      exhibits: [...id.exhibits].sort(),
+    }))
+    .sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
 
   /* Count artifacts and assertions */
-  const allArtifacts = [
-    ...artifacts.o1Artifacts,
-    ...artifacts.op5Artifacts,
-  ];
+  const allArtifacts = [...artifacts.o1Artifacts, ...artifacts.op5Artifacts];
   const assertionCount = allArtifacts.reduce((sum, a) => sum + a.assertions.length, 0);
 
   return {

@@ -154,15 +154,10 @@ export function deriveEscalationRunIds(
 ): Set<string> {
   const output = new Set<string>();
   if (!plan) return output;
-  const escalationSteps = plan.steps.filter(
-    (step) => !step.reasonCodes.includes('initial_plan'),
-  );
+  const escalationSteps = plan.steps.filter((step) => !step.reasonCodes.includes('initial_plan'));
   for (const step of escalationSteps) {
     for (const entry of entries) {
-      if (
-        entry.method === step.engine &&
-        samePages(entry.result.requestedPages, step.pages)
-      ) {
+      if (entry.method === step.engine && samePages(entry.result.requestedPages, step.pages)) {
         output.add(entry.parserRunId);
       }
     }
@@ -237,9 +232,7 @@ function selectPage(input: {
   for (const entry of input.entries) {
     const pageResult = entry.result.pages.find((page) => page.page === input.page);
     if (pageResult) successful.push({ entry, pageResult });
-    failures.push(
-      ...entry.result.failedPages.filter((failure) => failure.page === input.page),
-    );
+    failures.push(...entry.result.failedPages.filter((failure) => failure.page === input.page));
   }
 
   if (successful.length === 0) {
@@ -247,9 +240,7 @@ function selectPage(input: {
       page: input.page,
       selectedParserRunId: null,
       selectionReasonCodes: [
-        failures.length > 0
-          ? SELECTION_REASON_CODES.ALL_FAILED
-          : SELECTION_REASON_CODES.NO_RESULTS,
+        failures.length > 0 ? SELECTION_REASON_CODES.ALL_FAILED : SELECTION_REASON_CODES.NO_RESULTS,
       ],
       selectedResult: null,
       alternativeParserRunIds: [],
@@ -263,19 +254,14 @@ function selectPage(input: {
   const winner = ordered[0]!;
   const alternatives = ordered
     .slice(1)
-    .filter(
-      (candidate) =>
-        !arePageResultsIdentical(candidate.pageResult, winner.pageResult),
-    )
+    .filter((candidate) => !arePageResultsIdentical(candidate.pageResult, winner.pageResult))
     .map((candidate) => candidate.entry.parserRunId)
     .sort();
 
   return {
     page: input.page,
     selectedParserRunId: winner.entry.parserRunId,
-    selectionReasonCodes: [
-      selectionReason(winner, ordered, input.escalationRunIds),
-    ],
+    selectionReasonCodes: [selectionReason(winner, ordered, input.escalationRunIds)],
     selectedResult: winner.pageResult,
     alternativeParserRunIds: alternatives,
     failures,
@@ -295,8 +281,7 @@ export interface ComposeOptions {
 export function composePageResults(options: ComposeOptions): ComposedPageOutputV1 {
   const policy = options.selectionPolicy ?? DEFAULT_SELECTION_POLICY;
   const escalationRunIds =
-    options.escalationRunIds ??
-    deriveEscalationRunIds(options.plan, options.parserRunEntries);
+    options.escalationRunIds ?? deriveEscalationRunIds(options.plan, options.parserRunEntries);
   const pages = sortedUniquePages(options.requestedPages).map((page) =>
     selectPage({
       page,
@@ -308,9 +293,7 @@ export function composePageResults(options: ComposeOptions): ComposedPageOutputV
   const lineages = options.parserRunEntries
     .flatMap(buildLineageEntries)
     .sort(
-      (left, right) =>
-        left.page - right.page ||
-        left.parserRunId.localeCompare(right.parserRunId),
+      (left, right) => left.page - right.page || left.parserRunId.localeCompare(right.parserRunId),
     );
 
   const unsealed: Omit<ComposedPageOutputV1, 'contentSha256'> = {
@@ -329,18 +312,13 @@ export function composePageResults(options: ComposeOptions): ComposedPageOutputV
 export function verifyComposedContentSha(output: ComposedPageOutputV1): boolean {
   try {
     const { contentSha256: _contentSha256, ...unsealed } = output;
-    return (
-      sha256CanonicalJson(unsealed as unknown as JsonValue) ===
-      output.contentSha256
-    );
+    return sha256CanonicalJson(unsealed as unknown as JsonValue) === output.contentSha256;
   } catch {
     return false;
   }
 }
 
-export function validatePageCompleteness(
-  pages: SelectedPageResultV1[],
-): boolean {
+export function validatePageCompleteness(pages: SelectedPageResultV1[]): boolean {
   return pages.every((page) => {
     if (page.selectedResult !== null) {
       return page.selectedParserRunId !== null;

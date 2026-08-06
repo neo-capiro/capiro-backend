@@ -18,6 +18,10 @@ import type {
 } from './memory-candidate.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
+import {
+  MemorySettingsReviewReadinessService,
+  settingsMemoryReviewEnabledForTenant,
+} from './memory-settings-review-readiness.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import type { MemoryItemType } from './memory.types.js';
@@ -53,6 +57,7 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     authorization: MemoryAuthorizationService,
     private readonly settingsVersions: SettingsMemoryVersionCandidateService,
     private readonly immutableVersions: ImmutableMemoryVersionService,
+    private readonly reviewReadiness: MemorySettingsReviewReadinessService,
   ) {
     super(prisma, memoryIngest, config, transitionAudit, cleanupOutbox, authorization);
   }
@@ -61,6 +66,12 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     ctx: CandidateActorContext,
     input: SettingsMemoryCandidateInput,
   ): Promise<PendingSettingsCandidate> {
+    // A shared Settings save is useful only when it has a real completion path.
+    // This preflight uses the same independent-review, grant, and ethical-wall
+    // rules as approval and throws a user-readable 409 before any candidate row
+    // exists when review is disabled or no other reviewer can approve.
+    await this.reviewReadiness.assertSubmissionReady(ctx, input);
+
     if (!settingsVersioningEnabled(ctx.tenantId)) {
       return super.proposeSettingsSections(ctx, input);
     }
@@ -77,16 +88,24 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     type: MemoryItemType,
     slug: string,
   ): Promise<PendingSettingsCandidate | null> {
+    let pending: PendingSettingsCandidate | null;
     if (!settingsVersioningEnabled(tenantId)) {
-      return super.findPendingSettingsCandidate(tenantId, viewerUserId, type, slug);
+      pending = await super.findPendingSettingsCandidate(tenantId, viewerUserId, type, slug);
+    } else {
+      const correction = await this.settingsVersions.findPendingSettingsCorrection(
+        tenantId,
+        viewerUserId,
+        type,
+        slug,
+      );
+      pending =
+        correction ??
+        (await super.findPendingSettingsCandidate(tenantId, viewerUserId, type, slug));
     }
-    const correction = await this.settingsVersions.findPendingSettingsCorrection(
-      tenantId,
-      viewerUserId,
-      type,
-      slug,
-    );
-    return correction ?? super.findPendingSettingsCandidate(tenantId, viewerUserId, type, slug);
+    if (!pending) return null;
+    return this.reviewReadiness.describePendingCandidate(tenantId, viewerUserId, pending, {
+      reviewEnabled: settingsMemoryReviewEnabledForTenant(tenantId),
+    });
   }
 
   override async approve(

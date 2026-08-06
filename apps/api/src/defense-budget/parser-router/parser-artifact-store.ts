@@ -44,11 +44,15 @@ function verifyResultAgainstDescriptor(
     );
   }
   const result = parseParserRuntimeResultV1(JSON.parse(resultBytes));
-  if (!verifyResultContentSha256(result)) throw new Error('artifact content SHA does not recompute');
-  if (result.contentSha256 !== descriptor.contentSha256) throw new Error('descriptor content SHA mismatch');
-  if (result.inputSourceSha256 !== descriptor.sourceSha256) throw new Error('artifact source SHA mismatch');
+  if (!verifyResultContentSha256(result))
+    throw new Error('artifact content SHA does not recompute');
+  if (result.contentSha256 !== descriptor.contentSha256)
+    throw new Error('descriptor content SHA mismatch');
+  if (result.inputSourceSha256 !== descriptor.sourceSha256)
+    throw new Error('artifact source SHA mismatch');
   if (result.engine !== descriptor.method) throw new Error('artifact method mismatch');
-  if (result.parserVersion !== descriptor.parserVersion) throw new Error('artifact parser version mismatch');
+  if (result.parserVersion !== descriptor.parserVersion)
+    throw new Error('artifact parser version mismatch');
   if (result.parserConfigSha256 !== descriptor.parserConfigSha256) {
     throw new Error('artifact parser config SHA mismatch');
   }
@@ -103,7 +107,10 @@ export class FilesystemParserArtifactStore implements ParserArtifactStoreV1 {
     if (!existsSync(descriptor.resultLocator)) {
       throw new Error(`artifact result file not found: ${descriptor.resultLocator}`);
     }
-    return verifyResultAgainstDescriptor(descriptor, readFileSync(descriptor.resultLocator, 'utf8'));
+    return verifyResultAgainstDescriptor(
+      descriptor,
+      readFileSync(descriptor.resultLocator, 'utf8'),
+    );
   }
 
   async putVerified(input: {
@@ -226,7 +233,9 @@ export class S3ParserArtifactStore implements ParserArtifactStoreV1 {
       contentType: 'application/json',
     });
     if (this.requireVersionId && !write.versionId) {
-      throw new Error('S3 parser artifact write did not return VersionId; bucket versioning is required');
+      throw new Error(
+        'S3 parser artifact write did not return VersionId; bucket versioning is required',
+      );
     }
     const query = new URLSearchParams();
     if (write.versionId) query.set('versionId', write.versionId);
@@ -234,7 +243,12 @@ export class S3ParserArtifactStore implements ParserArtifactStoreV1 {
     const resultLocator = `s3://${this.bucket}/${resultKey}${
       query.size > 0 ? `?${query.toString()}` : ''
     }`;
-    const descriptor = buildDescriptor(input.identity, input.result, input.resultJson, resultLocator);
+    const descriptor = buildDescriptor(
+      input.identity,
+      input.result,
+      input.resultJson,
+      resultLocator,
+    );
     verifyResultAgainstDescriptor(descriptor, input.resultJson);
     await this.objectStore.putObject({
       bucket: this.bucket,

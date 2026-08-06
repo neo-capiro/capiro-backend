@@ -7,6 +7,13 @@ Dockerfile  text eol=lf
 # entrypoint-dispatcher.inc is a POSIX shell script run as `/bin/sh <file>`, so
 # it needs the same protection as *.sh despite the extension.
 *.inc       text eol=lf
+*.json      text eol=lf
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.cjs       text eol=lf
+*.mjs       text eol=lf
+*.md        text eol=lf
 
 # Binary fixtures/assets — never apply text/EOL normalization (would corrupt them).
 *.pdf       binary

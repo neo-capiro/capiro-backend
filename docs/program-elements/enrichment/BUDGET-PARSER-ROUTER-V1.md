@@ -68,13 +68,13 @@ Terminal states have no outgoing transition.
 
 ## 3. Parser policy behavior
 
-| Manifest policy | Initial behavior | Escalation |
-|---|---|---|
-| `native_structured` | Requires an explicitly supplied Phase 1 V1 companion; no PDF parser fallback | Companion is identity-checked and sent directly through Phase 2 |
-| `deterministic_table` | pdfplumber on clean digital pages | Camelot → Docling → authorized LlamaParse |
-| `mixed_layout` | Docling on digital mixed-layout pages; PaddleOCR on image-only pages | Camelot where table-specific → authorized LlamaParse |
-| `ocr` | Embedded-text pages still use pdfplumber; image-only pages use PaddleOCR | Docling/Camelot → authorized LlamaParse |
-| `complex` | Local profiling, then pdfplumber/Docling/PaddleOCR according to page evidence | authorized LlamaParse for unresolved explicit pages only |
+| Manifest policy       | Initial behavior                                                              | Escalation                                                      |
+| --------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `native_structured`   | Requires an explicitly supplied Phase 1 V1 companion; no PDF parser fallback  | Companion is identity-checked and sent directly through Phase 2 |
+| `deterministic_table` | pdfplumber on clean digital pages                                             | Camelot → Docling → authorized LlamaParse                       |
+| `mixed_layout`        | Docling on digital mixed-layout pages; PaddleOCR on image-only pages          | Camelot where table-specific → authorized LlamaParse            |
+| `ocr`                 | Embedded-text pages still use pdfplumber; image-only pages use PaddleOCR      | Docling/Camelot → authorized LlamaParse                         |
+| `complex`             | Local profiling, then pdfplumber/Docling/PaddleOCR according to page evidence | authorized LlamaParse for unresolved explicit pages only        |
 
 A high risk score alone never creates a paid call. LlamaParse requires:
 
@@ -349,23 +349,23 @@ docker build --platform linux/amd64 --target ocr -f apps/defense-budget-parser/D
 
 ## 10. Workstream status
 
-| Workstream | Status | Primary evidence |
-|---|---|---|
-| A — contracts/state machine | Implemented | strict TS/Python contracts; executable router state map |
-| B — page profiler | Implemented | profile-all, source SHA proof, deterministic profile contract |
-| C — route/escalation planner | Implemented | native refusal, local-first escalation, cap/round/repeat controls |
-| D — artifact stores/replay/recording | Implemented | filesystem and versioned S3 replay; Prisma recorder |
-| E — isolated Python runtime/container | Implemented | strict CLI, multi-target Dockerfile, locked project |
-| F — pdfplumber | Implemented | requested-page parser with real geometry |
-| G — Camelot | Implemented | requested-page flavor routing and real geometry |
-| H — Docling | Implemented | CLI-dispatched CPU mixed-layout engine |
-| I — PaddleOCR | Implemented | targeted CPU OCR with resource controls |
-| J — LlamaParse | Implemented | explicit authorization, exact pages, no auto retry |
-| K — deterministic compositor | Implemented | one selected result or explicit failure per page |
-| L — V1 bridge/verifier loop | Implemented | strict artifact, exact Phase 2 identities, bounded rounds |
-| M — operator commands | Implemented | profile, plan, extract, native companion, replay |
-| N — gates/negative controls | Implemented | architecture, cross-language, all 20 real injections |
-| O — cost/docs/handoff | Implemented | execution reports, cost accumulator, this document and runbook |
+| Workstream                            | Status      | Primary evidence                                                  |
+| ------------------------------------- | ----------- | ----------------------------------------------------------------- |
+| A — contracts/state machine           | Implemented | strict TS/Python contracts; executable router state map           |
+| B — page profiler                     | Implemented | profile-all, source SHA proof, deterministic profile contract     |
+| C — route/escalation planner          | Implemented | native refusal, local-first escalation, cap/round/repeat controls |
+| D — artifact stores/replay/recording  | Implemented | filesystem and versioned S3 replay; Prisma recorder               |
+| E — isolated Python runtime/container | Implemented | strict CLI, multi-target Dockerfile, locked project               |
+| F — pdfplumber                        | Implemented | requested-page parser with real geometry                          |
+| G — Camelot                           | Implemented | requested-page flavor routing and real geometry                   |
+| H — Docling                           | Implemented | CLI-dispatched CPU mixed-layout engine                            |
+| I — PaddleOCR                         | Implemented | targeted CPU OCR with resource controls                           |
+| J — LlamaParse                        | Implemented | explicit authorization, exact pages, no auto retry                |
+| K — deterministic compositor          | Implemented | one selected result or explicit failure per page                  |
+| L — V1 bridge/verifier loop           | Implemented | strict artifact, exact Phase 2 identities, bounded rounds         |
+| M — operator commands                 | Implemented | profile, plan, extract, native companion, replay                  |
+| N — gates/negative controls           | Implemented | architecture, cross-language, all 20 real injections              |
+| O — cost/docs/handoff                 | Implemented | execution reports, cost accumulator, this document and runbook    |
 
 ## 11. Scope intentionally left for later phases
 

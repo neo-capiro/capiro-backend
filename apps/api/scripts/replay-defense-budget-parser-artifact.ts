@@ -1,9 +1,7 @@
 /** Read-only replay proof for a local parser artifact descriptor. */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-  FilesystemParserArtifactStore,
-} from '../src/defense-budget/parser-router/parser-artifact-store.js';
+import { FilesystemParserArtifactStore } from '../src/defense-budget/parser-router/parser-artifact-store.js';
 import {
   computeParserRunCacheKey,
   computeParserRunId,
@@ -66,11 +64,9 @@ async function main(): Promise<void> {
       sourceSha256Match: result.inputSourceSha256 === descriptor.sourceSha256,
       methodMatch: result.engine === descriptor.method,
       parserVersionMatch: result.parserVersion === descriptor.parserVersion,
-      parserConfigSha256Match:
-        result.parserConfigSha256 === descriptor.parserConfigSha256,
+      parserConfigSha256Match: result.parserConfigSha256 === descriptor.parserConfigSha256,
       requestedPagesMatch:
-        JSON.stringify(result.requestedPages) ===
-        JSON.stringify(descriptor.requestedPages),
+        JSON.stringify(result.requestedPages) === JSON.stringify(descriptor.requestedPages),
       overallProofValid: cacheKeyMatch && parserRunIdMatch,
     };
     console.log(JSON.stringify(report, null, 2));

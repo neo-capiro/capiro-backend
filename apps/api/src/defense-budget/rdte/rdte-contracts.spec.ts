@@ -186,9 +186,9 @@ describe('final RDT&E cycle bundle contract', () => {
   });
 
   it('produces deterministic IDs and content hashes under key permutation', () => {
-    expect(
-      rdteCycleBundleId({ cycleId: 'pb_fy2027', fiscalYear: 2027 }),
-    ).toBe(rdteCycleBundleId({ fiscalYear: 2027, cycleId: 'pb_fy2027' }));
+    expect(rdteCycleBundleId({ cycleId: 'pb_fy2027', fiscalYear: 2027 })).toBe(
+      rdteCycleBundleId({ fiscalYear: 2027, cycleId: 'pb_fy2027' }),
+    );
     const first = makeBundle();
     const reordered = Object.fromEntries(Object.entries(makeBundle()).reverse());
     expect(computeRdteCycleBundleContentSha256(first as never)).toBe(

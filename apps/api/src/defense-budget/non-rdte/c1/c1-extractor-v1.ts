@@ -29,12 +29,12 @@
  * Pure module. Never invokes a parser, never calls LlamaParse, never writes
  * to a database. No ProgramElementWriterService.
  */
-import type { ParserPageResultV1, ParsedTableV1 } from '../../parser-router/parser-runtime-contract-v1.js';
+import type {
+  ParserPageResultV1,
+  ParsedTableV1,
+} from '../../parser-router/parser-runtime-contract-v1.js';
 import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
-import {
-  buildMilconProjectIdentity,
-  type MilconProjectIdentityV1,
-} from '../identity-v1.js';
+import { buildMilconProjectIdentity, type MilconProjectIdentityV1 } from '../identity-v1.js';
 import {
   detectPrintedUnit,
   toCanonicalDecimal,
@@ -151,12 +151,7 @@ function classifyLabelColumn(headerText: string): LabelColumnRole {
   ) {
     return 'project_title';
   }
-  if (
-    h === 'installation' ||
-    h === 'base' ||
-    h === 'site' ||
-    h === 'install'
-  ) {
+  if (h === 'installation' || h === 'base' || h === 'site' || h === 'install') {
     return 'installation';
   }
   if (
@@ -170,28 +165,13 @@ function classifyLabelColumn(headerText: string): LabelColumnRole {
   ) {
     return 'location';
   }
-  if (
-    h === 'category code' ||
-    h === 'cat code' ||
-    h === 'category' ||
-    h === 'cat'
-  ) {
+  if (h === 'category code' || h === 'cat code' || h === 'category' || h === 'cat') {
     return 'category_code';
   }
-  if (
-    h === 'new mission' ||
-    h === 'mission' ||
-    h === 'new/current' ||
-    h === 'mission type'
-  ) {
+  if (h === 'new mission' || h === 'mission' || h === 'new/current' || h === 'mission type') {
     return 'new_mission';
   }
-  if (
-    h === 'appropriation' ||
-    h === 'approp' ||
-    h === 'appropriation account' ||
-    h === 'account'
-  ) {
+  if (h === 'appropriation' || h === 'approp' || h === 'appropriation account' || h === 'account') {
     return 'appropriation';
   }
   return null;
@@ -230,16 +210,51 @@ function mapLabelColumns(
 const PROJECT_NUMBER_RE = /^[A-Z0-9][A-Z0-9\-]{2,19}$/i;
 
 const HEADER_LABELS = new Set([
-  'project number', 'proj no', 'proj number', 'project no.', 'project #', 'no.',
-  'project title', 'title', 'description', 'project name', 'project',
-  'installation', 'base', 'location', 'site', 'install',
-  'city/state', 'city, state', 'city', 'state', 'country', 'city/state/country',
-  'category code', 'cat code', 'category', 'cat',
-  'new mission', 'mission', 'new/current', 'mission type',
-  'appropriation', 'approp', 'appropriation account', 'account',
-  'request', 'authorization', 'appropriation amount', 'total project cost',
-  'future cost', 'total cost', 'cost',
-  'total', 'subtotal', 'sum', 'grand total',
+  'project number',
+  'proj no',
+  'proj number',
+  'project no.',
+  'project #',
+  'no.',
+  'project title',
+  'title',
+  'description',
+  'project name',
+  'project',
+  'installation',
+  'base',
+  'location',
+  'site',
+  'install',
+  'city/state',
+  'city, state',
+  'city',
+  'state',
+  'country',
+  'city/state/country',
+  'category code',
+  'cat code',
+  'category',
+  'cat',
+  'new mission',
+  'mission',
+  'new/current',
+  'mission type',
+  'appropriation',
+  'approp',
+  'appropriation account',
+  'account',
+  'request',
+  'authorization',
+  'appropriation amount',
+  'total project cost',
+  'future cost',
+  'total cost',
+  'cost',
+  'total',
+  'subtotal',
+  'sum',
+  'grand total',
 ]);
 
 function isHeaderValue(text: string): boolean {
@@ -276,11 +291,7 @@ function detectFundingColumn(headerText: string): keyof FundingColumnMap | null 
   ) {
     return 'request';
   }
-  if (
-    h === 'authorization' ||
-    h === 'authorization amount' ||
-    h.includes('authorization')
-  ) {
+  if (h === 'authorization' || h === 'authorization amount' || h.includes('authorization')) {
     return 'authorization';
   }
   if (
@@ -385,9 +396,7 @@ export function extractC1FromPages(input: {
         /* Detect project number */
         let printedProjectCode = '';
         if (labelMap.projectNumber != null) {
-          const projCell = cells.find(
-            (c) => c.columnIndex === labelMap.projectNumber,
-          );
+          const projCell = cells.find((c) => c.columnIndex === labelMap.projectNumber);
           if (projCell != null) {
             const candidate = projCell.text.trim();
             if (isValidProjectNumber(candidate)) {
@@ -410,18 +419,14 @@ export function extractC1FromPages(input: {
         /* Detect project title */
         let projectTitle = '';
         if (labelMap.projectTitle != null) {
-          const titleCell = cells.find(
-            (c) => c.columnIndex === labelMap.projectTitle,
-          );
+          const titleCell = cells.find((c) => c.columnIndex === labelMap.projectTitle);
           projectTitle = titleCell?.text.trim() ?? '';
         }
 
         /* Detect installation */
         let installation: string | undefined;
         if (labelMap.installation != null) {
-          const instCell = cells.find(
-            (c) => c.columnIndex === labelMap.installation,
-          );
+          const instCell = cells.find((c) => c.columnIndex === labelMap.installation);
           const instText = instCell?.text.trim() ?? '';
           if (instText.length > 0) installation = instText;
         }
@@ -429,9 +434,7 @@ export function extractC1FromPages(input: {
         /* Detect location */
         let location: string | undefined;
         if (labelMap.location != null) {
-          const locCell = cells.find(
-            (c) => c.columnIndex === labelMap.location,
-          );
+          const locCell = cells.find((c) => c.columnIndex === labelMap.location);
           const locText = locCell?.text.trim() ?? '';
           if (locText.length > 0) location = locText;
         }
@@ -439,9 +442,7 @@ export function extractC1FromPages(input: {
         /* Detect category code */
         let categoryCode: string | undefined;
         if (labelMap.categoryCode != null) {
-          const catCell = cells.find(
-            (c) => c.columnIndex === labelMap.categoryCode,
-          );
+          const catCell = cells.find((c) => c.columnIndex === labelMap.categoryCode);
           const catText = catCell?.text.trim() ?? '';
           if (catText.length > 0) categoryCode = catText;
         }
@@ -449,9 +450,7 @@ export function extractC1FromPages(input: {
         /* Detect new mission */
         let newMission: string | undefined;
         if (labelMap.newMission != null) {
-          const nmCell = cells.find(
-            (c) => c.columnIndex === labelMap.newMission,
-          );
+          const nmCell = cells.find((c) => c.columnIndex === labelMap.newMission);
           const nmText = nmCell?.text.trim() ?? '';
           if (nmText.length > 0) newMission = nmText;
         }
@@ -459,9 +458,7 @@ export function extractC1FromPages(input: {
         /* Detect appropriation from row */
         let rowAppropriation = account;
         if (labelMap.appropriation != null) {
-          const appropCell = cells.find(
-            (c) => c.columnIndex === labelMap.appropriation,
-          );
+          const appropCell = cells.find((c) => c.columnIndex === labelMap.appropriation);
           const appropText = appropCell?.text.trim() ?? '';
           if (appropText.length > 0) rowAppropriation = appropText;
         }
@@ -474,9 +471,11 @@ export function extractC1FromPages(input: {
             omissions.push({
               page: page.page,
               rowIndex,
-              reason:
-                'missing project number — cannot build MILCON_PROJECT identity',
-              rawText: cells.map((c) => c.text).join(' ').slice(0, 200),
+              reason: 'missing project number — cannot build MILCON_PROJECT identity',
+              rawText: cells
+                .map((c) => c.text)
+                .join(' ')
+                .slice(0, 200),
               severity: 'blocking',
             });
           }
@@ -496,8 +495,7 @@ export function extractC1FromPages(input: {
           omissions.push({
             page: page.page,
             rowIndex,
-            reason:
-              'invalid MILCON project identity — missing component or project code',
+            reason: 'invalid MILCON project identity — missing component or project code',
             rawText: printedProjectCode,
             severity: 'blocking',
           });
@@ -620,21 +618,19 @@ function findHeaderRow(
   return null;
 }
 
-function isHeaderRow(
-  cells: Array<{ columnIndex: number; text: string }>,
-): boolean {
+function isHeaderRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
   const hasHeaderLabel = cells.some((c) => isHeaderValue(c.text));
   const hasNumericData = cells.some(
-    (c, idx) =>
-      idx > 0 && /^-?[\d,]+(?:\.\d+)?$/.test(c.text.trim().replace(/[()$]/g, '')),
+    (c, idx) => idx > 0 && /^-?[\d,]+(?:\.\d+)?$/.test(c.text.trim().replace(/[()$]/g, '')),
   );
   return hasHeaderLabel && !hasNumericData;
 }
 
-function isTotalRow(
-  cells: Array<{ columnIndex: number; text: string }>,
-): boolean {
-  const text = cells.map((c) => c.text).join(' ').toLowerCase();
+function isTotalRow(cells: Array<{ columnIndex: number; text: string }>): boolean {
+  const text = cells
+    .map((c) => c.text)
+    .join(' ')
+    .toLowerCase();
   return /\b(?:total|subtotal|sum|grand total)\b/i.test(text);
 }
 

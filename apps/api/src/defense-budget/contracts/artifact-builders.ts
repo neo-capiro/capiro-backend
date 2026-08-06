@@ -26,6 +26,7 @@ import {
   type ExtractionOmissionV1,
   type ExtractionSourceV1,
   type ExtractionWarningV1,
+  type PageRangeV1,
   type ParserRunV1,
   type SourceEvidenceV1,
   type SourceFactV1,
@@ -75,6 +76,36 @@ export class ArtifactBuilderV1 {
   addParserRun(run: ParserRunV1): this {
     this.parserRuns.push(run);
     return this;
+  }
+
+  /**
+   * Register a stand-in run for callers that supply none (unit tests and manual
+   * composition), declaring exactly the pages the already-added evidence cites.
+   * A run that claims no pages cannot honestly carry page-bearing evidence, so
+   * the ranges are derived from the evidence rather than left empty.
+   *
+   * Call this after all evidence has been added. Evidence added beforehand
+   * already carries this run's ID, and page binding is a no-op while no run is
+   * registered, so deferring registration does not change lineage.
+   */
+  addParserRunCoveringAddedEvidence(run: Omit<ParserRunV1, 'pageRanges'>): this {
+    const pages = [
+      ...new Set(
+        this.evidence
+          .filter((item) => item.parserRunId === run.parserRunId && item.page != null)
+          .map((item) => item.page as number),
+      ),
+    ].sort((left, right) => left - right);
+    const pageRanges: PageRangeV1[] = [];
+    for (const page of pages) {
+      const last = pageRanges[pageRanges.length - 1];
+      if (last !== undefined && page === last.endPage + 1) {
+        last.endPage = page;
+        continue;
+      }
+      pageRanges.push({ startPage: page, endPage: page });
+    }
+    return this.addParserRun({ ...run, pageRanges });
   }
 
   addEvidence(evidence: SourceEvidenceV1): this {

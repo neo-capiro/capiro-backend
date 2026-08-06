@@ -39,25 +39,19 @@ export function buildO1Artifact(input: {
   const builder = new ArtifactBuilderV1(source);
 
   /* Register parser runs. When none supplied (unit tests), use a synthetic run. */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'o1-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'o1-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities — OM_SAG, never RDTE_PE or PROCUREMENT_BLIN */
   for (const identity of extraction.identities) {
@@ -93,12 +87,8 @@ export function buildO1Artifact(input: {
       rawValue: {
         printedCode: identity.printedCode,
         title: identity.title,
-        ...(identity.budgetActivity != null
-          ? { budgetActivity: identity.budgetActivity }
-          : {}),
-        ...(identity.activityGroup != null
-          ? { activityGroup: identity.activityGroup }
-          : {}),
+        ...(identity.budgetActivity != null ? { budgetActivity: identity.budgetActivity } : {}),
+        ...(identity.activityGroup != null ? { activityGroup: identity.activityGroup } : {}),
         ...(identity.subActivityGroup != null
           ? { subActivityGroup: identity.subActivityGroup }
           : {}),
@@ -124,21 +114,13 @@ export function buildO1Artifact(input: {
         component: identity.identity.component,
       },
       title: identity.title,
-      ...(identity.budgetActivity != null
-        ? { budgetActivity: identity.budgetActivity }
-        : {}),
-      ...(identity.activityGroup != null
-        ? { activityGroup: identity.activityGroup }
-        : {}),
-      ...(identity.subActivityGroup != null
-        ? { subActivityGroup: identity.subActivityGroup }
-        : {}),
+      ...(identity.budgetActivity != null ? { budgetActivity: identity.budgetActivity } : {}),
+      ...(identity.activityGroup != null ? { activityGroup: identity.activityGroup } : {}),
+      ...(identity.subActivityGroup != null ? { subActivityGroup: identity.subActivityGroup } : {}),
       metadata: {
         exhibit: 'O-1',
         physicalPage: identity.page,
-        ...(identity.printedPage != null
-          ? { printedPage: identity.printedPage }
-          : {}),
+        ...(identity.printedPage != null ? { printedPage: identity.printedPage } : {}),
         tableIndex: identity.tableIndex,
         rowIndex: identity.rowIndex,
       },
@@ -252,6 +234,10 @@ export function buildO1Artifact(input: {
       severity: 'blocking',
       message: `O-1 page ${omission.page}: ${omission.reason}`,
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();

@@ -1,9 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { ArtifactBuilderV1 } from '../../contracts/artifact-builders.js';
-import type {
-  ExtractionSourceV1,
-  ParserRunV1,
-} from '../../contracts/extraction-artifact-v1.js';
+import type { ExtractionSourceV1, ParserRunV1 } from '../../contracts/extraction-artifact-v1.js';
 import {
   computeParserRunCacheKey,
   computeParserRunId,

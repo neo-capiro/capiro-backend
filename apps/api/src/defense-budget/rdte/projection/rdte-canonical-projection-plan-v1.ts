@@ -9,9 +9,12 @@ import {
 
 export const RDTE_PROJECTION_PLAN_SCHEMA_VERSION = 'rdte_canonical_projection_plan_v1' as const;
 
-const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
-  message: 'must be nonblank',
-});
+const nonBlank = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, {
+    message: 'must be nonblank',
+  });
 const fiscalYear = z.number().int().min(1900).max(2200);
 
 export const RDTE_PROJECTION_TARGET_V1_VALUES = [
@@ -51,12 +54,8 @@ export const RDTE_PROJECTION_EXCLUSION_V1_VALUES = [
   'unresolved_evidence',
   'not_projection_eligible',
 ] as const;
-export const rdteProjectionExclusionReasonV1Schema = z.enum(
-  RDTE_PROJECTION_EXCLUSION_V1_VALUES,
-);
-export type RdteProjectionExclusionReasonV1 = z.infer<
-  typeof rdteProjectionExclusionReasonV1Schema
->;
+export const rdteProjectionExclusionReasonV1Schema = z.enum(RDTE_PROJECTION_EXCLUSION_V1_VALUES);
+export type RdteProjectionExclusionReasonV1 = z.infer<typeof rdteProjectionExclusionReasonV1Schema>;
 
 const candidateBaseShape = {
   candidateId: nonBlank,
@@ -156,7 +155,9 @@ export const proofBoundRdteProjectionCandidateV1Schema = z
       });
     }
     const assertionIds = [...new Set(value.assertionIds)].sort();
-    const bindingIds = [...new Set(value.assertionBindings.map((binding) => binding.assertionId))].sort();
+    const bindingIds = [
+      ...new Set(value.assertionBindings.map((binding) => binding.assertionId)),
+    ].sort();
     if (assertionIds.join('|') !== bindingIds.join('|')) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -222,9 +223,7 @@ export const rdteCanonicalProjectionPlanV1Schema = z
     candidates: z.array(rdteProjectionCandidateV1Schema),
   })
   .strict();
-export type RdteCanonicalProjectionPlanV1 = z.infer<
-  typeof rdteCanonicalProjectionPlanV1Schema
->;
+export type RdteCanonicalProjectionPlanV1 = z.infer<typeof rdteCanonicalProjectionPlanV1Schema>;
 
 /** Final production plan returned by the proof-bound wrapper. */
 export const proofBoundRdteCanonicalProjectionPlanV1Schema = z

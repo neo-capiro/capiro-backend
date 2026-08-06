@@ -7,9 +7,7 @@ describe('AwsParserArtifactObjectStore', () => {
       send: jest.fn().mockRejectedValue({ name: 'NoSuchKey' }),
     } as unknown as S3Client;
     const store = new AwsParserArtifactObjectStore(client);
-    await expect(
-      store.getObject({ bucket: 'bucket', key: 'missing.json' }),
-    ).resolves.toBeNull();
+    await expect(store.getObject({ bucket: 'bucket', key: 'missing.json' })).resolves.toBeNull();
   });
 
   it('does not hide authorization or service failures as cache misses', async () => {
@@ -21,9 +19,7 @@ describe('AwsParserArtifactObjectStore', () => {
       send: jest.fn().mockRejectedValue(failure),
     } as unknown as S3Client;
     const store = new AwsParserArtifactObjectStore(client);
-    await expect(
-      store.getObject({ bucket: 'bucket', key: 'result.json' }),
-    ).rejects.toBe(failure);
+    await expect(store.getObject({ bucket: 'bucket', key: 'result.json' })).rejects.toBe(failure);
   });
 
   it('passes an exact VersionId to GetObject', async () => {

@@ -81,9 +81,7 @@ describe('Phase 3 route policy closeout', () => {
       parserPolicy: 'deterministic_table',
       pageProfiles: [profile({ likelyTablePage: true })],
       correctableFindings: [finding],
-      attemptedEnginesByPage: new Map([
-        [1, ['deterministic_pdfplumber', 'camelot']],
-      ]),
+      attemptedEnginesByPage: new Map([[1, ['deterministic_pdfplumber', 'camelot']]]),
       allowPaidParse: false,
       maxPaidPages: 0,
       currentRound: 1,
@@ -92,9 +90,7 @@ describe('Phase 3 route policy closeout', () => {
   });
 
   it('distinguishes missing paid authorization from a paid page-cap violation', () => {
-    const attempted = new Map([
-      [1, ['deterministic_pdfplumber', 'camelot', 'docling'] as const],
-    ]);
+    const attempted = new Map([[1, ['deterministic_pdfplumber', 'camelot', 'docling'] as const]]);
     const unauthorized = buildEscalationPlan({
       executionId: 'execution-1',
       cycleId: 'fy2027-pb',

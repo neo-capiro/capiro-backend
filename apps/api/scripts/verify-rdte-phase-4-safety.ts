@@ -79,7 +79,12 @@ function main(): void {
     '--max-paid-pages',
     'paid_cap_required',
   );
-  for (const forbidden of ['--pages-dir', '--verifications', 'fixture://', 'ProgramElementWriterService']) {
+  for (const forbidden of [
+    '--pages-dir',
+    '--verifications',
+    'fixture://',
+    'ProgramElementWriterService',
+  ]) {
     if (build.includes(forbidden)) {
       failures.push(`[annual_command] forbidden legacy/canonical token ${forbidden}`);
     }

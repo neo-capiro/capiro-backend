@@ -35,10 +35,7 @@ import {
   parseQuantity,
   toCanonicalDecimal,
 } from './unit-semantics-v1.js';
-import {
-  bindHeaders,
-  areColumnBindingsCompatible,
-} from './column-semantics-v1.js';
+import { bindHeaders, areColumnBindingsCompatible } from './column-semantics-v1.js';
 
 const ARMY = 'ARMY' as const;
 const NAVY = 'NAVY' as const;
@@ -158,9 +155,7 @@ describe('Phase 5 WS B — O&M SAG identity', () => {
   });
 
   it('rejects blank code', () => {
-    expect(() =>
-      buildOmSagIdentity({ code: '', account: 'O&M, Army', component: ARMY }),
-    ).toThrow();
+    expect(() => buildOmSagIdentity({ code: '', account: 'O&M, Army', component: ARMY })).toThrow();
   });
 
   it('rejects OTHER component', () => {
@@ -215,9 +210,7 @@ describe('Phase 5 WS B — MILCON project identity', () => {
   });
 
   it('rejects blank project code', () => {
-    expect(() =>
-      buildMilconProjectIdentity({ projectCode: '', component: ARMY }),
-    ).toThrow();
+    expect(() => buildMilconProjectIdentity({ projectCode: '', component: ARMY })).toThrow();
   });
 
   it('rejects UNKNOWN component', () => {
@@ -351,9 +344,7 @@ describe('Phase 5 WS B — column semantics', () => {
 
   it('marks ambiguous header as unresolved', () => {
     const result = bindHeaders({
-      headers: [
-        { columnIndex: 0, text: 'Some Unrecognized Column Header' },
-      ],
+      headers: [{ columnIndex: 0, text: 'Some Unrecognized Column Header' }],
       cycleFiscalYear: 2027,
     });
     expect(result.hasAmbiguousColumns).toBe(true);
@@ -404,9 +395,7 @@ describe('Phase 5 WS B — column semantics', () => {
       ],
       cycleFiscalYear: 2027,
     });
-    expect(
-      areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!),
-    ).toBe(true);
+    expect(areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!)).toBe(true);
   });
 
   it('areColumnBindingsCompatible: different FY is not compatible', () => {
@@ -417,9 +406,7 @@ describe('Phase 5 WS B — column semantics', () => {
       ],
       cycleFiscalYear: 2027,
     });
-    expect(
-      areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!),
-    ).toBe(false);
+    expect(areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!)).toBe(false);
   });
 
   it('areColumnBindingsCompatible: money vs quantity is not compatible', () => {
@@ -430,8 +417,6 @@ describe('Phase 5 WS B — column semantics', () => {
       ],
       cycleFiscalYear: 2027,
     });
-    expect(
-      areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!),
-    ).toBe(false);
+    expect(areColumnBindingsCompatible(result.bindings[0]!, result.bindings[1]!)).toBe(false);
   });
 });

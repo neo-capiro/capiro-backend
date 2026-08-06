@@ -8,8 +8,9 @@
  *   - mission/projectCode/performerName become separate facts + assertions
  *   - referencedPeCodes become relationship facts + explicit relationships
  *     (a P-40 PE reference is NEVER a new Program Element identity)
- *   - every YearValueAssertion produces at least one source fact and either a
- *     typed assertion or an explicit omission — no silent drops
+ *   - every represented YearValueAssertion value becomes its own source fact
+ *     and assertion/omission — mixed money/quantity/text inputs are preserved,
+ *     never resolved by first-match wins
  *   - warnings remain individually visible
  *   - provenance stays truthful: llamaparse stays llamaparse, pdfplumber stays
  *     deterministic_pdfplumber, manual stays manual; page-only provenance is
@@ -478,6 +479,13 @@ function mapYearValue(
       evidenceIds: [evidence.evidenceId],
     });
 
+  const representedKinds = [
+    value.money != null ? 'money' : null,
+    value.quantity != null ? 'quantity' : null,
+    value.valueText != null ? 'valueText' : null,
+  ].filter((kind): kind is string => kind != null);
+  const representedFactIds: string[] = [];
+
   if (value.money != null) {
     const fact = makeFact(
       'money',
@@ -490,6 +498,7 @@ function mapYearValue(
       'money',
     );
     builder.addSourceFact(fact);
+    representedFactIds.push(fact.factId);
 
     if (identity == null) {
       builder.addOmission(
@@ -500,51 +509,48 @@ function mapYearValue(
           message: `money value has no valid line identity (code ${value.code})`,
         }),
       );
-      return;
+    } else {
+      const field = FIELD_MAP[value.fieldName];
+      if (field == null) {
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: fact.factId,
+            reason: 'unsupported_field',
+            severity: 'review',
+            message: `money field ${value.fieldName} is not a contract funding field`,
+          }),
+        );
+      } else {
+        try {
+          const originalValue = parseCanonicalDecimalString(value.money.value);
+          const money: MoneyValueV1 = {
+            originalValue,
+            originalUnit: value.money.unit,
+            valueMillions: moneyToMillionsString(originalValue, value.money.unit),
+          };
+          builder.addAssertion({
+            assertionId: assertionIdV1({ sourcePath: `${basePath}.money`, kind: 'funding' }),
+            assertionKind: 'funding',
+            identity,
+            fiscalYear: value.fy,
+            field,
+            money,
+            sourceFactIds: [fact.factId],
+            evidenceIds: [evidence.evidenceId],
+            confidence,
+          });
+        } catch (cause) {
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: fact.factId,
+              reason: 'invalid_number',
+              severity: 'blocking',
+              message: `money value ${value.money.value} is not a finite decimal: ${(cause as Error).message}`,
+            }),
+          );
+        }
+      }
     }
-    const field = FIELD_MAP[value.fieldName];
-    if (field == null) {
-      builder.addOmission(
-        buildOmission({
-          sourceFactId: fact.factId,
-          reason: 'unsupported_field',
-          severity: 'review',
-          message: `money field ${value.fieldName} is not a contract funding field`,
-        }),
-      );
-      return;
-    }
-    let money: MoneyValueV1;
-    try {
-      const originalValue = parseCanonicalDecimalString(value.money.value);
-      money = {
-        originalValue,
-        originalUnit: value.money.unit,
-        valueMillions: moneyToMillionsString(originalValue, value.money.unit),
-      };
-    } catch (cause) {
-      builder.addOmission(
-        buildOmission({
-          sourceFactId: fact.factId,
-          reason: 'invalid_number',
-          severity: 'blocking',
-          message: `money value ${value.money.value} is not a finite decimal: ${(cause as Error).message}`,
-        }),
-      );
-      return;
-    }
-    builder.addAssertion({
-      assertionId: assertionIdV1({ sourcePath: `${basePath}.money`, kind: 'funding' }),
-      assertionKind: 'funding',
-      identity,
-      fiscalYear: value.fy,
-      field,
-      money,
-      sourceFactIds: [fact.factId],
-      evidenceIds: [evidence.evidenceId],
-      confidence,
-    });
-    return;
   }
 
   if (value.quantity != null) {
@@ -554,6 +560,7 @@ function mapYearValue(
       'quantity',
     );
     builder.addSourceFact(fact);
+    representedFactIds.push(fact.factId);
     if (identity == null) {
       builder.addOmission(
         buildOmission({
@@ -563,9 +570,7 @@ function mapYearValue(
           message: `quantity value has no valid line identity (code ${value.code})`,
         }),
       );
-      return;
-    }
-    if (!Number.isFinite(value.quantity)) {
+    } else if (!Number.isFinite(value.quantity)) {
       builder.addOmission(
         buildOmission({
           sourceFactId: fact.factId,
@@ -574,19 +579,18 @@ function mapYearValue(
           message: `quantity ${value.quantity} is not finite`,
         }),
       );
-      return;
+    } else {
+      builder.addAssertion({
+        assertionId: assertionIdV1({ sourcePath: `${basePath}.quantity`, kind: 'quantity' }),
+        assertionKind: 'quantity',
+        identity,
+        fiscalYear: value.fy,
+        quantity: parseCanonicalDecimalString(value.quantity),
+        sourceFactIds: [fact.factId],
+        evidenceIds: [evidence.evidenceId],
+        confidence,
+      });
     }
-    builder.addAssertion({
-      assertionId: assertionIdV1({ sourcePath: `${basePath}.quantity`, kind: 'quantity' }),
-      assertionKind: 'quantity',
-      identity,
-      fiscalYear: value.fy,
-      quantity: parseCanonicalDecimalString(value.quantity),
-      sourceFactIds: [fact.factId],
-      evidenceIds: [evidence.evidenceId],
-      confidence,
-    });
-    return;
   }
 
   if (value.valueText != null) {
@@ -596,6 +600,7 @@ function mapYearValue(
       'valueText',
     );
     builder.addSourceFact(fact);
+    representedFactIds.push(fact.factId);
     builder.addAssertion({
       assertionId: assertionIdV1({ sourcePath: `${basePath}.valueText`, kind: 'document_fact' }),
       assertionKind: 'document_fact',
@@ -605,30 +610,43 @@ function mapYearValue(
       evidenceIds: [evidence.evidenceId],
       confidence,
     });
-    return;
   }
 
-  // No value present: explicit omission, never a silent drop.
-  const emptyFact = buildSourceFact({
-    sourcePath: `${basePath}.value`,
-    category: 'text',
-    requiredForCompleteness: true,
-    rawValue: {
-      fieldName: value.fieldName,
-      fy: value.fy,
-      money: null,
-      quantity: null,
-      valueText: null,
-    },
-    evidenceIds: [evidence.evidenceId],
-  });
-  builder.addSourceFact(emptyFact);
-  builder.addOmission(
-    buildOmission({
-      sourceFactId: emptyFact.factId,
-      reason: 'missing_value',
-      severity: 'review',
-      message: `year value for field ${value.fieldName} fy ${value.fy} carries no money, quantity, or text`,
-    }),
-  );
+  if (representedKinds.length > 1) {
+    builder.addWarning(
+      buildWarning({
+        code: 'legacy_year_value_multiple_representations',
+        severity: 'review',
+        message: `${basePath} carries multiple represented value kinds (${representedKinds.join(', ')}); all were preserved independently`,
+        sourceFactIds: representedFactIds,
+        evidenceIds: [evidence.evidenceId],
+        discriminator: basePath,
+      }),
+    );
+  }
+
+  if (representedKinds.length === 0) {
+    const emptyFact = buildSourceFact({
+      sourcePath: `${basePath}.value`,
+      category: 'text',
+      requiredForCompleteness: true,
+      rawValue: {
+        fieldName: value.fieldName,
+        fy: value.fy,
+        money: null,
+        quantity: null,
+        valueText: null,
+      },
+      evidenceIds: [evidence.evidenceId],
+    });
+    builder.addSourceFact(emptyFact);
+    builder.addOmission(
+      buildOmission({
+        sourceFactId: emptyFact.factId,
+        reason: 'missing_value',
+        severity: 'review',
+        message: `year value for field ${value.fieldName} fy ${value.fy} carries no money, quantity, or text`,
+      }),
+    );
+  }
 }

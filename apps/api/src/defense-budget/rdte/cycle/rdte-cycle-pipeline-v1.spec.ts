@@ -204,9 +204,7 @@ describe('Phase 4 exact RDT&E cycle pipeline', () => {
         tables: page.tables.map((table) => ({
           ...table,
           cells: table.cells.map((cell) =>
-            cell.rowIndex === 1 && cell.columnIndex === 4
-              ? { ...cell, text: '99.000' }
-              : cell,
+            cell.rowIndex === 1 && cell.columnIndex === 4 ? { ...cell, text: '99.000' } : cell,
           ),
         })),
       })),
@@ -246,7 +244,15 @@ describe('Phase 4 exact RDT&E cycle pipeline', () => {
 
   it('keeps all manifest-required coverage categories explicit', () => {
     const result = finalizeGolden();
-    const expected = new Set(['identity', 'funding', 'narrative', 'projects', 'project_funding', 'performers', 'milestones']);
+    const expected = new Set([
+      'identity',
+      'funding',
+      'narrative',
+      'projects',
+      'project_funding',
+      'performers',
+      'milestones',
+    ]);
     expect(new Set(result.bundle.coverage.map((entry) => entry.category))).toEqual(expected);
     for (const entry of result.bundle.coverage) {
       expect(entry.status).toBe('verified');

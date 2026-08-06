@@ -134,11 +134,10 @@ export function adaptR1ArtifactToArtifactV1(
       });
     }
 
-    // Every fyColumns entry with a non-null value becomes an independent
-    // funding fact/assertion. Duplicate rows stay separate — no last-win.
+    // Every fyColumns entry becomes an independent source fact. A malformed FY
+    // key or null value is explicitly omitted rather than skipped or partially
+    // parsed (for example, "2027foo" must never become fiscal year 2027).
     for (const [fyKey, rawValue] of Object.entries(row.fyColumns ?? {})) {
-      if (rawValue == null) continue;
-      const fy = Number.parseInt(fyKey, 10);
       const fyPath = `${rowPath}.fyColumns[${JSON.stringify(fyKey)}]`;
       const moneyFact = buildSourceFact({
         sourcePath: fyPath,
@@ -149,13 +148,26 @@ export function adaptR1ArtifactToArtifactV1(
       });
       builder.addSourceFact(moneyFact);
 
+      const validFyToken = /^\d{4}$/.test(fyKey);
+      const fy = validFyToken ? Number(fyKey) : Number.NaN;
       if (!Number.isInteger(fy) || fy < 1900 || fy > 2200) {
         builder.addOmission(
           buildOmission({
             sourceFactId: moneyFact.factId,
             reason: 'invalid_number',
             severity: 'blocking',
-            message: `fyColumns key ${fyKey} is not a valid fiscal year`,
+            message: `fyColumns key ${fyKey} is not an exact valid fiscal year`,
+          }),
+        );
+        continue;
+      }
+      if (rawValue == null) {
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: moneyFact.factId,
+            reason: 'missing_value',
+            severity: 'review',
+            message: `fyColumns value for fiscal year ${fyKey} is null in the legacy artifact`,
           }),
         );
         continue;
@@ -265,8 +277,6 @@ export function adaptR1ArtifactToArtifactV1(
         evidenceIds: [docEvidence.evidenceId],
       }),
     );
-    // Create a source fact at path 'error' so the error is explicitly
-    // accounted for in the artifact's fact inventory.
     const errorFact = buildSourceFact({
       sourcePath: 'error',
       category: 'metadata',
@@ -275,8 +285,6 @@ export function adaptR1ArtifactToArtifactV1(
       evidenceIds: [docEvidence.evidenceId],
     });
     builder.addSourceFact(errorFact);
-    // Add a blocking omission: the error fact carries no extractable detail
-    // beyond the raw error string, so it cannot be asserted.
     builder.addOmission(
       buildOmission({
         sourceFactId: errorFact.factId,

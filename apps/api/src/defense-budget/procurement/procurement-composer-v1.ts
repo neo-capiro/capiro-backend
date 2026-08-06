@@ -84,17 +84,26 @@ export interface ProcurementFamilyReport {
 export function composeProcurementFamily(
   input: ProcurementCompositionInput,
 ): ProcurementFamilyReport {
-  const { artifacts, requiredIdentityKeys, requiredQuantityCategories, requiredUnitCostCategories, requiredNarrativeSections } = input;
+  const {
+    artifacts,
+    requiredIdentityKeys,
+    requiredQuantityCategories,
+    requiredUnitCostCategories,
+    requiredNarrativeSections,
+  } = input;
 
   /* Collect all identities from all artifacts. */
-  const identityMap = new Map<string, {
-    naturalKey: string;
-    printedCode: string;
-    account: string;
-    component: string;
-    advanceProcurement: boolean;
-    exhibits: Set<string>;
-  }>();
+  const identityMap = new Map<
+    string,
+    {
+      naturalKey: string;
+      printedCode: string;
+      account: string;
+      component: string;
+      advanceProcurement: boolean;
+      exhibits: Set<string>;
+    }
+  >();
 
   /* Extract identities from artifacts by examining assertions. */
   const p1Identities: ProcurementIdentityInput[] = [];
@@ -106,7 +115,10 @@ export function composeProcurementFamily(
   /* Process P-1 artifacts */
   for (const artifact of artifacts.p1Artifacts) {
     for (const assertion of artifact.assertions) {
-      if (assertion.assertionKind === 'procurement_line' && assertion.parentIdentity.lineKind === 'PROCUREMENT_BLIN') {
+      if (
+        assertion.assertionKind === 'procurement_line' &&
+        assertion.parentIdentity.lineKind === 'PROCUREMENT_BLIN'
+      ) {
         const pi = assertion.parentIdentity;
         const identity = buildIdentityFromProcurementLine(pi, assertion.assertionKind);
         if (identity != null) {
@@ -136,7 +148,10 @@ export function composeProcurementFamily(
           });
         }
       }
-      if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'PROCUREMENT_BLIN') {
+      if (
+        assertion.assertionKind === 'funding' &&
+        assertion.identity.lineKind === 'PROCUREMENT_BLIN'
+      ) {
         const fi = assertion.identity;
         const naturalKey = `PROCUREMENT_BLIN:${fi.component}:${fi.account}:${fi.code}:${fi.advanceProcurement ? 'advance' : 'base'}`;
         p1FundingValues.push({
@@ -165,7 +180,10 @@ export function composeProcurementFamily(
   /* Process P-40 artifacts */
   for (const artifact of artifacts.p40Artifacts) {
     for (const assertion of artifact.assertions) {
-      if (assertion.assertionKind === 'procurement_line' && assertion.parentIdentity.lineKind === 'PROCUREMENT_BLIN') {
+      if (
+        assertion.assertionKind === 'procurement_line' &&
+        assertion.parentIdentity.lineKind === 'PROCUREMENT_BLIN'
+      ) {
         const pi = assertion.parentIdentity;
         const identity = buildIdentityFromProcurementLine(pi, assertion.assertionKind);
         if (identity != null) {
@@ -195,7 +213,10 @@ export function composeProcurementFamily(
           });
         }
       }
-      if (assertion.assertionKind === 'funding' && assertion.identity.lineKind === 'PROCUREMENT_BLIN') {
+      if (
+        assertion.assertionKind === 'funding' &&
+        assertion.identity.lineKind === 'PROCUREMENT_BLIN'
+      ) {
         const fi = assertion.identity;
         const naturalKey = `PROCUREMENT_BLIN:${fi.component}:${fi.account}:${fi.code}:${fi.advanceProcurement ? 'advance' : 'base'}`;
         p40FundingValues.push({
@@ -254,9 +275,11 @@ export function composeProcurementFamily(
             hasUnitCost: assertion.assertionKind === 'unit_cost',
             hasNarrative: assertion.assertionKind === 'narrative',
             referencedPeCodes: [],
-            parentNaturalKey: assertion.assertionKind === 'relationship' && assertion.from.lineKind === 'PROCUREMENT_BLIN'
-              ? `PROCUREMENT_BLIN:${assertion.from.component}:${assertion.from.account}:${assertion.from.code}:${assertion.from.advanceProcurement ? 'advance' : 'base'}`
-              : undefined,
+            parentNaturalKey:
+              assertion.assertionKind === 'relationship' &&
+              assertion.from.lineKind === 'PROCUREMENT_BLIN'
+                ? `PROCUREMENT_BLIN:${assertion.from.component}:${assertion.from.account}:${assertion.from.code}:${assertion.from.advanceProcurement ? 'advance' : 'base'}`
+                : undefined,
           });
         }
       }
@@ -300,14 +323,16 @@ export function composeProcurementFamily(
   }
 
   /* Build identity list */
-  const identities = [...identityMap.values()].map((id) => ({
-    naturalKey: id.naturalKey,
-    printedCode: id.printedCode,
-    account: id.account,
-    component: id.component,
-    advanceProcurement: id.advanceProcurement,
-    exhibits: [...id.exhibits].sort(),
-  })).sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
+  const identities = [...identityMap.values()]
+    .map((id) => ({
+      naturalKey: id.naturalKey,
+      printedCode: id.printedCode,
+      account: id.account,
+      component: id.component,
+      advanceProcurement: id.advanceProcurement,
+      exhibits: [...id.exhibits].sort(),
+    }))
+    .sort((a, b) => a.naturalKey.localeCompare(b.naturalKey));
 
   /* Count artifacts and assertions */
   const allArtifacts = [
@@ -335,9 +360,21 @@ export function composeProcurementFamily(
 /* ------------------------------------------------------------------ */
 
 function buildIdentityFromProcurementLine(
-  pi: { lineKind: 'PROCUREMENT_BLIN'; code: string; account: string; component: string; advanceProcurement?: boolean },
+  pi: {
+    lineKind: 'PROCUREMENT_BLIN';
+    code: string;
+    account: string;
+    component: string;
+    advanceProcurement?: boolean;
+  },
   _assertionKind: string,
-): { naturalKey: string; printedCode: string; account: string; component: string; advanceProcurement: boolean } | null {
+): {
+  naturalKey: string;
+  printedCode: string;
+  account: string;
+  component: string;
+  advanceProcurement: boolean;
+} | null {
   if (pi.lineKind !== 'PROCUREMENT_BLIN') return null;
   const advance = pi.advanceProcurement ?? false;
   const naturalKey = `PROCUREMENT_BLIN:${pi.component}:${pi.account.toUpperCase()}:${pi.code.toUpperCase()}:${advance ? 'advance' : 'base'}`;
@@ -352,7 +389,13 @@ function buildIdentityFromProcurementLine(
 
 function extractIdentityFromAssertion(
   assertion: DefenseBudgetExtractionArtifactV1['assertions'][number],
-): { naturalKey: string; printedCode: string; account: string; component: string; advanceProcurement: boolean } | null {
+): {
+  naturalKey: string;
+  printedCode: string;
+  account: string;
+  component: string;
+  advanceProcurement: boolean;
+} | null {
   /* Try to extract identity from various assertion kinds */
   if ('identity' in assertion && assertion.identity != null) {
     const id = assertion.identity;

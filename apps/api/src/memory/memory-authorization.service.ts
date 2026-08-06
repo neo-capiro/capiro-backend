@@ -27,6 +27,12 @@ export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
 export interface MemoryAuthorizationOptions {
   impersonating?: boolean;
   actorRole?: TenantRole | null;
+  /**
+   * Eligibility/read-model calculations use the exact authorization policy but
+   * are not attempted mutations. Suppress denial counters for those read-only
+   * simulations so polling a status surface cannot manufacture control events.
+   */
+  emitDenialMetrics?: boolean;
 }
 
 @Injectable()
@@ -110,11 +116,13 @@ export class MemoryAuthorizationService {
       impersonating: options.impersonating,
       actorRole: options.actorRole,
     });
-    if (!decision.allowed && decision.reason === 'ethical_wall') {
-      emitMeriV2ControlMetrics({ EthicalWallDenials: 1 });
-    }
-    if (!decision.allowed && decision.reason === 'self_review') {
-      emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
+    if (options.emitDenialMetrics !== false) {
+      if (!decision.allowed && decision.reason === 'ethical_wall') {
+        emitMeriV2ControlMetrics({ EthicalWallDenials: 1 });
+      }
+      if (!decision.allowed && decision.reason === 'self_review') {
+        emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
+      }
     }
     return decision;
   }

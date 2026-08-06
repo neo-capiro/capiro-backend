@@ -4,11 +4,7 @@
   "sourcePath": "/tmp/test-source.pdf",
   "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "engine": "deterministic_pdfplumber",
-  "requestedPages": [
-    1,
-    2,
-    3
-  ],
+  "requestedPages": [1, 2, 3],
   "parserVersion": "pdfplumber-0.11.0",
   "parserConfig": {
     "tableProfile": "lines"

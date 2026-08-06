@@ -37,11 +37,7 @@ import type {
   JsonValue,
   ParserRunV1,
 } from '../../contracts/extraction-artifact-v1.js';
-import type {
-  Op5ExtractionResult,
-  Op5SagIdentity,
-  Op5ChangeValue,
-} from './op5-extractor-v1.js';
+import type { Op5ExtractionResult, Op5SagIdentity, Op5ChangeValue } from './op5-extractor-v1.js';
 import { fundingStageToField } from './op5-extractor-v1.js';
 
 export function buildOp5Artifact(input: {
@@ -54,25 +50,19 @@ export function buildOp5Artifact(input: {
   const builder = new ArtifactBuilderV1(source);
 
   /* Register parser runs. When none supplied (unit tests), use a synthetic run. */
-  const effectiveParserRuns: ParserRunV1[] =
-    parserRuns.length > 0
-      ? [...parserRuns]
-      : [
-          {
-            parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
-            method: 'manual',
-            parserVersion: 'op5-extractor-v1',
-            parserConfigSha256: source.sourcePdfSha256,
-            inputSourceSha256: source.sourcePdfSha256,
-            outputArtifactSha256: source.sourcePdfSha256,
-            pageRanges: [],
-          },
-        ];
+  const syntheticParserRun: Omit<ParserRunV1, 'pageRanges'> = {
+    parserRunId: parserRunIdV1({ source: source.sourcePdfSha256 }),
+    method: 'manual',
+    parserVersion: 'op5-extractor-v1',
+    parserConfigSha256: source.sourcePdfSha256,
+    inputSourceSha256: source.sourcePdfSha256,
+    outputArtifactSha256: source.sourcePdfSha256,
+  };
 
-  for (const run of effectiveParserRuns) {
+  for (const run of parserRuns) {
     builder.addParserRun(run);
   }
-  const defaultParserRunId = effectiveParserRuns[0]?.parserRunId ?? '';
+  const defaultParserRunId = parserRuns[0]?.parserRunId ?? syntheticParserRun.parserRunId;
 
   /* Identities — OM_SAG, never RDTE_PE or PROCUREMENT_BLIN */
   for (const identity of extraction.identities) {
@@ -81,10 +71,7 @@ export function buildOp5Artifact(input: {
 
   /* Build a lookup from natural key to identity. */
   const identityByKey = new Map(
-    extraction.identities.map((id: Op5SagIdentity) => [
-      id.identity.naturalKey,
-      id,
-    ]),
+    extraction.identities.map((id: Op5SagIdentity) => [id.identity.naturalKey, id]),
   );
 
   /* Funding values → funding assertions */
@@ -119,13 +106,7 @@ export function buildOp5Artifact(input: {
 
   /* Narrative sections → narrative assertions */
   for (const narrative of extraction.narratives) {
-    addNarrativeAssertion(
-      builder,
-      narrative,
-      identityByKey,
-      source,
-      defaultParserRunId,
-    );
+    addNarrativeAssertion(builder, narrative, identityByKey, source, defaultParserRunId);
   }
 
   /* Omissions */
@@ -153,6 +134,10 @@ export function buildOp5Artifact(input: {
       sourceFactIds: [],
       evidenceIds: [],
     });
+  }
+
+  if (parserRuns.length === 0) {
+    builder.addParserRunCoveringAddedEvidence(syntheticParserRun);
   }
 
   return builder.finalize();
@@ -195,15 +180,9 @@ function addIdentityAssertion(
     rawValue: {
       printedCode: identity.printedCode,
       title: identity.title,
-      ...(identity.budgetActivity != null
-        ? { budgetActivity: identity.budgetActivity }
-        : {}),
-      ...(identity.activityGroup != null
-        ? { activityGroup: identity.activityGroup }
-        : {}),
-      ...(identity.subActivityGroup != null
-        ? { subActivityGroup: identity.subActivityGroup }
-        : {}),
+      ...(identity.budgetActivity != null ? { budgetActivity: identity.budgetActivity } : {}),
+      ...(identity.activityGroup != null ? { activityGroup: identity.activityGroup } : {}),
+      ...(identity.subActivityGroup != null ? { subActivityGroup: identity.subActivityGroup } : {}),
     },
     evidenceIds: [evidenceId],
   });
@@ -225,21 +204,13 @@ function addIdentityAssertion(
       component: identity.identity.component,
     },
     title: identity.title,
-    ...(identity.budgetActivity != null
-      ? { budgetActivity: identity.budgetActivity }
-      : {}),
-    ...(identity.activityGroup != null
-      ? { activityGroup: identity.activityGroup }
-      : {}),
-    ...(identity.subActivityGroup != null
-      ? { subActivityGroup: identity.subActivityGroup }
-      : {}),
+    ...(identity.budgetActivity != null ? { budgetActivity: identity.budgetActivity } : {}),
+    ...(identity.activityGroup != null ? { activityGroup: identity.activityGroup } : {}),
+    ...(identity.subActivityGroup != null ? { subActivityGroup: identity.subActivityGroup } : {}),
     metadata: {
       exhibit: 'OP-5',
       physicalPage: identity.page,
-      ...(identity.printedPage != null
-        ? { printedPage: identity.printedPage }
-        : {}),
+      ...(identity.printedPage != null ? { printedPage: identity.printedPage } : {}),
       tableIndex: identity.tableIndex,
     },
   });
@@ -578,11 +549,7 @@ function addOmission(
 
 function mapOmissionReason(
   reason: string,
-):
-  | 'unsupported_unit'
-  | 'invalid_identity'
-  | 'ambiguous_layout'
-  | 'missing_value' {
+): 'unsupported_unit' | 'invalid_identity' | 'ambiguous_layout' | 'missing_value' {
   if (reason.includes('unit')) return 'unsupported_unit';
   if (reason.includes('identity') || reason.includes('SAG')) return 'invalid_identity';
   if (reason.includes('ambiguous')) return 'ambiguous_layout';
