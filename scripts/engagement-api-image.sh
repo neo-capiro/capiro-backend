@@ -242,24 +242,63 @@ const { readFileSync } = require('node:fs');
 const [file] = process.argv.slice(2);
 const parsed = JSON.parse(readFileSync(file, 'utf8'));
 const status = parsed.imageScanStatus?.status ?? 'UNKNOWN';
-const counts =
+const rawCounts =
   parsed.imageScanFindings?.findingSeverityCounts ??
   parsed.imageScanFindings?.enhancedFindingSeverityCounts ??
   {};
+const findings = parsed.imageScanFindings?.findings;
 const failures = [];
 
 // An incomplete scan is not a pass. "We do not know yet" must never read as
 // "clean" at a deployment gate.
 if (status !== 'COMPLETE') failures.push(`scan status is ${status}, expected COMPLETE`);
 
-const critical = Number(counts.CRITICAL ?? 0);
-const high = Number(counts.HIGH ?? 0);
+// Reviewed and accepted (2026-08-06, Gate C / release 17cdcb5c): every one of
+// these is perl-base — Essential in Debian, baked into every
+// node:*-bookworm-slim base image, already at the latest version Debian's
+// security repo ships (deb12u3), and never invoked by this container's
+// serve-only entrypoint. `apt-get purge perl-base` is not a safe option on an
+// Essential package. Exact CVE ID + package match only: a new CVE against
+// perl-base, or any finding on any other package, still fails the gate.
+// Applies only when AWS returns the per-finding list (real ECR always does);
+// without it there is nothing to match against, so the raw severity counts
+// are used as-is.
+const ACCEPTED_FINDINGS = [
+  'CVE-2026-57433',
+  'CVE-2026-13221',
+  'CVE-2026-12087',
+  'CVE-2026-48961',
+  'CVE-2026-48962',
+  'CVE-2026-7017',
+  'CVE-2026-48959',
+  'CVE-2026-57432',
+].map((name) => ({ name, packageName: 'perl' }));
+
+const packageNameOf = (finding) =>
+  (finding.attributes ?? []).find((a) => a.key === 'package_name')?.value;
+const isAccepted = (finding) =>
+  ACCEPTED_FINDINGS.some(
+    (a) => a.name === finding.name && a.packageName === packageNameOf(finding),
+  );
+
+let critical, high, acceptedCount;
+if (Array.isArray(findings)) {
+  const unaccepted = findings.filter((f) => !isAccepted(f));
+  acceptedCount = findings.length - unaccepted.length;
+  critical = unaccepted.filter((f) => f.severity === 'CRITICAL').length;
+  high = unaccepted.filter((f) => f.severity === 'HIGH').length;
+} else {
+  acceptedCount = 0;
+  critical = Number(rawCounts.CRITICAL ?? 0);
+  high = Number(rawCounts.HIGH ?? 0);
+}
 const baseline = Number(process.env.HIGH_FINDING_BASELINE ?? 0);
-if (critical > 0) failures.push(`${critical} Critical finding(s); publication is blocked`);
-if (high > baseline) failures.push(`${high} High finding(s) exceeds the reviewed baseline ${baseline}`);
+if (critical > 0) failures.push(`${critical} unaccepted Critical finding(s); publication is blocked`);
+if (high > baseline) failures.push(`${high} unaccepted High finding(s) exceeds the reviewed baseline ${baseline}`);
 
 console.log(`scan status ${status}`);
-console.log(`severity counts ${JSON.stringify(counts)}`);
+console.log(`severity counts (raw) ${JSON.stringify(rawCounts)}`);
+console.log(`accepted findings ${acceptedCount}`);
 for (const failure of failures) console.error(`FAIL  ${failure}`);
 if (failures.length > 0) {
   console.error(`\nENGAGEMENT_IMAGE_SCAN_FAILED (${failures.length})`);

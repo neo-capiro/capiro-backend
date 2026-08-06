@@ -352,7 +352,7 @@ test('verify-scan blocks on any Critical finding', () => {
     },
   });
   assert.equal(result.status, 2);
-  assert.match(result.out, /1 Critical finding\(s\); publication is blocked/);
+  assert.match(result.out, /1 unaccepted Critical finding\(s\); publication is blocked/);
 });
 
 test('verify-scan blocks when High exceeds the reviewed baseline', () => {
@@ -364,6 +364,49 @@ test('verify-scan blocks when High exceeds the reviewed baseline', () => {
     run('verify-scan', { awsResponses: responses }, { HIGH_FINDING_BASELINE: '5' }).status,
     0,
   );
+});
+
+const perlFinding = (name, severity) => ({
+  name,
+  severity,
+  attributes: [{ key: 'package_name', value: 'perl' }],
+});
+
+test('verify-scan passes when every Critical/High finding is on the reviewed perl-base allowlist', () => {
+  const result = run('verify-scan', {
+    awsResponses: {
+      'ecr describe-image-scan-findings': {
+        imageScanStatus: { status: 'COMPLETE' },
+        imageScanFindings: {
+          findingSeverityCounts: { CRITICAL: 1, HIGH: 1 },
+          findings: [perlFinding('CVE-2026-57433', 'CRITICAL'), perlFinding('CVE-2026-48961', 'HIGH')],
+        },
+      },
+    },
+  });
+  assert.equal(result.status, 0, result.out);
+  assert.match(result.out, /accepted findings 2/);
+  assert.match(result.out, /ENGAGEMENT_IMAGE_SCAN_CLEAN/);
+});
+
+test('the allowlist is not a blanket bypass: an unaccepted Critical still blocks', () => {
+  const result = run('verify-scan', {
+    awsResponses: {
+      'ecr describe-image-scan-findings': {
+        imageScanStatus: { status: 'COMPLETE' },
+        imageScanFindings: {
+          findingSeverityCounts: { CRITICAL: 2, HIGH: 0 },
+          findings: [
+            perlFinding('CVE-2026-57433', 'CRITICAL'),
+            { name: 'CVE-2099-00001', severity: 'CRITICAL', attributes: [{ key: 'package_name', value: 'openssl' }] },
+          ],
+        },
+      },
+    },
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.out, /accepted findings 1/);
+  assert.match(result.out, /1 unaccepted Critical finding\(s\); publication is blocked/);
 });
 
 test('an incomplete scan is not treated as a pass', () => {
