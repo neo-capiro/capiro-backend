@@ -15,6 +15,7 @@ import { GovernedMemoryCandidateService } from './governed-memory-candidate.serv
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -44,8 +45,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  * Institutional Memory module.
  *
  * Phase 2 review workflow state is a companion to memory_candidate. It owns
- * named assignment and review feedback while canonical activation remains in
- * the existing governed candidate/version services.
+ * named assignment, bounded review feedback, and immutable revision lineage
+ * while canonical activation remains in the governed candidate/version paths.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -77,6 +78,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     },
     { provide: MemoryCandidateService, useExisting: SettingsAwareMemoryCandidateService },
     MemoryReviewWorkflowService,
+    MemoryReviewRevisionService,
     MemoryCandidateReviewService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
@@ -103,6 +105,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     GovernedMemoryCandidateService,
     MemoryCandidateReviewService,
     MemoryReviewWorkflowService,
+    MemoryReviewRevisionService,
     MemoryAuthorizationService,
     ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
