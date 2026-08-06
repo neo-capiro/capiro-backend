@@ -48,28 +48,37 @@ It:
 2. preserves the shape, status, reason-size, and body-free metadata checks;
 3. permits the administrator exception only when the decider is an active
    `user_admin` or `capiro_admin` **and** the canonical application transaction
-   set `app.memory_admin_review_decision=on` after authorization;
-4. preserves assignment enforcement for direct/generic and non-admin writes;
-5. preserves standard-user self-decision denial even when the capability string
-   is forged;
-6. updates existing pending workflow wording without changing status,
+   set both the exact candidate and actor capabilities after authorization;
+4. rejects a capability issued for a different candidate or actor;
+5. preserves assignment enforcement for direct/generic and non-admin writes;
+6. preserves standard-user self-decision denial even when the capability
+   settings are forged;
+7. updates existing pending workflow wording without changing status,
    assignment, candidate content, or active memory;
-7. updates future trigger-created workflow wording.
+8. updates future trigger-created workflow wording.
+
+The transaction-local settings are:
+
+```text
+app.memory_admin_review_candidate_id=<candidate UUID>
+app.memory_admin_review_actor_id=<administrator UUID>
+```
 
 ## Application boundary
 
 - Canonical authorization exempts administrators from the self-review denial
   only after wall and client-status checks.
-- The authorization service grants the transaction-local database capability
-  only for an allowed, non-simulated admin `approve` or `review` decision on a
-  pending candidate.
-- Read-model and eligibility simulations never receive the capability.
+- The authorization service grants candidate- and actor-bound database
+  capabilities only for an allowed, non-simulated admin `approve` or `review`
+  decision on a pending candidate.
+- Read-model and eligibility simulations never receive the capabilities.
 - Candidate and immutable-version activation retain defense-in-depth self-review
   checks for non-admin actors.
 - Workflow decisions no longer require current assignment for administrators.
 - The administrator Review Inbox surfaces every currently authorized pending
   review, including the administrator's own submission.
-- Standard-user inbox and decision behavior remains unchanged.
+- Admin inbox capability checks are batched per page inside one tenant-bound
+  transaction; standard-user inbox behavior remains unchanged.
 
 ## Local acceptance
 
@@ -93,10 +102,12 @@ MEMORY_ADMIN_SELF_APPROVAL_CLOSEOUT_COMPLETE
 
 The database acceptance proves:
 
-- a raw admin self-decision without the capability is denied;
-- a capability-bearing active admin self-decision succeeds;
-- the workflow decision evidence synchronizes;
-- a standard user cannot self-approve even when attempting to set the same GUC.
+- a raw admin self-decision without capability is denied;
+- capability for candidate A cannot authorize candidate B;
+- an exact capability-bearing active admin self-decision succeeds;
+- workflow decision evidence synchronizes;
+- a standard user cannot self-approve even when attempting to set the same
+  candidate/actor capability settings.
 
 The closeout also runs focused TypeScript, the existing Phase 2/3 tests, the
 administrator policy tests, web Vitest, and a production web build.
