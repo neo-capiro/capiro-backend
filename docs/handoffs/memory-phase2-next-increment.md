@@ -1,17 +1,30 @@
 # Memory Review UX Phase 2 — Next Increment
 
-Implement immutable revision and resubmission after a reviewer requests changes.
+Close the revision persistence and compatibility gate before beginning notifications or the Review Inbox redesign.
 
 Required outcomes:
 
-1. Only the original proposer may submit a revised candidate.
-2. The revised candidate is immutable and links to its predecessor.
-3. Revision numbers increase monotonically.
-4. The predecessor becomes superseded atomically with successor creation.
-5. Authorization, ethical-wall access, client status, grants, and reviewer eligibility are evaluated again.
-6. Active memory remains unchanged until independent approval of the revised candidate.
-7. Concurrent revisions produce exactly one live successor.
-8. Compatibility routes cannot bypass the revision workflow.
-9. Tests cover lineage, concurrency, lost access, blocked clients, and terminal-state races.
+1. Reconcile the four lineage columns with Prisma ownership on a complete checkout:
+   - `revision_root_id`
+   - `predecessor_candidate_id`
+   - `revision_number`
+   - `superseded_by_id`
+2. Pass Prisma validate and generate without schema drift.
+3. Replay both Phase 2 migrations on:
+   - a clean PostgreSQL database;
+   - an upgrade database containing existing pending and changes-requested candidates.
+4. Run real concurrent transactions proving exactly one successor can be created.
+5. Run real-role RLS tests for:
+   - original proposer;
+   - assigned reviewer;
+   - unauthorized tenant member;
+   - walled administrator;
+   - cross-tenant user.
+6. Verify older candidate/version decision routes cannot bypass:
+   - named assignment;
+   - revision lineage;
+   - predecessor supersession;
+   - successor authorization.
+7. Add permanent executable closeout evidence for all of the above.
 
-Do not begin notifications or the Review Inbox redesign until this increment passes its focused gate.
+Do not begin notification delivery or frontend inbox work until this compatibility increment passes.
