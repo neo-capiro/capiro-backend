@@ -71,7 +71,6 @@ _COMPONENT_PATTERNS: tuple[tuple[re.Pattern[str], BudgetComponentV1], ...] = (
 )
 
 
-
 def _extract_references(text: str, known_titles: list[str]) -> list[ProvisionReferenceV1]:
     references: list[ProvisionReferenceV1] = []
     seen: set[str] = set()
@@ -91,9 +90,7 @@ def _extract_references(text: str, known_titles: list[str]) -> list[ProvisionRef
             RdteProjectReferenceV1(peCode=pe_code.upper(), projectCode=project.upper()),
         )
 
-    project_pes = {
-        ref.peCode for ref in references if isinstance(ref, RdteProjectReferenceV1)
-    }
+    project_pes = {ref.peCode for ref in references if isinstance(ref, RdteProjectReferenceV1)}
     for match in _PE_RE.finditer(text):
         pe_code = match.group(1).upper()
         if pe_code not in project_pes:
@@ -119,9 +116,7 @@ def _extract_references(text: str, known_titles: list[str]) -> list[ProvisionRef
             _append_unique(
                 references,
                 seen,
-                OmSagReferenceV1(
-                    code=match.group(1).upper(), account=account, component=component
-                ),
+                OmSagReferenceV1(code=match.group(1).upper(), account=account, component=component),
             )
     location_match = _LOCATION_RE.search(text)
     location = location_match.group(1).strip() if location_match is not None else None
@@ -161,8 +156,7 @@ def _scope(text: str, references: list[ProvisionReferenceV1]) -> ProvisionScopeV
     ):
         return 'department_wide'
     if any(
-        phrase in normalized
-        for phrase in ('component wide', 'service wide', 'across the service')
+        phrase in normalized for phrase in ('component wide', 'service wide', 'across the service')
     ):
         return 'component_wide'
     if any(phrase in normalized for phrase in ('account wide', 'across the account')):

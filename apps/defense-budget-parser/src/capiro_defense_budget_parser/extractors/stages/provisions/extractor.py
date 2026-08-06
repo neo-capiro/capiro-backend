@@ -15,11 +15,13 @@ from .contracts import (
     AuthorizationProvisionEvidenceV1,
     AuthorizationProvisionExtractionResultV1,
     AuthorizationProvisionV1,
-    BoundingBoxV1 as ProvisionBoundingBoxV1,
     ProvisionAuthorityV1,
     ProvisionCommitteeV1,
     ProvisionPageRangeV1,
     ProvisionStageV1,
+)
+from .contracts import (
+    BoundingBoxV1 as ProvisionBoundingBoxV1,
 )
 from .semantics import (
     _caveat,
@@ -183,9 +185,12 @@ def _finalize(draft: _DraftProvision, known_titles: list[str]) -> AuthorizationP
         'startPage': draft.start_page,
         'endPage': draft.end_page,
     }
-    provision_id = 'provision-' + hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
-    ).hexdigest()
+    provision_id = (
+        'provision-'
+        + hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        ).hexdigest()
+    )
     return AuthorizationProvisionV1(
         provisionId=provision_id,
         stage=draft.stage,
@@ -244,5 +249,3 @@ def _add_evidence(
         )
     )
     return evidence_id
-
-

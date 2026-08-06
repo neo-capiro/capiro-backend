@@ -261,9 +261,9 @@ class AuthorizationProvisionEvidenceV1(BaseModel):
 class AuthorizationProvisionExtractionResultV1(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    schemaVersion: Literal[
+    schemaVersion: Literal['authorization_provision_extraction_result_v1'] = (
         'authorization_provision_extraction_result_v1'
-    ] = 'authorization_provision_extraction_result_v1'
+    )
     stage: ProvisionStageV1
     profileId: str = Field(min_length=1)
     sourceDocumentId: str = Field(min_length=1)
