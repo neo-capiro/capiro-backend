@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import {
@@ -175,24 +175,27 @@ async function assertOutboxObligations(
 ): Promise<OutboxRow[]> {
   const prisma = client(databaseUrl);
   try {
-    const rows = await prisma.$queryRawUnsafe<OutboxRow[]>(
-      `SELECT outbox.id::text,
-              outbox.tenant_id::text,
-              outbox.review_request_id::text,
-              outbox.candidate_id::text,
-              outbox.recipient_user_id::text,
-              outbox.event_type,
-              (outbox.payload_jsonb ?| ARRAY[
-                'value','sections','body','reason','feedbackReason',
-                'sourceExcerpt','source_excerpt'
-              ]) AS payload_has_forbidden
-       FROM memory_review_notification_outbox outbox
-       WHERE outbox.tenant_id = $1::uuid
-         AND outbox.candidate_id = $2::uuid
-       ORDER BY outbox.created_at ASC`,
-      ids.tenantId,
-      ids.candidateId,
-    );
+    const rows = await prisma.$transaction(async (tx) => {
+      await setContext(tx, ids.tenantId, ids.proposerId);
+      return tx.$queryRawUnsafe<OutboxRow[]>(
+        `SELECT outbox.id::text,
+                outbox.tenant_id::text,
+                outbox.review_request_id::text,
+                outbox.candidate_id::text,
+                outbox.recipient_user_id::text,
+                outbox.event_type,
+                (outbox.payload_jsonb ?| ARRAY[
+                  'value','sections','body','reason','feedbackReason',
+                  'sourceExcerpt','source_excerpt'
+                ]) AS payload_has_forbidden
+         FROM memory_review_notification_outbox outbox
+         WHERE outbox.tenant_id = $1::uuid
+           AND outbox.candidate_id = $2::uuid
+         ORDER BY outbox.created_at ASC`,
+        ids.tenantId,
+        ids.candidateId,
+      );
+    });
     const events = rows.map((row) => row.event_type).sort();
     const expected = [
       'review_assigned',
