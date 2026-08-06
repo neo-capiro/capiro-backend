@@ -9,7 +9,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
@@ -32,12 +32,19 @@ interface FixtureIds {
 
 async function main(): Promise<void> {
   runStaticContract();
-  run('pnpm', ['exec', 'prisma', 'validate', '--schema', 'prisma/schema.prisma']);
-  run('pnpm', ['exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma']);
 
   const cleanUrl = requireDisposableUrl('MEMORY_PHASE2_CLEAN_DATABASE_URL');
   const upgradeUrl = requireDisposableUrl('MEMORY_PHASE2_UPGRADE_DATABASE_URL');
-  if (cleanUrl === upgradeUrl) throw new Error('Clean and upgrade database URLs must differ.');
+  if (databaseIdentity(cleanUrl) === databaseIdentity(upgradeUrl)) {
+    throw new Error('Clean and upgrade database URLs must identify different databases.');
+  }
+
+  run('pnpm', ['exec', 'prisma', 'validate', '--schema', 'prisma/schema.prisma'], {
+    DATABASE_URL: cleanUrl,
+  });
+  run('pnpm', ['exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'], {
+    DATABASE_URL: cleanUrl,
+  });
 
   await assertEmptyDatabase(cleanUrl, 'clean');
   await assertEmptyDatabase(upgradeUrl, 'upgrade');
@@ -86,7 +93,10 @@ function buildPrePhaseMigrationTree(): string {
   if (existsSync(lock)) cpSync(lock, join(targetMigrations, 'migration_lock.toml'));
 
   for (const entry of readdirSync(migrationRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name === PHASE1 || entry.name === PHASE2) continue;
+    // The upgrade baseline must represent the exact database immediately before
+    // Phase 2. Do not accidentally run a later migration before Phase 2 merely
+    // because it already exists in the checkout.
+    if (!entry.isDirectory() || entry.name >= PHASE1) continue;
     cpSync(join(migrationRoot, entry.name), join(targetMigrations, entry.name), {
       recursive: true,
     });
@@ -95,9 +105,9 @@ function buildPrePhaseMigrationTree(): string {
 }
 
 function copyMigration(name: string, targetPrismaRoot: string): void {
-  cpSync(join(migrationRoot, name), join(targetPrismaRoot, 'migrations', name), {
-    recursive: true,
-  });
+  const source = join(migrationRoot, name);
+  if (!existsSync(source)) throw new Error(`Required migration ${name} is missing.`);
+  cpSync(source, join(targetPrismaRoot, 'migrations', name), { recursive: true });
 }
 
 function runMigrateDeploy(databaseUrl: string, schemaPath: string): void {
@@ -114,6 +124,7 @@ function run(command: string, args: string[], env: Record<string, string> = {}):
     encoding: 'utf8',
     stdio: 'pipe',
   });
+  if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(' ')} failed (${String(result.status)}).\n${result.stdout}\n${result.stderr}`,
@@ -126,12 +137,34 @@ function requireDisposableUrl(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required.`);
   const parsed = new URL(value);
-  const localHost = ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname);
-  const databaseName = basename(parsed.pathname).toLowerCase();
-  if (!localHost || !databaseName.includes('memory_phase2')) {
-    throw new Error(`${name} must target a disposable local database named with memory_phase2.`);
+  const localHost = ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname.toLowerCase());
+  const databaseName = databaseNameFromUrl(parsed).toLowerCase();
+  if (
+    !['postgres:', 'postgresql:'].includes(parsed.protocol) ||
+    !localHost ||
+    !databaseName.includes('memory_phase2')
+  ) {
+    throw new Error(
+      `${name} must target a disposable local PostgreSQL database named with memory_phase2.`,
+    );
   }
   return value;
+}
+
+function databaseIdentity(databaseUrl: string): string {
+  const parsed = new URL(databaseUrl);
+  const port = parsed.port || '5432';
+  return `${parsed.hostname.toLowerCase()}:${port}/${databaseNameFromUrl(parsed).toLowerCase()}`;
+}
+
+function databaseNameFromUrl(parsed: URL): string {
+  const components = parsed.pathname
+    .split('/')
+    .filter(Boolean)
+    .map((component) => decodeURIComponent(component));
+  const databaseName = components.at(-1);
+  if (!databaseName) throw new Error('Disposable database URL must include a database name.');
+  return databaseName;
 }
 
 async function assertEmptyDatabase(databaseUrl: string, label: string): Promise<void> {
@@ -140,11 +173,12 @@ async function assertEmptyDatabase(databaseUrl: string, label: string): Promise<
     const rows = await prisma.$queryRawUnsafe<Array<{ table_count: number }>>(
       `SELECT count(*)::int AS table_count
        FROM pg_catalog.pg_tables
-       WHERE schemaname = 'public'
-         AND tablename <> '_prisma_migrations'`,
+       WHERE schemaname = 'public'`,
     );
     if ((rows[0]?.table_count ?? 0) !== 0) {
-      throw new Error(`${label} database is not empty; refusing a destructive closeout run.`);
+      throw new Error(
+        `${label} database contains public tables; refusing a destructive closeout run.`,
+      );
     }
   } finally {
     await prisma.$disconnect();
