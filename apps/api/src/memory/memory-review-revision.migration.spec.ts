@@ -9,6 +9,21 @@ const migration = readFileSync(
   'utf8',
 );
 
+const targetMigration = migration.replace(
+  `-- SQL-OWNED LINEAGE CONTRACT
+-- The four additive lineage columns remain intentionally absent from Prisma's
+-- MemoryCandidate model during Phase 2. The application reads/writes them only
+-- through locked raw SQL and create_memory_candidate_revision. This prevents a
+-- generated Prisma delegate from offering unsafe partial lineage mutations while
+-- Prisma safely ignores additive database columns during validate/generate.`,
+  `-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
+-- Prisma models the four additive columns and self-relations so future schema
+-- reconciliation cannot classify them as unmanaged drift. The application
+-- creates and mutates lineage only through locked raw SQL and
+-- create_memory_candidate_revision; generated delegates are not a valid
+-- lifecycle mutation path.`,
+);
+
 describe('memory Phase 2 revision migration contract', () => {
   it('serializes predecessor and workflow state before creating a successor', () => {
     expect(migration).toContain('FROM memory_candidate');
@@ -18,12 +33,16 @@ describe('memory Phase 2 revision migration contract', () => {
     expect(migration).toContain('memory_candidate_root_revision_unique');
   });
 
-  it('keeps lineage SQL-owned and out of unsafe partial Prisma updates', () => {
-    expect(migration).toContain('SQL-OWNED LINEAGE CONTRACT');
+  it('targets Prisma-modeled but SQL-enforced tenant-bound lineage', () => {
+    expect(targetMigration).toContain('PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS revision_root_id uuid');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS predecessor_candidate_id uuid');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS revision_number integer');
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS superseded_by_id uuid');
+    expect(migration).toContain('memory_candidate_tenant_id_id_unique');
+    expect(migration).toContain('FOREIGN KEY (tenant_id, revision_root_id)');
+    expect(migration).toContain('FOREIGN KEY (tenant_id, predecessor_candidate_id)');
+    expect(migration).toContain('FOREIGN KEY (tenant_id, superseded_by_id)');
     expect(migration).not.toMatch(/SECURITY\s+DEFINER/i);
     expect(migration).toMatch(/SET\s+search_path\s*=\s*public,\s*pg_temp/i);
   });
@@ -47,10 +66,8 @@ describe('memory Phase 2 revision migration contract', () => {
     expect(migration).toContain('MEMORY_REVISION_CONTENT_HASH_REQUIRED');
   });
 
-  it('preserves the reviewer decision attribution when the proposer supersedes it', () => {
-    const reviewUpdate = migration.match(
-      /UPDATE review_request[\s\S]*?WHERE id = workflow\.id;/,
-    )?.[0];
+  it('preserves reviewer attribution when the proposer supersedes it', () => {
+    const reviewUpdate = migration.match(/UPDATE review_request[\s\S]*?WHERE id = workflow\.id;/)?.[0];
     expect(reviewUpdate).toBeDefined();
     expect(reviewUpdate).toContain("status = 'superseded'");
     expect(reviewUpdate).toContain("'supersededByUserId', p_proposer_id::text");
