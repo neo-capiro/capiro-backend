@@ -1,4 +1,4 @@
-# Memory Review UX Phase 2 — Current State
+# Capiro Memory Review UX — Current State
 
 ## Branch and pull request
 
@@ -7,105 +7,137 @@
 - Base: `main`
 - Keep the PR draft; do not merge or deploy.
 
-## Completed increments
+## Phase 2 completed implementation
 
-### Increment 1 — durable review workflow foundation
+### Durable review workflow
 
-- body-free workflow obligations;
-- dark-rollout-compatible named assignment;
-- request-changes and required reasons;
-- ethical-wall-aware reassignment;
-- assigned-reviewer enforcement after Phase 2 activates assignment.
+- shared candidate obligations;
+- named independent reviewer;
+- request changes, approve, reject, reassign, and withdraw boundaries;
+- required bounded reasons;
+- ethical-wall and grant-aware eligibility;
+- assignment enforcement and self-review denial.
 
-Evidence: `docs/qa/memory-phase2-increment-1-foundation.md`.
+### Immutable revisions
 
-### Increment 2 — immutable revision and resubmission lineage
+- proposer-only successor after changes are requested;
+- tenant-bound root, predecessor, successor, and revision-number lineage;
+- one-successor concurrency guarantee;
+- atomic predecessor/workflow supersession;
+- fresh authorization and reviewer assignment;
+- no active-memory mutation before approval.
 
-- proposer-only immutable successor creation after `changes_requested`;
-- root/predecessor/revision lineage and one-successor concurrency guards;
-- atomic predecessor and workflow supersession;
-- fresh authorization before and after successor creation;
-- fresh reviewer assignment and no active-memory mutation.
+### Persistence acceptance
 
-Evidence: `docs/qa/memory-phase2-increment-2-revision-lineage.md`.
+- Prisma-modeled, SQL-enforced lineage;
+- tenant/actor context guards and system-bypass denial;
+- clean and ordered-upgrade migration replay;
+- real concurrent revision acceptance;
+- compatibility decision guard;
+- active-memory mutation checks.
 
-### Increment 3 — persistence integrity and closeout
-
-- revision SQL bound to tenant and actor context;
-- system-bypass revision calls denied;
-- Prisma-modeled, SQL-enforced tenant-bound lineage;
-- deterministic concurrent-successor conflicts;
-- body-free workflow metadata;
-- portable Windows/Corepack closeout runner;
-- clean and exact upgrade migration replay;
-- compatibility-route and active-memory mutation checks.
-
-The complete-checkout marker has passed on the persisted branch state:
+Previously proven marker:
 
 ```text
 MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
 ```
 
-Evidence:
+### Notification obligations and dispatcher
 
-- `docs/qa/memory-phase2-increment-3-persistence-gate.md`
-- `docs/qa/memory-phase2-increment-3b-metadata-conflicts.md`
-- `docs/qa/memory-phase2-increment-3c-closeout-runner-portability.md`
-
-### Increment 4A — notification obligations
-
-- durable, tenant-isolated notification outbox;
-- atomic obligations for assignment, revision assignment, reassignment, changes requested, approval, and rejection;
+- tenant-isolated notification outbox;
+- assignment, revision assignment, reassignment, changes-requested, approval, and rejection events;
 - body-free and reason-free payloads;
-- pending-only backfill;
-- correct first-assignment classification.
-
-Evidence: `docs/qa/memory-phase2-increment-4a-notification-obligations.md`.
-
-### Increment 4B — notification dispatcher
-
-- concurrent leased claims with `FOR UPDATE SKIP LOCKED`;
-- bounded retries and terminal handling;
-- active membership, current workflow, exact tenant feature scope, canonical memory authorization, ethical-wall, and archived-client checks;
-- tenant-bound, recipient-only in-app notifications under FORCE RLS;
+- concurrent leased claims with bounded retries;
+- fresh membership, current workflow, assignment, ethical-wall, grant, archived-client, and canonical memory authorization checks;
+- recipient-only in-app notification persistence;
 - default-off, at-most-once SES email;
-- body-free delivery audit evidence;
-- audit-retaining recipient foreign keys;
-- operator and complete-checkout validation commands without production scheduling.
+- local RLS acceptance under a dedicated `NOSUPERUSER NOBYPASSRLS NOINHERIT` role.
 
-Evidence: `docs/qa/memory-phase2-increment-4b-notification-dispatcher.md`.
-
-## Validation completed
-
-- Prisma validate and generate passed after the persisted lineage reconciliation.
-- Clean and upgrade Phase 2 persistence replay passed.
-- `MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE` passed.
-- Notification helper passed strict isolated TypeScript and runtime probes.
-- Static contracts cover notification leases, retries, tenant scope, membership, workflow state, authorization, archived-client suppression, RLS, idempotency, body-free channels, default-off email, at-most-once email state, and module wiring.
-
-## Notification gate still open
-
-Increment 4B is persisted but still requires complete-checkout execution against two freshly recreated disposable databases.
-
-Required marker:
+Required marker still being executed in a complete checkout:
 
 ```text
 MEMORY_PHASE2_NOTIFICATION_CLOSEOUT_COMPLETE
 ```
 
-The notification closeout first reruns the established persistence closeout, then validates the complete clean and upgrade migration chains, event obligations, concurrent claims, recipient-only RLS, cross-tenant isolation, in-app idempotency, and database rejection of feedback/body fields.
+## Phase 3 implemented
 
-## Phase 2 is not complete
+Evidence: `docs/qa/memory-phase3-review-inbox.md`.
 
-Still required:
+### Review Inbox backend
 
-- execute and repair the notification closeout;
-- Review Inbox backend read model;
-- Review Inbox and proposer-history frontend;
-- notification list/read-state endpoints;
-- remaining compatibility-route closeout;
-- full API/monorepo tests, typecheck, pinned formatting, web build/Vitest, authenticated browser acceptance, and final security review.
+- body-free cursor-paginated views for Needs my review, Submitted by me, All pending, Blocked, and History;
+- explicit tenant and actor predicates on every raw SQL query;
+- active membership reload and current role;
+- canonical wall/grant/client-status authorization;
+- current assignment and reviewer eligibility;
+- bounded counts using the same projection rules;
+- protected detail by candidate ID or review-request ID;
+- proposal content, feedback, eligible reviewers, capabilities, and immutable revision timeline only after authorization.
+
+### Notification read state
+
+- recipient-only notification list;
+- unread count;
+- idempotent mark-one-read;
+- bounded mark-all-visible-read;
+- explicit `tenant_id` and `recipient_user_id` predicates;
+- current memory read authorization before listing or mutation.
+
+### Compatibility closeout
+
+- generic `/api/reviews` list filters memory rows;
+- generic detail, assignment, approval, and rejection reject memory IDs before `ReviewsService` runs;
+- non-memory held-deliverable behavior remains delegated unchanged.
+
+### Review Inbox frontend
+
+- canonical Settings → Memory inbox for standard users and administrators;
+- plain-English workflow tabs, counts, statuses, blocked explanations, and next action;
+- protected proposal drawer and immutable revision history;
+- approve, request changes, reject, revise/resubmit, assign reviewer, and withdraw actions;
+- in-app notification list and read state;
+- old broad `MemoryProposalQueue` and `MemoryReviewQueue` no longer mounted;
+- email deep link corrected to `/settings/memory?review=<review-request-id>`.
+
+### Phase 3 validation harness
+
+- focused API typecheck: `tsconfig.memory-review-phase3.json`;
+- focused Jest and Vitest suites;
+- real clean/upgrade database acceptance for cursor stability, body boundaries, former-reviewer denial, cross-tenant denial, blocked work, notification recipient isolation, and generic-route rejection;
+- one-command closeout: `scripts/verify-memory-phase3-review-inbox-closeout.ts`.
+
+Required final marker:
+
+```text
+MEMORY_PHASE3_REVIEW_INBOX_CLOSEOUT_COMPLETE
+```
+
+## Complete-checkout closeout still required
+
+The branch implementation is persisted. Final local acceptance must still execute the Phase 2 notification and Phase 3 closeout commands and repair every failure before the PR can leave draft.
+
+Required output chain:
+
+```text
+MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
+MEMORY_PHASE2_NOTIFICATION_CLOSEOUT_COMPLETE
+MEMORY_PHASE3_DATABASE_ACCEPTANCE_COMPLETE
+MEMORY_PHASE3_REVIEW_INBOX_CLOSEOUT_COMPLETE
+```
+
+Then run authenticated browser acceptance for:
+
+- proposer;
+- assigned reviewer;
+- former reviewer after reassignment;
+- walled administrator;
+- cross-tenant user;
+- notification email deep link.
 
 ## Branch synchronization note
 
-At Increment 4B closeout the feature branch is two commits behind `main`. Both upstream commits are Defense Budget / parser changes and do not overlap the Memory Review files in this increment. Synchronize before final acceptance and rerun affected checks.
+The feature branch is currently two non-overlapping Defense Budget/parser commits behind `main`. Synchronize before final acceptance and rerun the complete closeout after synchronization.
+
+## Safety boundary
+
+No merge, production migration, AWS deployment, dispatcher schedule, production flag, backfill, Clerk mutation, customer-data mutation, or production email enablement has been authorized.
