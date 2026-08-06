@@ -118,7 +118,13 @@ def test_output_uses_cross_language_camel_case_contract_and_replays_deterministi
 
 
 def test_extractor_contains_no_paid_network_database_or_cloud_runtime_dependency() -> None:
-    root = Path(__file__).parents[1] / 'capiro_defense_budget_parser' / 'extractors' / 'stages' / 'hacd'
+    root = (
+        Path(__file__).parents[1]
+        / 'capiro_defense_budget_parser'
+        / 'extractors'
+        / 'stages'
+        / 'hacd'
+    )
     source = '\n'.join(path.read_text() for path in root.glob('*.py'))
     for token in ('llamaparse', 'boto3', 'requests', 'httpx', 'prisma', 'sqlalchemy'):
         assert token not in source.lower()
