@@ -75,10 +75,9 @@ export interface MemoryReviewSummary {
  * Server-owned readiness and read model for shared Settings memory.
  *
  * A firm/client submission is accepted only when the exact tenant has the
- * lifecycle, authorization, and review surface armed AND at least one other
- * active member can approve under the same role/grant/ethical-wall rules used
- * by the real decision route. The service also turns the opaque candidate row
- * into a plain review state for the Settings editor and review summary UI.
+ * lifecycle, authorization, and review surface armed and at least one active
+ * authorized approver exists. The proposer counts when they are an active
+ * administrator; independent approval is not required.
  */
 @Injectable()
 export class MemorySettingsReviewReadinessService {
@@ -111,11 +110,10 @@ export class MemorySettingsReviewReadinessService {
     if (eligibleReviewers.length === 0) {
       const message =
         input.scope === 'firm'
-          ? 'Firm memory requires approval from another active administrator. No eligible ' +
-            'reviewer is available. Add or activate a second administrator before submitting.'
-          : 'Client memory requires approval from another authorized reviewer. No eligible ' +
-            'reviewer is available for this client. Grant review access or add another ' +
-            'administrator before submitting.';
+          ? 'Firm memory requires an active administrator who can approve it. No eligible ' +
+            'administrator is available.'
+          : 'Client memory requires an active authorized administrator or reviewer. No eligible ' +
+            'approver is available for this client.';
       throw new ConflictException(message);
     }
 
@@ -178,24 +176,25 @@ export class MemorySettingsReviewReadinessService {
       const subject = await this.authorization.loadCandidateInTx(tx, tenantId, row.id);
       if (!subject) return pending;
       const eligibleReviewers = await this.eligibleReviewersInTx(tx, tenantId, subject, members);
-      const viewerApprove = viewerIsProposer
-        ? ({ allowed: false } as const)
-        : await this.authorization.evaluateInTx(
-            tx,
-            { tenantId, userId: viewerUserId, role: memberRole(members, viewerUserId) },
-            subject,
-            'approve',
-            { emitDenialMetrics: false },
-          );
-      const viewerReject = viewerIsProposer
-        ? ({ allowed: false } as const)
-        : await this.authorization.evaluateInTx(
-            tx,
-            { tenantId, userId: viewerUserId, role: memberRole(members, viewerUserId) },
-            subject,
-            'review',
-            { emitDenialMetrics: false },
-          );
+      const viewerContext = {
+        tenantId,
+        userId: viewerUserId,
+        role: memberRole(members, viewerUserId),
+      };
+      const viewerApprove = await this.authorization.evaluateInTx(
+        tx,
+        viewerContext,
+        subject,
+        'approve',
+        { emitDenialMetrics: false },
+      );
+      const viewerReject = await this.authorization.evaluateInTx(
+        tx,
+        viewerContext,
+        subject,
+        'review',
+        { emitDenialMetrics: false },
+      );
       const viewerCanApprove = viewerApprove.allowed;
       const viewerCanReject = viewerReject.allowed;
       const viewerCanReview = viewerCanApprove || viewerCanReject;
@@ -215,8 +214,8 @@ export class MemorySettingsReviewReadinessService {
         eligibleReviewers: canSeeProposal ? eligibleReviewers : [],
         reviewerRequirement:
           row.scope === 'firm'
-            ? 'Approval from another active administrator'
-            : 'Approval from another authorized client-memory reviewer',
+            ? 'Approval from an active administrator'
+            : 'Approval from an authorized administrator or client-memory reviewer',
         nextAction: canSeeProposal
           ? nextActionForPendingReview({
               blocked,
@@ -275,25 +274,21 @@ export class MemorySettingsReviewReadinessService {
         const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.id);
         if (!subject) continue;
         const own = row.proposedBy === ctx.userId;
-        let awaitingCurrentUser = false;
-        let readableByAdmin = false;
-
-        if (!own) {
-          const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve', {
-            emitDenialMetrics: false,
-          });
-          const review = approve.allowed
-            ? approve
-            : await this.authorization.evaluateInTx(tx, ctx, subject, 'review', {
-                emitDenialMetrics: false,
-              });
-          awaitingCurrentUser = approve.allowed || review.allowed;
-          if (admin && !awaitingCurrentUser) {
-            const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read', {
+        const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve', {
+          emitDenialMetrics: false,
+        });
+        const review = approve.allowed
+          ? approve
+          : await this.authorization.evaluateInTx(tx, ctx, subject, 'review', {
               emitDenialMetrics: false,
             });
-            readableByAdmin = read.allowed;
-          }
+        const awaitingCurrentUser = approve.allowed || review.allowed;
+        let readableByAdmin = false;
+        if (admin && !awaitingCurrentUser) {
+          const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read', {
+            emitDenialMetrics: false,
+          });
+          readableByAdmin = read.allowed;
         }
 
         const visible = own || awaitingCurrentUser || readableByAdmin;
@@ -314,7 +309,7 @@ export class MemorySettingsReviewReadinessService {
           counts.blocked > 0
             ? `${counts.blocked} pending ${
                 counts.blocked === 1 ? 'submission has' : 'submissions have'
-              } no eligible independent reviewer.`
+              } no eligible approver.`
             : null,
       };
     });
@@ -358,7 +353,6 @@ export class MemorySettingsReviewReadinessService {
   ): Promise<MemoryReviewerIdentity[]> {
     const reviewers: MemoryReviewerIdentity[] = [];
     for (const member of members) {
-      if (member.userId === subject.proposedByUserId) continue;
       const decision = await this.authorization.evaluateInTx(
         tx,
         { tenantId, userId: member.userId, role: member.role },
@@ -399,10 +393,7 @@ export function nextActionForPendingReview(input: {
   reviewers: MemoryReviewerIdentity[];
 }): string {
   if (input.blocked) {
-    return (
-      'No eligible reviewer is currently available. Ask an administrator to add or ' +
-      'authorize another reviewer.'
-    );
+    return 'No eligible approver is currently available. Ask an administrator to review access.';
   }
   if (input.viewerCanApprove && input.viewerCanReject) {
     return 'You can approve or reject this proposal under Settings → Memory → Needs my review.';
@@ -415,13 +406,10 @@ export function nextActionForPendingReview(input: {
   }
   if (input.viewerIsProposer) {
     const names = input.reviewers.map((reviewer) => reviewer.name).slice(0, 3);
-    const reviewerText = names.length > 0 ? names.join(', ') : 'another authorized reviewer';
-    return (
-      `Waiting for ${reviewerText}. You cannot approve your own shared-memory submission. ` +
-      'They can review it under Settings → Memory, and you can withdraw it under Your proposals.'
-    );
+    const reviewerText = names.length > 0 ? names.join(', ') : 'an authorized administrator';
+    return `Waiting for ${reviewerText}. You can withdraw the proposal while it is pending.`;
   }
-  return 'Waiting for an authorized independent reviewer.';
+  return 'Waiting for an authorized approver.';
 }
 
 function memberRole(members: MemoryReviewerIdentity[], userId: string): TenantRole {
