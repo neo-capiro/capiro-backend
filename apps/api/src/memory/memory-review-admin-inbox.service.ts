@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -29,10 +30,10 @@ const SUMMARY_LIMIT = 1_000;
 @Injectable()
 export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
   constructor(
-    prisma: PrismaService,
+    private readonly adminPrisma: PrismaService,
     private readonly adminAuthorization: MemoryAuthorizationService,
   ) {
-    super(prisma, adminAuthorization);
+    super(adminPrisma, adminAuthorization);
   }
 
   override async list(
@@ -45,9 +46,7 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     const baseView: MemoryReviewInboxView =
       requestedView === 'needs_my_review' ? 'all_pending' : requestedView;
     const page = await super.list(ctx, { ...input, view: baseView });
-    const items = await Promise.all(
-      page.items.map((item) => this.withAdminCapabilities(ctx, item)),
-    );
+    const items = await this.withAdminCapabilities(ctx, page.items);
     return {
       ...page,
       view: requestedView,
@@ -93,9 +92,9 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     candidateId: string,
   ): Promise<MemoryReviewDetail> {
     const detail = await super.detail(ctx, candidateId);
-    return isMemoryReviewAdminRole(ctx.role)
-      ? this.withAdminCapabilities(ctx, detail)
-      : detail;
+    if (!isMemoryReviewAdminRole(ctx.role)) return detail;
+    const [projected] = await this.withAdminCapabilities(ctx, [detail]);
+    return projected ?? detail;
   }
 
   override async detailByReviewRequest(
@@ -103,9 +102,9 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     reviewRequestId: string,
   ): Promise<MemoryReviewDetail> {
     const detail = await super.detailByReviewRequest(ctx, reviewRequestId);
-    return isMemoryReviewAdminRole(ctx.role)
-      ? this.withAdminCapabilities(ctx, detail)
-      : detail;
+    if (!isMemoryReviewAdminRole(ctx.role)) return detail;
+    const [projected] = await this.withAdminCapabilities(ctx, [detail]);
+    return projected ?? detail;
   }
 
   private async collect(
@@ -133,14 +132,47 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
 
   private async withAdminCapabilities<T extends MemoryReviewInboxItem>(
     ctx: TenantContext,
+    items: T[],
+  ): Promise<T[]> {
+    const pending = items.filter((item) => item.status === 'pending');
+    if (pending.length === 0) return items;
+
+    const projectedByCandidate = await this.adminPrisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      async (tx) => {
+        const projected = new Map<string, T>();
+        for (const item of pending) {
+          projected.set(item.candidateId, await this.projectInTx(tx, ctx, item));
+        }
+        return projected;
+      },
+    );
+    return items.map((item) => projectedByCandidate.get(item.candidateId) ?? item);
+  }
+
+  private async projectInTx<T extends MemoryReviewInboxItem>(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
     item: T,
   ): Promise<T> {
-    if (item.status !== 'pending') return item;
+    const subject = await this.adminAuthorization.loadCandidateInTx(
+      tx,
+      ctx.tenantId,
+      item.candidateId,
+    );
+    if (!subject) return item;
 
-    const [approve, review] = await Promise.all([
-      this.allowed(ctx, item.candidateId, 'approve'),
-      this.allowed(ctx, item.candidateId, 'review'),
+    const [approveDecision, reviewDecision] = await Promise.all([
+      this.adminAuthorization.evaluateInTx(tx, ctx, subject, 'approve', {
+        emitDenialMetrics: false,
+      }),
+      this.adminAuthorization.evaluateInTx(tx, ctx, subject, 'review', {
+        emitDenialMetrics: false,
+      }),
     ]);
+    const approve = approveDecision.allowed;
+    const review = reviewDecision.allowed;
     const capabilities = {
       ...item.capabilities,
       approve,
@@ -163,21 +195,6 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
       }),
       capabilities,
     } as T;
-  }
-
-  private async allowed(
-    ctx: TenantContext,
-    candidateId: string,
-    operation: 'approve' | 'review',
-  ): Promise<boolean> {
-    try {
-      await this.adminAuthorization.requireCandidate(ctx, candidateId, operation, {
-        emitDenialMetrics: false,
-      });
-      return true;
-    } catch {
-      return false;
-    }
   }
 }
 
