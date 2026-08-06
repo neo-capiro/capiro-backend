@@ -6,13 +6,23 @@ import {
   scoreOpportunityRelevance,
   type ClientRelevanceProfile,
 } from '../district-nexus/grant-opportunity-relevance.js';
-import { shapeClientRelevanceProfile } from '../district-nexus/grant-opportunity-candidates.js';
 import {
   computeSamEligibility,
   scoreSamOpportunityRelevance,
   type SamClientProfile,
   type SamOpportunityProfile,
 } from './sam-opportunity-relevance.js';
+import {
+  awardHistoryIdentity,
+  buildClientOpportunityProfile,
+  emptyAwardHistory,
+} from './client-opportunity-profile.builder.js';
+import {
+  asProfileReadClient,
+  readAwardHistory,
+  readClientProfileFacts,
+} from './client-opportunity-profile.repository.js';
+import type { ClientOpportunityProfileV1 } from './client-opportunity-profile.types.js';
 import { grantsGovKind, samNoticeKind } from './opportunity-kind.js';
 import {
   GRANT_ACTIVE_SQL,
@@ -645,192 +655,40 @@ export class FundingOpportunitiesService {
    * the transaction).
    */
   private async readClientFacts(tenantId: string, clientId: string): Promise<ClientFacts> {
-    const scoped = await this.prisma.withTenant(tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
-        select: {
-          id: true,
-          name: true,
-          uei: true,
-          cageCode: true,
-          naicsCodes: true,
-          pscCodes: true,
-          applicantTypes: true,
-          setAsideCertifications: true,
-          sectorTag: true,
-          capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
-          facilities: {
-            select: {
-              id: true,
-              name: true,
-              city: true,
-              state: true,
-              zip: true,
-              congressionalDistrict: true,
-            },
-          },
-        },
-      });
-      if (!client) throw new NotFoundException('Client not found');
+    // Tenant facts in a SHORT tenant-scoped transaction. The award-history read
+    // that follows hits global tables and is the slow one, so it stays outside:
+    // holding a tenant transaction open across it turns one slow client into a
+    // connection-pool problem for every other request.
+    const facts = await this.prisma.withTenant(tenantId, (tx) =>
+      readClientProfileFacts(asProfileReadClient(tx), { clientId }),
+    );
+    if (!facts) throw new NotFoundException('Client not found');
 
-      const mappings = await tx.clientIntelMapping.findMany({
-        where: {
-          clientId,
-          confirmed: true,
-          reviewStatus: 'confirmed',
-          rollUpAwards: true,
-          source: { in: ['contracting', 'assistance_recipient'] },
-        },
-        select: { source: true, externalId: true, externalName: true },
-      });
-      return { client, mappings };
-    });
-
-    const { client, mappings } = scoped;
-    const contracting = mappings.filter((m) => m.source === 'contracting');
-    const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
-    const ownUei = client.uei && isUeiShaped(client.uei) ? client.uei.toUpperCase() : null;
-
-    const contractorUeis = dedupe([
-      ownUei,
-      ...contracting.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
-    ]);
-    const contractorNames = dedupe(contracting.map((m) => m.externalName)).map((n) => n.toLowerCase());
-    const assistanceUeis = dedupe([
-      ownUei,
-      ...assistance.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
-    ]);
-    const assistanceNames = dedupe(assistance.map((m) => m.externalName)).map((n) => n.toLowerCase());
-
-    const history = await this.readAwardHistory({
-      contractorUeis,
-      contractorNames,
-      assistanceUeis,
-      assistanceNames,
-    });
-
-    const capabilityKeywords = dedupe([
-      ...client.capabilities.map((c) => c.name),
-      ...client.capabilities.flatMap((c) => c.keywords ?? []),
-      ...client.capabilities.flatMap((c) => stringTags(c.tags)),
-    ]);
-
-    const grantProfile: ClientRelevanceProfile = shapeClientRelevanceProfile({
-      sectorTag: client.sectorTag,
-      capabilities: client.capabilities.map((c) => ({ name: c.name, tags: c.tags })),
-      facilityStates: client.facilities.map((f) => f.state),
-      priorAssistanceListings: history.assistanceListings,
-      priorAgencies: history.assistanceAgencies,
-      applicantTypes: client.applicantTypes,
-    });
-
-    const samProfile: SamClientProfile = {
-      naicsCodes: client.naicsCodes,
-      pscCodes: client.pscCodes,
-      capabilityKeywords,
-      programElementCodes: dedupe(client.capabilities.flatMap((c) => c.peNumbers ?? [])),
-      priorAgencies: history.contractAgencies,
-      priorOffices: history.contractOffices,
-      facilityStates: dedupe(client.facilities.map((f) => f.state)),
-      facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
-      setAsideCertifications: client.setAsideCertifications,
-      sector: client.sectorTag,
-      applicantTypes: client.applicantTypes,
-    };
-
-    const completeness: ProfileCompleteness = {
-      clientId,
-      hasUei: Boolean(client.uei),
-      hasCageCode: Boolean(client.cageCode),
-      naicsCount: client.naicsCodes.length,
-      pscCount: client.pscCodes.length,
-      applicantTypeCount: client.applicantTypes.length,
-      capabilityCount: client.capabilities.length,
-      facilityCount: client.facilities.length,
-      hasSector: Boolean(client.sectorTag),
-      confirmedContractorMappings: contracting.length,
-      priorAssistanceListingCount: dedupe(history.assistanceListings).length,
-      priorAgencyCount: dedupe([...history.assistanceAgencies, ...history.contractAgencies]).length,
-      programElementCount: samProfile.programElementCodes.length,
-    };
-
-    return {
-      clientId,
-      grantProfile,
-      samProfile,
-      completeness,
-      facilitiesById: new Map(client.facilities.map((f) => [f.id, f])),
-    };
-  }
-
-  private async readAwardHistory(input: {
-    contractorUeis: string[];
-    contractorNames: string[];
-    assistanceUeis: string[];
-    assistanceNames: string[];
-  }): Promise<{
-    assistanceListings: string[];
-    assistanceAgencies: string[];
-    contractAgencies: string[];
-    contractOffices: string[];
-  }> {
+    // The read path degrades to empty history rather than failing the request.
+    // The producers deliberately do NOT — see the repository docblock. That is
+    // why `readAwardHistory` throws and this try/catch lives here.
+    let history;
     try {
-      const assistancePromise =
-        input.assistanceUeis.length || input.assistanceNames.length
-          ? this.prisma.$queryRaw<
-              Array<{ assistance_listing_number: string | null; awarding_agency: string | null }>
-            >`
-              SELECT DISTINCT assistance_listing_number, awarding_agency
-              FROM federal_assistance_award
-              WHERE recipient_uei = ANY(${input.assistanceUeis}::text[])
-                 OR lower(recipient_name) = ANY(${input.assistanceNames}::text[])
-              LIMIT ${HISTORY_ROW_CAP}
-            `
-          : Promise.resolve([]);
-      const contractPromise =
-        input.contractorUeis.length || input.contractorNames.length
-          ? this.prisma.$queryRaw<
-              Array<{ awarding_agency: string | null; awarding_sub_tier: string | null }>
-            >`
-              SELECT DISTINCT awarding_agency, awarding_sub_tier
-              FROM federal_award
-              WHERE recipient_uei = ANY(${input.contractorUeis}::text[])
-                 OR lower(contractor_name) = ANY(${input.contractorNames}::text[])
-              LIMIT ${HISTORY_ROW_CAP}
-            `
-          : Promise.resolve([]);
-      const [assistance, contracts] = await Promise.all([assistancePromise, contractPromise]);
-      return {
-        assistanceListings: dedupe(assistance.map((r) => r.assistance_listing_number)),
-        assistanceAgencies: dedupe(assistance.map((r) => r.awarding_agency)),
-        // Both tiers are agency evidence, and they are needed at BOTH
-        // granularities: sam_opportunity.agency is sub-tier shaped
-        // ('DEPT OF THE NAVY'), so awarding_agency alone ('Department of
-        // Defense') never matched a single notice.
-        contractAgencies: dedupe([
-          ...contracts.map((r) => r.awarding_agency),
-          ...contracts.map((r) => r.awarding_sub_tier),
-        ]),
-        // Intentionally empty: federal_award has no contracting-office column.
-        // Feeding it the sub-tier put agency-shaped strings into an
-        // office-shaped signal, where they could never match
-        // sam_opportunity.office and were surfaced to users as "prior office"
-        // target terms. Populate this only when a real office column exists.
-        contractOffices: [],
-      };
+      history = await readAwardHistory(this.prisma, awardHistoryIdentity(facts));
     } catch (error) {
       this.logger.warn(
         `award-history read failed; source-specific history signals will not fire: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return {
-        assistanceListings: [],
-        assistanceAgencies: [],
-        contractAgencies: [],
-        contractOffices: [],
-      };
+      history = emptyAwardHistory();
     }
+
+    const profile = buildClientOpportunityProfile(facts, history);
+
+    return {
+      clientId,
+      profile,
+      grantProfile: profile.grant,
+      samProfile: profile.sam,
+      completeness: profile.completeness,
+      facilitiesById: new Map(facts.facilities.map((f) => [f.id, f])),
+    };
   }
 
   // ── Step 2: global catalog reads ─────────────────────────────────────────
@@ -1874,9 +1732,6 @@ const DEFAULT_QUERY: OpportunityQuery = { activeState: 'active' };
 const SCAN_CAP_PER_SOURCE = 1200;
 const TARGET_TERM_CAP = 20;
 
-/** Cap on award-history rows read per client. DISTINCT is applied in SQL first. */
-const HISTORY_ROW_CAP = 5000;
-
 /** Cap on workflow rows read per client. Far above any realistic pursuit list. */
 const WORKFLOW_ROW_CAP = 2000;
 
@@ -1891,8 +1746,6 @@ const CARD_TOP_N = 3;
  * list reorder for no visible reason the first time a producer ran.
  */
 const SUGGESTION_PRIORITY = WORKFLOW_SORT_PRIORITY.suggested;
-
-const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -2054,6 +1907,13 @@ interface WorkflowRowWithRefs {
 
 interface ClientFacts {
   clientId: string;
+  /**
+   * The versioned profile, exactly as both producers build it. `grantProfile`,
+   * `samProfile` and `completeness` below are views onto it, kept as named fields
+   * because ~20 call sites read them and renaming those is churn this phase does
+   * not need. They are the SAME objects — not copies — so they cannot drift.
+   */
+  profile: ClientOpportunityProfileV1;
   grantProfile: ClientRelevanceProfile;
   samProfile: SamClientProfile;
   completeness: ProfileCompleteness;
@@ -2087,10 +1947,6 @@ function normCode(v: string | null | undefined): string {
   return (v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function isUeiShaped(value: string): boolean {
-  return /^[A-Z0-9]{12}$/.test(value.toUpperCase());
-}
-
 /**
  * A run is degraded when it errored outright, completed with errors, or reported a
  * non-zero error count. `running` is NOT degraded — it has not finished.
@@ -2099,10 +1955,6 @@ function isDegraded(status: string | null, errorCount: number | null): boolean {
   if (status === 'error') return true;
   if (status === 'success_with_errors') return true;
   return (errorCount ?? 0) > 0;
-}
-
-function stringTags(tags: unknown): string[] {
-  return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
 function startOfUtcDay(d: Date): Date {

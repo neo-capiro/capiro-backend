@@ -321,19 +321,20 @@ jobs:
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
 
-      # Floors: jest counts FILES in numTotalTestSuites. Measured 20 files / 584 tests
+      # Floors: jest counts FILES in numTotalTestSuites. Measured 21 files / 641 tests
       # on this branch; the floor sits just under so adding a test does not require
       # editing this line, while REMOVING a suite fails the gate.
       #
-      # P00 raised this from 19/500. The suite floor MUST move with the file count:
-      # funding-opportunities.baseline-contract.spec.ts is the frozen contract, and
-      # a 19 floor would let someone delete it and stay green. These two numbers are
-      # also mirrored in __fixtures__/baseline-contract-v1.json, which asserts this
-      # line is at or above them — so lowering a floor takes two edits, both visible
-      # in the diff, which is the point.
+      # History: 19/500 before P00, 20/575 after P00 (baseline-contract.spec.ts),
+      # 21/630 after P01 (client-opportunity-profile.spec.ts). The suite floor MUST
+      # move with the file count — otherwise the frozen-contract or profile-parity
+      # suite could be deleted and the gate would stay green. These numbers are also
+      # mirrored in __fixtures__/baseline-contract-v1.json, which asserts this line
+      # is at or above them, so lowering a floor takes two edits and both show up in
+      # the diff. That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 20 575
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 21 630
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

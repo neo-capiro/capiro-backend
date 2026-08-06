@@ -56,6 +56,15 @@ import {
   type SamClientProfile,
   type SamOpportunityProfile,
 } from '../src/funding-opportunities/sam-opportunity-relevance.js';
+import {
+  awardHistoryIdentity,
+  buildClientOpportunityProfile,
+} from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+import {
+  asProfileReadClient,
+  readAwardHistory,
+  readClientProfileFactsMany,
+} from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 import { samNoticeKind } from '../src/funding-opportunities/opportunity-kind.js';
 import { NON_PURSUABLE_KINDS } from '../src/funding-opportunities/funding-opportunities.types.js';
 import {
@@ -128,14 +137,6 @@ function dedupe(values: Array<string | null | undefined>): string[] {
   return Array.from(
     new Set(values.map((v) => v?.trim()).filter((v): v is string => !!v && v.length > 0)),
   );
-}
-
-function isUeiShaped(value: string): boolean {
-  return /^[A-Z0-9]{12}$/.test(value.toUpperCase());
-}
-
-function stringTags(tags: unknown): string[] {
-  return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
 /** Minimal Prisma slice this job touches — duck-typed so it is unit-testable. */
@@ -362,46 +363,17 @@ export async function generateSamCandidates(
 
   for (const tenantId of options.tenantIds) {
     // ── Tenant-scoped reads: bypass + EXPLICIT tenantId, always both ────────
-    const { clients, mappings, existingRows } = await withBypass(prisma, async (tx) => {
-      const clients = await tx.client.findMany({
-        where: {
-          tenantId,
-          status: { not: 'archived' },
-          profileStatus: 'ACTIVE',
-          ...(options.clientId ? { id: options.clientId } : {}),
-        },
-        select: {
-          id: true,
-          naicsCodes: true,
-          pscCodes: true,
-          applicantTypes: true,
-          setAsideCertifications: true,
-          sectorTag: true,
-          capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
-          facilities: { select: { city: true, state: true, zip: true } },
-        },
+    const { clients, existingRows } = await withBypass(prisma, async (tx) => {
+      // Shared repository read. This is where P01's one behavioral change enters:
+      // the select now includes `Client.uei`, which this producer never fetched,
+      // so contract award history resolves from the client's OWN identity as well
+      // as its reviewed contracting mappings — matching the HTTP read path.
+      const clients = await readClientProfileFactsMany(asProfileReadClient(tx), {
+        tenantId,
+        clientId: options.clientId,
         take: CLIENT_CAP,
       });
-      const clientIds = clients.map((c) => c.id);
-      const mappings = clientIds.length
-        ? await tx.clientIntelMapping.findMany({
-            where: {
-              tenantId,
-              clientId: { in: clientIds },
-              confirmed: true,
-              reviewStatus: 'confirmed',
-              rollUpAwards: true,
-              source: 'contracting',
-            },
-            select: {
-              clientId: true,
-              source: true,
-              externalId: true,
-              externalName: true,
-              rollUpAwards: true,
-            },
-          })
-        : [];
+      const clientIds = clients.map((c) => c.clientId);
       const existingRows = clientIds.length
         ? await tx.clientFundingOpportunity.findMany({
             where: { tenantId, clientId: { in: clientIds }, source: 'sam_gov' },
@@ -416,30 +388,28 @@ export async function generateSamCandidates(
             },
           })
         : [];
-      return { clients, mappings, existingRows };
+      return { clients, existingRows };
     });
 
     if (clients.length >= CLIENT_CAP) capped = true;
 
-    const mappingsByClient = new Map<string, typeof mappings>();
-    for (const m of mappings) {
-      const list = mappingsByClient.get(m.clientId) ?? [];
-      list.push(m);
-      mappingsByClient.set(m.clientId, list);
-    }
     const existingByKey = new Map<string, (typeof existingRows)[number]>();
     for (const r of existingRows) {
       if (r.samOpportunityId) existingByKey.set(`${r.clientId}:${r.samOpportunityId}`, r);
     }
 
     for (const client of clients) {
-      const profile = await buildSamProfileForClient(prisma, client, mappingsByClient.get(client.id) ?? []);
+      // One award-history read per client, never one per notice. Throws rather
+      // than degrading to empty history: a run that scored every client against
+      // no award history would mark real suggestions stale.
+      const history = await readAwardHistory(prisma, awardHistoryIdentity(client));
+      const profile = buildClientOpportunityProfile(client, history).sam;
 
       for (const notice of noticeProfiles) {
         evaluated += 1;
         try {
           const scored = scoreSamOpportunityRelevance(profile, notice.profile);
-          const existing = existingByKey.get(`${client.id}:${notice.id}`) ?? null;
+          const existing = existingByKey.get(`${client.clientId}:${notice.id}`) ?? null;
           const decision = decideProducerAction({
             existing,
             relevanceScore: scored.relevanceScore,
@@ -465,7 +435,7 @@ export async function generateSamCandidates(
                   tx.clientFundingOpportunity.create({
                     data: {
                       tenantId,
-                      clientId: client.id,
+                      clientId: client.clientId,
                       source: 'sam_gov',
                       samOpportunityId: notice.id,
                       grantOpportunityId: null,
@@ -528,7 +498,7 @@ export async function generateSamCandidates(
           // One bad pair must not abort the rest (sync-grants.ts precedent).
           counts.errors += 1;
           console.warn(
-            `[sam-candidates] failed ${client.id} × ${notice.id}: ${(err as Error).message}`,
+            `[sam-candidates] failed ${client.clientId} × ${notice.id}: ${(err as Error).message}`,
           );
         }
       }
@@ -537,77 +507,6 @@ export async function generateSamCandidates(
 
   if (capped) counts.errors += 1;
   return { ...counts, evaluated, created, refreshed, markedStale, humanDecisionsPreserved, capped };
-}
-
-/**
- * The client half of SAM scoring. One award-history query per client, never one
- * per notice.
- */
-async function buildSamProfileForClient(
-  prisma: SamCandidatesPrisma,
-  client: {
-    id: string;
-    naicsCodes: string[];
-    pscCodes: string[];
-    applicantTypes: string[];
-    setAsideCertifications: string[];
-    sectorTag: string | null;
-    capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
-    facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
-  },
-  mappings: Array<{ source: string; externalId: string | null; externalName: string | null; rollUpAwards: boolean | null }>,
-): Promise<SamClientProfile> {
-  // A parent/subsidiary mapping only contributes when a reviewer said its awards
-  // roll up. The relationship existing is not the same as the money being the
-  // client's.
-  const usable = mappings.filter((m) => m.source === 'contracting' && m.rollUpAwards === true);
-  const ueis = dedupe(usable.map((m) => m.externalId)).filter(isUeiShaped).map((u) => u.toUpperCase());
-  const names = dedupe(usable.map((m) => m.externalName)).map((n) => n.toLowerCase());
-
-  let priorAgencies: string[] = [];
-  // Stays empty: federal_award has no contracting-office column, and
-  // sam_opportunity.office holds codes ('0413 AQ HQ  RCO-HI'). Feeding it the
-  // awarding sub-tier created an office signal that could never fire and
-  // surfaced agency names to users as "prior office" terms.
-  const priorOffices: string[] = [];
-  if (ueis.length || names.length) {
-    const rows = await prisma.$queryRaw<{
-      awarding_agency: string | null;
-      awarding_sub_tier: string | null;
-    }>`
-      SELECT DISTINCT awarding_agency, awarding_sub_tier
-      FROM federal_award
-      WHERE recipient_uei = ANY(${ueis}::text[])
-         OR lower(contractor_name) = ANY(${names}::text[])
-      LIMIT 5000
-    `;
-    // Both tiers count as agency history. sam_opportunity.agency is sub-tier
-    // shaped ('DEPT OF THE NAVY'), so awarding_agency on its own
-    // ('Department of Defense') matched nothing; normAgency reconciles the
-    // Dept/Department spelling.
-    priorAgencies = dedupe([
-      ...rows.map((r) => r.awarding_agency),
-      ...rows.map((r) => r.awarding_sub_tier),
-    ]);
-  }
-
-  return {
-    naicsCodes: client.naicsCodes,
-    pscCodes: client.pscCodes,
-    capabilityKeywords: dedupe([
-      ...client.capabilities.map((c) => c.name),
-      ...client.capabilities.flatMap((c) => c.keywords ?? []),
-      ...client.capabilities.flatMap((c) => stringTags(c.tags)),
-    ]),
-    programElementCodes: dedupe(client.capabilities.flatMap((c) => c.peNumbers ?? [])),
-    priorAgencies,
-    priorOffices,
-    facilityStates: dedupe(client.facilities.map((f) => f.state)),
-    facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
-    sector: client.sectorTag,
-    applicantTypes: client.applicantTypes,
-    setAsideCertifications: client.setAsideCertifications,
-  };
 }
 
 /** Never assume the vendor JSON shape. */

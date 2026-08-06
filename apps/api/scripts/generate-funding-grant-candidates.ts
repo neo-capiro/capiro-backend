@@ -15,7 +15,15 @@ import {
   scoreOpportunityRelevance,
   MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
 } from '../src/district-nexus/grant-opportunity-relevance.js';
-import { shapeClientRelevanceProfile } from '../src/district-nexus/grant-opportunity-candidates.js';
+import {
+  awardHistoryIdentity,
+  buildClientOpportunityProfile,
+} from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+import {
+  asProfileReadClient,
+  readAwardHistory,
+  readClientProfileFactsMany,
+} from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 
 dotenvConfig();
 
@@ -58,14 +66,6 @@ export function parseArgs(argv: string[]): Args {
 function dedupe(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))];
 }
-function uei(value: string | null | undefined): string | null {
-  const normalized = (value ?? '').trim().toUpperCase();
-  return /^[A-Z0-9]{12}$/.test(normalized) ? normalized : null;
-}
-function tags(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
 async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (rawTx) => {
     const tx = rawTx as unknown as PrismaClient;
@@ -137,37 +137,17 @@ export async function generateFundingGrantCandidates(
 
   for (const tenantId of options.tenantIds) {
     const scoped = await withBypass(prisma, async (tx) => {
-      const clients = await tx.client.findMany({
-        where: {
-          tenantId,
-          status: { not: 'archived' },
-          profileStatus: 'ACTIVE',
-          ...(options.clientId ? { id: options.clientId } : {}),
-        },
-        select: {
-          id: true,
-          uei: true,
-          sectorTag: true,
-          applicantTypes: true,
-          capabilities: { select: { name: true, tags: true } },
-          facilities: { select: { state: true } },
-        },
+      // One shared repository read, so this producer, the SAM producer and the
+      // HTTP read path all select the same client columns and apply the same
+      // reviewed-mapping filter. Before P01 this selected 6 fields and its own
+      // mapping query narrowed to `assistance_recipient`, which is a large part
+      // of why the three profiles could differ.
+      const clients = await readClientProfileFactsMany(asProfileReadClient(tx), {
+        tenantId,
+        clientId: options.clientId,
         take: CLIENT_CAP,
       });
-      const clientIds = clients.map((client) => client.id);
-      const mappings = clientIds.length
-        ? await tx.clientIntelMapping.findMany({
-            where: {
-              tenantId,
-              clientId: { in: clientIds },
-              source: 'assistance_recipient',
-              confirmed: true,
-              reviewStatus: 'confirmed',
-              rollUpAwards: true,
-            },
-            select: { clientId: true, externalId: true, externalName: true },
-          })
-        : [];
+      const clientIds = clients.map((client) => client.clientId);
       const existing = clientIds.length
         ? await tx.clientFundingOpportunity.findMany({
             where: { tenantId, clientId: { in: clientIds }, source: 'grants_gov' },
@@ -182,16 +162,10 @@ export async function generateFundingGrantCandidates(
             },
           })
         : [];
-      return { clients, mappings, existing };
+      return { clients, existing };
     });
     if (scoped.clients.length >= CLIENT_CAP) capped = true;
 
-    const mappingsByClient = new Map<string, typeof scoped.mappings>();
-    for (const mapping of scoped.mappings) {
-      const list = mappingsByClient.get(mapping.clientId) ?? [];
-      list.push(mapping);
-      mappingsByClient.set(mapping.clientId, list);
-    }
     const existingByKey = new Map(
       scoped.existing
         .filter((row) => row.grantOpportunityId != null)
@@ -199,37 +173,17 @@ export async function generateFundingGrantCandidates(
     );
 
     for (const client of scoped.clients) {
-      const mappings = mappingsByClient.get(client.id) ?? [];
-      const recipientUeis = dedupe([
-        uei(client.uei),
-        ...mappings.map((mapping) => uei(mapping.externalId)),
-      ]);
-      const recipientNames = dedupe(mappings.map((mapping) => mapping.externalName)).map((name) =>
-        name.toLowerCase(),
-      );
-      const history =
-        recipientUeis.length || recipientNames.length
-          ? await prisma.$queryRaw<
-              Array<{ assistance_listing_number: string | null; awarding_agency: string | null }>
-            >`
-              SELECT DISTINCT assistance_listing_number, awarding_agency
-              FROM federal_assistance_award
-              WHERE recipient_uei = ANY(${recipientUeis}::text[])
-                 OR lower(recipient_name) = ANY(${recipientNames}::text[])
-              LIMIT 5000
-            `
-          : [];
-      const profile = shapeClientRelevanceProfile({
-        sectorTag: client.sectorTag,
-        capabilities: client.capabilities.map((capability) => ({
-          name: capability.name,
-          tags: tags(capability.tags),
-        })),
-        facilityStates: client.facilities.map((facility) => facility.state),
-        priorAssistanceListings: history.map((row) => row.assistance_listing_number),
-        priorAgencies: history.map((row) => row.awarding_agency),
-        applicantTypes: client.applicantTypes,
-      });
+      // One award-history read per client, never one per grant. This does BOTH
+      // rails now — the grant profile only reads the assistance half, but the
+      // profile is built whole so a parity test can compare it against the SAM
+      // producer and the read path byte for byte. That is one extra bounded query
+      // per client, which is the price of the three sites being checkable.
+      //
+      // Not wrapped in a try/catch, deliberately: a nightly job that scored every
+      // client against silently-empty award history would mark real suggestions
+      // stale. The read path degrades; this must crash.
+      const history = await readAwardHistory(prisma, awardHistoryIdentity(client));
+      const profile = buildClientOpportunityProfile(client, history).grant;
 
       for (const grant of grants) {
         evaluated += 1;
@@ -248,7 +202,7 @@ export async function generateFundingGrantCandidates(
           const meetsSuggestionFloor =
             scored.matchedSignals.some((signal) => signal.strength === 'strong') ||
             scored.matchedSignals.filter((signal) => signal.strength === 'moderate').length >= 2;
-          const existing = existingByKey.get(`${client.id}:${grant.id}`) ?? null;
+          const existing = existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
           const decision = decideProducerAction({
             existing,
             relevanceScore: scored.relevanceScore,
@@ -274,7 +228,7 @@ export async function generateFundingGrantCandidates(
                 tx.clientFundingOpportunity.create({
                   data: {
                     tenantId,
-                    clientId: client.id,
+                    clientId: client.clientId,
                     source: 'grants_gov',
                     grantOpportunityId: grant.id,
                     samOpportunityId: null,
@@ -328,7 +282,7 @@ export async function generateFundingGrantCandidates(
           }
         } catch (error) {
           counts.errors += 1;
-          console.warn(`[${SOURCE}] failed ${client.id} × ${grant.id}: ${(error as Error).message}`);
+          console.warn(`[${SOURCE}] failed ${client.clientId} × ${grant.id}: ${(error as Error).message}`);
         }
       }
     }

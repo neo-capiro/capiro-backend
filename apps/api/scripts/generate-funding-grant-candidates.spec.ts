@@ -31,14 +31,37 @@ function grantRow(partial: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Shaped to CLIENT_PROFILE_SELECT, the one select all three profile callers share
+ * since P01. It carries more columns than grant scoring reads — `naicsCodes`,
+ * `cageCode`, facility ids — because the producer now builds the WHOLE versioned
+ * profile so a parity test can compare it against the SAM producer and the read
+ * path. A fake missing them is a fake that cannot detect drift.
+ */
 function clientRow(partial: Record<string, unknown> = {}) {
   return {
     id: CLIENT,
+    name: 'Acme Health LLC',
     uei: 'ABC123456789',
-    sectorTag: 'HEALTH',
+    cageCode: null,
+    naicsCodes: [],
+    pscCodes: [],
     applicantTypes: ['Small businesses'],
-    capabilities: [{ name: 'Medicaid analytics', tags: ['health'] }],
-    facilities: [{ state: 'VA' }],
+    setAsideCertifications: [],
+    sectorTag: 'HEALTH',
+    capabilities: [
+      { name: 'Medicaid analytics', tags: ['health'], keywords: [], peNumbers: [] },
+    ],
+    facilities: [
+      {
+        id: '00000000-0000-0000-0000-0000000000f1',
+        name: 'Richmond office',
+        city: null,
+        state: 'VA',
+        zip: null,
+        congressionalDistrict: null,
+      },
+    ],
     ...partial,
   };
 }
@@ -95,6 +118,10 @@ function makeFake(options: {
         options.mappings ?? [
           {
             clientId: CLIENT,
+            // `source` is required since P01: the shared query selects BOTH
+            // award-bearing sources and the split happens in code, so a row with
+            // no source belongs to neither rail and contributes no history.
+            source: 'assistance_recipient',
             externalId: 'ABC123456789',
             externalName: 'Acme Health LLC',
           },
@@ -226,12 +253,23 @@ describe('generateFundingGrantCandidates', () => {
     expect(mappingWhere[0]).toEqual(
       expect.objectContaining({
         tenantId: TENANT,
-        source: 'assistance_recipient',
         confirmed: true,
         reviewStatus: 'confirmed',
+        // `true`, not "not false": a null roll-up is an unanswered question, not
+        // consent for a subsidiary's awards to count as the client's.
         rollUpAwards: true,
       }),
     );
+    // P01 widened this from `source: 'assistance_recipient'` to the shared
+    // query, which reads BOTH award-bearing rails and splits them in code — the
+    // grant producer now builds the whole versioned profile, not just its half.
+    // The list must stay exactly these two: every other mapping source
+    // (contractor candidates, LDA, FEC, compliance-sensitive rows) is not
+    // award-bearing identity and must never reach award history.
+    expect((mappingWhere[0] as { source: { in: string[] } }).source.in.slice().sort()).toEqual([
+      'assistance_recipient',
+      'contracting',
+    ]);
   });
 
   test('--client narrows the tenant sweep', async () => {

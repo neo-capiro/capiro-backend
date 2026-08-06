@@ -140,9 +140,17 @@ function noticeRow(partial: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Shaped to CLIENT_PROFILE_SELECT, the one select all three profile callers share
+ * since P01. `uei` in particular: this producer never selected it before, which is
+ * exactly why contract award history differed from the read path.
+ */
 function clientRow(partial: Record<string, unknown> = {}) {
   return {
     id: CLIENT,
+    name: 'Acme Defense LLC',
+    uei: 'ABC123456789',
+    cageCode: null,
     naicsCodes: ['336411'],
     pscCodes: [],
     applicantTypes: [],
@@ -159,11 +167,13 @@ function makeFake(opts: {
   clients?: Array<Record<string, unknown>>;
   existing?: Array<Record<string, unknown>>;
   flagRows?: Array<{ tenant_id: string }>;
+  contractHistory?: Array<{ awarding_agency: string | null; awarding_sub_tier: string | null }>;
 }) {
   const created: unknown[] = [];
   const updated: unknown[] = [];
   const bypassCalls: string[] = [];
   const clientWhere: unknown[] = [];
+  const awardHistoryQueries: Array<{ sql: string; values: unknown[] }> = [];
 
   const prisma: SamCandidatesPrisma = {
     $transaction: (async (fn: (tx: SamCandidatesPrisma) => Promise<unknown>) => fn(prisma)) as never,
@@ -171,9 +181,13 @@ function makeFake(opts: {
       bypassCalls.push(sql);
       return 0;
     }) as never,
-    $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
+    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
       if (sql.includes('intel_feature_flag')) return (opts.flagRows ?? [{ tenant_id: TENANT }]) as never;
+      if (sql.includes('federal_award')) {
+        awardHistoryQueries.push({ sql, values });
+        return (opts.contractHistory ?? []) as never;
+      }
       return [] as never;
     }) as never,
     client: {
@@ -199,8 +213,70 @@ function makeFake(opts: {
     },
   } as unknown as SamCandidatesPrisma;
 
-  return { prisma, created, updated, bypassCalls, clientWhere };
+  return { prisma, created, updated, bypassCalls, clientWhere, awardHistoryQueries };
 }
+
+describe('award-history identity matches the read path (P01)', () => {
+  test("the client's OWN uei is queried, not only its reviewed mappings", async () => {
+    // The bug P01 fixes. This producer built contract identities from confirmed
+    // `contracting` mapping UEIs only and never selected `Client.uei`, while the
+    // HTTP read path used both. A client holding its own UEI with no confirmed
+    // contracting mapping therefore had prior-agency history on screen that this
+    // job could not reproduce, so it would decline to suggest a notice the page
+    // scored highly. Nothing caught it because no test built both profiles.
+    const { prisma, awardHistoryQueries } = makeFake({ clients: [clientRow()] });
+    await generateSamCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: false,
+    });
+    expect(awardHistoryQueries).toHaveLength(1);
+    const [ueis] = awardHistoryQueries[0]!.values as [string[], string[]];
+    expect(ueis).toContain('ABC123456789');
+  });
+
+  test('a client with no uei and no mappings queries no award history at all', async () => {
+    // Not "queries with an empty array": an unbounded scan of federal_award with
+    // no identity predicate is the failure this guard exists to prevent.
+    const { prisma, awardHistoryQueries } = makeFake({
+      clients: [clientRow({ uei: null })],
+    });
+    await generateSamCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: false,
+    });
+    expect(awardHistoryQueries).toHaveLength(0);
+  });
+
+  test('a malformed uei is not treated as an identifier', async () => {
+    const { prisma, awardHistoryQueries } = makeFake({
+      clients: [clientRow({ uei: 'not-a-uei' })],
+    });
+    await generateSamCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: false,
+    });
+    expect(awardHistoryQueries).toHaveLength(0);
+  });
+
+  test('award history is read ONCE per client, never once per notice', async () => {
+    const { prisma, awardHistoryQueries } = makeFake({
+      notices: [noticeRow({ id: 'n-1' }), noticeRow({ id: 'n-2' }), noticeRow({ id: 'n-3' })],
+    });
+    await generateSamCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: false,
+    });
+    expect(awardHistoryQueries).toHaveLength(1);
+  });
+});
 
 describe('generateSamCandidates', () => {
   test('a dry run reports REAL counts and writes nothing', async () => {
@@ -355,8 +431,43 @@ describe('generateSamCandidates', () => {
     // 24 pairs evaluated, but the notice catalog is read exactly ONCE.
     expect((prisma.samOpportunity.findMany as jest.Mock).mock.calls).toHaveLength(1);
     expect((prisma.client.findMany as jest.Mock).mock.calls).toHaveLength(1);
-    // Award history is one query per client, not per pair.
-    expect((prisma.$queryRaw as jest.Mock).mock.calls.length).toBeLessThanOrEqual(clients.length);
+
+    // Award history is bounded by CLIENTS, and specifically by two bounded reads
+    // per client — one per award rail. P01 made this producer build the whole
+    // versioned profile rather than only its SAM half, so it now reads assistance
+    // history too. That is the deliberate cost of the read path and both
+    // producers being byte-comparable; it is still O(clients), which is what this
+    // test is about.
+    const historyCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter(([strings]) =>
+      Array.from(strings as TemplateStringsArray)
+        .join('?')
+        .includes('federal_a'),
+    );
+    expect(historyCalls.length).toBeLessThanOrEqual(2 * clients.length);
+
+    // The invariant the bound above is only a proxy for: doubling the notice
+    // count must not change the query count at all. A magic number drifts; this
+    // does not.
+    const doubled = makeFake({
+      notices: [
+        ...notices,
+        ...notices.map((n, i) => ({ ...n, id: `00000000-0000-0000-0000-00000000050${i}` })),
+      ],
+      clients,
+    });
+    await generateSamCandidates(doubled.prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: false,
+    });
+    const doubledHistoryCalls = (doubled.prisma.$queryRaw as jest.Mock).mock.calls.filter(
+      ([strings]) =>
+        Array.from(strings as TemplateStringsArray)
+          .join('?')
+          .includes('federal_a'),
+    );
+    expect(doubledHistoryCalls.length).toBe(historyCalls.length);
   });
 
   test('a scan that hits its bound reports capped, so partial coverage is not silent', async () => {
