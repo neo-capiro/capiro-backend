@@ -4,8 +4,10 @@
 
 export type MeetingProvider = 'zoom' | 'meet' | 'teams' | 'webex' | 'goto' | 'slack';
 // scheduled → attending (in the call) → attended (call ended, Meri summarizing to
-// Meeting Notes) → done (summary written).
-export type MeriState = 'scheduled' | 'attending' | 'attended' | 'done';
+// Meeting Notes) → done (summary written). `failed` = Meri did not capture the
+// meeting for a reason the user didn't ask for (consent declined, provider
+// error, no-show) — see `meriError` on Meeting for the surfaced explanation.
+export type MeriState = 'scheduled' | 'attending' | 'attended' | 'done' | 'failed';
 export type MeetingVisibility = 'private' | 'shared';
 export type PrepStatus = 'generated' | 'edited' | 'approved' | 'stale' | 'failed';
 export type DebriefStatus = 'generated' | 'edited' | 'approved';
@@ -151,6 +153,8 @@ export interface Meeting {
   // Computed response fields (API decorate layer).
   notesApproved: boolean;
   meri: MeriState | null;
+  // Set only when meri === 'failed' — why Meri produced no notes.
+  meriError?: string | null;
   contributors: MeetingContributor[];
   sharedBy: { userId: string; name: string | null } | null;
   // Phase 2 cross-user grouping only: per-sender names of the notetakers that

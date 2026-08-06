@@ -293,6 +293,69 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
       { userId: 'user-1', name: 'Neo Martinez', artifacts: ['notes'] },
     ]);
   });
+
+  // A session that did NOT capture the meeting for a reason the user didn't ask
+  // for must be surfaced as `meri: 'failed'` + a `meriError` explanation, NOT
+  // silently collapsed to null (which reads as "Meri was never sent").
+  test.each([
+    [
+      'denied_consent',
+      null,
+      'A participant declined to consent to recording, so Meri was removed from the call before it could take notes.',
+    ],
+    [
+      'no_show',
+      null,
+      "Meri didn't make it into the call — it may not have been admitted from the waiting room in time.",
+    ],
+    ['failed', 'Recall reported a fatal error mid-call.', 'Recall reported a fatal error mid-call.'],
+    ['failed', null, 'Meri hit an unexpected error and could not capture this meeting.'],
+  ])('meri: %s / error: %s surfaces as failed with an explanation', async (status, error, expected) => {
+    const service = serviceWith({
+      meeting: {
+        findMany: async () => [
+          meetingRow({
+            notes: [],
+            debriefs: [],
+            preps: [],
+          }),
+        ],
+      },
+      ...decorateStubs,
+      meetingBotSession: { findMany: async () => [{ meetingId: 'm1', status, error }] },
+      ...tenantFlag(false),
+    });
+
+    const [row] = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
+      Record<string, unknown>
+    >;
+
+    expect(row!.meri).toBe('failed');
+    expect(row!.meriError).toBe(expected);
+  });
+
+  // `removed` is the user's OWN "Cancel Meri" kill switch — unlike the failure
+  // statuses above, this must stay silent (meri null, no meriError) so the UI
+  // simply re-offers "Send Meri", which is exactly what the user asked for.
+  test('meri: removed (user-cancelled) stays null with no meriError', async () => {
+    const service = serviceWith({
+      meeting: {
+        findMany: async () => [meetingRow({ notes: [], debriefs: [], preps: [] })],
+      },
+      ...decorateStubs,
+      meetingBotSession: {
+        findMany: async () => [{ meetingId: 'm1', status: 'removed', error: null }],
+      },
+      ...tenantFlag(false),
+    });
+
+    const [row] = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
+      Record<string, unknown>
+    >;
+
+    expect(row!.meri).toBeNull();
+    expect(row!.meriError).toBeNull();
+  });
 });
 
 describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag)', () => {
