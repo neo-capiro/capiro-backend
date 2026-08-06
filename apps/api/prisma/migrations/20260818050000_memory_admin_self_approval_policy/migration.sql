@@ -3,6 +3,11 @@
 -- when another reviewer is assigned. Assignment remains routing metadata for
 -- standard/grant reviewers; it is not an authorization prerequisite for an
 -- active user_admin or capiro_admin.
+--
+-- The database exception is capability-bound: direct/generic writes do not gain
+-- admin authority merely from role membership. The canonical application path
+-- must set app.memory_admin_review_decision=on transaction-locally after tenant,
+-- membership, ethical-wall, client-status, and operation authorization passes.
 
 ALTER TABLE review_request
   DROP CONSTRAINT IF EXISTS review_request_memory_phase2_shape_check;
@@ -95,6 +100,7 @@ DECLARE
   workflow_status text;
   workflow_assignment_enforced boolean;
   actor_is_active_admin boolean;
+  admin_decision_capability boolean;
 BEGIN
   IF OLD.status = 'pending' AND NEW.status IN ('approved', 'rejected')
      AND OLD.scope IN ('firm', 'client') THEN
@@ -134,14 +140,18 @@ BEGIN
         AND tm.role IN ('user_admin'::tenant_role, 'capiro_admin'::tenant_role)
     ) INTO actor_is_active_admin;
 
+    admin_decision_capability :=
+      current_setting('app.memory_admin_review_decision', true) = 'on';
+
     -- Active administrators may decide any review they are otherwise authorized
-    -- to see, including their own proposal. The application layer still applies
-    -- ethical walls, client status, tenant scope, and current membership checks.
-    IF actor_is_active_admin THEN
+    -- to see, including their own proposal, only through the canonical
+    -- capability-bearing application transaction.
+    IF actor_is_active_admin AND admin_decision_capability THEN
       RETURN NEW;
     END IF;
 
-    -- Preserve the existing route-containment boundary for non-admin reviewers.
+    -- Preserve the existing route-containment boundary for every direct or
+    -- non-admin decision path.
     IF workflow_assigned_to IS NULL
        OR NEW.decided_by <> workflow_assigned_to THEN
       RAISE EXCEPTION 'MEMORY_REVIEW_ASSIGNED_REVIEWER_REQUIRED'
