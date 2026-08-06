@@ -86,15 +86,41 @@ describe('memory Phase 2 persistence ownership contract', () => {
     });
   });
 
-  it('fails if any migration lineage FK loses its tenant binding', () => {
-    for (const [composite, unsafe] of [
+  it('fails if Prisma relation names or referential actions drift from PostgreSQL', () => {
+    for (const [current, drifted] of [
+      [
+        'onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_revision_root_fk"',
+        'onDelete: Restrict',
+      ],
+      [
+        'map: "memory_candidate_predecessor_fk"',
+        'map: "memory_candidate_predecessor_drift_fk"',
+      ],
+      [
+        'onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_superseded_by_fk"',
+        'onDelete: SetNull, onUpdate: Cascade, map: "memory_candidate_superseded_by_fk"',
+      ],
+    ] as const) {
+      expectContractFailure({
+        ...target,
+        prismaSchema: target.prismaSchema.replace(current, drifted),
+      });
+    }
+  });
+
+  it('fails if any migration lineage FK loses tenant binding, name, or actions', () => {
+    for (const [current, unsafe] of [
       [
         'FOREIGN KEY (tenant_id, revision_root_id)\n    REFERENCES memory_candidate(tenant_id, id)',
         'FOREIGN KEY (revision_root_id)\n    REFERENCES memory_candidate(id)',
       ],
       [
-        'FOREIGN KEY (tenant_id, predecessor_candidate_id)\n    REFERENCES memory_candidate(tenant_id, id)',
-        'FOREIGN KEY (predecessor_candidate_id)\n    REFERENCES memory_candidate(id)',
+        'ADD CONSTRAINT memory_candidate_predecessor_fk',
+        'ADD CONSTRAINT memory_candidate_predecessor_drift_fk',
+      ],
+      [
+        'REFERENCES memory_candidate(tenant_id, id)\n    ON UPDATE NO ACTION\n    ON DELETE RESTRICT',
+        'REFERENCES memory_candidate(tenant_id, id)\n    ON UPDATE CASCADE\n    ON DELETE SET NULL',
       ],
       [
         'FOREIGN KEY (tenant_id, superseded_by_id)\n    REFERENCES memory_candidate(tenant_id, id)',
@@ -103,7 +129,7 @@ describe('memory Phase 2 persistence ownership contract', () => {
     ] as const) {
       expectContractFailure({
         ...target,
-        revisionMigration: target.revisionMigration.replace(composite, unsafe),
+        revisionMigration: target.revisionMigration.replace(current, unsafe),
       });
     }
   });
