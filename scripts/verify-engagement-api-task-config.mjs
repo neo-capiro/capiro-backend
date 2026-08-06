@@ -223,14 +223,25 @@ for (const name of REQUIRED_PLAIN_ENV) {
   if (injected.includes(name)) fail(`${name} must be a plain environment variable, not a secret`);
 }
 
-// Whole-JSON injection has no field selector after the secret ARN.
+// Live discovery (2.15, capiro-dev, 2026-08-06) found two different secret
+// shapes on the main API's task: the two DB secrets each hold several named
+// JSON fields (host/port; username/password) and must be field-scoped, or
+// injecting one leaks its sibling field. CLERK_SECRET_KEY,
+// CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY and
+// NOTES_ENCRYPTION_KEY are each their OWN flat-string secret with nothing to
+// select — requiring a field suffix on those would be checking for something
+// that cannot exist, not injecting a whole document unsafely.
+const MULTI_FIELD_SECRETS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD'];
 for (const [name, valueFrom] of Object.entries(secrets)) {
   const rendering = String(valueFrom);
   const looksFieldScoped = /:[A-Za-z_][A-Za-z0-9_]*::?"?\s*$|:[A-Za-z_][A-Za-z0-9_]*::/.test(
     rendering,
   );
-  if (!looksFieldScoped) {
+  if (MULTI_FIELD_SECRETS.includes(name) && !looksFieldScoped) {
     fail(`secret ${name} appears to inject a whole JSON document rather than one field`);
+  }
+  if (!MULTI_FIELD_SECRETS.includes(name) && looksFieldScoped) {
+    fail(`secret ${name} unexpectedly selects a JSON field; it should be a flat-string whole secret`);
   }
 }
 

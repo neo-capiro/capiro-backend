@@ -95,7 +95,7 @@ test('exactly the boot-required and safe-read fields are injected', () => {
   const expected = [
     ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret,
     ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseAppSecret,
-    ...ENGAGEMENT_API_SECRET_FIELDS.fromAppConfigSecret,
+    ...ENGAGEMENT_API_SECRET_FIELDS.wholeSecret,
   ].sort();
   assert.deepEqual(injected, expected);
 });
@@ -114,6 +114,29 @@ test('DB_HOST/DB_PORT and DB_USER/DB_PASSWORD resolve from two DIFFERENT secrets
   assert.notEqual(arnOf(secrets.DB_HOST), arnOf(secrets.DB_USER));
 });
 
+test('the four whole-secret fields each resolve from a distinct secret, with no jsonKey', () => {
+  // Live discovery (2.15, capiro-dev) found CLERK_SECRET_KEY,
+  // CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY and
+  // NOTES_ENCRYPTION_KEY are each their OWN flat-string secret on the main
+  // API's task — confirmed by the absence of a ":<field>::" suffix, unlike
+  // the two DB secrets. Injected whole here, not field-scoped.
+  const secrets = containerSecrets(synth());
+  const fields = [
+    'CLERK_SECRET_KEY',
+    'CLERK_WEBHOOK_SIGNING_SECRET',
+    'OAUTH_TOKEN_ENCRYPTION_KEY',
+    'NOTES_ENCRYPTION_KEY',
+  ] as const;
+  const arnOf = (valueFrom: unknown) => String(valueFrom).split(':secret:')[1]?.split(':')[0];
+  const withoutJsonKey = (valueFrom: unknown) => !/:secret:[^:]+:[^:]+::$/.test(String(valueFrom));
+
+  const names = fields.map((f) => arnOf(secrets[f]));
+  assert.equal(new Set(names).size, 4, `expected 4 distinct secrets, got ${names.join(', ')}`);
+  for (const field of fields) {
+    assert.ok(withoutJsonKey(secrets[field]), `${field} must reference the whole secret, no jsonKey`);
+  }
+});
+
 test('NC-2.7-B no provider or LLM key is injected', () => {
   const injected = Object.keys(containerSecrets(synth()));
   for (const omitted of ENGAGEMENT_API_OMITTED_SECRETS) {
@@ -121,10 +144,18 @@ test('NC-2.7-B no provider or LLM key is injected', () => {
   }
 });
 
-test('secrets are mapped field by field, never as a whole JSON document', () => {
+test('multi-field secrets (DB) are mapped field by field, never as a whole JSON document', () => {
+  // Only the two DB secrets actually hold several named JSON fields each —
+  // that's the case where injecting the whole document would leak the
+  // sibling field. The four wholeSecret fields are flat strings with no
+  // field to select; asserted separately below.
   const secrets = containerSecrets(synth());
-  for (const [name, valueFrom] of Object.entries(secrets)) {
-    const rendered = JSON.stringify(valueFrom);
+  const multiFieldNames = [
+    ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret,
+    ...ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseAppSecret,
+  ];
+  for (const name of multiFieldNames) {
+    const rendered = JSON.stringify(secrets[name]);
     assert.match(
       rendered,
       /secret:.*:[A-Za-z_]+::/,

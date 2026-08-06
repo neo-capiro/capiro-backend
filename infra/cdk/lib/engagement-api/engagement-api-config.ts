@@ -91,7 +91,16 @@ export interface EngagementApiInfraConfig {
   databaseAppSecretArn: string;
   databaseName: string;
 
-  appConfigSecretArn: string;
+  // Also NOT one shared secret with four JSON fields, unlike this contract's
+  // original assumption. Live discovery found each of these is its own
+  // flat-string secret on the main API task — no jsonKey, the whole secret
+  // value is the credential. Confirmed by the absence of a ":<field>::"
+  // suffix on their rendered ValueFrom ARNs, unlike the two DB secrets above.
+  clerkSecretKeySecretArn: string;
+  clerkWebhookSigningSecretArn: string;
+  oauthTokenEncryptionKeySecretArn: string;
+  notesEncryptionKeySecretArn: string;
+
   requiredSecretArns: string[];
 
   kmsKeyArns: { ecr: string; logs: string; data: string[] };
@@ -247,8 +256,13 @@ export function collectConfigFailures(
   if (typeof c.databaseName !== 'string' || c.databaseName.length === 0) {
     fail('databaseName is required (it is a plain env var on the live task, not a secret)');
   }
-  if (!isArn(c.appConfigSecretArn, 'secretsmanager')) {
-    fail(`appConfigSecretArn is malformed: ${c.appConfigSecretArn}`);
+  for (const [field, arn] of [
+    ['clerkSecretKeySecretArn', c.clerkSecretKeySecretArn],
+    ['clerkWebhookSigningSecretArn', c.clerkWebhookSigningSecretArn],
+    ['oauthTokenEncryptionKeySecretArn', c.oauthTokenEncryptionKeySecretArn],
+    ['notesEncryptionKeySecretArn', c.notesEncryptionKeySecretArn],
+  ] as const) {
+    if (!isArn(arn, 'secretsmanager')) fail(`${field} is malformed: ${arn}`);
   }
   for (const arn of c.requiredSecretArns ?? []) {
     if (!isArn(arn, 'secretsmanager')) fail(`requiredSecretArns contains a malformed ARN: ${arn}`);

@@ -37,12 +37,18 @@ import type { EngagementApiInfraConfig } from './engagement-api-config';
  * (host/port) and a separate "app" secret (username/password) —
  * /capiro/<env>/aurora/master and /capiro/<env>/aurora/app. DB_NAME is not a
  * secret at all there; it's a literal env var (see engagementApiTaskEnvironment).
- * The single-secret shape this contract originally assumed did not match.
+ *
+ * CLERK_SECRET_KEY, CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY
+ * and NOTES_ENCRYPTION_KEY are each their OWN flat-string secret on that same
+ * live task — confirmed by the absence of a ":<field>::" suffix on their
+ * rendered ValueFrom ARNs, unlike the DB secrets. Injected whole, with no
+ * jsonKey, unlike the original single-shared-secret assumption this contract
+ * carried.
  */
 export const ENGAGEMENT_API_SECRET_FIELDS = {
   fromDatabaseHostSecret: ['DB_HOST', 'DB_PORT'] as const,
   fromDatabaseAppSecret: ['DB_USER', 'DB_PASSWORD'] as const,
-  fromAppConfigSecret: [
+  wholeSecret: [
     'CLERK_SECRET_KEY',
     'CLERK_WEBHOOK_SIGNING_SECRET',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
@@ -60,6 +66,14 @@ const DATABASE_HOST_SECRET_JSON_KEYS: Record<string, string> = {
 const DATABASE_APP_SECRET_JSON_KEYS: Record<string, string> = {
   DB_USER: 'username',
   DB_PASSWORD: 'password',
+};
+
+/** Each whole-secret field's own config ARN — no shared secret, no jsonKey. */
+const WHOLE_SECRET_CONFIG_KEYS: Record<string, keyof EngagementApiInfraConfig> = {
+  CLERK_SECRET_KEY: 'clerkSecretKeySecretArn',
+  CLERK_WEBHOOK_SIGNING_SECRET: 'clerkWebhookSigningSecretArn',
+  OAUTH_TOKEN_ENCRYPTION_KEY: 'oauthTokenEncryptionKeySecretArn',
+  NOTES_ENCRYPTION_KEY: 'notesEncryptionKeySecretArn',
 };
 
 /**
@@ -110,12 +124,6 @@ export function buildEngagementApiIam(
     'DatabaseAppSecret',
     cfg.databaseAppSecretArn,
   );
-  const appConfigSecret = secretsmanager.Secret.fromSecretCompleteArn(
-    scope,
-    'AppConfigSecret',
-    cfg.appConfigSecretArn,
-  );
-
   const secrets: Record<string, ecs.Secret> = {};
   for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret) {
     const jsonKey = DATABASE_HOST_SECRET_JSON_KEYS[name];
@@ -127,9 +135,14 @@ export function buildEngagementApiIam(
     if (!jsonKey) throw new Error(`no JSON key mapped for ${name}`);
     secrets[name] = ecs.Secret.fromSecretsManager(databaseAppSecret, jsonKey);
   }
-  for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromAppConfigSecret) {
-    // Field-scoped, never the whole JSON document.
-    secrets[name] = ecs.Secret.fromSecretsManager(appConfigSecret, name);
+  for (const name of ENGAGEMENT_API_SECRET_FIELDS.wholeSecret) {
+    const configKey = WHOLE_SECRET_CONFIG_KEYS[name];
+    if (!configKey) throw new Error(`no config key mapped for ${name}`);
+    const arn = cfg[configKey] as string;
+    const secret = secretsmanager.Secret.fromSecretCompleteArn(scope, `${name}Secret`, arn);
+    // No jsonKey: the whole secret value IS the credential, unlike the DB
+    // secrets above which hold several named JSON fields each.
+    secrets[name] = ecs.Secret.fromSecretsManager(secret);
   }
 
   const executionRole = taskDefinition.obtainExecutionRole();

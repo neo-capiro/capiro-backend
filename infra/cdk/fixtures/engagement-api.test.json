@@ -29,7 +29,10 @@
   "databaseHostSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
   "databaseAppSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
   "databaseName": "capiro",
-  "appConfigSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB",
+  "clerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG",
+  "clerkWebhookSigningSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH",
+  "oauthTokenEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII",
+  "notesEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ",
   "requiredSecretArns": [
     "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk-secret-key-CCCCCC",
     "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-DDDDDD",

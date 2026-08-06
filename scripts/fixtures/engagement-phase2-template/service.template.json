@@ -311,19 +311,19 @@
        },
        {
         "Name": "CLERK_SECRET_KEY",
-        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB:CLERK_SECRET_KEY::"
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG"
        },
        {
         "Name": "CLERK_WEBHOOK_SIGNING_SECRET",
-        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB:CLERK_WEBHOOK_SIGNING_SECRET::"
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH"
        },
        {
         "Name": "OAUTH_TOKEN_ENCRYPTION_KEY",
-        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB:OAUTH_TOKEN_ENCRYPTION_KEY::"
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
        },
        {
         "Name": "NOTES_ENCRYPTION_KEY",
-        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB:NOTES_ENCRYPTION_KEY::"
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ"
        }
       ]
      }
@@ -507,9 +507,12 @@
        ],
        "Effect": "Allow",
        "Resource": [
-        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/app-BBBBBB",
         "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
-        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA"
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
        ]
       }
      ],

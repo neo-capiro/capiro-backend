@@ -70,7 +70,10 @@
   "databaseHostSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<aurora-master-secret>",
   "databaseAppSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<aurora-app-secret>",
   "databaseName": "<database-name, e.g. capiro>",
-  "appConfigSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<app-config-secret>",
+  "clerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-secret-key>",
+  "clerkWebhookSigningSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-webhook-signing-secret>",
+  "oauthTokenEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",
+  "notesEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<notes-encryption-key>",
   "requiredSecretArns": [
     "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-secret-key>",
     "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",
