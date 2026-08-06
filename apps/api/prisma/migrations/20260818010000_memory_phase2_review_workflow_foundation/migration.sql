@@ -3,6 +3,34 @@
 -- Prisma cannot express: memory-specific partial indexes, checks, and triggers.
 -- `changes_needed` is the bounded DB token for the public `changes_requested` state.
 
+-- Widen the legacy surface / status CHECKs so memory workflow rows can exist.
+-- Prior allowed sets (outreach surface migration, original review_request):
+--   surface IN ('alert-memo','district-brief','research','outreach')
+--   status  IN ('pending','approved','rejected')
+-- Phase 2 reuses review_request with surface='memory' and adds
+-- changes_needed / withdrawn / superseded. Shape rules for memory rows are
+-- enforced separately by review_request_memory_phase2_shape_check below.
+ALTER TABLE review_request DROP CONSTRAINT IF EXISTS review_request_surface_chk;
+ALTER TABLE review_request ADD CONSTRAINT review_request_surface_chk
+  CHECK (surface IN (
+    'alert-memo',
+    'district-brief',
+    'research',
+    'outreach',
+    'memory'
+  ));
+
+ALTER TABLE review_request DROP CONSTRAINT IF EXISTS review_request_status_chk;
+ALTER TABLE review_request ADD CONSTRAINT review_request_status_chk
+  CHECK (status IN (
+    'pending',
+    'changes_needed',
+    'approved',
+    'rejected',
+    'withdrawn',
+    'superseded'
+  ));
+
 DO $$
 BEGIN
   ALTER TABLE review_request

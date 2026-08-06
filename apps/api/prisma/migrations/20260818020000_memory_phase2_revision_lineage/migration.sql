@@ -11,6 +11,22 @@
 -- create_memory_candidate_revision; generated delegates are not a valid
 -- lifecycle mutation path.
 
+-- Widen legacy status CHECK so create_memory_candidate_revision can mark the
+-- predecessor status='superseded'. Prior set (withdrawal migration):
+--   pending | approved | rejected | auto_committed | withdrawn
+ALTER TABLE memory_candidate
+  DROP CONSTRAINT IF EXISTS memory_candidate_status_check;
+ALTER TABLE memory_candidate
+  ADD CONSTRAINT memory_candidate_status_check
+  CHECK (status IN (
+    'pending',
+    'approved',
+    'rejected',
+    'auto_committed',
+    'withdrawn',
+    'superseded'
+  ));
+
 ALTER TABLE memory_candidate
   ADD COLUMN IF NOT EXISTS revision_root_id uuid,
   ADD COLUMN IF NOT EXISTS predecessor_candidate_id uuid,

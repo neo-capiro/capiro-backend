@@ -245,7 +245,7 @@ async function seedCandidate(databaseUrl: string, ids: FixtureIds): Promise<void
            id, tenant_id, proposed_by, source_kind, scope,
            payload_jsonb, provenance_jsonb, status
          ) VALUES (
-           $1::uuid, $2::uuid, $3::uuid, 'settings_sections', 'firm',
+           $1::uuid, $2::uuid, $3::uuid, 'explicit_user', 'firm',
            $4::jsonb, $5::jsonb, 'pending'
          )`,
         ids.predecessorId,

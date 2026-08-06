@@ -306,40 +306,40 @@ model User {
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships                   TenantMembership[]
-  auditLogs                     AuditLog[]                     @relation("AuditActor")
-  impersonationSessions         ImpersonationSession[]         @relation("ImpersonationActor")
-  directoryContactNotes         DirectoryContactNote[]         @relation("DirectoryContactNoteAuthor")
-  directoryContactFavorites     DirectoryContactFavorite[]     @relation("DirectoryContactFavoriteUser")
-  meetingNotes                  MeetingNote[]                  @relation("MeetingNoteAuthor")
-  meetingNotesApproved          MeetingNote[]                  @relation("MeetingNoteApprovedBy")
-  meetingNotesShared            MeetingNote[]                  @relation("MeetingNoteSharedBy")
-  meetingDebriefs               MeetingDebrief[]               @relation("MeetingDebriefAuthor")
-  meetingDebriefsShared         MeetingDebrief[]               @relation("MeetingDebriefSharedBy")
-  meetingPrepsShared            MeetingPrep[]                  @relation("MeetingPrepSharedBy")
-  engagementAttachmentsApproved EngagementAttachment[]         @relation("EngagementAttachmentApprovedBy")
-  engagementAttachmentsShared   EngagementAttachment[]         @relation("EngagementAttachmentSharedBy")
-  engagementReportTargets       EngagementReportTargetOffice[] @relation("EngagementReportTargetOfficeAuthor")
-  clientTargets                 ClientTarget[]                 @relation("ClientTargetAuthor")
-  outreachRecords               OutreachRecord[]               @relation("OutreachRecordAuthor")
-  outreachTemplates             OutreachTemplate[]             @relation("OutreachTemplateAuthor")
-  outreachAiTemplates           OutreachAiTemplate[]           @relation("OutreachAiTemplateAuthor")
-  clioConversations             ClioConversation[]             @relation("ClioConversationUser")
-  clioMessages                  ClioMessage[]                  @relation("ClioMessageUser")
-  clioArtifacts                 ClioArtifact[]                 @relation("ClioArtifactUser")
-  clioNotes                     ClioNote[]                     @relation("ClioNoteUser")
-  clioResearchSessions          ClioResearchSession[]          @relation("ClioResearchSessionUser")
-  clioAttachments               ClioAttachment[]               @relation("ClioAttachmentUser")
-  createdCampaigns              EngagementCampaign[]           @relation("CampaignCreator")
-  programElementWatches         ProgramElementWatch[]
-  programElementDataIssuesReported ProgramElementDataIssue[] @relation("PeDataIssueReporter")
-  programElementDataIssuesResolved ProgramElementDataIssue[] @relation("PeDataIssueResolver")
-  peAlertEmailPrefs             PeAlertEmailPref[]
-  clientMemoryAccessGrants      ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
-  governedMemoryAccessGrants    MemoryAccessGrant[]            @relation("MemoryAccessGrantUser")
-  outreachDraftArtifacts        OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
-  outreachDraftVersions         OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
-  outreachSendIntents           OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
+  memberships                      TenantMembership[]
+  auditLogs                        AuditLog[]                     @relation("AuditActor")
+  impersonationSessions            ImpersonationSession[]         @relation("ImpersonationActor")
+  directoryContactNotes            DirectoryContactNote[]         @relation("DirectoryContactNoteAuthor")
+  directoryContactFavorites        DirectoryContactFavorite[]     @relation("DirectoryContactFavoriteUser")
+  meetingNotes                     MeetingNote[]                  @relation("MeetingNoteAuthor")
+  meetingNotesApproved             MeetingNote[]                  @relation("MeetingNoteApprovedBy")
+  meetingNotesShared               MeetingNote[]                  @relation("MeetingNoteSharedBy")
+  meetingDebriefs                  MeetingDebrief[]               @relation("MeetingDebriefAuthor")
+  meetingDebriefsShared            MeetingDebrief[]               @relation("MeetingDebriefSharedBy")
+  meetingPrepsShared               MeetingPrep[]                  @relation("MeetingPrepSharedBy")
+  engagementAttachmentsApproved    EngagementAttachment[]         @relation("EngagementAttachmentApprovedBy")
+  engagementAttachmentsShared      EngagementAttachment[]         @relation("EngagementAttachmentSharedBy")
+  engagementReportTargets          EngagementReportTargetOffice[] @relation("EngagementReportTargetOfficeAuthor")
+  clientTargets                    ClientTarget[]                 @relation("ClientTargetAuthor")
+  outreachRecords                  OutreachRecord[]               @relation("OutreachRecordAuthor")
+  outreachTemplates                OutreachTemplate[]             @relation("OutreachTemplateAuthor")
+  outreachAiTemplates              OutreachAiTemplate[]           @relation("OutreachAiTemplateAuthor")
+  clioConversations                ClioConversation[]             @relation("ClioConversationUser")
+  clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
+  clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
+  clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
+  clioResearchSessions             ClioResearchSession[]          @relation("ClioResearchSessionUser")
+  clioAttachments                  ClioAttachment[]               @relation("ClioAttachmentUser")
+  createdCampaigns                 EngagementCampaign[]           @relation("CampaignCreator")
+  programElementWatches            ProgramElementWatch[]
+  programElementDataIssuesReported ProgramElementDataIssue[]      @relation("PeDataIssueReporter")
+  programElementDataIssuesResolved ProgramElementDataIssue[]      @relation("PeDataIssueResolver")
+  peAlertEmailPrefs                PeAlertEmailPref[]
+  clientMemoryAccessGrants         ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  governedMemoryAccessGrants       MemoryAccessGrant[]            @relation("MemoryAccessGrantUser")
+  outreachDraftArtifacts           OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
+  outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
+  outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
 
   @@map("users")
 }
@@ -534,7 +534,7 @@ model Client {
   /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
   /// it says "we do not know", which is true, rather than guessing a type from
   /// the sector and telling a user they can apply for something they cannot.
-  applicantTypes      String[]  @default([]) @map("applicant_types")
+  applicantTypes         String[]  @default([]) @map("applicant_types")
   /// DURABLE socioeconomic certifications the company HOLDS. Canonical values are
   /// the six in `set-aside.ts`: 8A, SDVOSB, VOSB, WOSB, EDWOSB, HUBZONE. Empty
   /// means unknown, never ineligible.
@@ -549,7 +549,7 @@ model Client {
   /// read it back as evidence and reported the client `eligible`.
   ///
   /// Legacy rows are migrated by `repair-set-aside-certifications.ts`.
-  setAsideCertifications String[] @default([]) @map("set_aside_certifications")
+  setAsideCertifications String[]  @default([]) @map("set_aside_certifications")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
@@ -1744,8 +1744,8 @@ model MeriActionProposal {
   policyChannel          String    @map("policy_channel") @db.VarChar(24)
   policyRecipientType    String?   @map("policy_recipient_type") @db.VarChar(24)
   policyClientId         String?   @map("policy_client_id") @db.Uuid
-  policyEffectiveUserId String    @map("policy_effective_user_id") @db.Uuid
-  policyEffectiveAt     DateTime  @map("policy_effective_at") @db.Timestamptz(6)
+  policyEffectiveUserId  String    @map("policy_effective_user_id") @db.Uuid
+  policyEffectiveAt      DateTime  @map("policy_effective_at") @db.Timestamptz(6)
   policyRuleId           String?   @map("policy_rule_id") @db.VarChar(160)
   policyDecision         String    @map("policy_decision") @db.VarChar(20)
   policyCode             String?   @map("policy_code") @db.VarChar(120)
@@ -3634,19 +3634,19 @@ model ProgramElement {
   retiredAt          DateTime? @map("retired_at") @db.Timestamptz(6)
   retiredReason      String?   @map("retired_reason")
 
-  years                   ProgramElementYear[]
-  milestones              ProgramElementMilestone[]
+  years                    ProgramElementYear[]
+  milestones               ProgramElementMilestone[]
   milestoneSchedulePeriods ProgramElementMilestoneSchedulePeriod[]
-  yearSourceValues        ProgramElementYearSourceValue[]
-  budgetPositions         ProgramElementBudgetPosition[]
-  projectBudgetPositions  ProgramElementProjectBudgetPosition[]
-  deltas                  ProgramElementDelta[]
-  watches                 ProgramElementWatch[]
-  dataIssues              ProgramElementDataIssue[]
-  conferenceProbabilities ConferenceProbability[]
-  sources                 ProgramElementSource[]
-  projects                ProgramElementProject[]
-  performers              ProgramElementPerformer[]
+  yearSourceValues         ProgramElementYearSourceValue[]
+  budgetPositions          ProgramElementBudgetPosition[]
+  projectBudgetPositions   ProgramElementProjectBudgetPosition[]
+  deltas                   ProgramElementDelta[]
+  watches                  ProgramElementWatch[]
+  dataIssues               ProgramElementDataIssue[]
+  conferenceProbabilities  ConferenceProbability[]
+  sources                  ProgramElementSource[]
+  projects                 ProgramElementProject[]
+  performers               ProgramElementPerformer[]
 
   @@index([serviceCode], map: "program_element_service_code_idx")
   @@index([appropriationType], map: "program_element_appropriation_type_idx")
@@ -4239,16 +4239,15 @@ model ProgramElementDataIssue {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  reporter   User           @relation("PeDataIssueReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
-  resolver   User?          @relation("PeDataIssueResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reporter       User           @relation("PeDataIssueReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  resolver       User?          @relation("PeDataIssueResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
   programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
 
   @@index([tenantId, status, createdAt], map: "program_element_data_issue_tenant_status_created_idx")
   @@index([peCode, fy], map: "program_element_data_issue_pe_fy_idx")
   @@map("program_element_data_issue")
 }
-
 
 model PeAlertEmailPref {
   id        String   @id @default(uuid()) @db.Uuid
@@ -6009,21 +6008,21 @@ model ClientFundingOpportunity {
   /// Source lifecycle snapshots used by the deterministic alert/expiry pass.
   sourceStatusSnapshot     String?   @map("source_status_snapshot") @db.VarChar(64)
   responseDeadlineSnapshot DateTime? @map("response_deadline_snapshot") @db.Timestamptz(6)
-  sourceUpdatedAtSnapshot DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
+  sourceUpdatedAtSnapshot  DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
   /// Hash of the SOURCE-PUBLISHED content at the last observation, from
   /// `source-lifecycle.ts`. Answers "was this amended" WITHOUT consulting any
   /// local clock: `sam_opportunity.updatedAt` is a Prisma @updatedAt column and
   /// `federal_grant.detailSyncedAt`/`syncedAt` move whenever a job visits the
   /// row, so keying amendment alerts on them alerted on our own syncs. NULL =
   /// no baseline yet, which the processor establishes SILENTLY.
-  sourceFingerprint String? @map("source_fingerprint")
+  sourceFingerprint        String?   @map("source_fingerprint")
   /// Whether the SOURCE considered this live at the last observation. Stored
   /// rather than reconstructed from `sourceStatusSnapshot`: a legacy row with no
   /// snapshot reconstructed to "active", so an already-closed opportunity fired
   /// a spurious closure alert the first time it was seen, and a status string
   /// cannot express the date half of the lifecycle at all.
-  sourceActiveSnapshot Boolean? @map("source_active_snapshot")
-  alertState Json @default("{}") @map("alert_state_jsonb")
+  sourceActiveSnapshot     Boolean?  @map("source_active_snapshot")
+  alertState               Json      @default("{}") @map("alert_state_jsonb")
 
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
@@ -6710,26 +6709,34 @@ model MemoryEdge {
 /// once committed (clio_memory stays the fast write/recall path per D1;
 /// memory_items remains the write-through governance projection).
 model MemoryCandidate {
-  id                String    @id @default(uuid()) @db.Uuid
-  tenantId          String    @map("tenant_id") @db.Uuid
-  proposedBy        String    @map("proposed_by") @db.Uuid
-  sourceKind        String    @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction | settings_sections
-  scope             String    @db.VarChar(16) // personal | firm | client (G2)
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  proposedBy String  @map("proposed_by") @db.Uuid
+  sourceKind String  @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction | settings_sections
+  scope      String  @db.VarChar(16) // personal | firm | client (G2)
   /// G2: set iff scope='client' — the client the proposed memory belongs to.
-  clientId          String?   @map("client_id") @db.Uuid
-  payload           Json      @map("payload_jsonb")
-  provenance        Json      @map("provenance_jsonb")
-  duplicateOfId     String?   @map("duplicate_of_id") @db.Uuid
-  contradictsId     String?   @map("contradicts_id") @db.Uuid
-  status            String    @default("pending") @db.VarChar(16) // pending | approved | rejected | auto_committed
+  clientId   String? @map("client_id") @db.Uuid
+  payload    Json    @map("payload_jsonb")
+  provenance Json    @map("provenance_jsonb")
+
+  /// Phase 2 immutable revision lineage. Prisma owns the database shape,
+  /// while lifecycle mutations are restricted to the locked
+  /// create_memory_candidate_revision SQL function.
+  revisionRootId         String?   @map("revision_root_id") @db.Uuid
+  predecessorCandidateId String?   @map("predecessor_candidate_id") @db.Uuid
+  revisionNumber         Int       @default(1) @map("revision_number")
+  supersededById         String?   @map("superseded_by_id") @db.Uuid
+  duplicateOfId          String?   @map("duplicate_of_id") @db.Uuid
+  contradictsId          String?   @map("contradicts_id") @db.Uuid
+  status                 String    @default("pending") @db.VarChar(16) // pending | approved | rejected | auto_committed
   /// Phase 4 — extraction confidence [0,1] for the proposed memory; NULL =
   /// unscored (explicit human save). Drives the model_extraction low-confidence
   /// review rule (memory-candidate-rules.ts).
-  confidence        Float?
-  decidedBy         String?   @map("decided_by") @db.Uuid
-  decidedAt         DateTime? @map("decided_at") @db.Timestamptz(6)
-  committedMemoryId String?   @map("committed_memory_id") @db.Uuid
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  confidence             Float?
+  decidedBy              String?   @map("decided_by") @db.Uuid
+  decidedAt              DateTime? @map("decided_at") @db.Timestamptz(6)
+  committedMemoryId      String?   @map("committed_memory_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // ── MeriV2 Phase 3 governance (20260729010000_memory_governance_context_v2) ──
   // The legacy `scope`/`status` columns above are RETAINED untouched for
@@ -6794,10 +6801,18 @@ model MemoryCandidate {
   duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
   duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
 
+  revisionRoot MemoryCandidate?  @relation("MemoryCandidateRevisionRoot", fields: [tenantId, revisionRootId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_revision_root_fk")
+  revisions    MemoryCandidate[] @relation("MemoryCandidateRevisionRoot")
+  predecessor  MemoryCandidate?  @relation("MemoryCandidatePredecessor", fields: [tenantId, predecessorCandidateId], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_predecessor_fk")
+  successors   MemoryCandidate[] @relation("MemoryCandidatePredecessor")
+  supersededBy MemoryCandidate?  @relation("MemoryCandidateSupersession", fields: [tenantId, supersededById], references: [tenantId, id], onDelete: Restrict, onUpdate: NoAction, map: "memory_candidate_superseded_by_fk")
+  supersedes   MemoryCandidate[] @relation("MemoryCandidateSupersession")
+
   duplicateMemoryItem   MemoryItem? @relation("MemoryCandidateDuplicateItem", fields: [duplicateMemoryItemId], references: [id], onDelete: SetNull)
   contradictsMemoryItem MemoryItem? @relation("MemoryCandidateContradictsItem", fields: [contradictsMemoryItemId], references: [id], onDelete: SetNull)
   committedMemoryItem   MemoryItem? @relation("MemoryCandidateCommittedItem", fields: [committedMemoryItemId], references: [id], onDelete: SetNull)
 
+  @@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
   @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
   @@index([tenantId, governedStatus, memoryClass, clientId, createdAt(sort: Desc)], map: "memory_candidate_governed_queue_idx")
@@ -7002,21 +7017,21 @@ model Evidence {
 /// PASS/WARN/BLOCK record written by the Phase-2 compliance precheck engine —
 /// warehouse #6, the system of record for approval gates.
 model ComplianceCheck {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  trigger          String // 'send_email' | 'lda_threshold' | 'gift_travel' | 'fara_risk' | ...
-  decision         String // 'PASS' | 'WARN' | 'BLOCK'
-  reason           String   @db.Text
-  ruleSource        String?  @map("rule_source")
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  trigger            String // 'send_email' | 'lda_threshold' | 'gift_travel' | 'fara_risk' | ...
+  decision           String // 'PASS' | 'WARN' | 'BLOCK'
+  reason             String   @db.Text
+  ruleSource         String?  @map("rule_source")
   policyPackKey      String?  @map("policy_pack_key") @db.VarChar(120)
   policyPackVersion  String?  @map("policy_pack_version") @db.VarChar(80)
   policyBinding      String?  @map("policy_binding") @db.VarChar(280)
   policyDecisionHash String?  @map("policy_decision_hash") @db.VarChar(64)
   requiredApproval   Boolean  @default(false) @map("required_approval")
-  actorUserId      String?  @map("actor_user_id") // clerk user id of the actor, if any
-  entityType       String?  @map("entity_type")
-  entityId         String?  @map("entity_id")
-  occurredAt       DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorUserId        String?  @map("actor_user_id") // clerk user id of the actor, if any
+  entityType         String?  @map("entity_type")
+  entityId           String?  @map("entity_id")
+  occurredAt         DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
 
   @@index([tenantId, occurredAt(sort: Desc)])
   @@index([tenantId, trigger])
@@ -7684,25 +7699,25 @@ model AssuranceEvalFixture {
 /// R2: Full candidate identity includes cycle, manifest, artifact, source,
 /// verifier, and policy material. Deterministic UUID (not random default).
 model BudgetExtractionCandidateV1 {
-  id                     String   @id @db.Uuid
-  cycleId                String   @map("cycle_id")
-  manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
-  manifestDocumentKey    String   @map("manifest_document_key")
-  extractionArtifactId   String   @map("extraction_artifact_id")
-  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
-  extractionArtifactLocator String? @map("extraction_artifact_locator")
-  sourceDocumentId       String   @map("source_document_id") @db.Uuid
-  sourceSha256           String   @map("source_sha256") @db.Char(64)
-  verifierVersion        String   @map("verifier_version")
-  policyVersion          String   @map("policy_version")
-  policySha256           String   @map("policy_sha256") @db.Char(64)
-  status                 String   @default("EXTRACTED")
-  currentRunId           String?  @map("current_run_id") @db.Uuid
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  id                        String   @id @db.Uuid
+  cycleId                   String   @map("cycle_id")
+  manifestContentSha256     String   @map("manifest_content_sha256") @db.Char(64)
+  manifestDocumentKey       String   @map("manifest_document_key")
+  extractionArtifactId      String   @map("extraction_artifact_id")
+  extractionArtifactSha256  String   @map("extraction_artifact_sha256") @db.Char(64)
+  extractionArtifactLocator String?  @map("extraction_artifact_locator")
+  sourceDocumentId          String   @map("source_document_id") @db.Uuid
+  sourceSha256              String   @map("source_sha256") @db.Char(64)
+  verifierVersion           String   @map("verifier_version")
+  policyVersion             String   @map("policy_version")
+  policySha256              String   @map("policy_sha256") @db.Char(64)
+  status                    String   @default("EXTRACTED")
+  currentRunId              String?  @map("current_run_id") @db.Uuid
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  runs          BudgetVerificationRunV1[]
-  discrepancies BudgetVerificationDiscrepancyV1[]
+  runs            BudgetVerificationRunV1[]
+  discrepancies   BudgetVerificationDiscrepancyV1[]
   reviewDecisions BudgetReviewDecisionV1[]
 
   @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
@@ -7716,27 +7731,27 @@ model BudgetExtractionCandidateV1 {
 /// R2: Deterministic UUID. Run integrity: completed_at >= started_at,
 /// risk 0..100, exact decision/status mapping, controlled routes, SHA format.
 model BudgetVerificationRunV1 {
-  id                     String   @id @db.Uuid
-  candidateId            String   @map("candidate_id") @db.Uuid
-  verifierVersion        String   @map("verifier_version")
-  policyVersion          String   @map("policy_version")
-  policySha256           String   @map("policy_sha256") @db.Char(64)
-  decision               String   // PASS | REVIEW | REJECT
-  status                 String   // VERIFICATION_PASSED | NEEDS_REVIEW | REJECTED
-  route                  String   // none | targeted_local_reextraction | paid_page_verifier | human_review
-  riskScore              Int      @map("risk_score")
-  startedAt              DateTime @map("started_at") @db.Timestamptz(6)
-  completedAt            DateTime @map("completed_at") @db.Timestamptz(6)
-  manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
-  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
-  sourceSha256           String   @map("source_sha256") @db.Char(64)
-  resultSnapshot         Json     @map("result_snapshot_jsonb")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                       String   @id @db.Uuid
+  candidateId              String   @map("candidate_id") @db.Uuid
+  verifierVersion          String   @map("verifier_version")
+  policyVersion            String   @map("policy_version")
+  policySha256             String   @map("policy_sha256") @db.Char(64)
+  decision                 String // PASS | REVIEW | REJECT
+  status                   String // VERIFICATION_PASSED | NEEDS_REVIEW | REJECTED
+  route                    String // none | targeted_local_reextraction | paid_page_verifier | human_review
+  riskScore                Int      @map("risk_score")
+  startedAt                DateTime @map("started_at") @db.Timestamptz(6)
+  completedAt              DateTime @map("completed_at") @db.Timestamptz(6)
+  manifestContentSha256    String   @map("manifest_content_sha256") @db.Char(64)
+  extractionArtifactSha256 String   @map("extraction_artifact_sha256") @db.Char(64)
+  sourceSha256             String   @map("source_sha256") @db.Char(64)
+  resultSnapshot           Json     @map("result_snapshot_jsonb")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  checks       BudgetVerificationCheckV1[]
-  proofSnapshots BudgetVerificationProofV1[]
-  discrepancies BudgetVerificationDiscrepancyV1[]
+  candidate       BudgetExtractionCandidateV1       @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  checks          BudgetVerificationCheckV1[]
+  proofSnapshots  BudgetVerificationProofV1[]
+  discrepancies   BudgetVerificationDiscrepancyV1[]
   reviewDecisions BudgetReviewDecisionV1[]
 
   @@index([candidateId, createdAt], map: "budget_v1_run_candidate_idx")
@@ -7745,23 +7760,23 @@ model BudgetVerificationRunV1 {
 
 /// One check per rule execution. `outcome` evolves the legacy `passed` boolean.
 model BudgetVerificationCheckV1 {
-  id              String   @id @default(uuid()) @db.Uuid
-  runId           String   @map("run_id") @db.Uuid
-  checkId         String   @map("check_id")
-  code            String
-  ruleVersion     String   @map("rule_version")
-  outcome         String   // PASS | FAIL | NOT_RUN | SKIPPED
-  required        Boolean
-  blocking        Boolean
-  riskPoints      Int      @map("risk_points")
-  message         String
-  assertionIds    Json     @map("assertion_ids_jsonb")
-  evidenceIds     Json     @map("evidence_ids_jsonb")
-  referenceArtifactIds Json @map("reference_artifact_ids_jsonb")
-  details         Json?    @map("details_jsonb")
+  id                   String   @id @default(uuid()) @db.Uuid
+  runId                String   @map("run_id") @db.Uuid
+  checkId              String   @map("check_id")
+  code                 String
+  ruleVersion          String   @map("rule_version")
+  outcome              String // PASS | FAIL | NOT_RUN | SKIPPED
+  required             Boolean
+  blocking             Boolean
+  riskPoints           Int      @map("risk_points")
+  message              String
+  assertionIds         Json     @map("assertion_ids_jsonb")
+  evidenceIds          Json     @map("evidence_ids_jsonb")
+  referenceArtifactIds Json     @map("reference_artifact_ids_jsonb")
+  details              Json?    @map("details_jsonb")
   // Legacy boolean retained for backward compatibility (passed=true -> PASS, passed=false -> FAIL)
-  passed          Boolean  @default(false)
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  passed               Boolean  @default(false)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Restrict)
 
@@ -7771,15 +7786,15 @@ model BudgetVerificationCheckV1 {
 
 /// Proof snapshot — append-only record of resolved proof for one run.
 model BudgetVerificationProofV1 {
-  id              String   @id @default(uuid()) @db.Uuid
-  runId           String   @map("run_id") @db.Uuid
-  proofKind       String   @map("proof_kind")
-  status          String   // verified | not_applicable | missing | mismatch
-  sourceDocumentId String? @map("source_document_id") @db.Uuid
-  artifactId      String?  @map("artifact_id")
-  referenceArtifactId String? @map("reference_artifact_id")
-  evidenceJson    Json     @map("evidence_jsonb")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @default(uuid()) @db.Uuid
+  runId               String   @map("run_id") @db.Uuid
+  proofKind           String   @map("proof_kind")
+  status              String // verified | not_applicable | missing | mismatch
+  sourceDocumentId    String?  @map("source_document_id") @db.Uuid
+  artifactId          String?  @map("artifact_id")
+  referenceArtifactId String?  @map("reference_artifact_id")
+  evidenceJson        Json     @map("evidence_jsonb")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Restrict)
 
@@ -7789,21 +7804,21 @@ model BudgetVerificationProofV1 {
 
 /// Discrepancy record — one per verification discrepancy found during a run.
 model BudgetVerificationDiscrepancyV1 {
-  id              String   @id @default(uuid()) @db.Uuid
-  runId           String   @map("run_id") @db.Uuid
-  candidateId     String   @map("candidate_id") @db.Uuid
-  discrepancyId   String   @map("discrepancy_id")
-  code            String
-  severity        String   // blocking | review | informational
-  description     String
-  assertionIds    Json     @map("assertion_ids_jsonb")
-  evidenceIds     Json     @map("evidence_ids_jsonb")
-  referenceArtifactIds Json @map("reference_artifact_ids_jsonb")
-  details         Json?    @map("details_jsonb")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                   String   @id @default(uuid()) @db.Uuid
+  runId                String   @map("run_id") @db.Uuid
+  candidateId          String   @map("candidate_id") @db.Uuid
+  discrepancyId        String   @map("discrepancy_id")
+  code                 String
+  severity             String // blocking | review | informational
+  description          String
+  assertionIds         Json     @map("assertion_ids_jsonb")
+  evidenceIds          Json     @map("evidence_ids_jsonb")
+  referenceArtifactIds Json     @map("reference_artifact_ids_jsonb")
+  details              Json?    @map("details_jsonb")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  run       BudgetVerificationRunV1      @relation(fields: [runId], references: [id], onDelete: Restrict)
-  candidate BudgetExtractionCandidateV1  @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  run       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
 
   @@index([candidateId, createdAt], map: "budget_v1_discrepancy_candidate_idx")
   @@index([runId], map: "budget_v1_discrepancy_run_idx")
@@ -7812,17 +7827,17 @@ model BudgetVerificationDiscrepancyV1 {
 
 /// Immutable audit-only human review decision. Append-only.
 model BudgetReviewDecisionV1 {
-  id              String   @id @default(uuid()) @db.Uuid
-  candidateId     String   @map("candidate_id") @db.Uuid
-  runId           String   @map("run_id") @db.Uuid
-  reviewerId      String   @map("reviewer_id")
-  decision        String   // accept | reject
-  notes           String
-  sourceSha256    String   @map("source_sha256") @db.Char(64)
-  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
-  manifestContentSha256 String @map("manifest_content_sha256") @db.Char(64)
-  evidenceJson    Json     @map("evidence_jsonb")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                       String   @id @default(uuid()) @db.Uuid
+  candidateId              String   @map("candidate_id") @db.Uuid
+  runId                    String   @map("run_id") @db.Uuid
+  reviewerId               String   @map("reviewer_id")
+  decision                 String // accept | reject
+  notes                    String
+  sourceSha256             String   @map("source_sha256") @db.Char(64)
+  extractionArtifactSha256 String   @map("extraction_artifact_sha256") @db.Char(64)
+  manifestContentSha256    String   @map("manifest_content_sha256") @db.Char(64)
+  evidenceJson             Json     @map("evidence_jsonb")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   candidate BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
   run       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
