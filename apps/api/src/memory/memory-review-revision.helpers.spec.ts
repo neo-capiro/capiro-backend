@@ -52,7 +52,23 @@ describe('prepareMemoryReviewRevision', () => {
         ],
       },
     });
-    expect(String(result.payload.value)).toContain('Revised mission.');
+    expect(JSON.parse(String(result.payload.value))).toEqual([
+      { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised mission.' },
+      { key: 'voice', heading: 'Voice', owner: 'human', body: 'Measured' },
+    ]);
+  });
+
+  it('derives correction text from revised sections without accepting browser value drift', () => {
+    const result = prepareMemoryReviewRevision(
+      'memory_correction',
+      {
+        ...payload,
+        value: 'Original\n\nMeasured',
+        source: 'memory_correction',
+      },
+      { sections: revisedSections },
+    );
+    expect(result.payload.value).toBe('Revised mission.\n\nMeasured');
   });
 
   it('rejects section identity, ordering, and ownership changes', () => {
