@@ -164,6 +164,22 @@ for (const [name, expected] of Object.entries(EXACT_SHADOW_ENV)) {
 if (environment.ENGAGEMENT_CALLBACKS_ENABLED !== 'false') fail('callbacks are enabled');
 if (environment.ENGAGEMENT_RECALL_WEBHOOK_ENABLED !== 'false') fail('the Recall webhook is enabled');
 
+// engagement-api boots the identical ConfigModule validator as the main API,
+// which fatally throws "CLERK_JWT_ISSUER is required outside tests" and
+// crash-loops the task. Found missing in the initial Phase 2 build by
+// independent review (micro-session 2.14) — no other gate caught it, because
+// every other check only ever asserted what WAS present, never that this
+// specific boot-required value was present too.
+if (!environment.CLERK_JWT_ISSUER) {
+  fail('CLERK_JWT_ISSUER is missing; the task will crash-loop at ConfigModule boot');
+} else {
+  try {
+    new URL(environment.CLERK_JWT_ISSUER);
+  } catch {
+    fail(`CLERK_JWT_ISSUER is not a valid URL: ${environment.CLERK_JWT_ISSUER}`);
+  }
+}
+
 for (const name of Object.keys(environment)) {
   for (const pattern of FORBIDDEN_ENV_PATTERNS) {
     if (pattern.test(name)) fail(`forbidden environment variable ${name}`);

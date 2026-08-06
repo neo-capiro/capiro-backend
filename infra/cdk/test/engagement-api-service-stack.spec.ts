@@ -78,6 +78,18 @@ test('the shadow runtime posture is exact', () => {
   assert.equal(env.ENGAGEMENT_RECALL_WEBHOOK_ENABLED, 'false');
 });
 
+test('CLERK_JWT_ISSUER is present and matches the configured value', () => {
+  // engagement-api boots the identical ConfigModule validator as the main
+  // API, which fatally refuses to start outside NODE_ENV=test without this.
+  // Absent from the initial build; caught by independent review (2.14) on
+  // the actual synthesized template, not by any spec — this test closes
+  // that gap.
+  const cfg = base();
+  cfg.clerkJwtIssuer = 'https://clerk.app.capiro.ai';
+  const env = envOf(synth(cfg));
+  assert.equal(env.CLERK_JWT_ISSUER, 'https://clerk.app.capiro.ai');
+});
+
 test('the shadow posture is literal and cannot be armed through config', () => {
   const cfg = base();
   // Attempt to arm the service by smuggling values through the config object.

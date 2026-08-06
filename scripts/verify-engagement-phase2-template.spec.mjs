@@ -302,6 +302,18 @@ test('NC-23 a removed circuit breaker is rejected', () => {
   assert.match(result.out, /no deployment circuit breaker/);
 });
 
+test('NC-24 a missing CLERK_JWT_ISSUER is rejected', () => {
+  // Found missing from the initial Phase 2 build by independent review
+  // (2.14): engagement-api boots the identical ConfigModule validator as the
+  // main API and fatally crash-loops without this. No prior gate caught it,
+  // because every other check only ever asserted what WAS present.
+  const result = mutated('service', (_t, _task, container) => {
+    container.Environment = envOf(container).filter((e) => e.Name !== 'CLERK_JWT_ISSUER');
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.out, /has no CLERK_JWT_ISSUER; the task will crash-loop at boot/);
+});
+
 // ───────────────────────────────────────────────────────────── not vacuous
 
 test('the verifier reports the exact number of violations', () => {

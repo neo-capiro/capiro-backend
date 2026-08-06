@@ -195,6 +195,17 @@ for (const file of files) {
           fail(`container ${name} has ${key}="${env[key]}", expected "${expected}"`);
         }
       }
+
+      // engagement-api boots the identical NestJS ConfigModule validator as
+      // the main API, which fatally throws without this outside
+      // NODE_ENV=test. Missing this is not a safety violation the way an
+      // armed shadow posture is, but an undeployable container is exactly
+      // what this verifier exists to catch before it reaches a task
+      // definition — found missing from the initial Phase 2 build by
+      // independent review (micro-session 2.14).
+      if (!env.CLERK_JWT_ISSUER) {
+        fail(`container ${name} has no CLERK_JWT_ISSUER; the task will crash-loop at boot`);
+      }
       for (const { pattern, why } of FORBIDDEN_ENV_PATTERNS) {
         for (const key of Object.keys(env)) {
           if (pattern.test(key)) fail(`container ${name} sets ${key}, which ${why}`);

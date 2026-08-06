@@ -190,6 +190,10 @@
         "Value": "0000000000000000000000000000000000000000"
        },
        {
+        "Name": "CLERK_JWT_ISSUER",
+        "Value": "https://clerk.test.capiro.invalid"
+       },
+       {
         "Name": "ENGAGEMENT_API_PORT",
         "Value": "4500"
        },

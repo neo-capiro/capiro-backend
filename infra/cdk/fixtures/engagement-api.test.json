@@ -11,6 +11,8 @@
   "accountId": "000000000000",
   "region": "us-east-1",
 
+  "clerkJwtIssuer": "https://clerk.test.capiro.invalid",
+
   "vpcId": "vpc-0000000000000face",
   "privateSubnetIds": ["subnet-0000000000000aaaa", "subnet-0000000000000bbbb"],
   "privateSubnetAvailabilityZones": ["us-east-1a", "us-east-1b"],

@@ -245,6 +245,14 @@ export function engagementApiTaskEnvironment(
     CAPIRO_SERVICE_NAME: 'engagement-api',
     RELEASE_SHA: cfg.releaseSha ?? '',
 
+    // Required: engagement-api boots the identical ConfigModule validator as
+    // the main API (engagement-api.app.module.ts imports the same
+    // validateConfig from apps/api/src/config/config.schema.ts), which
+    // fatally throws without this outside NODE_ENV=test. Config validation
+    // makes clerkJwtIssuer a required field precisely so this can never again
+    // reach a task definition unset.
+    CLERK_JWT_ISSUER: cfg.clerkJwtIssuer,
+
     ENGAGEMENT_API_PORT: String(ENGAGEMENT_API_CONTRACT.containerPort),
     ENGAGEMENT_API_BIND_HOST: '0.0.0.0',
 

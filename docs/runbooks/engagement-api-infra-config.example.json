@@ -23,13 +23,22 @@
     "",
     "uiContract pins the accepted Phase 2.1 and 2.2 contracts. Recompute with:",
     "  node -e \"const{createHash}=require('crypto'),fs=require('fs');const d='apps/api/src/engagement/__fixtures__/';const h=f=>createHash('sha256').update(fs.readFileSync(d+f)).digest('hex');console.log(h('outreach-v3-prototype-state-manifest.v1.json'),h('outreach-v3-ui-api-capability-manifest.v1.json'))\"",
-    "These are nonsecret provenance values. They do not enable any UI."
+    "These are nonsecret provenance values. They do not enable any UI.",
+    "",
+    "clerkJwtIssuer is REQUIRED. engagement-api runs the identical NestJS",
+    "ConfigModule validator as the main API, which fatally refuses to boot",
+    "without it outside NODE_ENV=test. Use the SAME value the live",
+    "environment's other services already use (see lib/config.ts's",
+    "clerkJwtIssuer for dev/staging/prod) — do not invent a new Clerk",
+    "instance for this service."
   ],
   "schemaVersion": 1,
 
   "environment": "dev",
   "accountId": "<12-digit-account-id>",
   "region": "us-east-1",
+
+  "clerkJwtIssuer": "<the exact live value, e.g. https://clerk.app.capiro.ai>",
 
   "vpcId": "vpc-<id>",
   "privateSubnetIds": ["subnet-<a>", "subnet-<b>"],

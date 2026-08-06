@@ -97,6 +97,32 @@ test('the fixture UI contract pins the committed Phase 2.1 and 2.2 manifests', (
   assert.equal(ui.capabilityManifestSha256, sha('outreach-v3-ui-api-capability-manifest.v1.json'));
 });
 
+// ─────────────────────────────────────────────────────────── Clerk JWT issuer
+
+test('clerkJwtIssuer is required — its absence crash-loops the task at boot', () => {
+  // engagement-api boots the identical NestJS ConfigModule validator as the
+  // main API (validateConfig in apps/api/src/config/config.schema.ts), which
+  // throws fatally without CLERK_JWT_ISSUER outside NODE_ENV=test. Missing
+  // from the initial Phase 2 build; found by independent review (2.14) and
+  // confirmed absent from the actual synthesized template before this fix.
+  rejects(
+    (c) => void ((c as unknown as { clerkJwtIssuer?: string }).clerkJwtIssuer = undefined),
+    /clerkJwtIssuer is required/,
+  );
+  rejects((c) => void (c.clerkJwtIssuer = ''), /clerkJwtIssuer is required/);
+});
+
+test('clerkJwtIssuer must be a valid URL', () => {
+  rejects((c) => void (c.clerkJwtIssuer = 'not-a-url'), /clerkJwtIssuer must be a valid URL/);
+  rejects((c) => void (c.clerkJwtIssuer = 'clerk.app.capiro.ai'), /clerkJwtIssuer must be a valid URL/);
+});
+
+test('a well-formed clerkJwtIssuer passes', () => {
+  const config = base();
+  config.clerkJwtIssuer = 'https://clerk.app.capiro.ai';
+  assert.deepEqual(collectConfigFailures(config).failures, []);
+});
+
 // ─────────────────────────────────────────────────────────── account/region
 
 test('account and region must be well formed', () => {

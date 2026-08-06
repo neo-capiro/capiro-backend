@@ -56,6 +56,17 @@ export interface EngagementApiInfraConfig {
   accountId: string;
   region: string;
 
+  // apps/api/src/config/config.schema.ts's validateConfig() throws
+  // "CLERK_JWT_ISSUER is required outside tests" whenever NODE_ENV !== 'test'
+  // — gated on that, not on NODE_ENV === 'production', because capiro-dev-api
+  // runs live with NODE_ENV=development. engagement-api boots the identical
+  // validator (engagement-api.app.module.ts imports the same validateConfig),
+  // so this is not optional the way lib/config.ts's `cfg.clerkJwtIssuer?`
+  // is: an engagement-api task started without it fatally crash-loops at
+  // ConfigModule init, repeating on every restart. Required here so that
+  // failure mode can never again reach a deployed task definition.
+  clerkJwtIssuer: string;
+
   vpcId: string;
   privateSubnetIds: string[];
   privateSubnetAvailabilityZones: string[];
@@ -173,6 +184,20 @@ export function collectConfigFailures(
   }
   if (expected.region && c.region !== expected.region) {
     fail(`region ${c.region} does not match the discovered region ${expected.region}`);
+  }
+
+  // The API's ConfigModule validator fatally rejects boot without this
+  // outside NODE_ENV=test. Validated as a URL, matching the main app's own
+  // `z.string().url()` schema field, so a malformed value fails here rather
+  // than at container boot.
+  if (typeof c.clerkJwtIssuer !== 'string' || c.clerkJwtIssuer.length === 0) {
+    fail('clerkJwtIssuer is required; engagement-api fatally refuses to boot without it');
+  } else {
+    try {
+      new URL(c.clerkJwtIssuer);
+    } catch {
+      fail(`clerkJwtIssuer must be a valid URL, got ${c.clerkJwtIssuer}`);
+    }
   }
 
   // ── network ─────────────────────────────────────────────────────────────

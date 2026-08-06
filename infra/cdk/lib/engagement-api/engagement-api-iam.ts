@@ -70,29 +70,6 @@ export const ENGAGEMENT_API_OMITTED_SECRETS = [
   'AI_CREDENTIAL_ENCRYPTION_KEY',
 ] as const;
 
-/** IAM actions the task role may never hold. */
-export const ENGAGEMENT_API_FORBIDDEN_ACTIONS = [
-  's3:PutObject',
-  's3:DeleteObject',
-  's3:*',
-  'ses:SendEmail',
-  'ses:SendRawEmail',
-  'ses:Send*',
-  'ecs:UpdateService',
-  'ecs:*',
-  'elasticloadbalancing:ModifyRule',
-  'elasticloadbalancing:CreateRule',
-  'elasticloadbalancing:*',
-  'iam:PassRole',
-  'iam:*',
-  'secretsmanager:PutSecretValue',
-  'secretsmanager:UpdateSecret',
-  'secretsmanager:*',
-  'kms:Encrypt',
-  'kms:*',
-  '*',
-] as const;
-
 export interface EngagementApiRoles {
   executionRole: iam.IRole;
   taskRole: iam.IRole;
