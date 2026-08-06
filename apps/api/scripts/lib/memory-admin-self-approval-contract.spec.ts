@@ -17,6 +17,7 @@ const migration = read(
 );
 const policy = read('src/memory/memory-review-admin-policy.ts');
 const authorization = read('src/memory/memory-authorization.helpers.ts');
+const authorizationService = read('src/memory/memory-authorization.service.ts');
 const workflow = read('src/memory/memory-review-workflow.service.ts');
 const candidate = read('src/memory/memory-candidate.service.ts');
 const immutable = read('src/memory/immutable-memory-version.service.ts');
@@ -29,13 +30,23 @@ const pendingPanel = readFileSync(
 );
 
 describe('memory administrator self-approval policy contract', () => {
-  it('permits only active tenant administrators at the database decision boundary', () => {
+  it('permits only capability-bearing active tenant administrators at the database boundary', () => {
     expect(migration).toContain("tm.status = 'active'::membership_status");
     expect(migration).toContain("'user_admin'::tenant_role");
     expect(migration).toContain("'capiro_admin'::tenant_role");
-    expect(migration).toContain('IF actor_is_active_admin THEN');
+    expect(migration).toContain("current_setting('app.memory_admin_review_decision', true)");
+    expect(migration).toContain('actor_is_active_admin AND admin_decision_capability');
     expect(migration).toContain('MEMORY_REVIEW_SELF_DECISION_DENIED');
     expect(migration).toContain('MEMORY_REVIEW_ASSIGNED_REVIEWER_REQUIRED');
+  });
+
+  it('sets the transaction-local capability only after canonical admin authorization', () => {
+    expect(authorizationService).toContain('decision.allowed');
+    expect(authorizationService).toContain('options.emitDenialMetrics !== false');
+    expect(authorizationService).toContain('isMemoryReviewAdminRole(effectiveRole)');
+    expect(authorizationService).toContain(
+      "set_config('app.memory_admin_review_decision', 'on', true)",
+    );
   });
 
   it('keeps walls and client status in canonical authorization while exempting admins from self-review denial', () => {
@@ -64,7 +75,7 @@ describe('memory administrator self-approval policy contract', () => {
     );
   });
 
-  it('removes the independent-approver claim from active user-facing copy', () => {
+  it('removes the independent-approver claim from active shared-save copy', () => {
     expect(editor).toContain('Submitted for approval');
     expect(editor).not.toContain('Submitted for independent review');
     expect(pendingPanel).toContain('Waiting for approval');
