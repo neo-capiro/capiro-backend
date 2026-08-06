@@ -20,6 +20,7 @@ const email = read('src/memory/memory-review-notification-email.service.ts');
 const helpers = read('src/memory/memory-review-notification.helpers.ts');
 const moduleSource = read('src/memory/memory.module.ts');
 const command = read('scripts/dispatch-memory-review-notifications.ts');
+const closeout = read('scripts/verify-memory-phase2-notification-closeout.ts');
 
 describe('memory Phase 2 notification dispatcher contract', () => {
   it('claims work concurrently with bounded leases and retries', () => {
@@ -109,5 +110,16 @@ describe('memory Phase 2 notification dispatcher contract', () => {
   it('reports every successful in-app delivery independently of email outcome', () => {
     expect(dispatcher).toContain('summary.delivered += 1');
     expect(dispatcher).toContain('summary[outcome] += 1');
+  });
+
+  it('proves behavioral RLS under a dedicated non-bypass role', () => {
+    expect(closeout).toContain("const RLS_TEST_ROLE = 'capiro_memory_phase2_rls_test'");
+    expect(closeout).toContain('NOLOGIN');
+    expect(closeout).toContain('NOSUPERUSER');
+    expect(closeout).toContain('NOINHERIT');
+    expect(closeout).toContain('NOBYPASSRLS');
+    expect(closeout).toContain('SET LOCAL ROLE ${RLS_TEST_ROLE}');
+    expect(closeout).toContain('role.rolbypassrls');
+    expect(closeout).toContain('role.inherited_memberships !== 0');
   });
 });
