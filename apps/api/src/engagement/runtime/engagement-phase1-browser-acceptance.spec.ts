@@ -217,6 +217,52 @@ describe('a skipped browser proof cannot report a passing M9 result', () => {
   });
 });
 
+describe('an unusable session cookie fails fast and self-diagnoses', () => {
+  function cookieCheckSource(): string {
+    const source = readRepoFile(BROWSER_PARITY);
+    return source.slice(
+      source.indexOf('function assertSessionCookieUsable('),
+      source.indexOf('function orglessTokenShimSource('),
+    );
+  }
+
+  it('runs the precheck before spending a browser launch', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    const precheck = source.indexOf('const cookieState = assertSessionCookieUsable(COOKIE)');
+    const launch = source.indexOf('chromeLauncher.launch(');
+    expect(precheck).toBeGreaterThan(-1);
+    expect(precheck).toBeLessThan(launch);
+  });
+
+  it('accepts either the long-lived client cookie or an unexpired session JWT', () => {
+    const check = cookieCheckSource();
+    expect(check).toContain('__client=');
+    expect(check).toContain('__clerk_db_jwt=');
+    expect(check).toContain('__session=');
+    expect(check).toMatch(/!clientCookie && sessionState !== 'valid'/);
+  });
+
+  it('treats an expired session cookie as unusable', () => {
+    expect(cookieCheckSource()).toMatch(/expired at/);
+  });
+
+  it('never interpolates the cookie value into diagnostics', () => {
+    const check = cookieCheckSource();
+    // Names and a derived state are reported; the raw value never is.
+    expect(check).toContain('names.join');
+    expect(check).not.toMatch(/\$\{value\}/);
+    expect(check).not.toMatch(/\$\{header\}/);
+    expect(check).not.toMatch(/console\.log\(.*value/);
+  });
+
+  it('captures Clerk page state when the session never appears', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    expect(source).toContain('clerkPresent: Boolean(window.Clerk)');
+    expect(source).toContain('hasUser: Boolean(window.Clerk?.user)');
+    expect(source).toMatch(/Clerk session never became available/);
+  });
+});
+
 describe('NC8 cannot pass without being measured', () => {
   it('reports unmeasured when no browser ran', () => {
     const source = readRepoFile(LOCAL_RUNNER);

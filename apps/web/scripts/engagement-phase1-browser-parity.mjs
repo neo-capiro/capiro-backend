@@ -67,6 +67,69 @@ function optionalAny(...names) {
 }
 
 /**
+ * Fail fast on a session cookie that cannot possibly authenticate.
+ *
+ * Without this, an unusable cookie surfaces only as a 35s "Timed out" while waiting for
+ * window.Clerk.session, which looks identical to a slow dev server, a missing publishable key,
+ * or a Clerk outage. Clerk bootstraps a session from the long-lived client cookie
+ * (`__client` / `__clerk_db_jwt`) and mints short-lived `__session` JWTs from it, so either a
+ * client cookie or an unexpired `__session` JWT is enough. Values are never logged.
+ */
+function assertSessionCookieUsable(header) {
+  const entries = header
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.includes('='));
+  const names = entries.map((entry) => entry.slice(0, entry.indexOf('=')));
+  if (entries.length === 0) {
+    throw new Error('The session cookie header is empty');
+  }
+
+  const clientCookie = entries.find(
+    (entry) => entry.startsWith('__client=') || entry.startsWith('__clerk_db_jwt='),
+  );
+  const sessionCookie = entries.find((entry) => entry.startsWith('__session='));
+
+  let sessionState = 'absent';
+  if (sessionCookie) {
+    const value = sessionCookie.slice(sessionCookie.indexOf('=') + 1);
+    const segments = value.split('.');
+    if (segments.length !== 3) {
+      sessionState = `not-a-jwt (1 segment, length ${value.length})`;
+    } else {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(segments[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString(
+            'utf8',
+          ),
+        );
+        const now = Math.floor(Date.now() / 1000);
+        sessionState =
+          typeof payload.exp === 'number' && payload.exp <= now
+            ? `expired at ${new Date(payload.exp * 1000).toISOString()}`
+            : 'valid';
+      } catch {
+        sessionState = 'undecodable-payload';
+      }
+    }
+  }
+
+  if (!clientCookie && sessionState !== 'valid') {
+    throw new Error(
+      'The browser proof cannot authenticate with the supplied cookie header. Present ' +
+        `cookies: [${names.join(', ')}]; __session is ${sessionState}; no __client / ` +
+        '__clerk_db_jwt cookie was supplied.\n' +
+        'Clerk needs either the long-lived client cookie (which it uses to mint session ' +
+        'tokens) or an unexpired __session JWT. A placeholder, truncated, or expired value ' +
+        'cannot produce window.Clerk.session, so the M9 browser gate cannot be measured.\n' +
+        'Capture the cookie header from a signed-in browser session for the seeded ' +
+        'acceptance user and set ENGAGEMENT_PHASE1_USER_COOKIE to it.',
+    );
+  }
+  return { cookieNames: names, sessionState, clientCookiePresent: Boolean(clientCookie) };
+}
+
+/**
  * Acceptance-runtime-only shim, injected into the disposable CDP browser and nowhere else.
  *
  * The unchanged product calls `getToken({ template: 'capiro' })`. In an orgless session that
@@ -304,7 +367,30 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
     page.sessionId,
   );
   await page.navigate('/');
-  await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 35_000);
+  try {
+    await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 35_000);
+  } catch (error) {
+    // Distinguish "Clerk never loaded" from "Clerk loaded but the cookie yielded no session".
+    const diagnostic = await page
+      .evaluate(
+        `({
+          clerkPresent: Boolean(window.Clerk),
+          clerkLoaded: Boolean(window.Clerk?.loaded),
+          hasUser: Boolean(window.Clerk?.user),
+          pathname: location.pathname,
+          bodyStart: (document.body?.innerText ?? '').slice(0, 300),
+        })`,
+        false,
+      )
+      .catch(() => null);
+    await page.screenshot('phase1-session-wait-failure').catch(() => undefined);
+    throw new Error(
+      'Clerk session never became available within 35s. Page state: ' +
+        `${JSON.stringify(diagnostic)}. If clerkPresent is true and hasUser is false, the ` +
+        'supplied cookie did not authenticate; if clerkPresent is false, Clerk itself never ' +
+        'loaded (check the publishable key and the web dev server).',
+    );
+  }
 
   if (orgId) {
     // Unchanged organization-based path.
@@ -350,6 +436,12 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
 
 async function main() {
   await mkdir(SCREENSHOTS, { recursive: true });
+  // Cheapest possible failure: reject an unusable cookie before spending a browser launch.
+  const cookieState = assertSessionCookieUsable(COOKIE);
+  console.log(
+    `==> Session cookie precheck: cookies=[${cookieState.cookieNames.join(', ')}] ` +
+      `__session=${cookieState.sessionState} clientCookie=${cookieState.clientCookiePresent}`,
+  );
   const chrome = await chromeLauncher.launch({
     chromeFlags: [
       '--headless=new',
