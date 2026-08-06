@@ -15,6 +15,7 @@ import {
   type MemoryAuthorizationSubject,
   type MemoryOperation,
 } from './memory-authorization.helpers.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 
 export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
   id: string;
@@ -31,6 +32,8 @@ export interface MemoryAuthorizationOptions {
    * Eligibility/read-model calculations use the exact authorization policy but
    * are not attempted mutations. Suppress denial counters for those read-only
    * simulations so polling a status surface cannot manufacture control events.
+   * The same signal prevents simulations from receiving the transaction-local
+   * administrator decision capability used by the database trigger.
    */
   emitDenialMetrics?: boolean;
 }
@@ -124,6 +127,22 @@ export class MemoryAuthorizationService {
         emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
       }
     }
+
+    const effectiveRole = options.impersonating
+      ? (options.actorRole ?? ctx.role)
+      : ctx.role;
+    if (
+      decision.allowed &&
+      options.emitDenialMetrics !== false &&
+      isMemoryReviewAdminRole(effectiveRole) &&
+      (operation === 'approve' || operation === 'review') &&
+      subject.status === 'pending_review'
+    ) {
+      await tx.$executeRaw(Prisma.sql`
+        SELECT set_config('app.memory_admin_review_decision', 'on', true)
+      `);
+    }
+
     return decision;
   }
 
