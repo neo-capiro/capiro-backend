@@ -13,12 +13,11 @@ interface FixtureIds {
   tenantId: string;
   proposerId: string;
   reviewerId: string;
-  existingOtherUserId: string;
 }
 
 interface SeededIds {
   formerReviewerId: string;
-  candidateIds: string[];
+  assignedCandidateIds: string[];
   formerReviewerCandidateId: string;
   unassignedCandidateId: string;
   crossTenantCandidateId: string;
@@ -79,25 +78,30 @@ async function runAcceptance(
       limit: 2,
       cursor: firstPage.nextCursor,
     });
-    const candidateIds = [
+    const observedIds = [
       ...firstPage.items.map((item) => item.candidateId),
       ...secondPage.items.map((item) => item.candidateId),
     ];
-    const expected = new Set([
-      ...seeded.candidateIds,
+    const expectedIds = new Set([
+      ...seeded.assignedCandidateIds,
       seeded.formerReviewerCandidateId,
     ]);
-    const observed = new Set(candidateIds.filter((id) => expected.has(id)));
-    if (observed.size !== expected.size || candidateIds.length !== new Set(candidateIds).size) {
+    const observedExpected = new Set(
+      observedIds.filter((candidateId) => expectedIds.has(candidateId)),
+    );
+    if (
+      observedExpected.size !== expectedIds.size ||
+      observedIds.length !== new Set(observedIds).size
+    ) {
       throw new Error(
-        `${label}: cursor pagination duplicated or omitted review work: ${JSON.stringify(candidateIds)}.`,
+        `${label}: cursor pagination duplicated or omitted review work: ${JSON.stringify(observedIds)}.`,
       );
     }
     if (JSON.stringify([...firstPage.items, ...secondPage.items]).includes(SECRET_BODY)) {
       throw new Error(`${label}: broad inbox serialization leaked proposal content.`);
     }
 
-    const detail = await inbox.detail(reviewerCtx, seeded.candidateIds[0]!);
+    const detail = await inbox.detail(reviewerCtx, seeded.assignedCandidateIds[0]!);
     if (!JSON.stringify(detail.proposal).includes(SECRET_BODY)) {
       throw new Error(`${label}: protected detail did not load proposal content.`);
     }
@@ -105,43 +109,28 @@ async function runAcceptance(
       throw new Error(`${label}: detail did not preserve pending revision truth.`);
     }
 
-    let formerDenied = false;
-    try {
-      await inbox.detail(formerCtx, seeded.formerReviewerCandidateId);
-    } catch (error) {
-      formerDenied = isNotFound(error);
-    }
-    if (!formerDenied) {
-      throw new Error(`${label}: former reviewer retained detail access after reassignment.`);
-    }
-
-    let crossTenantDenied = false;
-    try {
-      await inbox.detail(reviewerCtx, seeded.crossTenantCandidateId);
-    } catch (error) {
-      crossTenantDenied = isNotFound(error);
-    }
-    if (!crossTenantDenied) {
-      throw new Error(`${label}: cross-tenant candidate id was readable.`);
-    }
+    await expectNotFound(
+      () => inbox.detail(formerCtx, seeded.formerReviewerCandidateId),
+      `${label}: former reviewer retained detail access after reassignment.`,
+    );
+    await expectNotFound(
+      () => inbox.detail(reviewerCtx, seeded.crossTenantCandidateId),
+      `${label}: cross-tenant candidate id was readable.`,
+    );
 
     const blocked = await inbox.list(proposerCtx, { view: 'blocked', limit: 50 });
     if (!blocked.items.some((item) => item.candidateId === seeded.unassignedCandidateId)) {
       throw new Error(`${label}: unassigned workflow was absent from the blocked view.`);
     }
 
-    let wrongRecipientDenied = false;
-    try {
-      await inbox.markNotificationRead(formerCtx, seeded.notificationId);
-    } catch (error) {
-      wrongRecipientDenied = isNotFound(error);
-    }
-    if (!wrongRecipientDenied) {
-      throw new Error(`${label}: another member marked the recipient notification read.`);
-    }
+    await expectNotFound(
+      () => inbox.markNotificationRead(formerCtx, seeded.notificationId),
+      `${label}: another member marked the recipient notification read.`,
+    );
     await inbox.markNotificationRead(reviewerCtx, seeded.notificationId);
-    const marked = await notificationReadAt(prisma, seeded.notificationId);
-    if (!marked) throw new Error(`${label}: recipient notification was not marked read.`);
+    if (!(await notificationReadAt(prisma, seeded.notificationId))) {
+      throw new Error(`${label}: recipient notification was not marked read.`);
+    }
 
     const markedAll = await inbox.markAllNotificationsRead(reviewerCtx);
     if (markedAll < 1) {
@@ -151,15 +140,10 @@ async function runAcceptance(
       throw new Error(`${label}: mark-all changed another recipient's notification.`);
     }
 
-    let compatibilityDenied = false;
-    try {
-      await compatibility.assertNotMemoryReview(reviewerCtx, seeded.firstReviewRequestId);
-    } catch (error) {
-      compatibilityDenied = isNotFound(error);
-    }
-    if (!compatibilityDenied) {
-      throw new Error(`${label}: generic review compatibility guard accepted a memory row.`);
-    }
+    await expectNotFound(
+      () => compatibility.assertNotMemoryReview(reviewerCtx, seeded.firstReviewRequestId),
+      `${label}: generic review compatibility guard accepted a memory row.`,
+    );
   } finally {
     await prisma.$disconnect();
   }
@@ -171,70 +155,37 @@ async function seedPhase3(
   label: string,
 ): Promise<SeededIds> {
   const formerReviewerId = randomUUID();
-  const candidateIds = [randomUUID(), randomUUID(), randomUUID()];
+  const assignedCandidateIds = [randomUUID(), randomUUID(), randomUUID()];
   const formerReviewerCandidateId = randomUUID();
   const unassignedCandidateId = randomUUID();
-  const crossTenantId = randomUUID();
-  const crossTenantUserId = randomUUID();
-  const crossTenantCandidateId = randomUUID();
-  const notificationId = randomUUID();
-  const secondNotificationId = randomUUID();
-  const otherRecipientNotificationId = randomUUID();
 
   await prisma.$transaction(async (tx) => {
     await setContext(tx, ids.tenantId, ids.proposerId);
-    await tx.$executeRawUnsafe(
-      `INSERT INTO users (id, clerk_user_id, email, first_name, last_name)
-       VALUES ($1::uuid, $2, $3::citext, 'Former', 'Reviewer')`,
+    await insertUser(
+      tx,
       formerReviewerId,
       `phase3-former-${label}-${formerReviewerId}`,
       `phase3-former-${label}-${formerReviewerId}@example.test`,
+      'Former',
+      'Reviewer',
     );
-    await tx.$executeRawUnsafe(
-      `INSERT INTO tenant_memberships (
-         tenant_id, user_id, role, status, joined_at
-       ) VALUES (
-         $1::uuid, $2::uuid, 'standard_user'::tenant_role,
-         'active'::membership_status, now()
-       )`,
-      ids.tenantId,
-      formerReviewerId,
-    );
+    await insertMembership(tx, ids.tenantId, formerReviewerId, 'standard_user');
 
-    for (const [index, candidateId] of [
-      ...candidateIds.map((id, index) => [index, id] as const),
-      [candidateIds.length, formerReviewerCandidateId] as const,
-      [candidateIds.length + 1, unassignedCandidateId] as const,
-    ]) {
+    const allCandidates = [
+      ...assignedCandidateIds,
+      formerReviewerCandidateId,
+      unassignedCandidateId,
+    ];
+    for (const [index, candidateId] of allCandidates.entries()) {
       await insertFirmCandidate(
         tx,
-        ids,
+        ids.tenantId,
+        ids.proposerId,
         candidateId,
         `Phase 3 ${label} ${index + 1}`,
       );
     }
-
-    await tx.$executeRawUnsafe(
-      `UPDATE review_request
-       SET created_at = $1::timestamptz
-       WHERE tenant_id = $2::uuid
-         AND surface = 'memory'
-         AND subject_type = 'memory_candidate'
-         AND subject_id IN (${[
-           ...candidateIds,
-           formerReviewerCandidateId,
-           unassignedCandidateId,
-         ]
-           .map((_, index) => `$${index + 3}`)
-           .join(', ')})`,
-      FIXED_CREATED_AT,
-      ids.tenantId,
-      ...candidateIds,
-      formerReviewerCandidateId,
-      unassignedCandidateId,
-    );
-
-    for (const candidateId of candidateIds) {
+    for (const candidateId of assignedCandidateIds) {
       await assignReviewer(tx, ids.tenantId, candidateId, ids.reviewerId);
     }
     await assignReviewer(
@@ -251,110 +202,49 @@ async function seedPhase3(
     );
   });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
-      `INSERT INTO tenants (id, slug, name, status)
-       VALUES ($1::uuid, $2, $3, 'active'::tenant_status)`,
-      crossTenantId,
-      `phase3-cross-${label}-${crossTenantId.slice(0, 8)}`,
-      `Phase 3 Cross Tenant ${label}`,
-    );
-    await tx.$executeRawUnsafe(
-      `INSERT INTO users (id, clerk_user_id, email)
-       VALUES ($1::uuid, $2, $3::citext)`,
-      crossTenantUserId,
-      `phase3-cross-${label}-${crossTenantUserId}`,
-      `phase3-cross-${label}-${crossTenantUserId}@example.test`,
-    );
-    await tx.$executeRawUnsafe(
-      `INSERT INTO tenant_memberships (
-         tenant_id, user_id, role, status, joined_at
-       ) VALUES (
-         $1::uuid, $2::uuid, 'user_admin'::tenant_role,
-         'active'::membership_status, now()
-       )`,
-      crossTenantId,
-      crossTenantUserId,
-    );
-    await setContext(tx, crossTenantId, crossTenantUserId);
-    await tx.$executeRawUnsafe(
-      `INSERT INTO memory_candidate (
-         id, tenant_id, proposed_by, source_kind, scope,
-         payload_jsonb, provenance_jsonb, status
-       ) VALUES (
-         $1::uuid, $2::uuid, $3::uuid, 'explicit_user', 'firm',
-         $4::jsonb, $5::jsonb, 'pending'
-       )`,
-      crossTenantCandidateId,
-      crossTenantId,
-      crossTenantUserId,
-      JSON.stringify({
-        key: `phase3-cross:${label}`,
-        value: SECRET_BODY,
-        source: 'memory_phase3_closeout',
-        scope: 'firm',
-      }),
-      JSON.stringify({ tool: 'memory_phase3_closeout' }),
-    );
-  });
-
-  const reviewRows = await prisma.$queryRawUnsafe<
-    Array<{ candidate_id: string; review_request_id: string }>
-  >(
-    `SELECT mc.id::text AS candidate_id, rr.id::text AS review_request_id
-     FROM memory_candidate mc
-     JOIN review_request rr
-       ON rr.tenant_id = mc.tenant_id
-      AND rr.surface = 'memory'
-      AND rr.subject_type = 'memory_candidate'
-      AND rr.subject_id = mc.id::text
-     WHERE mc.tenant_id = $1::uuid
-       AND mc.id = ANY($2::uuid[])`,
+  const crossTenantCandidateId = await seedCrossTenantCandidate(prisma, label);
+  const firstReviewRequestId = await reviewRequestIdForCandidate(
+    prisma,
     ids.tenantId,
-    [...candidateIds, formerReviewerCandidateId, unassignedCandidateId],
+    assignedCandidateIds[0]!,
   );
-  const reviewByCandidate = new Map(
-    reviewRows.map((row) => [row.candidate_id, row.review_request_id]),
+  const secondReviewRequestId = await reviewRequestIdForCandidate(
+    prisma,
+    ids.tenantId,
+    assignedCandidateIds[1]!,
   );
-  const firstReviewRequestId = reviewByCandidate.get(candidateIds[0]!);
-  if (!firstReviewRequestId) throw new Error(`${label}: missing review request.`);
 
+  const notificationId = randomUUID();
+  const secondNotificationId = randomUUID();
+  const otherRecipientNotificationId = randomUUID();
   await prisma.$transaction(async (tx) => {
     await setContext(tx, ids.tenantId, ids.reviewerId);
-    for (const [id, recipientUserId] of [
-      [notificationId, ids.reviewerId],
-      [secondNotificationId, ids.reviewerId],
-      [otherRecipientNotificationId, formerReviewerId],
-    ] as const) {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO memory_review_in_app_notification (
-           id, tenant_id, recipient_user_id, review_request_id, candidate_id,
-           event_type, title, metadata_jsonb
-         ) VALUES (
-           $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid,
-           'review_assigned', 'Phase 3 Review',
-           jsonb_build_object(
-             'workflow', 'memory_review_v2',
-             'schemaVersion', 1,
-             'reviewRequestId', $4::uuid,
-             'candidateId', $5::uuid,
-             'eventType', 'review_assigned',
-             'candidateKind', 'standard',
-             'requiresCurrentAuthorization', true
-           )
-         )`,
-        id,
-        ids.tenantId,
-        recipientUserId,
-        firstReviewRequestId,
-        candidateIds[0],
-      );
-    }
+    await insertNotification(tx, {
+      id: notificationId,
+      tenantId: ids.tenantId,
+      recipientUserId: ids.reviewerId,
+      reviewRequestId: firstReviewRequestId,
+      candidateId: assignedCandidateIds[0]!,
+    });
+    await insertNotification(tx, {
+      id: secondNotificationId,
+      tenantId: ids.tenantId,
+      recipientUserId: ids.reviewerId,
+      reviewRequestId: secondReviewRequestId,
+      candidateId: assignedCandidateIds[1]!,
+    });
+    await insertNotification(tx, {
+      id: otherRecipientNotificationId,
+      tenantId: ids.tenantId,
+      recipientUserId: formerReviewerId,
+      reviewRequestId: firstReviewRequestId,
+      candidateId: assignedCandidateIds[0]!,
+    });
   });
 
   return {
     formerReviewerId,
-    candidateIds,
+    assignedCandidateIds,
     formerReviewerCandidateId,
     unassignedCandidateId,
     crossTenantCandidateId,
@@ -364,11 +254,84 @@ async function seedPhase3(
   };
 }
 
+async function seedCrossTenantCandidate(
+  prisma: PrismaClient,
+  label: string,
+): Promise<string> {
+  const tenantId = randomUUID();
+  const userId = randomUUID();
+  const candidateId = randomUUID();
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `INSERT INTO tenants (id, slug, name, status)
+       VALUES ($1::uuid, $2, $3, 'active'::tenant_status)`,
+      tenantId,
+      `phase3-cross-${label}-${tenantId.slice(0, 8)}`,
+      `Phase 3 Cross Tenant ${label}`,
+    );
+    await insertUser(
+      tx,
+      userId,
+      `phase3-cross-${label}-${userId}`,
+      `phase3-cross-${label}-${userId}@example.test`,
+      null,
+      null,
+    );
+    await insertMembership(tx, tenantId, userId, 'user_admin');
+    await setContext(tx, tenantId, userId);
+    await insertFirmCandidate(
+      tx,
+      tenantId,
+      userId,
+      candidateId,
+      `Phase 3 Cross Tenant ${label}`,
+    );
+  });
+  return candidateId;
+}
+
+async function insertUser(
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
+  userId: string,
+  clerkUserId: string,
+  email: string,
+  firstName: string | null,
+  lastName: string | null,
+): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `INSERT INTO users (id, clerk_user_id, email, first_name, last_name)
+     VALUES ($1::uuid, $2, $3::citext, $4, $5)`,
+    userId,
+    clerkUserId,
+    email,
+    firstName,
+    lastName,
+  );
+}
+
+async function insertMembership(
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
+  tenantId: string,
+  userId: string,
+  role: 'user_admin' | 'standard_user',
+): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `INSERT INTO tenant_memberships (
+       tenant_id, user_id, role, status, joined_at
+     ) VALUES (
+       $1::uuid, $2::uuid, $3::tenant_role,
+       'active'::membership_status, now()
+     )`,
+    tenantId,
+    userId,
+    role,
+  );
+}
+
 async function insertFirmCandidate(
-  tx: {
-    $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
-  },
-  ids: FixtureIds,
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
+  tenantId: string,
+  proposerId: string,
   candidateId: string,
   title: string,
 ): Promise<void> {
@@ -381,8 +344,8 @@ async function insertFirmCandidate(
        $4::jsonb, $5::jsonb, 'pending', $6::timestamptz
      )`,
     candidateId,
-    ids.tenantId,
-    ids.proposerId,
+    tenantId,
+    proposerId,
     JSON.stringify({
       key: `phase3:${candidateId}`,
       value: SECRET_BODY,
@@ -408,9 +371,7 @@ async function insertFirmCandidate(
 }
 
 async function assignReviewer(
-  tx: {
-    $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
-  },
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
   tenantId: string,
   candidateId: string,
   reviewerId: string,
@@ -428,6 +389,62 @@ async function assignReviewer(
     candidateId,
   );
   if (updated !== 1) throw new Error('Expected one Phase 3 reviewer assignment.');
+}
+
+async function reviewRequestIdForCandidate(
+  prisma: PrismaClient,
+  tenantId: string,
+  candidateId: string,
+): Promise<string> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT id::text AS id
+     FROM review_request
+     WHERE tenant_id = $1::uuid
+       AND surface = 'memory'
+       AND subject_type = 'memory_candidate'
+       AND subject_id = $2
+     LIMIT 1`,
+    tenantId,
+    candidateId,
+  );
+  const id = rows[0]?.id;
+  if (!id) throw new Error('Phase 3 candidate is missing its review request.');
+  return id;
+}
+
+async function insertNotification(
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
+  input: {
+    id: string;
+    tenantId: string;
+    recipientUserId: string;
+    reviewRequestId: string;
+    candidateId: string;
+  },
+): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `INSERT INTO memory_review_in_app_notification (
+       id, tenant_id, recipient_user_id, review_request_id, candidate_id,
+       event_type, title, metadata_jsonb
+     ) VALUES (
+       $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid,
+       'review_assigned', 'Phase 3 Review',
+       jsonb_build_object(
+         'workflow', 'memory_review_v2',
+         'schemaVersion', 1,
+         'reviewRequestId', $4::uuid,
+         'candidateId', $5::uuid,
+         'eventType', 'review_assigned',
+         'candidateKind', 'standard',
+         'requiresCurrentAuthorization', true
+       )
+     )`,
+    input.id,
+    input.tenantId,
+    input.recipientUserId,
+    input.reviewRequestId,
+    input.candidateId,
+  );
 }
 
 function scopedPrismaAdapter(prisma: PrismaClient): PrismaService {
@@ -460,6 +477,24 @@ async function notificationReadAt(
   return rows[0]?.read_at instanceof Date;
 }
 
+async function expectNotFound(
+  work: () => Promise<unknown>,
+  message: string,
+): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === 'NotFoundException' || error.message.includes('not found'))
+    ) {
+      return;
+    }
+    throw error;
+  }
+  throw new Error(message);
+}
+
 function tenantContext(
   tenantId: string,
   userId: string,
@@ -475,9 +510,7 @@ function tenantContext(
 }
 
 async function setContext(
-  tx: {
-    $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
-  },
+  tx: { $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> },
   tenantId: string,
   userId: string,
 ): Promise<void> {
@@ -498,15 +531,7 @@ function fixtureIds(label: 'clean' | 'upgrade'): FixtureIds {
     tenantId: `${prefix}1111111-1111-4111-8111-111111111111`,
     proposerId: `${prefix}2222222-2222-4222-8222-222222222222`,
     reviewerId: `${prefix}3333333-3333-4333-8333-333333333333`,
-    existingOtherUserId: `${prefix}4444444-4444-4444-8444-444444444444`,
   };
-}
-
-function isNotFound(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === 'NotFoundException' || error.message.includes('not found'))
-  );
 }
 
 function requireDisposableUrl(name: string): string {
