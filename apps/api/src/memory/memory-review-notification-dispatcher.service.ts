@@ -6,7 +6,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { runWithMemoryGovernanceTenant } from './memory-governance-tenant-scope.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
-import { MemoryReviewNotificationEmailService } from './memory-review-notification-email.service.js';
 import {
   isMemoryReviewNotificationEvent,
   memoryReviewNotificationMatchesWorkflow,
@@ -19,13 +18,7 @@ const MAX_ATTEMPTS = 8;
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 200;
 
-type DispatchOutcome =
-  | 'deferred'
-  | 'terminated'
-  | 'emailSent'
-  | 'emailSuppressed'
-  | 'emailFailed';
-type CompletedEmailStatus = 'sent' | 'suppressed' | 'failed';
+type DispatchOutcome = 'delivered' | 'deferred' | 'terminated';
 
 interface ClaimedNotificationRow {
   id: string;
@@ -37,25 +30,15 @@ interface ClaimedNotificationRow {
   eventType: string;
   attempts: number;
   leaseToken: string;
-  emailStatus: string | null;
-  providerMessageId: string | null;
 }
 
 interface RecipientWorkflowRow {
   role: string;
-  email: string;
   workflowStatus: string;
   assignedTo: string | null;
   requestedBy: string | null;
   title: string;
   candidateKind: string | null;
-}
-
-interface AuthorizedDelivery {
-  email: string;
-  title: string;
-  sendEmail: boolean;
-  uncertainPriorEmailAttempt: boolean;
 }
 
 export interface MemoryReviewNotificationDispatchSummary {
@@ -64,11 +47,15 @@ export interface MemoryReviewNotificationDispatchSummary {
   deferred: number;
   terminated: number;
   retried: number;
-  emailSent: number;
-  emailSuppressed: number;
-  emailFailed: number;
 }
 
+/**
+ * Delivers Memory Review notification obligations to the recipient-scoped
+ * in-app notification table only. There is deliberately no email transport.
+ *
+ * Every obligation is re-authorized at delivery time under the exact tenant,
+ * current membership, workflow state, wall/grant policy, and client status.
+ */
 @Injectable()
 export class MemoryReviewNotificationDispatcherService {
   private readonly logger = new Logger(MemoryReviewNotificationDispatcherService.name);
@@ -76,7 +63,6 @@ export class MemoryReviewNotificationDispatcherService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authorization: MemoryAuthorizationService,
-    private readonly email: MemoryReviewNotificationEmailService,
   ) {}
 
   async dispatchBatch(
@@ -90,9 +76,6 @@ export class MemoryReviewNotificationDispatcherService {
       deferred: 0,
       terminated: 0,
       retried: 0,
-      emailSent: 0,
-      emailSuppressed: 0,
-      emailFailed: 0,
     };
 
     for (const row of rows) {
@@ -100,13 +83,6 @@ export class MemoryReviewNotificationDispatcherService {
         const outcome = await runWithMemoryGovernanceTenant(row.tenantId, () =>
           this.dispatchClaimed(row),
         );
-        if (
-          outcome === 'emailSent' ||
-          outcome === 'emailSuppressed' ||
-          outcome === 'emailFailed'
-        ) {
-          summary.delivered += 1;
-        }
         summary[outcome] += 1;
       } catch (error) {
         const retried = await this.releaseAfterFailure(row, error);
@@ -127,41 +103,14 @@ export class MemoryReviewNotificationDispatcherService {
       return 'terminated';
     }
 
-    const authorized = await this.authorizeAndProject(row, row.eventType);
-    if (!authorized) {
+    const projected = await this.authorizeAndProject(row, row.eventType);
+    if (!projected) {
       await this.terminate(row, 'authorization_or_workflow_stale');
       return 'terminated';
     }
 
-    let emailStatus = completedEmailStatus(row.emailStatus) ?? 'suppressed';
-    let providerMessageId = row.providerMessageId;
-    if (authorized.uncertainPriorEmailAttempt) {
-      emailStatus = 'failed';
-      providerMessageId = null;
-    } else if (authorized.sendEmail) {
-      const result = await this.email.send({
-        outboxId: row.id,
-        to: authorized.email,
-        eventType: row.eventType,
-        title: authorized.title,
-        reviewRequestId: row.reviewRequestId,
-      });
-      if (result.sent) {
-        emailStatus = 'sent';
-        providerMessageId = result.messageId ?? null;
-      } else if (result.suppressed) {
-        emailStatus = 'suppressed';
-        providerMessageId = null;
-      } else {
-        emailStatus = 'failed';
-        providerMessageId = null;
-      }
-    }
-
-    await this.complete(row, emailStatus, providerMessageId);
-    if (emailStatus === 'sent') return 'emailSent';
-    if (emailStatus === 'failed') return 'emailFailed';
-    return 'emailSuppressed';
+    await this.complete(row);
+    return 'delivered';
   }
 
   private async claim(limit: number): Promise<ClaimedNotificationRow[]> {
@@ -195,9 +144,7 @@ export class MemoryReviewNotificationDispatcherService {
                   outbox.recipient_user_id::text AS "recipientUserId",
                   outbox.event_type AS "eventType",
                   outbox.attempts,
-                  outbox.lease_token::text AS "leaseToken",
-                  outbox.email_status AS "emailStatus",
-                  outbox.provider_message_id AS "providerMessageId"
+                  outbox.lease_token::text AS "leaseToken"
       `),
     );
   }
@@ -205,14 +152,13 @@ export class MemoryReviewNotificationDispatcherService {
   private async authorizeAndProject(
     row: ClaimedNotificationRow,
     eventType: MemoryReviewNotificationEvent,
-  ): Promise<AuthorizedDelivery | null> {
+  ): Promise<boolean> {
     return this.prisma.withTenantUser(
       row.tenantId,
       row.recipientUserId,
-      async (tx): Promise<AuthorizedDelivery | null> => {
+      async (tx): Promise<boolean> => {
         const rows = await tx.$queryRaw<RecipientWorkflowRow[]>(Prisma.sql`
           SELECT tm.role::text AS role,
-                 u.email::text AS email,
                  rr.status AS "workflowStatus",
                  rr.assigned_to::text AS "assignedTo",
                  rr.requested_by::text AS "requestedBy",
@@ -223,7 +169,6 @@ export class MemoryReviewNotificationDispatcherService {
             ON tm.tenant_id = rr.tenant_id
            AND tm.user_id = ${row.recipientUserId}::uuid
            AND tm.status = 'active'
-          JOIN users u ON u.id = tm.user_id
           WHERE rr.tenant_id = ${row.tenantId}::uuid
             AND rr.id = ${row.reviewRequestId}::uuid
             AND rr.surface = 'memory'
@@ -232,9 +177,9 @@ export class MemoryReviewNotificationDispatcherService {
           LIMIT 1
         `);
         const workflow = rows[0];
-        if (!workflow) return null;
+        if (!workflow) return false;
         const role = tenantRole(workflow.role);
-        if (!role) return null;
+        if (!role) return false;
         if (
           !memoryReviewNotificationMatchesWorkflow(eventType, row.recipientUserId, {
             status: workflow.workflowStatus,
@@ -242,7 +187,7 @@ export class MemoryReviewNotificationDispatcherService {
             requestedBy: workflow.requestedBy,
           })
         ) {
-          return null;
+          return false;
         }
 
         const subject = await this.authorization.loadCandidateInTx(
@@ -250,8 +195,8 @@ export class MemoryReviewNotificationDispatcherService {
           row.tenantId,
           row.candidateId,
         );
-        if (!subject) return null;
-        if (subject.clientId && subject.clientStatus !== 'active') return null;
+        if (!subject) return false;
+        if (subject.clientId && subject.clientStatus !== 'active') return false;
         const decision = await this.authorization.evaluateInTx(
           tx,
           { tenantId: row.tenantId, userId: row.recipientUserId, role },
@@ -259,7 +204,7 @@ export class MemoryReviewNotificationDispatcherService {
           memoryReviewNotificationOperation(eventType),
           { emitDenialMetrics: false },
         );
-        if (!decision.allowed) return null;
+        if (!decision.allowed) return false;
 
         const title = normalizeNotificationTitle(workflow.title);
         const candidateKind = workflow.candidateKind?.trim() || 'standard';
@@ -300,54 +245,18 @@ export class MemoryReviewNotificationDispatcherService {
           ) DO NOTHING
         `);
 
-        const uncertainPriorEmailAttempt = row.emailStatus === 'sending';
-        let sendEmail = false;
-        if (row.emailStatus === null) {
-          if (this.email.enabled()) {
-            const reserved = await tx.$executeRaw(Prisma.sql`
-              UPDATE memory_review_notification_outbox
-              SET email_status = 'sending'
-              WHERE id = ${row.id}::uuid
-                AND tenant_id = ${row.tenantId}::uuid
-                AND lease_token = ${row.leaseToken}::uuid
-                AND email_status IS NULL
-            `);
-            sendEmail = reserved === 1;
-          } else {
-            await tx.$executeRaw(Prisma.sql`
-              UPDATE memory_review_notification_outbox
-              SET email_status = 'suppressed'
-              WHERE id = ${row.id}::uuid
-                AND tenant_id = ${row.tenantId}::uuid
-                AND lease_token = ${row.leaseToken}::uuid
-                AND email_status IS NULL
-            `);
-          }
-        }
-
-        return {
-          email: workflow.email,
-          title,
-          sendEmail,
-          uncertainPriorEmailAttempt,
-        };
+        return true;
       },
     );
   }
 
-  private async complete(
-    row: ClaimedNotificationRow,
-    emailStatus: CompletedEmailStatus,
-    providerMessageId: string | null,
-  ): Promise<void> {
+  private async complete(row: ClaimedNotificationRow): Promise<void> {
     await this.prisma.withTenantUser(row.tenantId, row.recipientUserId, async (tx) => {
       const updated = await tx.$executeRaw(Prisma.sql`
         UPDATE memory_review_notification_outbox
         SET delivered_at = now(),
             lease_token = NULL,
             leased_until = NULL,
-            email_status = ${emailStatus},
-            provider_message_id = ${providerMessageId},
             last_error = NULL
         WHERE id = ${row.id}::uuid
           AND tenant_id = ${row.tenantId}::uuid
@@ -372,7 +281,6 @@ export class MemoryReviewNotificationDispatcherService {
             recipientUserId: row.recipientUserId,
             eventType: row.eventType,
             inAppStatus: 'created',
-            emailStatus,
           },
         },
       });
@@ -441,10 +349,6 @@ function tenantRole(value: string): TenantRole | null {
   return ['capiro_admin', 'user_admin', 'standard_user', 'client_portal_user'].includes(value)
     ? (value as TenantRole)
     : null;
-}
-
-function completedEmailStatus(value: string | null): CompletedEmailStatus | null {
-  return value === 'sent' || value === 'suppressed' || value === 'failed' ? value : null;
 }
 
 function dispatcherErrorCode(error: unknown): string {
