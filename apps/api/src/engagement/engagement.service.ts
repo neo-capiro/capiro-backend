@@ -4426,12 +4426,19 @@ export class EngagementService {
         district: recipient.district ?? null,
         // Server-resolved: the directory match, not a browser assertion. A
         // recipient the directory knows as a congressional member cannot be
-        // relabeled by the request body.
+        // relabeled by the request body. `directoryContactId` alone (no email
+        // match needed) is sufficient for the `member-<id>` id space: that
+        // prefix is only ever minted for congress.gov members (directory.service.ts
+        // / directory-indexes.ts), never for a state legislator or any other
+        // contact kind, so it is exactly as authoritative as `match.member`
+        // without requiring the recipient to have an email on file.
         sourceType: match?.member
           ? 'congress'
-          : recipient.direction === 'to-clients'
-            ? 'client'
-            : null,
+          : recipient.directoryContactId?.toString().startsWith('member-')
+            ? 'congress'
+            : recipient.direction === 'to-clients'
+              ? 'client'
+              : null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
         snapshot: pruneForAi(recipient as unknown as Record<string, unknown>) as Record<
           string,
