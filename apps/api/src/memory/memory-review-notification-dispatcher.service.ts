@@ -25,6 +25,7 @@ type DispatchOutcome =
   | 'emailSent'
   | 'emailSuppressed'
   | 'emailFailed';
+type CompletedEmailStatus = 'sent' | 'suppressed' | 'failed';
 
 interface ClaimedNotificationRow {
   id: string;
@@ -34,10 +35,10 @@ interface ClaimedNotificationRow {
   clientId: string | null;
   recipientUserId: string;
   eventType: string;
-  payload: unknown;
   attempts: number;
   leaseToken: string;
   emailStatus: string | null;
+  providerMessageId: string | null;
 }
 
 interface RecipientWorkflowRow {
@@ -132,10 +133,11 @@ export class MemoryReviewNotificationDispatcherService {
       return 'terminated';
     }
 
-    let emailStatus: 'sent' | 'suppressed' | 'failed' = 'suppressed';
-    let providerMessageId: string | null = null;
+    let emailStatus = completedEmailStatus(row.emailStatus) ?? 'suppressed';
+    let providerMessageId = row.providerMessageId;
     if (authorized.uncertainPriorEmailAttempt) {
       emailStatus = 'failed';
+      providerMessageId = null;
     } else if (authorized.sendEmail) {
       const result = await this.email.send({
         outboxId: row.id,
@@ -149,8 +151,10 @@ export class MemoryReviewNotificationDispatcherService {
         providerMessageId = result.messageId ?? null;
       } else if (result.suppressed) {
         emailStatus = 'suppressed';
+        providerMessageId = null;
       } else {
         emailStatus = 'failed';
+        providerMessageId = null;
       }
     }
 
@@ -190,10 +194,10 @@ export class MemoryReviewNotificationDispatcherService {
                   outbox.client_id::text AS "clientId",
                   outbox.recipient_user_id::text AS "recipientUserId",
                   outbox.event_type AS "eventType",
-                  outbox.payload_jsonb AS payload,
                   outbox.attempts,
                   outbox.lease_token::text AS "leaseToken",
-                  outbox.email_status AS "emailStatus"
+                  outbox.email_status AS "emailStatus",
+                  outbox.provider_message_id AS "providerMessageId"
       `),
     );
   }
@@ -247,6 +251,7 @@ export class MemoryReviewNotificationDispatcherService {
           row.candidateId,
         );
         if (!subject) return null;
+        if (subject.clientId && subject.clientStatus !== 'active') return null;
         const decision = await this.authorization.evaluateInTx(
           tx,
           { tenantId: row.tenantId, userId: row.recipientUserId, role },
@@ -332,7 +337,7 @@ export class MemoryReviewNotificationDispatcherService {
 
   private async complete(
     row: ClaimedNotificationRow,
-    emailStatus: 'sent' | 'suppressed' | 'failed',
+    emailStatus: CompletedEmailStatus,
     providerMessageId: string | null,
   ): Promise<void> {
     await this.prisma.withTenantUser(row.tenantId, row.recipientUserId, async (tx) => {
@@ -436,6 +441,10 @@ function tenantRole(value: string): TenantRole | null {
   return ['capiro_admin', 'user_admin', 'standard_user', 'client_portal_user'].includes(value)
     ? (value as TenantRole)
     : null;
+}
+
+function completedEmailStatus(value: string | null): CompletedEmailStatus | null {
+  return value === 'sent' || value === 'suppressed' || value === 'failed' ? value : null;
 }
 
 function dispatcherErrorCode(error: unknown): string {
