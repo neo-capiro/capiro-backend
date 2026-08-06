@@ -12,19 +12,24 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import type { MemoryReviewRevisionInput } from './memory-review-revision.helpers.js';
+import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 
 /**
  * Grant-aware candidate review surface.
  *
  * Route access is standard authenticated access; all scope, role, ethical-wall,
- * grant, expiration, revocation, assignment, and segregation-of-duties decisions
- * are made from server-owned state.
+ * grant, expiration, revocation, assignment, revision lineage, and segregation-
+ * of-duties decisions are made from server-owned state.
  */
 @Controller('memory/review')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class MemoryReviewController {
-  constructor(private readonly review: MemoryCandidateReviewService) {}
+  constructor(
+    private readonly review: MemoryCandidateReviewService,
+    private readonly revisions: MemoryReviewRevisionService,
+  ) {}
 
   @Get('candidates')
   listCandidates(@CurrentTenant() ctx: TenantContext) {
@@ -42,6 +47,15 @@ export class MemoryReviewController {
       candidateId: id,
       workflow: await this.review.requestChanges(ctx, id, body?.reason),
     };
+  }
+
+  @Post('candidates/:id/revise')
+  async reviseCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: MemoryReviewRevisionInput,
+  ) {
+    return { ok: true, ...(await this.revisions.revise(ctx, id, body ?? {})) };
   }
 
   @Post('candidates/:id/assign')
