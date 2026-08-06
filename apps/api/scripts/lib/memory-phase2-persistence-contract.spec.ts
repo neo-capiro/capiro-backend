@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 import {
+  applyMemoryPhase2MigrationOwnershipContract,
   applyMemoryPhase2PrismaLineageModel,
   assertMemoryPhase2PersistenceContract,
   MemoryPhase2PersistenceContractError,
@@ -27,6 +28,9 @@ const committed: MemoryPhase2PersistenceSources = {
 const target: MemoryPhase2PersistenceSources = {
   ...committed,
   prismaSchema: applyMemoryPhase2PrismaLineageModel(committed.prismaSchema),
+  revisionMigration: applyMemoryPhase2MigrationOwnershipContract(
+    committed.revisionMigration,
+  ),
 };
 
 function expectContractFailure(mutated: MemoryPhase2PersistenceSources): void {
@@ -57,6 +61,37 @@ describe('memory Phase 2 persistence ownership contract', () => {
         committed.prismaSchema.replace(
           'payload           Json',
           'revisionRootId String? @map("revision_root_id") @db.Uuid\n  payload           Json',
+        ),
+      ),
+    ).toThrow(MemoryPhase2PersistenceContractError);
+  });
+
+  it('reconciles the legacy ownership comment, is idempotent, and rejects drift', () => {
+    const legacy = target.revisionMigration.replace(
+      `-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
+-- Prisma models the four additive columns and tenant-bound self-relations so
+-- future schema reconciliation cannot classify them as unmanaged drift. The
+-- application creates and mutates lineage only through locked raw SQL and
+-- create_memory_candidate_revision; generated delegates are not a valid
+-- lifecycle mutation path.`,
+      `-- SQL-OWNED LINEAGE CONTRACT
+-- The four additive lineage columns remain intentionally absent from Prisma's
+-- MemoryCandidate model during Phase 2. The application reads/writes them only
+-- through locked raw SQL and create_memory_candidate_revision. This prevents a
+-- generated Prisma delegate from offering unsafe partial lineage mutations while
+-- Prisma safely ignores additive database columns during validate/generate.`,
+    );
+    expect(applyMemoryPhase2MigrationOwnershipContract(legacy)).toBe(
+      target.revisionMigration,
+    );
+    expect(applyMemoryPhase2MigrationOwnershipContract(target.revisionMigration)).toBe(
+      target.revisionMigration,
+    );
+    expect(() =>
+      applyMemoryPhase2MigrationOwnershipContract(
+        target.revisionMigration.replace(
+          'tenant-bound self-relations',
+          'partially drifted relations',
         ),
       ),
     ).toThrow(MemoryPhase2PersistenceContractError);
