@@ -502,7 +502,11 @@ export class ChatAssistantService {
           result: await this.invokeTool(
             ctx,
             tu.name,
-            this.augmentToolInput(dto, tu.input ?? {}),
+            this.augmentToolInput(
+              dto,
+              tu.input ?? {},
+              toolSchemas.find((schema) => schema.name === tu.name),
+            ),
             dto.conversationId,
             steps,
             pendingApprovals,
@@ -666,10 +670,22 @@ export class ChatAssistantService {
   private augmentToolInput(
     dto: ChatInput,
     input: Record<string, unknown>,
+    toolSchema: AnthropicToolSchema | undefined,
   ): Record<string, unknown> {
     const out = { ...input };
     if (dto.clientId && !isUuid(out.clientId)) out.clientId = dto.clientId;
-    if (dto.conversationId && out.conversationId === undefined) {
+    // Only inject conversationId if the TOOL'S OWN schema declares it as a
+    // property. Side-effecting tools are re-validated server-side against that
+    // same schema with additionalProperties disallowed by default
+    // (meri-write-tool-input.ts); most write tools don't declare
+    // conversationId, so unconditionally injecting it here made every such
+    // write 400 with "input.conversationId: is not an allowed property" the
+    // moment a chat session had a real (persisted) conversationId — i.e.
+    // always, outside of throwaway unsaved turns.
+    const properties = toolSchema?.input_schema?.properties as
+      | Record<string, unknown>
+      | undefined;
+    if (dto.conversationId && out.conversationId === undefined && properties?.conversationId) {
       out.conversationId = dto.conversationId;
     }
     return out;

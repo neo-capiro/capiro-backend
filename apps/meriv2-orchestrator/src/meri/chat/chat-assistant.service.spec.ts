@@ -202,11 +202,23 @@ const anthropic = (
   json: async () => ({ content, stop_reason, ...(stop_details ? { stop_details } : {}) }),
 });
 
-const schemasResponse = (names: string[]) => ({
+// `extraProps` lets a test declare that a specific tool's real (apps/api)
+// schema allows a given input property — e.g. conversationId, which is only
+// injected by augmentToolInput when the tool's OWN schema declares it (see
+// chat-assistant.service.ts). Tools not listed here get the old bare
+// `{ type: 'object' }` shape, matching what a tool with no declared
+// properties actually looks like.
+const schemasResponse = (names: string[], extraProps: Record<string, string[]> = {}) => ({
   ok: true,
   status: 200,
   json: async () => ({
-    schemas: names.map((name) => ({ name, description: 'x', input_schema: { type: 'object' } })),
+    schemas: names.map((name) => ({
+      name,
+      description: 'x',
+      input_schema: extraProps[name]
+        ? { type: 'object', properties: Object.fromEntries(extraProps[name].map((p) => [p, {}])) }
+        : { type: 'object' },
+    })),
   }),
 });
 
@@ -463,7 +475,8 @@ describe('ChatAssistantService.run', () => {
 
     let call = 0;
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
-      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      if (url.includes('/api/clio/tool-schemas'))
+        return schemasResponse(['create_word'], { create_word: ['conversationId', 'clientId'] });
       call += 1;
       if (call === 1)
         return anthropic(
@@ -762,7 +775,8 @@ describe('ChatAssistantService.run', () => {
 
     let call = 0;
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
-      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
+      if (url.includes('/api/clio/tool-schemas'))
+        return schemasResponse(['send_email'], { send_email: ['conversationId'] });
       call += 1;
       if (call === 1)
         return anthropic(
@@ -797,8 +811,12 @@ describe('ChatAssistantService.run', () => {
     // The durable proposal is created with exactly the tool/input/conversation
     // the model proposed — the API, not the orchestrator, computes the
     // fingerprint/policy/tenant/user authority server-side. augmentToolInput
-    // (pre-existing behavior) also threads conversationId onto the input
-    // object itself, same as every other write tool call.
+    // also threads conversationId onto the input object itself, but ONLY
+    // because send_email's own schema (mocked above) declares it as an
+    // allowed property — a write tool whose schema omits it must not receive
+    // it in `input`, or apps/api's strict per-tool validator 400s with
+    // "input.conversationId: is not an allowed property" (the bug this
+    // schema-gating fixed).
     expect(actionProposalsRepo.create).toHaveBeenCalledWith({
       tool: 'send_email',
       input: { ...emailInput, conversationId: 'conv-9' },
