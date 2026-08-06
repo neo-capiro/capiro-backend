@@ -96,17 +96,21 @@ describe('organization id is optional for browser acceptance', () => {
     expect(readRepoFile(BROWSER_PARITY)).toMatch(/const ORGLESS = !ORG_ID;/);
   });
 
-  it('keeps the session cookie required', () => {
-    expect(readRepoFile(BROWSER_PARITY)).toMatch(/const COOKIE = requiredAny\(/);
+  it('makes the cookie optional but still requires some real credential', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    // Optional because sign-in-token mode needs no captured cookie.
+    expect(source).toMatch(/const COOKIE = optionalAny\(/);
+    // But one of the two authentication paths must be available.
+    expect(source).toMatch(/No usable browser authentication method is configured/);
   });
 });
 
 describe('orgless mode never fabricates organization state', () => {
-  it('never calls setActive on the orgless path', () => {
+  it('never activates an organization on the orgless path', () => {
     const { org, orgless } = createActorSections();
-    expect(orgless).not.toContain('setActive');
+    expect(orgless).not.toMatch(/setActive\(\s*\{\s*organization/);
     // The organization-based path is preserved unchanged.
-    expect(org).toContain('setActive');
+    expect(org).toMatch(/setActive\(\s*\{\s*organization/);
   });
 
   it('never waits for Clerk.organization on the orgless path', () => {
@@ -218,20 +222,21 @@ describe('a skipped browser proof cannot report a passing M9 result', () => {
 });
 
 describe('an unusable session cookie fails fast and self-diagnoses', () => {
+  /** Covers inspectSessionCookie and its asserting wrapper. */
   function cookieCheckSource(): string {
     const source = readRepoFile(BROWSER_PARITY);
     return source.slice(
-      source.indexOf('function assertSessionCookieUsable('),
-      source.indexOf('function orglessTokenShimSource('),
+      source.indexOf('function inspectSessionCookie('),
+      source.indexOf('function resolveBrowserAuthMode('),
     );
   }
 
-  it('runs the precheck before spending a browser launch', () => {
+  it('resolves and validates auth before spending a browser launch', () => {
     const source = readRepoFile(BROWSER_PARITY);
-    const precheck = source.indexOf('const cookieState = assertSessionCookieUsable(COOKIE)');
+    const resolve = source.indexOf('const authMode = resolveBrowserAuthMode()');
     const launch = source.indexOf('chromeLauncher.launch(');
-    expect(precheck).toBeGreaterThan(-1);
-    expect(precheck).toBeLessThan(launch);
+    expect(resolve).toBeGreaterThan(-1);
+    expect(resolve).toBeLessThan(launch);
   });
 
   it('accepts either the long-lived client cookie or an unexpired session JWT', () => {
@@ -239,7 +244,7 @@ describe('an unusable session cookie fails fast and self-diagnoses', () => {
     expect(check).toContain('__client=');
     expect(check).toContain('__clerk_db_jwt=');
     expect(check).toContain('__session=');
-    expect(check).toMatch(/!clientCookie && sessionState !== 'valid'/);
+    expect(check).toMatch(/usable: Boolean\(clientCookie\) \|\| sessionState === 'valid'/);
   });
 
   it('treats an expired session cookie as unusable', () => {
@@ -249,7 +254,7 @@ describe('an unusable session cookie fails fast and self-diagnoses', () => {
   it('never interpolates the cookie value into diagnostics', () => {
     const check = cookieCheckSource();
     // Names and a derived state are reported; the raw value never is.
-    expect(check).toContain('names.join');
+    expect(check).toMatch(/cookieNames\.join/);
     expect(check).not.toMatch(/\$\{value\}/);
     expect(check).not.toMatch(/\$\{header\}/);
     expect(check).not.toMatch(/console\.log\(.*value/);
@@ -260,6 +265,59 @@ describe('an unusable session cookie fails fast and self-diagnoses', () => {
     expect(source).toContain('clerkPresent: Boolean(window.Clerk)');
     expect(source).toContain('hasUser: Boolean(window.Clerk?.user)');
     expect(source).toMatch(/Clerk session never became available/);
+  });
+});
+
+describe('sign-in token authentication', () => {
+  it('mints a single-use Clerk sign-in token rather than reusing a cookie', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    expect(source).toContain('/v1/sign_in_tokens');
+    expect(source).toContain('user_id: ACCEPTANCE_USER_CLERK_ID');
+  });
+
+  it('redeems the ticket through Clerk rather than forging a session', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    expect(source).toContain('__clerk_ticket=');
+    expect(source).toMatch(/strategy: 'ticket'/);
+    // Session activation is Clerk's own API; no cookie or claim is fabricated.
+    expect(source).toMatch(/setActive\(\{ session: signIn\.createdSessionId \}\)/);
+  });
+
+  it('resolves the auth mode explicitly and rejects unknown values', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    const resolver = source.slice(
+      source.indexOf('function resolveBrowserAuthMode()'),
+      source.indexOf('async function mintSignInToken()'),
+    );
+    expect(resolver).toContain("BROWSER_AUTH === 'cookie'");
+    expect(resolver).toContain("BROWSER_AUTH === 'signin_token'");
+    expect(resolver).toMatch(/Unknown ENGAGEMENT_PHASE1_BROWSER_AUTH/);
+    // auto prefers a usable cookie, then falls back to the token.
+    expect(resolver).toMatch(/if \(cookieUsable\) return 'cookie';/);
+    expect(resolver).toMatch(/if \(tokenPossible\) return 'signin_token';/);
+  });
+
+  it('never logs the ticket or the secret key', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    const logged = source.match(/console\.log\([^)]*\)/g) ?? [];
+    for (const line of logged) {
+      expect(line).not.toContain('ticket');
+      expect(line).not.toContain('CLERK_SECRET_KEY');
+    }
+  });
+
+  it('records the auth method in evidence so the mode is auditable', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    expect(source).toContain('browserAuthMethod: authMode');
+    expect(source).toMatch(/signin_token_session/);
+  });
+
+  it('attaches the network listener after the ticket navigation, keeping it out of evidence', () => {
+    const source = readRepoFile(BROWSER_PARITY);
+    // createActor performs the ticket navigation; the listener is registered afterwards in main.
+    expect(source.indexOf('__clerk_ticket=')).toBeLessThan(
+      source.indexOf('Network.requestWillBeSent'),
+    );
   });
 });
 

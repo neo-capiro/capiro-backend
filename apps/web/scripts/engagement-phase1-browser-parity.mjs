@@ -18,10 +18,22 @@ const SHADOW_URL =
   process.env.ENGAGEMENT_PHASE1_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
 const EVIDENCE = required('ENGAGEMENT_PHASE1_EVIDENCE_DIR');
 const TOKEN_FILE = required('ENGAGEMENT_PHASE1_TOKEN_FILE');
-const COOKIE = requiredAny(
+const COOKIE = optionalAny(
   'ENGAGEMENT_PHASE1_USER_COOKIE',
   'ENGAGEMENT_PHASE0_USER_COOKIE',
 );
+// Sign-in-token mode. Clerk session JWTs live ~60s and a bare __session value cannot survive a
+// multi-minute run, so rather than depending on a captured cookie the harness can mint a
+// single-use Clerk sign-in token for the seeded user and let the browser redeem it into a real
+// session. This is a first-class Clerk feature, not an auth bypass: Clerk performs the sign-in
+// and sets its own cookies. Requires no Clerk dashboard change and no organization.
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY?.trim() ?? '';
+const CLERK_API_URL = process.env.CLERK_API_URL?.trim() || 'https://api.clerk.com';
+const ACCEPTANCE_USER_CLERK_ID = optionalAny(
+  'ENGAGEMENT_PHASE1_USER_CLERK_ID',
+  'ENGAGEMENT_PHASE0_USER_CLERK_ID',
+);
+const BROWSER_AUTH = process.env.ENGAGEMENT_PHASE1_BROWSER_AUTH?.trim() || 'auto';
 // Organization id is OPTIONAL. A valid Clerk session with no active organization is a
 // supported acceptance mode: TenantContextMiddleware already selects the user's sole active
 // membership when no tenant id, org id, tenant slug, or X-Capiro-Tenant hint is supplied.
@@ -75,22 +87,19 @@ function optionalAny(...names) {
  * (`__client` / `__clerk_db_jwt`) and mints short-lived `__session` JWTs from it, so either a
  * client cookie or an unexpired `__session` JWT is enough. Values are never logged.
  */
-function assertSessionCookieUsable(header) {
+function inspectSessionCookie(header) {
   const entries = header
     .split(';')
     .map((part) => part.trim())
     .filter((part) => part.includes('='));
   const names = entries.map((entry) => entry.slice(0, entry.indexOf('=')));
-  if (entries.length === 0) {
-    throw new Error('The session cookie header is empty');
-  }
 
   const clientCookie = entries.find(
     (entry) => entry.startsWith('__client=') || entry.startsWith('__clerk_db_jwt='),
   );
   const sessionCookie = entries.find((entry) => entry.startsWith('__session='));
 
-  let sessionState = 'absent';
+  let sessionState = entries.length === 0 ? 'empty-header' : 'absent';
   if (sessionCookie) {
     const value = sessionCookie.slice(sessionCookie.indexOf('=') + 1);
     const segments = value.split('.');
@@ -114,19 +123,108 @@ function assertSessionCookieUsable(header) {
     }
   }
 
-  if (!clientCookie && sessionState !== 'valid') {
+  return {
+    cookieNames: names,
+    sessionState,
+    clientCookiePresent: Boolean(clientCookie),
+    usable: Boolean(clientCookie) || sessionState === 'valid',
+  };
+}
+
+function assertSessionCookieUsable(header) {
+  const state = inspectSessionCookie(header);
+  if (!state.usable) {
     throw new Error(
       'The browser proof cannot authenticate with the supplied cookie header. Present ' +
-        `cookies: [${names.join(', ')}]; __session is ${sessionState}; no __client / ` +
-        '__clerk_db_jwt cookie was supplied.\n' +
+        `cookies: [${state.cookieNames.join(', ')}]; __session is ${state.sessionState}; no ` +
+        '__client / __clerk_db_jwt cookie was supplied.\n' +
         'Clerk needs either the long-lived client cookie (which it uses to mint session ' +
         'tokens) or an unexpired __session JWT. A placeholder, truncated, or expired value ' +
         'cannot produce window.Clerk.session, so the M9 browser gate cannot be measured.\n' +
-        'Capture the cookie header from a signed-in browser session for the seeded ' +
-        'acceptance user and set ENGAGEMENT_PHASE1_USER_COOKIE to it.',
+        'Either capture the cookie header from a signed-in browser session for the seeded ' +
+        'acceptance user, or set CLERK_SECRET_KEY and ENGAGEMENT_PHASE1_USER_CLERK_ID so the ' +
+        'harness can mint a sign-in token instead.',
     );
   }
-  return { cookieNames: names, sessionState, clientCookiePresent: Boolean(clientCookie) };
+  return state;
+}
+
+/**
+ * Decide how the browser will authenticate, and say so out loud rather than switching silently.
+ *
+ * `cookie` reuses a captured session; `signin_token` mints a single-use Clerk sign-in token for
+ * the seeded user. `auto` prefers a usable cookie and falls back to the token.
+ */
+function resolveBrowserAuthMode() {
+  const cookieUsable = COOKIE ? inspectSessionCookie(COOKIE).usable : false;
+  const tokenPossible = Boolean(CLERK_SECRET_KEY && ACCEPTANCE_USER_CLERK_ID);
+
+  if (BROWSER_AUTH === 'cookie') {
+    if (!COOKIE) throw new Error('ENGAGEMENT_PHASE1_BROWSER_AUTH=cookie needs a session cookie');
+    assertSessionCookieUsable(COOKIE);
+    return 'cookie';
+  }
+  if (BROWSER_AUTH === 'signin_token') {
+    if (!tokenPossible) {
+      throw new Error(
+        'ENGAGEMENT_PHASE1_BROWSER_AUTH=signin_token needs CLERK_SECRET_KEY and a seeded ' +
+          'user id (ENGAGEMENT_PHASE1_USER_CLERK_ID)',
+      );
+    }
+    return 'signin_token';
+  }
+  if (BROWSER_AUTH !== 'auto') {
+    throw new Error(
+      `Unknown ENGAGEMENT_PHASE1_BROWSER_AUTH=${BROWSER_AUTH}; expected auto, cookie, or signin_token`,
+    );
+  }
+  if (cookieUsable) return 'cookie';
+  if (tokenPossible) return 'signin_token';
+  // Neither path is available: report the cookie's specific defect.
+  assertSessionCookieUsable(COOKIE || '');
+  throw new Error('No usable browser authentication method is configured');
+}
+
+/**
+ * Mint a single-use Clerk sign-in token. Each browser invocation mints its own, because the
+ * token is consumed on redemption.
+ */
+async function mintSignInToken() {
+  const response = await fetch(`${CLERK_API_URL}/v1/sign_in_tokens`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${CLERK_SECRET_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_id: ACCEPTANCE_USER_CLERK_ID,
+      expires_in_seconds: 3600,
+    }),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    // Clerk error bodies name the offending parameter but can echo identifiers; keep the
+    // status and the error slugs, drop everything else.
+    let detail = '';
+    try {
+      const parsed = JSON.parse(text);
+      detail = (parsed.errors ?? [])
+        .map((entry) => entry.code ?? entry.message ?? '')
+        .filter(Boolean)
+        .join(', ');
+    } catch {
+      detail = '';
+    }
+    throw new Error(
+      `Clerk sign-in token mint failed with ${response.status}${detail ? `: ${detail}` : ''}`,
+    );
+  }
+  const parsed = JSON.parse(text);
+  const ticket = parsed?.token;
+  if (typeof ticket !== 'string' || ticket.length < 20) {
+    throw new Error('Clerk sign-in token response contained no usable ticket');
+  }
+  return ticket;
 }
 
 /**
@@ -343,7 +441,7 @@ class BrowserPage {
   }
 }
 
-async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
+async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir, authMode, ticket }) {
   const context = await cdp.send('Target.createBrowserContext', { disposeOnDetach: true });
   const target = await cdp.send('Target.createTarget', {
     url: 'about:blank',
@@ -361,16 +459,64 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
     evidenceDir,
   });
   await page.init();
-  await cdp.send(
-    'Network.setCookies',
-    { cookies: cookiesFromHeader(cookie, baseUrl) },
-    page.sessionId,
-  );
-  await page.navigate('/');
-  try {
-    await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), 35_000);
-  } catch (error) {
-    // Distinguish "Clerk never loaded" from "Clerk loaded but the cookie yielded no session".
+
+  if (authMode === 'cookie') {
+    await cdp.send(
+      'Network.setCookies',
+      { cookies: cookiesFromHeader(cookie, baseUrl) },
+      page.sessionId,
+    );
+    await page.navigate('/');
+  } else {
+    // Clerk's client detects the __clerk_ticket query parameter and completes the sign-in
+    // itself, setting its own cookies. No password, no organization, no dashboard change.
+    // The ticket is never logged and never reaches evidence: the network listener is attached
+    // after this navigation.
+    await page.navigate(`/?__clerk_ticket=${encodeURIComponent(ticket)}`);
+    await page
+      .waitFor(() => page.evaluate('Boolean(window.Clerk?.loaded)', false), 45_000)
+      .catch(() => undefined);
+  }
+
+  const sessionReady = async (timeoutMs) => {
+    try {
+      await page.waitFor(() => page.evaluate('Boolean(window.Clerk?.session)'), timeoutMs);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  let established = await sessionReady(45_000);
+  if (!established && authMode === 'signin_token') {
+    // Fall back to redeeming the ticket explicitly through the Clerk client, in case the
+    // application consumed or stripped the query parameter during its own routing.
+    const outcome = await page
+      .evaluate(
+        `(async () => {
+          try {
+            const signIn = await window.Clerk.client.signIn.create({
+              strategy: 'ticket',
+              ticket: ${JSON.stringify(ticket)},
+            });
+            if (signIn.status === 'complete' && signIn.createdSessionId) {
+              await window.Clerk.setActive({ session: signIn.createdSessionId });
+              return 'complete';
+            }
+            return 'status:' + String(signIn.status);
+          } catch (error) {
+            return 'error:' + String(error && error.message ? error.message : error);
+          }
+        })()`,
+      )
+      .catch((error) => `evaluate-failed:${error.message}`);
+    console.log(`==> Sign-in token explicit redemption: ${outcome}`);
+    established = await sessionReady(45_000);
+  }
+
+  if (!established) {
+    // Distinguish "Clerk never loaded" from "Clerk loaded but authentication produced no
+    // session".
     const diagnostic = await page
       .evaluate(
         `({
@@ -385,9 +531,9 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
       .catch(() => null);
     await page.screenshot('phase1-session-wait-failure').catch(() => undefined);
     throw new Error(
-      'Clerk session never became available within 35s. Page state: ' +
+      `Clerk session never became available (authMode=${authMode}). Page state: ` +
         `${JSON.stringify(diagnostic)}. If clerkPresent is true and hasUser is false, the ` +
-        'supplied cookie did not authenticate; if clerkPresent is false, Clerk itself never ' +
+        'credential did not authenticate; if clerkPresent is false, Clerk itself never ' +
         'loaded (check the publishable key and the web dev server).',
     );
   }
@@ -436,12 +582,22 @@ async function createActor({ cdp, cookie, orgId, baseUrl, evidenceDir }) {
 
 async function main() {
   await mkdir(SCREENSHOTS, { recursive: true });
-  // Cheapest possible failure: reject an unusable cookie before spending a browser launch.
-  const cookieState = assertSessionCookieUsable(COOKIE);
-  console.log(
-    `==> Session cookie precheck: cookies=[${cookieState.cookieNames.join(', ')}] ` +
-      `__session=${cookieState.sessionState} clientCookie=${cookieState.clientCookiePresent}`,
-  );
+  // Cheapest possible failure: resolve and validate authentication before spending a browser
+  // launch, and state the chosen mode rather than switching silently.
+  const authMode = resolveBrowserAuthMode();
+  if (COOKIE) {
+    const cookieState = inspectSessionCookie(COOKIE);
+    console.log(
+      `==> Session cookie: cookies=[${cookieState.cookieNames.join(', ')}] ` +
+        `__session=${cookieState.sessionState} clientCookie=${cookieState.clientCookiePresent} ` +
+        `usable=${cookieState.usable}`,
+    );
+  }
+  console.log(`==> Browser auth mode: ${authMode}`);
+  const ticket = authMode === 'signin_token' ? await mintSignInToken() : '';
+  if (ticket) {
+    console.log('==> Minted a single-use Clerk sign-in token for the seeded acceptance user');
+  }
   const chrome = await chromeLauncher.launch({
     chromeFlags: [
       '--headless=new',
@@ -461,6 +617,8 @@ async function main() {
       orgId: ORG_ID,
       baseUrl: BASE_URL,
       evidenceDir: SCREENSHOTS,
+      authMode,
+      ticket,
     });
     const page = actor.page;
     if (actor.orgless !== ORGLESS) {
@@ -685,9 +843,10 @@ async function main() {
     const evidence = {
       marker: 'ENGAGEMENT_PHASE1_BROWSER_COMPLETE',
       browserProofPerformed: true,
-      authMode: ORGLESS
-        ? 'orgless_existing_clerk_session'
-        : 'organization_existing_clerk_session',
+      authMode: `${ORGLESS ? 'orgless' : 'organization'}_${
+        authMode === 'signin_token' ? 'signin_token_session' : 'existing_clerk_session'
+      }`,
+      browserAuthMethod: authMode,
       organizationRequired: false,
       acceptanceTokenShim: tokenShimInstalled,
       acceptanceTokenShimDelegations: tokenShimDelegations,
