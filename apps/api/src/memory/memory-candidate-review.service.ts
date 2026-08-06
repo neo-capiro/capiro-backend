@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -189,13 +190,21 @@ export class MemoryCandidateReviewService {
     return this.workflow.requestChanges(ctx, candidateId, reason);
   }
 
-  assignReviewer(
+  async assignReviewer(
     ctx: TenantContext,
     candidateId: string,
     reviewerUserId: string,
     reason: unknown,
   ): Promise<MemoryReviewWorkflowSnapshot> {
     this.requireEnabled();
+    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
+      if (!subject) throw new NotFoundException('Memory candidate not found.');
+      const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'review');
+      if (!decision.allowed) {
+        throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+      }
+    });
     return this.workflow.assignReviewer(ctx, candidateId, reviewerUserId, reason);
   }
 
