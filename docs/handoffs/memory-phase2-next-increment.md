@@ -1,30 +1,40 @@
 # Memory Review UX Phase 2 — Next Increment
 
-Close the revision persistence and compatibility gate before beginning notifications or the Review Inbox redesign.
+Execute and close the revision persistence gate before beginning notifications or the Review Inbox redesign.
 
-Required outcomes:
+## Required execution
 
-1. Reconcile the four lineage columns with Prisma ownership on a complete checkout:
-   - `revision_root_id`
-   - `predecessor_candidate_id`
-   - `revision_number`
-   - `superseded_by_id`
-2. Pass Prisma validate and generate without schema drift.
-3. Replay both Phase 2 migrations on:
-   - a clean PostgreSQL database;
-   - an upgrade database containing existing pending and changes-requested candidates.
-4. Run real concurrent transactions proving exactly one successor can be created.
-5. Run real-role RLS tests for:
-   - original proposer;
-   - assigned reviewer;
-   - unauthorized tenant member;
-   - walled administrator;
-   - cross-tenant user.
-6. Verify older candidate/version decision routes cannot bypass:
-   - named assignment;
-   - revision lineage;
-   - predecessor supersession;
-   - successor authorization.
-7. Add permanent executable closeout evidence for all of the above.
+From a complete checkout:
 
-Do not begin notification delivery or frontend inbox work until this compatibility increment passes.
+```bash
+cd apps/api
+
+pnpm exec tsx scripts/apply-memory-phase2-prisma-lineage-model.ts
+pnpm exec prisma format --schema prisma/schema.prisma
+pnpm exec prisma validate --schema prisma/schema.prisma
+pnpm exec prisma generate --schema prisma/schema.prisma
+
+export MEMORY_PHASE2_CLEAN_DATABASE_URL='postgresql://.../capiro_memory_phase2_clean'
+export MEMORY_PHASE2_UPGRADE_DATABASE_URL='postgresql://.../capiro_memory_phase2_upgrade'
+pnpm exec tsx scripts/verify-memory-phase2-persistence-closeout.ts
+```
+
+The database URLs must identify two different, empty, local PostgreSQL/pgvector databases whose names contain `memory_phase2`. The closeout refuses databases with existing public tables.
+
+## Required outcomes
+
+1. Commit the transformer-produced Prisma model and migration ownership comment.
+2. Pass Prisma format, validate, and generate without drift.
+3. Pass clean and exact pre-Phase-2 upgrade migration deployment.
+4. Prove exactly one concurrent successor is created.
+5. Prove cross-tenant, wrong-actor, and system-bypass revision calls are denied at the database boundary.
+6. Preserve the original reviewer’s attribution through proposer supersession.
+7. Prove an unassigned compatibility route cannot decide a successor and the assigned reviewer can.
+8. Prove revision does not mutate `memory_items` or `clio_memory`.
+9. Require the exact marker:
+
+```text
+MEMORY_PHASE2_PERSISTENCE_CLOSEOUT_COMPLETE
+```
+
+After the marker, inspect the exact diff, run focused/full repository tests available in that checkout, update PR #761 evidence, and only then begin notification work.
