@@ -89,7 +89,9 @@ function harness(allowed = true) {
   return { service, withTenantUser, loadCandidateInTx, evaluateInTx };
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('MemoryReviewAdminInboxService', () => {
   it('shows an admin proposer in Needs my review with decision capabilities', async () => {
