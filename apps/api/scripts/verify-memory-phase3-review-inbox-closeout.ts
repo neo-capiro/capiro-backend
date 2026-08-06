@@ -1,12 +1,19 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   resolveMemoryPhase2Pnpm,
   runMemoryPhase2Command,
 } from './lib/memory-phase2-command-runner.js';
 
-const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const apiRoot = resolve(scriptDirectory, '..');
+function resolveApiRoot(): string {
+  const cwd = process.cwd();
+  if (existsSync(resolve(cwd, 'prisma/schema.prisma'))) return cwd;
+  const monorepoApi = resolve(cwd, 'apps/api');
+  if (existsSync(resolve(monorepoApi, 'prisma/schema.prisma'))) return monorepoApi;
+  throw new Error(`Could not resolve apps/api from ${cwd}.`);
+}
+
+const apiRoot = resolveApiRoot();
 const repoRoot = resolve(apiRoot, '../..');
 const pnpm = resolveMemoryPhase2Pnpm();
 
