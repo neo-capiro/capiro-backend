@@ -187,7 +187,25 @@ BEGIN
     AND id = p_predecessor_id
   FOR UPDATE;
 
-  IF NOT FOUND OR predecessor.status <> 'pending' THEN
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_PREDECESSOR_NOT_PENDING'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  -- The predecessor row lock serializes concurrent revisions. Once the first
+  -- transaction commits, every retry observes the durable successor and gets a
+  -- deterministic conflict instead of an ambiguous terminal-state response.
+  IF EXISTS (
+    SELECT 1
+    FROM memory_candidate
+    WHERE tenant_id = p_tenant_id
+      AND predecessor_candidate_id = p_predecessor_id
+  ) THEN
+    RAISE EXCEPTION 'MEMORY_REVISION_SUCCESSOR_EXISTS'
+      USING ERRCODE = '23505';
+  END IF;
+
+  IF predecessor.status <> 'pending' THEN
     RAISE EXCEPTION 'MEMORY_REVISION_PREDECESSOR_NOT_PENDING'
       USING ERRCODE = 'P0002';
   END IF;
@@ -212,16 +230,6 @@ BEGIN
   IF workflow.requested_by <> p_proposer_id THEN
     RAISE EXCEPTION 'MEMORY_REVISION_WORKFLOW_PROPOSER_MISMATCH'
       USING ERRCODE = '42501';
-  END IF;
-
-  IF EXISTS (
-    SELECT 1
-    FROM memory_candidate
-    WHERE tenant_id = p_tenant_id
-      AND predecessor_candidate_id = p_predecessor_id
-  ) THEN
-    RAISE EXCEPTION 'MEMORY_REVISION_SUCCESSOR_EXISTS'
-      USING ERRCODE = '23505';
   END IF;
 
   root_id := COALESCE(predecessor.revision_root_id, predecessor.id);
