@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import {
@@ -28,7 +29,7 @@ const SUMMARY_LIMIT = 1_000;
 @Injectable()
 export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
   constructor(
-    prisma: ConstructorParameters<typeof MemoryReviewInboxService>[0],
+    prisma: PrismaService,
     private readonly adminAuthorization: MemoryAuthorizationService,
   ) {
     super(prisma, adminAuthorization);
