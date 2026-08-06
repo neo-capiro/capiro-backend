@@ -47,12 +47,16 @@ export function memoryReviewNotificationMatchesWorkflow(
     return workflow.status === 'pending' && workflow.assignedTo === recipientUserId;
   }
   if (workflow.requestedBy !== recipientUserId) return false;
-  if (eventType === 'review_changes_requested') return workflow.status === 'changes_needed';
+  if (eventType === 'review_changes_requested') {
+    return workflow.status === 'changes_needed';
+  }
   if (eventType === 'review_approved') return workflow.status === 'approved';
   return workflow.status === 'rejected';
 }
 
-export function memoryReviewEmailDeliveryEnabled(raw: string | undefined): boolean {
+export function memoryReviewEmailDeliveryEnabled(
+  raw: string | undefined,
+): boolean {
   return raw?.trim().toLowerCase() === 'enforce';
 }
 
@@ -66,8 +70,11 @@ export function renderMemoryReviewNotificationEmail(input: {
   const action = eventCopy(input.eventType);
   const subject = `${action.subject}: ${title}`.slice(0, 180);
   const origin = normalizeOrigin(input.appOrigin);
+  // `/settings` redirects to `/settings/personal` and drops its query string.
+  // Link directly to the nested Memory route so the Phase 3 inbox can consume
+  // the review-request deep link reliably.
   const reviewUrl = origin
-    ? `${origin}/settings?tab=memory-review&review=${encodeURIComponent(input.reviewRequestId)}`
+    ? `${origin}/settings/memory?review=${encodeURIComponent(input.reviewRequestId)}`
     : null;
   const escapedTitle = escapeHtml(title);
   const escapedLead = escapeHtml(action.lead);
@@ -101,7 +108,9 @@ export function normalizeNotificationTitle(value: unknown): string {
   return (clean || 'Memory proposal').slice(0, 300);
 }
 
-function isReviewerAssignmentEvent(eventType: MemoryReviewNotificationEvent): boolean {
+function isReviewerAssignmentEvent(
+  eventType: MemoryReviewNotificationEvent,
+): boolean {
   return (
     eventType === 'review_assigned' ||
     eventType === 'review_revision_assigned' ||
@@ -115,7 +124,10 @@ function eventCopy(eventType: MemoryReviewNotificationEvent): {
 } {
   switch (eventType) {
     case 'review_assigned':
-      return { subject: 'Memory review assigned', lead: 'A memory proposal is ready for your review.' };
+      return {
+        subject: 'Memory review assigned',
+        lead: 'A memory proposal is ready for your review.',
+      };
     case 'review_revision_assigned':
       return {
         subject: 'Revised memory proposal assigned',
@@ -132,9 +144,15 @@ function eventCopy(eventType: MemoryReviewNotificationEvent): {
         lead: 'Changes were requested on your memory proposal.',
       };
     case 'review_approved':
-      return { subject: 'Memory proposal approved', lead: 'Your memory proposal was approved.' };
+      return {
+        subject: 'Memory proposal approved',
+        lead: 'Your memory proposal was approved.',
+      };
     case 'review_rejected':
-      return { subject: 'Memory proposal rejected', lead: 'Your memory proposal was rejected.' };
+      return {
+        subject: 'Memory proposal rejected',
+        lead: 'Your memory proposal was rejected.',
+      };
   }
 }
 
