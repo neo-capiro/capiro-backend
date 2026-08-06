@@ -15,6 +15,7 @@ import { GovernedMemoryCandidateService } from './governed-memory-candidate.serv
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -42,13 +43,9 @@ import { InternalMemoryController } from './internal-memory.controller.js';
 /**
  * Institutional Memory module.
  *
- * Phase 6 resolves the legacy public tokens to exact implementations while retaining
- * the inherited best-effort classes as explicit code rollback paths. Phase 15 adds
- * one dark, administrator-only Governance Center facade over those exact services.
- * The application interceptor carries the verified tenant into the Phase 22
- * `MEMORY_GOVERNANCE_TENANTS` canary without modifying auth middleware. The final
- * store/candidate layers preserve stable Settings identities while routing edits to
- * existing shared files through immutable reviewed versions.
+ * Phase 2 review workflow state is a companion to memory_candidate. It owns
+ * named assignment and review feedback while canonical activation remains in
+ * the existing governed candidate/version services.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -79,6 +76,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
       useExisting: SettingsAwareMemoryCandidateService,
     },
     { provide: MemoryCandidateService, useExisting: SettingsAwareMemoryCandidateService },
+    MemoryReviewWorkflowService,
     MemoryCandidateReviewService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
@@ -104,6 +102,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryCandidateService,
     GovernedMemoryCandidateService,
     MemoryCandidateReviewService,
+    MemoryReviewWorkflowService,
     MemoryAuthorizationService,
     ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
