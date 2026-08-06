@@ -85,17 +85,26 @@ export function assertMemoryPhase2PersistenceContract(
     'Memory revision functions must pin a safe search_path.',
   );
 
+  const contextCodes = [
+    'MEMORY_REVISION_TENANT_CONTEXT_REQUIRED',
+    'MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED',
+    'MEMORY_REVISION_SYSTEM_BYPASS_DENIED',
+  ] as const;
   for (const guard of [
     "current_setting('app.current_tenant', true)",
     "current_setting('app.current_user', true)",
     "current_setting('app.bypass_rls', true)",
-    'MEMORY_REVISION_TENANT_CONTEXT_REQUIRED',
-    'MEMORY_REVISION_ACTOR_CONTEXT_REQUIRED',
-    'MEMORY_REVISION_SYSTEM_BYPASS_DENIED',
+    ...contextCodes,
   ]) {
     assert(
       sources.revisionMigration.includes(guard),
       `Revision migration is missing database-boundary guard: ${guard}.`,
+    );
+  }
+  for (const code of contextCodes) {
+    assert(
+      sources.revisionService.includes(code),
+      `Revision service must translate database-boundary denial ${code}.`,
     );
   }
 
