@@ -69,7 +69,7 @@ function inboxRow(overrides: Record<string, unknown> = {}) {
 }
 
 function harness(queryResults: unknown[][]) {
-  const queryRaw = jest.fn();
+  const queryRaw = jest.fn<(...args: unknown[]) => Promise<unknown[]>>();
   for (const result of queryResults) queryRaw.mockResolvedValueOnce(result);
   const tx = {
     $queryRaw: queryRaw,
