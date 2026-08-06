@@ -133,10 +133,10 @@ export function memoryReviewBlockedReason(input: {
   assignedReviewerId: string | null;
   assignedReviewerActive: boolean;
   assignedReviewerEligible: boolean;
-  fallbackApproverAvailable: boolean;
+  fallbackApproverAvailable?: boolean;
 }): MemoryReviewBlockedReason {
   if (input.clientId && input.clientStatus !== 'active') return 'archived_client';
-  if (input.assignedReviewerEligible || input.fallbackApproverAvailable) return null;
+  if (input.assignedReviewerEligible || input.fallbackApproverAvailable === true) return null;
   if (!input.assignedReviewerId) return 'no_reviewer';
   if (!input.assignedReviewerActive || !input.assignedReviewerEligible) {
     return 'reviewer_unavailable';
