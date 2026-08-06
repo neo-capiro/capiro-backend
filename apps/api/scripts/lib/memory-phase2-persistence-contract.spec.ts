@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 import {
+  applyMemoryPhase2PrismaLineageModel,
   assertMemoryPhase2PersistenceContract,
   MemoryPhase2PersistenceContractError,
   type MemoryPhase2PersistenceSources,
@@ -12,7 +13,7 @@ function read(relativePath: string): string {
   return readFileSync(new URL(relativePath, apiRoot), 'utf8');
 }
 
-const sources: MemoryPhase2PersistenceSources = {
+const committed: MemoryPhase2PersistenceSources = {
   prismaSchema: read('prisma/schema.prisma'),
   workflowMigration: read(
     'prisma/migrations/20260818010000_memory_phase2_review_workflow_foundation/migration.sql',
@@ -23,6 +24,25 @@ const sources: MemoryPhase2PersistenceSources = {
   revisionService: read('src/memory/memory-review-revision.service.ts'),
 };
 
+const target: MemoryPhase2PersistenceSources = {
+  ...committed,
+  prismaSchema: applyMemoryPhase2PrismaLineageModel(committed.prismaSchema),
+  revisionMigration: committed.revisionMigration.replace(
+    `-- SQL-OWNED LINEAGE CONTRACT
+-- The four additive lineage columns remain intentionally absent from Prisma's
+-- MemoryCandidate model during Phase 2. The application reads/writes them only
+-- through locked raw SQL and create_memory_candidate_revision. This prevents a
+-- generated Prisma delegate from offering unsafe partial lineage mutations while
+-- Prisma safely ignores additive database columns during validate/generate.`,
+    `-- PRISMA-MODELED, SQL-ENFORCED LINEAGE CONTRACT
+-- Prisma models the four additive columns and self-relations so future schema
+-- reconciliation cannot classify them as unmanaged drift. The application
+-- creates and mutates lineage only through locked raw SQL and
+-- create_memory_candidate_revision; generated delegates are not a valid
+-- lifecycle mutation path.`,
+  ),
+};
+
 function expectContractFailure(mutated: MemoryPhase2PersistenceSources): void {
   expect(() => assertMemoryPhase2PersistenceContract(mutated)).toThrow(
     MemoryPhase2PersistenceContractError,
@@ -30,24 +50,57 @@ function expectContractFailure(mutated: MemoryPhase2PersistenceSources): void {
 }
 
 describe('memory Phase 2 persistence ownership contract', () => {
-  it('accepts the committed SQL-owned lineage boundary', () => {
-    expect(() => assertMemoryPhase2PersistenceContract(sources)).not.toThrow();
+  it('accepts the Prisma-modeled, SQL-enforced target contract', () => {
+    expect(() => assertMemoryPhase2PersistenceContract(target)).not.toThrow();
   });
 
-  it('fails if a lineage field is exposed through the Prisma delegate', () => {
-    expectContractFailure({
-      ...sources,
-      prismaSchema: sources.prismaSchema.replace(
-        'payload           Json',
-        'revisionRootId    String? @map("revision_root_id") @db.Uuid\n  payload           Json',
+  it('reports whether the committed schema still requires the guarded transformer', () => {
+    const alreadyModeled = committed.prismaSchema.includes('revisionRootId');
+    if (alreadyModeled) {
+      expect(() => assertMemoryPhase2PersistenceContract(committed)).not.toThrow();
+    } else {
+      expectContractFailure(committed);
+      expect(target.prismaSchema).not.toBe(committed.prismaSchema);
+    }
+  });
+
+  it('is idempotent and rejects a partially applied Prisma model', () => {
+    expect(applyMemoryPhase2PrismaLineageModel(target.prismaSchema)).toBe(target.prismaSchema);
+    expect(() =>
+      applyMemoryPhase2PrismaLineageModel(
+        committed.prismaSchema.replace(
+          'payload           Json',
+          'revisionRootId String? @map("revision_root_id") @db.Uuid\n  payload           Json',
+        ),
       ),
+    ).toThrow(MemoryPhase2PersistenceContractError);
+  });
+
+  it('fails if a modeled lineage field or self-relation is removed', () => {
+    expectContractFailure({
+      ...target,
+      prismaSchema: target.prismaSchema.replace(
+        'revisionNumber         Int     @default(1) @map("revision_number")',
+        '',
+      ),
+    });
+    expectContractFailure({
+      ...target,
+      prismaSchema: target.prismaSchema.replace('MemoryCandidatePredecessor', 'RemovedRelation'),
+    });
+  });
+
+  it('fails if production code attempts a Prisma delegate lineage mutation', () => {
+    expectContractFailure({
+      ...target,
+      revisionService: `${target.revisionService}\nvoid prisma.memoryCandidate.update({ data: { revisionNumber: 9 } });`,
     });
   });
 
   it('fails if the SQL function becomes SECURITY DEFINER', () => {
     expectContractFailure({
-      ...sources,
-      revisionMigration: `${sources.revisionMigration}\nSECURITY DEFINER;`,
+      ...target,
+      revisionMigration: `${target.revisionMigration}\nSECURITY DEFINER;`,
     });
   });
 
@@ -58,8 +111,8 @@ describe('memory Phase 2 persistence ownership contract', () => {
       "current_setting('app.bypass_rls', true)",
     ]) {
       expectContractFailure({
-        ...sources,
-        revisionMigration: sources.revisionMigration.replace(guard, 'removed_guard'),
+        ...target,
+        revisionMigration: target.revisionMigration.replace(guard, 'removed_guard'),
       });
     }
   });
@@ -70,8 +123,8 @@ describe('memory Phase 2 persistence ownership contract', () => {
       'memory_candidate_root_revision_unique',
     ]) {
       expectContractFailure({
-        ...sources,
-        revisionMigration: sources.revisionMigration.replace(indexName, 'removed_index'),
+        ...target,
+        revisionMigration: target.revisionMigration.replace(indexName, 'removed_index'),
       });
     }
   });
