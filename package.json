@@ -33,6 +33,8 @@
     "verify:engagement-phase-1": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs",
     "verify:engagement-phase-1:local": "node scripts/verify-engagement-phase1-local.mjs",
     "verify:engagement-phase-2": "bash scripts/verify-engagement-phase2-code.sh",
+    "verify:engagement-phase-3": "node scripts/verify-engagement-phase3-code.mjs",
+    "verify:engagement-phase-3:local": "node scripts/run-engagement-phase3-local.mjs",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
     "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
