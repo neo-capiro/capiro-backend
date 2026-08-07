@@ -97,3 +97,17 @@ test('report filter/sort/query preservation is an explicit required scenario', (
     'phase3-preserve': 'reports',
   });
 });
+
+test('client profile deep link uses the product query contract, not a nonexistent path route', () => {
+  const scenario = buildPhase3BrowserScenarios(fixtures).find(
+    (row) => row.id === 'client-profile-cross-surface',
+  );
+  assert.equal(
+    scenario.pathname,
+    `/clients?clientId=${encodeURIComponent(fixtures.ids['client.alpha'])}`,
+  );
+  assert.equal(scenario.expectedPathname, '/clients');
+  assert.deepEqual(scenario.expectedSearch, {
+    clientId: fixtures.ids['client.alpha'],
+  });
+});
