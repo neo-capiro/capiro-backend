@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Run browser parity, replay observed Engagement GETs, sweep every unique UI
- * read against both runtimes, prove one shared safe database-local write round
- * trip, verify auth/tenant/role/ownership/wall denials, then exercise every
- * UI-classified external action while the same disposable DB/auth context is
- * alive. The local runner removes bearer material immediately afterward.
+ * Run representative browser parity, the non-skippable interaction/URL/a11y
+ * matrix, replay observed Engagement GETs, sweep every unique UI read against
+ * both runtimes, prove one shared safe database-local write round trip, verify
+ * auth/tenant/role/ownership/wall denials, then exercise every UI-classified
+ * external action while the same disposable DB/auth context is alive. The local
+ * runner removes bearer material immediately afterward.
  */
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -28,6 +29,7 @@ async function run(command, args) {
 }
 
 await run('node', ['apps/web/scripts/engagement-phase3-browser-parity.mjs']);
+await run('node', ['apps/web/scripts/engagement-phase3-browser-interactions.mjs']);
 await run('node', ['scripts/engagement-phase3-api-replay.mjs']);
 await run('pnpm', [
   '-C', 'apps/api', 'exec', 'tsx', 'scripts/engagement-phase3-full-read-parity.ts',
@@ -53,4 +55,6 @@ await run('pnpm', [
   'tsx',
   'scripts/engagement-phase3-external-denial.ts',
 ]);
-console.log('ENGAGEMENT_PHASE3_BROWSER_FULL_READ_WRITE_SECURITY_AND_CONTAINMENT_COMPLETE');
+console.log(
+  'ENGAGEMENT_PHASE3_BROWSER_INTERACTIONS_FULL_READ_WRITE_SECURITY_AND_CONTAINMENT_COMPLETE',
+);
