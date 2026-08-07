@@ -36,8 +36,17 @@ export function choosePhase3ProxyTarget({ url, headers, mainPort = 4000, engagem
   };
 }
 
+function responseStillWritable(res) {
+  return !res.destroyed && !res.writableEnded && res.socket?.destroyed !== true;
+}
+
 function applyFault(req, res, fault) {
   const run = () => {
+    // A timeout test deliberately aborts the client before a delayed fault is
+    // emitted. Never turn that expected abort into an uncaught write-after-close
+    // exception inside the proxy process.
+    if (!responseStillWritable(res)) return;
+
     if (fault.action === 'reset') {
       req.socket.destroy();
       return;
@@ -56,7 +65,9 @@ function applyFault(req, res, fault) {
       res.write(fault.fragment);
       // Destroy after bytes have left the process: callers must distinguish a
       // partial body from a clean, complete JSON response.
-      setImmediate(() => res.destroy());
+      setImmediate(() => {
+        if (responseStillWritable(res)) res.destroy();
+      });
       return;
     }
 
@@ -118,11 +129,16 @@ export function createPhase3Proxy({
         headers: { ...req.headers, host: `${host}:${target.port}` },
       },
       (upstreamRes) => {
+        if (!responseStillWritable(res)) {
+          upstreamRes.destroy();
+          return;
+        }
         res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.statusMessage, upstreamRes.headers);
         upstreamRes.pipe(res);
       },
     );
     upstream.on('error', (error) => {
+      if (!responseStillWritable(res)) return;
       if (!res.headersSent) {
         res.writeHead(502, { 'content-type': 'application/json' });
       }
