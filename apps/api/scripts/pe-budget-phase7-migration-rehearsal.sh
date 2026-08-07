@@ -612,6 +612,65 @@ UPDATE defense_budget_rollback_record SET reason='rewritten';"
 ok "rolled-back snapshot retains its rows and remains auditable"
 
 # =============================================================================
+log "Workstream E: staged rows are invisible until the pointer moves"
+# =============================================================================
+# The promotion engine stages into a STAGING snapshot and only then activates.
+# This proves the property that makes that safe: a product read that resolves
+# through the active-snapshot pointer cannot see staged rows, so a user never
+# observes a half-promoted cycle.
+
+STAGE_SNAP='88888888-8888-8888-8888-888888888888'
+run_sql "
+INSERT INTO defense_budget_canonical_snapshot
+  (id, snapshot_key, environment, cycle_id, fiscal_year, status,
+   required_scopes, completed_scopes, mapping_registry_hash)
+VALUES ('$STAGE_SNAP', 'snap-staging', 'rehearsal', 'cycle-fy2028', 2028, 'STAGING',
+        '[\"om\"]'::jsonb, '[]'::jsonb, '$SHA_A');"
+
+insert_canonical_row 'ARMY|OMA|SAG-777|2028|request' "$STAGE_SNAP" >/dev/null \
+  || fail "could not stage a row into a STAGING snapshot"
+ok "row staged into a STAGING snapshot"
+
+# The canonical read path: rows of whatever snapshot the pointer names.
+ACTIVE_VISIBLE="$(q "
+SELECT count(*) FROM defense_budget_canonical_row r
+  JOIN defense_budget_active_snapshot a ON a.snapshot_id = r.snapshot_id
+ WHERE a.environment = 'rehearsal';")"
+STAGED_TOTAL="$(q "SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id='$STAGE_SNAP';")"
+
+[ "$STAGED_TOTAL" = "1" ] || fail "the staged row was not written"
+ok "staged row exists in the table ($STAGED_TOTAL)"
+
+STAGED_VISIBLE="$(q "
+SELECT count(*) FROM defense_budget_canonical_row r
+  JOIN defense_budget_active_snapshot a ON a.snapshot_id = r.snapshot_id
+ WHERE a.environment = 'rehearsal' AND r.snapshot_id = '$STAGE_SNAP';")"
+[ "$STAGED_VISIBLE" = "0" ] || fail "staged rows are visible through the active pointer"
+ok "staged rows are invisible to an active-snapshot read — no partial cycle is observable"
+
+# A read never mixes snapshots: every row reachable through the pointer belongs
+# to exactly one snapshot.
+DISTINCT_SNAPS="$(q "
+SELECT count(DISTINCT r.snapshot_id) FROM defense_budget_canonical_row r
+  JOIN defense_budget_active_snapshot a ON a.snapshot_id = r.snapshot_id
+ WHERE a.environment = 'rehearsal';")"
+[ "$DISTINCT_SNAPS" = "1" ] || fail "an active read spans $DISTINCT_SNAPS snapshots"
+ok "an active-snapshot read never mixes snapshots ($ACTIVE_VISIBLE row(s), 1 snapshot)"
+
+# Staging remains mutable while STAGING — that is what makes a retry resumable.
+run_sql "
+UPDATE defense_budget_canonical_row SET text_value='corrected during staging'
+ WHERE snapshot_id='$STAGE_SNAP';"
+ok "a staging row is still correctable before activation"
+
+# ...and freezes the moment the snapshot leaves STAGING.
+run_sql "UPDATE defense_budget_canonical_snapshot SET status='READY', snapshot_hash='$SHA_B'
+          WHERE id='$STAGE_SNAP';"
+expect_fail "correct a staged row after the snapshot becomes READY" "
+UPDATE defense_budget_canonical_row SET text_value='too late'
+ WHERE snapshot_id='$STAGE_SNAP';"
+
+# =============================================================================
 log "Prisma validate/generate against the final schema"
 # =============================================================================
 (cd "$API_ROOT" && npx prisma validate --schema prisma/schema.prisma >/dev/null) \

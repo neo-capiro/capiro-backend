@@ -37,7 +37,7 @@ import {
   type FundingFieldV1,
   type MoneyUnitV1,
 } from '../contracts/extraction-artifact-v1.js';
-import type { StageAuthorityV1 } from '../stages/stage-vocabulary-v1.js';
+import type { StageAuthorityV1, StageV1 } from '../stages/stage-vocabulary-v1.js';
 import {
   DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION,
   lookupCanonicalMappingV1,
@@ -160,6 +160,13 @@ export interface PromotionProjectionInputV1 {
   fiscalYear?: number | null;
   fundingField?: FundingFieldV1 | null;
   stageAuthority?: StageAuthorityV1 | null;
+  /**
+   * Lifecycle stage, when the destination has one. Not hashed separately: for
+   * every entity that carries a stage it is already a component of the natural
+   * key, which is hashed. Carried here so Workstream E can populate the
+   * `stage` column that the database's stage-to-field authority CHECK reads.
+   */
+  stage?: StageV1 | null;
   bindingStatus?: 'accepted' | 'candidate' | 'unresolved' | 'conflicting' | 'not_applicable';
   enactmentProofId?: string | null;
   directOrDerived: 'direct' | 'derived' | 'not_applicable';
