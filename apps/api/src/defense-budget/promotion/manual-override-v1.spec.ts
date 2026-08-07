@@ -40,6 +40,7 @@ function override(o: Record<string, unknown> = {}): DefenseBudgetManualOverrideV
     version: 1,
     effectiveFrom: '2026-08-01T00:00:00.000Z',
     effectiveTo: null,
+    proposedAt: '2026-07-31T00:00:00.000Z',
     approvedAt: '2026-08-01T00:00:00.000Z',
     ...o,
   });
@@ -71,6 +72,7 @@ function raw(o: Record<string, unknown> = {}): Record<string, unknown> {
     status: 'approved',
     version: 1,
     effectiveFrom: '2026-08-01T00:00:00.000Z',
+    proposedAt: '2026-07-31T00:00:00.000Z',
     approvedAt: '2026-08-01T00:00:00.000Z',
     ...o,
   };
@@ -139,6 +141,96 @@ describe('Phase 7 WS K — segregation of duties', () => {
       }),
     );
     expect(noEvidence).toContain('governance.evidenceIds');
+  });
+});
+
+describe('Phase 7 WS K — the two-step propose/approve flow', () => {
+  const proposal = (o: Record<string, unknown> = {}) =>
+    raw({
+      status: 'proposed',
+      approvedAt: undefined,
+      governance: {
+        authorActorId: 'analyst-1',
+        approverActorId: undefined,
+        approverRole: undefined,
+        reason: 'OP-5 line was transposed in the published PDF',
+        evidenceIds: ['issue-42'],
+      },
+      ...o,
+    });
+
+  it('accepts a proposal that names no approver', () => {
+    const parsed = parseManualOverrideV1(proposal());
+    expect(parsed.status).toBe('proposed');
+    expect(parsed.governance.approverActorId).toBeUndefined();
+  });
+
+  it('refuses a proposal that names an approver anyway', () => {
+    expect(
+      refusalPaths(
+        proposal({
+          governance: {
+            authorActorId: 'analyst-1',
+            approverActorId: 'admin-1',
+            approverRole: 'capiro_admin',
+            reason: 'r',
+            evidenceIds: ['e'],
+          },
+        }),
+      ),
+    ).toContain('governance.approverActorId');
+  });
+
+  it('refuses a proposal carrying an approval timestamp', () => {
+    expect(refusalPaths(proposal({ approvedAt: '2026-08-01T00:00:00.000Z' }))).toContain(
+      'approvedAt',
+    );
+  });
+
+  it('refuses an approved override that names no approver', () => {
+    expect(
+      refusalPaths(
+        raw({
+          governance: {
+            authorActorId: 'analyst-1',
+            reason: 'r',
+            evidenceIds: ['e'],
+          },
+        }),
+      ),
+    ).toContain('governance.approverActorId');
+  });
+
+  it('refuses an approved override with no approval timestamp', () => {
+    expect(refusalPaths(raw({ approvedAt: undefined }))).toContain('approvedAt');
+  });
+
+  it('never lets one actor occupy both roles, in either direction', () => {
+    // There is no shape in which author and approver are the same person: a
+    // proposal has no approver field to fill, and an approval must differ.
+    expect(
+      refusalPaths(
+        raw({
+          governance: {
+            authorActorId: 'analyst-1',
+            approverActorId: 'analyst-1',
+            approverRole: 'capiro_admin',
+            reason: 'r',
+            evidenceIds: ['e'],
+          },
+        }),
+      ),
+    ).toContain('governance.approverActorId');
+  });
+
+  it('does not put a proposal in force, whatever its dates say', () => {
+    const parsed = parseManualOverrideV1(proposal());
+    expect(effectiveOverrideStatusV1(parsed, AT('2026-08-15T00:00:00.000Z'))).toBe('proposed');
+  });
+
+  it('does not let a proposal defend a value against a new snapshot', () => {
+    const parsed = parseManualOverrideV1(proposal());
+    expect(toManualOverlayV1(parsed, AT('2026-08-15T00:00:00.000Z')).status).toBe('expired');
   });
 });
 

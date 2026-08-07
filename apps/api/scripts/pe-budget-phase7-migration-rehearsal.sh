@@ -247,23 +247,46 @@ run_sql "DELETE FROM defense_budget_canonical_row WHERE canonical_natural_key = 
 # =============================================================================
 log "Workstream K: the governed manual-override overlay"
 # =============================================================================
+# A proposal names no approver and no approval time; anything past `proposed`
+# must have both. Passing an approver alongside status=proposed is exactly the
+# shape the two-step CHECK exists to refuse, so the helper emits it verbatim
+# rather than silently correcting it.
 override_row() {
   local id="$1"; local author="$2"; local approver="$3"
   local version="$4"; local prior="$5"; local status="${6:-approved}"
   local revoked="${7:-NULL}"
+  local key="${8:-ARMY|OMA|SAG-111}"
+  local approver_sql="'$approver'" role_sql="'capiro_admin'" approved_sql="now()"
+  if [ "$approver" = "NONE" ]; then
+    approver_sql=NULL; role_sql=NULL; approved_sql=NULL
+  fi
   echo "
 INSERT INTO defense_budget_manual_override
   (override_id, canonical_entity, canonical_natural_key, fiscal_year, funding_field,
    money_original_value, money_original_unit, money_value_millions,
    author_actor_id, approver_actor_id, approver_role, reason, evidence_ids,
-   status, version, prior_override_id, effective_from, approved_at, revoked_at, override_hash)
+   status, version, prior_override_id, effective_from, proposed_at, approved_at,
+   revoked_at, override_hash)
 VALUES
-  ('$id', 'canonical_om_sag_year', 'ARMY|OMA|SAG-111', 2027, 'request',
+  ('$id', 'canonical_om_sag_year', '$key', 2027, 'request',
    '1250', 'thousands', 1.25,
-   '$author', '$approver', 'capiro_admin', 'transposed in the published PDF',
+   '$author', $approver_sql, $role_sql, 'transposed in the published PDF',
    '[\"issue-42\"]'::jsonb,
-   '$status', $version, $prior, now(), now(), $revoked, '$SHA_A');"
+   '$status', $version, $prior, now(), now(), $approved_sql, $revoked, '$SHA_A');"
 }
+
+# --- the two-step flow ------------------------------------------------------
+expect_fail "a proposal that names an approver anyway" \
+  "$(override_row '33333333-0000-0000-0000-00000000000a' 'analyst-1' 'admin-1' 1 NULL 'proposed')"
+
+expect_fail "an approved override that names no approver" \
+  "$(override_row '33333333-0000-0000-0000-00000000000b' 'analyst-1' 'NONE' 1 NULL 'approved')"
+
+# A distinct target, so this proposal does not collide with the approved chain
+# built below on (target identity, version).
+"${PSQL[@]}" -c "$(override_row '33333333-0000-0000-0000-00000000000c' 'analyst-1' 'NONE' 1 NULL 'proposed' NULL 'ARMY|OMA|SAG-222')" >/dev/null \
+  || fail "a proposal authored by one admin was refused"
+ok "one admin may propose a correction, naming no approver"
 
 expect_fail "an override approved by its own author" \
   "$(override_row '33333333-0000-0000-0000-000000000001' 'analyst-1' 'analyst-1' 1 NULL)"
@@ -273,11 +296,11 @@ INSERT INTO defense_budget_manual_override
   (override_id, canonical_entity, canonical_natural_key, money_original_value,
    money_original_unit, money_value_millions, author_actor_id, approver_actor_id,
    approver_role, reason, evidence_ids, status, version, effective_from,
-   approved_at, override_hash)
+   proposed_at, approved_at, override_hash)
 VALUES
   ('33333333-0000-0000-0000-000000000002', 'canonical_om_sag_year', 'ARMY|OMA|SAG-111',
    '1250', 'thousands', 1.25, 'analyst-1', 'analyst-2', 'capiro_user', 'r',
-   '[\"e\"]'::jsonb, 'approved', 1, now(), now(), '$SHA_A');"
+   '[\"e\"]'::jsonb, 'approved', 1, now(), now(), now(), '$SHA_A');"
 
 expect_fail "a first version that claims to supersede something" \
   "$(override_row '33333333-0000-0000-0000-000000000003' 'analyst-1' 'admin-1' 1 "'33333333-0000-0000-0000-000000000009'")"
@@ -316,7 +339,7 @@ $(override_row '33333333-0000-0000-0000-000000000007' 'analyst-1' 'admin-1' 1 NU
 # -q so psql does not echo the SET command tag ahead of the count.
 PROMOTER_OVERRIDE_COUNT="$(docker exec -i "$NAME" psql -U "$USER_NAME" -d "$DB_NAME" -q -tAc \
   "SET ROLE capiro_pe_promoter; SELECT count(*) FROM defense_budget_manual_override;" 2>&1 | tr -d '[:space:]')"
-[ "$PROMOTER_OVERRIDE_COUNT" = "2" ] \
+[ "$PROMOTER_OVERRIDE_COUNT" = "3" ] \
   || fail "the promoter cannot read the overlay it must not overwrite (got: '$PROMOTER_OVERRIDE_COUNT')"
 ok "promoter reads manual overrides but cannot author one"
 

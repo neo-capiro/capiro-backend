@@ -636,8 +636,10 @@ CREATE TABLE "defense_budget_manual_override" (
 
     -- Governance.
     "author_actor_id"    TEXT NOT NULL,
-    "approver_actor_id"  TEXT NOT NULL,
-    "approver_role"      TEXT NOT NULL,
+    -- Absent while proposed. A one-actor route physically cannot produce an
+    -- approved override, because the author has no column to name themselves in.
+    "approver_actor_id"  TEXT,
+    "approver_role"      TEXT,
     "reason"             TEXT NOT NULL,
     "evidence_ids"       JSONB NOT NULL,
     "change_request_ref" TEXT,
@@ -648,7 +650,8 @@ CREATE TABLE "defense_budget_manual_override" (
 
     "effective_from"     TIMESTAMPTZ(6) NOT NULL,
     "effective_to"       TIMESTAMPTZ(6),
-    "approved_at"        TIMESTAMPTZ(6) NOT NULL,
+    "proposed_at"        TIMESTAMPTZ(6) NOT NULL,
+    "approved_at"        TIMESTAMPTZ(6),
     "revoked_at"         TIMESTAMPTZ(6),
 
     "override_hash"      CHAR(64) NOT NULL,
@@ -658,13 +661,30 @@ CREATE TABLE "defense_budget_manual_override" (
     -- enforces this inside the Zod schema; a direct SQL writer bypasses the
     -- application, so the database refuses it too.
     CONSTRAINT "defense_budget_manual_override_author_not_approver_check"
-        CHECK ("author_actor_id" <> "approver_actor_id"),
+        CHECK ("approver_actor_id" IS NULL OR "author_actor_id" <> "approver_actor_id"),
 
     CONSTRAINT "defense_budget_manual_override_approver_role_check"
-        CHECK ("approver_role" = 'capiro_admin'),
+        CHECK ("approver_role" IS NULL OR "approver_role" = 'capiro_admin'),
 
     CONSTRAINT "defense_budget_manual_override_status_check"
-        CHECK ("status" IN ('approved', 'revoked')),
+        CHECK ("status" IN ('proposed', 'approved', 'revoked')),
+
+    -- The two-step flow. A proposal names no approver and carries no approval
+    -- timestamp; anything past `proposed` must have both. Together with the
+    -- author<>approver check above, there is no row shape in which one actor
+    -- both authored and approved a correction.
+    CONSTRAINT "defense_budget_manual_override_two_step_check"
+        CHECK (
+          ("status" = 'proposed'
+             AND "approver_actor_id" IS NULL
+             AND "approver_role" IS NULL
+             AND "approved_at" IS NULL)
+          OR
+          ("status" <> 'proposed'
+             AND "approver_actor_id" IS NOT NULL
+             AND "approver_role" IS NOT NULL
+             AND "approved_at" IS NOT NULL)
+        ),
 
     -- Expiry is derived from the dates at read time, never stored, so an
     -- override cannot outlive its window because a job failed to flip a flag.

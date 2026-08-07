@@ -85,12 +85,18 @@ export type ManualOverrideValueV1 = z.infer<typeof manualOverrideValueV1Schema>;
  * Who authored the correction and who approved it, recorded at approval time
  * so the separation stays auditable without re-deriving it from mutable role
  * tables — the same reason `PromotionSegregationEvidenceV1` is stored.
+ *
+ * The approver is absent while a correction is still `proposed`. That is the
+ * whole point of the two-step flow: the author cannot supply an approver, so
+ * there is no shape in which one actor both proposes and approves. The record
+ * schema below requires the approver to be present the moment the status is
+ * anything other than `proposed`.
  */
 export const manualOverrideGovernanceV1Schema = z
   .object({
     authorActorId: nonBlank,
-    approverActorId: nonBlank,
-    approverRole: z.literal('capiro_admin'),
+    approverActorId: nonBlank.nullish(),
+    approverRole: z.literal('capiro_admin').nullish(),
     /** Free-text justification. An override with no stated reason is refused. */
     reason: nonBlank,
     /**
@@ -122,11 +128,15 @@ export type ManualOverrideGovernanceV1 = z.infer<typeof manualOverrideGovernance
 /* ------------------------------------------------------------------ */
 
 /**
- * Decisions a human made. Expiry is deliberately absent: it is a function of
- * `effectiveTo` and the current instant, not a state someone has to remember to
- * write. See `effectiveOverrideStatusV1`.
+ * Decisions a human made.
+ *
+ * `proposed` is authored by one admin and is **not in force** — it defends
+ * nothing and blocks no promotion until a second admin approves it. Expiry is
+ * deliberately absent from this list: it is a function of `effectiveTo` and the
+ * current instant, not a state someone has to remember to write. See
+ * `effectiveOverrideStatusV1`.
  */
-export const MANUAL_OVERRIDE_STATUS_V1_VALUES = ['approved', 'revoked'] as const;
+export const MANUAL_OVERRIDE_STATUS_V1_VALUES = ['proposed', 'approved', 'revoked'] as const;
 export type ManualOverrideStatusV1 = (typeof MANUAL_OVERRIDE_STATUS_V1_VALUES)[number];
 
 export const defenseBudgetManualOverrideV1Schema = z
@@ -152,9 +162,11 @@ export const defenseBudgetManualOverrideV1Schema = z
     effectiveFrom: isoInstant,
     /** Open-ended when null. */
     effectiveTo: isoInstant.nullish(),
-    approvedAt: isoInstant,
+    /** Absent while `proposed`; set the moment a second admin approves. */
+    approvedAt: isoInstant.nullish(),
     /** Set only when `status` is `revoked`; the record itself stays immutable. */
     revokedAt: isoInstant.nullish(),
+    proposedAt: isoInstant,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -168,6 +180,55 @@ export const defenseBudgetManualOverrideV1Schema = z
         path: ['effectiveTo'],
       });
     }
+
+    /*
+     * The two-step flow, enforced structurally. A proposal carries no approver
+     * and no approval timestamp, so there is no way to express "I approved my
+     * own correction" — the author simply has no field to put themselves in.
+     * Anything past `proposed` must name the second admin.
+     */
+    const proposed = value.status === 'proposed';
+    const g = value.governance;
+
+    if (proposed) {
+      if (g.approverActorId != null || g.approverRole != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'a proposed override has not been approved and names no approver',
+          path: ['governance', 'approverActorId'],
+        });
+      }
+      if (value.approvedAt != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'a proposed override has no approval timestamp',
+          path: ['approvedAt'],
+        });
+      }
+    } else {
+      if (g.approverActorId == null || g.approverRole == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'an override past the proposed state must name the capiro_admin who approved it',
+          path: ['governance', 'approverActorId'],
+        });
+      }
+      if (g.approverActorId != null && g.approverActorId === g.authorActorId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'a manual override may not be approved by its own author',
+          path: ['governance', 'approverActorId'],
+        });
+      }
+      if (value.approvedAt == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'an approved override must record when it was approved',
+          path: ['approvedAt'],
+        });
+      }
+    }
+
     if (value.status === 'revoked' && value.revokedAt == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -210,14 +271,17 @@ export function parseManualOverrideV1(input: unknown): DefenseBudgetManualOverri
 /**
  * Whether an override is in force at `asOf`.
  *
- * Revocation beats dates — a revoked override is revoked even inside its
- * effective window. `pending` is distinct from `expired` so a future-dated
- * correction is never mistaken for one that has lapsed.
+ * Order is the policy. An unapproved proposal is never in force no matter what
+ * its dates say — one admin's opinion does not defend a value against a new
+ * snapshot. Revocation then beats dates, so a revoked override is revoked even
+ * inside its effective window. `pending` is distinct from `expired` so a
+ * future-dated correction is never mistaken for one that has lapsed.
  */
 export function effectiveOverrideStatusV1(
   override: DefenseBudgetManualOverrideV1,
   asOf: Date,
-): 'active' | 'expired' | 'revoked' | 'pending' {
+): 'active' | 'expired' | 'revoked' | 'pending' | 'proposed' {
+  if (override.status === 'proposed') return 'proposed';
   if (override.status === 'revoked') return 'revoked';
   const instant = asOf.getTime();
   if (instant < Date.parse(override.effectiveFrom)) return 'pending';
@@ -232,8 +296,10 @@ export function effectiveOverrideStatusV1(
  * `active` overlay whose official value *changes* beneath it blocks with
  * `manual_override_collision`, while an unchanged value does not. K's job is to
  * decide which overrides are active at plan time, not to re-decide what a
- * collision means. `pending` maps to `expired` because both mean "not in force,
- * do not defend" — the planner has no third state and does not need one.
+ * collision means. `pending` and `proposed` both map to `expired` because all
+ * three mean "not in force, do not defend" — the planner has no further state
+ * and does not need one. In particular a proposal must not block a promotion:
+ * until a second admin approves it, it is one person's opinion.
  */
 export function toManualOverlayV1(
   override: DefenseBudgetManualOverrideV1,

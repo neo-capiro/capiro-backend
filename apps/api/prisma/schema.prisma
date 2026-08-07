@@ -8677,8 +8677,8 @@ model DefenseBudgetManualOverride {
   moneyValueMillions Decimal @map("money_value_millions") @db.Decimal(24, 9)
 
   authorActorId    String  @map("author_actor_id")
-  approverActorId  String  @map("approver_actor_id")
-  approverRole     String  @map("approver_role")
+  approverActorId  String? @map("approver_actor_id")
+  approverRole     String? @map("approver_role")
   reason           String
   evidenceIds      Json    @map("evidence_ids")
   changeRequestRef String? @map("change_request_ref")
@@ -8689,7 +8689,8 @@ model DefenseBudgetManualOverride {
 
   effectiveFrom DateTime  @map("effective_from") @db.Timestamptz(6)
   effectiveTo   DateTime? @map("effective_to") @db.Timestamptz(6)
-  approvedAt    DateTime  @map("approved_at") @db.Timestamptz(6)
+  proposedAt    DateTime  @map("proposed_at") @db.Timestamptz(6)
+  approvedAt    DateTime? @map("approved_at") @db.Timestamptz(6)
   revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
 
   overrideHash String   @map("override_hash") @db.Char(64)
