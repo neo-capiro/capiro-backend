@@ -552,6 +552,22 @@ case "${1:-serve}" in
   # by default; a dispatched task passes --commit. Resumable via
   # tango_sync_checkpoint, same as sync-tango-vehicles above.
   sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts "$@" ;;
+  # Funding Opportunities P27: Tango<->SAM SHADOW sync. Reads the provider's
+  # opportunity catalog and writes ONLY provider-owned tables — the P15
+  # snapshot, the P15 exact-identifier link, and the P27 per-field parity
+  # ledger. It never writes to sam_opportunity: first-party ingestion stays
+  # canonical and a conflict is recorded, never merged. Links only when
+  # EXACTLY ONE local notice carries the same solicitation number; more than
+  # one is 'ambiguous' and links nothing. Dry-run by default; a dispatched
+  # task passes --commit. Optional --limit=<n> --changed-since=<ISO date>.
+  sync-tango-opportunity-shadow) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-shadow.ts "$@" ;;
+  # Funding Opportunities P27: READ-ONLY crosswalk/parity report. No Tango
+  # call and no key — reads Capiro's own tango_opportunity_parity,
+  # tango_resource_link and tango_sync_checkpoint. Exits nonzero ONLY when an
+  # operator-set threshold is breached (--max-conflicts / --max-ambiguous /
+  # --stale-hours); an ordinary unlinked row is the expected state of a
+  # verification rail, not a failure.
+  diag-tango-opportunity-parity) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-opportunity-parity.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
