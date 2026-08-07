@@ -264,6 +264,7 @@ model Tenant {
   clientMemoryAccessGrants     ClientMemoryAccess[]
   clientGrantNexuses           ClientGrantNexus[]
   clientFundingOpportunities   ClientFundingOpportunity[]
+  fundingOpportunityStageTransitions FundingOpportunityStageTransition[]
   outreachDraftArtifacts       OutreachDraftArtifact[]
   outreachDraftVersions        OutreachDraftVersion[]
   outreachSendIntents          OutreachSendIntent[]
@@ -6091,6 +6092,39 @@ model ClientFundingOpportunity {
   /// Free-text won/lost context. Only ever set by an explicit user action.
   outcomeNote     String? @map("outcome_note") @db.Text
 
+  /// The pursuit pipeline stage (P35): reviewing | qualified | pursuing |
+  /// submitted | won | lost | passed. CHECK-constrained in migration
+  /// 20260901010000.
+  ///
+  /// A SECOND field beside `workflowStatus`, never a replacement. That column
+  /// carries two values that are not capture stages at all — `suggested` is the
+  /// producer's own output and `expired` is a mechanical consequence of the
+  /// source closing — and it has no room for `qualified` or `submitted`.
+  ///
+  /// NULLABLE, and the NULL is load-bearing twice over. During a rolling deploy
+  /// an older pod INSERTs without it and must succeed. And a producer-created
+  /// `suggested` row genuinely HAS no stage: mapping it to `reviewing` would put
+  /// the producer's whole backlog on a board column named for a human activity
+  /// nobody is performing. `expired` is unstaged for the same reason in reverse —
+  /// which stage a row was in when the source closed is not recorded, and picking
+  /// one fabricates a capture history.
+  ///
+  /// Reads reconcile this with `workflowStatus` in exactly one place
+  /// (`effectiveStage` in funding-opportunity-pipeline.ts): the legacy status wins
+  /// for anything it can express, and this column only adds resolution the legacy
+  /// one cannot.
+  pipelineStage         String?   @map("pipeline_stage") @db.VarChar(16)
+  /// Optimistic-concurrency token. The transition service puts this in the WHERE,
+  /// so two simultaneous drags cannot both succeed — the loser updates 0 rows and
+  /// gets a conflict rather than silently discarding the other person's decision.
+  /// NOT NULL DEFAULT 0 so an older pod's INSERT still produces a usable token.
+  pipelineStageVersion  Int       @default(0) @map("pipeline_stage_version")
+  pipelineStageAt       DateTime? @map("pipeline_stage_at") @db.Timestamptz(6)
+  /// Who moved it. NULL on a non-NULL stage is MEANINGFUL, not missing: it means
+  /// the migration inferred the stage from the legacy status, so the read reports
+  /// the basis as derived rather than claiming a person moved it.
+  pipelineStageByUserId String?   @map("pipeline_stage_by_user_id") @db.Uuid
+
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -6098,6 +6132,8 @@ model ClientFundingOpportunity {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  stageTransitions FundingOpportunityStageTransition[]
 
   // ONE workflow row per (tenant, client, source opportunity) — a saved
   // opportunity that the producer re-scores must update in place, not accumulate
@@ -6111,6 +6147,7 @@ model ClientFundingOpportunity {
   // for the same reason — the writers do find-then-create-or-update, matching
   // SamOpportunityMatch and generate-grant-opportunity-candidates.ts.
   @@index([tenantId, clientId, workflowStatus], map: "client_funding_opportunity_tenant_client_status_idx")
+  @@index([tenantId, clientId, pipelineStage], map: "client_funding_opportunity_pipeline_stage_idx")
   @@index([tenantId, grantOpportunityId], map: "client_funding_opportunity_tenant_grant_idx")
   @@index([tenantId, samOpportunityId], map: "client_funding_opportunity_tenant_sam_idx")
   @@index([tenantId, ownerUserId], map: "client_funding_opportunity_tenant_owner_idx")
@@ -6929,6 +6966,43 @@ model OpportunityRequirementReview {
   @@unique([tenantId, requirementId], map: "opportunity_requirement_review_tenant_req_uniq")
   @@index([tenantId, status], map: "opportunity_requirement_review_status_idx")
   @@map("opportunity_requirement_review")
+}
+
+/// One recorded stage move on a tracked opportunity (Funding Opportunities P35).
+///
+/// TENANT-SCOPED with RLS ENABLED + FORCED, unlike the provider catalog tables in
+/// this program: "who moved this to lost, when, and why" is a fact about ONE team.
+///
+/// `actorUserId` is NOT NULL. There is no way to record a stage move nobody
+/// performed, which is what "producers cannot alter stage" means at the schema
+/// level rather than as a convention.
+///
+/// The migration CHECKs that `submitted`, `won`, `lost` and `passed` carry a
+/// non-empty `reason` — a recorded loss nobody explained is a loss nobody can
+/// learn from — and that `fromStage <> toStage`, because a move to where it
+/// already was is not a move.
+model FundingOpportunityStageTransition {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  clientFundingOpportunityId String @map("client_funding_opportunity_id") @db.Uuid
+
+  /// NULL means "entered the pipeline". A real and common first entry.
+  fromStage String? @map("from_stage") @db.VarChar(16)
+  toStage   String  @map("to_stage") @db.VarChar(16)
+
+  actorUserId String  @map("actor_user_id") @db.Uuid
+  reason      String? @db.Text
+
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  row    ClientFundingOpportunity @relation(fields: [clientFundingOpportunityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientFundingOpportunityId, occurredAt(sort: Desc)], map: "funding_opportunity_stage_transition_row_idx")
+  @@index([tenantId, actorUserId, occurredAt(sort: Desc)], map: "funding_opportunity_stage_transition_actor_idx")
+  @@map("funding_opportunity_stage_transition")
 }
 
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)

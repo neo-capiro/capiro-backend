@@ -7,6 +7,7 @@ import { ForecastOpportunityReadService } from './forecast-opportunity-read.serv
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
+import { FundingOpportunityPipelineService } from './funding-opportunity-pipeline.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
@@ -16,6 +17,7 @@ import {
   FundingOpportunitiesDocumentsFlagGuard,
   FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
+  FundingOpportunitiesPipelineFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -74,6 +76,9 @@ import {
     // notice reads rather than duplicating them — the plan's own "consume, do
     // not duplicate" line for program-element and client data.
     GovernmentLandscapeService,
+    // P35. Depends only on PrismaService. Writes BOTH pipeline_stage and the
+    // legacy workflow_status in one statement, so an older reader stays correct.
+    FundingOpportunityPipelineService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -85,6 +90,7 @@ import {
     FundingOpportunitiesNoticeHistoryFlagGuard,
     FundingOpportunitiesDocumentsFlagGuard,
     FundingOpportunitiesLandscapeFlagGuard,
+    FundingOpportunitiesPipelineFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })
