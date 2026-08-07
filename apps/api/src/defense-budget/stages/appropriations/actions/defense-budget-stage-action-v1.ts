@@ -1,5 +1,6 @@
 /** Phase 6 Workstream J — strict typed stage-action companion contract. */
 import { z } from 'zod';
+import { stripUndefinedProperties } from '../../../contracts/canonical-json.js';
 import { isCanonicalDecimalString } from '../../../contracts/decimal-string.js';
 import {
   budgetLineIdentityV1Schema,
@@ -229,7 +230,8 @@ export const defenseBudgetStageActionV1Schema = z
         path: ['direction'],
       });
     }
-  });
+  })
+  .transform(stripUndefinedProperties);
 export type DefenseBudgetStageActionV1 = z.infer<typeof defenseBudgetStageActionV1Schema>;
 
 export const appropriationsLanguageFactV1Schema = z

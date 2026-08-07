@@ -1,4 +1,5 @@
 /** Phase 6 Workstream K — exact appropriations conference vehicle proof. */
+import type { DefenseBudgetAssertionV1 } from '../../contracts/extraction-artifact-v1.js';
 import {
   APPROPRIATIONS_CONFERENCE_VEHICLE_PROOF_FIELD,
   appropriationsConferenceVehicleProofV1Schema,
@@ -10,6 +11,8 @@ import {
   skippedCheck,
   type VerificationRuleV1,
 } from './rule-types.js';
+
+type DocumentFactAssertionV1 = Extract<DefenseBudgetAssertionV1, { assertionKind: 'document_fact' }>;
 
 export const APPROPRIATIONS_CONFERENCE_VEHICLE_RULE: VerificationRuleV1 = {
   code: 'appropriations_conference_vehicle_proof',
@@ -35,7 +38,7 @@ export const APPROPRIATIONS_CONFERENCE_VEHICLE_RULE: VerificationRuleV1 = {
       };
     }
     const proofAssertions = ctx.input.artifact.assertions.filter(
-      (assertion) =>
+      (assertion): assertion is DocumentFactAssertionV1 =>
         assertion.assertionKind === 'document_fact' &&
         assertion.fieldName === APPROPRIATIONS_CONFERENCE_VEHICLE_PROOF_FIELD,
     );

@@ -1,4 +1,5 @@
 /** Phase 6 Workstream L — enacted funding requires an independently proved enactment chain. */
+import type { DefenseBudgetAssertionV1 } from '../../contracts/extraction-artifact-v1.js';
 import {
   DEFENSE_BUDGET_ENACTMENT_PROOF_FIELD,
   defenseBudgetEnactmentProofV1Schema,
@@ -10,6 +11,8 @@ import {
   skippedCheck,
   type VerificationRuleV1,
 } from './rule-types.js';
+
+type DocumentFactAssertionV1 = Extract<DefenseBudgetAssertionV1, { assertionKind: 'document_fact' }>;
 
 function artifactSourceDocumentId(artifact: {
   source: { sourceDocumentId?: string; manifestDocumentKey: string };
@@ -42,7 +45,7 @@ export const ENACTMENT_PROOF_RULE: VerificationRuleV1 = {
     const assertionIds = enacted.map((item) => item.assertionId);
     const evidenceIds = [...new Set(enacted.flatMap((item) => item.evidenceIds))];
     const proofAssertions = ctx.input.artifact.assertions.filter(
-      (assertion) =>
+      (assertion): assertion is DocumentFactAssertionV1 =>
         assertion.assertionKind === 'document_fact' &&
         assertion.fieldName === DEFENSE_BUDGET_ENACTMENT_PROOF_FIELD,
     );

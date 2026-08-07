@@ -1,5 +1,8 @@
 /** Phase 6 Workstream K — independent appropriations conference certification. */
-import type { DefenseBudgetExtractionArtifactV1 } from '../../../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetAssertionV1,
+  DefenseBudgetExtractionArtifactV1,
+} from '../../../contracts/extraction-artifact-v1.js';
 import { ReferenceArtifactIndexV1 } from '../../../verification/rules/comparison/reference-artifact-index.js';
 import {
   APPROPRIATIONS_CONFERENCE_CHAMBER_POSITIONS_FIELD,
@@ -7,6 +10,8 @@ import {
   appropriationsConferenceChamberPositionsV1Schema,
   appropriationsConferenceVehicleProofV1Schema,
 } from './appropriations-conference-facts-v1.js';
+
+type DocumentFactAssertionV1 = Extract<DefenseBudgetAssertionV1, { assertionKind: 'document_fact' }>;
 
 export interface AppropriationsConferenceCertificationV1 {
   schemaVersion: 'appropriations_conference_certification_v1';
@@ -30,7 +35,7 @@ export function certifyAppropriationsConferenceV1(input: {
   if (conference.length === 0) findings.push('conference_position_missing');
 
   const proofAssertions = input.artifact.assertions.filter(
-    (assertion) =>
+    (assertion): assertion is DocumentFactAssertionV1 =>
       assertion.assertionKind === 'document_fact' &&
       assertion.fieldName === APPROPRIATIONS_CONFERENCE_VEHICLE_PROOF_FIELD,
   );

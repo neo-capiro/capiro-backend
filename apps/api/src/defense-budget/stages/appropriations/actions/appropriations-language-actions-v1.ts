@@ -74,7 +74,7 @@ export function classifyAppropriationsLanguageActionTypesV1(
   if (/\bgeneral provision\b|\bgeneral provisions\b/.test(normalized)) {
     types.push('general_provision');
   }
-  return [...new Set(types.length > 0 ? types : ['other'])];
+  return [...new Set<DefenseBudgetStageActionTypeV1>(types.length > 0 ? types : ['other'])];
 }
 
 export function composeAppropriationsLanguageActionsV1(

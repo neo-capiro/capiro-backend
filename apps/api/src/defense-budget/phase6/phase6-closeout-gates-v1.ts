@@ -52,7 +52,11 @@ export function scanPhase6ArchitectureSourceV1(source: string): Phase6Architectu
     ],
     [
       'prisma_dml',
-      /\bPrismaClient\b|\.\s*(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw/,
+      // The DML verb must hang off an identifier (`prisma.programElement.create(`,
+      // `tx.budgetAction.update(`). Requiring the leading `\w` keeps every Prisma
+      // delegate shape while excluding verbs chained onto a call result, such as
+      // `createHash('sha256').update(...)`, which is hashing, not canonical DML.
+      /\bPrismaClient\b|\w\s*\.\s*(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw/,
       'Phase 6 stage/extraction production paths may not perform direct Prisma/canonical DML',
     ],
     [

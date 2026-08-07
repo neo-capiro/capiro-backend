@@ -1,5 +1,6 @@
 /** Phase 6 Workstream L — strict enacted-proof chain. */
 import { z } from 'zod';
+import { stripUndefinedProperties } from '../../contracts/canonical-json.js';
 import {
   budgetLineIdentityV1Schema,
   moneyValueV1Schema,
@@ -112,7 +113,8 @@ export const defenseBudgetEnactmentProofV1Schema = z
         path: ['reviewerStatus'],
       });
     }
-  });
+  })
+  .transform(stripUndefinedProperties);
 export type DefenseBudgetEnactmentProofV1 = z.infer<typeof defenseBudgetEnactmentProofV1Schema>;
 
 export const enactedLineCandidateV1Schema = z

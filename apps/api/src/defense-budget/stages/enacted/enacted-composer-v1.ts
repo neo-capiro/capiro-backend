@@ -85,14 +85,22 @@ function assertLineDetailSource(
   }
 }
 
-function assertProof(input: {
+/**
+ * Proof-, profile-, and vehicle-level invariants.
+ *
+ * A failure here invalidates the entire enactment context, not one line, so it
+ * aborts composition instead of blocking a single candidate. A continuing
+ * resolution without explicit line authority, a public-law number that does not
+ * match the governing profile, or a superseded source document must not be able
+ * to emit any enacted funding at all.
+ */
+function assertEnactmentContextV1(input: {
   profile: DefenseBudgetStageSourceProfileV1;
   publicLawSource: ExtractionSourceV1;
   lineDetailSource: ExtractionSourceV1;
   proof: DefenseBudgetEnactmentProofV1;
-  candidate: EnactedLineCandidateV1;
 }): void {
-  const { profile, publicLawSource, lineDetailSource, proof, candidate } = input;
+  const { profile, publicLawSource, lineDetailSource, proof } = input;
   if (
     profile.stage !== 'public_law' ||
     profile.authority !== 'enacted_public_law' ||
@@ -102,7 +110,6 @@ function assertProof(input: {
   }
   if (
     proof.fiscalYear !== profile.fiscalYear ||
-    candidate.fiscalYear !== profile.fiscalYear ||
     publicLawSource.fiscalYear !== profile.fiscalYear ||
     lineDetailSource.fiscalYear !== profile.fiscalYear
   ) {
@@ -112,17 +119,12 @@ function assertProof(input: {
     throw new Error('public-law number mismatch');
   }
   if (profile.billId !== proof.billId) throw new Error('enacted bill mismatch');
-  if (proof.vehicleProfileHash !== stageSourceProfileHashV1(profile)) {
-    throw new Error('enactment proof source-profile hash mismatch');
-  }
   if (
     !profile.sourceDocumentKeys.includes(publicLawSource.manifestDocumentKey) ||
     !profile.sourceDocumentKeys.includes(lineDetailSource.manifestDocumentKey)
   ) {
     throw new Error('enactment sources are not governed by the source profile');
   }
-  assertPublicLawSource(publicLawSource, proof);
-  assertLineDetailSource(lineDetailSource, proof);
   if (proof.publicLawSource.status !== 'current' || proof.lineDetailSource.status !== 'current') {
     throw new Error('stale/superseded enactment source is forbidden');
   }
@@ -134,6 +136,27 @@ function assertProof(input: {
       throw new Error('incorporation evidence is not bound to the proved public-law bytes');
     }
   }
+  if (proof.reviewerStatus === 'pending' || proof.reviewerStatus === 'rejected') {
+    throw new Error('enactment proof is not reviewed/verified');
+  }
+  if (proof.vehicleKind === 'continuing_resolution' && !proof.explicitLineAuthority) {
+    throw new Error('continuing resolution cannot masquerade as full-year enacted position');
+  }
+}
+
+/**
+ * Candidate-level invariants. A failure blocks that one line and is recorded as
+ * a blocking omission; the remaining candidates still compose.
+ */
+function assertCandidateAgainstProofV1(input: {
+  profile: DefenseBudgetStageSourceProfileV1;
+  proof: DefenseBudgetEnactmentProofV1;
+  candidate: EnactedLineCandidateV1;
+}): void {
+  const { profile, proof, candidate } = input;
+  if (candidate.fiscalYear !== profile.fiscalYear) {
+    throw new Error('enacted fiscal-year mismatch');
+  }
   if (
     candidate.sourceDocumentId !== proof.lineDetailSource.sourceDocumentId ||
     candidate.sourceSha256 !== proof.lineDetailSource.sourceSha256
@@ -142,12 +165,6 @@ function assertProof(input: {
   }
   if (candidate.bindingStatus !== 'accepted') {
     throw new Error('candidate identity cannot create enacted funding');
-  }
-  if (proof.reviewerStatus === 'pending' || proof.reviewerStatus === 'rejected') {
-    throw new Error('enactment proof is not reviewed/verified');
-  }
-  if (proof.vehicleKind === 'continuing_resolution' && !proof.explicitLineAuthority) {
-    throw new Error('continuing resolution cannot masquerade as full-year enacted position');
   }
   if (proof.division != null && candidate.division !== proof.division) {
     throw new Error('omnibus division mismatch');
@@ -187,6 +204,12 @@ export function composeEnactedStageV1(input: {
   ) {
     throw new Error('line-detail parser run source SHA mismatch');
   }
+  assertEnactmentContextV1({
+    profile: input.profile,
+    publicLawSource: input.publicLawSource,
+    lineDetailSource: input.lineDetailSource,
+    proof,
+  });
 
   // The artifact source is the exact line-detail document that prints the line
   // amount. The public law is independently retained in the enactment proof.
@@ -251,13 +274,7 @@ export function composeEnactedStageV1(input: {
   for (const rawCandidate of input.candidates) {
     const candidate = enactedLineCandidateV1Schema.parse(rawCandidate);
     try {
-      assertProof({
-        profile: input.profile,
-        publicLawSource: input.publicLawSource,
-        lineDetailSource: input.lineDetailSource,
-        proof,
-        candidate,
-      });
+      assertCandidateAgainstProofV1({ profile: input.profile, proof, candidate });
     } catch (error) {
       coverage.blocked += 1;
       const factId = factIdV1({ candidateId: candidate.candidateId, kind: 'enacted_blocked' });

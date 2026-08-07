@@ -465,10 +465,16 @@ describe('Phase 6 Workstream O — exact mandatory 24 negative controls', () => 
   it('NC11 HASC/SASC disagreement remains explicit and is never auto-resolved', () => {
     const result = NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE.execute(ndaaDisagreementContext());
     expect(result.check?.outcome).toBe('PASS');
-    expect(JSON.stringify(result.check?.details)).toContain('houseVsSenateDelta');
-    expect(JSON.stringify(result.check?.details)).toContain('20');
-    expect(JSON.stringify(result.check?.details)).toContain('conferenceValue');
-    expect(JSON.stringify(result.check?.details)).toContain('110');
+    // Assert the exact recorded values, not substrings of the serialized details:
+    // the senate referenceValue "120" contains "20", so a substring check passes
+    // even when the chamber delta has been silently collapsed to zero.
+    const row = (result.check?.details as Record<string, Record<string, unknown>> | undefined)?.[
+      'conference-positions'
+    ];
+    expect(row).toBeDefined();
+    expect(row?.houseVsSenateDelta).toBe('20');
+    expect((row?.house as Record<string, unknown>).conferenceValue).toBe('110');
+    expect((row?.senate as Record<string, unknown>).conferenceValue).toBe('110');
   });
 
   it('NC12 NDAA conference cannot map to appropriations conference field', () => {
