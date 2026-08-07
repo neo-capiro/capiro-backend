@@ -29,7 +29,9 @@ import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
+import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
   FundingOpportunityInboxService,
   INBOX_FILTERS,
@@ -374,6 +376,7 @@ export class FundingOpportunitiesController {
     private readonly actions: FundingOpportunityActionsService,
     private readonly inboxService: FundingOpportunityInboxService,
     private readonly forecasts: ForecastOpportunityReadService,
+    private readonly timeline: OpportunityTimelineService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -447,6 +450,23 @@ export class FundingOpportunitiesController {
    * because the two catalogs have different key spaces — a bare id could be
    * routed to the wrong rail and 404 for a record that exists.
    */
+  /**
+   * The notice history for one SAM.gov solicitation, as a material-change
+   * timeline (P28).
+   *
+   * Declared BEFORE `opportunities/:source/:id` — a three-segment route cannot
+   * collide with a two-segment one, but keeping the timeline next to the
+   * forecast route reads better than burying it below the writes.
+   *
+   * READ-ONLY, and it emits nothing: no alert, no task, no write. Alerting on a
+   * material change is P48's job, deliberately not this phase's.
+   */
+  @Get('opportunities/:source/:id/timeline')
+  @UseGuards(FundingOpportunitiesNoticeHistoryFlagGuard)
+  timelineFor(@Param() params: SourceParamDto, @Param('id') id: string) {
+    return this.timeline.getTimeline(params.source, id);
+  }
+
   @Get('opportunities/:source/:id')
   getOne(
     @CurrentTenant() ctx: TenantContext,

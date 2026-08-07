@@ -681,6 +681,61 @@ unreviewed row carries neither). There is no review CLI in this phase — the
 operational default is source precedence, which is already what the code does:
 the local value stays canonical whether or not anybody looks.
 
+### Notice history and material-change timeline (P28) — a migration, one NEW flag
+
+`prisma/migrations/20260827010000_tango_opportunity_notice_history` adds ONE
+new **global** table, `tango_opportunity_notice` (no tenant_id, no RLS, no FK).
+Additive; apply it in the normal migration step below.
+
+Adds `funding_opportunities_notice_history`, which gates the read route
+(`GET /api/intelligence/opportunities/:source/:id/timeline`) and the timeline
+panel on the detail surface. No tenant has a row, so the route 404s everywhere.
+
+**The timeline is DERIVED on read, never stored.** There is no timeline table
+and the CI schema check asserts there is not one — a stored copy alongside its
+own inputs is a second thing that can be wrong about them.
+
+**P28 emits nothing.** No alert, no task, no email. Alerting on a material
+change is P48's, and neither the classifier nor the read service holds a
+dependency through which one could be sent.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the notice sync has run.
+SELECT count(*) AS notices,
+       count(*) FILTER (WHERE sam_opportunity_id IS NOT NULL) AS crosswalked
+  FROM tango_opportunity_notice;
+```
+
+```bash
+# Dry run first — calls Tango for real, writes nothing locally.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-notices.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-opportunity-notices.ts --commit --limit=200
+```
+
+Expect `errored: 0`. A healthy re-run reports a large `unchanged` count and a
+small `written` one — that is the content-hash no-op path working, and it is
+what makes the incremental overlap free.
+
+**Read this before treating a low `crosswalked` count as a bug.** A notice is
+stamped with a local `sam_opportunity.id` only when EXACTLY ONE local notice
+carries its solicitation number, reusing P27's own rule. One number routinely
+spans a presolicitation, a solicitation and several amendments, so an ambiguous
+number stamps nothing — the notice is still stored and becomes reachable the
+moment the ambiguity resolves. The timeline API reports
+`coverage: 'not_crosswalked'` for such a solicitation rather than an empty
+history, because "we cannot prove which one this is" and "it was never amended"
+are different statements.
+
+**Four of the plan's nine change dimensions are not covered**, and the UI says
+so rather than omitting them: the SDK's bundled `NOTICE_SCHEMA` declares no
+notice type, no place of performance, no contact and no description, so a
+change to any of the four cannot be observed from notice history. Whether the
+LIVE server carries more than the SDK declares is a decision-log D-45-style
+investigation — request a deliberately invalid field and read the
+`available_fields` payload the server returns — and it needs a key.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
