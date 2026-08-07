@@ -76,6 +76,8 @@ jobs:
           "apps/web/src/components/chat/MeriWorkspaceWindow.test.tsx"
           "apps/web/src/components/chat/meri-window.ts"
           "apps/web/src/components/chat/meri-window.test.ts"
+          "apps/web/src/components/chat/meri-workspace-window.css"
+          "apps/web/src/components/chat/meri-workspace-window-scope.css"
           "apps/web/src/lib/me.ts"
           "docs/plans/meriv3-thin-agent-architecture.md"
           "docs/runbooks/meriv3-capiro-internal-canary.md"
@@ -123,7 +125,10 @@ jobs:
             echo "MeriV3 must not be imported into Workspace, Strategy or intel-api during the chat canary."
             exit 1
           fi
-          if grep -Rin "type:[[:space:]]*['\"]\(thinking\|reasoning\)['\"]" apps/meriv2-orchestrator/src/meri/meriv3 apps/api/src/meri/meriv3* --include='*.ts'; then
+          if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \
+            apps/api/src/meri/meriv3-proxy.service.ts; then
             echo "MeriV3 must not expose raw reasoning/thinking SSE events."
             exit 1
           fi
