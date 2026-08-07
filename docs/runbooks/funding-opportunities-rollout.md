@@ -799,6 +799,63 @@ identical key (a free no-op); changed bytes get a *different* key rather than
 overwriting. That is what lets a requirement extracted from version A still
 resolve to version A's bytes after the agency posts version B.
 
+### Tier-aware extracted-text ingestion (P30) — a migration, no flag, no UI
+
+`prisma/migrations/20260830010000_opportunity_document_text` adds ONE new
+**global** table. Additive; apply it in the normal migration step below.
+
+**Read this before concluding a solicitation has no requirements.** An empty
+text field has five causes and only one of them is a fact about the document:
+
+| status | what it means | whose gap |
+|---|---|---|
+| `available` | text is held | — |
+| `not_entitled` | the account's plan excludes extracted text | **billing** |
+| `not_provided` | the provider has no text — a scanned or image-only file | **the document** |
+| `pending` | nobody has run an extraction yet | Capiro |
+| `failed` | an extraction was attempted and did not complete | Capiro |
+
+The database refuses a row that could mislead: `available` requires text, a
+method and a count, and every other status must hold **no** text — so a
+`not_entitled` row cannot carry a leftover body from an entitled period.
+
+**A hard provider limit, recorded rather than worked around.** The installed
+`@makegov/tango-node@1.1.0` exposes extracted text through exactly one method,
+`searchOpportunityAttachments({ q, topK, includeExtractedText })` — a *semantic
+search* taking a query. There is no `getAttachmentText(id)`. "Give me the text
+of this document" is not a question this SDK can ask, and inventing a query to
+stand in for a document id would bind returned text to an attachment it merely
+*resembles* — the fuzzy identity substitution P02 forbids for award history.
+
+So the sync seeds the correct unavailability status and stops there. Finishing
+the phase needs either a provider endpoint or a `local_parser` extraction
+against the bytes P29 already archived — `extraction_method` exists so that
+would be a separately labelled row, never a silent substitute for provider text.
+
+```bash
+# Dry run.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts
+
+# Seed. --entitled ONLY if P17's probe reported extracted text as available on
+# this account; the script never asks the provider itself, because re-deriving
+# entitlement from a failed call turns one rate-limit into "we lost the plan".
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts --commit
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts --commit --entitled
+```
+
+```sql
+-- READ-ONLY. Why there is no text, per document.
+SELECT status, extraction_method, count(*)
+  FROM opportunity_document_text GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+**Text is bound to bytes.** Every row carries the SHA-256 of the exact
+attachment bytes it came from. If the agency reposts a document it archives
+under a new hash (P29's key *is* the hash), the old text row stops covering it,
+and the uncovered-attachment query correctly picks it up again — which is how a
+stale extraction gets replaced rather than silently kept.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

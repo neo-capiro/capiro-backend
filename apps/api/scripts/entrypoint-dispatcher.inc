@@ -586,6 +586,14 @@ case "${1:-serve}" in
   # default; --discover-only writes metadata without fetching. Needs
   # OPPORTUNITY_ATTACHMENT_BUCKET to archive. Optional --limit=<n> (default 50).
   sync-tango-opportunity-attachments) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-attachments.ts "$@" ;;
+  # Funding Opportunities P30: extracted-text status seeding. Writes one
+  # opportunity_document_text row per archived attachment recording WHY there
+  # is no text — not_entitled when the account's plan excludes extracted text,
+  # pending when it does not. Never calls the provider: the installed SDK has
+  # no per-document text call (only a semantic search taking a query), and
+  # entitlement is P17's probe result, passed in with --entitled rather than
+  # re-derived from a failed call. Dry-run by default. Optional --limit=<n>.
+  sync-tango-opportunity-text) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-text.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
