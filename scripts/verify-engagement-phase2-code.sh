@@ -131,7 +131,7 @@ bold "2.9  Synthesis and template safety"
 SYNTH_OUT="${REPO_ROOT}/${LOG_DIR}/cdk.out"
 rm -rf "$SYNTH_OUT"
 if (cd infra/cdk &&
-  ENGAGEMENT_API_INFRA_CONFIG="${REPO_ROOT}/infra/cdk/fixtures/engagement-api.test.json" \
+  ENGAGEMENT_API_INFRA_CONFIG="fixtures/engagement-api.test.json" \
     node "C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js" exec cdk synth --app "ts-node --prefer-ts-exts bin/engagement-api.ts" \
     --output "$SYNTH_OUT" --quiet) >"${LOG_DIR}/synth.log" 2>&1; then
   pass "synthetic synth of all three stacks"
