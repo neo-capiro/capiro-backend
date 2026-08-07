@@ -3,8 +3,10 @@ import type { AxiosRequestConfig } from 'axios';
 import { DEFAULT_TIMEOUT_MS, GENERATION_TIMEOUT_MS, buildApiClient, isGenerationUrl } from './api-client.js';
 import {
   activateEngagementPreview,
+  clearEngagementPreview,
   ENGAGEMENT_PREVIEW_STORAGE_KEY,
 } from './engagement-api-preview.js';
+import { ENGAGEMENT_PREVIEW_ROUTE_MISS } from './engagement-preview-errors.js';
 
 /**
  * Drive the real request interceptor by swapping in an adapter that captures
@@ -21,7 +23,14 @@ async function captureRequest(
   let captured: AxiosRequestConfig | undefined;
   client.defaults.adapter = async (config) => {
     captured = config;
-    return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    const previewWasSent = headerOf(config, PREVIEW_HEADER_NAME) === 'v3';
+    return {
+      data: {},
+      status: 200,
+      statusText: 'OK',
+      headers: previewWasSent ? { 'x-capiro-service': 'engagement-api' } : {},
+      config,
+    };
   };
   await client.get(url, options.timeout ? { timeout: options.timeout } : undefined);
   if (!captured) throw new Error('adapter never ran');
@@ -73,9 +82,9 @@ describe('isGenerationUrl', () => {
 });
 
 /**
- * Phase 3 (3.3): the preview header is attached in the SAME interceptor that
- * owns the generation timeout, the Clerk bearer and the impersonation header.
- * These tests exist to prove the addition disturbs none of them.
+ * Phase 3 (3.3+3.4): the preview header is attached in the SAME interceptor
+ * that owns the generation timeout, Clerk bearer and impersonation header, and
+ * every marked preview response must prove `engagement-api` service identity.
  */
 describe('engagement API preview header', () => {
   beforeEach(() => {
@@ -154,5 +163,41 @@ describe('engagement API preview header', () => {
     const config = await captureRequest('/api/engagement/meetings', { token: null });
     expect(headerOf(config, 'Authorization')).toBeUndefined();
     expect(headerOf(config, PREVIEW_HEADER_NAME)).toBe('v3');
+  });
+
+  test('rejects a preview success that lacks engagement-api service identity', async () => {
+    activateEngagementPreview();
+    const client = buildApiClient(async () => 'test-token');
+    client.defaults.adapter = async (config) => ({
+      data: { from: 'main' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    });
+
+    await expect(client.get('/api/engagement/meetings')).rejects.toMatchObject({
+      code: ENGAGEMENT_PREVIEW_ROUTE_MISS,
+    });
+  });
+
+  test('uses the dispatch-time marker when preview is toggled off in flight', async () => {
+    activateEngagementPreview();
+    const client = buildApiClient(async () => 'test-token');
+    client.defaults.adapter = async (config) => {
+      expect(headerOf(config, PREVIEW_HEADER_NAME)).toBe('v3');
+      clearEngagementPreview();
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: { 'x-capiro-service': 'engagement-api' },
+        config,
+      };
+    };
+
+    await expect(client.get('/api/engagement/meetings')).resolves.toMatchObject({
+      data: { ok: true },
+    });
   });
 });
