@@ -1,0 +1,233 @@
+{
+  "_meta": {
+    "description": "P17 read-only Tango capability/tier probe — sanitized report attached to the handoff. Produced by apps/api/scripts/diag-tango-capabilities.ts run against the REAL account (never fixtures). No response body is ever captured (see tango-capability-probe.service.ts — a successful call's `reason` is always the literal string \"Call succeeded.\"), and every error `reason` is redacted through the same redact()/redactWithKnownSecret() pipeline the product gateway (tango.client.ts) uses. Nothing in this file, including the ARN below, is a credential.",
+    "capturedAt": "2026-08-07T04:06:33.282Z",
+    "sdkVersionChecked": "@makegov/tango-node@1.1.0",
+    "secretSource": {
+      "manager": "AWS Secrets Manager",
+      "profile": "capiro-dev",
+      "region": "us-east-1",
+      "secretName": "tango",
+      "arn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk",
+      "versionId": "93134eda-b855-4527-b19c-7928df43af9c"
+    },
+    "command": "TANGO_API_KEY=<fetched, never echoed> tsx scripts/diag-tango-capabilities.ts --request-ceiling=30",
+    "findings": [
+      "Authentication succeeded — the real key is live and working.",
+      "14 of 24 probed capabilities are supported outright: version, opportunities, notice_history, forecasts, vehicles, contracts, idvs, otas, otidvs, protests, budget_accounts_flows, webhook_event_types, webhook_endpoints_list, api_keys_list.",
+      "attachment_metadata and extracted_text (searchOpportunityAttachments, both calls) answered a synthetic single-character query with a classified 404 rather than 200 + an empty page — reported as the dedicated 'not_found' status (added to ProbeStatus specifically because of this finding), not generic 'error'. P29/P30 should investigate directly with a real query before assuming either 'broken' or 'fine' — a 404 from a search endpoint is unusual enough to be worth a deliberate look, not an assumption.",
+      "exclusions, dibbs, sbir_sttr, mcp_key_header_compatibility: confirmed genuinely unsupported by @makegov/tango-node@1.1.0 (no method exists) — P40/P41/P42/P43/P45/P39 cannot assume these datasets are reachable through this SDK version.",
+      "webhook_write_apis: deliberately not attempted (mutating) — P46/P47's documentation-discrepancy question is NOT resolved by this run.",
+      "entities/vehicle_awardees/vehicle_orders/budget_flows_by_entity: not_attempted because this run supplied no --uei/--vehicle-uuid — re-run with a real identifier before P19-P23 rely on those specific findings.",
+      "requestsIssued stayed at 16 of a 30 ceiling; rate-limit headers show a 25-requests-per-window cap on this account/tier (P18 should account for this)."
+    ]
+  },
+  "report": {
+    "generatedAt": "2026-08-07T04:06:33.282Z",
+    "requestsIssued": 16,
+    "requestCeiling": 30,
+    "authenticationFailed": false,
+    "probes": [
+      {
+        "key": "version",
+        "usedByPhases": [],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 25, "limit": 25, "resetIn": 0, "retryAfter": null, "limitType": null },
+        "durationMs": 247
+      },
+      {
+        "key": "entities",
+        "usedByPhases": ["P19", "P20", "P21"],
+        "status": "not_attempted",
+        "reason": "Not attempted: no real identifier was supplied for this probe. A made-up UEI or vehicle uuid would only prove the 404 path, not real access — pass --uei / --vehicle-uuid to run this check.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "opportunities",
+        "usedByPhases": ["P27"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 24, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 81
+      },
+      {
+        "key": "notice_history",
+        "usedByPhases": ["P28"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 23, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 72
+      },
+      {
+        "key": "attachment_metadata",
+        "usedByPhases": ["P29"],
+        "status": "not_found",
+        "reason": "Resource not found",
+        "rate": { "remaining": 22, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 94
+      },
+      {
+        "key": "extracted_text",
+        "usedByPhases": ["P30"],
+        "status": "not_found",
+        "reason": "Resource not found",
+        "rate": { "remaining": 21, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 175
+      },
+      {
+        "key": "forecasts",
+        "usedByPhases": ["P24", "P25", "P26"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 20, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 113
+      },
+      {
+        "key": "vehicles",
+        "usedByPhases": ["P22", "P23"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 19, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 104
+      },
+      {
+        "key": "vehicle_awardees",
+        "usedByPhases": ["P22", "P23"],
+        "status": "not_attempted",
+        "reason": "Not attempted: no real identifier was supplied for this probe. A made-up UEI or vehicle uuid would only prove the 404 path, not real access — pass --uei / --vehicle-uuid to run this check.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "vehicle_orders",
+        "usedByPhases": ["P22"],
+        "status": "not_attempted",
+        "reason": "Not attempted: no real identifier was supplied for this probe. A made-up UEI or vehicle uuid would only prove the 404 path, not real access — pass --uei / --vehicle-uuid to run this check.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "contracts",
+        "usedByPhases": ["P22"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 18, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 71
+      },
+      {
+        "key": "idvs",
+        "usedByPhases": ["P22"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 17, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 89
+      },
+      {
+        "key": "otas",
+        "usedByPhases": [],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 16, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 95
+      },
+      {
+        "key": "otidvs",
+        "usedByPhases": [],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 15, "limit": 25, "resetIn": 59, "retryAfter": null, "limitType": null },
+        "durationMs": 89
+      },
+      {
+        "key": "protests",
+        "usedByPhases": ["P45"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 14, "limit": 25, "resetIn": 58, "retryAfter": null, "limitType": null },
+        "durationMs": 119
+      },
+      {
+        "key": "exclusions",
+        "usedByPhases": ["P45"],
+        "status": "unsupported",
+        "reason": "No dedicated exclusions endpoint in @makegov/tango-node@1.1.0. Exclusion fields (exclusion_status_flag, exclusion_url) are embedded on the Entity resource instead — probe the \"entities\" capability and read those fields, not a separate call.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "dibbs",
+        "usedByPhases": ["P40", "P41"],
+        "status": "unsupported",
+        "reason": "No method with \"dibbs\" in its name exists anywhere in @makegov/tango-node@1.1.0's client surface (96 methods enumerated). P40 cannot assume this dataset is reachable through this SDK version; escalate to MakeGov before designing P40 around it.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "sbir_sttr",
+        "usedByPhases": ["P42", "P43"],
+        "status": "unsupported",
+        "reason": "No method with \"sbir\" or \"sttr\" in its name exists anywhere in @makegov/tango-node@1.1.0's client surface. Same escalation as DIBBS applies before P42 is designed.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "budget_accounts_flows",
+        "usedByPhases": ["P44"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 13, "limit": 25, "resetIn": 58, "retryAfter": null, "limitType": null },
+        "durationMs": 95
+      },
+      {
+        "key": "budget_flows_by_entity",
+        "usedByPhases": ["P44"],
+        "status": "not_attempted",
+        "reason": "Not attempted: no real identifier was supplied for this probe. A made-up UEI or vehicle uuid would only prove the 404 path, not real access — pass --uei / --vehicle-uuid to run this check.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "webhook_event_types",
+        "usedByPhases": ["P46", "P47"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 13, "limit": 25, "resetIn": 58, "retryAfter": null, "limitType": null },
+        "durationMs": 89
+      },
+      {
+        "key": "webhook_endpoints_list",
+        "usedByPhases": ["P46", "P47"],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 13, "limit": 25, "resetIn": 58, "retryAfter": null, "limitType": null },
+        "durationMs": 73
+      },
+      {
+        "key": "webhook_write_apis",
+        "usedByPhases": ["P46", "P47"],
+        "status": "not_attempted",
+        "reason": "Not attempted: createWebhookEndpoint/createWebhookAlert/updateWebhookEndpoint/deleteWebhookEndpoint/testWebhookEndpoint/testWebhookDelivery are all MUTATING — calling any of them for real would create or exercise a live webhook subscription against the account, which this read-only probe is explicitly forbidden from doing. The plan's documentation discrepancy (\"all tiers\" filter subscriptions vs. SDK docs describing webhook writes as Large/Enterprise) is NOT resolved by this run and requires either (a) MakeGov's own current plan-tier documentation, read out-of-band, or (b) one deliberate, approved test write performed by P46/P47 themselves, which own the webhook feature and its rollback path.",
+        "rate": null,
+        "durationMs": 0
+      },
+      {
+        "key": "api_keys_list",
+        "usedByPhases": [],
+        "status": "supported",
+        "reason": "Call succeeded.",
+        "rate": { "remaining": 13, "limit": 25, "resetIn": 58, "retryAfter": null, "limitType": null },
+        "durationMs": 144
+      },
+      {
+        "key": "mcp_key_header_compatibility",
+        "usedByPhases": ["P39"],
+        "status": "unsupported",
+        "reason": "Not probed: MCP is a separate connector endpoint this Node SDK does not wrap, and no documented MCP endpoint URL is available to this implementation. Requires MakeGov's own MCP connection details before P39 can verify API-key-header auth against it directly.",
+        "rate": null,
+        "durationMs": 0
+      }
+    ]
+  }
+}

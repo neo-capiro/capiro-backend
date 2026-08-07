@@ -512,6 +512,12 @@ case "${1:-serve}" in
   repair-facility-district-codes) shift; exec ./node_modules/.bin/tsx scripts/repair-facility-district-codes.ts "$@" ;;
   # Exact-identifier contractor matching; dry-run by default.
   match-contractor-identifiers) shift; exec ./node_modules/.bin/tsx scripts/match-contractor-identifiers.ts "$@" ;;
+  # Funding Opportunities P17: READ-ONLY Tango (MakeGov) capability/tier probe.
+  # Makes only GET/limit=1 calls (never a create/update/delete) against the
+  # real account, using TANGO_API_KEY from the environment. Optional
+  # --uei=/--vehicle-uuid=/--request-ceiling=; see the script's own header for
+  # why an invented identifier is never substituted. No database connection.
+  diag-tango-capabilities) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-capabilities.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
