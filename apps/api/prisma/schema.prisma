@@ -4207,10 +4207,13 @@ model ReconciliationReviewQueue {
   queuedAt                    DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
   lastObservedAt              DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
   observationCount            Int       @default(1) @map("observation_count")
+  /// `open` -> `pending_approval` (a correction was proposed) -> `resolved`.
   status                      String    @default("open") @db.VarChar(20)
   resolvedByUserId            String?   @map("resolved_by_user_id") @db.Uuid
   resolvedAt                  DateTime? @map("resolved_at") @db.Timestamptz(6)
   resolutionNotes             String?   @map("resolution_notes") @db.Text
+  /// Phase 7 WS K: the governed override proposed from this entry, if any.
+  proposedOverrideId          String?   @map("proposed_override_id") @db.Uuid
 
   @@index([status, queuedAt(sort: Desc)], map: "reconciliation_review_queue_status_idx")
   @@index([peCode, fy], map: "reconciliation_review_queue_pe_fy_idx")

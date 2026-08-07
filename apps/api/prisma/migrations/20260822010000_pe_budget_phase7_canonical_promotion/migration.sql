@@ -733,6 +733,10 @@ CREATE INDEX "defense_budget_manual_override_target_idx"
 COMMENT ON TABLE "defense_budget_manual_override" IS
   'Phase 7 Workstream K: immutable, versioned human corrections applied beside the active snapshot at read time. Never a source observation, never a column on a canonical row. Append-only; author may not be approver.';
 
+-- The link from the legacy reconciliation queue to a proposal raised from it
+-- lives in its own migration: this one is asserted to be purely additive, and
+-- an architecture test enforces that it contains no ALTER TABLE.
+
 -- ===========================================================================
 -- 6. The promotion database role
 -- ===========================================================================

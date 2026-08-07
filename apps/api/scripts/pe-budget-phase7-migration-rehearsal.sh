@@ -25,6 +25,11 @@ USER_NAME="postgres"
 PASSWORD="postgres"
 DB_NAME="capiro"
 P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
+# Workstream K's queue link is a second Phase 7 migration. It depends on the
+# override table the first one creates, so the pre-Phase-7 baseline must exclude
+# both — replaying it alone would fail on a missing relation rather than
+# reproducing the real upgrade path.
+P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -120,6 +125,7 @@ cp "$MIGRATIONS_DIR/migration_lock.toml" "$API_ROOT/$TMP_REL/migrations/" 2>/dev
 for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
   [ "$migration" = "$P7_MIGRATION" ] && continue
+  [ "$migration" = "$P7_MIGRATION_K" ] && continue
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
@@ -133,8 +139,25 @@ SQL
 
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION/migration.sql" >/dev/null \
   || fail "Phase 7 migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_K/migration.sql" >/dev/null \
+  || fail "Workstream K queue-link migration failed on the upgrade path"
 assert_tables
-ok "Phase 7 migration applies cleanly on top of the pre-Phase-7 schema"
+ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
+
+# The queue link is added to a table that already holds rows, so prove the
+# column arrives nullable and disturbs nothing that was already queued.
+# `id` is a Prisma-side @default(uuid()), not a database default, so raw SQL
+# must supply it.
+run_sql "
+INSERT INTO reconciliation_review_queue (id, pe_code, fy, field_name, conflicting_source)
+VALUES (gen_random_uuid(), '0601101A', 2027, 'request', 'rehearsal');"
+[ "$(q "SELECT count(*) FROM reconciliation_review_queue WHERE proposed_override_id IS NULL;")" = "1" ] \
+  || fail "an existing queue entry did not survive the queue-link migration"
+ok "the queue link is additive: an entry that raised no proposal points at nothing"
+
+expect_fail "a queue entry pointing at an override that does not exist" "
+UPDATE reconciliation_review_queue
+SET proposed_override_id = '44444444-4444-4444-4444-444444444444';"
 
 [ "$(q "SELECT count(*) FROM program_element WHERE pe_code='0601101A';")" = "1" ] \
   || fail "legacy Program Element row changed"

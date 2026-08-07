@@ -57,11 +57,32 @@ describe('Phase 7 Workstream D — tables and models', () => {
     }
   });
 
+  /**
+   * SQL comments are stripped before scanning. A gate that matches its own
+   * prose is a false positive — the same Phase 6 lesson `canonical-projectors-v1`
+   * applies to its no-legacy-writer scan, and the same shape as the open P1-8
+   * finding that the architecture gates are regexes over raw file text. A
+   * comment explaining *why* this migration alters nothing must not trip it.
+   */
+  const migrationStatements = migrationSql
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n');
+
   it('alters no pre-existing table and drops nothing', () => {
-    expect(migrationSql).not.toMatch(/\bALTER TABLE\b/);
-    expect(migrationSql).not.toMatch(/\bDROP TABLE\b/);
-    expect(migrationSql).not.toMatch(/\bDROP COLUMN\b/);
-    expect(migrationSql).not.toMatch(/\bTRUNCATE\b\s+"/);
+    expect(migrationStatements).not.toMatch(/\bALTER TABLE\b/);
+    expect(migrationStatements).not.toMatch(/\bDROP TABLE\b/);
+    expect(migrationStatements).not.toMatch(/\bDROP COLUMN\b/);
+    expect(migrationStatements).not.toMatch(/\bTRUNCATE\b\s+"/);
+  });
+
+  it('still catches a real ALTER TABLE, so stripping comments has not blunted it', () => {
+    const withViolation = `${migrationStatements}\nALTER TABLE "program_element" ADD COLUMN "x" TEXT;`;
+    expect(withViolation).toMatch(/\bALTER TABLE\b/);
+  });
+
+  it('keeps the queue link in its own migration rather than this one', () => {
+    expect(migrationSql).not.toContain('reconciliation_review_queue"\n  ADD COLUMN');
   });
 
   it('performs no data backfill', () => {
