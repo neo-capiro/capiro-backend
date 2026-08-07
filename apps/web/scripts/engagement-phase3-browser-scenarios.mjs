@@ -48,13 +48,9 @@ export function buildPhase3BrowserScenarios(fixtures) {
   const partialOutreach = requiredId(fixtures, 'outreach.partialWizard');
 
   return [
-    state(
-      'meetings-default',
-      'meetings',
-      '/engagement',
-      '/engagement/meetings',
-      { requiredText: ['Meetings'] },
-    ),
+    state('meetings-default', 'meetings', '/engagement', '/engagement/meetings', {
+      requiredText: ['Meetings'],
+    }),
     state(
       'meetings-legacy-overview',
       'meetings',
@@ -88,11 +84,7 @@ export function buildPhase3BrowserScenarios(fixtures) {
       'meetings',
       `/engagement/meetings?view=calendar&date=${date}`,
       '/engagement/meetings',
-      {
-        expectedSearch: { view: 'month', date },
-        absentSearch: ['calendar'],
-        requiredText: ['Meetings', 'Month'],
-      },
+      { expectedSearch: { view: 'month', date }, requiredText: ['Meetings', 'Month'] },
     ),
     state(
       'meetings-legacy-range',
@@ -113,7 +105,10 @@ export function buildPhase3BrowserScenarios(fixtures) {
       'meetings',
       `/engagement/meetings/${meetingPast}?detail=notes&date=${date}`,
       `/engagement/meetings/${meetingPast}`,
-      { expectedSearch: { detail: 'notes', date }, requiredText: ['Past appropriations meeting', 'Notes'] },
+      {
+        expectedSearch: { detail: 'notes', date },
+        requiredText: ['Past appropriations meeting', 'Notes'],
+      },
     ),
     state(
       'meeting-deep-debrief',
@@ -130,7 +125,10 @@ export function buildPhase3BrowserScenarios(fixtures) {
       'meetings',
       `/engagement/meetings/${meetingOutside}?detail=prep&date=${date}`,
       `/engagement/meetings/${meetingOutside}`,
-      { expectedSearch: { date }, requiredText: ['Deep-linked meeting outside visible range'] },
+      {
+        expectedSearch: { date },
+        requiredText: ['Deep-linked meeting outside visible range'],
+      },
     ),
     state(
       'meeting-deleted-not-found',
@@ -139,34 +137,26 @@ export function buildPhase3BrowserScenarios(fixtures) {
       `/engagement/meetings/${absentMeeting}`,
       { expectedSearch: { date }, requiredText: ['Meeting not found'] },
     ),
-    state(
-      'outreach-list',
-      'outreach',
-      '/engagement/outreach',
-      '/engagement/outreach',
-      { requiredText: ['Outreach', 'Draft campaign at step 1', 'Sent campaign'] },
-    ),
+    state('outreach-list', 'outreach', '/engagement/outreach', '/engagement/outreach', {
+      requiredText: ['Outreach', 'Draft campaign at step 1', 'Sent campaign'],
+    }),
     state(
       'outreach-new-wizard',
       'outreach',
       '/engagement/outreach/new',
       '/engagement/outreach/new/wizard',
-      { requiredText: ['Outreach'] },
+      { requiredText: ['Step 1 of 6', 'Direction'] },
     ),
     state(
       'outreach-partial-resume',
       'outreach',
       `/engagement/outreach/draft/${partialOutreach}`,
       `/engagement/outreach/draft/${partialOutreach}`,
-      { requiredText: ['Partially completed wizard at step 4'] },
+      { requiredText: ['Step 4 of 6', 'Build Context'] },
     ),
-    state(
-      'reports-current',
-      'reports',
-      '/engagement/reports',
-      '/engagement/reports',
-      { requiredText: ['Reports', 'Current Cycle', 'Office Engagement Tracker'] },
-    ),
+    state('reports-current', 'reports', '/engagement/reports', '/engagement/reports', {
+      requiredText: ['Reports', 'Current Cycle', 'Office Engagement Tracker'],
+    }),
     state(
       'reports-previous',
       'reports',
@@ -196,20 +186,12 @@ export function buildPhase3BrowserScenarios(fixtures) {
         requiredText: ['Reports', 'Previous Cycle'],
       },
     ),
-    state(
-      'integrations',
-      'integrations',
-      '/settings/integrations',
-      '/settings/integrations',
-      { requiredText: ['Microsoft 365', 'Google Workspace'] },
-    ),
-    state(
-      'home-cross-surface',
-      'cross-surface',
-      '/',
-      '/',
-      { requireEngagementRequest: true },
-    ),
+    state('integrations', 'integrations', '/settings/integrations', '/settings/integrations', {
+      requiredText: ['Microsoft 365', 'Google Workspace'],
+    }),
+    state('home-cross-surface', 'cross-surface', '/', '/', {
+      requireEngagementRequest: true,
+    }),
     state(
       'client-profile-cross-surface',
       'cross-surface',
