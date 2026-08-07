@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckOutlined,
   CloseOutlined,
@@ -99,14 +99,6 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
     [activeConversationId, api, reasoningMode, savingMode],
   );
 
-  const selectedClientName = useMemo(() => {
-    if (!controller.selectedClientValue) return 'General';
-    return (
-      controller.clients.find((client) => client.id === controller.selectedClientValue)?.name ??
-      'Client scoped'
-    );
-  }, [controller.clients, controller.selectedClientValue]);
-
   return (
     <section className="meri-v3-workspace" aria-label="Meri workspace">
       <aside className="meri-v3-workspace-sidebar" aria-label="Meri conversations">
@@ -147,7 +139,20 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
               maxLength={160}
               aria-label="Conversation title"
             />
-            <span>{selectedClientName}</span>
+            <select
+              value={controller.selectedClientValue}
+              onChange={(event) => void controller.changeSessionClient(event.target.value)}
+              disabled={!activeConversationId || controller.isSavingMeta}
+              aria-label="Conversation client scope"
+              title="Conversation client scope"
+            >
+              <option value="">General</option>
+              {controller.clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="meri-v3-header-actions">
             <ReasoningModePicker
@@ -170,6 +175,11 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
             </button>
           </div>
         </header>
+        {controller.metaError ? (
+          <div className="meri-v3-workspace-error" role="alert">
+            {controller.metaError}
+          </div>
+        ) : null}
 
         <div className="meri-v3-workspace-body">
           <MeriLegacyDrawer
