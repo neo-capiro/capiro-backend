@@ -34,9 +34,11 @@ import {
   FundingOpportunitiesNoticeHistoryFlagGuard,
   FundingOpportunitiesPipelineFlagGuard,
   FundingOpportunitiesMeriFlagGuard,
+  FundingOpportunitiesBudgetFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
+import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
 import {
   FundingOpportunityPipelineService,
   PIPELINE_STAGES,
@@ -451,6 +453,7 @@ export class FundingOpportunitiesController {
     private readonly landscape: GovernmentLandscapeService,
     private readonly pipeline: FundingOpportunityPipelineService,
     private readonly assessment: MeriOpportunityAssessmentService,
+    private readonly budgetContext: OpportunityBudgetContextService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -648,6 +651,25 @@ export class FundingOpportunitiesController {
         sourceRecordId: id,
         conversationId: body.conversationId,
       },
+    );
+  }
+
+  /**
+   * Tango budget beta context for one client (P44).
+   *
+   * KEYED ON THE CLIENT, not on an opportunity, and the route says so. There is
+   * no source-backed key linking a SAM.gov notice to a Treasury federal
+   * account, so a `/opportunities/:source/:id/budget` route would promise a
+   * join that does not exist. Same conclusion P23 reached for acquisition
+   * position (decision-log D-44): the honest answer is a client posture, and
+   * the response repeats that on every reply including the empty ones.
+   */
+  @Get('clients/:clientId/budget-context')
+  @UseGuards(FundingOpportunitiesBudgetFlagGuard)
+  budgetContextFor(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.budgetContext.getContext(
+      { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+      clientId,
     );
   }
 

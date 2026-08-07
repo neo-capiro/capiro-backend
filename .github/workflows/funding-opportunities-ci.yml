@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -339,7 +339,14 @@ jobs:
             check "link local-type vocabulary admits $local_type"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$local_type''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_resource_link_local_type_chk'"               "yes"
           done
           check "link local-type vocabulary does NOT admit a tenant table"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%client%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_resource_link_local_type_chk'"             "no"
-          check "link basis is exactly the two non-fuzzy values"             "SELECT pg_get_constraintdef(oid) LIKE '%exact_identifier%' AND pg_get_constraintdef(oid) LIKE '%reviewed_manual%' AND pg_get_constraintdef(oid) NOT LIKE '%fuzzy%' AND pg_get_constraintdef(oid) NOT LIKE '%name_fallback%'"             "t"
+          # PRE-EXISTING DEFECT, fixed at P44. This assertion shipped at P15 with no
+          # FROM clause, so every run errored with `column "oid" does not exist`,
+          # `got` came back empty, and the whole step failed. It has therefore
+          # never verified the thing it names — and could not have been noticed,
+          # because Actions has been broken account-wide since 2026-07-31. Fixed
+          # here rather than left, since P44 adds its own assertions to this same
+          # step and they cannot go green inside a step that always fails.
+          check "link basis is exactly the two non-fuzzy values"             "SELECT pg_get_constraintdef(oid) LIKE '%exact_identifier%' AND pg_get_constraintdef(oid) LIKE '%reviewed_manual%' AND pg_get_constraintdef(oid) NOT LIKE '%fuzzy%' AND pg_get_constraintdef(oid) NOT LIKE '%name_fallback%' FROM pg_constraint WHERE conname='tango_resource_link_basis_chk'"             "t"
           check "link rejection-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_resource_link_rejection_actor_chk'"             "1"
           check "link pair uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_resource_link_pair_uniq'"             "1"
 
@@ -543,6 +550,51 @@ jobs:
           check "the reason CHECK rejects whitespace, not just NULL"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%btrim%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_reason_chk'"             "yes"
           check "a move to where it already was is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_distinct_chk'"             "1"
           check "stage transition cascades from its subject"             "SELECT confdeltype FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_row_fkey'"             "c"
+
+          # -- P44: Tango budget beta context ---------------------------------
+          # GLOBAL, like every other tango_* catalog table. Asserting the
+          # ABSENCE of RLS is as load-bearing here as asserting its presence is
+          # on client_funding_opportunity: a false "tenant-scoped" would mean
+          # the table silently started acting scoped with no policy to scope it.
+          for t in tango_budget_account tango_budget_vendor_flow; do
+            check "$t has NO tenant_id column"               "SELECT count(*) FROM information_schema.columns WHERE table_name='$t' AND column_name='tenant_id'"               "0"
+            check "$t RLS is NOT enabled"               "SELECT relrowsecurity FROM pg_class WHERE relname='$t'"               "f"
+            check "$t has NO policies"               "SELECT count(*) FROM pg_policies WHERE tablename='$t'"               "0"
+          done
+
+          # NULL IS NOT ZERO, as columns. On a real provider row most of these
+          # were null while contract_obligated carried a number; a NOT NULL or a
+          # DEFAULT 0 here would turn "the provider has not attributed this
+          # account" into "this account obligated nothing". NUMERIC, not a
+          # float: a float that rounds an obligation is a number nobody can
+          # reconcile against the source.
+          for col in requested_ba enacted_ba apportioned obligated_total outlayed_total unobligated_balance contract_obligated assistance_obligated; do
+            check "budget $col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_budget_account' AND column_name='$col'"               "YES"
+            check "budget $col is NUMERIC, not a float"               "SELECT data_type FROM information_schema.columns WHERE table_name='tango_budget_account' AND column_name='$col'"               "numeric"
+          done
+          check "no budget money column carries a DEFAULT"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_budget_account' AND column_name LIKE '%obligated%' AND column_default IS NOT NULL"             "0"
+
+          check "budget provider row id is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_budget_account_row_id_uniq'"             "1"
+          check "budget fiscal-year range CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_budget_account_fiscal_year_chk'"             "1"
+          check "a blank federal account symbol is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_budget_account_symbol_chk'"             "1"
+
+          # A UEI is 12 characters. A wrong-length value would silently match no
+          # client, which reads as "this vendor received nothing".
+          check "vendor-flow UEI length CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_budget_vendor_flow_uei_chk'"             "1"
+          # CASCADE, unlike P27/P28's deliberately FK-free ledgers: a parity row
+          # is evidence that must outlive both catalogs, whereas a vendor flow
+          # with no account is a dollar figure attributed to nothing.
+          check "vendor flow cascades from its account"             "SELECT confdeltype FROM pg_constraint WHERE conname='tango_budget_vendor_flow_account_fkey'"             "c"
+          # COALESCE on the office: Postgres treats NULLs as distinct, so a plain
+          # composite would admit unlimited duplicates for a flow the provider
+          # reported with no funding office.
+          check "vendor-flow grain uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_budget_vendor_flow_grain_uniq'"             "1"
+          check "vendor-flow uniqueness COALESCEs the office"             "SELECT CASE WHEN indexdef LIKE '%COALESCE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='tango_budget_vendor_flow_grain_uniq'"             "yes"
+
+          # THE PROHIBITION, as a schema assertion: this program creates no
+          # table whose name could be mistaken for a canonical Program Element
+          # one, and adds no column to one.
+          check "no PE-shaped tango table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'tango_%program_element%' OR table_name LIKE 'tango_%pe_%'"             "0"
 
           exit $fail
 
@@ -1407,9 +1459,48 @@ jobs:
       # sources (recommendation engine, service, inbox, landscape, action plan,
       # both Meri adapters) and asserts none of them can reach `meri-mcp`,
       # `McpService` or `callTool`.
+      #
+      # 69/2150 after P44: one NEW suite, opportunity-budget-context.spec.ts (31
+      # tests), and one migration, 20260902010000_tango_budget_context.
+      #
+      # THE FIELD NAMES WERE OBSERVED LIVE, NOT INFERRED. The SDK declares no
+      # schema for /api/budget/accounts/ — listBudgetAccounts goes through
+      # _genericPaginatedList and returns AnyRecord — so deriving them from the
+      # filter-option names would have been a guess, and this program has four
+      # decision-log entries about what guessing a provider shape costs. They
+      # come from a read-only probe of the real account: one page each of the
+      # list, /quarters/ and /recipients/, plus the server's own
+      # available_fields payload. Two findings from that probe are encoded as
+      # schema: most money fields were NULL on a genuine row while
+      # contract_obligated carried a number, and agency_code was NULL beside a
+      # populated agency_name.
+      #
+      # A CLIENT FOOTPRINT, NOT AN OPPORTUNITY CROSSWALK. No source-backed key
+      # links a SAM.gov notice to a Treasury federal account: a notice states an
+      # agency NAME, an account states a symbol and a sometimes-null code, and
+      # matching them is the fuzzy-matching-as-identity P02 removed and P27
+      # refuses. So the route is keyed on the CLIENT and matched by exact UEI,
+      # the same conclusion P23 reached for acquisition position (D-44), and the
+      # disclaimer renders on EVERY response including the empty ones — a reader
+      # who meets it only when the panel is empty reads its absence as a link.
+      #
+      # THE UEI IS THE ONLY KEY. Deliberately NOT the reviewed contractor
+      # mappings P02 admits for award history: a budget flow says money reached
+      # a legal entity, and attributing a parent's obligation to this client is
+      # a financial claim about the wrong company.
+      #
+      # IT CANNOT TOUCH CAPIRO'S BUDGET DATA. One collaborator (Prisma), no
+      # write verb anywhere in the service or the mapper, no import matching
+      # program-element/defense-budget, and a test that enumerates every Prisma
+      # model the service reaches and asserts it is exactly three.
+      #
+      # NOTHING IS SUMMED ACROSS UNLIKE SCOPE: rows group by fiscal year, and
+      # the response carries no cross-year or cross-account total, because two
+      # fiscal years are two appropriations and one number over them means
+      # nothing.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 68 2120
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 69 2150
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1571,9 +1662,21 @@ jobs:
       # page its own entry point needs either a migration against
       # clio_artifacts or a create-a-conversation affordance, and both are
       # decisions rather than oversights.
+      #
+      # 95/375 after P44: one NEW file, OpportunityBudgetContext.test.tsx (15
+      # tests). FEDERAL-ACCOUNT EXECUTION IS VISIBLY NOT PROGRAM ELEMENT
+      # FUNDING — the grain is stated above the data, and a test counts the
+      # occurrences of "Program Element" on the whole panel and asserts there is
+      # exactly ONE, the sentence denying the comparison. A NULL FIGURE RENDERS
+      # "Not stated": the panel is swept for "$0" and finds none, and a present
+      # figure is grouped from its exact decimal STRING rather than through a
+      # float that would drop the cents off a nine-figure obligation. THE
+      # PROVIDER'S OWN attribution status and confidence render verbatim and are
+      # never mapped onto a Capiro confidence vocabulary — two scales sharing
+      # labels is how one gets read as the other.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 89 360
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 95 375
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
