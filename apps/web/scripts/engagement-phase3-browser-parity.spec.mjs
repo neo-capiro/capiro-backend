@@ -123,8 +123,16 @@ test('meaningful UI differences are not normalized away', () => {
   assert.equal(result.equal, false);
 });
 
-test('visible-text normalizer masks UUIDs but retains labels', () => {
-  const text = normalizeVisibleText('Meeting e3000000-0000-4000-8000-000000080001 Ready');
-  assert.equal(text.includes('Ready'), true);
-  assert.equal(text.includes('<UUID>'), true);
+test('business record identities remain parity-significant', () => {
+  const meetingA = 'e3000000-0000-4000-8000-000000080001';
+  const meetingB = 'e3000000-0000-4000-8000-000000080002';
+  const visible = normalizeVisibleText(`Meeting ${meetingA} Ready`);
+  assert.equal(visible.includes(meetingA), true);
+  assert.equal(visible.includes('Ready'), true);
+
+  const result = compareNormalizedDom(
+    `<a href="/engagement/meetings/${meetingA}">Open meeting</a>`,
+    `<a href="/engagement/meetings/${meetingB}">Open meeting</a>`,
+  );
+  assert.equal(result.equal, false);
 });
