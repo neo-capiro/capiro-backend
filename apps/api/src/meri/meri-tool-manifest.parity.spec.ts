@@ -20,8 +20,9 @@ describe('TOOL_DEFINITIONS ↔ MERI_TOOL_MANIFEST parity (W4.6 / D-13)', () => {
     expect(actual).toEqual({ ...MERI_TOOL_MANIFEST });
   });
 
-  it('the tool count is stable at 73 (manifest and TOOL_DEFINITIONS agree)', () => {
-    expect(Object.keys(actual)).toHaveLength(73);
-    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(73);
+  // 73 -> 79 at P37: six read-only Funding Opportunities tools.
+  it('the tool count is stable at 79 (manifest and TOOL_DEFINITIONS agree)', () => {
+    expect(Object.keys(actual)).toHaveLength(79);
+    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(79);
   });
 });

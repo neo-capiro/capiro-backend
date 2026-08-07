@@ -15,6 +15,7 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
+import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -68,6 +69,11 @@ import {
     MemoryModule,
     ContextModule,
     ReviewsModule,
+    // P37. Meri imports Funding Opportunities; the reverse is forbidden and
+    // would be a cycle — FundingOpportunitiesModule has no `imports` at all,
+    // by design, and this module already imports thirteen feature modules.
+    // Safe in this direction precisely because of that asymmetry.
+    FundingOpportunitiesModule,
   ],
   controllers: [
     MeriController,
