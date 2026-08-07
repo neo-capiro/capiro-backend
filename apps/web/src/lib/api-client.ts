@@ -2,6 +2,11 @@ import axios, { type AxiosInstance } from 'axios';
 import { config } from '../env.js';
 import { clearImpersonationSlug } from '../state/impersonation.js';
 import { engagementPreviewHeader } from './engagement-api-preview.js';
+import {
+  assertEngagementPreviewResponseIdentity,
+  markEngagementPreviewRequest,
+  normalizeEngagementPreviewError,
+} from './engagement-preview-errors.js';
 
 /**
  * Default timeout for ordinary requests (auth, lists, CRUD). Kept tight so a
@@ -89,6 +94,10 @@ export function buildApiClient(
     if (preview) {
       req.headers = req.headers ?? {};
       req.headers[preview.name] = preview.value;
+      // Persist what was ACTUALLY sent on the config. Response handling must
+      // never re-read sessionStorage: the mode can change while this request is
+      // in flight, but its routing decision cannot.
+      markEngagementPreviewRequest(req);
     }
     return req;
   });
@@ -96,7 +105,10 @@ export function buildApiClient(
   // drop the stale slug and reload so the app falls back to the real context
   // instead of 403-looping every request.
   instance.interceptors.response.use(
-    (res) => res,
+    (res) => {
+      assertEngagementPreviewResponseIdentity(res);
+      return res;
+    },
     (error) => {
       const status = error?.response?.status;
       const msg = String(error?.response?.data?.message ?? '');
@@ -104,7 +116,10 @@ export function buildApiClient(
         clearImpersonationSlug();
         if (typeof window !== 'undefined') window.location.reload();
       }
-      return Promise.reject(error);
+      // Keep the existing impersonation recovery above first and untouched.
+      // Only after that path has seen the original error do we enforce preview
+      // service identity / translate the exact intentional shadow denial.
+      return Promise.reject(normalizeEngagementPreviewError(error));
     },
   );
   return instance;
