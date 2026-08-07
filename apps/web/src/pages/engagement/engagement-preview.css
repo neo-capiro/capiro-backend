@@ -1,0 +1,53 @@
+.engagement-preview-indicator {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 10px 8px 12px;
+  border: 1px solid rgba(42, 87, 206, 0.32);
+  border-radius: 10px;
+  background: rgba(244, 247, 255, 0.98);
+  box-shadow: 0 8px 24px rgba(12, 26, 56, 0.14);
+  color: #0c1a38;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.engagement-preview-indicator__text {
+  min-width: 0;
+}
+
+.engagement-preview-indicator__button {
+  flex: none;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid rgba(42, 87, 206, 0.42);
+  border-radius: 7px;
+  background: #fff;
+  color: #2148ad;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.engagement-preview-indicator__button:hover {
+  background: #edf2ff;
+}
+
+.engagement-preview-indicator__button:focus-visible {
+  outline: 2px solid #2a57ce;
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .engagement-preview-indicator {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    justify-content: space-between;
+  }
+}
