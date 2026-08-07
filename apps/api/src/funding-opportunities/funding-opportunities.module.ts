@@ -6,6 +6,7 @@ import { FundingOpportunityInboxService } from './funding-opportunity-inbox.serv
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
+import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
@@ -13,6 +14,7 @@ import {
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
   FundingOpportunitiesDocumentsFlagGuard,
+  FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
@@ -68,6 +70,10 @@ import {
     // tenant's review rows under withTenant — the split that keeps one team's
     // decision off a row every tenant can see.
     OpportunityRequirementService,
+    // P33. Depends only on PrismaService, and CONSUMES the PE, facility and
+    // notice reads rather than duplicating them — the plan's own "consume, do
+    // not duplicate" line for program-element and client data.
+    GovernmentLandscapeService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -78,6 +84,7 @@ import {
     FundingOpportunitiesForecastFlagGuard,
     FundingOpportunitiesNoticeHistoryFlagGuard,
     FundingOpportunitiesDocumentsFlagGuard,
+    FundingOpportunitiesLandscapeFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })

@@ -295,14 +295,17 @@ describe('all eight sections exist from this phase onwards', () => {
   });
 
   test('a section with no data yet SAYS it has none — it never renders blank', async () => {
-    // Acquisition position (P23) is real now — AcquisitionPositionPanel.test.tsx
-    // owns its own "says why it's missing" coverage in full; the other two
-    // sections here are still genuinely unbuilt.
+    // Every one of the eight is real now: P23 acquisition position, P28 notice
+    // history, P31 requirements and P33 landscape all replaced their
+    // PendingSection with a panel that states WHY it is empty. Each owns its
+    // own coverage in its own suite; what this test still holds is the shape
+    // that made the placeholders honest — with the capability off, the section
+    // says so and explicitly says it means nothing about the opportunity.
     wrap(<FundingOpportunityDetail refValue={REF} />);
-    for (const testId of ['fo-detail-landscape']) {
-      const section = await screen.findByTestId(testId);
-      expect(section).toHaveTextContent(/Not yet available/i);
-    }
+    const landscape = await screen.findByTestId('fo-detail-landscape');
+    expect(landscape).toHaveTextContent(/not enabled for this workspace/i);
+    expect(landscape).toHaveTextContent(/says nothing about what context exists/i);
+    expect(landscape.textContent ?? '').not.toMatch(/no context|none exists/i);
   });
 
   test('an absent acquisition position never reads as "cannot bid"', async () => {
