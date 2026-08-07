@@ -576,6 +576,16 @@ case "${1:-serve}" in
   # reusing P27's own crosswalk rule. Dry-run by default; a dispatched task
   # passes --commit. Optional --limit=<n> --posted-since=<ISO date>.
   sync-tango-opportunity-notices) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-notices.ts "$@" ;;
+  # Funding Opportunities P29: attachment discovery and secure archive.
+  # Discovers attachment URLs from Capiro's OWN stored SAM.gov payload
+  # (sam_opportunity.raw.resourceLinks) — the installed Tango SDK exposes no
+  # attachment ENUMERATION, only a semantic search. Every URL and every
+  # redirect hop is checked for SSRF, scheme, credentials, host allow-list,
+  # MIME allow-list, size and decompression ratio before a byte is stored. A
+  # REFUSED attachment is never re-attempted; a FAILED one is. Dry-run by
+  # default; --discover-only writes metadata without fetching. Needs
+  # OPPORTUNITY_ATTACHMENT_BUCKET to archive. Optional --limit=<n> (default 50).
+  sync-tango-opportunity-attachments) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-attachments.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

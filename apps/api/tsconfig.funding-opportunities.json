@@ -85,7 +85,10 @@
     "scripts/diag-tango-opportunity-parity.spec.ts",
     // P28: notice-history sync.
     "scripts/sync-tango-opportunity-notices.ts",
-    "scripts/sync-tango-opportunity-notices.spec.ts"
+    "scripts/sync-tango-opportunity-notices.spec.ts",
+    // P29: attachment discovery and secure archive.
+    "scripts/sync-tango-opportunity-attachments.ts",
+    "scripts/sync-tango-opportunity-attachments.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

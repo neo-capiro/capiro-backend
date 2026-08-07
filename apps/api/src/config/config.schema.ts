@@ -738,6 +738,18 @@ export const configSchema = z.object({
   TANGO_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(5),
   TANGO_CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(60_000),
 
+  // P29's attachment archive. BOTH optional and BOTH unset today: the
+  // discovery half of the sync needs neither, and the archiving half refuses
+  // to start without a bucket rather than fetching megabytes with nowhere to
+  // put them. Wiring the bucket into the ephemeral sync task is a deliberate,
+  // out-of-band operator step, the same posture P16 took for the API key —
+  // nothing in a serve/web/workspace/migrate task reads either of these.
+  OPPORTUNITY_ATTACHMENT_BUCKET: z.string().min(1).optional(),
+  // Key prefix inside that bucket. The rest of the key is the content hash —
+  // see archiveKeyFor — so identical bytes never store twice and changed bytes
+  // never overwrite.
+  OPPORTUNITY_ATTACHMENT_PREFIX: z.string().min(1).default('opportunity-attachments'),
+
   // GovInfo (api.data.gov) — congressional bills, committee reports, public laws.
   // Key is an api.data.gov key sourced from Secrets Manager (injected as env by CDK).
   // Endpoints fail closed (the service throws) when the key is unset.
