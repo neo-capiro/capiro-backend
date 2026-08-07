@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "phase": 3,
   "branch": "agent/engagement-api-phase-3-full-ui-parity",
   "findings": [
@@ -65,53 +65,124 @@
     },
     {
       "id": "F-007",
-      "severity": "P3",
-      "classification": "environment_blocked",
-      "surface": "github_actions",
-      "summary": "GitHub Actions runs fail at startup with zero jobs before any repository command executes.",
-      "status": "ENV_BLOCKED",
-      "evidence": "Phase 3 PR #781 runs 31150863654 and 31150864053; accepted Phase 1 head 47902517 reproduces the same startup_failure condition in runs 31098629427 and 31098547728."
+      "severity": "P1",
+      "classification": "acceptance_false_positive",
+      "surface": "read_parity",
+      "summary": "The read proof replayed only browser-observed GETs and could accept accidental matching 400 responses or random 404 placeholders as parity.",
+      "status": "FIXED",
+      "fixDecision": "Materialize every unique current UI read from named route parameters and deterministic fixtures, require real 2xx data for every addressable read, and allow one documented 404 only for the deliberately absent Outreach job.",
+      "evidence": "apps/api/scripts/engagement-phase3-read-materialization.ts; apps/api/scripts/engagement-phase3-full-read-parity.ts"
     },
     {
       "id": "F-008",
-      "severity": "P2",
-      "blocking": true,
-      "classification": "fixture_harness_defect",
-      "surface": "web_regression_tests",
-      "summary": "The older 3.4 api-client test still expected an in-flight preview response to resolve after preview was toggled off, contradicting F-004's stale-response safety contract.",
+      "severity": "P1",
+      "classification": "acceptance_false_positive",
+      "surface": "external_action_containment",
+      "summary": "The external-action before/after digest omitted draft/version, AI usage/run, audit, compliance, assurance, context-packet, mail, and other side-effect-bearing tenant tables.",
       "status": "FIXED",
-      "fixDecision": "The real interceptor test now requires ENGAGEMENT_PREVIEW_STALE_RESPONSE for a preview response that completes after mode-off.",
-      "evidence": "apps/web/src/lib/api-client.test.ts"
+      "fixDecision": "Discover and hash the complete reviewed containment table set from PostgreSQL and fail on row count or full-row digest changes, including table names in diagnostics.",
+      "evidence": "apps/api/scripts/engagement-phase3-containment-tables.ts; apps/api/scripts/engagement-phase3-external-denial.ts"
     },
     {
       "id": "F-009",
-      "severity": "P2",
-      "blocking": true,
-      "classification": "fixture_harness_defect",
-      "surface": "external_action_containment",
-      "summary": "The first external-action digest projection guessed OutreachJob.type, but the Prisma model uses kind; an unchecked verifier could have failed before testing containment.",
+      "severity": "P1",
+      "classification": "acceptance_false_positive",
+      "surface": "visual_dom_parity",
+      "summary": "DOM normalization globally masked UUIDs, so main and preview could render different business records and still compare equal.",
       "status": "FIXED",
-      "fixDecision": "The verifier now hashes complete protected Prisma rows rather than a brittle hand-picked projection, which also protects future mutable columns.",
-      "evidence": "apps/api/scripts/engagement-phase3-external-denial.ts"
+      "fixDecision": "Normalize only approved dynamic/service fields and the preview indicator; retain business record ids, hrefs, labels, controls, counts, and statuses as parity-significant.",
+      "evidence": "apps/web/scripts/engagement-phase3-dom-normalizer.mjs; apps/web/scripts/engagement-phase3-browser-parity.spec.mjs"
     },
     {
       "id": "F-010",
       "severity": "P1",
-      "classification": "security_harness_defect",
-      "surface": "ethical_wall_parity",
-      "summary": "The initial ethical-wall probe used a private meeting, so a denial could have been caused by record ownership before the wall/grant boundary and falsely counted as wall proof.",
+      "classification": "acceptance_coverage_gap",
+      "surface": "browser_interactions",
+      "summary": "The browser harness captured representative page snapshots but did not drive the required accessible-name interactions, form input, deep-link/history/reload matrix, responsive states, or no-silent-skip accounting.",
       "status": "FIXED",
-      "fixDecision": "The wall-denied actor now probes GET /api/engagement/context/:clientId for client.walled, eliminating private-record ownership as an alternate denial cause.",
+      "fixDecision": "Add a deterministic 22-scenario catalog and a dual-context CDP interaction harness covering Meetings, Outreach, Reports, Integrations, home/client cross-surfaces, four viewports, keyboard operation, URL/history/reload, network, DOM, accessibility, touch targets, and explicit terminal result accounting.",
+      "evidence": "apps/web/scripts/engagement-phase3-browser-scenarios.mjs; apps/web/scripts/engagement-phase3-browser-interactions.mjs"
+    },
+    {
+      "id": "F-011",
+      "severity": "P2",
+      "blocking": true,
+      "classification": "fixture_harness_defect",
+      "surface": "local_browser_harness",
+      "summary": "A Clerk API bearer obtained at browser startup can expire during the long multi-surface and multi-viewport run, turning later API parity into matching 401s.",
+      "status": "FIXED",
+      "fixDecision": "Mint a fresh orgless default Clerk bearer immediately before API/DB sweeps, use the supported sole-membership fallback, and keep the refreshed bearer only in the OS temp path.",
+      "evidence": "apps/web/scripts/engagement-phase3-refresh-token.mjs"
+    },
+    {
+      "id": "F-012",
+      "severity": "P1",
+      "classification": "acceptance_false_positive",
+      "surface": "security",
+      "summary": "The initial security verifier expected a whole walled meeting to be denied to a standard user who actually holds the wall grant, conflating ethical-wall access with peer confidential-note ownership.",
+      "status": "FIXED",
+      "fixDecision": "Prove the wall-granted standard user sees the meeting but receives the peer note as a restricted shell; separately prove a no-grant actor is denied client context. Expand auth/role checks across Meetings, Outreach, Reports, Integrations, Tasks, Attachments and real active/expired Capiro Admin impersonation with write attribution.",
       "evidence": "apps/api/scripts/engagement-phase3-security-parity.ts"
+    },
+    {
+      "id": "F-013",
+      "severity": "P1",
+      "classification": "acceptance_coverage_gap",
+      "surface": "safe_local_writes",
+      "summary": "Safe-write interoperability proved only one task row rather than the approved product write classes.",
+      "status": "FIXED",
+      "fixDecision": "Create/continue/read the same rows across runtimes for meeting, task, prep, note, debrief, Outreach v2 draft, and report target/status overrides; then delete created rows, restore the edited prep, and require residual zero before containment.",
+      "evidence": "apps/api/scripts/engagement-phase3-local-write-interoperability.ts"
+    },
+    {
+      "id": "F-014",
+      "severity": "P1",
+      "classification": "acceptance_coverage_gap",
+      "surface": "resilience",
+      "summary": "No executable local proof injected ordinary 429/5xx, malformed/partial/reset/slow transports, database loss before/after boot, auth upstream loss, or retry deduplication.",
+      "status": "FIXED",
+      "fixDecision": "Add an in-memory fault controller to the local-only proxy, a DB pause/recovery and isolated boot/auth failure runner, one failed-before-upstream safe-write retry with residual cleanup, and a source-backed streaming-applicability check.",
+      "evidence": "scripts/engagement-phase3-faults.mjs; scripts/engagement-phase3-resilience.mjs; scripts/run-engagement-phase3-resilience.mjs"
+    },
+    {
+      "id": "F-015",
+      "severity": "P2",
+      "blocking": false,
+      "classification": "inventory_metadata_defect",
+      "surface": "cross_surface_client_profile",
+      "summary": "The Phase 3 surface inventory described a nonexistent /clients/:clientId route; the product registers /clients and opens a profile through ?clientId=.",
+      "status": "FIXED",
+      "fixDecision": "Emit /clients?clientId=:clientId from the generator and browser catalog. The drift spec permits exactly one documented in-memory correction for the historical oversized JSON snapshot and rejects every other route difference; a normal local --write removes the legacy correction.",
+      "evidence": "scripts/engagement-phase3-ui-inventory.mjs; scripts/engagement-phase3-ui-inventory.spec.mjs; apps/web/scripts/engagement-phase3-browser-scenarios.spec.mjs"
+    },
+    {
+      "id": "F-016",
+      "severity": "P2",
+      "blocking": false,
+      "classification": "accepted_baseline_behavior",
+      "surface": "reports_url_state",
+      "summary": "Report period is URL-backed, but status filter and sort are pre-existing component-local state and therefore do not survive reload or back/forward navigation.",
+      "status": "BASELINE_ACCEPTED",
+      "fixDecision": "The interaction harness must prove equal main/preview behavior and emits BASELINE_DEFECT_PROVEN only when EngagementPage.tsx is unchanged from the accepted Phase 2 base. Product URL-state repair is carried to Phase 4 rather than mixed into extraction parity.",
+      "evidence": "apps/web/scripts/engagement-phase3-browser-interactions.mjs; docs/plans/engagement-api/phase-3-to-phase-4-gap-ledger.md"
+    },
+    {
+      "id": "F-017",
+      "severity": "P1",
+      "classification": "acceptance_coverage_gap",
+      "surface": "browser_error_recovery",
+      "summary": "Transport/error normalization tests did not prove that the live current UI retained usable controls and recovered under injected faults.",
+      "status": "FIXED",
+      "fixDecision": "Use CDP Fetch interception to inject ordinary 503/reset/malformed/502 responses into Meetings, Outreach, Reports and Integrations in both modes, require the route shell and controls to remain, then disable the fault and require a clean reload to recover fixture content.",
+      "evidence": "apps/web/scripts/engagement-phase3-browser-recovery.mjs"
     }
   ],
   "counts": {
     "openP0": 0,
     "openP1": 0,
     "blockingP2": 0,
-    "fixedP1": 5,
+    "fixedP1": 12,
     "fixedP2": 3,
-    "baselineAcceptedP2": 1,
-    "environmentBlocked": 1
+    "baselineAcceptedP2": 2
   }
 }
