@@ -19,9 +19,9 @@ const steps = [
   ],
   // F-003: apps/api's broad typecheck is an && chain whose first pre-existing
   // defense-budget TS6059 failure prevents later projects from running. Invoke
-  // the Phase 3 fixture/binder project directly so this gate is real.
+  // the Phase 3 acceptance-script project directly so this gate is real.
   [
-    'Phase 3 fixture/auth-binder typecheck',
+    'Phase 3 fixture and acceptance-script typecheck',
     'pnpm',
     ['-C', 'apps/api', 'exec', 'tsc', '-p', 'tsconfig.engagement-phase3-fixtures.json', '--noEmit'],
   ],
@@ -39,16 +39,18 @@ const steps = [
     ],
   ],
   [
-    'Phase 3 harness unit and negative controls',
+    'Phase 3 harness/scope negative controls',
     'node',
     [
       '--test',
       'apps/web/scripts/engagement-phase3-browser-parity.spec.mjs',
       'scripts/engagement-phase3-local-proxy.spec.mjs',
       'scripts/verify-engagement-phase3-prototype-boundary.spec.mjs',
+      'scripts/verify-engagement-phase3-scope.spec.mjs',
     ],
   ],
   ['Phase 3 V3/prototype boundary', 'node', ['scripts/verify-engagement-phase3-prototype-boundary.mjs']],
+  ['Phase 3 scope and findings', 'node', ['scripts/verify-engagement-phase3-scope.mjs']],
   ['Phase 3 local runner syntax', 'node', ['--check', 'scripts/run-engagement-phase3-local.mjs']],
   ['Phase 3 local proxy syntax', 'node', ['--check', 'scripts/engagement-phase3-local-proxy.mjs']],
   ['Phase 3 browser harness syntax', 'node', ['--check', 'apps/web/scripts/engagement-phase3-browser-parity.mjs']],
