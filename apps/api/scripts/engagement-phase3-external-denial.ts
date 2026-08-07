@@ -50,58 +50,24 @@ function sha(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+/**
+ * Hash complete rows, not a hand-picked projection. The full-row digest is
+ * deliberately stronger and also immune to verifier drift when a model gains
+ * a new side-effect-bearing column.
+ */
 async function sideEffectState(prisma: PrismaService, tenantIds: string[]) {
+  const where = { tenantId: { in: tenantIds } };
   return prisma.withSystem(async (tx) => ({
-    outreachJobs: await tx.outreachJob.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, type: true, result: true, error: true },
-    }),
-    sendIntents: await tx.outreachSendIntent.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, totals: true, startedAt: true, finishedAt: true },
-    }),
-    deliveries: await tx.outreachDelivery.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, attempt: true, providerMessageId: true },
-    }),
-    outreachRecords: await tx.outreachRecord.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, sentAt: true, openedInEmailAt: true, updatedAt: true },
-    }),
-    botSessions: await tx.meetingBotSession.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, providerBotId: true, error: true, updatedAt: true },
-    }),
-    connections: await tx.integrationConnection.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, lastSyncAt: true, lastError: true, syncState: true, updatedAt: true },
-    }),
-    connectionTokens: await tx.integrationConnectionToken.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, updatedAt: true },
-    }),
-    attachments: await tx.engagementAttachment.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, lifecycleStatus: true, scanStatus: true, updatedAt: true },
-    }),
-    preps: await tx.meetingPrep.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, updatedAt: true },
-    }),
-    debriefs: await tx.meetingDebrief.findMany({
-      where: { tenantId: { in: tenantIds } },
-      orderBy: { id: 'asc' },
-      select: { id: true, status: true, updatedAt: true },
-    }),
+    outreachJobs: await tx.outreachJob.findMany({ where, orderBy: { id: 'asc' } }),
+    sendIntents: await tx.outreachSendIntent.findMany({ where, orderBy: { id: 'asc' } }),
+    deliveries: await tx.outreachDelivery.findMany({ where, orderBy: { id: 'asc' } }),
+    outreachRecords: await tx.outreachRecord.findMany({ where, orderBy: { id: 'asc' } }),
+    botSessions: await tx.meetingBotSession.findMany({ where, orderBy: { id: 'asc' } }),
+    connections: await tx.integrationConnection.findMany({ where, orderBy: { id: 'asc' } }),
+    connectionTokens: await tx.integrationConnectionToken.findMany({ where, orderBy: { id: 'asc' } }),
+    attachments: await tx.engagementAttachment.findMany({ where, orderBy: { id: 'asc' } }),
+    preps: await tx.meetingPrep.findMany({ where, orderBy: { id: 'asc' } }),
+    debriefs: await tx.meetingDebrief.findMany({ where, orderBy: { id: 'asc' } }),
   }));
 }
 
@@ -120,7 +86,9 @@ async function main(): Promise<void> {
     if (!id) throw new Error(`Fixture index missing ${key}`);
     return id;
   });
-  const fallbackId = fixtures.ids['absent.meeting'] ?? Object.values(fixtures.ids).find((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const fallbackId =
+    fixtures.ids['absent.meeting'] ??
+    Object.values(fixtures.ids).find((id) => /^[0-9a-f-]{36}$/i.test(id));
   if (!fallbackId) throw new Error('Fixture index has no well-formed fallback UUID');
 
   const unique = new Map<string, InventoryRequest>();
