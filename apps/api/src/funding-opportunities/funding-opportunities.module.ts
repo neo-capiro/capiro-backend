@@ -11,6 +11,7 @@ import { FundingOpportunityPipelineService } from './funding-opportunity-pipelin
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js';
+import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
@@ -19,6 +20,7 @@ import {
   FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
   FundingOpportunitiesPipelineFlagGuard,
+  FundingOpportunitiesMeriFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -92,6 +94,15 @@ import {
     // docblock, and meri-opportunity-tools.spec.ts, which asserts the import
     // graph rather than trusting the comment.
     MeriOpportunityToolsAdapter,
+    // P38. Depends on PrismaService, ConfigService and three SIBLING providers.
+    // Its context-compiler, claim-writer and audit collaborators are NOT
+    // constructor parameters: two of the three live in MeriModule, and taking
+    // them here would be the cycle this module refuses. MeriModule — which
+    // already imports this one — injects them at bootstrap through
+    // `withCollaborators`. All three are audit surfaces; none can change what
+    // the assessment says, which is what makes their absence degrade to a
+    // stated `compilerVersion: null` rather than a wrong answer.
+    MeriOpportunityAssessmentService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
@@ -99,12 +110,14 @@ import {
     FundingOpportunitiesDocumentsFlagGuard,
     FundingOpportunitiesLandscapeFlagGuard,
     FundingOpportunitiesPipelineFlagGuard,
+    FundingOpportunitiesMeriFlagGuard,
   ],
   exports: [
     FundingOpportunitiesService,
     ClientProfileEnrichmentService,
     FederalBusinessProfileService,
     MeriOpportunityToolsAdapter,
+    MeriOpportunityAssessmentService,
   ],
 })
 export class FundingOpportunitiesModule {}

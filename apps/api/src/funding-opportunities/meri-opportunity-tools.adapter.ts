@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
-import { isFundingOpportunitiesFeatureEnabled } from './funding-opportunities-flag.guard.js';
+import {
+  FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
+  isFundingOpportunitiesFeatureEnabled,
+} from './funding-opportunities-flag.guard.js';
 import { explainOpportunity } from './opportunity-explanation.js';
 import { OPPORTUNITY_SOURCES, type FundingOpportunity, type OpportunitySource } from './funding-opportunities.types.js';
 
@@ -52,8 +55,15 @@ import { OPPORTUNITY_SOURCES, type FundingOpportunity, type OpportunitySource } 
  * testable against a fixture instead of against a moment.
  */
 
-/** P37's flag. Off for every tenant until an explicit `intel_feature_flag` row. */
-export const FUNDING_OPPORTUNITIES_MERI_V2_FEATURE = 'funding_opportunities_meri_v2';
+/**
+ * P37's flag, re-exported from the guard file where every other Funding
+ * Opportunities flag constant lives.
+ *
+ * Declared THERE rather than here because P38's assessment route reads the same
+ * flag as a route guard: one constant, two readings, no chance of a guard and a
+ * data-shape check drifting into disagreeing about what enabled means.
+ */
+export { FUNDING_OPPORTUNITIES_MERI_V2_FEATURE };
 
 /**
  * The six tools, as a closed list.

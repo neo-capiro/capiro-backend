@@ -1322,9 +1322,55 @@ jobs:
       # survived" a property of the data. `truncated` is ABSENT when nothing was
       # dropped rather than an empty array, and a clamped free-text field carries
       # its own marker INSIDE the string, because that value gets quoted.
+      #
+      # 66/2095 after P38: ONE new api suite,
+      # meri-opportunity-assessment.spec.ts (45 tests). No migration — the
+      # assessment is persisted through tables that already exist
+      # (`clio_artifacts` for the versioned copy, the P0 claim/evidence store
+      # for its citations, `compliance_check` for the one audit row), which is
+      # why `conversationId` is REQUIRED on the request: relaxing
+      # clio_artifacts.conversation_id would have been a migration against
+      # another subsystem's schema with rolling-deploy consequences for every
+      # artifact reader, and scoping the assessment to the conversation that
+      # asked for it also gives version history through that table's own
+      # parentArtifactId chain.
+      #
+      # THE MODEL CANNOT CHANGE THE RECOMMENDATION, and that is structural
+      # rather than validated. `buildAssessment` WRITES the deterministic
+      # restatement from the packet and never reads the model's copy — a
+      # validator can be satisfied by a model that echoes the right word while
+      # the surrounding prose argues the opposite. A disagreement survives in
+      # its own field, and the suite asserts that field carries no `accepted` /
+      # `apply` / `override` key a reviewer could flip.
+      #
+      # NO CLAIM WITHOUT EVIDENCE THAT ALREADY EXISTED. The packet carries a
+      # closed set of refs; a claim citing none of them, or only refs outside
+      # the set, is HELD — not dropped (a shorter assessment would read as a
+      # cleaner one) and not passed through (a citation that resolves to
+      # nothing). A partially-cited claim is supported and still carries its
+      # unresolvable refs, so a reviewer can see the model inventing them.
+      #
+      # UNTRUSTED TEXT CANNOT ESCAPE ITS FENCE. `quoteUntrusted` puts the
+      # warning INSIDE the fence, adjacent to the bytes it is about, and
+      # `stripFence` neutralizes both the closing and the opening token in the
+      # payload AND in the label. The suite drives a real prompt-injection body
+      # through it and asserts exactly one closing token survives.
+      #
+      # A MODEL FAILURE IS THE DEFAULT PATH, not a handled exception: the
+      # deterministic half is computed before the model is called, so
+      # `unavailable` still restates the recommendation and still names the
+      # engine's own next action. `unavailable` and `rejected` are kept apart —
+      # unreachable and answered-with-garbage are different facts for someone
+      # deciding whether to re-run.
+      #
+      # NOTHING WRITES TO THE PRODUCT. Three audit surfaces only, all fail-open,
+      # and a structural test greps the service for `clientFundingOpportunity`,
+      # `engagementTask`, `memoryItem`, `sendEmail`, `setWorkflowStatus` and
+      # friends. The web panel lists proposed drafts with NO button, and its
+      # suite asserts the drafts block contains zero `<button>` elements.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 65 2050
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 66 2095
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1462,9 +1508,33 @@ jobs:
       # And an absent recommendation stays absent: the unscored read and a
       # scored-but-uncomputed record get DIFFERENT sentences, and the second
       # explicitly rules out reading it as a pass.
+      #
+      # 89/360 after P38: one NEW file, MeriOpportunityAssessment.test.tsx (19
+      # tests). GENERATING IS A CLICK, NEVER A MOUNT — the panel uses a mutation
+      # rather than a query, because mounting is what opening a detail drawer
+      # does and a query would spend a model call and an artifact row every time
+      # someone opened one. The suite asserts a bare mount issues no request at
+      # all. A MODEL DISAGREEMENT RENDERS AS ANALYSIS: its block states the
+      # recommendation is unchanged, names the unchanged value, and is asserted
+      # to contain zero buttons and zero inputs — there is no control on this
+      # panel that could apply the model's view. A HELD STATEMENT IS VISIBLE
+      # with its reason and is styled apart from a supported one, and a
+      # cited-but-unresolvable ref is shown rather than swallowed. INCOMPLETE IS
+      # THE HEADLINE, rendered above the sections rather than as a footnote. A
+      # PROPOSED DRAFT HAS NO BUTTON, asserted structurally, and the only POST
+      # the panel can make is the assessment itself.
+      #
+      # KNOWN LIMITATION, recorded here rather than discovered: the detail page
+      # passes `conversationId={null}`, so from that surface the panel renders
+      # its honest "open this from a Meri conversation" state rather than a
+      # button that would 400. The artifact is scoped to a conversation on
+      # purpose (see the api floor note above); giving the deterministic detail
+      # page its own entry point needs either a migration against
+      # clio_artifacts or a create-a-conversation affordance, and both are
+      # decisions rather than oversights.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 85 353
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 89 360
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
