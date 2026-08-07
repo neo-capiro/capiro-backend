@@ -12,6 +12,7 @@ import { OpportunityRequirementsPanel } from './OpportunityRequirementsPanel.js'
 import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
 import { OpportunityActionPlan } from './OpportunityActionPlan.js';
 import { MeriOpportunityAssessment } from './MeriOpportunityAssessment.js';
+import { OpportunityBudgetContext } from './OpportunityBudgetContext.js';
 import {
   DetailSectionBoundary,
   OpportunityAssessmentPanel,
@@ -325,6 +326,14 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           source={o.source}
           sourceRecordId={o.sourceRecordId}
         />
+      </DetailSectionBoundary>
+
+      {/* 5c ─ Budget beta context (P44). Keyed on the CLIENT, not this notice:
+              no source-backed key links a SAM.gov notice to a Treasury federal
+              account, and the panel says so above its own data rather than
+              letting the placement imply one. */}
+      <DetailSectionBoundary title="Federal account execution" testId="fo-detail-budget-section">
+        <OpportunityBudgetContext clientId={clientId} />
       </DetailSectionBoundary>
 
       {/* 6 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}

@@ -302,3 +302,24 @@ export class FundingOpportunitiesMeriFlagGuard extends FundingOpportunitiesFlagG
     return FUNDING_OPPORTUNITIES_MERI_V2_FEATURE;
   }
 }
+
+/**
+ * P44. Gates the Tango budget beta panel.
+ *
+ * Its own flag rather than a reuse, and the reason is the label: this surface
+ * shows money the PROVIDER attributed, at a grain Capiro's own budget tables do
+ * not use, with the provider's own confidence attached. A workspace that has
+ * enabled the government landscape has not agreed to have federal-account
+ * dollar figures on the same page as its Program Element work, and folding the
+ * two together would make that combination unconfigurable.
+ */
+export const FUNDING_OPPORTUNITIES_BUDGET_CONTEXT_FEATURE =
+  'funding_opportunities_budget_context';
+
+/** P44's budget guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesBudgetFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_BUDGET_CONTEXT_FEATURE;
+  }
+}

@@ -886,6 +886,63 @@ export function landscapeApiPath(
 /** The pipeline flag. Byte-matches the API guard's own constant. */
 export const FUNDING_OPPORTUNITIES_PIPELINE_FEATURE = 'funding_opportunities_pipeline_v2';
 
+// ── Budget beta context (P44) ───────────────────────────────────────────────
+
+/** The budget flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_BUDGET_FEATURE = 'funding_opportunities_budget_context';
+
+/** The label every surface must use. Byte-matches the API's own constant. */
+export const BUDGET_BETA_LABEL = 'Tango Budget Beta';
+
+export interface BudgetAccountView {
+  federalAccountSymbol: string;
+  fiscalYear: number;
+  accountTitle: string;
+  agencyName: string | null;
+  bureauName: string | null;
+  /** Exact decimal STRINGS, never numbers — see the API's own `decimal`. */
+  money: {
+    requestedBa: string | null;
+    enactedBa: string | null;
+    apportioned: string | null;
+    obligatedTotal: string | null;
+    outlayedTotal: string | null;
+    unobligatedBalance: string | null;
+    contractObligated: string | null;
+  };
+  attributionStatus: string | null;
+  attributionConfidence: string | null;
+  clientFlow: {
+    recipientUei: string;
+    contractObligated: string | null;
+    contractOutlayed: string | null;
+    contractCount: number | null;
+    fundingOfficeName: string | null;
+    fundingAgencyName: string | null;
+  } | null;
+  lastSyncedAt: string | null;
+}
+
+export interface BudgetContextView {
+  state: 'available' | 'disabled' | 'denied' | 'not_synced' | 'no_client_identity' | 'no_flows';
+  explanation: string;
+  source: string;
+  noticeLinkage: { linked: false; explanation: string };
+  grain: string;
+  fiscalYears: Array<{ fiscalYear: number; accounts: BudgetAccountView[] }>;
+  asOf: string;
+}
+
+/**
+ * Keyed on the CLIENT, not on an opportunity.
+ *
+ * No source-backed key links a SAM.gov notice to a Treasury federal account, so
+ * a per-opportunity path would promise a join that does not exist.
+ */
+export function budgetContextApiPath(clientId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/budget-context`;
+}
+
 // ── Meri assessment (P38) ───────────────────────────────────────────────────
 
 /** The Meri flag. Byte-matches the API guard's own constant. */

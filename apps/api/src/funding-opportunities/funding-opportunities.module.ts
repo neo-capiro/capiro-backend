@@ -12,6 +12,7 @@ import { ClientProfileEnrichmentService } from './client-profile-enrichment.serv
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js';
 import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
+import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
@@ -21,6 +22,7 @@ import {
   FundingOpportunitiesNoticeHistoryFlagGuard,
   FundingOpportunitiesPipelineFlagGuard,
   FundingOpportunitiesMeriFlagGuard,
+  FundingOpportunitiesBudgetFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -103,6 +105,10 @@ import {
     // the assessment says, which is what makes their absence degrade to a
     // stated `compilerVersion: null` rather than a wrong answer.
     MeriOpportunityAssessmentService,
+    // P44. Depends only on PrismaService. Reads two GLOBAL provider tables and
+    // the client's own uei; it holds no writer for anything, which is how
+    // "cannot overwrite Capiro budget values" is enforced rather than promised.
+    OpportunityBudgetContextService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
@@ -111,6 +117,7 @@ import {
     FundingOpportunitiesLandscapeFlagGuard,
     FundingOpportunitiesPipelineFlagGuard,
     FundingOpportunitiesMeriFlagGuard,
+    FundingOpportunitiesBudgetFlagGuard,
   ],
   exports: [
     FundingOpportunitiesService,
@@ -118,6 +125,7 @@ import {
     FederalBusinessProfileService,
     MeriOpportunityToolsAdapter,
     MeriOpportunityAssessmentService,
+    OpportunityBudgetContextService,
   ],
 })
 export class FundingOpportunitiesModule {}

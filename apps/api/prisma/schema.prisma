@@ -6626,6 +6626,137 @@ model TangoProcurementForecast {
   @@map("tango_procurement_forecast")
 }
 
+/// MakeGov/Tango's federal-account x fiscal-year budget rollup (P44).
+///
+/// BETA CONTEXT, NOT CAPIRO'S BUDGET. This table illuminates EXECUTION at the
+/// federal-account grain — what an account was enacted, apportioned, obligated
+/// and outlayed. Capiro's own Program Element tables answer a different
+/// question at a different grain (a line item's request, mark and enacted
+/// amount), and the two must never be compared or merged. Plan §P44 is explicit:
+/// this phase writes no Program Element, project, request, mark, enacted or
+/// canonical defense-budget table, and any relationship between an account and
+/// a PE is a Capiro mapping with its own recorded basis, never a provider
+/// assertion.
+///
+/// GLOBAL — no tenant_id, no RLS. "Federal account 097-0400 obligated $X in
+/// FY26" is a fact about the federal government, same category as
+/// `tango_procurement_forecast`, `sam_opportunity` and `federal_grant`.
+///
+/// SINGLE CURRENT STATE, not layered on P15's versioned snapshot store — the
+/// same deliberate deviation P24 made and recorded as decision-log D-46, for
+/// the same reason: a budget rollup's history is the FISCAL YEAR dimension the
+/// table already carries, so a second versioning axis would store the same fact
+/// twice and invite the two to disagree.
+///
+/// THE MONEY COLUMNS ARE NULLABLE AND NULL IS NOT ZERO. Live observation
+/// (2026-09-01, P44's own shape probe): on a real row `contract_obligated` was
+/// a number while `enacted_ba`, `requested_ba`, `apportioned`,
+/// `obligated_total`, `outlayed_total` and `unobligated_balance` were ALL null.
+/// An account the provider has not attributed is not an account with no money.
+model TangoBudgetAccount {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Tango's own row id for this account x fiscal-year pair. The upsert key.
+  tangoAccountRowId Int @unique @map("tango_account_row_id")
+
+  /// Treasury federal account symbol, e.g. "097-0400". The provider's own
+  /// identifier for the account, and the ONLY key a Capiro-side mapping may
+  /// join on — see this model's doc on why no PE relationship is inferred.
+  federalAccountSymbol String @map("federal_account_symbol")
+  fiscalYear           Int    @map("fiscal_year")
+
+  accountTitle String  @map("account_title")
+  /// Nullable, and observed NULL on a live row while `agencyName` was present.
+  agencyCode   String? @map("agency_code")
+  agencyName   String? @map("agency_name")
+  bureauName   String? @map("bureau_name")
+
+  beaCategory     String? @map("bea_category")
+  onOffBudget     String? @map("on_off_budget")
+  subfunctionCode String? @map("subfunction_code")
+
+  /// Budget authority and execution. Every one nullable; see the model doc.
+  /// `@db.Decimal(20, 2)` rather than a float: these are dollars, and a float
+  /// that rounds an obligation is a number nobody can reconcile against the
+  /// source.
+  requestedBa        Decimal? @map("requested_ba") @db.Decimal(20, 2)
+  enactedBa          Decimal? @map("enacted_ba") @db.Decimal(20, 2)
+  apportioned        Decimal? @db.Decimal(20, 2)
+  obligatedTotal     Decimal? @map("obligated_total") @db.Decimal(20, 2)
+  outlayedTotal      Decimal? @map("outlayed_total") @db.Decimal(20, 2)
+  unobligatedBalance Decimal? @map("unobligated_balance") @db.Decimal(20, 2)
+  contractObligated  Decimal? @map("contract_obligated") @db.Decimal(20, 2)
+  assistanceObligated Decimal? @map("assistance_obligated") @db.Decimal(20, 2)
+
+  /// The PROVIDER'S OWN confidence in its attribution, carried verbatim.
+  /// This is what makes the "beta" label honest rather than decorative: the
+  /// source tells us how sure it is, and the UI repeats it instead of
+  /// presenting every row with equal weight.
+  attributionStatus     String? @map("attribution_status")
+  attributionConfidence String? @map("attribution_confidence")
+
+  /// Full normalized shape of the most recent observation. Overwritten on
+  /// every sync, not versioned — same policy as the forecast table above.
+  snapshot Json @map("snapshot")
+
+  sourceUrl String? @map("source_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vendorFlows TangoBudgetVendorFlow[]
+
+  @@index([federalAccountSymbol, fiscalYear], map: "tango_budget_account_symbol_fy_idx")
+  @@index([agencyCode], map: "tango_budget_account_agency_idx")
+  @@map("tango_budget_account")
+}
+
+/// One recipient's contract flow out of one federal account (P44).
+///
+/// RELEVANT VENDORS ONLY. The provider's own recipients endpoint returns every
+/// recipient of an account; this table stores a row only when the recipient's
+/// UEI is one Capiro already knows — the same "walk everything, persist only
+/// what we can defend" discipline P22 applied to vehicle awardees. A table of
+/// every federal recipient would be a copy of USAspending nobody asked for.
+///
+/// GLOBAL, like its parent. The UEI filter decides what gets WRITTEN; it does
+/// not make the resulting row tenant-scoped, because "vendor X received $Y from
+/// account Z" is a public fact and two tenants knowing the same vendor must not
+/// produce two rows.
+model TangoBudgetVendorFlow {
+  id String @id @default(uuid()) @db.Uuid
+
+  budgetAccountId String             @map("budget_account_id") @db.Uuid
+  budgetAccount   TangoBudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+
+  /// The join key, and the reason this row exists at all.
+  recipientUei  String  @map("recipient_uei")
+  recipientName String? @map("recipient_name")
+
+  /// The funding office, opaque provider id plus its own labels. Nullable
+  /// because the provider's recipients rows are not guaranteed to carry one.
+  fundingOrganizationId String? @map("funding_organization_id")
+  fundingOfficeCode     String? @map("funding_office_code")
+  fundingOfficeName     String? @map("funding_office_name")
+  fundingAgencyCode     String? @map("funding_agency_code")
+  fundingAgencyName     String? @map("funding_agency_name")
+
+  contractObligated Decimal? @map("contract_obligated") @db.Decimal(20, 2)
+  contractOutlayed  Decimal? @map("contract_outlayed") @db.Decimal(20, 2)
+  contractCount     Int?     @map("contract_count")
+
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([recipientUei], map: "tango_budget_vendor_flow_uei_idx")
+  @@index([budgetAccountId], map: "tango_budget_vendor_flow_account_idx")
+  @@map("tango_budget_vendor_flow")
+}
+
 /// Per-FIELD agreement between Capiro's first-party SAM.gov row and
 /// MakeGov/Tango's own observation of the same opportunity (P27).
 ///
