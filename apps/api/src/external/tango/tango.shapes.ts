@@ -55,6 +55,30 @@ function shapeOf(fields: readonly string[]): string {
  * Also excludes `exclusion_status_flag` and `exclusion_url` — P45 owns exclusion
  * risk, with its own review semantics, and a raw flag riding along on the entity
  * record would get read as a determination before that phase exists.
+ *
+ * DELIBERATELY EXCLUDES `entity_structure`/`state_of_incorporation` — and NOT
+ * this SDK's `entity_structure_desc`/`state_of_incorporation_code` either
+ * (P19 finding, decision-log D-35). Live-account testing found a genuine SDK-
+ * vs-server incompatibility, not a naming typo:
+ *
+ *   - The `..._code`/`..._desc` names (this SDK's bundled `explicitSchemas.js`
+ *     reference) are REJECTED by the live server itself: "Invalid shape...
+ *     unknown_field", with the server's own `available_fields` payload
+ *     listing bare `entity_structure`/`state_of_incorporation` instead.
+ *   - Those bare names, in turn, are REJECTED CLIENT-SIDE: `getEntity` calls
+ *     `materializeOne` on every successful response (not just `listEntities`),
+ *     and the SDK's bundled `ModelFactory`/`SchemaRegistry` still only knows
+ *     the old `..._code`/`..._desc` pair — `ShapeValidationError: Field
+ *     "entity_structure" does not exist on model "Entity"`.
+ *
+ * Neither naming convention round-trips end-to-end (request → typed result)
+ * through @makegov/tango-node@1.1.0 — this is the SDK's bundled schema
+ * genuinely lagging the live API's current one, not something a field rename
+ * on Capiro's side can fix. `TangoEntity.entityStructure`/
+ * `.stateOfIncorporation` stay in the domain type (a future SDK release may
+ * resolve this) but `mapEntity` returns them as an explicit, commented `null`
+ * rather than requesting a field guaranteed to break one side or the other.
+ * Escalate to MakeGov before re-adding either name.
  */
 export const ENTITY_FIELDS = [
   'uei',
@@ -69,8 +93,6 @@ export const ENTITY_FIELDS = [
   'registration_status',
   'sam_expiration_date',
   'physical_address',
-  'entity_structure_desc',
-  'state_of_incorporation_code',
   'last_update_date',
 ] as const;
 export const ENTITY_SHAPE = shapeOf(ENTITY_FIELDS);

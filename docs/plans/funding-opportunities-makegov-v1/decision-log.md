@@ -836,3 +836,133 @@ oversight matching P17's. It is a scoped, stated choice — a future phase
 that wants a live proof of retry/breaker behavior specifically should say so
 explicitly rather than assume this phase already attempted and failed to
 get one.
+
+---
+
+## D-34 · 2026-08-07 · A client's Tango sync status lives on `clients` itself, not a link table
+
+P19 needs to relate a client to the Tango Entity fetched for it. The obvious-
+looking answer — a `tango_resource_link` row (P15) — is wrong on inspection:
+`tango-store.service.ts`'s `assertKnownLocalType` explicitly refuses a
+tenant-owned local resource type, and `clients` carries `tenant_id`. That
+table exists to link a Tango resource into one of Capiro's own GLOBAL
+reference tables (`federal_contractor` et al.), never to a tenant's row.
+
+The actual answer needs no link at all: a UEI is already a global, exact,
+1:1 government identifier, and `Client.uei` and
+`tango_resource_snapshot.external_id` are the SAME value for the SAME
+entity. `WHERE external_id = client.uei` IS the relationship — no join table
+adds anything a plain equality doesn't already give for free.
+
+What DOES belong on `Client` is the client's OWN sync bookkeeping — three
+additive nullable columns (migration `20260822010000_client_tango_entity_sync_status`):
+`tango_entity_last_synced_at` (last SUCCESSFUL sync — found or not_found are
+both a definitive answer, not a failure), `tango_entity_last_attempt_at`
+(every attempt, independently, so a repeatedly-failing sync cannot read as
+healthy because it once succeeded), and `tango_entity_last_error` (redacted,
+cleared on the next success). Same freshness-tracking shape this program
+already documents elsewhere (`sourceFreshnessSemantics`).
+
+**What this forbids:** a future phase reaching for `TangoResourceLink` to
+connect a Tango resource to ANY tenant-owned row. If the local side is
+tenant-owned, the relationship belongs on that row directly (as here) or on
+a new tenant-scoped table with its own RLS — never on the global link table,
+regardless of how convenient reusing it looks.
+
+---
+
+## D-35 · 2026-08-07 · A real SDK-vs-server field-name incompatibility, found live and fully diagnosed
+
+The P19 live-key run (real account, rehearsal database — see D-36) hit a 400
+on the very first real `getEntity` call: `"Invalid request parameters:
+Invalid shape"`. This was chased to a full, precise diagnosis, not left as
+"the account rejected something":
+
+1. **The live server rejects this SDK's own field names.** A raw debug call
+   against the real API confirmed `entity_structure_desc` and
+   `state_of_incorporation_code` (P14's original `ENTITY_FIELDS`, taken
+   faithfully from `@makegov/tango-node@1.1.0`'s bundled
+   `shapes/explicitSchemas.js`) are `unknown_field` server-side. The
+   server's own error payload includes its CURRENT `available_fields` list,
+   which has bare `entity_structure`/`state_of_incorporation` instead — no
+   `_code`/`_desc` suffix.
+2. **Renaming to match the live server broke the other direction.** Passing
+   the corrected bare names through the real SDK, via `tango.client.spec.ts`
+   driven by a fake `fetchImpl` (no network — the SAME harness every other
+   adapter test uses), threw `ShapeValidationError: Field "entity_structure"
+   does not exist on model "Entity"` — thrown by the SDK's OWN bundled
+   `ModelFactory`/`SchemaRegistry` when materializing a response, which
+   still only knows the old `_code`/`_desc` pair.
+3. **This is not `listEntities`-only.** Reading the SDK's own `getEntity`
+   source directly confirmed it calls `materializeOne` on every SUCCESSFUL
+   response, exactly like `listEntities` calls `materializeList` — an
+   initial test against the synthetic (never-found) test UEI looked clean
+   only because a 404 never reaches the materialization step at all. A REAL
+   found entity would hit the identical client-side crash.
+
+Net: **neither naming convention round-trips end-to-end** (request → typed
+result) through this SDK version, for either method that returns a typed
+Entity. This is the SDK's bundled reference schema genuinely lagging the
+live API's current one — an external version-drift fact, not a Capiro typo
+to fix by picking a different string.
+
+**Fix:** `ENTITY_FIELDS` drops both fields entirely — not renamed, removed.
+`mapEntity` returns `entityStructure`/`stateOfIncorporation` as an explicit,
+commented `null` rather than a lookup that would always resolve to nothing
+useful. The domain type keeps both fields (a future SDK release may resolve
+this); the mapper's comment says why they are always null today so a future
+reader does not mistake it for a missed field and "fix" it back into a
+crash. `tango.client.spec.ts` gained a dedicated regression test asserting
+both stay null even though the fixture deliberately carries plausible
+values for both (as noise the shape never asked for) — proving the drop,
+not just asserting it once in a comment.
+
+**What this forbids:** re-adding either `entity_structure_desc`/
+`state_of_incorporation_code` OR bare `entity_structure`/
+`state_of_incorporation` to `ENTITY_FIELDS` without first confirming — live,
+against the real account, through `getEntity` specifically (not just a
+shape-string check) — that a NEWER `@makegov/tango-node` release has
+reconciled its bundled schema with the live API. Escalate to MakeGov before
+assuming a version bump alone fixes it.
+
+---
+
+## D-36 · 2026-08-07 · Migration rehearsal AND a live-key pipeline proof, composed for the first time
+
+P19 is the first phase needing both disciplines this program has used
+separately since P07 (migration rehearsal: clean replay, ordered upgrade,
+retry-as-no-op) and since P17 (a live call against the real account). Doing
+both together, on the SAME isolated database, proved more than either would
+alone:
+
+- **Clean replay**: the full 231-migration history, including
+  `20260822010000_client_tango_entity_sync_status`, applied cleanly to a
+  verified-empty `pgvector:pg16` container.
+- **Ordered upgrade**: a SEPARATE database taken through every migration
+  EXCEPT the new one, seeded with a real tenant + two clients — one with a
+  UEI, one without — then the new migration applied on top. Exactly one
+  migration ran; the pre-existing rows kept their data with the three new
+  columns landing NULL, not backfilled.
+- **Retry-as-no-op**: the migration SQL re-run by hand against the clean-
+  replay database — `NOTICE: column ... already exists, skipping` three
+  times, zero errors, column count unchanged.
+- **Live-key pipeline proof**: `sync-tango-entities.ts --commit`, run
+  against that SAME seeded ordered-upgrade database with the real key from
+  Secrets Manager (fetched and piped directly into the subprocess
+  environment, never appearing separately in this session's own output).
+  `processed: 1` — proving, empirically, against a REAL Prisma query (not a
+  fake double), that the name-only seeded client was never touched at all
+  while the UEI-having one was. This is the strongest form of this phase's
+  own acceptance bar: not just "the fake test passes" but "the actual SQL
+  this ships with does the right thing against a real, populated database."
+  The run also surfaced D-35 — a genuine bug the fake-double unit tests
+  could not have caught, because they never had a reason to assert against
+  the SDK's own materialization step.
+
+**What this forbids:** treating a fake-double-only test suite as sufficient
+evidence for a phase that is BOTH the first real consumer of a prior
+phase's schema (P15's checkpoint table) AND the first real caller of a
+specific gateway method end-to-end (`getEntity`, through `getVersion`-only
+in P17's probe). Where both are true at once, run the real pipeline against
+a real, disposable database before calling the phase done — a passing unit
+suite proves the LOGIC; it does not prove the REQUEST.

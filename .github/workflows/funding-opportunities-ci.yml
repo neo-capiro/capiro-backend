@@ -426,6 +426,7 @@ jobs:
           scripts/sam-opportunity-matcher.spec.ts
           scripts/diag-tango-capabilities.spec.ts
           scripts/diag-tango-health.spec.ts
+          scripts/sync-tango-entities.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -493,6 +494,25 @@ jobs:
       # invocation above where they live under scripts/ — that directory is
       # not glob-matched the way src/external/tango/ is.
       #
+      # 39/1315 after P19: one NEW suite. sync-tango-entities.spec.ts (20 tests)
+      # covers the checkpoint-resumable keyset walk, dry-run still calling
+      # Tango but writing nothing locally, the acceptance bar itself (every
+      # row readClientBatch supplies is fetched by its uei verbatim — the
+      # actual `uei IS NOT NULL` filter lives in the real Prisma query and is
+      # separately proven, empirically, by a live-key run against a seeded
+      # rehearsal database with both a UEI-having and a name-only client —
+      # not by this fake-backed suite), writeSnapshot only on a real find,
+      # not_found counted as a SUCCESSFUL sync (not a failure), and a real
+      # failure recording a redacted error without touching lastSyncedAt.
+      # tango.client.spec.ts gained ONE test (+1) from a REAL finding that
+      # live run surfaced: entity_structure/state_of_incorporation are a
+      # genuine SDK-vs-server incompatibility (decision-log D-35) — the live
+      # server rejects this SDK's bundled `..._desc`/`..._code` field names,
+      # and the SDK's own materializeOne rejects the live server's bare names
+      # right back, on every successful getEntity call. Neither name round-
+      # trips through @makegov/tango-node@1.1.0, so ENTITY_FIELDS drops both
+      # and mapEntity returns them as an explicit, commented null.
+      #
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -501,7 +521,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 38 1294
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 39 1315
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

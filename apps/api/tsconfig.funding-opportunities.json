@@ -60,7 +60,10 @@
     "scripts/diag-tango-capabilities.spec.ts",
     // P18: read-only Tango usage/health report CLI.
     "scripts/diag-tango-health.ts",
-    "scripts/diag-tango-health.spec.ts"
+    "scripts/diag-tango-health.spec.ts",
+    // P19: reviewed-UEI entity shadow sync.
+    "scripts/sync-tango-entities.ts",
+    "scripts/sync-tango-entities.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

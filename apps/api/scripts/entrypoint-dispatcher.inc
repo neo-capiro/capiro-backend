@@ -524,6 +524,14 @@ case "${1:-serve}" in
   # success rate, and the most recent call time. No Tango API call, no key
   # needed — this only reads Capiro's own database. Optional --window=<minutes>.
   diag-tango-health) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-health.ts "$@" ;;
+  # Funding Opportunities P19: reviewed-UEI entity shadow sync. For every
+  # client WHERE uei IS NOT NULL (across all tenants — a name-only client
+  # never triggers a fetch), fetches the Tango Entity and writes it to the
+  # global tango_resource_snapshot table; stamps the client's own
+  # tango_entity_last_synced_at/_last_attempt_at/_last_error. Dry-run by
+  # default; a dispatched task passes --commit. Resumable via
+  # tango_sync_checkpoint. Optional --limit=<n>.
+  sync-tango-entities) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-entities.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
