@@ -6,8 +6,13 @@
  * engagement-api. Every other request goes to main. The preview header is
  * forwarded unchanged so the browser exercises the same request contract as
  * live ALB routing.
+ *
+ * An OPTIONAL in-memory fault controller may be supplied by the local
+ * resilience verifier. It is never enabled by the normal runner and exposes no
+ * HTTP control endpoint, so production/web code cannot arm a fault.
  */
 import http from 'node:http';
+import { phase3FaultJsonBody } from './engagement-phase3-faults.mjs';
 
 export const LOCAL_PROXY_PREVIEW_HEADER = 'x-capiro-engagement-preview';
 export const LOCAL_PROXY_PREVIEW_VALUE = 'v3';
@@ -31,12 +36,53 @@ export function choosePhase3ProxyTarget({ url, headers, mainPort = 4000, engagem
   };
 }
 
+function applyFault(req, res, fault) {
+  const run = () => {
+    if (fault.action === 'reset') {
+      req.socket.destroy();
+      return;
+    }
+
+    const headers = {
+      'cache-control': 'no-store',
+      ...fault.headers,
+    };
+    if (fault.action === 'malformed_json' || fault.action === 'partial_response') {
+      headers['content-type'] = headers['content-type'] ?? 'application/json';
+    }
+
+    if (fault.action === 'partial_response') {
+      res.writeHead(fault.status ?? 200, headers);
+      res.write(fault.fragment);
+      // Destroy after bytes have left the process: callers must distinguish a
+      // partial body from a clean, complete JSON response.
+      setImmediate(() => res.destroy());
+      return;
+    }
+
+    if (fault.action === 'malformed_json') {
+      res.writeHead(fault.status ?? 200, headers);
+      res.end(fault.fragment || '{"malformed":');
+      return;
+    }
+
+    const body = phase3FaultJsonBody(fault);
+    headers['content-type'] = headers['content-type'] ?? 'application/json';
+    res.writeHead(fault.status, headers);
+    res.end(body);
+  };
+
+  if (fault.delayMs > 0) setTimeout(run, fault.delayMs);
+  else run();
+}
+
 export function createPhase3Proxy({
   host = '127.0.0.1',
   port = 4600,
   mainPort = 4000,
   engagementPort = 4500,
   onDecision = () => {},
+  faultController = null,
 } = {}) {
   const server = http.createServer((req, res) => {
     const target = choosePhase3ProxyTarget({
@@ -45,7 +91,23 @@ export function createPhase3Proxy({
       mainPort,
       engagementPort,
     });
-    onDecision({ method: req.method, url: req.url, owner: target.owner });
+    const fault = faultController?.match?.({
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      owner: target.owner,
+    });
+    onDecision({
+      method: req.method,
+      url: req.url,
+      owner: target.owner,
+      faultId: fault?.id ?? null,
+    });
+
+    if (fault) {
+      applyFault(req, res, fault);
+      return;
+    }
 
     const upstream = http.request(
       {
@@ -64,7 +126,13 @@ export function createPhase3Proxy({
       if (!res.headersSent) {
         res.writeHead(502, { 'content-type': 'application/json' });
       }
-      res.end(JSON.stringify({ statusCode: 502, code: 'ENGAGEMENT_PHASE3_LOCAL_PROXY_UPSTREAM', message: error.message }));
+      res.end(
+        JSON.stringify({
+          statusCode: 502,
+          code: 'ENGAGEMENT_PHASE3_LOCAL_PROXY_UPSTREAM',
+          message: error.message,
+        }),
+      );
     });
     req.pipe(upstream);
   });
@@ -80,7 +148,9 @@ export function createPhase3Proxy({
     },
     async close() {
       if (!server.listening) return;
-      await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+      await new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
     },
   };
 }
