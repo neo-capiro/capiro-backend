@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -612,6 +612,8 @@ jobs:
           src/intelligence/intelligence.manual-mapping.spec.ts
           src/intelligence/intelligence.mapping-governance.spec.ts
           src/meri/meri-tools.registration.spec.ts
+          src/meri/meri-mcp.catalog.spec.ts
+          src/meri/meri-mcp-transport.spec.ts
           scripts/enrich-grant-details.spec.ts
           scripts/sync-sam-opportunities.spec.ts
           scripts/sync-grants.spec.ts
@@ -1368,9 +1370,46 @@ jobs:
       # `engagementTask`, `memoryItem`, `sendEmail`, `setWorkflowStatus` and
       # friends. The web panel lists proposed drafts with NO button, and its
       # suite asserts the drafts block contains zero `<button>` elements.
+      #
+      # 68/2120 after P39: TWO suites join the gate — meri-mcp.catalog.spec.ts
+      # (NEW, 20 tests) and meri-mcp-transport.spec.ts (existing, +6, now in
+      # scope). No migration, no config key: the rollout is a per-tenant
+      # `intel_feature_flag` row (`funding_opportunities_tango_mcp`), read
+      # through Funding Opportunities' own
+      # `isFundingOpportunitiesFeatureEnabled` rather than a second copy of the
+      # same query.
+      #
+      # THE HEADER SET IS CLOSED AND LIVES IN THE CATALOG. Before this phase
+      # every static token went out as `Authorization: Bearer`. Tango's MCP
+      # endpoint authenticates on `X-Tango-API-Key`, and the tempting fix — a
+      # `tokenHeader` field on the tenant-editable SERVER ROW — would let anyone
+      # who can add a connector aim a decrypted secret at an arbitrary header on
+      # an arbitrary endpoint. `catalogTokenHeader` takes a catalog ID and
+      # nothing else; its arity is asserted, so there is no parameter a
+      # tenant value could arrive through. `tokenHeaderFor` re-checks at the
+      # transport and falls back to the SAFE header for anything unrecognized —
+      # a connector that silently stopped authenticating would read as a
+      # provider outage. An API-key header carries the RAW key: `X-Tango-API-Key:
+      # Bearer abc` fails auth in a way that looks like a bad key.
+      #
+      # THE FLAG HIDES THE ENTRY rather than greying it out — a disabled card
+      # advertises a capability a workspace has not been given — and
+      # `addFromCatalog` refuses a flagged id with the SAME sentence an unknown
+      # id gets, for the same reason every flag guard here 404s instead of 403s.
+      # An ALREADY-CONNECTED entry stays visible whatever the flag says: hiding
+      # a live connector would leave a tenant a server they can use and cannot
+      # find to disconnect.
+      #
+      # THE SCOPE NOTE IS AMENDED, AND THE AMENDMENT IS TESTED. The library's
+      # "no government connectors" rationale still holds — Meri has that data
+      # natively — and the one exception is research-only. The spec does not
+      # take that on trust: it reads the deterministic Funding Opportunities
+      # sources (recommendation engine, service, inbox, landscape, action plan,
+      # both Meri adapters) and asserts none of them can reach `meri-mcp`,
+      # `McpService` or `callTool`.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 66 2095
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 68 2120
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

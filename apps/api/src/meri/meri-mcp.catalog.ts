@@ -17,6 +17,22 @@
  * external systems: documents, research, CRM, project tracking, comms, and the
  * local browser bridge.
  *
+ * SCOPE NOTE AMENDED (Funding Opportunities P39, 2026-09-01): one government
+ * connector now exists, and the exclusion above still holds for the reason it
+ * was written. `makegov-tango` is RESEARCH-ONLY additive procurement
+ * intelligence — exploratory questions a analyst asks while thinking, not a
+ * source anything in the product depends on. The canonical production path for
+ * every MakeGov/Tango fact remains local: scheduled syncs write normalized
+ * `tango_*` tables, and Capiro's deterministic services read those. This
+ * connector duplicates none of that; it reaches provider surfaces Capiro has
+ * deliberately not synced.
+ *
+ * The boundary is load-bearing and enforced elsewhere, not by this comment:
+ * nothing in Funding Opportunities' deterministic scoring, its alerts, or its
+ * artifact generation can call an MCP connector — those paths hold no MCP
+ * dependency at all. If that ever changes, this entry has to be reconsidered
+ * along with it.
+ *
  * Endpoints are best-effort defaults curated by the platform team. Where a
  * stable hosted endpoint is not yet published, `requiresEndpointInput` asks the
  * admin to paste theirs on connect. Nothing here is a secret — secrets are
@@ -31,6 +47,45 @@ export type McpCatalogCategory =
   | 'developer'
   | 'communication';
 export type McpScope = 'tenant' | 'user';
+
+/**
+ * Header names a CATALOG entry may send its static token in.
+ *
+ * A closed allowlist, and the closure is the whole point. The transport used to
+ * send every static token as `Authorization: Bearer <token>`, which is right
+ * for most servers and wrong for MakeGov/Tango, whose MCP endpoint
+ * authenticates on `X-Tango-API-Key`. The tempting fix — a `tokenHeader` field
+ * on the SERVER ROW, so an admin adding a custom connector can name their own —
+ * would let anyone who can add a connector aim a decrypted secret at an
+ * arbitrary header on an arbitrary endpoint. Header names live in the CATALOG,
+ * which is code, reviewed in a diff.
+ *
+ * `Authorization` is listed explicitly rather than treated as "the absent
+ * case", so the set enumerates every header a token can ever reach.
+ */
+export const MCP_ALLOWED_TOKEN_HEADERS = ['Authorization', 'X-Tango-API-Key'] as const;
+export type McpTokenHeader = (typeof MCP_ALLOWED_TOKEN_HEADERS)[number];
+
+export function isAllowedTokenHeader(value: unknown): value is McpTokenHeader {
+  return (
+    typeof value === 'string' && (MCP_ALLOWED_TOKEN_HEADERS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * The header a catalog entry's token goes in, or null for the default bearer.
+ *
+ * Takes a catalog ID rather than an entry so a caller cannot pass a
+ * server-row-shaped object and accidentally read a tenant-supplied field. An
+ * unknown id, an entry with no `tokenHeader`, or an entry whose `tokenHeader`
+ * somehow fell outside the allowlist all return null and get the default —
+ * failing to the SAFE header rather than to none.
+ */
+export function catalogTokenHeader(catalogId: string | null | undefined): McpTokenHeader | null {
+  if (!catalogId) return null;
+  const header = CATALOG_BY_ID.get(catalogId)?.tokenHeader;
+  return isAllowedTokenHeader(header) ? header : null;
+}
 
 export interface McpCatalogTool {
   /** Tool name as exposed by the server (seeds the allowlist). */
@@ -79,9 +134,38 @@ export interface McpCatalogEntry {
   requiresEndpointInput?: boolean;
   /** Shown as a callout in the drawer (setup prerequisites, API-key location). */
   setupNote?: string;
+  /**
+   * For authType 'token': which header the token is sent in.
+   *
+   * Omitted means `Authorization: Bearer <token>`, which is what every entry
+   * did before P39 and what almost every MCP server expects. Constrained to
+   * {@link MCP_ALLOWED_TOKEN_HEADERS} — see that constant for why this field
+   * lives on the catalog rather than on the server row.
+   */
+  tokenHeader?: McpTokenHeader;
+  /**
+   * Tenant feature flag that must be enabled before this entry is offered.
+   *
+   * Omitted means the entry is always in the library. Present means the library
+   * HIDES it and `createServer` refuses it until the tenant has an explicit
+   * enabled `intel_feature_flag` row — the same shape every Funding
+   * Opportunities capability uses, applied to a connector.
+   */
+  requiresFeature?: string;
   /** UI tile: brand-ish color + a glyph key the frontend maps to an icon. */
   brand: { color: string; glyph: string };
 }
+
+/**
+ * P39. Gates the research-only MakeGov/Tango MCP connector.
+ *
+ * Its own flag, separate from every other Funding Opportunities one, because
+ * this is the single capability in the program that sends a request to a
+ * provider at READ time. Everything else reads local tables. A workspace
+ * enabling the inbox has not consented to that, and folding the two together
+ * would make the difference unconfigurable.
+ */
+export const FUNDING_OPPORTUNITIES_TANGO_MCP_FEATURE = 'funding_opportunities_tango_mcp';
 
 /**
  * The catalog. Order within a category is the display order. Keep entries
@@ -194,6 +278,48 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
   },
 
   // ─── Research & Intelligence ────────────────────────────────────────────
+  {
+    // P39. The ONE government connector in this library, and the file header's
+    // amended scope note explains why it does not contradict the exclusion
+    // above: this is exploratory research, and every production Funding
+    // Opportunities fact still comes from Capiro's own normalized tables.
+    id: 'makegov-tango',
+    name: 'MakeGov / Tango (research)',
+    category: 'research',
+    description: 'Exploratory federal procurement research. Never a production data source.',
+    longDescription:
+      'Ask open-ended questions against MakeGov/Tango’s own procurement corpus while you are thinking — entities, opportunities, vehicles, awards. RESEARCH ONLY: nothing Capiro decides depends on it. Every Funding Opportunities recommendation, alert and artifact is computed from Capiro’s own synchronized tables, and results from this connector arrive as untrusted third-party evidence you can quote but nothing scores against.',
+    transport: 'http',
+    endpoint: 'https://govcon.dev/mcp',
+    authType: 'token',
+    // The reason MCP_ALLOWED_TOKEN_HEADERS exists. This endpoint does not
+    // accept `Authorization: Bearer`; sending the key that way silently fails
+    // auth, and P17's probe could not resolve the discrepancy from the Node SDK
+    // because the SDK does not wrap MCP at all.
+    tokenHeader: 'X-Tango-API-Key',
+    requiresFeature: FUNDING_OPPORTUNITIES_TANGO_MCP_FEATURE,
+    verified: true,
+    defaultScope: 'tenant',
+    docsUrl: 'https://govcon.dev/docs',
+    setupNote:
+      'Paste a MakeGov/Tango API key. Use a key dedicated to research — this connector is exploratory and its results never feed Capiro’s scoring, alerts or artifacts. Firm-wide (tenant) scope: it acts for the firm, not for one person.',
+    suggestedTools: [
+      {
+        name: 'resolve',
+        description: 'Resolve an entity, vehicle or notice to its provider identity',
+        readOnly: true,
+      },
+      { name: 'search', description: 'Search the provider corpus', readOnly: true },
+      {
+        name: 'search_opportunities',
+        description: 'Search provider opportunity records',
+        readOnly: true,
+      },
+      { name: 'get_details', description: 'Fetch one record’s detail', readOnly: true },
+      { name: 'fetch_api_docs', description: 'Read the provider’s own API documentation', readOnly: true },
+    ],
+    brand: { color: '#0b6e4f', glyph: 'search' },
+  },
   {
     id: 'tavily',
     name: 'Tavily',
