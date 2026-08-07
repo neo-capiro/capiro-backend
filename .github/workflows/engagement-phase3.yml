@@ -1,0 +1,52 @@
+name: engagement-phase3
+
+on:
+  push:
+    branches:
+      - agent/engagement-api-phase-3-full-ui-parity
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/engagement/**'
+      - 'apps/api/scripts/*engagement-phase3*'
+      - 'apps/web/src/lib/*engagement*preview*'
+      - 'apps/web/src/pages/engagement/**'
+      - 'apps/web/src/pages/settings/IntegrationsPage.tsx'
+      - 'apps/web/scripts/engagement-phase3-*'
+      - 'scripts/*engagement-phase3*'
+      - 'docs/plans/engagement-api/**'
+      - 'docs/contracts/engagement-*'
+      - 'package.json'
+      - '.github/workflows/engagement-phase3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  db-free:
+    name: Phase 3 DB-free closeout
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Phase 3 permanent DB-free verifier
+        run: pnpm verify:engagement-phase-3
+
+      - name: Diff hygiene
+        run: |
+          git diff --check
+          git status --short
