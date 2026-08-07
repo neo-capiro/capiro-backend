@@ -587,6 +587,22 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: relevant vehicles and past-performance sync into client_relevant_vehicle (daily 12:40 UTC)',
     enabled: false,
   },
+  // Incremental — modified_after plus a safety overlap, pages to
+  // exhaustion. Disabled pending the real-key live run's canary, same
+  // posture as every other Funding Opportunities job in this block.
+  // funding_opportunities_forecasts stays off regardless of this schedule:
+  // this job populates tango_procurement_forecast, it does not surface
+  // anything — a forecast becomes visible only once a later phase turns
+  // that flag on.
+  {
+    id: 'SyncTangoForecasts',
+    command: ['sync-tango-forecasts', '--commit'],
+    cron: { minute: '50', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

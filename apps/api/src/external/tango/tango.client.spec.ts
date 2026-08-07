@@ -545,13 +545,72 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(page.items[1]!.estimatedPeriod).toBeNull();
   });
 
-  test('a forecast has no provider modified stamp, and fetchedAt is not substituted', async () => {
-    // "When we looked" is not "when it changed". Conflating them would make every
-    // sync look like a material update.
+  test('a forecast DOES carry a real provider modified stamp (P24, decision-log D-45) — and fetchedAt is still never substituted for it', async () => {
+    // Corrects P14's original finding, which was accurate against the SDK's
+    // OWN typed listForecasts (whose bundled schema has no `modified` field
+    // to request at all) but not against the live server, which has always
+    // had one — reachable only via the raw-HTTP bypass listForecasts now
+    // uses. "When we looked" (fetchedAt) is still never conflated with "when
+    // it changed" (providerUpdatedAt) — the two differ on this fixture.
     const { service } = gateway([{ body: FORECAST_PAGE }]);
     const page = await service.listForecasts();
-    expect(page.items[0]!.provenance.providerUpdatedAt).toBeNull();
+    expect(page.items[0]!.provenance.providerUpdatedAt).toBe('2026-08-01T12:00:00.000Z');
     expect(Date.parse(page.items[0]!.provenance.fetchedAt)).toBeGreaterThan(0);
+    expect(page.items[0]!.provenance.fetchedAt).not.toBe(page.items[0]!.provenance.providerUpdatedAt);
+    // Explicitly null in the raw record, not merely absent — still null, not fetchedAt.
+    expect(page.items[1]!.provenance.providerUpdatedAt).toBeNull();
+    // Absent from the raw record entirely (the minimal third row) — same result.
+    expect(page.items[2]!.provenance.providerUpdatedAt).toBeNull();
+  });
+
+  test('a forecast\'s organization hierarchy maps through, level by level, and every level tolerates absence independently', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    const full = page.items[0]!;
+    expect(full.departmentCode).toBe('SYN');
+    expect(full.departmentName).toBe('Synthetic Department of Defense');
+    expect(full.organizationAgencyCode).toBe('SYNDLA');
+    // Live-observed on the real record this fixture is modeled on: a
+    // populated department/office pair with a null agency name. Kept null
+    // here rather than backfilled from agency_code — the two are different
+    // facts even when one of them is absent.
+    expect(full.organizationAgencyName).toBeNull();
+    expect(full.officeCode).toBe('SYN01');
+    expect(full.officeName).toBe('Synthetic Depot Office');
+    expect(full.organizationId).toBe('aaaaaaaa-bbbb-4ccc-8ddd-000000000001');
+
+    // organization: null (row 2) — every level is null, not a thrown error.
+    const nullOrg = page.items[1]!;
+    expect(nullOrg.departmentCode).toBeNull();
+    expect(nullOrg.officeName).toBeNull();
+    expect(nullOrg.organizationId).toBeNull();
+
+    // organization entirely absent from the raw record (row 3) — same result.
+    const absentOrg = page.items[2]!;
+    expect(absentOrg.departmentCode).toBeNull();
+    expect(absentOrg.organizationId).toBeNull();
+  });
+
+  test('a forecast\'s primary contact is a structured object, not the plain string the SDK\'s own type declares', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    expect(page.items[0]!.primaryContact).toEqual({
+      name: 'Synthetic Contracting Officer',
+      email: 'contracting@example.invalid',
+      phone: null,
+      title: 'Contracting Officer',
+    });
+    expect(page.items[1]!.primaryContact).toBeNull();
+    expect(page.items[2]!.primaryContact).toBeNull();
+  });
+
+  test('pscCode and sourceUrl are always null on a forecast — confirmed absent from the live available_fields, not an oversight (D-45)', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    for (const item of page.items) {
+      expect(item.pscCode).toBeNull();
+      expect(item.sourceUrl).toBeNull();
+    }
   });
 
   test('dates normalize to ISO, and an unparseable one is null rather than today', async () => {

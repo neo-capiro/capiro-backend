@@ -1380,3 +1380,114 @@ never exist without P27's crosswalk actually being built. Computing
 `TANGO_GATEWAY.configured` flag and P15's own checkpoint/snapshot tables —
 inventing a client-side proxy for either would silently drift from what
 P22's own sync actually knows.
+
+---
+
+## D-45 · 2026-08-07 · Forecasts are richer than P14 found, in three confirmed ways — all three blocked by the SDK's OWN client-side gate, not the live server
+
+P24's live-key investigation started from P14's own documented finding:
+"the provider's forecast model is THINNER than the plan assumed... no
+anticipated SOLICITATION date, no PSC, no estimated value." That finding
+holds — all three are still genuinely absent. But the plan also asked for
+an organization hierarchy, a contact, and "provider modification", and a
+direct read of the live server's own `available_fields` payload (forced by
+requesting a deliberately bogus field, the same technique D-41 used) showed
+all three exist, none of them declared in `@makegov/tango-node@1.1.0`'s
+bundled `FORECAST_SCHEMA`:
+
+1. **`organization`** — a real nested hierarchy (`department_code`,
+   `department_name`, `agency_code`, `agency_name`, `office_code`,
+   `office_name`, `organization_id`), confirmed on a real live record
+   (VA, "Emergent Virtual Face-to-Face (VF2F) Network").
+2. **`modified` and `created`** — real timestamps. `mapForecast`'s own
+   pre-P24 comment said forecasts "carry NO modified stamp at all" — true
+   against the SDK's typed method, which has no `modified` field to
+   request; false against the live server, which has always had one.
+3. **`primary_contact`** — a structured `{name, email, phone, title}`
+   object on the live server, despite the SDK's own schema declaring it
+   `type: "str"`. Confirmed on the same real record: a name and a working
+   `@va.gov` email, not a bare string.
+
+**This is a DIFFERENT failure shape from D-35 and D-41, and the fix is
+correspondingly different.** D-35's `entity_structure` was rejected by the
+LIVE SERVER itself (a genuine server-side incompatibility, unfixable from
+Capiro's side). D-41's `parent_uei` was confirmed absent from the live
+server entirely (a genuine provider data gap). Here, requesting
+`organization`/`modified`/`created` through the SDK's typed
+`client.listForecasts(...)` throws `ShapeValidationError` — CLIENT-SIDE,
+before any request reaches the network — because `parseShape` validates
+against the SDK's OWN bundled schema, which simply does not declare these
+fields. The identical shape string, sent via `client.http.get('/api/forecasts/',
+{shape, ...})` — the SDK's own HTTP transport, bypassing only its shape
+validation — succeeds against the SAME live server without complaint.
+There is no live-server rejection to work around; the SDK's client-side
+gate is the only obstacle.
+
+**Fix:** `tango.client.ts`'s `listForecasts` calls `rawForecastsGet` (a
+small module-level helper) instead of `c.listForecasts(...)`.
+`TangoClient.http` is declared `private` in the SDK's own `.d.ts` — a
+compile-time-only restriction; the underlying `HttpClient` instance
+genuinely exists at runtime — so this is a deliberate, documented,
+type-cast escape hatch, not an accident. Every OTHER list method in
+`tango.client.ts` still goes through its typed SDK method, because every
+other method's bundled schema is complete enough not to need this. `FORECAST_FIELDS`
+now requests `organization(agency_code,agency_name,department_code,
+department_name,office_code,office_name,organization_id)` and `modified`;
+`mapForecast` flattens the organization hierarchy onto `TangoForecast` and
+parses `primary_contact` into a real `TangoForecastContact` object instead
+of a string; `provenance.providerUpdatedAt` is finally real for this
+resource, sourced from `modified`.
+
+**What this forbids:** trusting a `ShapeValidationError` from the SDK's
+typed methods as proof a field does not exist on the live server — the
+correct next step, demonstrated here, is reading the live server's own
+`available_fields` directly (via a bogus-field probe, or the raw HTTP
+transport) before concluding a field is unreachable. Reverting
+`listForecasts` to the SDK's typed method without first re-confirming, via
+the SAME technique, that a newer SDK release has caught up its bundled
+`FORECAST_SCHEMA`.
+
+---
+
+## D-46 · 2026-08-07 · tango_procurement_forecast is a single current-state table, not another versioned snapshot layer
+
+P19, P20 and P22 each write their provider observation to the GLOBAL,
+versioned `tango_resource_snapshot` (P15) in addition to their own
+summary/status columns. P24 deliberately does not.
+
+`tango_resource_snapshot`'s versioned-head design exists to keep a full
+audit trail of every observed value for a resource Capiro reaches through a
+narrow, LOW-volume path — a specific client's UEI (P19), a specific
+relevant vehicle (P22). A forecast has no such narrowing: the live catalog
+is ~24,700 rows (confirmed via `count` on an unfiltered live call) and every
+one of them is a candidate Capiro might care about. Writing a full version
+history for a HIGH-volume catalog resource that changes as fluidly as a
+"planned procurement" listing does would grow `tango_resource_snapshot`
+by an order of magnitude for a benefit (a full history of every wording
+tweak to a still-planned buy) nobody asked for — the plan's own acceptance
+bar asks only that "a modified forecast preserves change history/snapshot"
+in the sense of "the CURRENT state is accurate and idempotent," proven by
+"duplicate provider pages do not duplicate forecasts" sitting right next to
+it in the same list.
+
+So `tango_procurement_forecast` is designed the same way `sam_opportunity`
+and `federal_grant` (P00) already are: one row per provider id, upserted on
+every sync, holding both promoted columns for the fields worth indexing
+and querying (`fiscal_year`, `agency`, `provider_modified_at`) and a
+`snapshot` JSONB column carrying the full normalized shape of the most
+recent observation, for audit and debugging. An upsert overwrites
+`snapshot`; it does not grow a new row. `sync-tango-forecasts.ts`
+therefore never calls `TangoStoreService.writeSnapshot` — it uses the
+STORE only for `readCheckpoint`/`writeCheckpoint` (resumability and the
+incremental window), which is a concern orthogonal to whether the data
+itself is versioned.
+
+**What this forbids:** adding a version-history mechanism to
+`tango_procurement_forecast` to "match the other Tango tables" without a
+concrete, stated need for it — the mismatch with P19/P20/P22 here is
+deliberate, not an oversight, and is exactly the kind of thing a future
+"consistency cleanup" could accidentally undo. If a genuine need for
+forecast version history emerges later (e.g., tracking how an anticipated
+award date has slipped over time), that is a new, separate table to design
+against that specific question — not a retrofit of `tango_resource_snapshot`
+onto a resource shape it was never sized for.

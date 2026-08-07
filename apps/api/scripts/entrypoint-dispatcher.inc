@@ -548,6 +548,10 @@ case "${1:-serve}" in
   # UEI Capiro already knows (self or parent). Dry-run by default; a
   # dispatched task passes --commit. Resumable via tango_sync_checkpoint.
   sync-tango-vehicles) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-vehicles.ts "$@" ;;
+  # Incremental — modified_after plus overlap, pages to exhaustion. Dry-run
+  # by default; a dispatched task passes --commit. Resumable via
+  # tango_sync_checkpoint, same as sync-tango-vehicles above.
+  sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

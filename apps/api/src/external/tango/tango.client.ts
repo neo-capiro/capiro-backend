@@ -228,9 +228,19 @@ export class TangoGatewayService implements TangoGateway {
     );
   }
 
+  /**
+   * NOT `c.listForecasts(...)` — see `tango.shapes.ts`'s own `FORECAST_FIELDS`
+   * doc (decision-log D-45) for the full reasoning. The SDK's typed method
+   * validates the shape string CLIENT-SIDE against its own bundled schema
+   * before ever sending a request, and that bundled schema does not know
+   * about `organization`, `organization_id`, `modified` or `created` — all
+   * four real, live-confirmed fields this method needs. `rawForecastsGet`
+   * bypasses that gate via the SDK's own HTTP transport, which the live
+   * server accepts without complaint.
+   */
   async listForecasts(options: TangoForecastListOptions = {}): Promise<TangoPage<TangoForecast>> {
     return this.page('listForecasts', 'forecast', mapForecast, (c, base) =>
-      c.listForecasts({
+      rawForecastsGet(c, {
         ...base,
         shape: TANGO_SHAPES.forecast,
         ...(options.changedSince ? { modified_after: options.changedSince } : {}),
@@ -442,6 +452,27 @@ export class TangoGatewayService implements TangoGateway {
       cause: error,
     });
   }
+}
+
+/**
+ * `TangoClient.http` is declared `private` in the SDK's own `.d.ts` — a
+ * compile-time-only restriction TypeScript enforces and JavaScript does not:
+ * the underlying `HttpClient` instance genuinely exists on every constructed
+ * client. This is the one, deliberate place in this file that reaches past
+ * it, and only for `listForecasts` — see that method's own doc and
+ * `tango.shapes.ts`'s `FORECAST_FIELDS` doc (decision-log D-45) for why no
+ * other list method needs this.
+ *
+ * Errors from this path are NOT pre-classified `Tango*Error` instances the
+ * way the SDK's typed methods throw them — `this.call`'s own `wrap()` reads
+ * `statusCode`/response body generically regardless of the thrown error's
+ * class, so classification still works; only the SDK's shape-string
+ * VALIDATION is bypassed, not its error handling.
+ */
+function rawForecastsGet<T>(client: SdkClient, query: Record<string, unknown>): Promise<T> {
+  return (
+    client as unknown as { http: { get<U>(path: string, query?: Record<string, unknown>): Promise<U> } }
+  ).http.get<T>('/api/forecasts/', query);
 }
 
 function readStatus(error: unknown): number | null {
