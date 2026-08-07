@@ -604,6 +604,116 @@ COMMENT ON TABLE "defense_budget_promotion_audit" IS
   'Phase 7 Workstream A.9: append-only record of every eligibility, authorization, and redemption attempt, allowed or refused. Refusals are the interesting half and are never discarded.';
 
 -- ===========================================================================
+-- 5b. Workstream K — the governed manual-override overlay
+-- ===========================================================================
+--
+-- A human correction to a published number, held BESIDE the snapshot rather
+-- than inside it. It is deliberately not a source observation and deliberately
+-- not a column on defense_budget_canonical_row: a promoted canonical row
+-- records what the government published, and a human decision has no business
+-- travelling inside it.
+--
+-- Immutable and versioned. Amending or revoking inserts a new version linked
+-- through prior_override_id; the append-only trigger below refuses UPDATE and
+-- DELETE outright, so the history of who changed a published figure, when, and
+-- why cannot be rewritten.
+
+CREATE TABLE "defense_budget_manual_override" (
+    "override_id"        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Target: a canonical identity, never a legacy peCode.
+    "canonical_entity"      TEXT NOT NULL,
+    "canonical_natural_key" TEXT NOT NULL,
+    "fiscal_year"           INTEGER,
+    "funding_field"         VARCHAR(32),
+
+    -- The asserted value. Printed figure and unit as text, normalized millions
+    -- as NUMERIC(24,9) — the same representation defense_budget_canonical_row
+    -- uses, so an override and the value it overrides compare exactly.
+    "money_original_value"  TEXT NOT NULL,
+    "money_original_unit"   TEXT NOT NULL,
+    "money_value_millions"  NUMERIC(24,9) NOT NULL,
+
+    -- Governance.
+    "author_actor_id"    TEXT NOT NULL,
+    "approver_actor_id"  TEXT NOT NULL,
+    "approver_role"      TEXT NOT NULL,
+    "reason"             TEXT NOT NULL,
+    "evidence_ids"       JSONB NOT NULL,
+    "change_request_ref" TEXT,
+
+    "status"             TEXT NOT NULL,
+    "version"            INTEGER NOT NULL,
+    "prior_override_id"  UUID REFERENCES "defense_budget_manual_override"("override_id"),
+
+    "effective_from"     TIMESTAMPTZ(6) NOT NULL,
+    "effective_to"       TIMESTAMPTZ(6),
+    "approved_at"        TIMESTAMPTZ(6) NOT NULL,
+    "revoked_at"         TIMESTAMPTZ(6),
+
+    "override_hash"      CHAR(64) NOT NULL,
+    "created_at"         TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    -- Segregation of duties, repeated at the storage layer. The application
+    -- enforces this inside the Zod schema; a direct SQL writer bypasses the
+    -- application, so the database refuses it too.
+    CONSTRAINT "defense_budget_manual_override_author_not_approver_check"
+        CHECK ("author_actor_id" <> "approver_actor_id"),
+
+    CONSTRAINT "defense_budget_manual_override_approver_role_check"
+        CHECK ("approver_role" = 'capiro_admin'),
+
+    CONSTRAINT "defense_budget_manual_override_status_check"
+        CHECK ("status" IN ('approved', 'revoked')),
+
+    -- Expiry is derived from the dates at read time, never stored, so an
+    -- override cannot outlive its window because a job failed to flip a flag.
+    -- What the database does enforce is that the window is coherent.
+    CONSTRAINT "defense_budget_manual_override_window_check"
+        CHECK ("effective_to" IS NULL OR "effective_to" > "effective_from"),
+
+    CONSTRAINT "defense_budget_manual_override_revoked_check"
+        CHECK (("status" = 'revoked') = ("revoked_at" IS NOT NULL)),
+
+    CONSTRAINT "defense_budget_manual_override_money_unit_check"
+        CHECK ("money_original_unit" IN ('dollars', 'thousands', 'millions')),
+
+    CONSTRAINT "defense_budget_manual_override_funding_field_check"
+        CHECK ("funding_field" IS NULL OR "funding_field" IN
+               ('request', 'hascMark', 'sascMark', 'hacDMark', 'sacDMark',
+                'ndaaConference', 'conference', 'enacted', 'reprogrammed', 'executed')),
+
+    -- A correction supersedes; it never edits. Version 1 begins a chain and
+    -- names no predecessor; every later version must name the one it replaces.
+    CONSTRAINT "defense_budget_manual_override_version_check"
+        CHECK ("version" > 0),
+    CONSTRAINT "defense_budget_manual_override_chain_check"
+        CHECK (("version" = 1) = ("prior_override_id" IS NULL)),
+
+    CONSTRAINT "defense_budget_manual_override_evidence_check"
+        CHECK (jsonb_typeof("evidence_ids") = 'array' AND jsonb_array_length("evidence_ids") > 0)
+);
+
+-- One version number per target identity. A second v2 for the same target is a
+-- concurrent edit, and the loser must reload rather than fork the chain.
+CREATE UNIQUE INDEX "defense_budget_manual_override_target_version_key"
+    ON "defense_budget_manual_override"
+       ("canonical_entity", "canonical_natural_key",
+        COALESCE("fiscal_year", -1), COALESCE("funding_field", ''), "version");
+
+-- A superseded version is pointed at exactly once, so the chain is a line.
+CREATE UNIQUE INDEX "defense_budget_manual_override_prior_key"
+    ON "defense_budget_manual_override" ("prior_override_id")
+    WHERE "prior_override_id" IS NOT NULL;
+
+CREATE INDEX "defense_budget_manual_override_target_idx"
+    ON "defense_budget_manual_override"
+       ("canonical_entity", "canonical_natural_key", "fiscal_year", "funding_field");
+
+COMMENT ON TABLE "defense_budget_manual_override" IS
+  'Phase 7 Workstream K: immutable, versioned human corrections applied beside the active snapshot at read time. Never a source observation, never a column on a canonical row. Append-only; author may not be approver.';
+
+-- ===========================================================================
 -- 6. The promotion database role
 -- ===========================================================================
 --
@@ -679,6 +789,13 @@ GRANT SELECT, INSERT, UPDATE ON
     "defense_budget_promotion_audit"
   TO capiro_pe_promoter;
 
+-- Manual overrides are READ by the promoter at plan time so a new snapshot
+-- cannot silently overwrite one, and written by nobody in the promotion path.
+-- Authoring and approving happen through the guarded admin surface on the
+-- serve role; the promoter deciding what a human override says would defeat
+-- the separation the overlay exists to create.
+GRANT SELECT ON "defense_budget_manual_override" TO capiro_pe_promoter;
+
 -- DELETE is granted nowhere: nothing in the promotion path deletes, and
 -- rollback is a forward pointer transition. History cannot be removed by the
 -- role that writes it.
@@ -715,6 +832,12 @@ REVOKE UPDATE, DELETE, TRUNCATE ON
     "defense_budget_promotion_authorization"
   FROM capiro_app;
 REVOKE DELETE, TRUNCATE ON "defense_budget_promotion_audit" FROM capiro_app;
+
+-- The serve role files and approves overrides through the guarded admin
+-- surface, so it keeps INSERT. It loses UPDATE and DELETE: an override is
+-- amended by inserting a superseding version, never by editing the record of
+-- what was previously approved.
+REVOKE UPDATE, DELETE, TRUNCATE ON "defense_budget_manual_override" FROM capiro_app;
 
 -- ===========================================================================
 -- 7. Trigger-enforced boundaries
@@ -833,6 +956,16 @@ CREATE TRIGGER defense_budget_rollback_record_append_only
 DROP TRIGGER IF EXISTS defense_budget_promotion_audit_append_only ON "defense_budget_promotion_audit";
 CREATE TRIGGER defense_budget_promotion_audit_append_only
   BEFORE UPDATE OR DELETE ON "defense_budget_promotion_audit"
+  FOR EACH ROW EXECUTE FUNCTION enforce_promotion_ledger_append_only();
+
+-- Workstream K. Revocation is an insert of a superseding version, not an
+-- UPDATE of the row that was approved, so the override table is append-only on
+-- exactly the same terms as the rest of the ledger — for every role, including
+-- the table owner.
+DROP TRIGGER IF EXISTS defense_budget_manual_override_append_only
+  ON "defense_budget_manual_override";
+CREATE TRIGGER defense_budget_manual_override_append_only
+  BEFORE UPDATE OR DELETE ON "defense_budget_manual_override"
   FOR EACH ROW EXECUTE FUNCTION enforce_promotion_ledger_append_only();
 
 -- Snapshots are never deleted. Status may advance; the identity may not change.

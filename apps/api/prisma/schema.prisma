@@ -8660,6 +8660,48 @@ model DefenseBudgetPromotionPlan {
   @@map("defense_budget_promotion_plan")
 }
 
+/// Phase 7 Workstream K. A governed human correction applied beside the active
+/// snapshot at read time — never a source observation, never a column on a
+/// canonical row. Append-only: amending or revoking inserts a superseding
+/// version linked through priorOverrideId.
+model DefenseBudgetManualOverride {
+  overrideId String @id @default(uuid()) @map("override_id") @db.Uuid
+
+  canonicalEntity     String  @map("canonical_entity")
+  canonicalNaturalKey String  @map("canonical_natural_key")
+  fiscalYear          Int?    @map("fiscal_year")
+  fundingField        String? @map("funding_field") @db.VarChar(32)
+
+  moneyOriginalValue String  @map("money_original_value")
+  moneyOriginalUnit  String  @map("money_original_unit")
+  moneyValueMillions Decimal @map("money_value_millions") @db.Decimal(24, 9)
+
+  authorActorId    String  @map("author_actor_id")
+  approverActorId  String  @map("approver_actor_id")
+  approverRole     String  @map("approver_role")
+  reason           String
+  evidenceIds      Json    @map("evidence_ids")
+  changeRequestRef String? @map("change_request_ref")
+
+  status          String
+  version         Int
+  priorOverrideId String? @map("prior_override_id") @db.Uuid
+
+  effectiveFrom DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo   DateTime? @map("effective_to") @db.Timestamptz(6)
+  approvedAt    DateTime  @map("approved_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  overrideHash String   @map("override_hash") @db.Char(64)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  priorOverride DefenseBudgetManualOverride?  @relation("ManualOverrideChain", fields: [priorOverrideId], references: [overrideId], onDelete: Restrict, onUpdate: Cascade)
+  supersededBy  DefenseBudgetManualOverride[] @relation("ManualOverrideChain")
+
+  @@index([canonicalEntity, canonicalNaturalKey, fiscalYear, fundingField], map: "defense_budget_manual_override_target_idx")
+  @@map("defense_budget_manual_override")
+}
+
 model DefenseBudgetPromotionAuthorization {
   id                       String    @id @default(uuid()) @db.Uuid
   authorizationId          String    @unique(map: "defense_budget_promotion_authorization_id_unique") @map("authorization_id")

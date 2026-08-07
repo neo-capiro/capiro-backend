@@ -245,6 +245,87 @@ ok "a congressional mark is storable only when its authority is named"
 run_sql "DELETE FROM defense_budget_canonical_row WHERE canonical_natural_key = 'ARMY|OMA|SAG-113|2027|ndaaConference';"
 
 # =============================================================================
+log "Workstream K: the governed manual-override overlay"
+# =============================================================================
+override_row() {
+  local id="$1"; local author="$2"; local approver="$3"
+  local version="$4"; local prior="$5"; local status="${6:-approved}"
+  local revoked="${7:-NULL}"
+  echo "
+INSERT INTO defense_budget_manual_override
+  (override_id, canonical_entity, canonical_natural_key, fiscal_year, funding_field,
+   money_original_value, money_original_unit, money_value_millions,
+   author_actor_id, approver_actor_id, approver_role, reason, evidence_ids,
+   status, version, prior_override_id, effective_from, approved_at, revoked_at, override_hash)
+VALUES
+  ('$id', 'canonical_om_sag_year', 'ARMY|OMA|SAG-111', 2027, 'request',
+   '1250', 'thousands', 1.25,
+   '$author', '$approver', 'capiro_admin', 'transposed in the published PDF',
+   '[\"issue-42\"]'::jsonb,
+   '$status', $version, $prior, now(), now(), $revoked, '$SHA_A');"
+}
+
+expect_fail "an override approved by its own author" \
+  "$(override_row '33333333-0000-0000-0000-000000000001' 'analyst-1' 'analyst-1' 1 NULL)"
+
+expect_fail "an override approved by someone who is not a capiro_admin" "
+INSERT INTO defense_budget_manual_override
+  (override_id, canonical_entity, canonical_natural_key, money_original_value,
+   money_original_unit, money_value_millions, author_actor_id, approver_actor_id,
+   approver_role, reason, evidence_ids, status, version, effective_from,
+   approved_at, override_hash)
+VALUES
+  ('33333333-0000-0000-0000-000000000002', 'canonical_om_sag_year', 'ARMY|OMA|SAG-111',
+   '1250', 'thousands', 1.25, 'analyst-1', 'analyst-2', 'capiro_user', 'r',
+   '[\"e\"]'::jsonb, 'approved', 1, now(), now(), '$SHA_A');"
+
+expect_fail "a first version that claims to supersede something" \
+  "$(override_row '33333333-0000-0000-0000-000000000003' 'analyst-1' 'admin-1' 1 "'33333333-0000-0000-0000-000000000009'")"
+
+expect_fail "a revoked override that does not say when it was revoked" \
+  "$(override_row '33333333-0000-0000-0000-000000000004' 'analyst-1' 'admin-1' 1 NULL 'revoked')"
+
+"${PSQL[@]}" -c "$(override_row '33333333-0000-0000-0000-000000000010' 'analyst-1' 'admin-1' 1 NULL)" >/dev/null \
+  || fail "a properly governed override was refused"
+ok "a governed override with author != approver is storable"
+
+expect_fail "a later version that links no predecessor" \
+  "$(override_row '33333333-0000-0000-0000-000000000005' 'analyst-1' 'admin-1' 2 NULL)"
+
+"${PSQL[@]}" -c "$(override_row '33333333-0000-0000-0000-000000000011' 'analyst-1' 'admin-1' 2 "'33333333-0000-0000-0000-000000000010'")" >/dev/null \
+  || fail "a superseding version linked to its predecessor was refused"
+ok "a correction supersedes by inserting a linked version"
+
+expect_fail "a second version 2 for the same target identity" \
+  "$(override_row '33333333-0000-0000-0000-000000000006' 'analyst-1' 'admin-1' 2 "'33333333-0000-0000-0000-000000000010'")"
+
+# Append-only. Revocation is an insert, never an edit of what was approved.
+expect_fail "update an override in place" "
+UPDATE defense_budget_manual_override SET reason = 'rewritten'
+WHERE override_id = '33333333-0000-0000-0000-000000000010';"
+
+expect_fail "delete an override" "
+DELETE FROM defense_budget_manual_override
+WHERE override_id = '33333333-0000-0000-0000-000000000010';"
+
+# Role boundary: the promoter reads overlays at plan time and writes none.
+expect_fail "promoter writes a manual override" "
+SET ROLE capiro_pe_promoter;
+$(override_row '33333333-0000-0000-0000-000000000007' 'analyst-1' 'admin-1' 1 NULL)"
+
+# -q so psql does not echo the SET command tag ahead of the count.
+PROMOTER_OVERRIDE_COUNT="$(docker exec -i "$NAME" psql -U "$USER_NAME" -d "$DB_NAME" -q -tAc \
+  "SET ROLE capiro_pe_promoter; SELECT count(*) FROM defense_budget_manual_override;" 2>&1 | tr -d '[:space:]')"
+[ "$PROMOTER_OVERRIDE_COUNT" = "2" ] \
+  || fail "the promoter cannot read the overlay it must not overwrite (got: '$PROMOTER_OVERRIDE_COUNT')"
+ok "promoter reads manual overrides but cannot author one"
+
+expect_fail "serve role updates an override" "
+SET ROLE capiro_app;
+UPDATE defense_budget_manual_override SET reason = 'x'
+WHERE override_id = '33333333-0000-0000-0000-000000000010';"
+
+# =============================================================================
 log "Role boundary"
 # =============================================================================
 expect_fail "general serve role writes a canonical row" "
