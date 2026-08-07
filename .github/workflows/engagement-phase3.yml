@@ -29,8 +29,16 @@ jobs:
     name: Phase 3 DB-free closeout
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      PHASE3_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PHASE3_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact Phase 3 head checkout
+        run: test "$(git rev-parse HEAD)" = "$PHASE3_HEAD_SHA"
 
       - name: Publish pending commit status
         env:
@@ -42,7 +50,7 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${PHASE3_HEAD_SHA}" \
             -d "$(jq -nc --arg target_url "$TARGET_URL" '{state:"pending",context:"engagement-phase3/db-free",description:"Phase 3 DB-free verifier is running",target_url:$target_url}')"
 
       - uses: pnpm/action-setup@v4
@@ -86,7 +94,7 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${PHASE3_HEAD_SHA}" \
             -d "$(jq -nc --arg state "$STATE" --arg description "$DESCRIPTION" --arg target_url "$TARGET_URL" '{state:$state,context:"engagement-phase3/db-free",description:$description,target_url:$target_url}')"
 
       - name: Fail workflow when Phase 3 gate failed
