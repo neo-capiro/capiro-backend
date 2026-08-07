@@ -252,11 +252,20 @@ else
   fail "working tree is dirty"
 fi
 
-if git diff --name-only "$PHASE2_BASE" HEAD 2>/dev/null | grep -qE '^apps/web/'; then
-  fail "product web source was modified since the Phase 2 base"
-else
-  pass "no product web change since the Phase 2 base"
-fi
+# F-001: this gate asserts a property of PHASE 2's OWN commit range — Phase 2 was
+# a dark-infrastructure phase and must not touch product web. Comparing against
+# an open-ended HEAD re-evaluated it on every descendant commit, so Phase 3's
+# plan-specified fixture under apps/web/ was reported as a Phase 2 scope
+# violation. The range is bounded to Phase 2's head for that reason.
+#
+# The frozen-Compute-stack and migration gates below deliberately KEEP the
+# open-ended HEAD range: Phase 3 must not touch those either, so the wider
+# assertion is correct there and worth keeping.
+PHASE2_HEAD="${ENGAGEMENT_PHASE2_HEAD_SHA:-3841a5ee}"
+gate "no product web change within Phase 2 (${PHASE2_BASE:0:8}..${PHASE2_HEAD:0:8})" \
+  node scripts/verify-engagement-phase2-scope.mjs \
+  --base "$PHASE2_BASE" --head "$PHASE2_HEAD" \
+  --forbid '^apps/web/' --label 'product web source'
 
 if git diff --name-only "$PHASE2_BASE" HEAD 2>/dev/null | grep -qE '^apps/api/prisma/migrations/'; then
   fail "a database migration was added since the Phase 2 base"

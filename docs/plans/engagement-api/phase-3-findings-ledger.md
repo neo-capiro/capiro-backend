@@ -7,12 +7,12 @@ Phase 3 cannot close until **open P0 = 0, open P1 = 0, blocking P2 = 0**
 Repairs happen in a dedicated 3.R session per coherent finding — never as a
 silent fix inside an unrelated session (master execution prompt, rule 14).
 
-**Status:** 2 open (1 P1, 1 P1) · 0 closed
+**Status:** 1 open (P1) · 1 closed
 
 | ID | Severity | Classification | Surface | Summary | Status |
 |---|---|---|---|---|---|
-| F-001 | P1 | current baseline defect | build tooling | Phase 2 verifier's "no product web change" gate fails on every descendant branch | open |
-| F-002 | P1 | current baseline defect | build tooling | No-preview-header guard forbids the exact string Phase 3 must introduce | open |
+| F-001 | P1 | current baseline defect | build tooling | Phase 2 verifier's "no product web change" gate fails on every descendant branch | **closed** |
+| F-002 | P1 | current baseline defect | build tooling | No-preview-header guard forbids the exact string Phase 3 must introduce | open — repair sequenced with 3.3 |
 
 ---
 
@@ -62,16 +62,35 @@ Not applicable — a build gate, not a runtime behaviour.
 - Phase 3 plan, micro-session 3.1 "Proposed files"
 - Reproduced at `b51d404d`
 
-### Proposed repair (3.R)
+### Repair — CLOSED
 
-Bound the comparison to Phase 2's own range instead of an open-ended `HEAD`:
-compare `PHASE2_BASE..PHASE2_HEAD`, with `PHASE2_HEAD` recorded as the accepted
-Phase 2 head (`3841a5ee`) and overridable by env var, exactly as `PHASE2_BASE`
-already is. The assertion keeps its meaning and stops producing a false failure
-on descendants.
+Applied in the 3.R session committed alongside this update.
 
-Do **not** delete the gate. Phase 2 note 9 applies: never widen a check by
-removing it.
+The check moved out of inline bash into `scripts/verify-engagement-phase2-scope.mjs`,
+with the range bounded to `PHASE2_BASE..PHASE2_HEAD` (`3841a5ee`, overridable via
+`ENGAGEMENT_PHASE2_HEAD_SHA` exactly as `PHASE2_BASE` already was). The assertion
+keeps its meaning — *Phase 2 did not touch product web* — and stops re-evaluating
+against descendants.
+
+**Smallest owning boundary.** Only the web gate was rescoped. The frozen-Compute-stack
+and migration gates immediately below it use the same `BASE..HEAD` shape, but they
+are **correct** open-ended: Phase 3 must not touch `compute-stack.ts` or add a
+migration either, so the wider assertion is worth keeping there. Rescoping all
+three would have been the tidier-looking change and would have silently dropped
+two live protections.
+
+The predicate is exported and pure so the negative control proves it still bites,
+rather than asserting that a shell `grep` was spelled correctly.
+
+**Regression test:** `scripts/verify-engagement-phase2-scope.spec.mjs` (7 assertions)
+pins the exact distinction the old gate could not make — the real Phase 2 range
+must be clean, while the real Phase 3 range is allowed to touch `apps/web`. That
+test also fails if F-001 ever stops reproducing, so it cannot rot into a
+tautology.
+
+**Verified:** `OK  no product web source change in 47902517..3841a5ee (61 files in range)`.
+
+The gate was not deleted. Phase 2 note 9 applies: never widen a check by removing it.
 
 ---
 
