@@ -331,6 +331,56 @@ expect_fail "delete an override" "
 DELETE FROM defense_budget_manual_override
 WHERE override_id = '33333333-0000-0000-0000-000000000010';"
 
+# --- the lifecycle transitions ---------------------------------------------
+# Proposal 0c is still awaiting approval. Only proposed -> approved -> revoked
+# is reachable, and only the fields a transition is about may move.
+PROPOSAL='33333333-0000-0000-0000-00000000000c'
+
+expect_fail "a proposal approved by its own author" "
+UPDATE defense_budget_manual_override
+SET status = 'approved', approver_actor_id = 'analyst-1',
+    approver_role = 'capiro_admin', approved_at = now()
+WHERE override_id = '$PROPOSAL';"
+
+expect_fail "a proposal jumping straight to revoked" "
+UPDATE defense_budget_manual_override
+SET status = 'revoked', revoked_at = now() WHERE override_id = '$PROPOSAL';"
+
+expect_fail "rewriting the corrected value while approving it" "
+UPDATE defense_budget_manual_override
+SET status = 'approved', approver_actor_id = 'admin-1',
+    approver_role = 'capiro_admin', approved_at = now(),
+    money_value_millions = 99.0
+WHERE override_id = '$PROPOSAL';"
+
+expect_fail "rewriting the author while approving" "
+UPDATE defense_budget_manual_override
+SET status = 'approved', approver_actor_id = 'admin-1',
+    approver_role = 'capiro_admin', approved_at = now(),
+    author_actor_id = 'admin-1'
+WHERE override_id = '$PROPOSAL';"
+
+run_sql "
+UPDATE defense_budget_manual_override
+SET status = 'approved', approver_actor_id = 'admin-1',
+    approver_role = 'capiro_admin', approved_at = now()
+WHERE override_id = '$PROPOSAL';"
+ok "a second admin approves a proposal, and only the approval fields move"
+
+expect_fail "rewriting who approved an override while revoking it" "
+UPDATE defense_budget_manual_override
+SET status = 'revoked', revoked_at = now(), approver_actor_id = 'admin-9'
+WHERE override_id = '$PROPOSAL';"
+
+run_sql "
+UPDATE defense_budget_manual_override
+SET status = 'revoked', revoked_at = now() WHERE override_id = '$PROPOSAL';"
+ok "an approved override can be revoked forward"
+
+expect_fail "reviving a revoked override" "
+UPDATE defense_budget_manual_override
+SET status = 'approved' WHERE override_id = '$PROPOSAL';"
+
 # Role boundary: the promoter reads overlays at plan time and writes none.
 expect_fail "promoter writes a manual override" "
 SET ROLE capiro_pe_promoter;

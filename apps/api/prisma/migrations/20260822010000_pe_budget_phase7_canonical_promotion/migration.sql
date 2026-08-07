@@ -853,11 +853,13 @@ REVOKE UPDATE, DELETE, TRUNCATE ON
   FROM capiro_app;
 REVOKE DELETE, TRUNCATE ON "defense_budget_promotion_audit" FROM capiro_app;
 
--- The serve role files and approves overrides through the guarded admin
--- surface, so it keeps INSERT. It loses UPDATE and DELETE: an override is
--- amended by inserting a superseding version, never by editing the record of
--- what was previously approved.
-REVOKE UPDATE, DELETE, TRUNCATE ON "defense_budget_manual_override" FROM capiro_app;
+-- The serve role files, approves, and revokes overrides through the guarded
+-- admin surface, so it keeps INSERT and UPDATE. UPDATE is safe to grant because
+-- enforce_manual_override_lifecycle allows only the two status transitions and
+-- freezes everything that constitutes the correction; a grant is not the
+-- boundary here, the trigger is. DELETE is revoked outright — history is never
+-- removed.
+REVOKE DELETE, TRUNCATE ON "defense_budget_manual_override" FROM capiro_app;
 
 -- ===========================================================================
 -- 7. Trigger-enforced boundaries
@@ -978,15 +980,76 @@ CREATE TRIGGER defense_budget_promotion_audit_append_only
   BEFORE UPDATE OR DELETE ON "defense_budget_promotion_audit"
   FOR EACH ROW EXECUTE FUNCTION enforce_promotion_ledger_append_only();
 
--- Workstream K. Revocation is an insert of a superseding version, not an
--- UPDATE of the row that was approved, so the override table is append-only on
--- exactly the same terms as the rest of the ledger — for every role, including
--- the table owner.
+-- Workstream K. An override moves proposed -> approved -> revoked and nowhere
+-- else, and only the fields that a transition is *about* may change. Everything
+-- that constitutes the correction itself — target, value, author, reason,
+-- evidence, version, chain link — is frozen at insert.
+--
+-- Modelled on enforce_promotion_authorization_append_only above, which permits
+-- exactly one NULL -> value consumption transition for the same reason: a
+-- lifecycle step is not a rewrite, and forcing it to be an insert would make
+-- `version` count approvals instead of corrections.
+CREATE OR REPLACE FUNCTION enforce_manual_override_lifecycle() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'manual overrides are never deleted; supersede or revoke instead'
+      USING ERRCODE = '0A000';
+  END IF;
+
+  -- The correction itself is immutable. Anything a human decided when they
+  -- authored it stays exactly as authored.
+  IF NEW.canonical_entity      IS DISTINCT FROM OLD.canonical_entity
+     OR NEW.canonical_natural_key IS DISTINCT FROM OLD.canonical_natural_key
+     OR NEW.fiscal_year        IS DISTINCT FROM OLD.fiscal_year
+     OR NEW.funding_field      IS DISTINCT FROM OLD.funding_field
+     OR NEW.money_original_value  IS DISTINCT FROM OLD.money_original_value
+     OR NEW.money_original_unit   IS DISTINCT FROM OLD.money_original_unit
+     OR NEW.money_value_millions  IS DISTINCT FROM OLD.money_value_millions
+     OR NEW.author_actor_id    IS DISTINCT FROM OLD.author_actor_id
+     OR NEW.reason             IS DISTINCT FROM OLD.reason
+     OR NEW.evidence_ids       IS DISTINCT FROM OLD.evidence_ids
+     OR NEW.version            IS DISTINCT FROM OLD.version
+     OR NEW.prior_override_id  IS DISTINCT FROM OLD.prior_override_id
+     OR NEW.effective_from     IS DISTINCT FROM OLD.effective_from
+     OR NEW.proposed_at        IS DISTINCT FROM OLD.proposed_at THEN
+    RAISE EXCEPTION 'a manual override''s content is immutable; only its lifecycle status may advance'
+      USING ERRCODE = '0A000';
+  END IF;
+
+  -- proposed -> approved: a second admin fills in the approval, and only that.
+  IF OLD.status = 'proposed' AND NEW.status = 'approved' THEN
+    IF OLD.approver_actor_id IS NOT NULL OR NEW.approver_actor_id IS NULL THEN
+      RAISE EXCEPTION 'approval must name an approver that was not already set'
+        USING ERRCODE = '0A000';
+    END IF;
+    IF NEW.approver_actor_id = OLD.author_actor_id THEN
+      RAISE EXCEPTION 'a manual override may not be approved by its own author'
+        USING ERRCODE = '0A000';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  -- approved -> revoked: the revocation timestamp appears and nothing else.
+  IF OLD.status = 'approved' AND NEW.status = 'revoked' THEN
+    IF NEW.approver_actor_id IS DISTINCT FROM OLD.approver_actor_id
+       OR NEW.approved_at IS DISTINCT FROM OLD.approved_at THEN
+      RAISE EXCEPTION 'revocation may not rewrite who approved the override'
+        USING ERRCODE = '0A000';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'manual override status may only advance proposed -> approved -> revoked (got % -> %)',
+    OLD.status, NEW.status USING ERRCODE = '0A000';
+END;
+$$;
+
 DROP TRIGGER IF EXISTS defense_budget_manual_override_append_only
   ON "defense_budget_manual_override";
 CREATE TRIGGER defense_budget_manual_override_append_only
   BEFORE UPDATE OR DELETE ON "defense_budget_manual_override"
-  FOR EACH ROW EXECUTE FUNCTION enforce_promotion_ledger_append_only();
+  FOR EACH ROW EXECUTE FUNCTION enforce_manual_override_lifecycle();
 
 -- Snapshots are never deleted. Status may advance; the identity may not change.
 CREATE OR REPLACE FUNCTION enforce_canonical_snapshot_immutable_identity() RETURNS trigger
