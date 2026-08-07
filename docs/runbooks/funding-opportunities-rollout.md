@@ -229,6 +229,33 @@ committed report shows. A NEW `unsupported`/`not_found`/`tier_gated` finding
 relative to that report is real signal — the account's tier or the SDK's
 surface changed — not a flake to retry past.
 
+### Rate-limit, usage, retry, and health controls (P18) — code only, nothing live yet
+
+`tango-resilience.service.ts` (`TANGO_RESILIENT_GATEWAY`), the
+`getUsageHealth` addition to `tango-store.service.ts`, and
+`diag-tango-health.ts` ship in this merge. No migration — breaker/ceiling
+state is in-memory by architecture, not persisted (decision-log D-30).
+Nothing calls `TANGO_RESILIENT_GATEWAY` yet; P19 is the first real consumer.
+Deploying this merge changes nothing observable.
+
+Once P19+ starts making real calls through it, use this to check on the
+integration's recent behavior from a shell — it reads Postgres only, never
+the Tango API, and needs no key:
+
+```bash
+# READ-ONLY, no key needed. Aggregates the persisted tango_api_usage log.
+cd apps/api
+pnpm exec tsx scripts/diag-tango-health.ts --window=1440   # last 24 hours
+```
+
+Expect `successRate` near 1.0 once real traffic exists; `totalCalls: 0` is
+normal and expected before P19 ships. A `byStatus.rate_limit` or
+`byStatus.transient` count that keeps growing across repeated checks is
+worth investigating BEFORE it trips the circuit breaker on a live run — the
+breaker's own thresholds are `TANGO_CIRCUIT_BREAKER_THRESHOLD` /
+`_COOLDOWN_MS` (P16, both optional with documented defaults; see
+`config.schema.ts`).
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

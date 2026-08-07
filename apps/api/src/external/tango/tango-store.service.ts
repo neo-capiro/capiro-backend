@@ -211,6 +211,19 @@ export interface RecordUsageInput {
   at?: Date;
 }
 
+export interface UsageHealthSummary {
+  windowMinutes: number;
+  since: string;
+  asOf: string;
+  totalCalls: number;
+  byStatus: Record<string, number>;
+  byCallFamily: Record<string, { total: number; byStatus: Record<string, number> }>;
+  /** Fraction in [0, 1]. Null (not 0) when totalCalls is 0 — nothing to divide by. */
+  successRate: number | null;
+  rateLimitHits: number;
+  mostRecentCallAt: string | null;
+}
+
 function assertKnownResourceType(value: string): TangoResourceType {
   if (!(TANGO_RESOURCE_TYPES as readonly string[]).includes(value)) {
     throw new BadRequestException(
@@ -481,5 +494,59 @@ export class TangoStoreService {
         durationMs: input.durationMs,
       },
     });
+  }
+
+  /**
+   * Aggregate the last `windowMinutes` of recorded usage (P18's health check).
+   *
+   * Reads with `findMany` and aggregates in JS rather than a Prisma `groupBy`
+   * — this table is bucketed to the minute and indexed on exactly
+   * `(callFamily, timestampBucket)` for this scan (see the migration comment
+   * on that index), and a health check is an occasional, modest read, not a
+   * hot path. Explicit JS aggregation is also the easier thing for a caller
+   * (or a test) to reason about than a query-shaped answer.
+   *
+   * `asOf` defaults to now but is overridable, matching this program's
+   * existing convention (P06's recommendation contract, P17/P18's own tests)
+   * of never hard-coding a dependency on the wall clock where a caller might
+   * need a deterministic answer.
+   */
+  async getUsageHealth(windowMinutes = 60, asOf: Date = new Date()): Promise<UsageHealthSummary> {
+    const since = new Date(asOf.getTime() - windowMinutes * 60_000);
+    const rows = await this.prisma.tangoApiUsage.findMany({
+      where: { timestampBucket: { gte: since } },
+      select: { callFamily: true, status: true, timestampBucket: true },
+    });
+
+    const byStatus: Record<string, number> = {};
+    const byCallFamily: Record<string, { total: number; byStatus: Record<string, number> }> = {};
+    let mostRecent: Date | null = null;
+
+    for (const row of rows as Array<{ callFamily: string; status: string; timestampBucket: Date }>) {
+      byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
+
+      const family = (byCallFamily[row.callFamily] ??= { total: 0, byStatus: {} });
+      family.total += 1;
+      family.byStatus[row.status] = (family.byStatus[row.status] ?? 0) + 1;
+
+      if (mostRecent == null || row.timestampBucket > mostRecent) mostRecent = row.timestampBucket;
+    }
+
+    const totalCalls = rows.length;
+    const successCount = byStatus.success ?? 0;
+
+    return {
+      windowMinutes,
+      since: since.toISOString(),
+      asOf: asOf.toISOString(),
+      totalCalls,
+      byStatus,
+      byCallFamily,
+      // null (not 0) when there is nothing to divide — "0% success" and "no
+      // calls happened" are different facts an operator should not confuse.
+      successRate: totalCalls > 0 ? successCount / totalCalls : null,
+      rateLimitHits: byStatus.rate_limit ?? 0,
+      mostRecentCallAt: mostRecent == null ? null : mostRecent.toISOString(),
+    };
   }
 }
