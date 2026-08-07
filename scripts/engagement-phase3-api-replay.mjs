@@ -8,12 +8,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-
-const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
-const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
-const MAIN_URL = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:4000';
-const SHADOW_URL = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
-const NETWORK_FILE = path.join(EVIDENCE, 'network-results.json');
+import { pathToFileURL } from 'node:url';
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -79,17 +74,22 @@ async function request(base, relative, token, expectShadow) {
   return { status: response.status, body: normalizeParityValue(body), service };
 }
 
-async function main() {
-  const token = (await readFile(TOKEN_FILE, 'utf8')).trim();
-  if (token.length < 20) throw new Error('Phase 3 bearer token file is empty or invalid');
-  const network = JSON.parse(await readFile(NETWORK_FILE, 'utf8'));
+export async function replayObservedReads({
+  token,
+  network,
+  mainUrl = 'http://127.0.0.1:4000',
+  shadowUrl = 'http://127.0.0.1:4500',
+}) {
+  if (typeof token !== 'string' || token.length < 20) {
+    throw new Error('Phase 3 bearer token is empty or invalid');
+  }
   const paths = Array.from(new Set(network.filter(isEngagementGet).map((row) => pathAndSearch(row.url))));
   if (!paths.length) throw new Error('No browser-observed Engagement GETs available for replay');
 
   const results = [];
   for (const relative of paths) {
-    const mainResult = await request(MAIN_URL, relative, token, false);
-    const shadowResult = await request(SHADOW_URL, relative, token, true);
+    const mainResult = await request(mainUrl, relative, token, false);
+    const shadowResult = await request(shadowUrl, relative, token, true);
     const equal =
       mainResult.status === shadowResult.status &&
       JSON.stringify(mainResult.body) === JSON.stringify(shadowResult.body);
@@ -101,15 +101,28 @@ async function main() {
       throw new Error(`${relative}: main/shadow replay mismatch (${mainResult.status}/${shadowResult.status})`);
     }
   }
+  return results;
+}
+
+async function main() {
+  const evidence = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
+  const tokenFile = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
+  const mainUrl = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:4000';
+  const shadowUrl = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
+  const networkFile = path.join(evidence, 'network-results.json');
+  const token = (await readFile(tokenFile, 'utf8')).trim();
+  const network = JSON.parse(await readFile(networkFile, 'utf8'));
+  const results = await replayObservedReads({ token, network, mainUrl, shadowUrl });
 
   await writeFile(
-    path.join(EVIDENCE, 'read-parity.json'),
+    path.join(evidence, 'read-parity.json'),
     `${JSON.stringify({ marker: 'ENGAGEMENT_PHASE3_READ_PARITY_COMPLETE', count: results.length, results }, null, 2)}\n`,
   );
   console.log(`ENGAGEMENT_PHASE3_READ_PARITY_COMPLETE count=${results.length}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`) {
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '';
+if (import.meta.url === invokedPath) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.stack ?? error.message : String(error));
     process.exit(1);
