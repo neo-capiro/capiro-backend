@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "phase": 3,
+  "branch": "agent/engagement-api-phase-3-full-ui-parity",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "P1",
+      "classification": "current_baseline_defect",
+      "surface": "build_tooling",
+      "summary": "Phase 2 no-product-web-change verifier re-evaluated descendant Phase 3 web changes as Phase 2 scope drift.",
+      "status": "FIXED",
+      "evidence": "scripts/verify-engagement-phase2-scope.mjs"
+    },
+    {
+      "id": "F-002",
+      "severity": "P1",
+      "classification": "current_baseline_defect",
+      "surface": "build_tooling",
+      "summary": "Phase 2 web guard forbade the exact preview header Phase 3 must deliberately send.",
+      "status": "FIXED",
+      "evidence": "scripts/verify-engagement-web-no-preview-header.mjs"
+    },
+    {
+      "id": "F-003",
+      "severity": "P2",
+      "blocking": false,
+      "classification": "current_baseline_defect",
+      "surface": "build_tooling",
+      "summary": "apps/api broad typecheck short-circuits on four pre-existing defense-budget TS6059 errors and suppresses later tsconfig projects.",
+      "status": "BASELINE_ACCEPTED",
+      "fixDecision": "Phase 3 permanent verifier invokes tsconfig.engagement-phase3-fixtures.json directly; unrelated defense-budget repair remains outside Phase 3.",
+      "evidence": "scripts/verify-engagement-phase3-code.mjs"
+    },
+    {
+      "id": "F-004",
+      "severity": "P1",
+      "classification": "preview_routing_defect",
+      "surface": "url_history_cache",
+      "summary": "React Query cache entries did not encode response runtime provenance, allowing main/preview cache reuse and an in-flight old-mode response to populate the new mode.",
+      "status": "FIXED",
+      "fixDecision": "Mark actual Engagement response objects, cancel/remove only Engagement-owned queries on mode transitions, and reject any response whose dispatch-time mode no longer matches current mode.",
+      "evidence": "apps/web/src/lib/engagement-preview-cache.spec.ts; apps/web/src/lib/engagement-preview-errors.spec.ts"
+    },
+    {
+      "id": "F-005",
+      "severity": "P2",
+      "blocking": true,
+      "classification": "fixture_harness_defect",
+      "surface": "local_browser_harness",
+      "summary": "Deterministic Phase 3 fixtures intentionally use synthetic Clerk identities, which cannot authenticate a real browser acceptance session.",
+      "status": "FIXED",
+      "fixDecision": "Keep the committed fixture contract synthetic and byte-stable; bind only Clerk identity columns to dedicated acceptance actors at runtime in the disposable database.",
+      "evidence": "apps/api/scripts/bind-engagement-phase3-auth-fixtures.ts"
+    },
+    {
+      "id": "F-006",
+      "severity": "P1",
+      "classification": "security_regression_caused_by_phase3",
+      "surface": "local_browser_harness",
+      "summary": "Initial Phase 3 runner design placed the temporary browser bearer-token file under the retained evidence directory.",
+      "status": "FIXED",
+      "fixDecision": "Bearer material lives only in the OS temp directory and is force-deleted in runner cleanup; evidence files contain sanitized headers only.",
+      "evidence": "scripts/run-engagement-phase3-local.mjs; apps/web/scripts/engagement-phase3-network-recorder.mjs"
+    }
+  ],
+  "counts": {
+    "openP0": 0,
+    "openP1": 0,
+    "blockingP2": 0,
+    "fixedP1": 4,
+    "fixedP2": 1,
+    "baselineAcceptedP2": 1
+  }
+}
