@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -410,6 +410,7 @@ jobs:
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           src/funding-opportunities/
           src/external/tango/
+          src/config/config.schema.spec.ts
           src/intelligence/intelligence.manual-mapping.spec.ts
           src/intelligence/intelligence.mapping-governance.spec.ts
           scripts/enrich-grant-details.spec.ts
@@ -444,7 +445,15 @@ jobs:
       # the import-boundary test, the ESM/CJS proof, and the redaction sweep all
       # live in the first one), 33/1180 after P15 (tango-store.service.spec.ts,
       # a NEW suite covering the versioned-head policy, the propose/review link
-      # durability distinction, checkpoint resumability, and usage recording).
+      # durability distinction, checkpoint resumability, and usage recording),
+      # 34/1199 after P16 — no new suite, but config.schema.spec.ts (already in
+      # scope alongside the intelligence.* files for the same reason: topically
+      # tied to this program, not physically under funding-opportunities/) grew
+      # by 9 tests covering TANGO_API_KEY, the HTTPS-enforced base URL, and the
+      # P18-bound page-size/ceiling/circuit-breaker declarations. The CDK synth
+      # proof for the secret's task placement lives in infra/cdk's OWN test
+      # suite (pnpm --filter @capiro/infra-cdk test, wired into ci-pr.yml, not
+      # this gate) since it needs no Postgres and is not apps/api code.
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -453,7 +462,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 33 1180
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 34 1199
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

@@ -78,6 +78,14 @@ export interface EnvConfig {
     // microsoft-* secret which is lower-kebab.
     googleClientId?: string;
     googleClientSecret?: string;
+    // MakeGov/Tango (Funding Opportunities P16). OPTIONAL AND GATING, same
+    // pattern as recallWebhookSecret above: compute-stack only wires
+    // TANGO_API_KEY onto the ephemeral sync-job task definition when this ARN
+    // is present, and onto NO other task (serve/web/workspace/migrate/Meri).
+    // The secret is a top-level name — "tango", not "capiro/dev/tango-api-key"
+    // — because that is the name it was actually created under; see the
+    // comment on the dev entry below for the exact provenance.
+    tangoApiKey?: string;
   };
 }
 
@@ -263,6 +271,19 @@ export function loadConfig(app: cdk.App): EnvConfig {
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/GOOGLE_CLIENT_ID-Y59j1r',
               googleClientSecret:
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/GOOGLE_CLIENT_SECRET-EBWpbt',
+              // MakeGov/Tango API key (Funding Opportunities P16). Created
+              // 2026-08-06 via the console/CLI as a TOP-LEVEL secret named
+              // "tango" (not under the capiro/dev/ prefix other entries use —
+              // that naming is this secret's actual provenance, not a
+              // convention break to fix). Complete ARN, so no
+              // ResourceInitializationError risk from a partial one:
+              //   aws secretsmanager describe-secret --secret-id tango \
+              //     --profile capiro-dev --region us-east-1 --query ARN --output text
+              // Wiring this ARN does NOT itself deploy or grant anything live —
+              // it only takes effect on the next `cdk deploy`, which P16's own
+              // plan text defers until P17 is ready to use the key.
+              tangoApiKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk',
             },
           };
 

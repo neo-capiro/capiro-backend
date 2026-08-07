@@ -126,3 +126,15 @@ jobs:
       # the image/e2e path), so the full `test` is safe here.
       - name: Test api-strategy
         run: pnpm --filter @capiro/api-strategy test
+
+      # @capiro/infra-cdk (Funding Opportunities P16) — CDK synth tests, this
+      # package's first. DB-free and AWS-free: `Template.fromStack` synthesizes
+      # against local, unprovisioned stand-in constructs (a real-but-tiny VPC, a
+      # DatabaseCluster import, etc.) and never calls AWS, so it is safe in
+      # every CI environment including one with no AWS credentials at all.
+      # Proves MakeGov/Tango's API key is absent from every task definition
+      # except the ephemeral sync-job task, and only when its ARN is configured
+      # — the exact property a source-level review could miss if some other
+      # code path leaked the key onto a different container.
+      - name: Test infra-cdk
+        run: pnpm --filter @capiro/infra-cdk test

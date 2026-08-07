@@ -520,3 +520,70 @@ prefixed `_tango_*` is covered now, but a differently-named future migration is
 not) must re-verify this glob actually matches its directory before considering
 the phase's CI wiring complete. "It worked for the last phase" is not evidence
 that it works for this one.
+
+---
+
+## D-25 · 2026-08-06 · infra/cdk had zero tests; P16 could not honestly skip writing them
+
+The plan's P16 acceptance criteria require "CDK synth tests prove the key is
+absent from serve/migrate containers and present only in sync when
+configured." `infra/cdk` had no test runner, no `test` script, and no
+`test/` directory at all before this phase.
+
+**Why a source-level check (grep the .ts file for `TANGO_API_KEY`) was not
+enough:** it can only prove what the SOURCE says, not what the SYNTHESIZED
+CLOUDFORMATION TEMPLATE contains. A bug where some other code path — a shared
+secrets spread, a stray assignment — put the key on the serve task's Secrets
+array despite the source appearing correct would pass a grep and fail a synth
+assertion. Only `Template.fromStack` settles the question the acceptance
+criterion actually asks.
+
+**What was added:** `jest` + `ts-jest` as devDependencies, a minimal
+`jest.config.cjs`, and `infra/cdk/test/compute-stack.tango.spec.ts` — a REAL
+synth against a minimal-but-real dependency graph (a tiny unprovisioned VPC
+via `new ec2.Vpc()`, not `ec2.Vpc.fromLookup`, which would require live AWS
+API access and make the test flaky/impossible in CI). The suite proves:
+absence when unconfigured, presence on the sync-jobs task ONLY when
+configured, the exact secret name/ARN shape, no bare secret value anywhere in
+the template, and — as a check on the harness itself — that it can still
+reproduce the PRE-EXISTING LEGISTORM_API_KEY/CENSUS_API_KEY placement rule.
+That last test exists because a harness that cannot verify a known,
+already-shipped invariant is not trustworthy for a new one either.
+
+**Not a full ComputeStack regression suite.** `ComputeStack` has ~15 task
+definitions and dozens of env vars; asserting all of them is future work this
+phase does not claim to have done. Scoped deliberately to what P16 changed.
+
+**How to apply:** `pnpm --filter @capiro/infra-cdk test` is wired into
+`ci-pr.yml` (DB-free, AWS-free, so it belongs in the generic gate, not the
+Postgres-provisioning funding-opportunities-ci.yml). Any later phase adding
+another CDK-visible secret or task-definition change should extend this test
+file or add a sibling, not skip testing it because "there wasn't one before."
+
+---
+
+## D-26 · 2026-08-06 · The real secret ARN is now in infra/cdk/lib/config.ts
+
+Per the AWS info supplied for this session: a secret named `tango` (not
+`capiro/dev/tango-api-key`, the plan's suggested naming — this is the
+secret's actual, already-created name) exists in account `967807252336`,
+region `us-east-1`, at
+`arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk`.
+
+`config.ts`'s dev `externalSecretArns.tangoApiKey` now holds this real ARN,
+matching every other entry in that block (each one is a real, live ARN, not a
+placeholder). This is the literal fulfillment of the plan's own P16
+instruction — "Do not add the secret ARN to the live task configuration
+until P16 code is merged and the secret exists" — not a departure from it:
+the secret exists now, and this commit is the P16 merge.
+
+**What this does NOT do:** wiring the ARN into CDK source changes nothing
+live. `cdk deploy` was not run. The ARN only takes effect on Compute stack's
+NEXT deployment, and per the plan's own Ship note for P16, live
+task-definition wiring is deferred until P17 is ready to actually use the
+key — a later, deliberate, separate action.
+
+**Security note:** only the ARN was handled, never the secret VALUE. No tool
+call in this phase read the secret's contents (`GetSecretValue` was never
+invoked); the CDK `Secret.fromSecretsManager` construct only ever needs to
+know that the secret exists, not what it holds.
