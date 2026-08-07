@@ -67,6 +67,7 @@ function opportunity(partial: Partial<FundingOpportunity> = {}): FundingOpportun
     kindRaw: 'Solicitation',
     baseKind: 'presolicitation',
     recommendation: null,
+    acquisitionPosition: null,
     decision: null,
     title: 'Turbofan Engine Sustainment',
     agency: 'Department of the Army',
@@ -234,12 +235,11 @@ describe('all eight sections exist from this phase onwards', () => {
   });
 
   test('a section with no data yet SAYS it has none — it never renders blank', async () => {
+    // Acquisition position (P23) is real now — AcquisitionPositionPanel.test.tsx
+    // owns its own "says why it's missing" coverage in full; the other two
+    // sections here are still genuinely unbuilt.
     wrap(<FundingOpportunityDetail refValue={REF} />);
-    for (const testId of [
-      'fo-detail-acquisition',
-      'fo-detail-landscape',
-      'fo-detail-requirements',
-    ]) {
+    for (const testId of ['fo-detail-landscape', 'fo-detail-requirements']) {
       const section = await screen.findByTestId(testId);
       expect(section).toHaveTextContent(/Not yet available/i);
     }
@@ -247,11 +247,13 @@ describe('all eight sections exist from this phase onwards', () => {
 
   test('an absent acquisition position never reads as "cannot bid"', async () => {
     // Absence of provider evidence is unknown, not a negative determination, and it
-    // is not the same question as legal eligibility.
+    // is not the same question as legal eligibility. This fixture's opportunity has
+    // no acquisitionPosition (the mocked flag-off/unbuilt shape), so the panel falls
+    // through to its own "not yet available" copy — never a bid determination.
     wrap(<FundingOpportunityDetail refValue={REF} />);
     const section = await screen.findByTestId('fo-detail-acquisition');
     expect(section.textContent ?? '').not.toMatch(/cannot bid|not eligible|no access/i);
-    expect(section).toHaveTextContent(/reported as unknown rather than as a determination/i);
+    expect(section).toHaveTextContent(/not yet available/i);
   });
 
   test('an empty requirements panel does not imply the solicitation has none', async () => {

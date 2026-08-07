@@ -836,3 +836,735 @@ oversight matching P17's. It is a scoped, stated choice — a future phase
 that wants a live proof of retry/breaker behavior specifically should say so
 explicitly rather than assume this phase already attempted and failed to
 get one.
+
+---
+
+## D-34 · 2026-08-07 · A client's Tango sync status lives on `clients` itself, not a link table
+
+P19 needs to relate a client to the Tango Entity fetched for it. The obvious-
+looking answer — a `tango_resource_link` row (P15) — is wrong on inspection:
+`tango-store.service.ts`'s `assertKnownLocalType` explicitly refuses a
+tenant-owned local resource type, and `clients` carries `tenant_id`. That
+table exists to link a Tango resource into one of Capiro's own GLOBAL
+reference tables (`federal_contractor` et al.), never to a tenant's row.
+
+The actual answer needs no link at all: a UEI is already a global, exact,
+1:1 government identifier, and `Client.uei` and
+`tango_resource_snapshot.external_id` are the SAME value for the SAME
+entity. `WHERE external_id = client.uei` IS the relationship — no join table
+adds anything a plain equality doesn't already give for free.
+
+What DOES belong on `Client` is the client's OWN sync bookkeeping — three
+additive nullable columns (migration `20260822010000_client_tango_entity_sync_status`):
+`tango_entity_last_synced_at` (last SUCCESSFUL sync — found or not_found are
+both a definitive answer, not a failure), `tango_entity_last_attempt_at`
+(every attempt, independently, so a repeatedly-failing sync cannot read as
+healthy because it once succeeded), and `tango_entity_last_error` (redacted,
+cleared on the next success). Same freshness-tracking shape this program
+already documents elsewhere (`sourceFreshnessSemantics`).
+
+**What this forbids:** a future phase reaching for `TangoResourceLink` to
+connect a Tango resource to ANY tenant-owned row. If the local side is
+tenant-owned, the relationship belongs on that row directly (as here) or on
+a new tenant-scoped table with its own RLS — never on the global link table,
+regardless of how convenient reusing it looks.
+
+---
+
+## D-35 · 2026-08-07 · A real SDK-vs-server field-name incompatibility, found live and fully diagnosed
+
+The P19 live-key run (real account, rehearsal database — see D-36) hit a 400
+on the very first real `getEntity` call: `"Invalid request parameters:
+Invalid shape"`. This was chased to a full, precise diagnosis, not left as
+"the account rejected something":
+
+1. **The live server rejects this SDK's own field names.** A raw debug call
+   against the real API confirmed `entity_structure_desc` and
+   `state_of_incorporation_code` (P14's original `ENTITY_FIELDS`, taken
+   faithfully from `@makegov/tango-node@1.1.0`'s bundled
+   `shapes/explicitSchemas.js`) are `unknown_field` server-side. The
+   server's own error payload includes its CURRENT `available_fields` list,
+   which has bare `entity_structure`/`state_of_incorporation` instead — no
+   `_code`/`_desc` suffix.
+2. **Renaming to match the live server broke the other direction.** Passing
+   the corrected bare names through the real SDK, via `tango.client.spec.ts`
+   driven by a fake `fetchImpl` (no network — the SAME harness every other
+   adapter test uses), threw `ShapeValidationError: Field "entity_structure"
+   does not exist on model "Entity"` — thrown by the SDK's OWN bundled
+   `ModelFactory`/`SchemaRegistry` when materializing a response, which
+   still only knows the old `_code`/`_desc` pair.
+3. **This is not `listEntities`-only.** Reading the SDK's own `getEntity`
+   source directly confirmed it calls `materializeOne` on every SUCCESSFUL
+   response, exactly like `listEntities` calls `materializeList` — an
+   initial test against the synthetic (never-found) test UEI looked clean
+   only because a 404 never reaches the materialization step at all. A REAL
+   found entity would hit the identical client-side crash.
+
+Net: **neither naming convention round-trips end-to-end** (request → typed
+result) through this SDK version, for either method that returns a typed
+Entity. This is the SDK's bundled reference schema genuinely lagging the
+live API's current one — an external version-drift fact, not a Capiro typo
+to fix by picking a different string.
+
+**Fix:** `ENTITY_FIELDS` drops both fields entirely — not renamed, removed.
+`mapEntity` returns `entityStructure`/`stateOfIncorporation` as an explicit,
+commented `null` rather than a lookup that would always resolve to nothing
+useful. The domain type keeps both fields (a future SDK release may resolve
+this); the mapper's comment says why they are always null today so a future
+reader does not mistake it for a missed field and "fix" it back into a
+crash. `tango.client.spec.ts` gained a dedicated regression test asserting
+both stay null even though the fixture deliberately carries plausible
+values for both (as noise the shape never asked for) — proving the drop,
+not just asserting it once in a comment.
+
+**What this forbids:** re-adding either `entity_structure_desc`/
+`state_of_incorporation_code` OR bare `entity_structure`/
+`state_of_incorporation` to `ENTITY_FIELDS` without first confirming — live,
+against the real account, through `getEntity` specifically (not just a
+shape-string check) — that a NEWER `@makegov/tango-node` release has
+reconciled its bundled schema with the live API. Escalate to MakeGov before
+assuming a version bump alone fixes it.
+
+---
+
+## D-36 · 2026-08-07 · Migration rehearsal AND a live-key pipeline proof, composed for the first time
+
+P19 is the first phase needing both disciplines this program has used
+separately since P07 (migration rehearsal: clean replay, ordered upgrade,
+retry-as-no-op) and since P17 (a live call against the real account). Doing
+both together, on the SAME isolated database, proved more than either would
+alone:
+
+- **Clean replay**: the full 231-migration history, including
+  `20260822010000_client_tango_entity_sync_status`, applied cleanly to a
+  verified-empty `pgvector:pg16` container.
+- **Ordered upgrade**: a SEPARATE database taken through every migration
+  EXCEPT the new one, seeded with a real tenant + two clients — one with a
+  UEI, one without — then the new migration applied on top. Exactly one
+  migration ran; the pre-existing rows kept their data with the three new
+  columns landing NULL, not backfilled.
+- **Retry-as-no-op**: the migration SQL re-run by hand against the clean-
+  replay database — `NOTICE: column ... already exists, skipping` three
+  times, zero errors, column count unchanged.
+- **Live-key pipeline proof**: `sync-tango-entities.ts --commit`, run
+  against that SAME seeded ordered-upgrade database with the real key from
+  Secrets Manager (fetched and piped directly into the subprocess
+  environment, never appearing separately in this session's own output).
+  `processed: 1` — proving, empirically, against a REAL Prisma query (not a
+  fake double), that the name-only seeded client was never touched at all
+  while the UEI-having one was. This is the strongest form of this phase's
+  own acceptance bar: not just "the fake test passes" but "the actual SQL
+  this ships with does the right thing against a real, populated database."
+  The run also surfaced D-35 — a genuine bug the fake-double unit tests
+  could not have caught, because they never had a reason to assert against
+  the SDK's own materialization step.
+
+**What this forbids:** treating a fake-double-only test suite as sufficient
+evidence for a phase that is BOTH the first real consumer of a prior
+phase's schema (P15's checkpoint table) AND the first real caller of a
+specific gateway method end-to-end (`getEntity`, through `getVersion`-only
+in P17's probe). Where both are true at once, run the real pipeline against
+a real, disposable database before calling the phase done — a passing unit
+suite proves the LOGIC; it does not prove the REQUEST.
+
+---
+
+## D-37 · 2026-08-07 · A new tenant-scoped table, not a stretch of an existing one
+
+P20 needs to relate a proposed profile CHANGE to a client. Two existing
+tables were considered and rejected on inspection, not just on vibes:
+
+- `tango_resource_link` (P15) is reserved for linking a Tango resource into
+  Capiro's own GLOBAL reference tables — `assertKnownLocalType` explicitly
+  refuses a tenant-owned local type, and `clients` carries `tenant_id`.
+- `client_intel_mapping` (P05) answers "is this external entity the SAME
+  LEGAL ENTITY as this client" — a different question from "should this
+  FIELD on the client's own profile change to this value". Reusing it would
+  mean overloading `externalId`/`externalName`/`matchBasis` — a mapping's
+  own vocabulary — to mean something else entirely for a different kind of
+  row, which is exactly the kind of stretch that reads fine today and
+  confuses the next person who has to reason about what a row in that table
+  can mean.
+
+So: a new table, `client_profile_enrichment_candidate`, TENANT-scoped
+(unlike every Tango-owned table before it) with its own RLS, its own
+vocabulary (`field` is the CLIENT model's own field name, verbatim), and
+its own durability rule — modeled on, but not sharing storage with, the
+propose/review pattern P15 and P05 both already established.
+
+**What this forbids:** reusing `tango_resource_link` for anything that
+would need to name a tenant-owned row as its "local" side. If a future
+Tango-sourced fact needs to attach to a tenant-owned record, it gets its own
+table (as here) or its own columns on that record (as P19's sync-status
+columns), never a bent read of the global link table's own local-type CHECK.
+
+---
+
+## D-38 · 2026-08-07 · Certifications: a curated exact-match vocabulary, not a classifier
+
+A false certification claim (HUBZONE, 8(a), SDVOSB, WOSB, EDWOSB, VOSB) has
+real compliance consequences — this is exactly why the phase's own
+acceptance bar singles out "no accept-all for certifications" specifically,
+not just as one example among equally-risky fields.
+
+`TANGO_BUSINESS_TYPE_TO_CERTIFICATION` is therefore a short, hand-reviewed,
+case-insensitive EXACT-match table from Tango business-type description
+strings to Capiro's six-value durable certification vocabulary
+(`set-aside.ts`). A Tango business type that does not exactly match an entry
+is never proposed — not fuzzy-matched, not substring-matched, not inferred
+from a partial phrase. Same "UEI-first, never fuzzy" discipline this program
+already applies to identity matching (P02), now applied to certification
+TEXT.
+
+Writing the curated table surfaced a real, easy-to-get-wrong distinction in
+federal-contracting terminology: SAM.gov's plain WOSB designation is
+singular ("**Woman** Owned Small Business"), while the EDWOSB program's
+official name is plural ("**Women**-Owned Small Business"). A first draft of
+the map used the plural form for both, which would have silently failed to
+match the far more common plain-WOSB phrasing. Caught by a test asserting a
+concrete, realistic business-type string maps correctly — not by inspection
+of the map alone. Both singular and plural are now curated for plain WOSB
+specifically, since this program has not yet observed a real Tango response
+to confirm which phrasing this specific provider actually uses.
+
+Also load-bearing: an EXISTING certification is never proposed for REMOVAL
+just because a Tango snapshot's `businessTypes` doesn't mention it.
+Absence of evidence is not evidence of absence — Tango not listing a
+certification is not proof the client lacks it, and this service only ever
+proposes ADDITIONS, never removals, for every array field it manages (NAICS
+and PSC codes included).
+
+**What this forbids:** widening the certification matcher to substring or
+fuzzy matching, ever, regardless of how tempting a "close enough" partial
+match looks when a real Tango response uses slightly different punctuation
+or wording than the curated list. Add the new exact phrase to the curated
+map instead — deliberately, reviewed, one entry at a time.
+
+---
+
+## D-39 · 2026-08-07 · Migration rehearsal PLUS a real (non-fake) service run, against real RLS
+
+Same composed discipline D-36 established for P19, extended one step
+further: after the usual clean replay / ordered upgrade / retry-as-no-op,
+every CHECK constraint, the unique durability index, and both foreign keys
+were proven by ACTUAL INSERT against the rehearsal database (8 cases: an
+invalid `field`, a pending row wrongly carrying a reviewer, an accepted row
+missing one, a valid pending row, a valid accepted row, a true duplicate
+proposal refused, a same-hash-different-field row correctly accepted, and a
+bogus client id refused by the FK) — not just read back out of the SQL file.
+
+Then, uniquely for this phase: the REAL `ClientProfileEnrichmentService`
+(not a fake double) was run directly against that same RLS-enabled,
+FORCE-enabled database — propose, list, accept one candidate, reject
+another, re-propose to prove durability, and a final read of the client row
+confirming the accepted field changed and the rejected one did not. This
+matters specifically because P20 is the first phase whose OWN correctness
+depends on `PrismaService.withTenant`'s real tenant-scoping query-extension
+actually working — every fake-double unit test necessarily bypasses that
+mechanism entirely (the fake `withTenant` is `(id, fn) => fn(tx)`, no
+scoping at all), so it is the one thing the unit suite structurally cannot
+prove about this service.
+
+**What this forbids:** treating `withTenant`/`withSystem` fakes in a unit
+suite as proof that tenant isolation holds for a NEW service using them for
+the first time. A fake that unconditionally calls through proves the
+business logic; it actively cannot prove the isolation, because the fake's
+whole job is to skip the part that would.
+
+---
+
+## D-40 · 2026-08-07 · A pure read aggregation, and why "versioned" means the FLAG, not array position
+
+P21 needed no migration and no new persistence — it assembles three things
+that already exist (first-party `clients` fields, P19's active Tango
+snapshot, P15's full snapshot version history, P20's open review
+candidates) into one view. This is `TangoStoreService.getSnapshotHistory`'s
+FIRST real caller — written at P15, unused until now, exactly as that
+phase's own doc predicted.
+
+One detail worth recording because it is easy to get wrong invisibly:
+`verified` (the currently-authoritative Tango observation) is derived by
+finding the row in `history` whose `active` flag is true — NOT by assuming
+it is the last element of the array. `getSnapshotHistory` orders by
+`version ASC`, so in the overwhelmingly common case the active row IS the
+last one, which means a version-position shortcut would pass every casual
+manual check and still be wrong the one time a supersession is written out
+of the version order an implementation assumes. `federal-business-profile
+.service.spec.ts` proves this with a deliberately out-of-order fixture
+(version 1 active, version 2 superseded) specifically so the test would
+fail if a future edit ever "simplified" this to `history.at(-1)`.
+
+`firstParty` and `verified` are returned as separate top-level sections,
+never merged into one flattened object — restating, for a READ view this
+time, the same "first-party authoritative, Tango verifies/enriches, never
+silently overwrites" precedence P20 already enforces on the WRITE side. A
+test asserts the two can disagree in the response without one clobbering
+the other.
+
+**No migration rehearsal for this phase** — there is nothing new to
+rehearse. `PrismaService.withTenant`'s real tenant-scoping mechanism was
+already proven end-to-end against real RLS in P20 (D-39); this service
+uses the identical, already-proven code path for a read instead of a write,
+so re-proving the mechanism itself here would be repeating evidence rather
+than adding new coverage. The NEW thing this phase adds — the aggregation
+and the active-flag-not-array-position rule — is exactly what the fake-
+backed unit suite is suited to prove.
+
+**What this forbids:** any future change to `getProfile` that computes
+`verified` via `history[history.length - 1]` or `.at(-1)` instead of
+`.find((v) => v.active)`. The two happen to agree today; they are not the
+same question, and only one of them is the one this phase's name
+("Versioned") is actually about.
+
+---
+
+## D-41 · 2026-08-07 · Vehicle-awardee parent UEI: a real provider data gap, not a naming mismatch
+
+P22's live-key run failed `listVehicleAwardees` for all 5 vehicles tested,
+identically: `{"path":"recipient.parent_uei","reason":"unknown_field"}`. This
+looked, at first glance, like the same shape of problem D-35 already solved
+(a naming mismatch between the SDK's bundled schema and the live server) —
+it is not, and confirming that required going further than a rename.
+
+A direct debug script forced the same error deliberately, to read the
+server's own `available_fields` payload for this endpoint's `recipient`
+expansion in full, rather than guessing at an alternate name. It lists
+EXACTLY five fields: `cage`, `cage_code`, `display_name`,
+`legal_business_name`, `uei`. No parent or owner UEI exists under any name
+on this expansion. This is a genuine DATA limitation, not a naming one — no
+string this adapter could request would produce it, because the server does
+not carry it here.
+
+Parent/owner data is not absent from Tango's model entirely — D-35's own
+investigation already found `immediate_owner`/`highest_owner` on `getEntity`
+— but reaching it for every awardee found on a vehicle would mean one EXTRA
+`getEntity` call per unique awardee UEI: a materially more expensive design
+than "list this vehicle's awardees", and a scope decision this phase
+deliberately does not make under time pressure.
+
+**Fix:** `parent_uei` removed from `VEHICLE_AWARDEE_FIELDS`.
+`mapVehicleAwardee` hardcodes `recipientParentUei: null`.
+`TangoVehicleAwardee.recipientParentUei`'s doc comment records that it is
+always null as of this SDK/live-API version and why. The `relationship ===
+'parent'` branch in `sync-tango-vehicles.ts` stays — tested, not deleted —
+because the LOGIC is correct and the gap is the provider's current data
+model, not this sync's design; deleting it would silently lose "you are on
+this vehicle" vs. "your parent is" the moment the provider (or a future SDK
+reaching `getEntity`'s owner expansions per-awardee) adds the data back.
+Re-running the live sync after the fix confirmed `errored: 0` across all 10
+vehicles tested, proving the fix — not just the theory — resolved the actual
+integration.
+
+**What this forbids:** re-adding `parent_uei` (or any other name) to
+`VEHICLE_AWARDEE_FIELDS` without first re-confirming, live, that the
+server's `available_fields` list for this specific expansion has changed.
+Reaching parent/owner data for awardees via a per-UEI `getEntity` call is a
+real, available design — but a deliberate, separately-scoped one, not a
+silent addition to this sync's request-per-vehicle cost.
+
+---
+
+## D-42 · 2026-08-07 · Every list endpoint is page-number pagination; the SDK's own `.cursor` is unconditionally null for all of them
+
+Re-verifying P22's D-41 fix live (`--limit=10`, dry run) surfaced a second,
+larger problem: the summary reported `completeness: 'complete'` despite the
+server's own `count` field reading 20,709 vehicles. Only 10 had been seen.
+
+A raw debug script (bypassing `materializeList`, reading `client.http.get`'s
+response directly) showed why: `/api/vehicles/`'s `next` field is
+`"https://tango.makegov.com/api/vehicles/?limit=3&page=2"` — Django REST
+Framework PAGE-NUMBER pagination, never `?cursor=...`. Calling `page=1` and
+`page=2` explicitly confirmed the parameter genuinely works — the two calls
+returned different vehicles. The SDK's own bundled
+`buildPaginatedResponse`, read directly in `client.js`, computes its
+`.cursor` field by parsing a `cursor` QUERY PARAMETER out of `next`
+(`extractCursorFromUrl`) — which this `next` URL never has. Confirmed a
+third way, independent of both the live call and the JS source: the SDK's
+own `types.d.ts` documents `PaginatedResponse.cursor` as "`null` when the
+endpoint is page-based" — its authors already knew this distinction exists.
+Every one of the six list methods this gateway calls (`listEntities`,
+`listOpportunities`, `listNotices`, `listForecasts`, `listVehicles`,
+`listVehicleAwardees`) extends `ListOptionsBase` (`page?: number`, no
+`cursor` field at all) — all six are the page-based case, unconditionally.
+Only `/api/contracts/` (a method this gateway does not call) is documented
+by the SDK as the cursor-based exception.
+
+Net: `tango.client.ts`'s `page()` helper had been reading
+`response.cursor ?? null` since P14 and getting `null` back from every one
+of these six endpoints on every call, independent of whether more data
+remained. `TangoPage.nextCursor`'s own doc — "OPAQUE... null means this is
+the last page" — was therefore false every time it returned null after page
+one. Checked whether this reached already-merged phases: P17's capability
+probe never reads `nextCursor` (confirmed by grep — a one-shot-per-resource
+probe has no reason to). P19's entity sync paginates over Capiro's OWN
+`client` table via a genuine Prisma keyset cursor (`cursor: { id }, skip:
+1`) and calls single-record `getEntity` per row — it never calls
+`listEntities` at all, so it never touched this path. Only P22 (its own
+`listVehicles`/`listVehicleAwardees` walks) is actually affected among
+current work; P24's forecast sync would have hit the identical wall.
+
+**Fix, entirely inside `tango.client.ts`'s shared `page()` helper — no
+changes needed to any of the six call sites, or to any consumer.**
+Capiro's own cursor stays exactly as opaque to every caller as its doc
+already promised; `page()` is now the one place allowed to know what's
+inside it. `parsePageCursor` decodes it back into a 1-based page number
+(garbage or absent both mean page 1), sent to the SDK as `{ page, limit }`
+instead of a stray, silently-ignored `{ cursor }`. `nextCursor` is derived
+from the raw `next` field's presence — non-null means another page exists,
+regardless of what the SDK's own `.cursor` says — encoded back out as
+`String(page + 1)`. `entity-page.json`'s fixture (previously hand-authored
+with an invented `?cursor=...` URL that no live response actually produces)
+now carries a realistic `?page=2` `next` URL and a `cursor: null` matching
+what the real SDK computes for it. `tango.client.spec.ts` gained tests
+proving the page number round-trips through the query string, that a
+missing/blank/garbage cursor all mean page 1, and that `nextCursor` is null
+exactly when the provider's `next` is null — not when the SDK's `.cursor`
+happens to be.
+
+**What this forbids:** trusting the SDK's `PaginatedResponse.cursor` field
+anywhere in this codebase without first checking, for that SPECIFIC
+endpoint, whether its own doc comment's "page-based" carve-out applies —
+and re-adding any direct `cursor` pass-through to a `c.list*()` call without
+routing it through `parsePageCursor` first.
+
+---
+
+## D-43 · 2026-08-07 · A page fetched larger than what --limit leaves room for hid a resumability bug
+
+While first building P22's vehicle walk, `--limit=2` against a single staged
+page of 3 vehicles left `vehiclesProcessed` correct (2) but `completeness`
+wrong (`'complete'`, when a 3rd vehicle plainly still existed). The cause:
+`listVehicles` was requested with a flat `vehicleBatchSize` (default 25)
+regardless of how much of `options.limit` remained. When the limit landed
+mid-page, the inner loop's `break outer` — needed to stop enumerating a page
+that came back bigger than what this run should consume — jumped past
+`cursor = page.nextCursor` and the checkpoint write immediately below it.
+`cursor` was left at its pre-page value (`null`, on a first-page stop), so
+the final `ceilingReached || cursor != null ? 'in_progress' : 'complete'`
+computed the wrong half of that ternary. A resumed run would have restarted
+from scratch, silently re-walking vehicles already seen rather than
+continuing — the entire point of a checkpoint, defeated by the one case
+that most needs it (a run deliberately capped short of the full walk).
+
+The existing test that exercised this exact scenario
+(`vehiclesProcessed respects the limit, even mid-page`) had not caught it
+because its fake `listVehicles` ignored the `limit` argument entirely and
+always returned the full staged page — a fidelity gap in the fake, since a
+real gateway (confirmed by D-42's own investigation into `clampLimit`/
+`ListOptionsBase.limit`) never returns more than asked.
+
+**Fix:** the outer loop now requests `Math.min(vehicleBatchSize, remaining)`
+— never more than what this run could still consume — exactly the
+discipline `sync-tango-entities.ts` already established in P19
+(`Math.min(batchSize, remaining)`). With the page itself capped, the inner
+loop can no longer need a mid-page `break outer` for the limit case at all;
+that branch now exists only for `TangoRequestCeilingExceededError`, a
+genuinely different, provider-forced early exit. The test fake was
+corrected to truncate-and-synthesize-a-cursor when asked for fewer items
+than staged — matching a real gateway's behavior — and the regression test
+now asserts `completeness`, the actual persisted checkpoint's cursor, and
+the exact `limit` sent to the gateway, not just the processed count.
+
+**What this forbids:** any paginated walk in this codebase requesting a
+"full" page size independent of how much of an overall `--limit` remains,
+and any test fake for a paginated gateway method that silently ignores the
+`limit` it was called with.
+
+---
+
+## D-44 · 2026-08-07 · Acquisition position is a CLIENT posture, not an opportunity crosswalk — and why the recommendation hook has no live trigger yet
+
+P23's plan names six states, including `vehicle_not_identified` as distinct
+from `no_direct_access_evidence`, and asks for a recommendation-engine
+override "when vehicle access is required but unresolved." Both phrases
+read, on first pass, as if this phase should determine which SPECIFIC
+contract vehicle a SPECIFIC SAM/Grants.gov opportunity requires. It does
+not, and this entry records why, because the alternative reading would have
+produced a fabrication.
+
+**No structured signal for "this opportunity requires a vehicle" exists.**
+`FundingOpportunity` was checked field by field: `setAside`/`setAsideCode`
+carry socio-economic set-aside categories (8(a), HUBZone, SDVOSB, WOSB),
+never a vehicle restriction. `fundingInstrument` is populated for
+`grants_gov` rows only — always `null` for `sam_gov`, confirmed by reading
+`shapeUnscored`'s own SAM branch directly. No field anywhere carries a
+vehicle name, IDV number, or "task order under X" fact. The only way to
+infer one would be matching free text in the notice's title or description
+against a known vehicle name — exactly the fuzzy-text-matching-as-identity
+this program's own award-history rules (P02) forbid, restated here for a
+different kind of identity claim. This phase's own plan lists no new
+Prisma model or migration, confirming no crosswalk was ever in scope here —
+that is P27+ territory ("Tango↔SAM crosswalk and parity ledger"), if it is
+ever built at all.
+
+**So acquisition position is computed once PER CLIENT, from P22's
+`client_relevant_vehicle` data alone, and attached identically to every
+`sam_gov` opportunity for that client** — the same shape of design P21's
+`FederalBusinessProfile` already uses for provider-verified context. The
+six states resolve from that CLIENT-level evidence:
+
+  - `direct_prime_access` / `related_entity_access` / `known_teaming_route`
+    — the best (self beats parent beats teaming) NON-EXPIRED relationship
+    found. Expiry is read from the vehicle's own `lastDateToOrder`, joined
+    from its full Tango snapshot (P15's `tango_resource_snapshot`) rather
+    than added as a new column — P22's own materialized summary table
+    never captured that field, and the full snapshot already holds it.
+  - `no_direct_access_evidence` — the sync ran and found relevant vehicles,
+    but every one is expired.
+  - `vehicle_not_identified` — the sync ran and found ZERO relevant
+    vehicles for this client at all.
+  - `unknown` — Tango is not configured, or the vehicle sync
+    (`sync-tango-vehicles`, P22) has never completed a run — read from
+    P15's `tango_sync_checkpoint`, the same table `sync-tango-vehicles.ts`
+    itself writes to.
+
+`vehicle_not_identified` and `no_direct_access_evidence` stay genuinely
+separate states — "found nothing at all" and "found vehicles but none
+current" are different fact patterns a capture strategist would act on
+differently — even though neither is opportunity-specific. Grants never
+get a position at all (`acquisitionPosition: null`): a grant carries no
+contract-vehicle concept, a source fact rather than a product gap.
+
+**`known_teaming_route` is real, tested, and has no producer.** P22's
+`client_relevant_vehicle.relationship` column is CHECK-constrained to
+`'self'`/`'parent'` only — nothing anywhere writes `'teaming'`. The state
+stays in `computeAcquisitionPosition`'s vocabulary and truth table (the
+function accepts a `'teaming'` relationship and scores it correctly) so a
+future teaming-partner data source — a formal partner/JV registry Capiro
+does not have today — is a producer to add, not a scoring-function change.
+Same shape of fact as D-41's dormant 'parent' relationship.
+
+**The recommendation-engine override is real, tested, and has no live
+trigger either — for the same underlying reason.** `vehicleAccessRequired`
+would need to answer "does THIS opportunity specifically require vehicle
+access", which is exactly the crosswalk that does not exist. Rather than
+leave the acceptance criterion ("recommendation can move from pursue to
+needs-review when vehicle access is required but unresolved") unbuilt,
+`opportunity-recommendation.ts` gained the real, fully-tested override —
+checked only after the existing 8 rules produce `pursue`, downgrading that
+one outcome when `vehicleAccessRequired && !vehicleAccessResolved` — as a
+POST-PROCESSING step, not a ninth numbered rule, so the original 8 rules'
+carefully-ordered precedence is untouched. Both fields are optional; no
+real caller sets either today, proven directly (`recommendOpportunity`
+called with both fields omitted is byte-for-byte identical to the pre-P23
+result — a dedicated test asserts this, not just describes it).
+
+**Fix/build, concretely:** `acquisition-position.ts`'s
+`computeAcquisitionPosition` is the pure, DB-free truth table
+(`acquisition-position.spec.ts`, 18 tests: prime, affiliate, partner,
+expired vehicle, multiple vehicles winning by rank not array order, and
+both flavors of missing provider data). `AcquisitionPositionService` adapts
+real `PrismaService`/`TangoStoreService` reads into that function's input
+shape — constructed directly inside `FundingOpportunitiesService`, not a
+separate DI-registered provider, matching how `recommendOpportunity` itself
+is a plain function services call rather than an injectable service.
+`funding-opportunities.service.ts`'s own new tests (+6) prove the WIRING
+specifically — the one risk `acquisition-position.spec.ts`'s fakes cannot
+catch, such as a wrong Prisma model or field name. Gated by a NEW flag,
+`funding_opportunities_vehicle_fit`, read as a plain boolean
+(`isFundingOpportunitiesFeatureEnabled`, factored out of
+`FundingOpportunitiesFlagGuard` so a route guard and a data-shape check
+share one fail-closed SQL query and can never disagree about what
+"enabled" means) rather than a route guard — the field lives inside an
+already-flagged response, so "off" must mean "respond exactly like P22"
+plus one null-valued key, never a 404.
+
+**What this forbids:** inferring a required vehicle from an opportunity's
+title, description, or any other free-text field — that is a fuzzy-
+matching identity claim, the exact failure mode P02 already closed off for
+award history. Setting `vehicleAccessRequired: true` anywhere in
+`funding-opportunities.service.ts` without a genuine, structured, per-
+opportunity vehicle signal — which does not exist as of this phase and may
+never exist without P27's crosswalk actually being built. Computing
+`configured`/`neverSynced`/expiry any way other than reading the REAL
+`TANGO_GATEWAY.configured` flag and P15's own checkpoint/snapshot tables —
+inventing a client-side proxy for either would silently drift from what
+P22's own sync actually knows.
+
+---
+
+## D-45 · 2026-08-07 · Forecasts are richer than P14 found, in three confirmed ways — all three blocked by the SDK's OWN client-side gate, not the live server
+
+P24's live-key investigation started from P14's own documented finding:
+"the provider's forecast model is THINNER than the plan assumed... no
+anticipated SOLICITATION date, no PSC, no estimated value." That finding
+holds — all three are still genuinely absent. But the plan also asked for
+an organization hierarchy, a contact, and "provider modification", and a
+direct read of the live server's own `available_fields` payload (forced by
+requesting a deliberately bogus field, the same technique D-41 used) showed
+all three exist, none of them declared in `@makegov/tango-node@1.1.0`'s
+bundled `FORECAST_SCHEMA`:
+
+1. **`organization`** — a real nested hierarchy (`department_code`,
+   `department_name`, `agency_code`, `agency_name`, `office_code`,
+   `office_name`, `organization_id`), confirmed on a real live record
+   (VA, "Emergent Virtual Face-to-Face (VF2F) Network").
+2. **`modified` and `created`** — real timestamps. `mapForecast`'s own
+   pre-P24 comment said forecasts "carry NO modified stamp at all" — true
+   against the SDK's typed method, which has no `modified` field to
+   request; false against the live server, which has always had one.
+3. **`primary_contact`** — a structured `{name, email, phone, title}`
+   object on the live server, despite the SDK's own schema declaring it
+   `type: "str"`. Confirmed on the same real record: a name and a working
+   `@va.gov` email, not a bare string.
+
+**This is a DIFFERENT failure shape from D-35 and D-41, and the fix is
+correspondingly different.** D-35's `entity_structure` was rejected by the
+LIVE SERVER itself (a genuine server-side incompatibility, unfixable from
+Capiro's side). D-41's `parent_uei` was confirmed absent from the live
+server entirely (a genuine provider data gap). Here, requesting
+`organization`/`modified`/`created` through the SDK's typed
+`client.listForecasts(...)` throws `ShapeValidationError` — CLIENT-SIDE,
+before any request reaches the network — because `parseShape` validates
+against the SDK's OWN bundled schema, which simply does not declare these
+fields. The identical shape string, sent via `client.http.get('/api/forecasts/',
+{shape, ...})` — the SDK's own HTTP transport, bypassing only its shape
+validation — succeeds against the SAME live server without complaint.
+There is no live-server rejection to work around; the SDK's client-side
+gate is the only obstacle.
+
+**Fix:** `tango.client.ts`'s `listForecasts` calls `rawForecastsGet` (a
+small module-level helper) instead of `c.listForecasts(...)`.
+`TangoClient.http` is declared `private` in the SDK's own `.d.ts` — a
+compile-time-only restriction; the underlying `HttpClient` instance
+genuinely exists at runtime — so this is a deliberate, documented,
+type-cast escape hatch, not an accident. Every OTHER list method in
+`tango.client.ts` still goes through its typed SDK method, because every
+other method's bundled schema is complete enough not to need this. `FORECAST_FIELDS`
+now requests `organization(agency_code,agency_name,department_code,
+department_name,office_code,office_name,organization_id)` and `modified`;
+`mapForecast` flattens the organization hierarchy onto `TangoForecast` and
+parses `primary_contact` into a real `TangoForecastContact` object instead
+of a string; `provenance.providerUpdatedAt` is finally real for this
+resource, sourced from `modified`.
+
+**What this forbids:** trusting a `ShapeValidationError` from the SDK's
+typed methods as proof a field does not exist on the live server — the
+correct next step, demonstrated here, is reading the live server's own
+`available_fields` directly (via a bogus-field probe, or the raw HTTP
+transport) before concluding a field is unreachable. Reverting
+`listForecasts` to the SDK's typed method without first re-confirming, via
+the SAME technique, that a newer SDK release has caught up its bundled
+`FORECAST_SCHEMA`.
+
+---
+
+## D-46 · 2026-08-07 · tango_procurement_forecast is a single current-state table, not another versioned snapshot layer
+
+P19, P20 and P22 each write their provider observation to the GLOBAL,
+versioned `tango_resource_snapshot` (P15) in addition to their own
+summary/status columns. P24 deliberately does not.
+
+`tango_resource_snapshot`'s versioned-head design exists to keep a full
+audit trail of every observed value for a resource Capiro reaches through a
+narrow, LOW-volume path — a specific client's UEI (P19), a specific
+relevant vehicle (P22). A forecast has no such narrowing: the live catalog
+is ~24,700 rows (confirmed via `count` on an unfiltered live call) and every
+one of them is a candidate Capiro might care about. Writing a full version
+history for a HIGH-volume catalog resource that changes as fluidly as a
+"planned procurement" listing does would grow `tango_resource_snapshot`
+by an order of magnitude for a benefit (a full history of every wording
+tweak to a still-planned buy) nobody asked for — the plan's own acceptance
+bar asks only that "a modified forecast preserves change history/snapshot"
+in the sense of "the CURRENT state is accurate and idempotent," proven by
+"duplicate provider pages do not duplicate forecasts" sitting right next to
+it in the same list.
+
+So `tango_procurement_forecast` is designed the same way `sam_opportunity`
+and `federal_grant` (P00) already are: one row per provider id, upserted on
+every sync, holding both promoted columns for the fields worth indexing
+and querying (`fiscal_year`, `agency`, `provider_modified_at`) and a
+`snapshot` JSONB column carrying the full normalized shape of the most
+recent observation, for audit and debugging. An upsert overwrites
+`snapshot`; it does not grow a new row. `sync-tango-forecasts.ts`
+therefore never calls `TangoStoreService.writeSnapshot` — it uses the
+STORE only for `readCheckpoint`/`writeCheckpoint` (resumability and the
+incremental window), which is a concern orthogonal to whether the data
+itself is versioned.
+
+**What this forbids:** adding a version-history mechanism to
+`tango_procurement_forecast` to "match the other Tango tables" without a
+concrete, stated need for it — the mismatch with P19/P20/P22 here is
+deliberate, not an oversight, and is exactly the kind of thing a future
+"consistency cleanup" could accidentally undo. If a genuine need for
+forecast version history emerges later (e.g., tracking how an anticipated
+award date has slipped over time), that is a new, separate table to design
+against that specific question — not a retrofit of `tango_resource_snapshot`
+onto a resource shape it was never sized for.
+
+---
+
+## D-47 · 2026-08-07 · Forecast recommendation stays a pure, unwired function — and a real title-resolution bug found while proving it stays safe
+
+P25's plan lists four files: `forecast-relevance.ts`, its spec,
+`opportunity-recommendation.ts`, and `funding-opportunity-inbox.service.ts`.
+No producer script, no new Prisma model, no DI-registered service calling
+`FederalBusinessProfileService`/`AcquisitionPositionService` live. That
+file list, read literally against "ship logic dark" (this phase's own ship
+instruction), is the specification: the SCORING FUNCTION exists, complete
+and exhaustively tested; nothing yet calls it with real signals gathered
+from a real client and a real forecast. That wiring — a producer that
+proposes `client_funding_opportunity` rows for relevant forecasts, the
+thing that would make "forecasts can enter the inbox" observable in a real
+tenant — is P26+ scope, not this one.
+
+**`shape_now` maps to `'monitor'` in the common vocabulary, never
+`'pursue'`, and this is load-bearing, not stylistic.**
+`FundingOpportunityCounts.pursuing` and the inbox's own `pursuing` filter
+predicate are keyed on `workflowStatus`/`humanDecision` alone — confirmed
+by reading both directly, neither has a source-aware carve-out to add one
+later. A forecast whose `machineRecommendation` ever reached `'pursue'`
+would count toward pursuit-stage KPIs the moment a producer existed to
+propose it, with no additional code required to make that happen — exactly
+what "not pursuit-stage KPIs until a human explicitly qualifies them"
+(this phase's own acceptance line) forbids. Mapping `shape_now` to
+`'monitor'` closes that door structurally, at the vocabulary level, rather
+than relying on every future caller remembering not to open it.
+
+**A real bug, found while proving the boundary above stays where the plan
+puts it.** Extending `funding-opportunity-inbox.service.ts` was scoped down
+to the minimum defensible touch: NOT a new write path, NOT widening
+`OPPORTUNITY_SOURCES` — just making the EXISTING generic-identity read
+path (P13's own `sourceRecordType`/`sourceRecordKey` columns, present on
+`client_funding_opportunity` since that phase) actually resolve a title.
+Tracing exactly why it did not already work found `titlesFor`'s lookup key
+was built from `` `${row.source}:${row.grantOpportunityId ?? row.samOpportunityId ?? ''}` `` — never consulting `sourceRecordKey` at all. A row
+addressed purely through the generic identity (both legacy pointers null,
+exactly what P13's own DB CHECK constraint already requires for any
+non-legacy source) computed an empty-id key and ALWAYS rendered "Source
+record no longer in the catalog" — not because the record was gone, but
+because this function never knew to look. `readSourceRecordId` (P13's own
+dual-read helper, already used two lines below for the row's OWN
+`sourceRecordId` field) was sitting unused for exactly this purpose. No
+producer writes an `agency_forecast` row today, so this was unreachable
+with live data — same shape of finding as D-41/D-44's other dormant-but-
+tested paths — but it was a real, findable defect in the meantime for
+anyone reaching this path by hand, and is now fixed and proven both ways
+(a forecast row WITH a matching catalog entry resolves its real title; one
+WITHOUT still honestly says "gone").
+
+**The boundary this fix does NOT cross, proven as tests, not just
+asserted in prose:** `funding-opportunity-identity.spec.ts`'s own P13-era
+guard (`'no new source is enabled by this phase'`) scans a fixed file list
+for the literal string `'agency_forecast'` and fails if it appears —
+correctly, since this phase's touch to `funding-opportunity-inbox.service.ts`
+does now contain it. Rather than work around the string (e.g., referencing
+`SOURCE_RECORD_TYPES` instead of the literal, which would satisfy the scan
+without satisfying its actual purpose), the guard was narrowed HONESTLY:
+`funding-opportunity-inbox.service.ts` moved out of the blanket "never
+names a planned source" list into its own describe block asserting the
+exact, narrower thing that stayed true — no
+`clientFundingOpportunity.create/update/upsert` call anywhere in the file
+(the exception is read-only by construction), `OPPORTUNITY_SOURCES`
+unchanged, and the `?source=` query-param filter still only accepting the
+two legacy sources.
+
+**What this forbids:** adding a `ForecastRelevanceService`, a producer
+script, or any DI wiring that calls `scoreForecastRelevance` with real
+data under this phase's own commit — that is a deliberate, separate,
+later decision (P26+), not an oversight here. Any future write path for an
+`agency_forecast`-sourced `client_funding_opportunity` row must widen
+`OPPORTUNITY_SOURCES` and update `funding-opportunity-identity.spec.ts`'s
+guard explicitly when it does — the point of narrowing the guard here
+rather than deleting it is that the NEXT boundary-crossing gets caught by
+a failing test too, the same way this one was.

@@ -60,7 +60,24 @@
     "scripts/diag-tango-capabilities.spec.ts",
     // P18: read-only Tango usage/health report CLI.
     "scripts/diag-tango-health.ts",
-    "scripts/diag-tango-health.spec.ts"
+    "scripts/diag-tango-health.spec.ts",
+    // P19: reviewed-UEI entity shadow sync.
+    "scripts/sync-tango-entities.ts",
+    "scripts/sync-tango-entities.spec.ts",
+    // P20: client profile enrichment review workflow.
+    "scripts/generate-tango-enrichment-candidates.ts",
+    "scripts/generate-tango-enrichment-candidates.spec.ts",
+    "scripts/review-tango-enrichment-candidate.ts",
+    "scripts/review-tango-enrichment-candidate.spec.ts",
+    // P21: read-only Federal Business Profile dump.
+    "scripts/diag-federal-business-profile.ts",
+    "scripts/diag-federal-business-profile.spec.ts",
+    // P22: relevant vehicles and past-performance sync.
+    "scripts/sync-tango-vehicles.ts",
+    "scripts/sync-tango-vehicles.spec.ts",
+    // P24: agency forecast incremental sync.
+    "scripts/sync-tango-forecasts.ts",
+    "scripts/sync-tango-forecasts.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

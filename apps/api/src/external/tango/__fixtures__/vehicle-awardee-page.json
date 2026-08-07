@@ -1,5 +1,5 @@
 {
-  "_comment": "SYNTHETIC, against IDV_SCHEMA. The recipient block is nested, which is what the shape's recipient(uei,display_name,legal_business_name,parent_uei) selector returns. One awardee has no recipient at all, and one is on the vehicle only through a PARENT — an awardee Capiro cannot tie to the client's own UEI is never evidence of direct access.",
+  "_comment": "SYNTHETIC, against IDV_SCHEMA. The recipient block is nested, which is what the shape's recipient(uei,display_name,legal_business_name) selector returns. `parent_uei` on two of the three rows is DELIBERATE NOISE the shape never asks for and the live server's recipient expansion does not even have (P22 finding, decision-log D-41) — mapVehicleAwardee must never let it leak into recipientParentUei, which is always null. One awardee has no recipient at all, and one is on the vehicle only through what WOULD be a parent link if this endpoint carried one — an awardee Capiro cannot tie to the client's own UEI is never evidence of direct access.",
   "count": 3,
   "next": null,
   "previous": null,

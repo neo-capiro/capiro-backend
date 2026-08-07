@@ -256,6 +256,331 @@ breaker's own thresholds are `TANGO_CIRCUIT_BREAKER_THRESHOLD` /
 `_COOLDOWN_MS` (P16, both optional with documented defaults; see
 `config.schema.ts`).
 
+### Reviewed-UEI entity shadow sync (P19) — a migration, and the first real Tango sync job
+
+`prisma/migrations/20260822010000_client_tango_entity_sync_status` adds
+three additive nullable columns to `clients`
+(`tango_entity_last_synced_at`/`_last_attempt_at`/`_last_error`). Apply it in
+the normal migration step (§4/§86 below) whenever this merge is deployed —
+additive, no backfill, no RLS policy touched.
+
+`scripts/sync-tango-entities.ts` ships but is declared `enabled: false` in
+`infra/cdk/lib/ingestion-schedule.ts` (id `SyncTangoEntities`) pending an
+internal canary — same posture as every other Funding Opportunities job in
+that file. Nothing runs automatically from this deploy.
+
+```sql
+-- READ-ONLY, post-migration. Expect all NULL until the sync is run at least once.
+SELECT count(*) FILTER (WHERE tango_entity_last_synced_at IS NOT NULL) AS synced,
+       count(*) FILTER (WHERE uei IS NOT NULL) AS has_uei,
+       count(*) AS total
+  FROM clients;
+```
+
+To run it by hand once the canary is ready:
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Add --commit only after reviewing the summary.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-entities.ts
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-entities.ts --commit --limit=50
+```
+
+Expect `errored: 0` on a healthy run. Any non-zero `errored` count is worth
+reading `tango_entity_last_error` for on the affected clients before
+re-running — see decision-log D-35 for the one already-known, already-fixed
+SDK-vs-server incompatibility (`entity_structure`/`state_of_incorporation`,
+now permanently excluded from the request) so a future finding isn't
+mistaken for a repeat of that one.
+
+### Client profile enrichment review workflow (P20) — a migration, and an interim CLI
+
+`prisma/migrations/20260823010000_client_profile_enrichment_candidates` adds
+a NEW tenant-scoped, RLS-enabled table. Apply it in the normal migration
+step (§4/§86 below) — additive, no existing table touched.
+
+`scripts/generate-tango-enrichment-candidates.ts` is declared `enabled:
+false` in `ingestion-schedule.ts` (id `GenerateTangoEnrichmentCandidates`)
+pending canary. It never writes to `clients` — only to
+`client_profile_enrichment_candidate` — so enabling it is lower-risk than
+most jobs in that file; it is still off by default, same posture as
+everything else there.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the generator has run.
+SELECT status, field, count(*) FROM client_profile_enrichment_candidate GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+Reviewing a candidate is a deliberate, one-at-a-time CLI action — there is
+no bulk/all flag anywhere in `review-tango-enrichment-candidate.ts`, by
+design (this phase's own acceptance bar: no accept-all, especially for
+certifications):
+
+```bash
+cd apps/api
+# See what's pending for one client (or the whole tenant if --client is omitted).
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --list --tenant=<uuid> --status=pending
+
+# Accept or reject EXACTLY ONE candidate. --reason is required when rejecting.
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --tenant=<uuid> --candidate=<uuid> --accept --reviewed-by=<userId>
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --tenant=<uuid> --candidate=<uuid> --reject --reviewed-by=<userId> --reason="not accurate for this client"
+```
+
+Accepting applies the proposed value to the client's own field immediately;
+rejecting never touches `clients` at all, and — per this phase's own
+durability guarantee — the SAME rejected suggestion will not reappear the
+next time `generate-tango-enrichment-candidates` runs, even if Tango's data
+is re-observed unchanged.
+
+### Versioned Federal Business Profile (P21) — read-only, no migration
+
+`federal-business-profile.service.ts` ships in this merge. Pure read
+aggregation over `clients`, `tango_resource_snapshot` (P19/P15), and
+`client_profile_enrichment_candidate` (P20) — nothing new is persisted, and
+there is no schedule entry because this is a query path, not a job.
+
+```bash
+# READ-ONLY. Prints the full versioned profile for one client.
+cd apps/api
+pnpm exec tsx scripts/diag-federal-business-profile.ts --tenant=<uuid> --client=<uuid>
+```
+
+Expect `verified` to be null for a client with no UEI or no Tango sync yet
+— that is a normal state, not an error. `history` grows by one entry each
+time `sync-tango-entities` observes a real content change for that client's
+UEI (P15's versioned-head policy: an unchanged re-observation writes
+nothing new).
+
+### Relevant vehicles and past-performance sync (P22) — a migration, and a pagination fix that reaches every prior list sync
+
+`prisma/migrations/20260824010000_client_relevant_vehicle` adds a NEW
+tenant-scoped, RLS-enabled table — a MATERIALIZED current summary (self or
+parent relationship, order count, IDV obligations/value), not a versioned
+history; P15's `tango_resource_snapshot` still carries the full versioned
+raw record for both the vehicle and the matching awardee. Apply it in the
+normal migration step (§4/§86 below) — additive, no existing table touched.
+
+`scripts/sync-tango-vehicles.ts` is declared `enabled: false` in
+`ingestion-schedule.ts` (id `SyncTangoVehicles`) pending canary, same
+posture as every other job in that file. It walks EVERY vehicle and every
+awardee on it — there is no UEI filter on the provider's list endpoints —
+but only writes a row for an awardee matching a UEI Capiro already knows;
+the overwhelming majority are read, checked, and discarded.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run at least once.
+SELECT relationship, count(*) FROM client_relevant_vehicle GROUP BY 1;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Add --commit only after reviewing the summary.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-vehicles.ts --limit=10
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-vehicles.ts --commit --limit=50
+```
+
+Expect `errored: 0` on a healthy run and `completeness: 'complete'` only
+once `cursor`/`ceilingReached` genuinely say no vehicles remain — a
+`--limit` short of the full ~20k-vehicle catalog correctly reports
+`'in_progress'` instead (decision-log D-43 fixed a real bug where hitting
+the limit mid-page used to under-report this). `vehiclesRelevant: 0` on a
+low-`--limit` run against real data is normal, not a failure signal — most
+vehicles belong to no Capiro client, and a small page of the ~20,709 total
+is unlikely to contain one by chance.
+
+**Read this before touching pagination anywhere else in the Tango
+integration.** This phase's live-key run found that EVERY list endpoint
+this gateway calls (`listEntities`, `listOpportunities`, `listNotices`,
+`listForecasts`, `listVehicles`, `listVehicleAwardees`) is page-number
+pagination server-side, never cursor-based — the SDK's own `.cursor` field
+is unconditionally `null` for all six, by its own documented behavior
+(decision-log D-42). The fix lives entirely in `tango.client.ts`'s shared
+`page()` helper, so it silently repairs pagination for every sync that
+walks a list endpoint, past and future — no other file needed to change.
+Confirmed NOT to have affected already-merged work: P17's probe never reads
+`nextCursor`, and P19's entity sync paginates over Capiro's own `clients`
+table via a real Prisma keyset cursor, never calling `listEntities` at all.
+P24's forecast sync (`listForecasts`) would have hit the identical wall had
+this shipped first.
+
+Also fixed this phase (decision-log D-41): the vehicle-awardee `recipient`
+expansion has no parent/owner UEI field on the live server under any
+name — confirmed by reading its own `available_fields` payload, not a
+naming guess. `recipientParentUei` is therefore always `null` today; the
+`relationship = 'parent'` code path is real and tested but not currently
+reachable with live data. A future SDK release reaching per-awardee owner
+data (or the provider adding the field) is the only thing that changes
+that — re-adding `parent_uei` to the shape without re-confirming server
+support first will reproduce the original `unknown_field` failure.
+
+### Acquisition-position scoring and UI (P23) — no migration, a new field-level flag
+
+`acquisition-position.ts` ships in this merge, along with the
+`acquisitionPosition` field on every `FundingOpportunity` response and a
+concise badge + full detail panel in the web app. No migration — it reads
+P22's `client_relevant_vehicle` and P15's `tango_resource_snapshot`/
+`tango_sync_checkpoint`, all already-existing tables.
+
+**This is gated by a NEW flag, `funding_opportunities_vehicle_fit`, and it
+is NOT a route guard.** Unlike `funding_opportunities` and
+`funding_opportunities_client_inbox` (which 404 an entire endpoint),
+acquisition position is a field inside the already-flagged opportunity
+response. With no `intel_feature_flag` row for this flag, every tenant
+gets `acquisitionPosition: null` on every opportunity — byte-for-byte the
+same shape P22 returned, per this phase's own acceptance bar — so merging
+this PR changes nothing for anybody until the flag is explicitly turned on:
+
+```sql
+-- Turn it on for one tenant. Same table, same shape, as funding_opportunities itself.
+INSERT INTO intel_feature_flag (feature, tenant_id, enabled)
+VALUES ('funding_opportunities_vehicle_fit', '<tenant-uuid>', true)
+ON CONFLICT (feature, tenant_id) DO UPDATE SET enabled = true;
+```
+
+```sql
+-- READ-ONLY. Confirm what a tenant will actually see before/after the flag write.
+SELECT feature, tenant_id, enabled FROM intel_feature_flag
+ WHERE feature IN ('funding_opportunities', 'funding_opportunities_vehicle_fit')
+   AND tenant_id = '<tenant-uuid>';
+```
+
+**Read this before assuming a client's acquisition position looks wrong.**
+The position is a CLIENT posture — computed once from every vehicle P22's
+sync found relevant to that client — never a crosswalk from one specific
+opportunity to one specific required vehicle (decision-log D-44 explains
+why no such crosswalk exists anywhere in this codebase, and why building
+one from notice text would be a fabrication this program's own identity
+rules already forbid). The same position is attached identically to every
+`sam_gov` opportunity for that client; a grant always gets `null`.
+`vehicle_not_identified` means the sync ran and found zero relevant
+vehicles for this client; `no_direct_access_evidence` means it found some,
+but every one is past its own last date to order — these are genuinely
+different facts, not two spellings of the same gap. `unknown` means Tango
+is not configured or `sync-tango-vehicles` (P22) has never completed a
+run — check `tango_sync_checkpoint` for `sync_verb = 'sync-tango-vehicles'`
+before assuming a client's own data is the problem.
+
+The `known_teaming_route` state and the recommendation engine's
+`vehicleAccessRequired` override are both real, tested code with **no live
+trigger today** — the same posture as D-41's dormant `'parent'`
+relationship. Neither will appear in a real response until a future phase
+adds a teaming-partner data source or a real opportunity-to-vehicle
+crosswalk (P27+). Seeing neither in production is expected, not a bug.
+
+### Agency forecast schema and incremental sync (P24) — a migration, ships fully dark
+
+`prisma/migrations/20260825010000_tango_procurement_forecasts` adds a NEW
+**global** table (no tenant_id, no RLS — provider catalog data). Apply it
+in the normal migration step (§4/§86 below) — additive, no existing table
+touched.
+
+`scripts/sync-tango-forecasts.ts` is declared `enabled: false` in
+`ingestion-schedule.ts` (id `SyncTangoForecasts`) pending canary.
+`funding_opportunities_forecasts` (the flag P26 will eventually read) stays
+off regardless of whether this job ever runs — this phase populates
+`tango_procurement_forecast`, it does not surface anything. A forecast is
+a pre-solicitation signal, never a solicitation or an active competition;
+nothing downstream of this table may call it either until P25/P26 exist.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run at least once.
+SELECT count(*), max(provider_modified_at) FROM tango_procurement_forecast;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Omit --limit for a real run: this sync pages to
+# EXHAUSTION of its own incremental window by default, unlike P19/P22's
+# bounded client-list walks. --limit exists for a deliberate first backfill
+# or a bounded test run only.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-forecasts.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-forecasts.ts --commit
+```
+
+Expect `errored: 0` on a healthy run. The FIRST run ever (no
+`tango_sync_checkpoint` row for `sync_verb = 'sync-tango-forecasts'`) has no
+incremental window at all — `modifiedAfter: null` in the summary — and walks
+the full ~25,000-row catalog by design; expect it to take a while
+wall-clock-wise and to make on the order of 250 requests (well under the
+default 5,000 request ceiling). Every later run is incremental: it reads
+the PRIOR run's `window_end`, subtracts a safety overlap (default 4 hours,
+`--overlap-hours` to change it), and asks the provider for only what
+changed since then. `window_end` only advances on a run that fully
+exhausts its own pages — a run stopped by `--limit` or the request ceiling
+leaves the window exactly where it was, so a retry continues the same
+window rather than silently narrowing it.
+
+**Read this before assuming a stale forecast is a sync bug.**
+`tango_procurement_forecast` is a SINGLE CURRENT-STATE table, upserted on
+every sync — NOT layered on P15's versioned `tango_resource_snapshot` the
+way P19/P20/P22's tables are (decision-log D-46, a deliberate design
+choice: the live catalog is ~24,700 rows, an order of magnitude more than
+any per-client-narrowed resource this program has synced so far, and a full
+version history for a still-planned, frequently-reworded buy is not
+something the plan's own acceptance bar asked for). `snapshot` always holds
+the MOST RECENT observation, not a history — a query for "how has this
+forecast changed over time" has no answer in this table today.
+
+Also fixed this phase (decision-log D-45): the provider's forecast resource
+carries a real organization hierarchy, real `modified`/`created`
+timestamps, and a structured contact object — none reachable through the
+SDK's own typed `listForecasts` method, whose bundled schema does not
+declare any of the three. `tango.client.ts`'s `listForecasts` now calls the
+SDK's own HTTP transport directly (a documented, deliberate bypass of the
+SDK's client-side shape validation only, not of the live server, which
+accepts every field without complaint) — the only list method in that file
+that needs to. `psc_code` and `source_url` stay as columns for a future
+provider release but are confirmed absent from this resource today, same
+posture as D-35/D-41's other confirmed-absent fields.
+
+### Forecast recommendation and lifecycle rules (P25) — no migration, no new caller either
+
+`forecast-relevance.ts` ships in this merge: a pure, DB-free scoring
+function (`scoreForecastRelevance`), exactly matching this phase's own
+plan file list — no new Prisma model, no producer script, no DI-registered
+service. **Nothing calls it with real data yet.** That wiring — a producer
+proposing `client_funding_opportunity` rows for forecasts relevant to a
+real client — is P26+ scope; this phase ships the rules "logic dark," per
+its own ship instruction, and decision-log D-47 records exactly why the
+file list stops there rather than growing to include a caller.
+
+There is nothing to run or verify live for this phase specifically — the
+function takes no network dependency of its own, and its inputs
+(`FederalBusinessProfile` from P21, `AcquisitionPosition` from P23, real
+forecast data from P24) are each already live-verified in their own
+phases. Correctness here rests on the exhaustive unit suite instead: 23
+tests plus a 144-case cross-product sweep proving, among other things,
+that `machineRecommendation` never once produces `'pursue'` and that the
+word "deadline" never appears in any output text on any branch.
+
+**Read this if a forecast-sourced inbox row ever renders "Source record no
+longer in the catalog" and you are sure the forecast still exists.** That
+was a real, confirmed bug (decision-log D-47) in
+`funding-opportunity-inbox.service.ts`'s `titlesFor`, fixed this phase: the
+lookup key used to come from the two legacy pointers only, never
+consulting P13's own generic `sourceRecordKey` column, so a row addressed
+purely through the generic identity always fell through to the "gone"
+message. Fixed via `readSourceRecordId` — the same dual-read helper the
+row's own `sourceRecordId` field already used two lines away. No
+producer writes an `agency_forecast` row today, so if you are seeing this
+message on a REAL row, the more likely explanation is still a genuinely
+deleted or mistyped forecast id — this fix only changes what happens once
+such a row exists at all.
+
+```bash
+# READ-ONLY. Confirm the fix's own boundary hasn't drifted: no write path,
+# no widened API vocabulary. (Also runs as part of the normal test suite —
+# this is for a manual spot-check.)
+cd apps/api
+pnpm exec jest funding-opportunity-identity.spec.ts --silent
+```
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

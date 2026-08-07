@@ -521,6 +521,27 @@ model Client {
   cageCode               String?   @map("cage_code") @db.VarChar(5)
   naicsCodes             String[]  @default([]) @map("naics_codes")
   pscCodes               String[]  @default([]) @map("psc_codes")
+  /// Funding Opportunities P19 — MakeGov/Tango entity shadow sync status.
+  /// This is the client's OWN sync bookkeeping; the fetched entity DATA lives
+  /// in the GLOBAL `tango_resource_snapshot` table (P15), keyed by this same
+  /// `uei` — no separate link row. A UEI is already a global, exact 1:1 key,
+  /// and `TangoResourceLink` is reserved for linking INTO Capiro's own global
+  /// reference tables (federal_contractor et al.), never to a tenant-owned
+  /// row like Client — `tango-store.service.ts`'s `assertKnownLocalType`
+  /// refuses that on purpose (decision-log D-34).
+  ///
+  /// `tangoEntityLastSyncedAt` is the last SUCCESSFUL sync — "successful"
+  /// meaning a definitive provider answer, found OR not_found; both are
+  /// evidence, not a failure (tango.errors.ts's own framing for `not_found`).
+  /// `tangoEntityLastAttemptAt` is the latest attempt regardless of outcome,
+  /// reported independently so a rail failing repeatedly cannot read as
+  /// healthy — same distinction this program already draws for source
+  /// freshness generally (baseline-contract-v1.json's
+  /// `sourceFreshnessSemantics`). `tangoEntityLastError` is redacted, and
+  /// cleared (set null) on the next successful attempt.
+  tangoEntityLastSyncedAt  DateTime? @map("tango_entity_last_synced_at") @db.Timestamptz(6)
+  tangoEntityLastAttemptAt DateTime? @map("tango_entity_last_attempt_at") @db.Timestamptz(6)
+  tangoEntityLastError     String?   @map("tango_entity_last_error")
   /// Grants.gov "Eligible Applicants" values this client qualifies as, e.g.
   /// "Small businesses" or "State governments".
   ///
@@ -6374,6 +6395,195 @@ model TangoApiUsage {
   // check and rate-ceiling logic both need.
   @@index([callFamily, timestampBucket], map: "tango_api_usage_family_time_idx")
   @@map("tango_api_usage")
+}
+
+/// Funding Opportunities P20 — client profile enrichment review workflow.
+///
+/// ONE proposed change to ONE field on ONE client's profile, sourced from
+/// Tango entity data (P19's snapshot), pending human review. TENANT-scoped
+/// (unlike every other Tango-owned model above) because this is fundamentally
+/// about a client's own profile, not a global marketplace fact — see the
+/// migration's own header for why this is a new table rather than
+/// `TangoResourceLink` (reserved for GLOBAL reference tables, never a
+/// tenant-owned row) or `ClientIntelMapping` (a different question: "same
+/// legal entity", not "should this field change").
+///
+/// No `client`/`tenant` Prisma relation object is declared here — matching
+/// `ClientFundingOpportunity`'s own convention (plain scalar
+/// tenantId/clientId, FK enforced in raw SQL, no Prisma-level navigation
+/// needed by anything that reads this table).
+model ClientProfileEnrichmentCandidate {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// 'tango' today; CHECK-constrained so a future second enrichment source
+  /// cannot silently share this vocabulary without a reviewed migration.
+  source String @default("tango") @db.VarChar(16)
+  /// 'naicsCodes' | 'pscCodes' | 'setAsideCertifications' | 'cageCode' — the
+  /// CLIENT model's own field name, verbatim, not the Tango snapshot's
+  /// snake_case. This row is about a client field; a reviewer should not need
+  /// a second translation table to know which one.
+  field String @db.VarChar(32)
+  /// The client's value AT PROPOSAL TIME — a snapshot, not a live read, so a
+  /// reviewer sees exactly what would change even after the client's live
+  /// value has since moved on.
+  currentValueJsonb  Json? @map("current_value_jsonb")
+  proposedValueJsonb Json  @map("proposed_value_jsonb")
+  /// Canonicalized hash of (source, field, proposedValueJsonb) — see
+  /// tango-store.service.ts's computeContentHash for the same canonicalization
+  /// this reuses. The unique index below is keyed on this, not the raw JSONB,
+  /// because Postgres cannot uniquely index an unbounded JSONB value directly.
+  contentHash String @map("content_hash") @db.VarChar(64)
+
+  /// 'pending' | 'accepted' | 'rejected'. A REJECTED row is NEVER resurrected
+  /// by a later proposal of the identical content — same durability
+  /// principle as tango_resource_link (P15) and client_intel_mapping (P05).
+  /// There is no bulk-accept anything: every row is reviewed by its own
+  /// primary key, one at a time (this phase's acceptance bar — "no accept-all
+  /// for certifications" — generalized here to no accept-all at all).
+  status         String    @default("pending") @db.VarChar(16)
+  reviewedBy     String?   @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  rejectionReason String?  @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, clientId, source, field, contentHash], map: "client_profile_enrichment_candidate_content_uniq")
+  @@index([tenantId, status], map: "client_profile_enrichment_candidate_pending_idx")
+  @@map("client_profile_enrichment_candidate")
+}
+
+/// Funding Opportunities P22 — relevant vehicles and past-performance sync.
+///
+/// A MATERIALIZED, tenant-scoped summary: "this client (or its parent
+/// entity) is an awardee on this Tango vehicle, with this past-performance
+/// summary." The authoritative, versioned observation stays in the GLOBAL
+/// `tango_resource_snapshot` table (P15) — this table exists so a fast,
+/// indexed read never scans JSONB across every vehicle-awardee snapshot
+/// government-wide to answer "which vehicles matter to THIS client". See
+/// the migration's own header for the full reasoning, including why
+/// `relationship` ('self' | 'parent') is never collapsed into one boolean —
+/// `TangoVehicleAwardee`'s own doc (P14) already draws that line, and P23
+/// depends on it staying drawn.
+model ClientRelevantVehicle {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Matches tango_resource_snapshot.externalId for resourceType='vehicle'.
+  /// Deliberately FK-less — global provider data, tenant-scoped summary.
+  tangoVehicleId String  @map("tango_vehicle_id")
+  vehicleName    String? @map("vehicle_name")
+  vehicleType    String? @map("vehicle_type") @db.VarChar(64)
+  /// 'self' | 'parent'. CHECK-constrained in the migration.
+  relationship  String @db.VarChar(16)
+  recipientUei  String @map("recipient_uei") @db.VarChar(12)
+  orderCount        Int?    @map("order_count")
+  idvObligations    Float?  @map("idv_obligations")
+  idvContractsValue Float?  @map("idv_contracts_value")
+
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, clientId, tangoVehicleId, relationship], map: "client_relevant_vehicle_uniq")
+  @@index([tenantId, clientId], map: "client_relevant_vehicle_tenant_client_idx")
+  @@map("client_relevant_vehicle")
+}
+
+/// Agency procurement forecast (Funding Opportunities P24) — a pre-
+/// solicitation signal, never an active competition.
+///
+/// GLOBAL, no tenant_id, no RLS — provider catalog data, the same category
+/// as sam_opportunity/federal_grant (P00) and tango_resource_snapshot (P15),
+/// never a tenant- or client-owned fact.
+///
+/// A SINGLE CURRENT-STATE TABLE, deliberately NOT layered on P15's versioned
+/// tango_resource_snapshot the way P19/P20/P22's syncs are. That mechanism
+/// exists to keep a full audit trail of every observed value for a LOW-
+/// volume, per-client-relevant resource; a forecast is a HIGH-volume
+/// (24,000+ live rows, confirmed) catalog record Capiro tracks the CURRENT
+/// state of, the same shape of resource sam_opportunity/federal_grant
+/// already are as single current-state tables. `snapshot` below holds the
+/// full normalized shape of the MOST RECENT observation for audit/debugging
+/// — an upsert overwrites it, it does not grow a new row.
+model TangoProcurementForecast {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Tango's own forecast id. The sync's upsert key.
+  tangoForecastId String  @unique @map("tango_forecast_id")
+  externalId      String? @map("external_id")
+
+  title       String
+  description String?
+
+  /// The provider's own flat agency label (e.g. "VA") — distinct from, and
+  /// not always consistent with, the organization hierarchy below (P24
+  /// finding, decision-log D-45).
+  agency String?
+
+  /// Organization hierarchy. Every level independently nullable — the
+  /// provider's own hierarchy is not always fully populated.
+  departmentCode         String? @map("department_code")
+  departmentName         String? @map("department_name")
+  organizationAgencyCode String? @map("organization_agency_code")
+  organizationAgencyName String? @map("organization_agency_name")
+  officeCode             String? @map("office_code")
+  officeName             String? @map("office_name")
+  /// Opaque, stable provider id for the organization node. Never parsed.
+  organizationId         String? @map("organization_id")
+
+  anticipatedAwardDate DateTime? @map("anticipated_award_date") @db.Date
+  /// Free text, e.g. "Q3 FY27". Not a date, and never parsed into one.
+  estimatedPeriod      String?   @map("estimated_period")
+  fiscalYear           Int?      @map("fiscal_year")
+
+  naicsCode String? @map("naics_code")
+  /// ALWAYS NULL today. Confirmed absent from this resource's own
+  /// available_fields (decision-log D-45) — kept for a future provider
+  /// release, not an oversight.
+  pscCode   String? @map("psc_code")
+  setAside  String? @map("set_aside")
+
+  /// Free text naming a vehicle, e.g. "To Be Determined". No separate
+  /// structured link exists on this resource (D-45) — "vehicle text/link" in
+  /// the plan is one field in practice, not two.
+  contractVehicle    String? @map("contract_vehicle")
+  /// Free text, not a structured address — matches TangoForecast's own field.
+  placeOfPerformance String? @map("place_of_performance")
+
+  /// Structured on the live server (D-45) — flattened to columns here since
+  /// this table has no JSON contact field of its own.
+  primaryContactName  String? @map("primary_contact_name")
+  primaryContactEmail String? @map("primary_contact_email")
+  primaryContactPhone String? @map("primary_contact_phone")
+  primaryContactTitle String? @map("primary_contact_title")
+
+  status   String?
+  isActive Boolean? @map("is_active")
+
+  sourceSystem String? @map("source_system")
+  /// ALWAYS NULL today. Confirmed absent (decision-log D-45).
+  sourceUrl    String? @map("source_url")
+
+  /// The provider's own last-touched stamp (D-45) — drives the incremental
+  /// sync's modified_after window. Null when the provider never stated one.
+  providerModifiedAt DateTime? @map("provider_modified_at") @db.Timestamptz(6)
+
+  /// Full normalized shape of the most recent observation. Overwritten on
+  /// every sync, not versioned — see this model's own doc for why.
+  snapshot Json @map("snapshot")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([fiscalYear], map: "tango_procurement_forecast_fiscal_year_idx")
+  @@index([agency], map: "tango_procurement_forecast_agency_idx")
+  @@index([providerModifiedAt], map: "tango_procurement_forecast_modified_idx")
+  @@map("tango_procurement_forecast")
 }
 
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)

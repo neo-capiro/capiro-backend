@@ -426,6 +426,12 @@ jobs:
           scripts/sam-opportunity-matcher.spec.ts
           scripts/diag-tango-capabilities.spec.ts
           scripts/diag-tango-health.spec.ts
+          scripts/sync-tango-entities.spec.ts
+          scripts/generate-tango-enrichment-candidates.spec.ts
+          scripts/review-tango-enrichment-candidate.spec.ts
+          scripts/diag-federal-business-profile.spec.ts
+          scripts/sync-tango-vehicles.spec.ts
+          scripts/sync-tango-forecasts.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -493,15 +499,183 @@ jobs:
       # invocation above where they live under scripts/ — that directory is
       # not glob-matched the way src/external/tango/ is.
       #
+      # 39/1315 after P19: one NEW suite. sync-tango-entities.spec.ts (20 tests)
+      # covers the checkpoint-resumable keyset walk, dry-run still calling
+      # Tango but writing nothing locally, the acceptance bar itself (every
+      # row readClientBatch supplies is fetched by its uei verbatim — the
+      # actual `uei IS NOT NULL` filter lives in the real Prisma query and is
+      # separately proven, empirically, by a live-key run against a seeded
+      # rehearsal database with both a UEI-having and a name-only client —
+      # not by this fake-backed suite), writeSnapshot only on a real find,
+      # not_found counted as a SUCCESSFUL sync (not a failure), and a real
+      # failure recording a redacted error without touching lastSyncedAt.
+      # tango.client.spec.ts gained ONE test (+1) from a REAL finding that
+      # live run surfaced: entity_structure/state_of_incorporation are a
+      # genuine SDK-vs-server incompatibility (decision-log D-35) — the live
+      # server rejects this SDK's bundled `..._desc`/`..._code` field names,
+      # and the SDK's own materializeOne rejects the live server's bare names
+      # right back, on every successful getEntity call. Neither name round-
+      # trips through @makegov/tango-node@1.1.0, so ENTITY_FIELDS drops both
+      # and mapEntity returns them as an explicit, commented null.
+      #
+      # 42/1354 after P20: three NEW suites. client-profile-enrichment.service
+      # .spec.ts (24 tests) covers: no fetch/no candidate without a UEI; array
+      # fields propose the full ADDITIVE union (never a removal — Tango
+      # omitting something is not evidence the client lacks it); certifications
+      # matched ONLY via the curated, exact TANGO_BUSINESS_TYPE_TO_CERTIFICATION
+      # map (an unrecognized business-type string proposes nothing, never
+      # guessed at); cageCode fill-if-empty and flag-if-different; THE
+      # ACCEPTANCE BAR itself — proposing twice is idempotent, and a REJECTED
+      # candidate is never re-proposed by a later sync of the identical data,
+      # while a genuinely different value still gets its own new candidate;
+      # reviewCandidate applies on accept and never touches the client on
+      # reject; re-reviewing an already-reviewed candidate is refused; and a
+      # structural test asserting no bulk/all/batch-shaped method exists on
+      # the service at all. generate-tango-enrichment-candidates.spec.ts (6
+      # tests) covers the cross-tenant pagination wrapper, including a
+      # defensive per-item limit check independent of what a batch reader
+      # returns. review-tango-enrichment-candidate.spec.ts (9 tests) covers
+      # the CLI's flag parsing, including that no flag combination can target
+      # more than one candidate.
+      #
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
       # __fixtures__/baseline-contract-v1.json, which asserts this line is at or
       # above them, so lowering a floor takes two edits and both show up in the diff.
       # That is the point.
+      # 44/1365 after P21: two NEW suites, no migration. federal-business-
+      # profile.service.spec.ts (9 tests) covers the versioned aggregation —
+      # verified is read from the `active` FLAG in history, never assumed to
+      # be the last array element; firstParty and verified stay visibly
+      # separate even when they disagree (never merged); a resource with no
+      # active row in its history leaves verified null without throwing.
+      # diag-federal-business-profile.spec.ts (2 tests) covers its CLI flag
+      # parsing. This is P15's getSnapshotHistory's first real caller.
+      #
+      # 45/1381 after P22: one NEW suite, sync-tango-vehicles.spec.ts (14
+      # tests) — pagination (multi-page vehicles AND multi-page awardees
+      # within one vehicle), self vs. parent relationship matching, the same
+      # awardee matching multiple known clients across tenants, dry-run still
+      # walking Tango but writing nothing, a generic per-vehicle error
+      # counted-and-continued vs. a request-ceiling error stopping the WHOLE
+      # sync uncounted, and a regression test for a real bug this phase found
+      # in itself: hitting --limit mid-page used to skip the cursor/checkpoint
+      # update entirely and wrongly report `completeness: 'complete'` with
+      # more data left unfetched (fixed by capping the requested page size to
+      # what's actually left, matching sync-tango-entities.ts's P19
+      # discipline). tango.client.spec.ts grew by TWO (+2, from 89 to 91) from
+      # a second, larger real finding the same live run surfaced (decision-
+      # log D-42): every list endpoint this gateway calls — entities,
+      # opportunities, notices, forecasts, vehicles, vehicle-awardees — turned
+      # out to be Django REST Framework PAGE-NUMBER pagination server-side
+      # (`next` carries `?page=N`), never cursor-based, confirmed by reading a
+      # live `next` URL directly. The SDK's own `.cursor` field — by its OWN
+      # doc comment — is "null when the endpoint is page-based", which is
+      # every endpoint this gateway uses; trusting it meant `nextCursor`
+      # silently claimed "last page" after page one FOREVER, no matter how
+      # much data remained (live-confirmed: /api/vehicles/ reported `count:
+      # 20709` with the SDK's cursor already null on page one). tango.client
+      # .ts's page() now decodes Capiro's own opaque cursor as a 1-based page
+      # number and derives "more data" from `next`'s presence instead — a
+      # fix entirely inside that one shared helper, so every current and
+      # future list-based sync benefits without its own code changing. P19's
+      # entity sync was checked and is NOT affected: it paginates over
+      # Capiro's own `client` table via a real Prisma keyset cursor and calls
+      # single-record `getEntity` per row, never `listEntities`.
+      #
+      # 46/1412 after P23: one NEW suite, acquisition-position.spec.ts (18
+      # tests) — the six-state truth table this phase's own acceptance bar
+      # names (prime/affiliate/partner/expired vehicle/multiple vehicles/
+      # missing provider data) plus the AcquisitionPositionService wiring
+      # tests (real-shaped rows joined against their own vehicle snapshot,
+      # an unrecognized relationship string dropped as unmappable, never
+      # trusted). opportunity-recommendation.ts grew a documented POST-
+      # PROCESSING override (not a ninth numbered rule): a would-be pursue
+      # downgrades to needs_review when vehicleAccessRequired is true and
+      # vehicleAccessResolved is false — both fields optional, so every
+      # existing caller and fixture is byte-for-byte unaffected; no real
+      # caller sets either today (decision-log D-44: no per-opportunity
+      # vehicle crosswalk exists anywhere in this codebase, and inferring
+      # "this notice needs a vehicle" from free text would be exactly the
+      # fuzzy-matching-as-identity P02 forbids). funding-opportunities.
+      # service.spec.ts grew by 6 (88 -> 94) proving the WIRING specifically
+      # — a wrong Prisma model or field name is a risk acquisition-position
+      # .spec.ts's own fakes cannot catch. Zero new migrations: the whole
+      # phase reads P22's client_relevant_vehicle and P15's tango_resource_
+      # snapshot/tango_sync_checkpoint, all already-existing tables.
+      #
+      # 48/1433 after P24: two NEW suites. tango-forecast.mapper.spec.ts (6
+      # tests: every field maps, a title-less forecast is dropped rather
+      # than stored with a fabricated one, an absent contact/date/modified-
+      # stamp all map to null not a fabrication, the snapshot column carries
+      # the normalized domain object not the raw payload) and sync-tango-
+      # forecasts.spec.ts (12 tests: CLI parsing including "no --limit means
+      # page to exhaustion"; the first-ever run has no incremental window at
+      # all; the window is windowEnd MINUS the overlap, never windowEnd
+      # itself; windowEnd only advances on a fully-exhausted walk, proven by
+      # asserting a ceiling-interrupted run writes NO checkpoint change to
+      # it; pagination capped to the remaining --limit, matching D-43's own
+      # fix; a title-less forecast counted unmappable and never upserted; a
+      # real upsert failure counted errored and decremented from written
+      # without stopping the run). tango.client.spec.ts grew by +3 (91 -> 94)
+      # from a THIRD real finding this program's live-key runs have now
+      # surfaced for this SDK (decision-log D-45, same family as D-35/D-41/
+      # D-42): the provider's forecast resource carries a real organization
+      # hierarchy, real modified/created timestamps and a structured contact
+      # object, none declared in the SDK's bundled FORECAST_SCHEMA — the
+      # SDK's own client-side shape validation, not the live server, was the
+      # only obstacle, worked around by calling the SDK's HTTP transport
+      # directly for this one method. Migration 20260825010000_tango_
+      # procurement_forecasts adds a NEW GLOBAL table (no tenant_id, no RLS)
+      # — clean replay, ordered upgrade, retry-as-no-op, and 5 CHECK/unique/
+      # not-null constraint proofs by actual insert all rehearsed against a
+      # real isolated Postgres, PLUS a live-key run confirming errored:0
+      # across two real commit runs and confirming resumability (row count
+      # 5 -> 10, cursor page 2 -> 3, no duplicates) against the real API.
+      #
+      # 49/1463 after P25: NO new suite — forecast-relevance.spec.ts (23
+      # tests + a 144-case cross-product sweep) is a NEW FILE but this repo
+      # already counts it inside the existing src/funding-opportunities/
+      # glob, so the suite count moves by +1 same as any grown-in-place
+      # file would; the real news is what it proves. The six-rule truth
+      # table: an inactive forecast is always pass regardless of every
+      # other signal; a thin profile is needs_review; zero client evidence
+      # — including an approaching award date ALONE, proven explicitly to
+      # not count — is pass; any of four exact signals (NAICS/PSC/
+      # capability/a source-backed PE link) is shape_now; weaker evidence
+      # alone is monitor; confidence needs a strong match PLUS (prior
+      # history OR vehicle access) to reach high. shape_now maps to the
+      # common vocabulary's 'monitor', proven across the full sweep to
+      # NEVER produce 'pursue' — load-bearing (decision-log D-47):
+      # FundingOpportunityCounts.pursuing and the inbox's own pursuing
+      # filter are both keyed on workflowStatus/humanDecision alone, with
+      # no source-aware carve-out to add one, confirmed by reading both
+      # directly. No response deadline is ever fabricated (proven: the
+      # anticipated award date changes wording only, never the
+      # recommendation; "deadline" never appears in any output text). No
+      # eligibility state is inferred (proven: no eligibility-shaped field
+      # on the result, no eligibility word in any output text). A REAL BUG
+      # found and fixed along the way (D-47): funding-opportunity-inbox
+      # .service.ts's titlesFor built its lookup key from the two legacy
+      # pointers only, never consulting P13's own generic sourceRecordKey
+      # — so a row addressed purely through the generic identity (the
+      # exact shape the DB CHECK constraint already requires for
+      # agency_forecast) always rendered "gone" even when the record
+      # existed. Fixed via readSourceRecordId, P13's own dual-read helper.
+      # funding-opportunity-identity.spec.ts's P13-era "no new source is
+      # enabled by this phase" guard was narrowed HONESTLY, not gamed:
+      # funding-opportunity-inbox.service.ts moved to its own describe
+      # block proving the narrower thing that stayed true (no
+      # create/update/upsert call in the file at all, OPPORTUNITY_SOURCES
+      # unchanged, the ?source= filter still legacy-only) — 3 net new
+      # tests there (54 -> effectively replacing 1 with 4). No new Prisma
+      # model, no producer, no DI-registered caller — ships logic dark,
+      # per this phase's own instruction and its own unchanged file list.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 38 1294
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 49 1463
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -528,9 +702,22 @@ jobs:
       # flag/URL-state blocks in FundingOpportunitiesPage.test.tsx) and P12
       # (FundingOpportunityDetail.test.tsx — the ref round-trip, the eight sections,
       # the route, and the drawer/page equivalence).
+      #
+      # 54/226 after P23: one NEW file, AcquisitionPositionPanel.test.tsx —
+      # the three distinct reasons acquisitionPosition can be null (no
+      # client, a grant, or the vehicle-fit flag off) each get their own
+      # explanation and none reads as a negative determination; every
+      # populated state renders and never with an eligibility or win-
+      # probability word; related/teaming access never renders with
+      # direct_prime_access's own text. OpportunityCard.test.tsx gained the
+      # concise-badge proof: no badge at all when acquisitionPosition is
+      # null, and a related-entity badge never shares text with a direct
+      # one. FundingOpportunityDetail.test.tsx's "eight sections" sweep
+      # shrank from three still-pending sections to two — acquisition
+      # position is real now.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 49 205
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 54 226
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

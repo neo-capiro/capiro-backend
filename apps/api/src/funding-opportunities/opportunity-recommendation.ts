@@ -42,11 +42,40 @@
  * Rule 5 is the other one stated explicitly: strong relevance with unresolved
  * eligibility is `needs_review`, not `pursue`.
  *
- * FORECASTS ARE OUT OF SCOPE
- * --------------------------
- * A forecasted opportunity has no response window and cannot be pursued or
- * passed on in the same sense. P25 adds forecast rules; until then the caller
- * must not route forecasts through this function.
+ * FORECASTS NEVER ROUTE THROUGH `recommendOpportunity` ITSELF (P25)
+ * --------------------------------------------------------------------
+ * A forecast has no response window and cannot be pursued or passed on in
+ * the same sense an active solicitation can — `forecast-relevance.ts`'s
+ * `scoreForecastRelevance` is a SEPARATE function with its own four-value
+ * vocabulary (`shape_now`/`monitor`/`pass`/`needs_review`) and its own rule
+ * order, never this one. What THIS file exports for that function to use is
+ * `FORECAST_TO_MACHINE_RECOMMENDATION`, below — the one, explicit, tested
+ * mapping from the forecast vocabulary to the common `MachineRecommendation`
+ * every `FundingOpportunity.recommendation` already carries, so a triage
+ * surface that only knows the common vocabulary can still render a forecast
+ * sensibly. `shape_now` maps to `'monitor'`, NEVER `'pursue'` — see that
+ * constant's own doc for why.
+ *
+ * ACQUISITION POSITION IS A POST-PROCESSING OVERRIDE, NOT A NINTH RULE (P23)
+ * ---------------------------------------------------------------------------
+ * `vehicleAccessRequired`/`vehicleAccessResolved` do not slot into the
+ * numbered precedence above. They are checked ONLY after the 8 rules produce
+ * `pursue`, and downgrade that ONE outcome to `needs_review` when access is
+ * required but unresolved — never a pass, never a monitor, and never
+ * reachable from any of rules 1-6 (a source that is closed, informational,
+ * barred, unscored or below the evidence floor is already decided for
+ * unrelated reasons; whether a vehicle exists has nothing to add there).
+ *
+ * `vehicleAccessRequired` is real, and this file's own test suite proves the
+ * override fires correctly — but no caller sets it to `true` today.
+ * acquisition-position.ts computes a client's OWN vehicle-access posture
+ * from P22's data, not a crosswalk from THIS specific opportunity to a
+ * specific required vehicle: no such crosswalk exists anywhere in this
+ * codebase (P27+ scope), and inferring "this notice needs a vehicle" from
+ * free text would be exactly the fuzzy-matching-as-identity this program's
+ * award-history rules (P02) forbid. See decision-log D-44. This is the same
+ * shape of fact as D-41's dormant 'parent' relationship: real, tested code
+ * with no live trigger yet, documented as such rather than left unbuilt.
  */
 
 import type { EligibilityState, OpportunityKind, OpportunitySource } from './funding-opportunities.types.js';
@@ -56,6 +85,43 @@ export type MachineRecommendation = (typeof MACHINE_RECOMMENDATIONS)[number];
 
 export const RECOMMENDATION_CONFIDENCES = ['high', 'medium', 'low'] as const;
 export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[number];
+
+/**
+ * P25's forecast vocabulary, and the one, explicit mapping from it to the
+ * common `MachineRecommendation` above.
+ *
+ * `shape_now` — not `pursue` — is the forecast rail's strongest signal, and
+ * it maps to `'monitor'`, never `'pursue'`. Three independent reasons, all
+ * of which have to hold for this mapping to ever change:
+ *
+ *   1. A forecast is "here is what an agency expects to buy", never a live
+ *      competition with a submission to make — calling that `pursue` would
+ *      claim a bid exists when it does not.
+ *   2. `FundingOpportunityCounts.pursuing` and the inbox's own `pursuing`
+ *      filter are keyed on `workflowStatus`/`humanDecision`, not `source` —
+ *      they have no source-aware carve-out to add one. A forecast reaching
+ *      `machineRecommendation: 'pursue'` would count toward pursuit-stage
+ *      KPIs automatically, which is exactly what "not pursuit-stage KPIs
+ *      until a human explicitly qualifies them" (this phase's own
+ *      acceptance line) forbids.
+ *   3. `'monitor'` already means "not committed, but worth watching" in the
+ *      common vocabulary — `shape_now`'s own next actions (a capability
+ *      briefing, program-office research, a teaming conversation) are
+ *      exactly that, just with more urgency than an ordinary `monitor`. The
+ *      forecast-specific `forecastRecommendation` field (see
+ *      forecast-relevance.ts) is where that extra urgency stays visible;
+ *      the common field stays honest instead.
+ */
+export const FORECAST_RECOMMENDATIONS = ['shape_now', 'monitor', 'pass', 'needs_review'] as const;
+export type ForecastRecommendation = (typeof FORECAST_RECOMMENDATIONS)[number];
+
+export const FORECAST_TO_MACHINE_RECOMMENDATION: Readonly<Record<ForecastRecommendation, MachineRecommendation>> =
+  Object.freeze({
+    shape_now: 'monitor',
+    monitor: 'monitor',
+    pass: 'pass',
+    needs_review: 'needs_review',
+  });
 
 /**
  * The bounded reason vocabulary. Bounded so the web mirror can label every value
@@ -76,6 +142,8 @@ export const RECOMMENDATION_REASON_CODES = [
   'deadline_imminent',
   'deadline_not_stated',
   'no_award_history_evidence',
+  /** P23: a pursue was downgraded because vehicle access is required but not yet resolved. */
+  'vehicle_access_unresolved',
 ] as const;
 export type RecommendationReasonCode = (typeof RECOMMENDATION_REASON_CODES)[number];
 
@@ -98,6 +166,22 @@ export interface RecommendationInput {
   eligibility: EligibilityState;
   /** True when the client profile cannot support a judgement yet. */
   profileTooThin: boolean;
+  /**
+   * P23. True when THIS opportunity is known to require going through a
+   * specific contract vehicle. Optional and defaults to false — see this
+   * file's own class doc for why no caller sets it to true today, and
+   * decision-log D-44 for the full reasoning. Absent entirely, existing
+   * callers (and every recommendation fixture written before P23) are
+   * unaffected.
+   */
+  vehicleAccessRequired?: boolean;
+  /**
+   * P23. Meaningful only when `vehicleAccessRequired` is true: whether a
+   * credible route (direct, related-entity, or teaming — any of
+   * acquisition-position.ts's non-absence states) has been established.
+   * Ignored when `vehicleAccessRequired` is false or absent.
+   */
+  vehicleAccessResolved?: boolean;
   /** The caller's clock. Never `new Date()` inside this module. */
   asOf: Date;
 }
@@ -277,6 +361,28 @@ export function recommendOpportunity(
     const codes: RecommendationReasonCode[] = ['strong_capability_match'];
     if (hasAgencyHistory) codes.push('prior_agency_award_history');
     else codes.push('no_award_history_evidence');
+
+    // P23 override: a pursue is downgraded to needs_review when vehicle
+    // access is required but not yet resolved — see this file's own class
+    // doc for why no real caller sets vehicleAccessRequired true today. Only
+    // THIS one outcome is interceptable; rules 1-6 already decided pass,
+    // monitor or needs_review for reasons a vehicle question cannot override.
+    if (input.vehicleAccessRequired && !input.vehicleAccessResolved) {
+      return {
+        machineRecommendation: 'needs_review',
+        // The capability match is strong — that part is not in question —
+        // but committing bid effort without a resolved acquisition route is
+        // exactly what this program's "credible path, not a score" design
+        // exists to catch.
+        recommendationConfidence: 'medium',
+        primaryReason:
+          'Strong capability match, but this opportunity requires vehicle access that has not been resolved.',
+        primaryRisk: risk,
+        recommendedNextAction: 'Resolve acquisition position (direct, related-entity, or teaming) before committing bid effort.',
+        reasonCodes: ['vehicle_access_unresolved', ...codes, ...deadlineCodes],
+      };
+    }
+
     return {
       machineRecommendation: 'pursue',
       // High needs BOTH a strong capability match and prior agency history. One

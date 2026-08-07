@@ -154,6 +154,7 @@ function grant(partial: Partial<FundingOpportunity> = {}): FundingOpportunity {
     // common case, and a fixture that invented either would assert behaviour these
     // tests do not own.
     recommendation: null,
+    acquisitionPosition: null,
     decision: null,
     title: 'Advanced Manufacturing Research',
     agency: 'Department of Energy',

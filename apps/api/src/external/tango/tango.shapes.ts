@@ -55,6 +55,30 @@ function shapeOf(fields: readonly string[]): string {
  * Also excludes `exclusion_status_flag` and `exclusion_url` — P45 owns exclusion
  * risk, with its own review semantics, and a raw flag riding along on the entity
  * record would get read as a determination before that phase exists.
+ *
+ * DELIBERATELY EXCLUDES `entity_structure`/`state_of_incorporation` — and NOT
+ * this SDK's `entity_structure_desc`/`state_of_incorporation_code` either
+ * (P19 finding, decision-log D-35). Live-account testing found a genuine SDK-
+ * vs-server incompatibility, not a naming typo:
+ *
+ *   - The `..._code`/`..._desc` names (this SDK's bundled `explicitSchemas.js`
+ *     reference) are REJECTED by the live server itself: "Invalid shape...
+ *     unknown_field", with the server's own `available_fields` payload
+ *     listing bare `entity_structure`/`state_of_incorporation` instead.
+ *   - Those bare names, in turn, are REJECTED CLIENT-SIDE: `getEntity` calls
+ *     `materializeOne` on every successful response (not just `listEntities`),
+ *     and the SDK's bundled `ModelFactory`/`SchemaRegistry` still only knows
+ *     the old `..._code`/`..._desc` pair — `ShapeValidationError: Field
+ *     "entity_structure" does not exist on model "Entity"`.
+ *
+ * Neither naming convention round-trips end-to-end (request → typed result)
+ * through @makegov/tango-node@1.1.0 — this is the SDK's bundled schema
+ * genuinely lagging the live API's current one, not something a field rename
+ * on Capiro's side can fix. `TangoEntity.entityStructure`/
+ * `.stateOfIncorporation` stay in the domain type (a future SDK release may
+ * resolve this) but `mapEntity` returns them as an explicit, commented `null`
+ * rather than requesting a field guaranteed to break one side or the other.
+ * Escalate to MakeGov before re-adding either name.
  */
 export const ENTITY_FIELDS = [
   'uei',
@@ -69,8 +93,6 @@ export const ENTITY_FIELDS = [
   'registration_status',
   'sam_expiration_date',
   'physical_address',
-  'entity_structure_desc',
-  'state_of_incorporation_code',
   'last_update_date',
 ] as const;
 export const ENTITY_SHAPE = shapeOf(ENTITY_FIELDS);
@@ -120,14 +142,42 @@ export const NOTICE_FIELDS = [
 export const NOTICE_SHAPE = shapeOf(NOTICE_FIELDS);
 
 /**
- * Agency procurement forecast. Source: `FORECAST_SCHEMA`.
+ * Agency procurement forecast. Source: `FORECAST_SCHEMA` — PARTIALLY. Read
+ * this before touching either the field list or `tango.client.ts`'s
+ * `listForecasts`.
  *
- * The provider's forecast model is THINNER than the plan assumed, and that is a
- * fact worth pinning rather than papering over. There is no anticipated
- * SOLICITATION date, no PSC, no estimated value and no organization id — only
- * `agency` as free text, an `anticipated_award_date`, and an `estimated_period`
- * string. P24 stores what exists and leaves the rest null; it does not derive a
- * solicitation date from an award date.
+ * The provider's forecast model is THINNER than the plan assumed in two
+ * confirmed ways: no anticipated SOLICITATION date, no PSC, no estimated
+ * value. P24 stores what exists and leaves the rest null (decision-log
+ * D-45); it does not derive a solicitation date from an award date.
+ *
+ * IT IS ALSO RICHER THAN THE SDK's BUNDLED SCHEMA KNOWS (D-45) — a real
+ * `organization` hierarchy and real `modified`/`created` timestamps exist on
+ * the live server's `available_fields` for this exact resource, confirmed by
+ * reading its own validation-error payload directly. `FORECAST_SCHEMA` in
+ * this SDK version does not declare `organization`, `organization_id`,
+ * `modified` or `created` at all, so `parseShape` throws `ShapeValidationError`
+ * — CLIENT-SIDE, before any request is sent — for a shape string containing
+ * any of them, through the SDK's own typed `client.listForecasts(...)`.
+ *
+ * There is no live-server rejection to work around here, unlike D-35's
+ * `entity_structure` (which the SERVER itself rejected) — the SDK's client-
+ * side gate is the ONLY thing standing between this shape and a real,
+ * working request. `client.http.get('/api/forecasts/', { shape, ... })`
+ * bypasses `parseShape` entirely and the identical live server accepts every
+ * field below without complaint (confirmed live). `tango.client.ts`'s
+ * `listForecasts` uses that escape hatch for exactly this reason — every
+ * other list method in this file goes through the SDK's typed method
+ * because every other method's bundled schema is complete enough not to need
+ * it.
+ *
+ * `organization(...)`'s own sub-fields, and the top-level list, both come
+ * from the live server's `available_fields` payload directly, not a guess:
+ * `agency_code`, `agency_name`, `department_code`, `department_name`,
+ * `office_code`, `office_name`, `organization_id`. `primary_contact` has NO
+ * `expands` entry of its own on the server — it is requested bare, and the
+ * server returns its full `{name, email, phone, title}` shape regardless of
+ * the SDK's `type: "str"` declaration for it.
  */
 export const FORECAST_FIELDS = [
   'id',
@@ -135,6 +185,7 @@ export const FORECAST_FIELDS = [
   'title',
   'description',
   'agency',
+  'organization(agency_code,agency_name,department_code,department_name,office_code,office_name,organization_id)',
   'anticipated_award_date',
   'estimated_period',
   'fiscal_year',
@@ -146,6 +197,7 @@ export const FORECAST_FIELDS = [
   'status',
   'is_active',
   'source_system',
+  'modified',
 ] as const;
 export const FORECAST_SHAPE = shapeOf(FORECAST_FIELDS);
 
@@ -180,9 +232,25 @@ export const VEHICLE_SHAPE = shapeOf(VEHICLE_FIELDS);
 /**
  * One awardee on a vehicle — an IDV. Source: `IDV_SCHEMA`.
  *
- * `recipient(uei,display_name)` is the whole point: a vehicle awardee without a
- * UEI can never be evidence of direct access, because matching on a display name
- * is exactly the fuzzy identity P02 removed from the award-history rail.
+ * `recipient(uei,display_name,legal_business_name)` is the whole point: a
+ * vehicle awardee without a UEI can never be evidence of direct access,
+ * because matching on a display name is exactly the fuzzy identity P02
+ * removed from the award-history rail.
+ *
+ * DELIBERATELY EXCLUDES a parent/owner UEI (P22 finding, decision-log D-41):
+ * the live server's `recipient` expansion on THIS endpoint has exactly five
+ * fields — `cage`, `cage_code`, `display_name`, `legal_business_name`,
+ * `uei` — confirmed by reading its own `available_fields` error payload.
+ * There is no `parent_uei` here, under any name. Parent/owner UEIs DO exist
+ * elsewhere in this SDK's data model — `getEntity`'s `immediate_owner`/
+ * `highest_owner` expansions (P14's own `tango.shapes.ts` deliberately does
+ * not request either) — but reaching them for every awardee found on a
+ * vehicle would mean one EXTRA getEntity call per unique awardee UEI, a
+ * materially different and more expensive design than "list this vehicle's
+ * awardees". P22 does not attempt that; see its own sync script for how the
+ * resulting gap is handled (the 'parent' relationship stays a real, tested
+ * code path — SDK support may arrive later — but is not currently
+ * reachable with live data).
  */
 export const VEHICLE_AWARDEE_FIELDS = [
   'uuid',
@@ -193,7 +261,7 @@ export const VEHICLE_AWARDEE_FIELDS = [
   'order_count',
   'idv_obligations',
   'idv_contracts_value',
-  'recipient(uei,display_name,legal_business_name,parent_uei)',
+  'recipient(uei,display_name,legal_business_name)',
 ] as const;
 export const VEHICLE_AWARDEE_SHAPE = shapeOf(VEHICLE_AWARDEE_FIELDS);
 

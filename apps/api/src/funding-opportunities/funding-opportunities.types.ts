@@ -37,6 +37,7 @@ import type {
   RecommendationConfidence,
   RecommendationReasonCode,
 } from './opportunity-recommendation.js';
+import type { AcquisitionPosition } from './acquisition-position.js';
 
 // ── Source and kind vocabularies ────────────────────────────────────────────
 
@@ -424,6 +425,19 @@ export interface FundingOpportunity {
    * there is no client to recommend anything relative to.
    */
   recommendation: OpportunityRecommendationView | null;
+
+  /**
+   * P23. The client's own vehicle-access posture — never a crosswalk from
+   * this specific notice to a specific required vehicle (see acquisition-
+   * position.ts's own doc for why no such crosswalk exists). Null when:
+   * there is no client to score against (the unscoped catalog read, same as
+   * `recommendation`), the source is `grants_gov` (grants carry no contract
+   * vehicle concept), or the `funding_opportunities_vehicle_fit` flag is off
+   * for this tenant — in which case the response is byte-for-byte identical
+   * to P22, this field's own acceptance bar.
+   */
+  acquisitionPosition: AcquisitionPosition | null;
+
   missingProfileFields: MissingProfileField[];
 
   /** When the source record itself was last refreshed by ingestion. */

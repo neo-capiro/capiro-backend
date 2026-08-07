@@ -260,10 +260,28 @@ describe('every call requests only the fields it uses', () => {
     expect(new URL(calls[1]!.url).searchParams.get('limit')).toBe('1');
   });
 
-  test('a cursor is passed back verbatim', async () => {
+  test('a cursor is decoded into the page number the provider actually wants', async () => {
+    // P22 finding (decision-log D-42): /api/entities/ (like every other list
+    // endpoint this gateway calls) is page-number pagination server-side, not
+    // cursor-based — confirmed by reading a live `next` URL directly. Capiro's
+    // own "cursor" stays opaque to every caller ABOVE this file, but page()
+    // itself must decode it back into the `page` query param the provider
+    // actually reads; a raw `?cursor=` param here would be silently ignored
+    // and the request would fall back to page 1 every time.
     const { service, calls } = gateway([{ body: ENTITY_PAGE }]);
-    await service.listEntities({ cursor: 'cD0yMDI2LTA4LTA2' });
-    expect(new URL(calls[0]!.url).searchParams.get('cursor')).toBe('cD0yMDI2LTA4LTA2');
+    await service.listEntities({ cursor: '3' });
+    expect(new URL(calls[0]!.url).searchParams.get('page')).toBe('3');
+    expect(new URL(calls[0]!.url).searchParams.get('cursor')).toBeNull();
+  });
+
+  test('an absent, blank, or garbage cursor all mean page 1', async () => {
+    const { service, calls } = gateway([{ body: ENTITY_PAGE }, { body: ENTITY_PAGE }, { body: ENTITY_PAGE }]);
+    await service.listEntities();
+    await service.listEntities({ cursor: null });
+    await service.listEntities({ cursor: 'not-a-number' });
+    for (const call of calls) {
+      expect(new URL(call.url).searchParams.get('page')).toBe('1');
+    }
   });
 
   test('the SDK’s own retry is OFF, so P18 owns retry alone', async () => {
@@ -464,12 +482,34 @@ describe('the boundary normalizes, and refuses to invent', () => {
     // from its own USAspending rail, and a second differently-derived total
     // invites somebody to treat the difference as a finding. exclusion_status_flag
     // is excluded because P45 owns exclusion risk with its own review semantics.
+    // entity_structure/state_of_incorporation are excluded because NEITHER this
+    // SDK's field name for them nor the live server's round-trips end-to-end
+    // through @makegov/tango-node@1.1.0 — a real SDK-vs-server incompatibility
+    // found on the real account (P19, decision-log D-35), not a Capiro omission.
     expect(JSON.stringify(page.items[0])).not.toContain('federal_obligations');
     expect(JSON.stringify(page.items[0])).not.toContain('exclusion');
     expect(unexpectedFields(ENTITY_PAGE.results[0], 'entity').sort()).toEqual([
+      'entity_structure',
       'exclusion_status_flag',
       'federal_obligations',
+      'state_of_incorporation',
     ]);
+  });
+
+  test('entityStructure/stateOfIncorporation are always null — a real SDK-vs-server incompatibility, not a fallback', async () => {
+    // P19 finding (decision-log D-35): the live server rejects this SDK's
+    // bundled entity_structure_desc/state_of_incorporation_code field names
+    // ("Invalid shape... unknown_field"), and the SDK's own client-side
+    // materializeOne rejects the live server's bare entity_structure/
+    // state_of_incorporation names right back (ShapeValidationError) on
+    // EVERY successful getEntity call, not just listEntities. Neither name
+    // round-trips through @makegov/tango-node@1.1.0, so neither is requested
+    // — even though the fixture carries plausible values for both (as
+    // "noise the shape never asked for"), they must never leak through.
+    const { service } = gateway([{ body: ENTITY_PAGE }]);
+    const page = await service.listEntities();
+    expect(page.items[0]!.entityStructure).toBeNull();
+    expect(page.items[0]!.stateOfIncorporation).toBeNull();
   });
 
   test('a record with no usable identifier is DROPPED, never half-mapped', async () => {
@@ -505,13 +545,72 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(page.items[1]!.estimatedPeriod).toBeNull();
   });
 
-  test('a forecast has no provider modified stamp, and fetchedAt is not substituted', async () => {
-    // "When we looked" is not "when it changed". Conflating them would make every
-    // sync look like a material update.
+  test('a forecast DOES carry a real provider modified stamp (P24, decision-log D-45) — and fetchedAt is still never substituted for it', async () => {
+    // Corrects P14's original finding, which was accurate against the SDK's
+    // OWN typed listForecasts (whose bundled schema has no `modified` field
+    // to request at all) but not against the live server, which has always
+    // had one — reachable only via the raw-HTTP bypass listForecasts now
+    // uses. "When we looked" (fetchedAt) is still never conflated with "when
+    // it changed" (providerUpdatedAt) — the two differ on this fixture.
     const { service } = gateway([{ body: FORECAST_PAGE }]);
     const page = await service.listForecasts();
-    expect(page.items[0]!.provenance.providerUpdatedAt).toBeNull();
+    expect(page.items[0]!.provenance.providerUpdatedAt).toBe('2026-08-01T12:00:00.000Z');
     expect(Date.parse(page.items[0]!.provenance.fetchedAt)).toBeGreaterThan(0);
+    expect(page.items[0]!.provenance.fetchedAt).not.toBe(page.items[0]!.provenance.providerUpdatedAt);
+    // Explicitly null in the raw record, not merely absent — still null, not fetchedAt.
+    expect(page.items[1]!.provenance.providerUpdatedAt).toBeNull();
+    // Absent from the raw record entirely (the minimal third row) — same result.
+    expect(page.items[2]!.provenance.providerUpdatedAt).toBeNull();
+  });
+
+  test('a forecast\'s organization hierarchy maps through, level by level, and every level tolerates absence independently', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    const full = page.items[0]!;
+    expect(full.departmentCode).toBe('SYN');
+    expect(full.departmentName).toBe('Synthetic Department of Defense');
+    expect(full.organizationAgencyCode).toBe('SYNDLA');
+    // Live-observed on the real record this fixture is modeled on: a
+    // populated department/office pair with a null agency name. Kept null
+    // here rather than backfilled from agency_code — the two are different
+    // facts even when one of them is absent.
+    expect(full.organizationAgencyName).toBeNull();
+    expect(full.officeCode).toBe('SYN01');
+    expect(full.officeName).toBe('Synthetic Depot Office');
+    expect(full.organizationId).toBe('aaaaaaaa-bbbb-4ccc-8ddd-000000000001');
+
+    // organization: null (row 2) — every level is null, not a thrown error.
+    const nullOrg = page.items[1]!;
+    expect(nullOrg.departmentCode).toBeNull();
+    expect(nullOrg.officeName).toBeNull();
+    expect(nullOrg.organizationId).toBeNull();
+
+    // organization entirely absent from the raw record (row 3) — same result.
+    const absentOrg = page.items[2]!;
+    expect(absentOrg.departmentCode).toBeNull();
+    expect(absentOrg.organizationId).toBeNull();
+  });
+
+  test('a forecast\'s primary contact is a structured object, not the plain string the SDK\'s own type declares', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    expect(page.items[0]!.primaryContact).toEqual({
+      name: 'Synthetic Contracting Officer',
+      email: 'contracting@example.invalid',
+      phone: null,
+      title: 'Contracting Officer',
+    });
+    expect(page.items[1]!.primaryContact).toBeNull();
+    expect(page.items[2]!.primaryContact).toBeNull();
+  });
+
+  test('pscCode and sourceUrl are always null on a forecast — confirmed absent from the live available_fields, not an oversight (D-45)', async () => {
+    const { service } = gateway([{ body: FORECAST_PAGE }]);
+    const page = await service.listForecasts();
+    for (const item of page.items) {
+      expect(item.pscCode).toBeNull();
+      expect(item.sourceUrl).toBeNull();
+    }
   });
 
   test('dates normalize to ISO, and an unparseable one is null rather than today', async () => {
@@ -562,15 +661,20 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(page.items[1]!.recipientUei).toBeNull();
   });
 
-  test('a PARENT uei stays distinguishable from the awardee own uei', async () => {
-    // "Your parent is on this vehicle" and "you are on this vehicle" are different
-    // answers to whether a client can bid. P23 depends on the two not merging.
+  test('recipientParentUei is always null — a confirmed provider gap, not a fallback', async () => {
+    // P22 finding (decision-log D-41): the live server's `recipient`
+    // expansion on THIS endpoint has no parent/owner UEI field under any
+    // name — confirmed by reading its own available_fields payload. Even a
+    // fixture row carrying a plausible parent_uei value (as "noise the
+    // shape never asked for") must never leak through — "your parent is on
+    // this vehicle" and "you are on this vehicle" are different answers to
+    // whether a client can bid (P23 depends on the two not merging), and a
+    // silently-wrong parent UEI would be worse than a visibly absent one.
     const { service } = gateway([{ body: AWARDEE_PAGE }]);
     const page = await service.listVehicleAwardees('22222222-bbbb-4ccc-8ddd-000000000001');
-    const viaParent = page.items[2]!;
-    expect(viaParent.recipientUei).toBe('ZZTESTUEI777');
-    expect(viaParent.recipientParentUei).toBe('ZZTESTUEI001');
-    expect(viaParent.recipientUei).not.toBe(viaParent.recipientParentUei);
+    for (const item of page.items) {
+      expect(item.recipientParentUei).toBeNull();
+    }
   });
 
   test('provider business types stay SEPARATE from anything reviewed', async () => {
@@ -583,11 +687,22 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(Object.keys(page.items[0]!)).not.toContain('certifications');
   });
 
-  test('the page carries the provider cursor verbatim and its own count', async () => {
+  test('the page derives nextCursor from next\'s presence, and carries the provider\'s own count', async () => {
+    // NOT `response.cursor` — see tango.client.ts's parsePageCursor doc
+    // (P22/D-42) for why the SDK's own cursor field is unusable here. This
+    // fixture's `next` carries `?page=2`, which is what a real response
+    // looks like; `nextCursor` is Capiro's own opaque "2", not that URL.
     const { service } = gateway([{ body: ENTITY_PAGE }]);
     const page = await service.listEntities();
-    expect(page.nextCursor).toBe('cD0yMDI2LTA4LTA2');
+    expect(page.nextCursor).toBe('2');
     expect(page.totalCount).toBe(2);
+  });
+
+  test('nextCursor is null when the provider reports no next page', async () => {
+    const lastPage = { ...ENTITY_PAGE, next: null, cursor: null };
+    const { service } = gateway([{ body: lastPage }]);
+    const page = await service.listEntities({ cursor: '9' });
+    expect(page.nextCursor).toBeNull();
   });
 
   test('a 404 on getEntity is unresolved EVIDENCE (null), not an exception', async () => {

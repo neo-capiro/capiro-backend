@@ -228,9 +228,19 @@ export class TangoGatewayService implements TangoGateway {
     );
   }
 
+  /**
+   * NOT `c.listForecasts(...)` — see `tango.shapes.ts`'s own `FORECAST_FIELDS`
+   * doc (decision-log D-45) for the full reasoning. The SDK's typed method
+   * validates the shape string CLIENT-SIDE against its own bundled schema
+   * before ever sending a request, and that bundled schema does not know
+   * about `organization`, `organization_id`, `modified` or `created` — all
+   * four real, live-confirmed fields this method needs. `rawForecastsGet`
+   * bypasses that gate via the SDK's own HTTP transport, which the live
+   * server accepts without complaint.
+   */
   async listForecasts(options: TangoForecastListOptions = {}): Promise<TangoPage<TangoForecast>> {
     return this.page('listForecasts', 'forecast', mapForecast, (c, base) =>
-      c.listForecasts({
+      rawForecastsGet(c, {
         ...base,
         shape: TANGO_SHAPES.forecast,
         ...(options.changedSince ? { modified_after: options.changedSince } : {}),
@@ -323,6 +333,42 @@ export class TangoGatewayService implements TangoGateway {
     }
   }
 
+  /**
+   * Decode Capiro's own opaque list cursor into a 1-based page number.
+   *
+   * `TangoListOptions.cursor` is documented, everywhere it is used, as
+   * OPAQUE — pass it back verbatim, never construct or parse one. This
+   * function is the one deliberate exception, because `page()` below is also
+   * the one place that gets to know what is actually inside it. Nothing
+   * outside this file ever parses a cursor value.
+   *
+   * ── Why a page number, and not the SDK's own `.cursor` ──────────────────
+   *
+   * Every list endpoint this gateway calls — `/api/entities/`,
+   * `/api/opportunities/`, `/api/notices/`, `/api/forecasts/`,
+   * `/api/vehicles/`, `/api/vehicles/{uuid}/awardees/` — turned out, on
+   * reading a live `next` URL directly, to be Django REST Framework
+   * PAGE-NUMBER pagination server-side (`.../api/vehicles/?limit=3&page=2`),
+   * never `?cursor=...` (P22 finding, decision-log D-42; same family as
+   * D-35/D-41). The SDK's own bundled `PaginatedResponse.cursor` — by its
+   * OWN doc comment in `types.d.ts` — is "extracted from `next`" and
+   * "`null` when the endpoint is page-based". Every one of the six methods
+   * above is exactly that page-based case, so trusting `.cursor` would mean
+   * `nextCursor` silently claims "last page" after page one FOREVER, no
+   * matter how much data remains (confirmed live: `/api/vehicles/` reported
+   * `count: 20709` with `cursor: null` on every page). None of the six
+   * methods even forward Capiro's cursor as `page` today — the SDK's own
+   * `listVehicles` et al. destructure a `page` option, default it to `1`
+   * when absent, and silently fold an unrecognized `cursor` key into a
+   * useless stray query parameter — so without this, every run re-fetches
+   * page one, endlessly.
+   */
+  private parsePageCursor(cursor: string | null | undefined): number {
+    if (!cursor) return 1;
+    const n = Number(cursor);
+    return Number.isFinite(n) && n >= 1 ? Math.trunc(n) : 1;
+  }
+
   /** One page of a list endpoint, mapped and normalized. */
   private async page<TDomain>(
     operation: string,
@@ -330,14 +376,15 @@ export class TangoGatewayService implements TangoGateway {
     map: (raw: Record<string, unknown>, fetchedAt: string) => TDomain | null,
     run: (
       c: SdkClient,
-      base: { limit: number; cursor?: string | null },
-    ) => Promise<{ results: Array<Record<string, unknown>>; count: number; cursor: string | null }>,
+      base: { limit: number; page: number },
+    ) => Promise<{ results: Array<Record<string, unknown>>; count: number; next?: string | null }>,
     options: TangoListOptions,
   ): Promise<TangoPage<TDomain>> {
     const fetchedAt = new Date().toISOString();
+    const pageNumber = this.parsePageCursor(options.cursor);
     const base = {
       limit: this.clampLimit(options.limit),
-      ...(options.cursor ? { cursor: options.cursor } : {}),
+      page: pageNumber,
     };
     const response = await this.call(operation, (c) => run(c, base));
     const items: TDomain[] = [];
@@ -357,7 +404,12 @@ export class TangoGatewayService implements TangoGateway {
     return {
       items,
       totalCount: typeof response.count === 'number' ? response.count : null,
-      nextCursor: response.cursor ?? null,
+      // A non-null `next` URL is the only reliable "more data" signal for a
+      // page-based endpoint — see parsePageCursor's doc for why `.cursor`
+      // itself cannot be trusted here. The VALUE of `next` is never read;
+      // its presence/absence is the whole signal, encoded back into
+      // Capiro's own opaque page-number cursor.
+      nextCursor: response.next ? String(pageNumber + 1) : null,
       rate: this.rate,
     };
   }
@@ -400,6 +452,27 @@ export class TangoGatewayService implements TangoGateway {
       cause: error,
     });
   }
+}
+
+/**
+ * `TangoClient.http` is declared `private` in the SDK's own `.d.ts` — a
+ * compile-time-only restriction TypeScript enforces and JavaScript does not:
+ * the underlying `HttpClient` instance genuinely exists on every constructed
+ * client. This is the one, deliberate place in this file that reaches past
+ * it, and only for `listForecasts` — see that method's own doc and
+ * `tango.shapes.ts`'s `FORECAST_FIELDS` doc (decision-log D-45) for why no
+ * other list method needs this.
+ *
+ * Errors from this path are NOT pre-classified `Tango*Error` instances the
+ * way the SDK's typed methods throw them — `this.call`'s own `wrap()` reads
+ * `statusCode`/response body generically regardless of the thrown error's
+ * class, so classification still works; only the SDK's shape-string
+ * VALIDATION is bypassed, not its error handling.
+ */
+function rawForecastsGet<T>(client: SdkClient, query: Record<string, unknown>): Promise<T> {
+  return (
+    client as unknown as { http: { get<U>(path: string, query?: Record<string, unknown>): Promise<U> } }
+  ).http.get<T>('/api/forecasts/', query);
 }
 
 function readStatus(error: unknown): number | null {

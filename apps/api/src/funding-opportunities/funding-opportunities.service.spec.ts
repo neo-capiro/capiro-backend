@@ -37,6 +37,14 @@ interface FakeState {
   audits: Array<Record<string, unknown>>;
   /** When set, every $queryRaw rejects — the "source read failed" case. */
   queryRawThrows?: Error;
+  // P23 —
+  /** Drives the withSystem intel_feature_flag read for funding_opportunities_vehicle_fit. */
+  vehicleFitEnabled?: boolean;
+  relevantVehicles?: Array<Record<string, unknown>>;
+  /** Keyed on tangoVehicleId. Missing = no snapshot found (getActiveSnapshot returns null). */
+  vehicleSnapshots?: Record<string, { lastDateToOrder: string | null }>;
+  /** Null/undefined = the sync has never run (readCheckpoint resolves null). */
+  vehicleSyncCheckpoint?: { lastRunAt: Date | null } | null;
 }
 
 function grantRow(partial: Record<string, unknown> = {}): Record<string, unknown> {
@@ -245,7 +253,19 @@ function makeFake(state: FakeState) {
         return args.data;
       }),
     },
-    $queryRaw: jest.fn(async () => []),
+    // P23. Reads via prisma.withSystem((tx) => tx.$queryRaw`...`) —
+    // isFundingOpportunitiesFeatureEnabled's own query, keyed on state so a
+    // test can turn the flag on without touching any other codepath.
+    $queryRaw: jest.fn(async (strings: unknown) => {
+      const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
+      if (sql.includes('intel_feature_flag')) return state.vehicleFitEnabled ? [{ ok: 1 }] : [];
+      return [];
+    }),
+    clientRelevantVehicle: {
+      findMany: jest.fn(async (args: any) =>
+        (state.relevantVehicles ?? []).filter((v) => v.clientId === args?.where?.clientId),
+      ),
+    },
   };
 
   const prisma = {
@@ -283,8 +303,24 @@ function makeFake(state: FakeState) {
 
 function makeService(state: FakeState) {
   const fake = makeFake(state);
+  // P23: TangoStoreService/TANGO_GATEWAY, driven from `state` so most tests
+  // (which never set vehicleFitEnabled) get safe, inert defaults — the
+  // intel_feature_flag read above answers false, so acquisition-position
+  // code is never reached for them at all. See acquisition-position.spec.ts
+  // for that logic's own dedicated truth-table coverage; the tests below
+  // exercise only the WIRING between this service and that service.
+  const tangoStore = {
+    readCheckpoint: jest.fn(async () =>
+      state.vehicleSyncCheckpoint === undefined ? null : state.vehicleSyncCheckpoint,
+    ),
+    getActiveSnapshot: jest.fn(async (_resourceType: string, externalId: string) => {
+      const snap = state.vehicleSnapshots?.[externalId];
+      return snap ? { normalizedJsonb: snap } : null;
+    }),
+  };
+  const tangoGateway = { configured: state.vehicleFitEnabled ?? false };
   return {
-    service: new FundingOpportunitiesService(fake.prisma as never),
+    service: new FundingOpportunitiesService(fake.prisma as never, tangoStore as never, tangoGateway as never),
     ...fake,
     state,
   };
@@ -568,6 +604,141 @@ describe('a future opportunity never fabricates a district', () => {
     const sam = res.opportunities.find((o) => o.source === 'sam_gov')!;
     expect(sam.districtKey).toBe('TX-16');
     expect(sam.districtBasis).toBe('linked_project_site');
+  });
+});
+
+// ── P23: acquisition position wiring ────────────────────────────────────────
+
+describe('acquisitionPosition — the WIRING to acquisition-position.ts, not its own truth table', () => {
+  // The truth table itself (prime/affiliate/partner/expired/multiple
+  // vehicles/missing provider data) is acquisition-position.spec.ts's job.
+  // These tests exist to catch a wiring bug this file's fake CAN catch that
+  // spec cannot: a wrong Prisma model name, a wrong select field, or the
+  // flag gate attaching the field to the wrong source.
+
+  test('flag off (the default state): acquisitionPosition is null on every opportunity, sam and grant alike', async () => {
+    const { service } = makeService(makeState());
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    for (const o of res.opportunities) {
+      expect(o.acquisitionPosition).toBeNull();
+    }
+  });
+
+  test('grants never get a position, even with the flag on and a matching vehicle', async () => {
+    const state = makeState({
+      vehicleFitEnabled: true,
+      vehicleSyncCheckpoint: { lastRunAt: new Date('2026-08-01T00:00:00Z') },
+      relevantVehicles: [
+        {
+          clientId: CLIENT,
+          tangoVehicleId: 'V1',
+          vehicleName: 'Test GWAC',
+          vehicleType: 'GWAC',
+          relationship: 'self',
+          recipientUei: 'ABC123456789',
+          orderCount: 1,
+          idvObligations: 1000,
+          idvContractsValue: 2000,
+          lastSyncedAt: new Date('2026-08-01T00:00:00Z'),
+        },
+      ],
+    });
+    const { service } = makeService(state);
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const grant = res.opportunities.find((o) => o.source === 'grants_gov')!;
+    const sam = res.opportunities.find((o) => o.source === 'sam_gov')!;
+    expect(grant.acquisitionPosition).toBeNull();
+    expect(sam.acquisitionPosition?.state).toBe('direct_prime_access');
+  });
+
+  test('flag on, sync has run, zero relevant vehicles: vehicle_not_identified on the sam row', async () => {
+    const state = makeState({
+      vehicleFitEnabled: true,
+      vehicleSyncCheckpoint: { lastRunAt: new Date('2026-08-01T00:00:00Z') },
+      relevantVehicles: [],
+    });
+    const { service } = makeService(state);
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const sam = res.opportunities.find((o) => o.source === 'sam_gov')!;
+    expect(sam.acquisitionPosition?.state).toBe('vehicle_not_identified');
+  });
+
+  test('flag on, the sync has never run: unknown, and clientRelevantVehicle is never even queried', async () => {
+    const state = makeState({ vehicleFitEnabled: true, vehicleSyncCheckpoint: null });
+    const { service, tx } = makeService(state);
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const sam = res.opportunities.find((o) => o.source === 'sam_gov')!;
+    expect(sam.acquisitionPosition?.state).toBe('unknown');
+    expect((tx as any).clientRelevantVehicle.findMany).not.toHaveBeenCalled();
+  });
+
+  test('a real row is correctly joined against its own vehicle snapshot for lastDateToOrder', async () => {
+    const state = makeState({
+      vehicleFitEnabled: true,
+      vehicleSyncCheckpoint: { lastRunAt: new Date('2026-08-01T00:00:00Z') },
+      relevantVehicles: [
+        {
+          clientId: CLIENT,
+          tangoVehicleId: 'V1',
+          vehicleName: 'Expired Vehicle',
+          vehicleType: 'GWAC',
+          relationship: 'self',
+          recipientUei: 'ABC123456789',
+          orderCount: null,
+          idvObligations: null,
+          idvContractsValue: null,
+          lastSyncedAt: new Date('2026-08-01T00:00:00Z'),
+        },
+      ],
+      vehicleSnapshots: { V1: { lastDateToOrder: '2020-01-01T00:00:00.000Z' } },
+    });
+    const { service } = makeService(state);
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const sam = res.opportunities.find((o) => o.source === 'sam_gov')!;
+    // The vehicle IS on record as a self relationship, but its own last date
+    // to order has passed — no_direct_access_evidence, not direct access.
+    expect(sam.acquisitionPosition?.state).toBe('no_direct_access_evidence');
+    expect(sam.acquisitionPosition?.evidence[0]?.expired).toBe(true);
+  });
+
+  test('the recommendation is NOT affected by acquisition position today — vehicleAccessRequired stays unset (decision-log D-44)', async () => {
+    // Direct access, no access, and unknown all produce the identical
+    // recommendation for the SAME underlying relevance/eligibility facts —
+    // proving shapeScored never passes vehicleAccessRequired/Resolved, per
+    // opportunity-recommendation.ts's own documented contract.
+    const withDirectAccess = await (async () => {
+      const state = makeState({
+        vehicleFitEnabled: true,
+        vehicleSyncCheckpoint: { lastRunAt: new Date('2026-08-01T00:00:00Z') },
+        relevantVehicles: [
+          {
+            clientId: CLIENT,
+            tangoVehicleId: 'V1',
+            vehicleName: 'V',
+            vehicleType: null,
+            relationship: 'self',
+            recipientUei: 'ABC123456789',
+            orderCount: null,
+            idvObligations: null,
+            idvContractsValue: null,
+            lastSyncedAt: new Date('2026-08-01T00:00:00Z'),
+          },
+        ],
+      });
+      const { service } = makeService(state);
+      return service.listClientOpportunities(TENANT, CLIENT, {});
+    })();
+    const withNoEvidence = await (async () => {
+      const { service } = makeService(makeState());
+      return service.listClientOpportunities(TENANT, CLIENT, {});
+    })();
+
+    const a = withDirectAccess.opportunities.find((o) => o.source === 'sam_gov')!;
+    const b = withNoEvidence.opportunities.find((o) => o.source === 'sam_gov')!;
+    expect(a.acquisitionPosition?.state).toBe('direct_prime_access');
+    expect(b.acquisitionPosition).toBeNull();
+    expect(a.recommendation).toEqual(b.recommendation);
+    expect(a.recommendation?.reasonCodes).not.toContain('vehicle_access_unresolved');
   });
 });
 

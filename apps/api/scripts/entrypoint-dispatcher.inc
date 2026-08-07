@@ -524,6 +524,34 @@ case "${1:-serve}" in
   # success rate, and the most recent call time. No Tango API call, no key
   # needed — this only reads Capiro's own database. Optional --window=<minutes>.
   diag-tango-health) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-health.ts "$@" ;;
+  # Funding Opportunities P19: reviewed-UEI entity shadow sync. For every
+  # client WHERE uei IS NOT NULL (across all tenants — a name-only client
+  # never triggers a fetch), fetches the Tango Entity and writes it to the
+  # global tango_resource_snapshot table; stamps the client's own
+  # tango_entity_last_synced_at/_last_attempt_at/_last_error. Dry-run by
+  # default; a dispatched task passes --commit. Resumable via
+  # tango_sync_checkpoint. Optional --limit=<n>.
+  sync-tango-entities) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-entities.ts "$@" ;;
+  # Funding Opportunities P20: propose client profile enrichment candidates by
+  # comparing each UEI-having client against its P19 Tango snapshot. Never
+  # writes to clients — only to client_profile_enrichment_candidate.
+  generate-tango-enrichment-candidates) shift; exec ./node_modules/.bin/tsx scripts/generate-tango-enrichment-candidates.ts "$@" ;;
+  # Funding Opportunities P20: review EXACTLY ONE enrichment candidate
+  # (--list | --candidate=<id> --accept|--reject --reviewed-by=<userId>
+  # [--reason=...]). No bulk flag exists anywhere in this verb, by design.
+  review-tango-enrichment-candidate) shift; exec ./node_modules/.bin/tsx scripts/review-tango-enrichment-candidate.ts "$@" ;;
+  # Funding Opportunities P21: READ-ONLY versioned Federal Business Profile
+  # dump for one client (--tenant=<uuid> --client=<uuid>).
+  diag-federal-business-profile) shift; exec ./node_modules/.bin/tsx scripts/diag-federal-business-profile.ts "$@" ;;
+  # Funding Opportunities P22: relevant vehicles and past-performance sync.
+  # Walks every Tango vehicle/awardee but only persists a match against a
+  # UEI Capiro already knows (self or parent). Dry-run by default; a
+  # dispatched task passes --commit. Resumable via tango_sync_checkpoint.
+  sync-tango-vehicles) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-vehicles.ts "$@" ;;
+  # Incremental — modified_after plus overlap, pages to exhaustion. Dry-run
+  # by default; a dispatched task passes --commit. Resumable via
+  # tango_sync_checkpoint, same as sync-tango-vehicles above.
+  sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

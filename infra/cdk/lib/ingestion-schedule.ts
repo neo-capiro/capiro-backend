@@ -539,6 +539,70 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: expire machine suggestions and emit amendment/deadline/closure alerts (hourly at :20 UTC)',
     enabled: false,
   },
+  // Funding Opportunities P19: MakeGov/Tango reviewed-UEI entity shadow sync.
+  // Declared disabled until the real-key live run (decision-log, P19) is
+  // followed by an internal canary — same posture as every other Funding
+  // Opportunities job in this block. Enable out-of-band only; never deploy
+  // the drifted Compute stack. Daily, not hourly: a client's own UEI changes
+  // rarely, so there is no freshness reason to poll more often, and every
+  // run only ever touches clients WHERE uei IS NOT NULL (a name-only client
+  // never triggers a Tango call — this phase's own acceptance bar).
+  {
+    id: 'SyncTangoEntities',
+    command: ['sync-tango-entities', '--commit'],
+    cron: { minute: '5', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: reviewed-UEI entity shadow sync into tango_resource_snapshot (daily 12:05 UTC)',
+    enabled: false,
+  },
+  // Funding Opportunities P20: proposes durable review candidates by diffing
+  // each UEI-having client against its P19 snapshot. Never writes to
+  // `clients` — only to `client_profile_enrichment_candidate` — so this is
+  // safe to enable independently of the review workflow's own rollout;
+  // still declared disabled for now, same posture as every other job here.
+  // Scheduled 20 minutes after SyncTangoEntities so same-day snapshot
+  // changes are reflected the same day, not a full cycle behind.
+  {
+    id: 'GenerateTangoEnrichmentCandidates',
+    command: ['generate-tango-enrichment-candidates'],
+    cron: { minute: '25', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: propose client profile enrichment candidates from Tango snapshots (daily 12:25 UTC)',
+    enabled: false,
+  },
+  // Funding Opportunities P22: relevant vehicles and past-performance sync.
+  // Walks every Tango vehicle/awardee, persisting only a match against a
+  // UEI Capiro already knows (self or parent) — see the migration's own
+  // header for why this is the right scope for "relevant". Declared
+  // disabled pending the real-key live run's canary, same posture as every
+  // other Funding Opportunities job in this block.
+  {
+    id: 'SyncTangoVehicles',
+    command: ['sync-tango-vehicles', '--commit'],
+    cron: { minute: '40', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: relevant vehicles and past-performance sync into client_relevant_vehicle (daily 12:40 UTC)',
+    enabled: false,
+  },
+  // Incremental — modified_after plus a safety overlap, pages to
+  // exhaustion. Disabled pending the real-key live run's canary, same
+  // posture as every other Funding Opportunities job in this block.
+  // funding_opportunities_forecasts stays off regardless of this schedule:
+  // this job populates tango_procurement_forecast, it does not surface
+  // anything — a forecast becomes visible only once a later phase turns
+  // that flag on.
+  {
+    id: 'SyncTangoForecasts',
+    command: ['sync-tango-forecasts', '--commit'],
+    cron: { minute: '50', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

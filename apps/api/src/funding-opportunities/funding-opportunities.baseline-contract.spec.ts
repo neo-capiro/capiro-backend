@@ -192,6 +192,9 @@ const OPPORTUNITY: FundingOpportunity = {
   // Null is the honest value on an unscoped row. The constructor below covers the
   // populated shape.
   recommendation: null,
+  // P23. Null for the same reason: no client, nothing to score a vehicle
+  // position against.
+  acquisitionPosition: null,
   matchedSignals: [],
   missingProfileFields: [],
   sourceUpdatedAt: null,

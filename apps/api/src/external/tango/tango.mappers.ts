@@ -265,8 +265,13 @@ export function mapEntity(raw: Record<string, unknown>, fetchedAt: string): Tang
     // not for what a later phase might want it to mean.
     samExpirationDate: iso(picked.sam_expiration_date),
     physicalAddress: address(picked.physical_address),
-    entityStructure: str(picked.entity_structure_desc),
-    stateOfIncorporation: str(picked.state_of_incorporation_code),
+    // Always null: neither this SDK's own field name nor the live server's
+    // current one round-trips end-to-end through @makegov/tango-node@1.1.0 —
+    // a genuine SDK-vs-server incompatibility, not an absent value to
+    // recover with a fallback. See ENTITY_FIELDS's doc (P19, decision-log
+    // D-35) before assuming this is fixable with a different field name.
+    entityStructure: null,
+    stateOfIncorporation: null,
   };
 }
 
@@ -324,32 +329,69 @@ export function mapNotice(raw: Record<string, unknown>, fetchedAt: string): Tang
   };
 }
 
+/** `organization(agency_code,agency_name,department_code,department_name,office_code,office_name,organization_id)`. Every level independently nullable — see TangoForecast's own doc. */
+function forecastOrganization(value: unknown): {
+  departmentCode: string | null;
+  departmentName: string | null;
+  organizationAgencyCode: string | null;
+  organizationAgencyName: string | null;
+  officeCode: string | null;
+  officeName: string | null;
+  organizationId: string | null;
+} {
+  const o = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return {
+    departmentCode: str(o.department_code),
+    departmentName: str(o.department_name),
+    organizationAgencyCode: str(o.agency_code),
+    organizationAgencyName: str(o.agency_name),
+    officeCode: str(o.office_code),
+    officeName: str(o.office_name),
+    organizationId: str(o.organization_id),
+  };
+}
+
+/** Structured on the live server despite the SDK typing this field as a plain string — see TangoForecastContact's own doc. */
+function forecastContact(value: unknown): TangoForecast['primaryContact'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const o = value as Record<string, unknown>;
+  return { name: str(o.name), email: str(o.email), phone: str(o.phone), title: str(o.title) };
+}
+
 export function mapForecast(raw: Record<string, unknown>, fetchedAt: string): TangoForecast | null {
   const picked = pick(raw, 'forecast');
   const forecastId = str(picked.id);
   if (forecastId == null) return null;
+  const org = forecastOrganization(picked.organization);
   return {
-    // The forecast model carries NO modified stamp at all. Null rather than
-    // fetchedAt: "when we looked" is not "when it changed", and conflating the two
-    // would make every sync look like a material update.
-    provenance: provenance('forecast', forecastId, null, fetchedAt),
+    // `modified` is real (D-45) — the live server's own last-touched stamp,
+    // requested via the raw-HTTP bypass tango.client.ts's listForecasts uses.
+    // This is NOT the SDK's typed materialization, so there is no client-side
+    // schema to fight here.
+    provenance: provenance('forecast', forecastId, iso(picked.modified), fetchedAt),
     forecastId,
     externalId: str(picked.external_id),
     title: str(picked.title),
     description: str(picked.description),
     agency: str(picked.agency),
+    ...org,
     anticipatedAwardDate: iso(picked.anticipated_award_date),
     estimatedPeriod: str(picked.estimated_period),
     fiscalYear: int(picked.fiscal_year),
     naicsCode: str(picked.naics_code),
+    // Confirmed absent from this resource's own available_fields (D-45) —
+    // not a naming guess, not an oversight. See TangoForecast's own doc.
+    pscCode: null,
     setAside: codeDescription(picked.set_aside),
     contractVehicle: str(picked.contract_vehicle),
     // A STRING on this model, not a structured address.
     placeOfPerformance: str(picked.place_of_performance),
-    primaryContact: str(picked.primary_contact),
+    primaryContact: forecastContact(picked.primary_contact),
     status: str(picked.status),
     isActive: bool(picked.is_active),
     sourceSystem: str(picked.source_system),
+    // Confirmed absent from this resource's own available_fields (D-45).
+    sourceUrl: null,
   };
 }
 
@@ -406,7 +448,11 @@ export function mapVehicleAwardee(
     // identifier, and matching on one is the fuzzy identity P02 removed from the
     // award-history rail.
     recipientUei: str(recipient.uei),
-    recipientParentUei: str(recipient.parent_uei),
+    // Always null: this endpoint's `recipient` expansion has no parent/owner
+    // UEI field at all (confirmed live, P22, decision-log D-41) — not an
+    // absent value to recover with a fallback. See VEHICLE_AWARDEE_FIELDS's
+    // own doc before assuming a different field name fixes this.
+    recipientParentUei: null,
     recipientName: str(recipient.display_name ?? recipient.legal_business_name),
   };
 }
