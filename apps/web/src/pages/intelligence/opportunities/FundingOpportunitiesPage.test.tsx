@@ -74,6 +74,8 @@ vi.mock('../../../lib/intel-feature-flags.js', () => ({
 const setSearchParamsMock = vi.fn((next: URLSearchParams) => {
   urlStore.set(next.toString() ? `?${next.toString()}` : '');
 });
+// `useNavigate` is reached through P12's detail drawer, which the inbox renders.
+const navigateMock = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async () => {
   const React = await import('react');
   return {
@@ -81,6 +83,7 @@ vi.mock('react-router-dom', async () => {
       const search = React.useSyncExternalStore(urlStore.subscribe, urlStore.get, urlStore.get);
       return [new URLSearchParams(search), setSearchParamsMock];
     },
+    useNavigate: () => navigateMock,
     Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
   };
 });

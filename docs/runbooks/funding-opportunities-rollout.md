@@ -536,6 +536,30 @@ Rollback for the UI is the flag alone: set `enabled = false` and the page return
 the raw catalog on the next load. A user sitting on a `?view=inbox` URL falls back to
 Explore rather than breaking, so no bookmark needs fixing.
 
+### The detail surface (P12)
+
+`/intelligence/opportunities/:source/:sourceRecordId?clientId=<uuid>` is a real
+route from P12 onwards. It is gated on the MASTER `funding_opportunities` flag only,
+not on the inbox flag — a detail link has to keep working for a tenant that is on
+the catalog. It reads the existing `GET /opportunities/:source/:id`, which has been
+deployed since before this program started, so there is nothing new to smoke-test on
+the API side.
+
+Five of its eight sections are placeholders until later phases fill them
+(acquisition position P23, government landscape P33, requirements P29–P31, notice
+timeline P28, full assessment P32). Each says "Not yet available" and names what it
+will hold. If a reviewer reports these as bugs, they are the shell working as
+designed — see decision-log D-15.
+
+```bash
+# A stale or wrong record id must return the record-does-not-exist state, not a
+# blank page. The API answers 404; the page renders "No such opportunity".
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/sam_gov/00000000-0000-0000-0000-000000000000"   # expect: 404
+```
+
+Rollback is reverting the route and the two components. There is no data, schema or
+flag change to undo.
+
 ## 17. Internal feature flag
 
 ```bash

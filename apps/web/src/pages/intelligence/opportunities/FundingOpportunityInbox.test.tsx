@@ -51,6 +51,11 @@ vi.mock('../../../lib/intel-feature-flags.js', () => ({
 const setSearchParamsMock = vi.fn((next: URLSearchParams) => {
   urlStore.set(next.toString() ? `?${next.toString()}` : '');
 });
+// P12's drawer navigates to the full-page route. Mocked here rather than switching
+// this file to a MemoryRouter: these tests are about the inbox's URL STATE, which
+// the subscribable store models exactly, and the real router is exercised by
+// FundingOpportunityDetail.test.tsx where routing is the subject.
+const navigateMock = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async () => {
   const React = await import('react');
   return {
@@ -58,6 +63,7 @@ vi.mock('react-router-dom', async () => {
       const search = React.useSyncExternalStore(urlStore.subscribe, urlStore.get, urlStore.get);
       return [new URLSearchParams(search), setSearchParamsMock];
     },
+    useNavigate: () => navigateMock,
     Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
   };
 });
@@ -595,5 +601,57 @@ describe('cursor paging neither repeats nor strands a page', () => {
     inboxData = inboxResponse({ counts: { ...ZERO_COUNTS, needs_review: 137 } });
     renderPage();
     expect(await screen.findByText(/Showing 1 of 137 in needs review/i)).toBeInTheDocument();
+  });
+});
+
+// ── P12: inbox rows open the detail drawer ──────────────────────────────────
+
+describe('an inbox row opens the detail drawer, from the URL', () => {
+  test('there is no drawer until a row is opened', async () => {
+    renderPage();
+    await screen.findByTestId('fo-inbox-row-wf-0001');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('clicking a row title writes the ref to the URL', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Open detail for Turbofan/ }));
+    await waitFor(() => expect(urlStore.get()).toContain('detail=sam_gov%3A'));
+  });
+
+  test('the ref carries the ROW’s client, not the page filter', async () => {
+    // The inbox is cross-client. Relevance, eligibility and the decision are facts
+    // about a client-opportunity PAIR, so a drawer opened from Beta Systems' row
+    // while the page filter says Acme would otherwise show the wrong client's view.
+    inboxData = inboxResponse({
+      rows: [inboxRow({ client: { id: 'client-2', name: 'Beta Systems' } })],
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Open detail for Turbofan/ }));
+    await waitFor(() => expect(decodeURIComponent(urlStore.get())).toContain(':client-2'));
+  });
+
+  test('a detail ref in the URL opens the drawer on load, so the link is shareable', async () => {
+    urlStore.set(
+      `?detail=${encodeURIComponent('sam_gov')}:${encodeURIComponent('11111111-1111-1111-1111-111111111111')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  test('a MALFORMED detail ref leaves the drawer closed instead of crashing the queue', async () => {
+    urlStore.set('?detail=not-a-ref');
+    renderPage();
+    await screen.findByTestId('fo-inbox-row-wf-0001');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('closing clears the ref, so browser Back closes the drawer rather than leaving the page', async () => {
+    urlStore.set(
+      `?detail=${encodeURIComponent('sam_gov')}:${encodeURIComponent('11111111-1111-1111-1111-111111111111')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /close/i }));
+    await waitFor(() => expect(urlStore.get()).not.toContain('detail='));
   });
 });

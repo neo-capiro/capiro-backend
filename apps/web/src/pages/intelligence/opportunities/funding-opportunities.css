@@ -88,6 +88,41 @@
   font-size: 13px;
 }
 
+/* The title is a button (it opens a drawer, not a new document) but has to read
+   as the row's heading. `white-space: normal` because a long solicitation title
+   would otherwise be truncated to one ellipsised line by AntD's button styles. */
+.fo-inbox-row__title {
+  padding: 0;
+  height: auto;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+
+/* Detail shell (P12). Sections stack with a consistent rhythm in both frames —
+   the drawer and the full page render the same body, so they share the spacing. */
+.fo-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fo-detail__section {
+  width: 100%;
+}
+
+.fo-detail__back {
+  align-self: flex-start;
+}
+
+/* The Descriptions table in Source record is the one wide thing on this surface.
+   It scrolls inside its own box rather than making the page scroll sideways. */
+.fo-detail__section .ant-descriptions {
+  overflow-x: auto;
+}
+
 .fo-card__head {
   margin-bottom: 6px;
 }

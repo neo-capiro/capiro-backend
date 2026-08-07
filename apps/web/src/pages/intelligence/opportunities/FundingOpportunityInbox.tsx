@@ -15,9 +15,12 @@ import {
 } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
+import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
 import { readEnum, useUrlState } from './funding-opportunities-url-state.js';
 import {
   ELIGIBILITY_LABELS,
+  decodeOpportunityRef,
+  encodeOpportunityRef,
   INBOX_FILTERS,
   INBOX_FILTER_DESCRIPTIONS,
   INBOX_FILTER_LABELS,
@@ -94,6 +97,12 @@ export function FundingOpportunityInbox({
   const filter = readEnum<InboxFilter>(url.get('filter'), INBOX_FILTERS, 'needs_review');
   const source = readEnum<OpportunitySource | ''>(url.get('source'), [...SOURCES, ''], '');
   const cursor = url.get('cursor');
+  /**
+   * Which row's detail drawer is open, from the URL rather than component state, so
+   * browser Back closes it and the open row is part of a shareable link. A
+   * malformed `detail` param decodes to null, which simply means closed.
+   */
+  const openRef = decodeOpportunityRef(url.get('detail'));
 
   /**
    * Cursors already visited, for a working Previous.
@@ -254,7 +263,22 @@ export function FundingOpportunityInbox({
         <>
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             {data!.rows.map((row) => (
-              <InboxRowCard key={row.id} row={row} onSelectClient={onSelectClient} />
+              <InboxRowCard
+                key={row.id}
+                row={row}
+                onSelectClient={onSelectClient}
+                onOpenDetail={() =>
+                  url.set({
+                    detail: encodeOpportunityRef({
+                      source: row.source,
+                      sourceRecordId: row.sourceRecordId,
+                      // The ROW's client, not the page filter: the inbox is
+                      // cross-client, and the detail is a fact about the pair.
+                      clientId: row.client.id,
+                    }),
+                  })
+                }
+              />
             ))}
           </Space>
           <div className="fo-pager">
@@ -294,6 +318,13 @@ export function FundingOpportunityInbox({
           </div>
         </>
       )}
+
+      {/*
+        Rendered outside the row branch so an open drawer survives the list going
+        empty underneath it — a refetch that returns no rows must not slam shut a
+        record somebody is reading.
+      */}
+      <FundingOpportunityDrawer refValue={openRef} onClose={() => url.set({ detail: null })} />
     </div>
   );
 }
@@ -308,9 +339,11 @@ export function FundingOpportunityInbox({
 function InboxRowCard({
   row,
   onSelectClient,
+  onOpenDetail,
 }: {
   row: InboxRow;
   onSelectClient: (id: string) => void;
+  onOpenDetail: () => void;
 }) {
   const deadline = formatDeadline(row.responseDeadline, null);
   const eligibility = row.eligibility.state as EligibilityState | null;
@@ -355,7 +388,20 @@ function InboxRowCard({
       </div>
 
       <div className="fo-card__title">
-        <Text strong>{row.title}</Text>
+        {/*
+          A BUTTON, not a link with an href. Opening the drawer is a same-page
+          state change written to the URL; rendering it as an anchor would offer a
+          "open in new tab" that does not do what it says. The full-page link lives
+          inside the drawer, where it is unambiguous.
+        */}
+        <Button
+          type="link"
+          className="fo-inbox-row__title"
+          onClick={onOpenDetail}
+          aria-label={`Open detail for ${row.title}`}
+        >
+          {row.title}
+        </Button>
       </div>
       <div className="fo-card__meta">
         <Text type="secondary" style={{ fontSize: 12 }}>
