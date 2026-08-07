@@ -7,15 +7,23 @@
 }
 
 .meri-v3-workspace {
+  /* Prototype palette — "Meri Chat Workspace". Do not drift from these. */
   --meri-v3-bg: #f0f1f4;
   --meri-v3-white: #ffffff;
   --meri-v3-border: #dfe2e8;
-  --meri-v3-border-soft: #e9ebef;
+  --meri-v3-border-soft: #eaedf1;
+  --meri-v3-border-strong: #c3cbd7;
+  --meri-v3-border-hover: #b6bfcc;
   --meri-v3-ink: #131a24;
+  --meri-v3-ink-2: #263243;
   --meri-v3-secondary: #48525f;
+  --meri-v3-tertiary: #636c7a;
   --meri-v3-muted: #8792a3;
+  --meri-v3-hover: #e9ebf0;
   --meri-v3-rust: #a85f42;
+  --meri-v3-rust-deep: #8c4a31;
   --meri-v3-rust-soft: #f4ebe7;
+  --meri-v3-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   position: fixed;
   inset: 0;
   z-index: 5000;
@@ -42,6 +50,10 @@
   box-sizing: border-box;
 }
 
+.meri-v3-workspace--railless {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .meri-v3-workspace-sidebar {
   min-width: 0;
   display: flex;
@@ -51,113 +63,103 @@
   border-right: 1px solid var(--meri-v3-border);
 }
 
+/* Rail header — prototype: 16px 16px 12px, 12px ring, 15px/700 wordmark, ⌘K. */
 .meri-v3-workspace-brand {
-  height: 58px;
-  padding: 0 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 16px 16px 12px 16px;
   flex: 0 0 auto;
 }
 
-.meri-v3-workspace-brand strong,
-.meri-v3-workspace-brand small {
-  display: block;
+.meri-v3-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.meri-v3-workspace-brand strong {
+.meri-v3-brand-ring {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid var(--meri-v3-ink-2);
+  border-radius: 50%;
+}
+
+.meri-v3-brand-name {
   color: var(--meri-v3-ink);
   font-size: 15px;
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
 }
 
-.meri-v3-workspace-brand small {
-  margin-top: 2px;
+.meri-v3-brand-kbd {
+  margin-left: auto;
   color: var(--meri-v3-muted);
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+.meri-v3-brand-firm {
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--meri-v3-tertiary);
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-transform: uppercase;
 }
 
-.meri-v3-workspace-avatar {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  display: grid;
-  place-items: center;
-  overflow: visible;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px rgba(19, 26, 36, 0.08);
-}
-
-.meri-v3-workspace-avatar img {
-  display: block;
-  width: 26px;
-  height: 26px;
-  object-fit: contain;
-}
-
-.meri-v3-workspace-avatar > span {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 8px;
-  height: 8px;
-  border: 2px solid var(--meri-v3-bg);
-  border-radius: 999px;
-  background: #2fa36b;
-}
-
+/* Prototype: solid graphite block, square, 13px/700, hover #263243. */
 .meri-v3-new-thread {
-  height: 36px;
-  margin: 4px 12px 12px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid var(--meri-v3-border);
-  border-radius: 7px;
-  color: var(--meri-v3-ink);
-  background: var(--meri-v3-white);
+  width: calc(100% - 28px);
+  margin: 0 14px;
+  padding: 9px 10px;
+  display: block;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background: var(--meri-v3-ink);
   font: inherit;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-align: center;
   cursor: pointer;
-  box-shadow: 0 1px 1px rgba(19, 26, 36, 0.03);
+  user-select: none;
+  transition: background 0.14s ease;
 }
 
 .meri-v3-new-thread:hover {
-  border-color: #c9cdd5;
-  background: #fafafa;
+  background: var(--meri-v3-ink-2);
 }
 
 .meri-v3-thread-rail {
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+/* Prototype: search box sits directly under "+ New thread" in the same
+   14px-gutter block, 8px below it. */
+.meri-v3-workspace .meri-rail-search {
+  padding: 8px 14px 10px;
+  flex: 0 0 auto;
+}
+
+/* Prototype rail footer: 11px 16px, 10px gap, mono 10px. */
 .meri-v3-sidebar-footer {
-  min-height: 42px;
-  padding: 10px 16px;
+  padding: 11px 16px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   flex: 0 0 auto;
   border-top: 1px solid var(--meri-v3-border);
-  color: var(--meri-v3-muted);
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.055em;
+  color: var(--meri-v3-tertiary);
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -178,16 +180,44 @@
   background: var(--meri-v3-white);
 }
 
+/* Prototype command header: 52px, 0 20px, 12px gap, hairline #EAEDF1. */
 .meri-v3-workspace-header {
   height: 52px;
-  padding: 0 18px 0 22px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  gap: 12px;
   flex: 0 0 52px;
-  border-bottom: 1px solid var(--meri-v3-border);
-  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid var(--meri-v3-border-soft);
+  background: var(--meri-v3-white);
+}
+
+/* Prototype: 30x30 hairline square, three 13x1.5 bars. */
+.meri-v3-sidebar-toggle {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.14s ease;
+}
+
+.meri-v3-sidebar-toggle:hover {
+  border-color: var(--meri-v3-border-hover);
+}
+
+.meri-v3-sidebar-toggle span {
+  width: 13px;
+  height: 1.5px;
+  background: var(--meri-v3-secondary);
 }
 
 .meri-v3-conversation-identity {
@@ -207,7 +237,7 @@
   color: var(--meri-v3-ink);
   background: transparent;
   font: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
   line-height: 1.3;
   text-overflow: ellipsis;
@@ -276,10 +306,67 @@
 }
 
 .meri-v3-workspace-body {
+  position: relative;
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
+}
+
+/* Prototype: soft fade between the command header and the scrolling
+   thread. */
+.meri-v3-workspace-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 9px;
+  height: 26px;
+  z-index: 6;
+  background: linear-gradient(#ffffff 12%, rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+/* Prototype header chips: mono 9px uppercase hairline lozenges. */
+.meri-v3-header-chip {
+  max-width: 260px;
+  height: 26px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 5px;
+  color: var(--meri-v3-secondary);
+  background: #f8f9fa;
+  font-family: var(--meri-v3-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.meri-v3-header-chip--control {
+  cursor: pointer;
+}
+
+.meri-v3-header-chip--control:hover:not(:disabled),
+.meri-v3-header-chip--control:focus {
+  border-color: #cab9b1;
+  color: var(--meri-v3-rust);
+  background: #fcf8f6;
+  outline: 0;
+}
+
+.meri-v3-header-chip--control:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.meri-v3-header-chip--verify {
+  color: var(--meri-v3-tertiary);
 }
 
 .meri-v3-reasoning-picker {
@@ -404,22 +491,27 @@
   background: transparent;
 }
 
-.meri-v3-workspace .meri-rail-search {
-  padding: 0 12px 10px;
-}
-
+/* Prototype search: square hairline box on white, mono uppercase input. */
 .meri-v3-workspace .meri-rail-search .ant-input-affix-wrapper {
-  height: 32px;
-  border: 1px solid var(--meri-v3-border);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
+  height: auto;
+  padding: 6px 9px;
+  border: 1px solid var(--meri-v3-border-strong);
+  border-radius: 0;
+  background: var(--meri-v3-white);
   box-shadow: none;
 }
 
 .meri-v3-workspace .meri-rail-search .ant-input {
   color: var(--meri-v3-ink);
   background: transparent;
-  font-size: 11px;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+}
+
+.meri-v3-workspace .meri-rail-search .ant-input::placeholder {
+  color: var(--meri-v3-muted);
+  text-transform: uppercase;
 }
 
 .meri-v3-workspace .meri-rail-search-icon {
@@ -431,15 +523,16 @@
   margin: 0;
 }
 
+/* Prototype group label: mono 10.5px / .09em, flush at 8px. */
 .meri-v3-workspace .meri-rail-group-header {
-  min-height: 28px;
-  padding: 4px 14px;
-  color: var(--meri-v3-muted);
+  min-height: 0;
+  padding: 0 8px;
+  color: var(--meri-v3-tertiary);
   background: transparent;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.07em;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
@@ -457,47 +550,77 @@
   padding: 0 8px 5px;
 }
 
+/* Prototype thread row: square, 2px active spine, 2px gutter between rows. */
 .meri-v3-workspace .meri-rail-item,
 .meri-v3-workspace .meri-rail-search-result {
-  min-height: 46px;
-  margin: 1px 0;
-  border: 0;
-  border-radius: 6px;
+  min-height: 0;
+  margin: 0 0 2px 0;
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
+  transition:
+    background 0.13s ease,
+    box-shadow 0.13s ease;
 }
 
 .meri-v3-workspace .meri-rail-item:hover,
 .meri-v3-workspace .meri-rail-search-result:hover {
-  background: rgba(255, 255, 255, 0.62);
+  background: var(--meri-v3-hover);
 }
 
 .meri-v3-workspace .meri-rail-item--active,
 .meri-v3-workspace .meri-rail-search-result--active {
+  border-color: var(--meri-v3-border);
+  border-left-color: var(--meri-v3-ink);
   background: var(--meri-v3-white);
   box-shadow: 0 1px 2px rgba(19, 26, 36, 0.05);
 }
 
 .meri-v3-workspace .meri-rail-item-main,
 .meri-v3-workspace .meri-rail-search-result {
-  padding: 7px 8px;
+  padding: 9px 10px 9px 9px;
 }
 
 .meri-v3-workspace .meri-rail-item-icon {
   display: none;
 }
 
+/* Prototype row title: 13px/1.35, 600 idle -> 700 active. */
 .meri-v3-workspace .meri-rail-item-title,
 .meri-v3-workspace .meri-rail-search-result-title {
-  color: var(--meri-v3-ink);
-  font-size: 11px;
-  font-weight: 650;
+  overflow: hidden;
+  color: var(--meri-v3-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.meri-v3-workspace .meri-rail-item--active .meri-rail-item-title,
+.meri-v3-workspace .meri-rail-search-result--active .meri-rail-search-result-title {
+  color: var(--meri-v3-ink);
+  font-weight: 700;
+}
+
+/* Prototype row meta: mono 10.5px, 3px below the title. */
 .meri-v3-workspace .meri-rail-item-snippet,
 .meri-v3-workspace .meri-rail-search-result-snippet,
 .meri-v3-workspace .meri-rail-item-time {
+  margin-top: 3px;
+  overflow: hidden;
   color: var(--meri-v3-muted);
-  font-size: 9px;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meri-v3-workspace .meri-rail-item--active .meri-rail-item-snippet,
+.meri-v3-workspace .meri-rail-item--active .meri-rail-item-time {
+  color: var(--meri-v3-tertiary);
 }
 
 .meri-v3-workspace .meri-rail-item-archive {
@@ -549,10 +672,11 @@
   margin-top: 10px;
 }
 
+/* Prototype thread column: 28px side gutters, 720px content measure. */
 .meri-v3-workspace .chat-messages {
   width: 100%;
   min-height: 0;
-  padding: 34px max(24px, calc((100% - 720px) / 2)) 28px;
+  padding: 0 28px 12px;
   flex: 1 1 auto;
   overflow-y: auto;
   background: var(--meri-v3-white);
@@ -561,106 +685,431 @@
 
 .meri-v3-workspace .meri-turn {
   width: 100%;
-  margin: 0 auto 24px;
-}
-
-.meri-v3-workspace .meri-turn--user {
   max-width: 720px;
+  margin: 0 auto;
 }
 
-.meri-v3-workspace .meri-turn--assistant {
-  max-width: 720px;
+.meri-v3-workspace .meri-turn + .meri-turn {
+  margin-top: 26px;
 }
 
-.meri-v3-workspace .chat-message--user,
-.meri-v3-workspace .chat-message-user {
-  border-radius: 12px 12px 3px 12px;
-  background: #f2f3f5;
+/* Prototype day divider: hairlines flanking a mono 10px label. */
+.meri-v3-workspace .meri-v3-day-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
 }
 
-.meri-v3-workspace .chat-message--assistant,
-.meri-v3-workspace .chat-message-assistant {
+.meri-v3-workspace .meri-v3-day-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--meri-v3-border-soft);
+}
+
+.meri-v3-workspace .meri-v3-day-divider-label {
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--meri-v3-muted);
+}
+
+/* Prototype user bubble: right-aligned, max 78%, square, #F3F4F7 / #E1E5EC,
+   14px/1.58. */
+.meri-v3-workspace .meri-turn--user .chat-msg {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.meri-v3-workspace .meri-turn--user .chat-msg-bubble {
+  max-width: 78%;
+  padding: 11px 14px;
+  border: 1px solid #e1e5ec;
+  border-radius: 0;
   color: var(--meri-v3-ink);
+  background: #f3f4f7;
+  box-shadow: 0 1px 1px rgba(19, 26, 36, 0.02);
+  font-size: 14px;
+  line-height: 1.58;
+}
+
+/* Prototype assistant answer: no bubble fill; ring avatar replaces the
+   bubble image; body 14.5px/1.65 in secondary ink. */
+.meri-v3-workspace .meri-turn--assistant .chat-msg-bubble {
+  padding: 0;
+  border: 0;
+  color: #48525f;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+.meri-v3-workspace .chat-msg--assistant .chat-msg-avatar {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--meri-v3-ink-2);
+  border-radius: 50%;
   background: transparent;
 }
 
-.meri-v3-workspace .chat-message,
-.meri-v3-workspace .chat-message-content {
-  font-size: 13px;
-  line-height: 1.68;
+.meri-v3-workspace .chat-msg--assistant .chat-msg-avatar-image {
+  display: none;
 }
 
-.meri-v3-workspace .chat-suggestion-chip,
-.meri-v3-workspace .chat-research-action {
-  border-color: var(--meri-v3-border);
+.meri-v3-workspace .chat-msg-markdown {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.meri-v3-workspace .chat-msg-markdown strong {
+  color: var(--meri-v3-ink);
+  font-weight: 700;
+}
+
+/* Prototype [N] citation chip: superscript mono. */
+.meri-v3-workspace .chat-msg-markdown .chat-citation {
+  padding: 0 0 0 2px;
+  border: 0;
   color: var(--meri-v3-secondary);
-  background: var(--meri-v3-white);
+  background: transparent;
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  vertical-align: super;
 }
 
+/* Prototype GFM table: hairline grid, mono label column, right-aligned
+   figures and evidence. */
+.meri-v3-workspace .chat-md-table-wrap {
+  margin-top: 11px;
+  border: 1px solid var(--meri-v3-border);
+  border-bottom: none;
+  background: #fcfcfd;
+}
+
+.meri-v3-workspace .chat-md-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meri-v3-workspace .chat-md-table td,
+.meri-v3-workspace .chat-md-table th {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--meri-v3-border);
+  font-size: 13px;
+  text-align: right;
+}
+
+.meri-v3-workspace .chat-md-table td:first-child,
+.meri-v3-workspace .chat-md-table th:first-child {
+  color: var(--meri-v3-secondary);
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
+/* Prototype numbered points: mono ordinal + bold lead + quiet body. */
+.meri-v3-workspace .chat-md-list {
+  margin-top: 11px;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: meri-v3-point;
+}
+
+.meri-v3-workspace .chat-md-list li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 9px;
+  counter-increment: meri-v3-point;
+}
+
+.meri-v3-workspace .chat-md-list li::before {
+  content: counter(meri-v3-point, decimal-leading-zero);
+  flex: none;
+  min-width: 18px;
+  color: var(--meri-v3-muted);
+  font-family: var(--meri-v3-mono);
+  font-size: 11px;
+}
+
+/* Prototype "Meri · HH:MM" / user "HH:MM" meta lines. */
+.meri-v3-workspace .meri-v3-msg-meta {
+  max-width: 720px;
+  margin: 5px auto 0;
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--meri-v3-muted);
+}
+
+.meri-v3-workspace .meri-v3-msg-meta--user {
+  text-align: right;
+}
+
+/* Prototype activity log (WorkPerformed re-skin): quiet mono lines hanging
+   off a 2px #EAEDF1 rule; no fills, chips, or icon color. */
+.meri-v3-workspace .chat-tp {
+  margin: 9px 0 0;
+  border: 0;
+  border-left: 2px solid var(--meri-v3-border-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.meri-v3-workspace .chat-tp-header {
+  padding: 2px 0 2px 12px;
+  color: var(--meri-v3-muted);
+  background: transparent;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.meri-v3-workspace .chat-tp-header-icon,
+.meri-v3-workspace .chat-tp-tier {
+  color: var(--meri-v3-muted);
+}
+
+.meri-v3-workspace .chat-tp-body {
+  padding: 2px 0 2px 12px;
+  border: 0;
+  color: var(--meri-v3-muted);
+  background: transparent;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.meri-v3-workspace .chat-tp-step-label,
+.meri-v3-workspace .chat-tp-step-detail,
+.meri-v3-workspace .chat-tp-plan {
+  color: var(--meri-v3-muted);
+}
+
+/* Prototype approval card: #F0F1F4 fill, #B6BFCC border, mono label, ink
+   approve block / outlined edit / underlined discard. */
+.meri-v3-workspace .action-proposal-list {
+  margin-top: 12px;
+  padding: 14px 15px;
+  border: 1px solid var(--meri-v3-border-hover);
+  border-radius: 0;
+  background: var(--meri-v3-bg);
+  box-shadow: 0 1px 2px rgba(19, 26, 36, 0.05);
+}
+
+.meri-v3-workspace .action-proposal-list__heading {
+  color: var(--meri-v3-secondary);
+  font-family: var(--meri-v3-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Composer — prototype square box: 1px #C3CBD7, focus #263243 + soft ink
+   ring, hairline action row, square ink send. */
 .meri-v3-workspace .chat-input-area {
   width: 100%;
-  padding: 12px max(24px, calc((100% - 720px) / 2)) 18px;
+  padding: 8px 28px 16px;
   flex: 0 0 auto;
   border-top: 0;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.76), #ffffff 24%);
+  background: var(--meri-v3-white);
 }
 
 .meri-v3-workspace .chat-input-row {
   width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .meri-v3-workspace .chat-composer {
-  border: 1px solid #d5d8de;
-  border-radius: 11px;
+  border: 1px solid #c3cbd7;
+  border-radius: 0;
   background: var(--meri-v3-white);
-  box-shadow: 0 7px 25px rgba(19, 26, 36, 0.075);
+  box-shadow: 0 1px 2px rgba(19, 26, 36, 0.035);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .meri-v3-workspace .chat-composer:focus-within {
-  border-color: #b9a097;
+  border-color: var(--meri-v3-ink-2);
   box-shadow:
-    0 7px 25px rgba(19, 26, 36, 0.075),
-    0 0 0 2px rgba(168, 95, 66, 0.08);
+    0 0 0 3px rgba(38, 50, 67, 0.09),
+    0 1px 3px rgba(19, 26, 36, 0.05);
 }
 
 .meri-v3-workspace .chat-input-textarea {
-  min-height: 54px;
-  padding: 14px 15px 5px;
+  min-height: 44px;
+  padding: 13px 15px 4px;
   color: var(--meri-v3-ink);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14.5px;
+  line-height: 1.55;
 }
 
 .meri-v3-workspace .chat-input-textarea::placeholder {
-  color: #98a1ae;
+  color: var(--meri-v3-muted);
 }
 
 .meri-v3-workspace .chat-composer-actions {
-  min-height: 38px;
-  padding: 3px 7px 7px;
+  min-height: 0;
+  padding: 7px 10px 9px;
+  gap: 9px;
 }
 
+.meri-v3-workspace .chat-attach-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #c3cbd7;
+  border-radius: 0;
+  color: var(--meri-v3-secondary);
+  background: transparent;
+  font-size: 14px;
+}
+
+/* Prototype send: 28px square; ink when armed, #E9EBF0/#A7AFBC when not. */
 .meri-v3-workspace .chat-input-send.ant-btn-primary {
-  background: var(--meri-v3-rust);
-  border-color: var(--meri-v3-rust);
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 0;
+  border-radius: 0;
+  color: #a7afbc;
+  background: #e9ebf0;
   box-shadow: none;
+}
+
+.meri-v3-workspace .chat-input-send.ant-btn-primary:not(:disabled) {
+  color: #ffffff;
+  background: var(--meri-v3-ink);
+}
+
+/* Mode toggles stay available (real features absent from the mockup) but
+   take the quiet mono-chip treatment. */
+.meri-v3-workspace .chat-mode-toggle {
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 0;
+  color: var(--meri-v3-secondary);
+  background: transparent;
+  font-family: var(--meri-v3-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
 }
 
 .meri-v3-workspace .chat-mode-toggle.is-active,
 .meri-v3-workspace .chat-research-toggle.is-active,
 .meri-v3-workspace .chat-write-toggle.is-active {
+  border-color: #cab9b1;
   color: var(--meri-v3-rust);
-  background: var(--meri-v3-rust-soft);
-  border-color: #e6d3ca;
+  background: #fcf8f6;
+}
+
+/* Prototype compliance footnote under the composer. */
+.meri-v3-workspace .meri-v3-composer-footnote {
+  max-width: 720px;
+  margin: 8px auto 0;
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--meri-v3-muted);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* Suggestion chips / research actions take the prototype's hairline chip. */
+.meri-v3-workspace .chat-suggestion-chip,
+.meri-v3-workspace .chat-research-action {
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 0;
+  color: var(--meri-v3-secondary);
+  background: var(--meri-v3-white);
 }
 
 .meri-v3-workspace .chat-typing span {
-  background: var(--meri-v3-rust);
+  background: var(--meri-v3-muted);
 }
 
+/* Greeting screen — prototype: centered 680px column, 25px greeting, prompt
+   library grid of hairline cards (text + mono tag, no icons). */
 .meri-v3-workspace .meri-empty-state {
-  max-width: 720px;
-  margin: 10vh auto 0;
+  max-width: 680px;
+  margin: auto;
+  padding: 40px 28px 56px;
+}
+
+.meri-v3-workspace .meri-empty--undocked {
+  text-align: left;
+}
+
+.meri-v3-workspace .meri-empty--undocked .meri-empty-avatar {
+  display: none;
+}
+
+.meri-v3-workspace .meri-empty--undocked h2 {
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.017em;
+  line-height: 1.2;
+}
+
+.meri-v3-workspace .meri-empty--undocked p {
+  margin-top: 7px;
+  color: var(--meri-v3-secondary);
+  font-size: 14px;
+}
+
+.meri-v3-workspace .meri-empty-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.meri-v3-workspace .meri-empty-cards > button {
+  min-height: 88px;
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 0;
+  background: var(--meri-v3-white);
+  text-align: left;
+  transition: border-color 0.14s ease;
+}
+
+.meri-v3-workspace .meri-empty-cards > button:hover {
+  border-color: var(--meri-v3-border-hover);
+}
+
+.meri-v3-workspace .meri-empty-cards .meri-empty-card-icon {
+  display: none;
+}
+
+.meri-v3-workspace .meri-empty-cards strong {
+  flex: 1;
+  color: var(--meri-v3-ink-2);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.meri-v3-workspace .meri-empty-cards small {
+  margin-top: 9px;
+  overflow: hidden;
+  color: var(--meri-v3-muted);
+  font-family: var(--meri-v3-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
 }
 
 @media (max-width: 960px) {

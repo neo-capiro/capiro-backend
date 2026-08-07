@@ -1,32 +1,8 @@
+/* The scope select carries .meri-v3-header-chip (meri-workspace-window.css)
+   for the prototype chip look; only control-specific metrics live here. */
 .meri-v3-conversation-identity > select {
   max-width: 230px;
-  height: 26px;
-  padding: 0 24px 0 8px;
-  overflow: hidden;
-  border: 1px solid var(--meri-v3-border);
-  border-radius: 5px;
-  outline: 0;
-  color: var(--meri-v3-secondary);
-  background: #f8f9fa;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.meri-v3-conversation-identity > select:hover:not(:disabled),
-.meri-v3-conversation-identity > select:focus {
-  border-color: #cab9b1;
-  color: var(--meri-v3-rust);
-  background: #fcf8f6;
-}
-
-.meri-v3-conversation-identity > select:disabled {
-  cursor: default;
-  opacity: 0.55;
+  padding-right: 24px;
 }
 
 .meri-v3-workspace-error {

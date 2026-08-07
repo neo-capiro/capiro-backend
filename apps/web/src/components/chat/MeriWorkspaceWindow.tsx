@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  CheckOutlined,
-  CloseOutlined,
-  DownOutlined,
-  PlusOutlined,
-  RobotOutlined,
-} from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, DownOutlined, RobotOutlined } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
 import { MeriLegacyDrawer } from './ChatDrawer.js';
 import { SessionRail } from './SessionRail.js';
 import type { MeriChatController } from './useMeriChatController.js';
-import meriBubbleImage from '../../assets/chat/meri-bubble.png';
 import './meri-workspace-window.css';
 import './meri-workspace-window-scope.css';
 
@@ -45,6 +38,25 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
   const [savingMode, setSavingMode] = useState(false);
   const [modeError, setModeError] = useState<string | null>(null);
   const activeConversationId = controller.activeConversationId;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Prototype rail subtitle: the active client scope, or the breadth in scope.
+  const scopeLine =
+    controller.clients.find((client) => client.id === controller.selectedClientValue)?.name ??
+    `${controller.clients.length} clients in scope`;
+  // Prototype header verification chip: totals across the loaded thread's
+  // verified answers. Only rendered when at least one answer was checked —
+  // never a fabricated count.
+  const v3Verification = (() => {
+    let verified = 0;
+    let flagged = 0;
+    for (const msg of controller.messages ?? []) {
+      if (msg.role !== 'assistant' || !msg.verification || msg.verification.totalCount <= 0)
+        continue;
+      if (msg.verification.lowConfidence || msg.verification.unsupportedCount > 0) flagged += 1;
+      else verified += 1;
+    }
+    return { verified, flagged, any: verified + flagged > 0 };
+  })();
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -101,38 +113,53 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
   );
 
   return (
-    <section className="meri-v3-workspace" aria-label="Meri workspace">
-      <aside className="meri-v3-workspace-sidebar" aria-label="Meri conversations">
-        <div className="meri-v3-workspace-brand">
-          <span className="meri-v3-workspace-avatar" aria-hidden="true">
-            <img src={meriBubbleImage} alt="" />
-            <span />
-          </span>
-          <span>
-            <strong>Meri</strong>
-            <small>AI Chief of Staff</small>
-          </span>
-        </div>
-        <button
-          type="button"
-          className="meri-v3-new-thread"
-          onClick={() => void controller.handleNewSession()}
-          aria-label="New thread"
-        >
-          <PlusOutlined aria-hidden="true" />
-          New thread
-        </button>
-        <div className="meri-v3-thread-rail">
-          <SessionRail forceOpen />
-        </div>
-        <div className="meri-v3-sidebar-footer">
-          <span className="meri-v3-online-dot" aria-hidden="true" />
-          Capiro intelligence connected
-        </div>
-      </aside>
+    <section
+      className={`meri-v3-workspace${sidebarOpen ? '' : ' meri-v3-workspace--railless'}`}
+      aria-label="Meri workspace"
+    >
+      {sidebarOpen ? (
+        <aside className="meri-v3-workspace-sidebar" aria-label="Meri conversations">
+          <div className="meri-v3-workspace-brand">
+            <div className="meri-v3-brand-row">
+              <span className="meri-v3-brand-ring" aria-hidden="true" />
+              <span className="meri-v3-brand-name">Meri</span>
+              <span className="meri-v3-brand-kbd" aria-hidden="true">
+                &#8984;K
+              </span>
+            </div>
+            <div className="meri-v3-brand-firm">{scopeLine}</div>
+          </div>
+          <button
+            type="button"
+            className="meri-v3-new-thread"
+            onClick={() => void controller.handleNewSession()}
+            aria-label="New thread"
+          >
+            + New thread
+          </button>
+          <div className="meri-v3-thread-rail">
+            <SessionRail forceOpen />
+          </div>
+          <div className="meri-v3-sidebar-footer">
+            <span className="meri-v3-online-dot" aria-hidden="true" />
+            Capiro intelligence connected
+          </div>
+        </aside>
+      ) : null}
 
       <main className="meri-v3-workspace-main">
         <header className="meri-v3-workspace-header">
+          <button
+            type="button"
+            className="meri-v3-sidebar-toggle"
+            onClick={() => setSidebarOpen((open) => !open)}
+            aria-label="Toggle sidebar"
+            aria-expanded={sidebarOpen}
+          >
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+          </button>
           <div className="meri-v3-conversation-identity">
             <input
               value={controller.sessionTitle}
@@ -142,11 +169,12 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
               aria-label="Conversation title"
             />
             <select
+              className="meri-v3-scope-select meri-v3-header-chip meri-v3-header-chip--control"
               value={controller.selectedClientValue}
               onChange={(event) => void controller.changeSessionClient(event.target.value)}
               disabled={!activeConversationId || controller.isSavingMeta}
               aria-label="Conversation client scope"
-              title="Conversation client scope"
+              title="Change conversation client scope"
             >
               <option value="">General</option>
               {controller.clients.map((client) => (
@@ -155,6 +183,12 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
                 </option>
               ))}
             </select>
+            {v3Verification.any && (
+              <span className="meri-v3-header-chip meri-v3-header-chip--verify">
+                {v3Verification.verified} verified
+                {v3Verification.flagged > 0 ? ` · ${v3Verification.flagged} flag` : ''}
+              </span>
+            )}
           </div>
           <div className="meri-v3-header-actions">
             <ReasoningModePicker
@@ -189,6 +223,7 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
             embedded
             surface="undocked"
             showSessionRail={false}
+            variant="v3"
           />
         </div>
       </main>

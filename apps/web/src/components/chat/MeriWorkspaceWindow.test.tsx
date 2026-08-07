@@ -59,7 +59,7 @@ describe('MeriWorkspaceWindow', () => {
   test('renders the prototype shell around the production chat and thread rail', async () => {
     render(<MeriWorkspaceWindow controller={controller()} />);
     expect(screen.getByRole('region', { name: 'Meri workspace' })).toBeTruthy();
-    expect(screen.getByText('AI Chief of Staff')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Toggle sidebar' })).toBeTruthy();
     expect(screen.getByTestId('thread-rail')).toBeTruthy();
     expect(screen.getByTestId('production-chat')).toBeTruthy();
     expect(screen.getByDisplayValue('C2 weekly brief')).toBeTruthy();
