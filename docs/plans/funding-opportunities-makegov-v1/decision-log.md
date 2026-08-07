@@ -295,3 +295,68 @@ up on exactly the records that contain the character and on no others.
 **Relationship to P13:** P13 introduces the same idea on the API side
 (`sourceRecordKey` / `sourceRecordType`, with identity parsing centralised). These
 must stay compatible; the web ref is the URL form, P13's key is the storage form.
+
+---
+
+## D-17 · 2026-08-06 · P13 widens the DATABASE source vocabulary, not the API's
+
+The migration's `client_funding_opportunity_source_chk` now admits
+`agency_forecast`, `dibbs` and `sbir_sttr` alongside the two legacy sources.
+`OPPORTUNITY_SOURCES` in `funding-opportunities.types.ts` is unchanged, and that
+is the list every DTO, filter and route validates against.
+
+**Why widen at all, in a phase that enables no new source:** the generic branch of
+the exclusivity CHECK — "a non-legacy source carries the generic pair and no legacy
+pointer" — is unreachable if no non-legacy source is admissible. An unreachable
+constraint is an untested one, and proving that branch holds is this phase's whole
+job. It was proven by attempting the actual writes against pgvector:pg16.
+
+**How to apply:** P24, P40 and P42 each enable their source by adding it to
+`OPPORTUNITY_SOURCES` and shipping the producer that writes it. Neither needs
+another migration to do so. A spec asserts today that no service, controller or
+producer names any planned source.
+
+---
+
+## D-18 · 2026-08-06 · A CHECK that evaluates to NULL is a CHECK that PASSES
+
+The first version of P13's exclusivity CHECK contained:
+
+```sql
+("source_record_key" IS NULL AND "source_record_type" IS NULL)
+OR ("source_record_key" IS NOT NULL AND "source_record_type" = 'grants_gov_opportunity')
+```
+
+A row with a key and a NULL type takes `FALSE OR (TRUE AND NULL)` → `NULL`, and
+Postgres admits a row whose CHECK is NULL. **The row inserted successfully in
+rehearsal.** The fix is an explicit `"source_record_type" IS NOT NULL` before each
+equality, which turns the branch FALSE.
+
+**Why it matters beyond this constraint:** the all-or-nothing rule on the generic
+pair is what stops a key that cannot be resolved to a table. Silently admitting a
+half-identity would have surfaced later as an unresolvable row in whichever phase
+first tried to join on `source_record_type`.
+
+**How to apply:** any CHECK comparing a NULLABLE column with `=`, `<>` or `IN` must
+either guard with `IS NOT NULL` or use `IS [NOT] DISTINCT FROM`. Reviewing the SQL
+did not catch this; attempting the write did. Every CHECK branch in this program
+gets a real INSERT against real Postgres, one per branch, pass and fail.
+
+---
+
+## D-19 · 2026-08-06 · The CI index-declaration glob was missing every migration after the first three
+
+`.github/workflows/funding-opportunities-ci.yml` asserted that every index created
+by "the funding migrations" is declared in `schema.prisma`, globbing
+`*_funding_opportunities*/migration.sql`.
+
+The original three migrations are named `..._funding_opportunities*`. P07 is
+`20260819010000_funding_opportunity_decisions` and P13 is
+`20260820010000_funding_opportunity_generic_source` — **singular**. Neither matched,
+so the check had silently stopped covering new migrations: exactly the quiet
+shrink it exists to prevent. Widened to `*_funding_opportunit*`, which now covers
+14 indexes across all five migrations; all 14 are declared.
+
+**How to apply:** a gate that globs on a naming convention needs a test that the
+glob still matches something it is supposed to. This one had `if [ -z "$names" ]`,
+which only catches matching NOTHING — not matching a shrinking subset.

@@ -46,6 +46,12 @@ import {
 } from './missing-profile-fields.js';
 import { recommendOpportunity } from './opportunity-recommendation.js';
 import {
+  assertRequestSourceRecordId,
+  backfillIdentityColumns,
+  sourceRecordIdentityColumns,
+  sourceRecordWhere,
+} from './funding-opportunity-identity.js';
+import {
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
   type HumanDecision,
@@ -326,14 +332,21 @@ export class FundingOpportunitiesService {
       this.prisma.withTenant(tenantId, async (tx) => {
         const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
         const saved = existing
-          ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+          ? await tx.clientFundingOpportunity.update({
+              where: { id: existing.id },
+              // Backfill the generic identity on the way past. The migration
+              // filled every row that existed when it ran; this catches the tail
+              // written by pre-P13 code during the rolling deploy.
+              data: { ...data, ...backfillIdentityColumns(source, sourceRecordId) },
+            })
           : await tx.clientFundingOpportunity.create({
               data: {
                 tenantId,
                 clientId,
                 source,
-                grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
-                samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+                // DUAL-WRITE, from one place: legacy pointer AND generic identity.
+                // There is no way to call this and get only one of the two forms.
+                ...sourceRecordIdentityColumns(source, sourceRecordId),
                 evidenceSourceType: 'user_action',
                 createdBy: input.actorUserId,
                 ...data,
@@ -476,14 +489,16 @@ export class FundingOpportunitiesService {
           staleAt: null,
         };
         const saved = existing
-          ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+          ? await tx.clientFundingOpportunity.update({
+              where: { id: existing.id },
+              data: { ...data, ...backfillIdentityColumns(source, sourceRecordId) },
+            })
           : await tx.clientFundingOpportunity.create({
               data: {
                 tenantId,
                 clientId,
                 source,
-                grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
-                samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+                ...sourceRecordIdentityColumns(source, sourceRecordId),
                 // A decision IS a human action, so the row it creates is
                 // user-created and the producer must never overwrite it.
                 evidenceSourceType: 'user_action',
@@ -638,14 +653,16 @@ export class FundingOpportunitiesService {
     };
 
     const saved = existing
-      ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+      ? await tx.clientFundingOpportunity.update({
+          where: { id: existing.id },
+          data: { ...data, ...backfillIdentityColumns(input.source, input.sourceRecordId) },
+        })
       : await tx.clientFundingOpportunity.create({
           data: {
             tenantId: input.tenantId,
             clientId: input.clientId,
             source: input.source,
-            grantOpportunityId: input.source === 'grants_gov' ? input.sourceRecordId : null,
-            samOpportunityId: input.source === 'sam_gov' ? input.sourceRecordId : null,
+            ...sourceRecordIdentityColumns(input.source, input.sourceRecordId),
             evidenceSourceType: 'user_action',
             createdBy: input.actorUserId,
             ...data,
@@ -791,8 +808,7 @@ export class FundingOpportunitiesService {
             tenantId,
             clientId,
             source,
-            grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
-            samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+            ...sourceRecordIdentityColumns(source, sourceRecordId),
             evidenceSourceType: 'user_action',
             createdBy: input.actorUserId,
             relevanceScore: score.relevanceScore,
@@ -1326,23 +1342,30 @@ export class FundingOpportunitiesService {
     });
   }
 
+  /**
+   * The one place a workflow row is located by its source record.
+   *
+   * DUAL-READ since P13: the predicate matches either the legacy pointer or the
+   * generic identity. For the two legacy sources both branches select the same
+   * row, so the OR costs nothing — what it buys is that a row written by pre-P13
+   * code during a rolling deploy (legacy pointer only, generic pair still null)
+   * and a row written by a future source (generic pair only) are both findable by
+   * the same call.
+   *
+   * The SAM uuid check is `assertRequestSourceRecordId`, which is deliberately NOT
+   * part of building an identity: producers read that id out of a uuid column and
+   * cannot produce a malformed one, so validating there would only reject their
+   * own valid data. Every caller of this method reaches it from a request.
+   */
   private async findWorkflowRow(
     tx: Prisma.TransactionClient,
     clientId: string,
     source: OpportunitySource,
     sourceRecordId: string,
   ) {
-    if (source === 'sam_gov' && !UUID_RE.test(sourceRecordId)) {
-      throw new BadRequestException('SAM opportunity id must be a UUID');
-    }
+    assertRequestSourceRecordId(source, sourceRecordId);
     return tx.clientFundingOpportunity.findFirst({
-      where: {
-        clientId,
-        source,
-        ...(source === 'grants_gov'
-          ? { grantOpportunityId: sourceRecordId }
-          : { samOpportunityId: sourceRecordId }),
-      },
+      where: { clientId, ...sourceRecordWhere(source, sourceRecordId) },
     });
   }
 

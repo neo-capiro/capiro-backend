@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OPPORTUNITY_SOURCES, type OpportunitySource } from './funding-opportunities.types.js';
+import { readSourceRecordId } from './funding-opportunity-identity.js';
 
 /**
  * The cross-client triage inbox: what a government-affairs team needs to look at,
@@ -340,6 +341,10 @@ export class FundingOpportunityInboxService {
           source: true,
           grantOpportunityId: true,
           samOpportunityId: true,
+          // P13's generic identity, selected so the row's source record id can be
+          // read from either form. A row written by pre-P13 code during a rolling
+          // deploy has only the legacy pointer; a future source will have only this.
+          sourceRecordKey: true,
           workflowStatus: true,
           humanDecision: true,
           nextAction: true,
@@ -379,7 +384,7 @@ export class FundingOpportunityInboxService {
             name: clientsById.get(row.clientId) ?? 'Unknown client',
           },
           source: row.source as OpportunitySource,
-          sourceRecordId: row.grantOpportunityId ?? row.samOpportunityId ?? '',
+          sourceRecordId: readSourceRecordId(row) ?? '',
           // A missing title says so. It never renders as an empty card, and it
           // never silently drops the row — a decision context whose source row is
           // gone is exactly what somebody needs to see.

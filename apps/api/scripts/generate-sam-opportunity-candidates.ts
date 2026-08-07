@@ -78,6 +78,7 @@ import {
   resolveContractorUeis,
 } from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 import { samNoticeKind } from '../src/funding-opportunities/opportunity-kind.js';
+import { sourceRecordIdentityColumns } from '../src/funding-opportunities/funding-opportunity-identity.js';
 import { NON_PURSUABLE_KINDS } from '../src/funding-opportunities/funding-opportunities.types.js';
 import {
   decideProducerAction,
@@ -517,8 +518,10 @@ export async function generateSamCandidates(
                               tenantId,
                               clientId: client.clientId,
                               source: 'sam_gov',
-                              samOpportunityId: notice.id,
-                              grantOpportunityId: null,
+                              // DUAL-WRITE (P13): legacy pointer AND generic
+                              // identity, from one helper so a producer cannot
+                              // emit a row the generic index does not see.
+                              ...sourceRecordIdentityColumns('sam_gov', notice.id),
                               workflowStatus: 'suggested',
                               evidenceSourceType: EVIDENCE_SOURCE_TYPE,
                               userCreated: false,

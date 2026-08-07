@@ -99,6 +99,47 @@ deployed and digest-verified, and still 500'd for every tenant because its
 migrations were never applied. A green ECS digest proves the right *image* is
 running. It does not prove the schema that image needs exists.
 
+### Funding Opportunities migrations, in apply order
+
+| Migration | Phase | What it adds |
+|---|---|---|
+| `20260810010000_funding_opportunities` | pre-program | `client_funding_opportunity`, RLS, the two partial unique indexes |
+| `20260810020000_funding_opportunities_closeout` | pre-program | closeout fields |
+| `20260810040000_funding_opportunities_lifecycle_truth` | pre-program | lifecycle snapshot columns + 3 indexes |
+| `20260819010000_funding_opportunity_decisions` | P07 | 6 nullable decision columns, 3 CHECKs, partial decision index |
+| `20260820010000_funding_opportunity_generic_source` | P13 | `source_record_type` / `source_record_key`, widened vocabulary, expanded exclusivity CHECK, partial generic unique index |
+
+All are additive and forward-only. **None may be rolled back by dropping a column.**
+
+#### P13 specifically
+
+Ordering matters and the safe order is the normal one: **migration first, API
+second.** The two new columns are nullable and, for the two legacy sources,
+optional — so an API still running pre-P13 code keeps inserting rows with only the
+legacy pointer, and the CHECK admits them. New code reads either form and backfills
+the generic pair the first time it touches such a row.
+
+The one-shot backfill inside the migration is idempotent (`WHERE source_record_key
+IS NULL`). After applying, confirm it reached everything:
+
+```sql
+-- READ-ONLY. Expect 0 and 0.
+SELECT count(*) AS missing_generic_identity
+  FROM client_funding_opportunity
+ WHERE source IN ('grants_gov','sam_gov')
+   AND (source_record_key IS NULL OR source_record_type IS NULL);
+
+SELECT count(*) AS generic_disagrees_with_legacy
+  FROM client_funding_opportunity
+ WHERE source IN ('grants_gov','sam_gov')
+   AND source_record_key <> coalesce(grant_opportunity_id, sam_opportunity_id::text);
+```
+
+A non-zero first count after the API has fully rolled means rows were written by
+pre-P13 code during the deploy window; re-running the two `UPDATE` statements from
+the migration file is safe and fixes it. A non-zero second count is a real defect —
+stop and investigate, do not "repair" it.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

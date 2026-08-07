@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -268,11 +268,49 @@ jobs:
           check "four RLS policies" \
             "SELECT count(*) FROM pg_policies WHERE tablename='client_funding_opportunity'" "4"
 
-          # Both partial unique indexes. Postgres treats NULLs as distinct, so one
-          # unique index across the nullable source pair would admit unlimited
-          # duplicates for the other source.
-          check "both partial unique indexes" \
-            "SELECT count(*) FROM pg_indexes WHERE tablename='client_funding_opportunity' AND indexname LIKE '%\\_uniq'" "2"
+          # THREE partial unique indexes now: grant, sam, and P13's generic
+          # identity. Postgres treats NULLs as distinct, so one unique index across
+          # the nullable source pair would admit unlimited duplicates for the other
+          # source — and the same reasoning is why the generic one is partial too.
+          check "three partial unique indexes" \
+            "SELECT count(*) FROM pg_indexes WHERE tablename='client_funding_opportunity' AND indexname LIKE '%\\_uniq'" "3"
+
+          # ── P13 generic source identity ──────────────────────────────────────
+          # Both columns nullable and DEFAULT-free. Nullable is load-bearing: code
+          # deployed before P13 writes neither, so a NOT NULL turns the older API
+          # into a hard failure the moment the migration lands.
+          for col in source_record_type source_record_key; do
+            check "$col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='$col'"               "YES"
+          done
+          check "no generic identity column has a DEFAULT"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name IN ('source_record_type','source_record_key') AND column_default IS NOT NULL"             "0"
+
+          # The legacy pointers must SURVIVE. Removing them is a separate contract
+          # phase that has not been approved, and old code reads them.
+          check "grant_opportunity_id still exists"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='grant_opportunity_id'"             "1"
+          check "sam_opportunity_id still exists"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='sam_opportunity_id'"             "1"
+
+          check "generic identity unique index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_generic_uniq'"             "1"
+          check "generic identity unique index is PARTIAL"             "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_generic_uniq'"             "yes"
+          check "generic identity unique index includes source"             "SELECT CASE WHEN indexdef LIKE '%source,%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_generic_uniq'"             "yes"
+          check "generic identity lookup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_source_record_idx'"             "1"
+
+          # The vocabulary CHECK is WIDENED, never narrowed: the three planned
+          # sources must be admissible so the generic branch of the exclusivity
+          # CHECK is reachable, and therefore testable.
+          for src in grants_gov sam_gov agency_forecast dibbs sbir_sttr; do
+            check "source vocabulary admits $src"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$src''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='client_funding_opportunity_source_chk'"               "yes"
+          done
+
+          # THE THREE-VALUED-LOGIC GUARD. A CHECK passes when it evaluates to TRUE
+          # *or to NULL*, and `NULL = 'x'` is NULL — so an unguarded
+          # `type = 'sam_notice'` admits a row with a key and a NULL type. The first
+          # version of this migration did exactly that and the row inserted
+          # successfully in rehearsal. Both equality tests must reject NULL first.
+          #
+          # THREE occurrences, measured against the real constraint: two guarding the
+          # legacy equality tests, plus the future-source branch's own requirement
+          # that the pair be present.
+          check "exclusivity CHECK guards both equalities against NULL"             "SELECT (length(pg_get_constraintdef(oid)) - length(replace(pg_get_constraintdef(oid), 'source_record_type IS NOT NULL', '')))/length('source_record_type IS NOT NULL') FROM pg_constraint WHERE conname='client_funding_opportunity_one_source_chk'"             "3"
 
           exit $fail
 
@@ -286,8 +324,13 @@ jobs:
         run: |
           set -uo pipefail
           fail=0
+          # Glob on `_funding_opportunit*`, not `_funding_opportunities*`. The
+          # original three migrations are named ...opportunitIES; P07 and P13 are
+          # named ...opportunitY_<thing>, so the narrower glob silently stopped
+          # covering every migration added after the first three — the exact quiet
+          # shrink this gate exists to prevent.
           names=$(grep -ho 'CREATE INDEX IF NOT EXISTS "[a-z_]*"' \
-                    apps/api/prisma/migrations/*_funding_opportunities*/migration.sql \
+                    apps/api/prisma/migrations/*_funding_opportunit*/migration.sql \
                   | sed 's/.*"\(.*\)"/\1/' | sort -u)
           if [ -z "$names" ]; then
             echo "::error::found no CREATE INDEX statements in the funding migrations — the glob is wrong."
@@ -351,7 +394,9 @@ jobs:
       # (opportunity-explanation.spec.ts), 29/950 after P10
       # (funding-opportunity-inbox.spec.ts), 29/965 after P11 (no new api suite —
       # P11 is a web phase — but the inbox suite gained the selected-client and
-      # source-filter narrowing tests the triage UI depends on).
+      # source-filter narrowing tests the triage UI depends on), 30/1015 after P13
+      # (funding-opportunity-identity.spec.ts, a NEW suite: the suite floor has to
+      # move with it or the dual-read/dual-write proof could be deleted while green).
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -360,7 +405,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 29 965
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 30 1015
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
