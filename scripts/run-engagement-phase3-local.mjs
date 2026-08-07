@@ -10,6 +10,7 @@
 
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPhase3Proxy } from './engagement-phase3-local-proxy.mjs';
@@ -26,7 +27,9 @@ if (STATUS) throw new Error(`Phase 3 local acceptance requires a clean checkout:
 const EVIDENCE = path.resolve(ROOT, args.evidenceDir ?? `.artifacts/engagement-phase3-${SHA}`);
 const LOGS = path.join(EVIDENCE, 'logs');
 const FIXTURES = path.join(EVIDENCE, 'fixtures.json');
-const TOKEN_FILE = path.join(EVIDENCE, 'admin-bearer-token');
+// Bearer material is deliberately outside the evidence directory and deleted in
+// finally. Evidence may be retained or uploaded; auth material may not.
+const TOKEN_FILE = path.join(os.tmpdir(), `capiro-engagement-phase3-token-${process.pid}`);
 const DB_PORT = String(args.dbPort ?? 55474);
 const MAIN_PORT = String(args.mainPort ?? 4000);
 const ENGAGEMENT_PORT = String(args.engagementPort ?? 4500);
@@ -319,6 +322,7 @@ async function main() {
       true,
     ).catch(() => undefined);
     await run('remove-postgres', docker, ['rm', '-f', CONTAINER], commonEnv, true).catch(() => undefined);
+    await rm(TOKEN_FILE, { force: true }).catch(() => undefined);
   }
 }
 
