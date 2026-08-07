@@ -4208,10 +4208,13 @@ model ReconciliationReviewQueue {
   queuedAt                    DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
   lastObservedAt              DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
   observationCount            Int       @default(1) @map("observation_count")
+  /// `open` -> `pending_approval` (a correction was proposed) -> `resolved`.
   status                      String    @default("open") @db.VarChar(20)
   resolvedByUserId            String?   @map("resolved_by_user_id") @db.Uuid
   resolvedAt                  DateTime? @map("resolved_at") @db.Timestamptz(6)
   resolutionNotes             String?   @map("resolution_notes") @db.Text
+  /// Phase 7 WS K: the governed override proposed from this entry, if any.
+  proposedOverrideId          String?   @map("proposed_override_id") @db.Uuid
 
   @@index([status, queuedAt(sort: Desc)], map: "reconciliation_review_queue_status_idx")
   @@index([peCode, fy], map: "reconciliation_review_queue_pe_fy_idx")
@@ -8789,4 +8792,370 @@ model BudgetReviewDecisionV1 {
 
   @@index([candidateId, createdAt], map: "budget_v1_review_candidate_idx")
   @@map("budget_review_decision_v1")
+}
+
+// ===========================================================================
+// Phase 7 Workstream D — canonical snapshot storage and the promotion ledger.
+//
+// Migration: 20260822010000_pe_budget_phase7_canonical_promotion
+//
+// These tables are the canonical boundary. Writing them requires the dedicated
+// `capiro_pe_promoter` role, and rows belonging to a snapshot that has left
+// STAGING are immutable for every role including the promoter — enforced by
+// BEFORE row triggers, not by grants alone, because ALTER DEFAULT PRIVILEGES
+// re-grants DML to capiro_app on every newly created table.
+// ===========================================================================
+
+model DefenseBudgetCanonicalSnapshot {
+  id                  String    @id @default(uuid()) @db.Uuid
+  snapshotKey         String    @unique(map: "defense_budget_canonical_snapshot_key_unique") @map("snapshot_key")
+  domain              String    @default("defense_budget") @db.VarChar(64)
+  environment         String    @db.VarChar(32)
+  cycleId             String    @map("cycle_id")
+  fiscalYear          Int       @map("fiscal_year")
+  status              String    @default("STAGING") @db.VarChar(32)
+  requiredScopes      Json      @default("[]") @map("required_scopes")
+  completedScopes     Json      @default("[]") @map("completed_scopes")
+  snapshotHash        String?   @map("snapshot_hash") @db.Char(64)
+  mappingRegistryHash String    @map("mapping_registry_hash") @db.Char(64)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  activatedAt         DateTime? @map("activated_at") @db.Timestamptz(6)
+  supersededAt        DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  activePointers        DefenseBudgetActiveSnapshot[]
+  runs                  DefenseBudgetPromotionRun[]
+  canonicalRows         DefenseBudgetCanonicalRow[]
+  activationsAsNew      DefenseBudgetPromotionActivation[] @relation("ActivationNewSnapshot")
+  activationsAsPrevious DefenseBudgetPromotionActivation[] @relation("ActivationPreviousSnapshot")
+  compatibilityRuns     DefenseBudgetCompatibilityProjectionRun[]
+  rollbacksFrom         DefenseBudgetRollbackRecord[]      @relation("RollbackFromSnapshot")
+  rollbacksTo           DefenseBudgetRollbackRecord[]      @relation("RollbackToSnapshot")
+
+  @@index([domain, environment, status], map: "defense_budget_canonical_snapshot_status_idx")
+  @@index([cycleId, fiscalYear], map: "defense_budget_canonical_snapshot_cycle_idx")
+  @@map("defense_budget_canonical_snapshot")
+}
+
+/// The atomic activation pointer. One row per domain/environment.
+model DefenseBudgetActiveSnapshot {
+  id           String   @id @default(uuid()) @db.Uuid
+  domain       String   @default("defense_budget") @db.VarChar(64)
+  environment  String   @db.VarChar(32)
+  snapshotId   String   @map("snapshot_id") @db.Uuid
+  activationId String   @map("activation_id") @db.Uuid
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  snapshot DefenseBudgetCanonicalSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([domain, environment], map: "defense_budget_active_snapshot_singleton_unique")
+  @@map("defense_budget_active_snapshot")
+}
+
+model DefenseBudgetPromotionPlan {
+  id                       String   @id @default(uuid()) @db.Uuid
+  planId                   String   @unique(map: "defense_budget_promotion_plan_plan_id_unique") @map("plan_id")
+  planHash                 String   @map("plan_hash") @db.Char(64)
+  eligibilityHash          String   @map("eligibility_hash") @db.Char(64)
+  mappingRegistryVersion   String   @map("mapping_registry_version")
+  mappingRegistryHash      String   @map("mapping_registry_hash") @db.Char(64)
+  cycleId                  String   @map("cycle_id")
+  fiscalYear               Int      @map("fiscal_year")
+  scope                    Json
+  scopeHash                String   @map("scope_hash") @db.Char(64)
+  mode                     String   @db.VarChar(32)
+  expectedActiveSnapshotId String?  @map("expected_active_snapshot_id") @db.Uuid
+  proposedSnapshotId       String   @map("proposed_snapshot_id") @db.Uuid
+  itemCount                Int      @map("item_count")
+  blockedCount             Int      @map("blocked_count")
+  planDocument             Json     @map("plan_document")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  authorizations DefenseBudgetPromotionAuthorization[]
+  runs           DefenseBudgetPromotionRun[]
+
+  @@unique([planId, planHash], map: "defense_budget_promotion_plan_identity_unique")
+  @@index([cycleId, fiscalYear], map: "defense_budget_promotion_plan_cycle_idx")
+  @@map("defense_budget_promotion_plan")
+}
+
+/// Phase 7 Workstream K. A governed human correction applied beside the active
+/// snapshot at read time — never a source observation, never a column on a
+/// canonical row. Append-only: amending or revoking inserts a superseding
+/// version linked through priorOverrideId.
+model DefenseBudgetManualOverride {
+  overrideId String @id @default(uuid()) @map("override_id") @db.Uuid
+
+  canonicalEntity     String  @map("canonical_entity")
+  canonicalNaturalKey String  @map("canonical_natural_key")
+  fiscalYear          Int?    @map("fiscal_year")
+  fundingField        String? @map("funding_field") @db.VarChar(32)
+
+  moneyOriginalValue String  @map("money_original_value")
+  moneyOriginalUnit  String  @map("money_original_unit")
+  moneyValueMillions Decimal @map("money_value_millions") @db.Decimal(24, 9)
+
+  authorActorId    String  @map("author_actor_id")
+  approverActorId  String? @map("approver_actor_id")
+  approverRole     String? @map("approver_role")
+  reason           String
+  evidenceIds      Json    @map("evidence_ids")
+  changeRequestRef String? @map("change_request_ref")
+
+  status          String
+  version         Int
+  priorOverrideId String? @map("prior_override_id") @db.Uuid
+
+  effectiveFrom DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo   DateTime? @map("effective_to") @db.Timestamptz(6)
+  proposedAt    DateTime  @map("proposed_at") @db.Timestamptz(6)
+  approvedAt    DateTime? @map("approved_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  overrideHash String   @map("override_hash") @db.Char(64)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  priorOverride DefenseBudgetManualOverride?  @relation("ManualOverrideChain", fields: [priorOverrideId], references: [overrideId], onDelete: Restrict, onUpdate: Cascade)
+  supersededBy  DefenseBudgetManualOverride[] @relation("ManualOverrideChain")
+
+  @@index([canonicalEntity, canonicalNaturalKey, fiscalYear, fundingField], map: "defense_budget_manual_override_target_idx")
+  @@map("defense_budget_manual_override")
+}
+
+model DefenseBudgetPromotionAuthorization {
+  id                       String    @id @default(uuid()) @db.Uuid
+  authorizationId          String    @unique(map: "defense_budget_promotion_authorization_id_unique") @map("authorization_id")
+  planId                   String    @map("plan_id")
+  planHash                 String    @map("plan_hash") @db.Char(64)
+  eligibilityHash          String    @map("eligibility_hash") @db.Char(64)
+  scopeHash                String    @map("scope_hash") @db.Char(64)
+  expectedActiveSnapshotId String?   @map("expected_active_snapshot_id") @db.Uuid
+  authorizerActorId        String    @map("authorizer_actor_id")
+  authorizerRole           String    @map("authorizer_role") @db.VarChar(32)
+  reason                   String
+  issuedAt                 DateTime  @map("issued_at") @db.Timestamptz(6)
+  expiresAt                DateTime  @map("expires_at") @db.Timestamptz(6)
+  segregation              Json
+  changeRequestReference   String?   @map("change_request_reference")
+  authorizationHash        String    @map("authorization_hash") @db.Char(64)
+  consumedAt               DateTime? @map("consumed_at") @db.Timestamptz(6)
+  consumedByRunId          String?   @map("consumed_by_run_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  plan DefenseBudgetPromotionPlan @relation(fields: [planId], references: [planId], onDelete: Restrict, onUpdate: Cascade)
+  runs DefenseBudgetPromotionRun[]
+
+  @@map("defense_budget_promotion_authorization")
+}
+
+model DefenseBudgetPromotionRun {
+  id                       String    @id @default(uuid()) @db.Uuid
+  runKey                   String    @unique(map: "defense_budget_promotion_run_key_unique") @map("run_key")
+  planId                   String    @map("plan_id")
+  planHash                 String    @map("plan_hash") @db.Char(64)
+  authorizationId          String    @map("authorization_id")
+  snapshotId               String    @map("snapshot_id") @db.Uuid
+  expectedActiveSnapshotId String?   @map("expected_active_snapshot_id") @db.Uuid
+  executorIdentity         String    @map("executor_identity")
+  executionMode            String    @default("execute") @map("execution_mode") @db.VarChar(32)
+  status                   String    @default("STAGING") @db.VarChar(48)
+  stagedRowCount           Int       @default(0) @map("staged_row_count")
+  startedAt                DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  committedAt              DateTime? @map("committed_at") @db.Timestamptz(6)
+  failedAt                 DateTime? @map("failed_at") @db.Timestamptz(6)
+  failureReason            String?   @map("failure_reason")
+
+  plan          DefenseBudgetPromotionPlan          @relation(fields: [planId], references: [planId], onDelete: Restrict, onUpdate: Cascade)
+  authorization DefenseBudgetPromotionAuthorization @relation(fields: [authorizationId], references: [authorizationId], onDelete: Restrict, onUpdate: Cascade)
+  snapshot      DefenseBudgetCanonicalSnapshot      @relation(fields: [snapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items         DefenseBudgetPromotionItem[]
+  activations   DefenseBudgetPromotionActivation[]
+  canonicalRows DefenseBudgetCanonicalRow[]
+
+  @@index([status], map: "defense_budget_promotion_run_status_idx")
+  @@map("defense_budget_promotion_run")
+}
+
+model DefenseBudgetPromotionItem {
+  id                   String    @id @default(uuid()) @db.Uuid
+  runId                String    @map("run_id") @db.Uuid
+  canonicalEntity      String    @map("canonical_entity") @db.VarChar(80)
+  canonicalNaturalKey  String    @map("canonical_natural_key")
+  operation            String    @db.VarChar(16)
+  priorRowHash         String?   @map("prior_row_hash") @db.Char(64)
+  proposedRowHash      String?   @map("proposed_row_hash") @db.Char(64)
+  sourceProjectionId   String    @map("source_projection_id")
+  sourceProjectionHash String    @map("source_projection_hash") @db.Char(64)
+  alertDisposition     String    @map("alert_disposition") @db.VarChar(40)
+  blockReason          String?   @map("block_reason") @db.VarChar(64)
+  stagedAt             DateTime? @map("staged_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run DefenseBudgetPromotionRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([runId, canonicalEntity, canonicalNaturalKey], map: "defense_budget_promotion_item_identity_unique")
+  @@map("defense_budget_promotion_item")
+}
+
+/// Append-only activation ledger. Resolves an ambiguous commit result.
+model DefenseBudgetPromotionActivation {
+  id                 String   @id @default(uuid()) @db.Uuid
+  activationKey      String   @unique(map: "defense_budget_promotion_activation_key_unique") @map("activation_key")
+  runId              String   @map("run_id") @db.Uuid
+  domain             String   @default("defense_budget") @db.VarChar(64)
+  environment        String   @db.VarChar(32)
+  previousSnapshotId String?  @map("previous_snapshot_id") @db.Uuid
+  newSnapshotId      String   @map("new_snapshot_id") @db.Uuid
+  authorizationId    String   @map("authorization_id")
+  activationKind     String   @default("PROMOTION") @map("activation_kind") @db.VarChar(24)
+  activatedBy        String   @map("activated_by")
+  activatedAt        DateTime @default(now()) @map("activated_at") @db.Timestamptz(6)
+
+  run              DefenseBudgetPromotionRun      @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  newSnapshot      DefenseBudgetCanonicalSnapshot @relation("ActivationNewSnapshot", fields: [newSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  previousSnapshot DefenseBudgetCanonicalSnapshot? @relation("ActivationPreviousSnapshot", fields: [previousSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  outbox           DefenseBudgetPromotionOutbox[]
+  rollbackRecords  DefenseBudgetRollbackRecord[]
+
+  @@index([newSnapshotId], map: "defense_budget_promotion_activation_new_snapshot_idx")
+  @@map("defense_budget_promotion_activation")
+}
+
+model DefenseBudgetRollbackRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  rollbackKey     String   @unique(map: "defense_budget_rollback_record_key_unique") @map("rollback_key")
+  fromSnapshotId  String   @map("from_snapshot_id") @db.Uuid
+  toSnapshotId    String   @map("to_snapshot_id") @db.Uuid
+  authorizationId String   @map("authorization_id")
+  activationId    String   @map("activation_id") @db.Uuid
+  reason          String
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  fromSnapshot DefenseBudgetCanonicalSnapshot   @relation("RollbackFromSnapshot", fields: [fromSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  toSnapshot   DefenseBudgetCanonicalSnapshot   @relation("RollbackToSnapshot", fields: [toSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  activation   DefenseBudgetPromotionActivation @relation(fields: [activationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("defense_budget_rollback_record")
+}
+
+model DefenseBudgetPromotionOutbox {
+  id                   String    @id @default(uuid()) @db.Uuid
+  activationId         String    @map("activation_id") @db.Uuid
+  dedupeKey            String    @unique(map: "defense_budget_promotion_outbox_dedupe_unique") @map("dedupe_key")
+  oldSnapshotId        String?   @map("old_snapshot_id") @db.Uuid
+  newSnapshotId        String    @map("new_snapshot_id") @db.Uuid
+  canonicalEntity      String    @map("canonical_entity") @db.VarChar(80)
+  canonicalNaturalKey  String    @map("canonical_natural_key")
+  family               String    @db.VarChar(24)
+  fiscalYear           Int?      @map("fiscal_year")
+  fundingField         String?   @map("funding_field") @db.VarChar(32)
+  stage                String?   @db.VarChar(40)
+  oldOriginalValue     String?   @map("old_original_value")
+  oldValueMillions     Decimal?  @map("old_value_millions") @db.Decimal(24, 9)
+  newOriginalValue     String?   @map("new_original_value")
+  newValueMillions     Decimal?  @map("new_value_millions") @db.Decimal(24, 9)
+  changeClassification String    @map("change_classification") @db.VarChar(40)
+  suppressAlert        Boolean   @map("suppress_alert")
+  isCorrection         Boolean   @default(false) @map("is_correction")
+  isRollback           Boolean   @default(false) @map("is_rollback")
+  sourceLineage        Json      @default("{}") @map("source_lineage")
+  status               String    @default("PENDING") @db.VarChar(24)
+  attempts             Int       @default(0)
+  lastError            String?   @map("last_error")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt          DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  activation DefenseBudgetPromotionActivation @relation(fields: [activationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([status, createdAt], map: "defense_budget_promotion_outbox_drain_idx")
+  @@index([activationId], map: "defense_budget_promotion_outbox_activation_idx")
+  @@map("defense_budget_promotion_outbox")
+}
+
+model DefenseBudgetCompatibilityProjectionRun {
+  id           String    @id @default(uuid()) @db.Uuid
+  snapshotId   String    @map("snapshot_id") @db.Uuid
+  activationId String?   @map("activation_id") @db.Uuid
+  status       String    @default("PENDING") @db.VarChar(24)
+  rowsWritten  Int       @default(0) @map("rows_written")
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  errorText    String?   @map("error_text")
+
+  snapshot DefenseBudgetCanonicalSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("defense_budget_compatibility_projection_run")
+}
+
+/// Snapshot-scoped canonical truth, discriminated by `canonicalEntity` from the
+/// Workstream B mapping registry. Money, quantity, and unit cost are separate
+/// exact NUMERIC columns; money additionally keeps its printed string and unit.
+model DefenseBudgetCanonicalRow {
+  id                      String    @id @default(uuid()) @db.Uuid
+  snapshotId              String    @map("snapshot_id") @db.Uuid
+  promotionRunId          String    @map("promotion_run_id") @db.Uuid
+  canonicalEntity         String    @map("canonical_entity") @db.VarChar(80)
+  canonicalNaturalKey     String    @map("canonical_natural_key")
+  parentNaturalKey        String?   @map("parent_natural_key")
+  family                  String    @db.VarChar(24)
+  fiscalYear              Int?      @map("fiscal_year")
+  fundingField            String?   @map("funding_field") @db.VarChar(32)
+  stage                   String?   @db.VarChar(40)
+  canonicalRowHash        String    @map("canonical_row_hash") @db.Char(64)
+  moneyOriginalValue      String?   @map("money_original_value")
+  moneyOriginalUnit       String?   @map("money_original_unit") @db.VarChar(16)
+  moneyValueMillions      Decimal?  @map("money_value_millions") @db.Decimal(24, 9)
+  quantity                Decimal?  @db.Decimal(24, 9)
+  unitCostDollars         Decimal?  @map("unit_cost_dollars") @db.Decimal(24, 9)
+  textValue               String?   @map("text_value")
+  dateValue               DateTime? @map("date_value") @db.Date
+  attributes              Json      @default("{}")
+  directOrDerived         String    @map("direct_or_derived") @db.VarChar(20)
+  bindingStatus           String    @default("not_applicable") @map("binding_status") @db.VarChar(24)
+  sourceProjectionId      String    @map("source_projection_id")
+  sourceAssertionId       String    @map("source_assertion_id")
+  evidenceIds             Json      @map("evidence_ids")
+  artifactId              String    @map("artifact_id")
+  artifactContentSha256   String    @map("artifact_content_sha256") @db.Char(64)
+  verificationCandidateId String    @map("verification_candidate_id")
+  verificationRunId       String    @map("verification_run_id")
+  sourceDocumentId        String    @map("source_document_id")
+  sourcePdfSha256         String    @map("source_pdf_sha256") @db.Char(64)
+  mappingRegistryHash     String    @map("mapping_registry_hash") @db.Char(64)
+  enactmentProofId        String?   @map("enactment_proof_id")
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  snapshot DefenseBudgetCanonicalSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  run      DefenseBudgetPromotionRun      @relation(fields: [promotionRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([snapshotId, canonicalEntity, canonicalNaturalKey], map: "defense_budget_canonical_row_identity_unique")
+  @@index([snapshotId, canonicalEntity], map: "defense_budget_canonical_row_snapshot_entity_idx")
+  @@index([snapshotId, canonicalEntity, parentNaturalKey], map: "defense_budget_canonical_row_parent_idx")
+  @@index([snapshotId, family, fiscalYear], map: "defense_budget_canonical_row_fy_idx")
+  @@index([promotionRunId], map: "defense_budget_canonical_row_run_idx")
+  @@map("defense_budget_canonical_row")
+}
+
+/// Workstream A.9 — append-only record of every eligibility, authorization, and
+/// redemption attempt, allowed or refused.
+model DefenseBudgetPromotionAudit {
+  id                       String   @id @default(uuid()) @db.Uuid
+  attemptKind              String   @map("attempt_kind") @db.VarChar(32)
+  outcome                  String   @db.VarChar(16)
+  actorId                  String?  @map("actor_id")
+  cycleId                  String?  @map("cycle_id")
+  scope                    Json?
+  eligibilityHash          String?  @map("eligibility_hash") @db.Char(64)
+  planId                   String?  @map("plan_id")
+  planHash                 String?  @map("plan_hash") @db.Char(64)
+  authorizationId          String?  @map("authorization_id")
+  expectedActiveSnapshotId String?  @map("expected_active_snapshot_id") @db.Uuid
+  reasons                  Json     @default("[]")
+  detail                   String?
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt], map: "defense_budget_promotion_audit_created_idx")
+  @@index([planId], map: "defense_budget_promotion_audit_plan_idx")
+  @@map("defense_budget_promotion_audit")
 }

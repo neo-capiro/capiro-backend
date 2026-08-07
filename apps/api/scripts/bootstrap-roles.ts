@@ -1,11 +1,22 @@
 /**
- * One-shot task that rotates the `capiro_app` runtime role's password to
- * match what's in Secrets Manager. Run after migration 0005 creates the
- * role, and any time the app secret rotates.
+ * One-shot task that rotates the runtime database roles' passwords to match
+ * what is in Secrets Manager. Run after the migration that creates a role, and
+ * any time that role's secret rotates.
  *
- * Connects as the Aurora master (env: MASTER_USER / MASTER_PASSWORD), runs
- * `ALTER ROLE capiro_app PASSWORD '<from app secret>'`. The new password
- * comes from APP_PASSWORD env var injected by ECS from the app secret.
+ * Connects as the Aurora master (env: MASTER_USER / MASTER_PASSWORD) and runs
+ * `ALTER ROLE <role> PASSWORD '<from secret>'` for each role whose credentials
+ * are present in the environment.
+ *
+ * Roles handled:
+ *   * `capiro_app`            — APP_USER / APP_PASSWORD. Required.
+ *   * `capiro_pe_promoter`    — PROMOTER_USER / PROMOTER_PASSWORD. Optional.
+ *
+ * The promoter role is optional so this task keeps working in environments
+ * where the Phase 7 promoter secret has not been provisioned yet. Creating that
+ * secret and passing it to this task is Workstream N; migration
+ * 20260822010000 creates the role itself with an unusable placeholder password,
+ * exactly as migration 20260502020000 did for capiro_app, so until the secret
+ * exists the promoter simply cannot authenticate.
  *
  * Identifier and password are quoted via pg-format-style escaping. The
  * password contains only generated characters from the secret's
@@ -34,17 +45,41 @@ function escapeSqlIdent(s: string): string {
   return s;
 }
 
+interface RoleRotation {
+  label: string;
+  user: string;
+  password: string;
+}
+
+/** Roles to rotate: the app role always, the promoter role when provisioned. */
+function plannedRotations(): RoleRotation[] {
+  const rotations: RoleRotation[] = [
+    { label: 'app', user: required('APP_USER'), password: required('APP_PASSWORD') },
+  ];
+
+  const promoterUser = process.env.PROMOTER_USER;
+  const promoterPassword = process.env.PROMOTER_PASSWORD;
+  if (promoterUser && promoterPassword) {
+    rotations.push({ label: 'pe-promoter', user: promoterUser, password: promoterPassword });
+  } else if (promoterUser || promoterPassword) {
+    // Half-supplied credentials are a misconfiguration, not an opt-out: failing
+    // here is better than silently leaving the promoter unable to log in.
+    throw new Error('PROMOTER_USER and PROMOTER_PASSWORD must be supplied together');
+  }
+
+  return rotations;
+}
+
 async function main() {
   const host = required('DB_HOST');
   const port = parseInt(required('DB_PORT'), 10);
   const database = required('DB_NAME');
   const masterUser = required('MASTER_USER');
   const masterPassword = required('MASTER_PASSWORD');
-  const appUser = required('APP_USER');
-  const appPassword = required('APP_PASSWORD');
+  const rotations = plannedRotations();
 
   // eslint-disable-next-line no-console
-  console.log(`Rotating ${appUser} password (db=${database} host=${host})`);
+  console.log(`Rotating ${rotations.map((r) => r.user).join(', ')} (db=${database} host=${host})`);
 
   const client = new Client({
     host,
@@ -56,23 +91,41 @@ async function main() {
   });
   await client.connect();
   try {
-    const role = escapeSqlIdent(appUser);
-    const pw = escapeSqlLiteral(appPassword);
-    await client.query(`ALTER ROLE "${role}" PASSWORD '${pw}'`);
-    // Verify the role can authenticate by re-connecting under it.
-    const verify = new Client({
-      host,
-      port,
-      database,
-      user: appUser,
-      password: appPassword,
-      ssl: { rejectUnauthorized: false },
-    });
-    await verify.connect();
-    const r = await verify.query('SELECT current_user, current_database()');
-    // eslint-disable-next-line no-console
-    console.log(`Verified login as ${r.rows[0].current_user} on ${r.rows[0].current_database}`);
-    await verify.end();
+    for (const rotation of rotations) {
+      const role = escapeSqlIdent(rotation.user);
+      const pw = escapeSqlLiteral(rotation.password);
+
+      // The role must already exist: it is created by a migration, never here.
+      // Creating roles from this task would give it exactly the privilege the
+      // Phase 7 boundary says no runtime task should hold.
+      const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [
+        rotation.user,
+      ]);
+      if (exists.rowCount === 0) {
+        throw new Error(
+          `role ${rotation.user} does not exist — run the migration that creates it first`,
+        );
+      }
+
+      await client.query(`ALTER ROLE "${role}" PASSWORD '${pw}'`);
+
+      // Verify the role can authenticate by re-connecting under it.
+      const verify = new Client({
+        host,
+        port,
+        database,
+        user: rotation.user,
+        password: rotation.password,
+        ssl: { rejectUnauthorized: false },
+      });
+      await verify.connect();
+      const r = await verify.query('SELECT current_user, current_database()');
+      // eslint-disable-next-line no-console
+      console.log(
+        `Verified login as ${r.rows[0].current_user} on ${r.rows[0].current_database} (${rotation.label})`,
+      );
+      await verify.end();
+    }
   } finally {
     await client.end();
   }

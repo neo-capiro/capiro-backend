@@ -108,6 +108,7 @@
     "phase6:report-cycle": "tsx scripts/phase6-stage-cycle.ts --command report_cycle_certification",
     "verify:pe-budget-phase-6": "prisma generate --schema prisma/phase6-projection/schema.prisma && prisma validate --schema prisma/phase6-projection/schema.prisma && tsc -p tsconfig.phase6.json --noEmit && jest --runInBand --forceExit src/defense-budget/stages src/defense-budget/phase6 src/defense-budget/verification && tsx scripts/verify-pe-budget-phase6-negative-controls.ts && tsx scripts/verify-pe-budget-phase6-safety.ts",
     "verify:pe-budget-phase-6:db": "bash scripts/phase6-projection-rehearsal.sh",
+    "verify:pe-budget-phase-7:db": "bash scripts/pe-budget-phase7-migration-rehearsal.sh",
     "verify:pe-budget-phase-6:full": "bash scripts/verify-pe-budget-phase6-closeout.sh",
     "build:rdte-cycle": "tsx scripts/build-rdte-cycle.ts",
     "report:rdte-cycle": "tsx scripts/report-rdte-cycle.ts",
