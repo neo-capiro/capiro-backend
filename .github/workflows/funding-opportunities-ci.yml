@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -455,6 +455,25 @@ jobs:
           check "attachment uniqueness COALESCEs both parents"             "SELECT CASE WHEN indexdef LIKE '%COALESCE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "yes"
           check "attachment content-hash dedup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_hash_idx'"             "1"
 
+          # ── P30 extracted text ────────────────────────────────────────────
+          # THE rule: blank is never "this document has no requirements". An
+          # `available` row REQUIRES text, a method and a count; every other
+          # status must hold NO text, so a not_entitled row cannot carry a
+          # leftover body from a period when the account was entitled.
+          check "text availability CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_document_text_available_chk'"             "1"
+          check "a non-available text row may hold no text"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%text IS NULL%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_document_text_available_chk'"             "yes"
+          for s in available not_entitled not_provided pending failed; do
+            check "text status vocabulary admits $s"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$s''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_document_text_status_chk'"               "yes"
+          done
+          # The binding that makes a citation safe. NOT NULL: text with no
+          # binding is text nothing may cite.
+          check "text binding hash is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='opportunity_document_text' AND column_name='attachment_content_sha256'"             "NO"
+          check "text binding hash is format-checked"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_document_text_hash_chk'"             "1"
+          # Provider and local text coexist as separate rows and never blend.
+          check "text attachment/method uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_document_text_attachment_method_uniq'"             "1"
+          check "opportunity_document_text has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_document_text' AND column_name='tenant_id'"             "0"
+          check "opportunity_document_text RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_document_text'"             "f"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -545,6 +564,7 @@ jobs:
           scripts/diag-tango-opportunity-parity.spec.ts
           scripts/sync-tango-opportunity-notices.spec.ts
           scripts/sync-tango-opportunity-attachments.spec.ts
+          scripts/sync-tango-opportunity-text.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -970,9 +990,56 @@ jobs:
       # non-archived-WITH-location, unexplained failure, unknown status,
       # malformed hash, negative size, and two duplicate-key cases including a
       # NULL-parent one the COALESCE index catches) and four acceptances.
+      # 59/1822 after P30: two NEW suites and one migration.
+      #
+      # opportunity-document-text.spec.ts (33 tests) enforces one rule above all
+      # others: BLANK IS NEVER "this document has no requirements". Five
+      # statuses, five distinct sentences, and each names WHOSE gap it is —
+      # `not_entitled` is a BILLING fact about the account, `not_provided` is a
+      # fact about the DOCUMENT (a scanned fax has no text layer), and a test
+      # asserts no sentence ever claims the document is empty. TRUNCATED text
+      # says what is missing is UNREAD, not absent, so P31 cannot conclude a
+      # requirement is missing from a document it only half read.
+      #
+      # Text is bound to BYTES, not to a document: every row carries the SHA-256
+      # of the exact attachment bytes it came from, a mismatch THROWS rather
+      # than storing a citation waiting to be wrong, and an UNARCHIVED
+      # attachment makes its text stale (the safe answer to "may I quote this"
+      # when the source is unknown is no).
+      #
+      # The text is DATA. `asUntrustedEvidence` fences and labels it, and the
+      # test that matters is the one where the document tries to CLOSE the
+      # fence — a fence the content can close is decoration. The markers are
+      # neutralised before the fence is applied, and the hostile sentence
+      # survives verbatim INSIDE it, because rewriting a quoted document is
+      # tampering with evidence. Deliberately no injection DETECTION: that is an
+      # arms race against text nobody controls, and the guarantee here is
+      # structural instead.
+      #
+      # sync-tango-opportunity-text.spec.ts (9 tests) covers the run, whose main
+      # job is being honest about a hard limit. The installed SDK exposes
+      # extracted text through exactly ONE method — `searchOpportunityAttachments`,
+      # a SEMANTIC SEARCH taking a query. There is no `getAttachmentText(id)`,
+      # so "give me the text of THIS document" is not a question this SDK can
+      # ask. Inventing a query to stand in for a document id would bind returned
+      # text to an attachment it merely RESEMBLES, which is the fuzzy-identity
+      # substitution P02 forbids for award history — and the test asserts no
+      # such query exists in the file. What the run does instead is seed the
+      # CORRECT unavailability status per archived attachment, which is this
+      # phase's own acceptance line. Entitlement is P17's probe result passed in
+      # with --entitled, never re-derived from a failed call: that would turn
+      # one rate-limit into "the account lost its entitlement".
+      #
+      # Migration 20260830010000_opportunity_document_text: one global table,
+      # rehearsed as an ordered upgrade with 10 constraint proofs by actual
+      # insert — seven refusals (available-without-text, not_entitled-CARRYING-
+      # text, failed-without-reason, unknown status, malformed binding hash,
+      # unknown extraction method, duplicate method) and three acceptances,
+      # including a provider row and a local_parser row coexisting on one
+      # attachment without blending.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 57 1780
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 59 1822
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

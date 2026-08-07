@@ -88,7 +88,10 @@
     "scripts/sync-tango-opportunity-notices.spec.ts",
     // P29: attachment discovery and secure archive.
     "scripts/sync-tango-opportunity-attachments.ts",
-    "scripts/sync-tango-opportunity-attachments.spec.ts"
+    "scripts/sync-tango-opportunity-attachments.spec.ts",
+    // P30: extracted-text status seeding.
+    "scripts/sync-tango-opportunity-text.ts",
+    "scripts/sync-tango-opportunity-text.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
