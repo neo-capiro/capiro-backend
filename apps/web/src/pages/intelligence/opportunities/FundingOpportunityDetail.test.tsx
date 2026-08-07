@@ -299,7 +299,7 @@ describe('all eight sections exist from this phase onwards', () => {
     // owns its own "says why it's missing" coverage in full; the other two
     // sections here are still genuinely unbuilt.
     wrap(<FundingOpportunityDetail refValue={REF} />);
-    for (const testId of ['fo-detail-landscape', 'fo-detail-requirements']) {
+    for (const testId of ['fo-detail-landscape']) {
       const section = await screen.findByTestId(testId);
       expect(section).toHaveTextContent(/Not yet available/i);
     }
@@ -316,11 +316,17 @@ describe('all eight sections exist from this phase onwards', () => {
     expect(section).toHaveTextContent(/not yet available/i);
   });
 
-  test('an empty requirements panel does not imply the solicitation has none', async () => {
+  test('an empty requirements panel does not imply the solicitation has none (P31)', async () => {
     wrap(<FundingOpportunityDetail refValue={REF} />);
+    // P31 replaced the placeholder with the real panel. With the documents flag
+    // off — the default in this suite and for every real tenant — it says the
+    // CAPABILITY is off and, explicitly, that this says nothing about what the
+    // solicitation requires. Four kinds of empty, and this is not the one that
+    // is a fact about the solicitation.
     const section = await screen.findByTestId('fo-detail-requirements');
-    expect(section).toHaveTextContent(/not available yet/i);
-    expect(section).toHaveTextContent(/citation back to the source document/i);
+    expect(section).toHaveTextContent(/Document analysis is not enabled/i);
+    expect(section).toHaveTextContent(/says nothing about what this solicitation requires/i);
+    expect(section).not.toHaveTextContent(/no requirements/i);
   });
 
   test('a source field the source did not provide says "Not provided", not "Not yet available"', async () => {

@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -473,6 +473,34 @@ jobs:
           check "text attachment/method uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_document_text_attachment_method_uniq'"             "1"
           check "opportunity_document_text has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_document_text' AND column_name='tenant_id'"             "0"
           check "opportunity_document_text RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_document_text'"             "f"
+
+          # -- P31 requirement artifacts --------------------------------------
+          # TWO tables, and the split is the design: the REQUIREMENT is a fact
+          # about a public document (global, no RLS), the REVIEW is one team's
+          # decision (tenant-scoped, RLS ENABLED + FORCED, four policies).
+          check "opportunity_requirement has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_requirement' AND column_name='tenant_id'"             "0"
+          check "opportunity_requirement RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_requirement'"             "f"
+          check "opportunity_requirement_review RLS enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_requirement_review'"             "t"
+          check "opportunity_requirement_review RLS FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='opportunity_requirement_review'"             "t"
+          check "opportunity_requirement_review has four RLS policies"             "SELECT count(*) FROM pg_policies WHERE tablename='opportunity_requirement_review'"             "4"
+
+          # NO ASSERTION WITHOUT EVIDENCE, as columns: every evidence field is
+          # NOT NULL, so an uncited requirement is unstorable rather than merely
+          # discouraged.
+          for col in attachment_id attachment_content_sha256 source_excerpt excerpt_start excerpt_end extraction_method extraction_model; do
+            check "requirement $col is NOT NULL"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='opportunity_requirement' AND column_name='$col'"               "NO"
+          done
+          # The span must be coherent AND the excerpt length must MATCH it. An
+          # excerpt longer than its claimed range is a paraphrase wearing a
+          # citation.
+          check "requirement span CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_span_chk'"             "1"
+          check "requirement span CHECK ties excerpt length to the range"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%length(source_excerpt)%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_requirement_span_chk'"             "yes"
+          check "requirement excerpt is bounded and non-empty"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_excerpt_chk'"             "1"
+          # Re-extracting the SAME bytes is idempotent by construction.
+          check "requirement evidence uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_requirement_evidence_uniq'"             "1"
+          # A reviewed row carries its actor AND its moment; a pending one
+          # carries neither. Same shape as P07's decision-actor CHECK.
+          check "requirement review-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_review_actor_chk'"             "1"
 
           exit $fail
 
@@ -1037,9 +1065,46 @@ jobs:
       # unknown extraction method, duplicate method) and three acceptances,
       # including a provider row and a local_parser row coexisting on one
       # attachment without blending.
+      # 60/1860 after P31: one NEW suite and one migration adding TWO tables.
+      #
+      # opportunity-requirement.spec.ts (38 tests) enforces one rule - NO
+      # ASSERTION WITHOUT EVIDENCE - and is organised by the three ways a
+      # citation can be wrong. It can be ABSENT (missing excerpt, attachment,
+      # binding hash, extraction model). It can be INCOHERENT (a span shorter
+      # than its excerpt is a paraphrase wearing a citation; an excerpt over the
+      # 2000-character ceiling is a copy of the document rather than a quote).
+      # And it can be FABRICATED - which is the case only a comparison against
+      # the real text catches, because a hallucinated quote produces a perfectly
+      # well-formed artifact with a coherent span and a plausible sentence whose
+      # text simply is not in the document. excerptMatchesText compares EXACTLY,
+      # with no normalization: a quote differing by one space is not a quote, and
+      # normalizing first would let an extractor rewrite punctuation inside
+      # quotation marks. A real quote at the WRONG offsets fails separately,
+      # because a citation nobody can follow to the stated place is not a
+      # citation. WITHOUT the source text those checks are reported as
+      # UNEVALUATED rather than passing - the same posture P26 and P30 take.
+      #
+      # Source content cannot widen the output shape: assertNoSchemaDrift
+      # REFUSES an unexpected field rather than stripping it, because a silent
+      # strip lets an extractor keep emitting it until somebody adds a
+      # permissive spread. And an adversarial instruction inside an excerpt
+      # changes validation by exactly zero - no branch in the module depends on
+      # what the text says.
+      #
+      # Migration 20260831010000_opportunity_requirement_artifacts adds TWO
+      # tables and the split IS the design: "this solicitation requires a
+      # facility clearance at paragraph 3.2" is a fact about a public document,
+      # the same for every tenant, extracted once (GLOBAL); "we reviewed that
+      # and accepted it" is a fact about one team (TENANT-SCOPED, RLS ENABLED +
+      # FORCED, four policies). One table would mean either re-extracting per
+      # tenant or showing every tenant what one team decided. Rehearsed as an
+      # ordered upgrade with 10 constraint proofs by actual insert - eight
+      # refusals (span/excerpt-length mismatch, empty excerpt, backwards span,
+      # null extraction model, unknown type, duplicate evidence,
+      # pending-WITH-actor, accepted-without-actor) and two acceptances.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 59 1822
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 60 1860
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1127,9 +1192,31 @@ jobs:
       # amendments" is the false claim this program exists to avoid. A grant
       # never calls the API at all — Grants.gov publishes no notice history, a
       # fact about the source rather than a Capiro gap.
+      # 70/297 after P31: one NEW file, OpportunityRequirementsPanel.test.tsx
+      # (10 tests). Its two blocks are the panel's two rules. NO REQUIREMENT
+      # RENDERS WITHOUT ITS CITATION - every row shows the verbatim excerpt, the
+      # document, the page and the character offsets, and the panel states in as
+      # many words that nothing in it is a summary, because a compliance list
+      # nobody can check against the source invites a team to build a proposal
+      # against Capiro's paraphrase. A model's assertion and a human's
+      # acceptance are DIFFERENT badges, never the same one read two ways, and a
+      # document that changed after extraction is flagged rather than silently
+      # trusted.
+      #
+      # FOUR KINDS OF EMPTY, and only read_none_found is a fact about the
+      # solicitation - and even it is qualified as "of a kind Capiro extracts".
+      # The no_text case carries P30's PER-DOCUMENT reason through verbatim,
+      # because "the account's plan excludes extracted text" and "this file is a
+      # scan with no text layer" are different facts and only P30 knows which.
+      #
+      # FundingOpportunityDetail.test.tsx's P12-era "requirements is still a
+      # PendingSection" assertion was replaced, not deleted: the section is real
+      # now, and with the documents flag off (the default, and every real
+      # tenant) it says the CAPABILITY is off and explicitly that this says
+      # nothing about what the solicitation requires.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 67 287
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 70 297
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

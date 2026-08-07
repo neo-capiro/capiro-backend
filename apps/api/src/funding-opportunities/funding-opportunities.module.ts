@@ -5,12 +5,14 @@ import { FundingOpportunityActionsService } from './funding-opportunity-actions.
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
+import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesDocumentsFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
@@ -62,6 +64,10 @@ import {
     // dependency through which an alert could be sent, which is how "P28 emits
     // nothing" is enforced rather than remembered.
     OpportunityTimelineService,
+    // P31. Reads the GLOBAL requirement table under withSystem and THIS
+    // tenant's review rows under withTenant — the split that keeps one team's
+    // decision off a row every tenant can see.
+    OpportunityRequirementService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -71,6 +77,7 @@ import {
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
     FundingOpportunitiesNoticeHistoryFlagGuard,
+    FundingOpportunitiesDocumentsFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })

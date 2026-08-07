@@ -6843,6 +6843,94 @@ model OpportunityDocumentText {
   @@map("opportunity_document_text")
 }
 
+/// A CANDIDATE requirement extracted from a solicitation document, bound to the
+/// exact bytes and character range it came from (P31).
+///
+/// GLOBAL, because "this solicitation requires a facility clearance at
+/// paragraph 3.2" is a fact about a public document — the same fact for every
+/// tenant, extracted once. The tenant's DECISION about it lives in
+/// `OpportunityRequirementReview`, which is tenant-scoped with RLS.
+///
+/// Every evidence column is NOT NULL. An assertion with no citation is what
+/// this phase exists to make impossible, and a nullable column is a promise the
+/// schema does not keep. The span is checked for coherence and the excerpt's
+/// length must MATCH it — an excerpt longer than its claimed range is a
+/// paraphrase wearing a citation.
+///
+/// `attachmentContentSha256` is the same binding P30's text rows carry: when an
+/// agency reposts a document it archives under a new hash, and every candidate
+/// bound to the old one is stale by construction rather than by a cleanup job.
+///
+/// `extractionMethod` and `extractionModel` are NOT NULL, so "the machine said
+/// so" and "a human confirmed it" can never be conflated on a read.
+model OpportunityRequirement {
+  id String @id @default(uuid()) @db.Uuid
+
+  attachmentId            String  @map("attachment_id") @db.Uuid
+  attachmentContentSha256 String  @map("attachment_content_sha256")
+  /// Denormalized so the detail surface reads a solicitation's requirements
+  /// without joining through attachments.
+  samOpportunityId        String? @map("sam_opportunity_id") @db.Uuid
+
+  /// Bounded by CHECK. See REQUIREMENT_TYPES.
+  requirementType String @map("requirement_type")
+  /// One sentence, in Capiro's words, of what the excerpt requires.
+  statement       String
+
+  /// THE EVIDENCE. All NOT NULL.
+  sourceExcerpt String  @map("source_excerpt")
+  excerptStart  Int     @map("excerpt_start")
+  excerptEnd    Int     @map("excerpt_end")
+  /// Genuinely optional: a plain-text extraction has offsets and no pages.
+  sourcePage    Int?    @map("source_page")
+
+  /// 'model' | 'deterministic_pattern' | 'human', and the model/rule id.
+  extractionMethod String @map("extraction_method")
+  extractionModel  String @map("extraction_model")
+  /// Evidence quality. NEVER a probability that the requirement is real.
+  confidence       String
+
+  /// Set when a later sync observed the document change under this candidate.
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([attachmentContentSha256, requirementType, excerptStart, excerptEnd], map: "opportunity_requirement_evidence_uniq")
+  @@index([samOpportunityId, requirementType], map: "opportunity_requirement_sam_idx")
+  @@index([attachmentContentSha256, supersededAt], map: "opportunity_requirement_binding_idx")
+  @@map("opportunity_requirement")
+}
+
+/// One team's decision about one extracted requirement (P31).
+///
+/// TENANT-SCOPED with RLS ENABLED + FORCED and the standard four policies. The
+/// requirement itself is a global fact about a public document; the review is a
+/// fact about one team, and putting it on the shared row would show every
+/// tenant what one team decided.
+///
+/// `reviewedBy`/`reviewedAt` are all-or-nothing with `status`, the same shape as
+/// P07's decision-actor CHECK: a decision nobody can be attributed to is a
+/// decision nobody can be asked about later.
+model OpportunityRequirementReview {
+  id            String @id @default(uuid()) @db.Uuid
+  tenantId      String @map("tenant_id") @db.Uuid
+  requirementId String @map("requirement_id") @db.Uuid
+
+  /// 'pending' | 'accepted' | 'rejected'.
+  status      String
+  reviewedBy  String?   @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes String?   @map("review_notes")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, requirementId], map: "opportunity_requirement_review_tenant_req_uniq")
+  @@index([tenantId, status], map: "opportunity_requirement_review_status_idx")
+  @@map("opportunity_requirement_review")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program
