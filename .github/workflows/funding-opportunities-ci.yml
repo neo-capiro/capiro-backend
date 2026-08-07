@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -429,6 +429,32 @@ jobs:
           # would be a second thing that can be wrong about its own inputs.
           check "no stored timeline table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE '%opportunity_timeline%'"             "0"
 
+          # ── P29 attachment archive ────────────────────────────────────────
+          check "opportunity_attachment has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_attachment' AND column_name='tenant_id'"             "0"
+          check "opportunity_attachment RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_attachment'"             "f"
+          check "opportunity_attachment has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='opportunity_attachment'::regclass AND contype='f'"             "0"
+
+          # THE acceptance line, as a constraint: a failed fetch cannot mark
+          # metadata complete. `archived` requires every archive fact, and a
+          # NON-archived row may carry none of them — so a stale bucket/key
+          # from an earlier success cannot make a failed row look citable.
+          check "archived-completeness CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_archived_chk'"             "1"
+          check "archived CHECK names every archive fact"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%archive_bucket%' AND pg_get_constraintdef(oid) LIKE '%archive_key%' AND pg_get_constraintdef(oid) LIKE '%content_sha256%' AND pg_get_constraintdef(oid) LIKE '%observed_size_bytes%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_attachment_archived_chk'"             "yes"
+          check "unarchived-cleanliness CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_unarchived_chk'"             "1"
+          check "an unexplained refusal or failure is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_failure_chk'"             "1"
+          check "an attachment with no parent is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_parent_chk'"             "1"
+          check "attachment content-hash format CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_hash_chk'"             "1"
+          for s in metadata_only archived refused failed; do
+            check "attachment status vocabulary admits $s"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$s''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_attachment_status_chk'"               "yes"
+          done
+
+          # The uniqueness COALESCEs both parent columns. Postgres treats NULLs
+          # as distinct, so a plain composite would admit unlimited duplicates
+          # for a notice-parented row (whose sam_opportunity_id is null).
+          check "attachment parent/url uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "1"
+          check "attachment uniqueness COALESCEs both parents"             "SELECT CASE WHEN indexdef LIKE '%COALESCE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "yes"
+          check "attachment content-hash dedup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_hash_idx'"             "1"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -518,6 +544,7 @@ jobs:
           scripts/sync-tango-opportunity-shadow.spec.ts
           scripts/diag-tango-opportunity-parity.spec.ts
           scripts/sync-tango-opportunity-notices.spec.ts
+          scripts/sync-tango-opportunity-attachments.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -901,9 +928,51 @@ jobs:
       # actual insert — four refusals (short hash, uppercase hash, negative
       # attachment count, duplicate notice id) and four acceptances (a legal
       # row, zero attachments, an uncrosswalked notice, an orphaned local id).
+      # 57/1780 after P29: two NEW suites and one migration.
+      #
+      # opportunity-attachment.spec.ts (59 tests) is almost entirely about the
+      # four ways fetching an attacker-chosen URL goes wrong, and each block
+      # includes the case that defeats a NAIVE version of the guard.
+      # SSRF: 169.254.169.254 (EC2 IMDS) and 169.254.170.2 (ECS task metadata)
+      # both refused, plus the IPv4-mapped IPv6 form — and that last test FOUND
+      # A REAL HOLE, because `new URL()` canonicalizes an IPv6 host to
+      # compressed hex, so `::ffff:169.254.169.254` reached the guard as
+      # `::ffff:a9fe:a9fe` and a dotted-quad-only branch never matched it. With
+      # the default allow-list it was still refused; with the documented
+      # "any public host" configuration it would have reached the metadata
+      # service. REDIRECTS: every hop is re-checked, and the test that matters
+      # is the one whose FIRST url is fine and whose 302 is not. EXHAUSTION: a
+      # 200-byte zip expanding 40 GB is caught by RATIO, which every size check
+      # on the compressed bytes misses. CONFUSION: a PDF that arrives as
+      # something else is refused as a MISMATCH, which is a finding even when
+      # the observed type would be allowed on its own.
+      #
+      # Also pinned: refusals and failures are disjoint vocabularies and only
+      # failures are retryable (retrying an SSRF attempt on a schedule is the
+      # attack working, slowly); the archive key IS the content hash, so
+      # identical bytes are a free no-op and CHANGED bytes get a new key rather
+      # than overwriting — a requirement P31 extracts from version A must still
+      # resolve to version A's bytes; and no failure detail is built by
+      # interpolating the body, checked structurally.
+      #
+      # sync-tango-opportunity-attachments.spec.ts (21 tests) covers discovery
+      # and the run. The attachment URLs come from Capiro's OWN stored SAM.gov
+      # payload, not from the provider: the installed SDK exposes no attachment
+      # ENUMERATION at all, only `searchOpportunityAttachments`, a semantic
+      # search that cannot answer "what documents does this solicitation have".
+      # A MISSING `resourceLinks` key is reported as `noLinksField`, never as
+      # "no attachments" — SAM.gov omits it for older records, and a zero
+      # meaning "none" would tell a reader a 300-page package was not there.
+      #
+      # Migration 20260829010000_opportunity_attachments adds ONE global table.
+      # Rehearsed as an ordered upgrade with 13 constraint proofs by actual
+      # insert — nine refusals (no parent, archived-without-location,
+      # non-archived-WITH-location, unexplained failure, unknown status,
+      # malformed hash, negative size, and two duplicate-key cases including a
+      # NULL-parent one the COALESCE index catches) and four acceptances.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 55 1699
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 57 1780
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

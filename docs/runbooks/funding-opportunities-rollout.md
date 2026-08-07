@@ -736,6 +736,69 @@ LIVE server carries more than the SDK declares is a decision-log D-45-style
 investigation — request a deliberately invalid field and read the
 `available_fields` payload the server returns — and it needs a key.
 
+### Attachment metadata and secure archive (P29) — a migration, no flag, no UI
+
+`prisma/migrations/20260829010000_opportunity_attachments` adds ONE new
+**global** table, `opportunity_attachment`. Additive; apply it in the normal
+migration step below. There is no new feature flag: nothing is surfaced yet, and
+the sync is dry-run by default.
+
+**The attachment URLs do not come from the provider.** The installed
+`@makegov/tango-node@1.1.0` exposes no attachment *enumeration* — its only
+attachment-shaped method is `searchOpportunityAttachments`, a semantic search
+that answers "which documents mention X" and cannot answer "what documents does
+this solicitation have". The enumerable source is Capiro's own SAM.gov
+ingestion: `sam_opportunity.raw.resourceLinks`.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run.
+SELECT status, count(*) FROM opportunity_attachment GROUP BY status;
+```
+
+```bash
+# Dry run. Reports what it WOULD discover and transfer; touches nothing.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts
+
+# Metadata only — writes the candidate rows, fetches nothing. Do this before
+# any archiving run: seeing the candidate list is how you sanity-check it.
+pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts --commit --discover-only
+
+# Archiving. Needs a bucket; refuses to start without one rather than fetching
+# megabytes with nowhere to put them.
+OPPORTUNITY_ATTACHMENT_BUCKET=capiro-dev-fo-attachments   pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts --commit --limit=25
+```
+
+**The bucket is not wired into any task definition.** Same posture P16 took for
+the Tango API key: `OPPORTUNITY_ATTACHMENT_BUCKET` is optional config that
+nothing in a serve/web/workspace/migrate task reads, and injecting it into the
+ephemeral sync task is a deliberate out-of-band step. The bucket itself must
+have block-public-access on, default encryption, and versioning; the writer sets
+`ServerSideEncryption`, `ACL: private` and a download-only
+`Content-Disposition` on every object regardless.
+
+**Read this before retrying a `refused` row.** `refused` and `failed` are
+different states on purpose:
+
+- **`refused`** — Capiro declined to go somewhere: a non-HTTPS URL, a
+  private-network host, an off-allow-list host, a disallowed or mismatched MIME
+  type, too many redirects. **Never retried.** Re-attempting an SSRF target on a
+  schedule is the attack working, slowly. Changing the outcome means changing
+  the policy, deliberately.
+- **`failed`** — the fetch was attempted and did not complete: a timeout, an
+  HTTP error, a truncated body, a decompression ratio over the ceiling. Retried
+  by the next run.
+
+**`status = 'archived'` is the only state a downstream claim may cite**, and the
+database enforces it: an archived row must carry its bucket, key, SHA-256, byte
+count and timestamp, and a non-archived row must carry none of the location
+fields. A failed fetch cannot mark metadata complete.
+
+**The archive key is the content hash.** Identical bytes re-archive to the
+identical key (a free no-op); changed bytes get a *different* key rather than
+overwriting. That is what lets a requirement extracted from version A still
+resolve to version A's bytes after the agency posts version B.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
