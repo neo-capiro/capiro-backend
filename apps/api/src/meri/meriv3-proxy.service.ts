@@ -179,7 +179,11 @@ export class MeriV3ProxyService {
       return;
     }
 
-    const replay = await this.buildReplay(ctx, conversationId);
+    const replay = await this.buildReplay(
+      ctx,
+      conversationId,
+      conversation.summaryUpToMessageId ?? null,
+    );
     const reasoningMode = reasoningModeFromConversationMetadata(conversation.metadata);
     const aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');
     let clientKbSnapshot: string | undefined;
@@ -295,7 +299,9 @@ export class MeriV3ProxyService {
           messages: replay.history,
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
-          ...(conversation.summary ? { conversationSummary: conversation.summary } : {}),
+          ...(conversation.summary && conversation.summaryUpToMessageId
+            ? { conversationSummary: conversation.summary }
+            : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
           ...(control.pageWriteEnabled ? { pageWrite: true } : {}),
@@ -461,12 +467,28 @@ export class MeriV3ProxyService {
     });
   }
 
-  private async buildReplay(ctx: TenantContext, conversationId: string) {
+  private async buildReplay(
+    ctx: TenantContext,
+    conversationId: string,
+    summaryUpToMessageId: string | null,
+  ) {
+    const boundary = summaryUpToMessageId
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioMessage.findFirst({
+            where: { id: summaryUpToMessageId, conversationId },
+            select: { createdAt: true },
+          }),
+        )
+      : null;
     const messages = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.findMany({
-        where: { conversationId, role: { in: ['user', 'assistant'] } },
+        where: {
+          conversationId,
+          role: { in: ['user', 'assistant'] },
+          ...(boundary ? { createdAt: { gt: boundary.createdAt } } : {}),
+        },
         orderBy: { createdAt: 'desc' },
-        take: 40,
+        take: boundary ? 80 : 40,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
