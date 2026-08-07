@@ -518,6 +518,12 @@ case "${1:-serve}" in
   # --uei=/--vehicle-uuid=/--request-ceiling=; see the script's own header for
   # why an invented identifier is never substituted. No database connection.
   diag-tango-capabilities) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-capabilities.ts "$@" ;;
+  # Funding Opportunities P18: READ-ONLY Tango API usage/health report. Reads
+  # the PERSISTED tango_api_usage log (written by every real
+  # TangoResilienceService call) and reports counts by status/call-family, a
+  # success rate, and the most recent call time. No Tango API call, no key
+  # needed — this only reads Capiro's own database. Optional --window=<minutes>.
+  diag-tango-health) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-health.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

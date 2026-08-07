@@ -23,6 +23,7 @@
     "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
     "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
     "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",
+    "diag:tango-health": "tsx scripts/diag-tango-health.ts",
     "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",
     "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",
     "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",

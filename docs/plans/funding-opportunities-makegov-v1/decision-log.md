@@ -713,3 +713,126 @@ SDK-surface reading (D-27) as equivalent to a LIVE finding derived from an
 actual account response — both are real, but only the latter proves the
 account's own tier/configuration, not just the SDK's method list. The report
 schema keeps them as visibly different statuses for exactly this reason.
+
+---
+
+## D-30 · 2026-08-07 · P18 needs no migration — breaker state is in-memory, by architecture, not by omission
+
+The completion-matrix placeholder for this phase said `Migration:
+conditional`. The condition: does circuit-breaker/health STATE need to
+survive a process restart? It does not, given how these calls actually run —
+`ApiSyncJobsTaskDef` (P16) dispatches every sync job as its own ephemeral ECS
+task, a fresh process per run. A breaker that opened during run N is
+meaningless information for run N+1, which starts with a fresh process, a
+fresh `TangoResilienceService` singleton, and correctly a fresh, closed
+breaker — there is nothing to "restore." Persisting breaker state to Postgres
+would solve a problem this architecture does not have, at the cost of a
+migration, a table, and a real question ("how stale can a persisted breaker
+state be before it is actively wrong") that the in-memory design never
+raises.
+
+What DOES need to survive a process — usage history, for the `diag-tango-
+health` report — already has its table (`tango_api_usage`, P15). P18 adds no
+schema at all; every new file is code only.
+
+**What this forbids:** treating "per run" and "per process lifetime" as
+requiring an explicit reset mechanism between them. They are the same fact
+under this architecture; adding a reset method would be solving a problem
+that reassigning-a-new-process already solves for free — and would invite a
+future caller to reset the counter WITHOUT actually starting a new process,
+which is the one thing that must never happen (a manually-reset ceiling on a
+long-lived process is exactly the "unsupervised quota spend" the ceiling
+exists to prevent).
+
+---
+
+## D-31 · 2026-08-07 · Two gateway tokens, not one changed in place
+
+`TANGO_GATEWAY` (P14) already has a documented contract: 8 methods, no
+retry, no ceiling — `tango.client.ts`'s own class doc says P18 owns that
+layer. Two ways to add it: change what `TANGO_GATEWAY` resolves to (every
+existing and future consumer gets retry/breaker/ceiling transparently,
+whether it expects to or not), or add a second, separately-injected token
+that WRAPS the first. This phase takes the second path:
+`TANGO_RESILIENT_GATEWAY` → `TangoResilienceService`, implementing the same
+`TangoGateway` interface, constructed from the raw `TANGO_GATEWAY` instance.
+
+Reasoning: nothing yet consumes `TANGO_GATEWAY` in product code (P19 is the
+first real consumer, not yet built), so there is no existing behavior to
+preserve either way — but changing an already-documented, already-tested
+token's MEANING out from under it, in a LATER phase, for a class the token's
+own original phase explicitly deferred to that later phase, is the kind of
+thing that reads fine in isolation and becomes surprising the next time
+someone reads P14's decision log and P18's code and finds they now disagree
+about what `TANGO_GATEWAY` means. Keeping both, documented side by side (see
+tango-resilience.service.ts's class doc), costs one extra token and one
+extra module registration, and means a future reader of either file finds an
+explanation rather than a discrepancy.
+
+**What this forbids:** P19 and later real-call phases injecting the raw
+`TANGO_GATEWAY` token for ordinary product work. Both module doc comments
+now say so explicitly. A future consumer with a genuine, specific reason to
+want the unprotected gateway may still reach it — but that should be a
+documented exception, not the default nobody decided.
+
+---
+
+## D-32 · 2026-08-07 · The breaker counts LOGICAL failures, not raw attempts — and a half-open failure reopens for a FULL cooldown
+
+Two mechanics worth stating precisely, because both are easy to get subtly
+wrong in a way that still passes a shallow test:
+
+**Consecutive failures, not consecutive attempts.** A single logical call
+retried twice before finally failing increments the breaker's counter by
+ONE, not three — the counter is incremented once, after `MAX_ATTEMPTS` is
+exhausted for that call, inside `registerFailure()`, never inside the retry
+loop itself. Counting raw attempts would make the configured threshold (5,
+by default) reachable by fewer than two genuinely-failed operations, which
+is not what `config.schema.ts`'s own comment describes ("Consecutive
+transient/rate-limit failures before the breaker opens").
+
+**A failed half-open trial reopens for a full cooldown, not a partial one.**
+Once the cooldown elapses, exactly one call is let through as a trial. If it
+fails, the breaker does not require a fresh full threshold's worth of
+failures to reopen — one bad sign during recovery is treated as sufficient,
+and the cooldown restarts at its FULL configured duration from that moment,
+not the remainder of some earlier window. `tango-resilience.service.spec.ts`
+proves this exactly: a breaker that reopens at t=1000 (cooldown=1000) is
+still refusing calls at t=1999 and lets the next trial through only at
+t=2001 — a full second window from the reopen, not from the original open.
+
+**What this forbids:** any future change to the retry loop that moves
+`registerFailure()`'s call site inside the per-attempt catch block instead of
+after retries are exhausted — that would silently change the threshold's
+real-world meaning without changing its documented value.
+
+---
+
+## D-33 · 2026-08-07 · Two kinds of "health," and no live-key run for this phase
+
+`TangoResilienceService.getHealth()` (in-memory, this process, right now)
+and `TangoStoreService.getUsageHealth()` (persisted, any process, historical)
+answer genuinely different questions — see tango-resilience.service.ts's
+class doc. `diag-tango-health` exists because the SECOND question is the one
+answerable from an operator's shell, which shares no memory with whatever
+sync task ran an hour ago.
+
+Unlike P17, this phase's own completion-matrix acceptance line does not ask
+for a run against the real account — it asks for "Fake-clock retry/breaker
+proof; a 400 attempted once," which `tango-resilience.service.spec.ts`
+delivers deterministically and exhaustively (38 tests). A live run was
+considered and deliberately not done: proving retry/breaker timing for real
+would mean deliberately inducing a 429 or a string of failures against the
+same real, rate-limited, purchased account P17 already exercised — spending
+real quota to re-prove, non-deterministically, what the fake-clock suite
+already proves exactly and repeatably. The pieces a live run WOULD newly
+confirm — that `tango_api_usage` inserts succeed against real Postgres — are
+already proven by P15's own migration rehearsal for that exact table, and
+that DI wiring resolves with real config is already proven by
+`tango.module.spec.ts`'s real (if bare) `Test.createTestingModule` harness.
+
+**What this forbids:** treating the absence of a live-key run here as an
+oversight matching P17's. It is a scoped, stated choice — a future phase
+that wants a live proof of retry/breaker behavior specifically should say so
+explicitly rather than assume this phase already attempted and failed to
+get one.
