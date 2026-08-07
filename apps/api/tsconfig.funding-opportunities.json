@@ -74,7 +74,10 @@
     "scripts/diag-federal-business-profile.spec.ts",
     // P22: relevant vehicles and past-performance sync.
     "scripts/sync-tango-vehicles.ts",
-    "scripts/sync-tango-vehicles.spec.ts"
+    "scripts/sync-tango-vehicles.spec.ts",
+    // P24: agency forecast incremental sync.
+    "scripts/sync-tango-forecasts.ts",
+    "scripts/sync-tango-forecasts.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

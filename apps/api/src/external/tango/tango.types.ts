@@ -132,12 +132,34 @@ export interface TangoNotice {
   sourceUrl: string | null;
 }
 
+/** Structured on the live server; the SDK's own schema mistypes this as a plain string (P24, decision-log D-45). */
+export interface TangoForecastContact {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+}
+
 /**
  * An agency procurement forecast — a pre-solicitation signal, never a competition.
  *
- * Thinner than the plan assumed, and deliberately not padded out: the provider
- * carries no anticipated SOLICITATION date, no PSC and no estimated value on this
- * model. Deriving a solicitation date from an award date would be inventing one.
+ * THINNER THAN THE PLAN ASSUMED IN TWO CONFIRMED WAYS, deliberately not padded
+ * out: the provider carries no anticipated SOLICITATION date, no PSC and no
+ * estimated value on this model. Deriving a solicitation date from an award
+ * date would be inventing one. `pscCode` and `sourceUrl` stay in this type —
+ * a future provider release may add either — but `mapForecast` returns them
+ * as an explicit, commented `null`: confirmed absent from the live server's
+ * own `available_fields` for this resource (P24, decision-log D-45), not an
+ * oversight.
+ *
+ * RICHER THAN P14's ORIGINAL READING IN THREE CONFIRMED WAYS (P24, D-45): the
+ * live server carries a real `organization` hierarchy (department/agency/
+ * office), a real `modified`/`created` pair the SDK's bundled schema does not
+ * declare at all, and `primaryContact` is a structured object server-side
+ * despite the SDK typing it as a plain string. None of the three round-trips
+ * through the SDK's OWN typed `listForecasts` method — every one required
+ * bypassing it via the raw `client.http.get` escape hatch. See
+ * `tango.client.ts`'s `listForecasts` for why that is safe here specifically.
  */
 export interface TangoForecast {
   provenance: TangoProvenance;
@@ -145,20 +167,34 @@ export interface TangoForecast {
   externalId: string | null;
   title: string | null;
   description: string | null;
+  /** The provider's own flat agency label (e.g. "VA") — distinct from, and not always consistent with, the organization hierarchy below. */
   agency: string | null;
+  /** The organization hierarchy the plan asked for. Any level may be null — the provider's own hierarchy is not always fully populated (a real department/office pair has been observed with identical department and office names, and a null agency name, on the same live record). */
+  departmentCode: string | null;
+  departmentName: string | null;
+  organizationAgencyCode: string | null;
+  organizationAgencyName: string | null;
+  officeCode: string | null;
+  officeName: string | null;
+  /** Opaque, stable provider id for the organization node. Kept for a future crosswalk; never parsed. */
+  organizationId: string | null;
   anticipatedAwardDate: string | null;
   /** Free text, e.g. "Q3 FY27". Not a date, and deliberately not parsed into one. */
   estimatedPeriod: string | null;
   fiscalYear: number | null;
   naicsCode: string | null;
+  /** ALWAYS NULL. Confirmed absent from this resource's own available_fields — see this interface's own doc. */
+  pscCode: string | null;
   setAside: string | null;
   contractVehicle: string | null;
   /** Free text on this model, not a structured address. */
   placeOfPerformance: string | null;
-  primaryContact: string | null;
+  primaryContact: TangoForecastContact | null;
   status: string | null;
   isActive: boolean | null;
   sourceSystem: string | null;
+  /** ALWAYS NULL. Confirmed absent from this resource's own available_fields — see this interface's own doc. */
+  sourceUrl: string | null;
 }
 
 /** A contract vehicle. */

@@ -6491,6 +6491,101 @@ model ClientRelevantVehicle {
   @@map("client_relevant_vehicle")
 }
 
+/// Agency procurement forecast (Funding Opportunities P24) — a pre-
+/// solicitation signal, never an active competition.
+///
+/// GLOBAL, no tenant_id, no RLS — provider catalog data, the same category
+/// as sam_opportunity/federal_grant (P00) and tango_resource_snapshot (P15),
+/// never a tenant- or client-owned fact.
+///
+/// A SINGLE CURRENT-STATE TABLE, deliberately NOT layered on P15's versioned
+/// tango_resource_snapshot the way P19/P20/P22's syncs are. That mechanism
+/// exists to keep a full audit trail of every observed value for a LOW-
+/// volume, per-client-relevant resource; a forecast is a HIGH-volume
+/// (24,000+ live rows, confirmed) catalog record Capiro tracks the CURRENT
+/// state of, the same shape of resource sam_opportunity/federal_grant
+/// already are as single current-state tables. `snapshot` below holds the
+/// full normalized shape of the MOST RECENT observation for audit/debugging
+/// — an upsert overwrites it, it does not grow a new row.
+model TangoProcurementForecast {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Tango's own forecast id. The sync's upsert key.
+  tangoForecastId String  @unique @map("tango_forecast_id")
+  externalId      String? @map("external_id")
+
+  title       String
+  description String?
+
+  /// The provider's own flat agency label (e.g. "VA") — distinct from, and
+  /// not always consistent with, the organization hierarchy below (P24
+  /// finding, decision-log D-45).
+  agency String?
+
+  /// Organization hierarchy. Every level independently nullable — the
+  /// provider's own hierarchy is not always fully populated.
+  departmentCode         String? @map("department_code")
+  departmentName         String? @map("department_name")
+  organizationAgencyCode String? @map("organization_agency_code")
+  organizationAgencyName String? @map("organization_agency_name")
+  officeCode             String? @map("office_code")
+  officeName             String? @map("office_name")
+  /// Opaque, stable provider id for the organization node. Never parsed.
+  organizationId         String? @map("organization_id")
+
+  anticipatedAwardDate DateTime? @map("anticipated_award_date") @db.Date
+  /// Free text, e.g. "Q3 FY27". Not a date, and never parsed into one.
+  estimatedPeriod      String?   @map("estimated_period")
+  fiscalYear           Int?      @map("fiscal_year")
+
+  naicsCode String? @map("naics_code")
+  /// ALWAYS NULL today. Confirmed absent from this resource's own
+  /// available_fields (decision-log D-45) — kept for a future provider
+  /// release, not an oversight.
+  pscCode   String? @map("psc_code")
+  setAside  String? @map("set_aside")
+
+  /// Free text naming a vehicle, e.g. "To Be Determined". No separate
+  /// structured link exists on this resource (D-45) — "vehicle text/link" in
+  /// the plan is one field in practice, not two.
+  contractVehicle    String? @map("contract_vehicle")
+  /// Free text, not a structured address — matches TangoForecast's own field.
+  placeOfPerformance String? @map("place_of_performance")
+
+  /// Structured on the live server (D-45) — flattened to columns here since
+  /// this table has no JSON contact field of its own.
+  primaryContactName  String? @map("primary_contact_name")
+  primaryContactEmail String? @map("primary_contact_email")
+  primaryContactPhone String? @map("primary_contact_phone")
+  primaryContactTitle String? @map("primary_contact_title")
+
+  status   String?
+  isActive Boolean? @map("is_active")
+
+  sourceSystem String? @map("source_system")
+  /// ALWAYS NULL today. Confirmed absent (decision-log D-45).
+  sourceUrl    String? @map("source_url")
+
+  /// The provider's own last-touched stamp (D-45) — drives the incremental
+  /// sync's modified_after window. Null when the provider never stated one.
+  providerModifiedAt DateTime? @map("provider_modified_at") @db.Timestamptz(6)
+
+  /// Full normalized shape of the most recent observation. Overwritten on
+  /// every sync, not versioned — see this model's own doc for why.
+  snapshot Json @map("snapshot")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([fiscalYear], map: "tango_procurement_forecast_fiscal_year_idx")
+  @@index([agency], map: "tango_procurement_forecast_agency_idx")
+  @@index([providerModifiedAt], map: "tango_procurement_forecast_modified_idx")
+  @@map("tango_procurement_forecast")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program

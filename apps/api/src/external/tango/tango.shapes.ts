@@ -142,14 +142,42 @@ export const NOTICE_FIELDS = [
 export const NOTICE_SHAPE = shapeOf(NOTICE_FIELDS);
 
 /**
- * Agency procurement forecast. Source: `FORECAST_SCHEMA`.
+ * Agency procurement forecast. Source: `FORECAST_SCHEMA` — PARTIALLY. Read
+ * this before touching either the field list or `tango.client.ts`'s
+ * `listForecasts`.
  *
- * The provider's forecast model is THINNER than the plan assumed, and that is a
- * fact worth pinning rather than papering over. There is no anticipated
- * SOLICITATION date, no PSC, no estimated value and no organization id — only
- * `agency` as free text, an `anticipated_award_date`, and an `estimated_period`
- * string. P24 stores what exists and leaves the rest null; it does not derive a
- * solicitation date from an award date.
+ * The provider's forecast model is THINNER than the plan assumed in two
+ * confirmed ways: no anticipated SOLICITATION date, no PSC, no estimated
+ * value. P24 stores what exists and leaves the rest null (decision-log
+ * D-45); it does not derive a solicitation date from an award date.
+ *
+ * IT IS ALSO RICHER THAN THE SDK's BUNDLED SCHEMA KNOWS (D-45) — a real
+ * `organization` hierarchy and real `modified`/`created` timestamps exist on
+ * the live server's `available_fields` for this exact resource, confirmed by
+ * reading its own validation-error payload directly. `FORECAST_SCHEMA` in
+ * this SDK version does not declare `organization`, `organization_id`,
+ * `modified` or `created` at all, so `parseShape` throws `ShapeValidationError`
+ * — CLIENT-SIDE, before any request is sent — for a shape string containing
+ * any of them, through the SDK's own typed `client.listForecasts(...)`.
+ *
+ * There is no live-server rejection to work around here, unlike D-35's
+ * `entity_structure` (which the SERVER itself rejected) — the SDK's client-
+ * side gate is the ONLY thing standing between this shape and a real,
+ * working request. `client.http.get('/api/forecasts/', { shape, ... })`
+ * bypasses `parseShape` entirely and the identical live server accepts every
+ * field below without complaint (confirmed live). `tango.client.ts`'s
+ * `listForecasts` uses that escape hatch for exactly this reason — every
+ * other list method in this file goes through the SDK's typed method
+ * because every other method's bundled schema is complete enough not to need
+ * it.
+ *
+ * `organization(...)`'s own sub-fields, and the top-level list, both come
+ * from the live server's `available_fields` payload directly, not a guess:
+ * `agency_code`, `agency_name`, `department_code`, `department_name`,
+ * `office_code`, `office_name`, `organization_id`. `primary_contact` has NO
+ * `expands` entry of its own on the server — it is requested bare, and the
+ * server returns its full `{name, email, phone, title}` shape regardless of
+ * the SDK's `type: "str"` declaration for it.
  */
 export const FORECAST_FIELDS = [
   'id',
@@ -157,6 +185,7 @@ export const FORECAST_FIELDS = [
   'title',
   'description',
   'agency',
+  'organization(agency_code,agency_name,department_code,department_name,office_code,office_name,organization_id)',
   'anticipated_award_date',
   'estimated_period',
   'fiscal_year',
@@ -168,6 +197,7 @@ export const FORECAST_FIELDS = [
   'status',
   'is_active',
   'source_system',
+  'modified',
 ] as const;
 export const FORECAST_SHAPE = shapeOf(FORECAST_FIELDS);
 

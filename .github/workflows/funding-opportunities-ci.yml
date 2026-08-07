@@ -431,6 +431,7 @@ jobs:
           scripts/review-tango-enrichment-candidate.spec.ts
           scripts/diag-federal-business-profile.spec.ts
           scripts/sync-tango-vehicles.spec.ts
+          scripts/sync-tango-forecasts.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -604,9 +605,38 @@ jobs:
       # phase reads P22's client_relevant_vehicle and P15's tango_resource_
       # snapshot/tango_sync_checkpoint, all already-existing tables.
       #
+      # 48/1433 after P24: two NEW suites. tango-forecast.mapper.spec.ts (6
+      # tests: every field maps, a title-less forecast is dropped rather
+      # than stored with a fabricated one, an absent contact/date/modified-
+      # stamp all map to null not a fabrication, the snapshot column carries
+      # the normalized domain object not the raw payload) and sync-tango-
+      # forecasts.spec.ts (12 tests: CLI parsing including "no --limit means
+      # page to exhaustion"; the first-ever run has no incremental window at
+      # all; the window is windowEnd MINUS the overlap, never windowEnd
+      # itself; windowEnd only advances on a fully-exhausted walk, proven by
+      # asserting a ceiling-interrupted run writes NO checkpoint change to
+      # it; pagination capped to the remaining --limit, matching D-43's own
+      # fix; a title-less forecast counted unmappable and never upserted; a
+      # real upsert failure counted errored and decremented from written
+      # without stopping the run). tango.client.spec.ts grew by +3 (91 -> 94)
+      # from a THIRD real finding this program's live-key runs have now
+      # surfaced for this SDK (decision-log D-45, same family as D-35/D-41/
+      # D-42): the provider's forecast resource carries a real organization
+      # hierarchy, real modified/created timestamps and a structured contact
+      # object, none declared in the SDK's bundled FORECAST_SCHEMA — the
+      # SDK's own client-side shape validation, not the live server, was the
+      # only obstacle, worked around by calling the SDK's HTTP transport
+      # directly for this one method. Migration 20260825010000_tango_
+      # procurement_forecasts adds a NEW GLOBAL table (no tenant_id, no RLS)
+      # — clean replay, ordered upgrade, retry-as-no-op, and 5 CHECK/unique/
+      # not-null constraint proofs by actual insert all rehearsed against a
+      # real isolated Postgres, PLUS a live-key run confirming errored:0
+      # across two real commit runs and confirming resumability (row count
+      # 5 -> 10, cursor page 2 -> 3, no duplicates) against the real API.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 46 1412
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 48 1433
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

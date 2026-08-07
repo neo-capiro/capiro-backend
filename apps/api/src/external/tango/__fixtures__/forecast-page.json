@@ -1,5 +1,5 @@
 {
-  "_comment": "SYNTHETIC, against FORECAST_SCHEMA. Note what the provider does NOT model on a forecast: no anticipated solicitation date, no PSC, no estimated value. The fixture records that absence rather than inventing the fields.",
+  "_comment": "SYNTHETIC, against FORECAST_SCHEMA plus the live-confirmed fields the SDK's bundled schema does not declare (P24, decision-log D-45): `organization` (a real nested hierarchy), `modified`/`created`, and `primary_contact` as a structured object rather than the plain string the SDK's own type claims. Note what the provider still does NOT model on a forecast even after that finding: no anticipated solicitation date, no PSC, no estimated value, no source URL. The fixture records those absences rather than inventing the fields. Row 2 exercises full-shape-present-but-null (organization/primary_contact both explicitly null); row 3 exercises the fields being entirely ABSENT from the raw record, the case a real minimal-shape response could produce.",
   "count": 3,
   "next": null,
   "previous": null,
@@ -11,6 +11,15 @@
       "title": "Synthetic Depot Sustainment Services",
       "description": "Placeholder description for a synthetic forecast record.",
       "agency": "Synthetic Defense Logistics Agency",
+      "organization": {
+        "organization_id": "aaaaaaaa-bbbb-4ccc-8ddd-000000000001",
+        "office_code": "SYN01",
+        "office_name": "Synthetic Depot Office",
+        "agency_code": "SYNDLA",
+        "agency_name": null,
+        "department_code": "SYN",
+        "department_name": "Synthetic Department of Defense"
+      },
       "anticipated_award_date": "2027-04-01",
       "estimated_period": "Q3 FY27",
       "fiscal_year": 2027,
@@ -18,10 +27,17 @@
       "set_aside": { "code": "SBA", "description": "Total Small Business Set-Aside" },
       "contract_vehicle": "Synthetic MAC IDIQ",
       "place_of_performance": "Ogden, UT",
-      "primary_contact": "contracting@example.invalid",
+      "primary_contact": {
+        "name": "Synthetic Contracting Officer",
+        "email": "contracting@example.invalid",
+        "phone": null,
+        "title": "Contracting Officer"
+      },
       "status": "Planned",
       "is_active": true,
-      "source_system": "Synthetic Agency Forecast Portal"
+      "source_system": "Synthetic Agency Forecast Portal",
+      "created": "2026-01-15T00:00:00+00:00",
+      "modified": "2026-08-01T12:00:00+00:00"
     },
     {
       "id": 90002,
@@ -29,6 +45,7 @@
       "title": "Synthetic Research Support",
       "description": null,
       "agency": null,
+      "organization": null,
       "anticipated_award_date": null,
       "estimated_period": "",
       "fiscal_year": null,
@@ -39,7 +56,9 @@
       "primary_contact": null,
       "status": "TBD",
       "is_active": null,
-      "source_system": null
+      "source_system": null,
+      "created": null,
+      "modified": null
     },
     {
       "id": 90003,

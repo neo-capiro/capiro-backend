@@ -471,6 +471,74 @@ relationship. Neither will appear in a real response until a future phase
 adds a teaming-partner data source or a real opportunity-to-vehicle
 crosswalk (P27+). Seeing neither in production is expected, not a bug.
 
+### Agency forecast schema and incremental sync (P24) — a migration, ships fully dark
+
+`prisma/migrations/20260825010000_tango_procurement_forecasts` adds a NEW
+**global** table (no tenant_id, no RLS — provider catalog data). Apply it
+in the normal migration step (§4/§86 below) — additive, no existing table
+touched.
+
+`scripts/sync-tango-forecasts.ts` is declared `enabled: false` in
+`ingestion-schedule.ts` (id `SyncTangoForecasts`) pending canary.
+`funding_opportunities_forecasts` (the flag P26 will eventually read) stays
+off regardless of whether this job ever runs — this phase populates
+`tango_procurement_forecast`, it does not surface anything. A forecast is
+a pre-solicitation signal, never a solicitation or an active competition;
+nothing downstream of this table may call it either until P25/P26 exist.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run at least once.
+SELECT count(*), max(provider_modified_at) FROM tango_procurement_forecast;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Omit --limit for a real run: this sync pages to
+# EXHAUSTION of its own incremental window by default, unlike P19/P22's
+# bounded client-list walks. --limit exists for a deliberate first backfill
+# or a bounded test run only.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-forecasts.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-forecasts.ts --commit
+```
+
+Expect `errored: 0` on a healthy run. The FIRST run ever (no
+`tango_sync_checkpoint` row for `sync_verb = 'sync-tango-forecasts'`) has no
+incremental window at all — `modifiedAfter: null` in the summary — and walks
+the full ~25,000-row catalog by design; expect it to take a while
+wall-clock-wise and to make on the order of 250 requests (well under the
+default 5,000 request ceiling). Every later run is incremental: it reads
+the PRIOR run's `window_end`, subtracts a safety overlap (default 4 hours,
+`--overlap-hours` to change it), and asks the provider for only what
+changed since then. `window_end` only advances on a run that fully
+exhausts its own pages — a run stopped by `--limit` or the request ceiling
+leaves the window exactly where it was, so a retry continues the same
+window rather than silently narrowing it.
+
+**Read this before assuming a stale forecast is a sync bug.**
+`tango_procurement_forecast` is a SINGLE CURRENT-STATE table, upserted on
+every sync — NOT layered on P15's versioned `tango_resource_snapshot` the
+way P19/P20/P22's tables are (decision-log D-46, a deliberate design
+choice: the live catalog is ~24,700 rows, an order of magnitude more than
+any per-client-narrowed resource this program has synced so far, and a full
+version history for a still-planned, frequently-reworded buy is not
+something the plan's own acceptance bar asked for). `snapshot` always holds
+the MOST RECENT observation, not a history — a query for "how has this
+forecast changed over time" has no answer in this table today.
+
+Also fixed this phase (decision-log D-45): the provider's forecast resource
+carries a real organization hierarchy, real `modified`/`created`
+timestamps, and a structured contact object — none reachable through the
+SDK's own typed `listForecasts` method, whose bundled schema does not
+declare any of the three. `tango.client.ts`'s `listForecasts` now calls the
+SDK's own HTTP transport directly (a documented, deliberate bypass of the
+SDK's client-side shape validation only, not of the live server, which
+accepts every field without complaint) — the only list method in that file
+that needs to. `psc_code` and `source_url` stay as columns for a future
+provider release but are confirmed absent from this resource today, same
+posture as D-35/D-41's other confirmed-absent fields.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
