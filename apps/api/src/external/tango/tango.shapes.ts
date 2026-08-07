@@ -202,9 +202,25 @@ export const VEHICLE_SHAPE = shapeOf(VEHICLE_FIELDS);
 /**
  * One awardee on a vehicle — an IDV. Source: `IDV_SCHEMA`.
  *
- * `recipient(uei,display_name)` is the whole point: a vehicle awardee without a
- * UEI can never be evidence of direct access, because matching on a display name
- * is exactly the fuzzy identity P02 removed from the award-history rail.
+ * `recipient(uei,display_name,legal_business_name)` is the whole point: a
+ * vehicle awardee without a UEI can never be evidence of direct access,
+ * because matching on a display name is exactly the fuzzy identity P02
+ * removed from the award-history rail.
+ *
+ * DELIBERATELY EXCLUDES a parent/owner UEI (P22 finding, decision-log D-41):
+ * the live server's `recipient` expansion on THIS endpoint has exactly five
+ * fields — `cage`, `cage_code`, `display_name`, `legal_business_name`,
+ * `uei` — confirmed by reading its own `available_fields` error payload.
+ * There is no `parent_uei` here, under any name. Parent/owner UEIs DO exist
+ * elsewhere in this SDK's data model — `getEntity`'s `immediate_owner`/
+ * `highest_owner` expansions (P14's own `tango.shapes.ts` deliberately does
+ * not request either) — but reaching them for every awardee found on a
+ * vehicle would mean one EXTRA getEntity call per unique awardee UEI, a
+ * materially different and more expensive design than "list this vehicle's
+ * awardees". P22 does not attempt that; see its own sync script for how the
+ * resulting gap is handled (the 'parent' relationship stays a real, tested
+ * code path — SDK support may arrive later — but is not currently
+ * reachable with live data).
  */
 export const VEHICLE_AWARDEE_FIELDS = [
   'uuid',
@@ -215,7 +231,7 @@ export const VEHICLE_AWARDEE_FIELDS = [
   'order_count',
   'idv_obligations',
   'idv_contracts_value',
-  'recipient(uei,display_name,legal_business_name,parent_uei)',
+  'recipient(uei,display_name,legal_business_name)',
 ] as const;
 export const VEHICLE_AWARDEE_SHAPE = shapeOf(VEHICLE_AWARDEE_FIELDS);
 

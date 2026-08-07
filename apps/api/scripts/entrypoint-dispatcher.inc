@@ -543,6 +543,11 @@ case "${1:-serve}" in
   # Funding Opportunities P21: READ-ONLY versioned Federal Business Profile
   # dump for one client (--tenant=<uuid> --client=<uuid>).
   diag-federal-business-profile) shift; exec ./node_modules/.bin/tsx scripts/diag-federal-business-profile.ts "$@" ;;
+  # Funding Opportunities P22: relevant vehicles and past-performance sync.
+  # Walks every Tango vehicle/awardee but only persists a match against a
+  # UEI Capiro already knows (self or parent). Dry-run by default; a
+  # dispatched task passes --commit. Resumable via tango_sync_checkpoint.
+  sync-tango-vehicles) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-vehicles.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

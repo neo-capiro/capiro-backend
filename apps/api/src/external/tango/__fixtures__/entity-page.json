@@ -1,9 +1,9 @@
 {
-  "_comment": "SYNTHETIC. Hand-authored against the SDK's ENTITY_SCHEMA field names, plus deliberate noise the shape never asked for. No live Tango response, no real UEI and no real company contributed to this file. The UEIs are structurally plausible and belong to nobody.",
+  "_comment": "SYNTHETIC. Hand-authored against the SDK's ENTITY_SCHEMA field names, plus deliberate noise the shape never asked for. No live Tango response, no real UEI and no real company contributed to this file. The UEIs are structurally plausible and belong to nobody. `next`/`previous`/`cursor` reflect a REAL, confirmed shape (P22 finding, decision-log D-42): /api/entities/ is Django REST Framework PAGE-NUMBER pagination server-side (`next` carries `?page=N`, never `?cursor=`), so the SDK's own `.cursor` — extracted from a `cursor` query param that is never actually present — is genuinely `null` here, not a stand-in value. tango.client.ts's page() derives `nextCursor` from `next`'s presence instead, never from this field.",
   "count": 2,
-  "next": "https://tango.example.test/api/entities/?cursor=cD0yMDI2LTA4LTA2",
+  "next": "https://tango.example.test/api/entities/?page=2&limit=25",
   "previous": null,
-  "cursor": "cD0yMDI2LTA4LTA2",
+  "cursor": null,
   "results": [
     {
       "uei": "ZZTESTUEI001",

@@ -200,6 +200,13 @@ export interface TangoVehicleAwardee {
    * A parent UEI is a RELATED entity, never direct access. P23 depends on the two
    * staying distinguishable — "your parent is on this vehicle" and "you are on
    * this vehicle" are different answers to whether a client can bid.
+   *
+   * ALWAYS NULL as of this SDK/live-API version (P22 finding, decision-log
+   * D-41): the vehicle-awardee endpoint's `recipient` expansion has no
+   * parent/owner UEI field under any name, confirmed by reading the live
+   * server's own available-fields payload. The field stays in this type —
+   * or removing it would silently lose the distinction the moment the
+   * provider adds the data — but nothing maps a real value into it today.
    */
   recipientParentUei: string | null;
   recipientName: string | null;

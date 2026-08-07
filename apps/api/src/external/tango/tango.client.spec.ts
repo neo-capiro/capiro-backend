@@ -260,10 +260,28 @@ describe('every call requests only the fields it uses', () => {
     expect(new URL(calls[1]!.url).searchParams.get('limit')).toBe('1');
   });
 
-  test('a cursor is passed back verbatim', async () => {
+  test('a cursor is decoded into the page number the provider actually wants', async () => {
+    // P22 finding (decision-log D-42): /api/entities/ (like every other list
+    // endpoint this gateway calls) is page-number pagination server-side, not
+    // cursor-based — confirmed by reading a live `next` URL directly. Capiro's
+    // own "cursor" stays opaque to every caller ABOVE this file, but page()
+    // itself must decode it back into the `page` query param the provider
+    // actually reads; a raw `?cursor=` param here would be silently ignored
+    // and the request would fall back to page 1 every time.
     const { service, calls } = gateway([{ body: ENTITY_PAGE }]);
-    await service.listEntities({ cursor: 'cD0yMDI2LTA4LTA2' });
-    expect(new URL(calls[0]!.url).searchParams.get('cursor')).toBe('cD0yMDI2LTA4LTA2');
+    await service.listEntities({ cursor: '3' });
+    expect(new URL(calls[0]!.url).searchParams.get('page')).toBe('3');
+    expect(new URL(calls[0]!.url).searchParams.get('cursor')).toBeNull();
+  });
+
+  test('an absent, blank, or garbage cursor all mean page 1', async () => {
+    const { service, calls } = gateway([{ body: ENTITY_PAGE }, { body: ENTITY_PAGE }, { body: ENTITY_PAGE }]);
+    await service.listEntities();
+    await service.listEntities({ cursor: null });
+    await service.listEntities({ cursor: 'not-a-number' });
+    for (const call of calls) {
+      expect(new URL(call.url).searchParams.get('page')).toBe('1');
+    }
   });
 
   test('the SDK’s own retry is OFF, so P18 owns retry alone', async () => {
@@ -584,15 +602,20 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(page.items[1]!.recipientUei).toBeNull();
   });
 
-  test('a PARENT uei stays distinguishable from the awardee own uei', async () => {
-    // "Your parent is on this vehicle" and "you are on this vehicle" are different
-    // answers to whether a client can bid. P23 depends on the two not merging.
+  test('recipientParentUei is always null — a confirmed provider gap, not a fallback', async () => {
+    // P22 finding (decision-log D-41): the live server's `recipient`
+    // expansion on THIS endpoint has no parent/owner UEI field under any
+    // name — confirmed by reading its own available_fields payload. Even a
+    // fixture row carrying a plausible parent_uei value (as "noise the
+    // shape never asked for") must never leak through — "your parent is on
+    // this vehicle" and "you are on this vehicle" are different answers to
+    // whether a client can bid (P23 depends on the two not merging), and a
+    // silently-wrong parent UEI would be worse than a visibly absent one.
     const { service } = gateway([{ body: AWARDEE_PAGE }]);
     const page = await service.listVehicleAwardees('22222222-bbbb-4ccc-8ddd-000000000001');
-    const viaParent = page.items[2]!;
-    expect(viaParent.recipientUei).toBe('ZZTESTUEI777');
-    expect(viaParent.recipientParentUei).toBe('ZZTESTUEI001');
-    expect(viaParent.recipientUei).not.toBe(viaParent.recipientParentUei);
+    for (const item of page.items) {
+      expect(item.recipientParentUei).toBeNull();
+    }
   });
 
   test('provider business types stay SEPARATE from anything reviewed', async () => {
@@ -605,11 +628,22 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(Object.keys(page.items[0]!)).not.toContain('certifications');
   });
 
-  test('the page carries the provider cursor verbatim and its own count', async () => {
+  test('the page derives nextCursor from next\'s presence, and carries the provider\'s own count', async () => {
+    // NOT `response.cursor` — see tango.client.ts's parsePageCursor doc
+    // (P22/D-42) for why the SDK's own cursor field is unusable here. This
+    // fixture's `next` carries `?page=2`, which is what a real response
+    // looks like; `nextCursor` is Capiro's own opaque "2", not that URL.
     const { service } = gateway([{ body: ENTITY_PAGE }]);
     const page = await service.listEntities();
-    expect(page.nextCursor).toBe('cD0yMDI2LTA4LTA2');
+    expect(page.nextCursor).toBe('2');
     expect(page.totalCount).toBe(2);
+  });
+
+  test('nextCursor is null when the provider reports no next page', async () => {
+    const lastPage = { ...ENTITY_PAGE, next: null, cursor: null };
+    const { service } = gateway([{ body: lastPage }]);
+    const page = await service.listEntities({ cursor: '9' });
+    expect(page.nextCursor).toBeNull();
   });
 
   test('a 404 on getEntity is unresolved EVIDENCE (null), not an exception', async () => {

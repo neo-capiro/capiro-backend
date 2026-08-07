@@ -6454,6 +6454,43 @@ model ClientProfileEnrichmentCandidate {
   @@map("client_profile_enrichment_candidate")
 }
 
+/// Funding Opportunities P22 — relevant vehicles and past-performance sync.
+///
+/// A MATERIALIZED, tenant-scoped summary: "this client (or its parent
+/// entity) is an awardee on this Tango vehicle, with this past-performance
+/// summary." The authoritative, versioned observation stays in the GLOBAL
+/// `tango_resource_snapshot` table (P15) — this table exists so a fast,
+/// indexed read never scans JSONB across every vehicle-awardee snapshot
+/// government-wide to answer "which vehicles matter to THIS client". See
+/// the migration's own header for the full reasoning, including why
+/// `relationship` ('self' | 'parent') is never collapsed into one boolean —
+/// `TangoVehicleAwardee`'s own doc (P14) already draws that line, and P23
+/// depends on it staying drawn.
+model ClientRelevantVehicle {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Matches tango_resource_snapshot.externalId for resourceType='vehicle'.
+  /// Deliberately FK-less — global provider data, tenant-scoped summary.
+  tangoVehicleId String  @map("tango_vehicle_id")
+  vehicleName    String? @map("vehicle_name")
+  vehicleType    String? @map("vehicle_type") @db.VarChar(64)
+  /// 'self' | 'parent'. CHECK-constrained in the migration.
+  relationship  String @db.VarChar(16)
+  recipientUei  String @map("recipient_uei") @db.VarChar(12)
+  orderCount        Int?    @map("order_count")
+  idvObligations    Float?  @map("idv_obligations")
+  idvContractsValue Float?  @map("idv_contracts_value")
+
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, clientId, tangoVehicleId, relationship], map: "client_relevant_vehicle_uniq")
+  @@index([tenantId, clientId], map: "client_relevant_vehicle_tenant_client_idx")
+  @@map("client_relevant_vehicle")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program
