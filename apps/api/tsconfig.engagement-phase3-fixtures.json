@@ -3,9 +3,10 @@
   //
   // The base tsconfig excludes `scripts/`, so these acceptance scripts would
   // otherwise be unchecked. Keep the fixture seed, runtime auth binder,
-  // external-action DB-invariant verifier, safe-write interoperability proof,
-  // and auth/tenant/wall parity verifier in one narrow project so schema drift
-  // is caught even while F-003 short-circuits the broad apps/api typecheck.
+  // full read sweep, external-action DB-invariant verifier, safe-write
+  // interoperability proof, and auth/tenant/wall parity verifier in one narrow
+  // project so schema drift is caught even while F-003 short-circuits the broad
+  // apps/api typecheck.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
@@ -17,6 +18,7 @@
     "scripts/seed-engagement-phase3-parity-fixtures.ts",
     "scripts/seed-engagement-phase3-parity-fixtures.spec.ts",
     "scripts/bind-engagement-phase3-auth-fixtures.ts",
+    "scripts/engagement-phase3-full-read-parity.ts",
     "scripts/engagement-phase3-external-denial.ts",
     "scripts/engagement-phase3-local-write-interoperability.ts",
     "scripts/engagement-phase3-security-parity.ts"
