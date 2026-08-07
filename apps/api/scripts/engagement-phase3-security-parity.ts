@@ -163,13 +163,13 @@ async function main(): Promise<void> {
       results.push({ label: 'below_required_role', status: mainResult.status, errorClass: errorClass(mainResult) });
     });
 
-    const crossTenantPath = `/api/engagement/meetings/${meeting('meeting.crossTenant')}`;
+    const crossTenantPath = `/api/engagement/meetings/${meeting('meeting.otherTenant')}`;
     {
       const mainResult = await probe(MAIN_URL, crossTenantPath, token);
       const shadowResult = await probe(SHADOW_URL, crossTenantPath, token);
       requireParity('cross_tenant_record', mainResult, shadowResult, [403, 404]);
       const serialized = JSON.stringify([mainResult.body, shadowResult.body]);
-      if (serialized.includes('Second Tenant')) throw new Error('cross_tenant_record leaked protected content');
+      if (serialized.includes('Second-tenant meeting')) throw new Error('cross_tenant_record leaked protected content');
       results.push({ label: 'cross_tenant_record', status: mainResult.status, errorClass: errorClass(mainResult) });
     }
 
