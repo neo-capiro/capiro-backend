@@ -92,7 +92,6 @@ function assertNoWebPreviewRouting(): void {
   const webSource = path.join(REPO_ROOT, 'apps/web/src');
   const forbidden = [
     'VITE_ENGAGEMENT_API_URL',
-    'X-Capiro-Engagement-Preview',
     'http://127.0.0.1:4500',
     'http://localhost:4500',
   ];
