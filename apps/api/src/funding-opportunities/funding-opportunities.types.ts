@@ -40,6 +40,15 @@ import type {
 
 // ── Source and kind vocabularies ────────────────────────────────────────────
 
+/**
+ * The sources a USER-FACING read can be asked for today.
+ *
+ * Deliberately NOT the same list as {@link PLANNED_OPPORTUNITY_SOURCES}. This one
+ * gates the API: every DTO, filter and route validates against it, so widening it
+ * makes a source requestable. P13 widens the DATABASE's source vocabulary without
+ * widening this, which is what "the schema can hold a forecast row, and no code
+ * path can produce or serve one" means in practice.
+ */
 export const OPPORTUNITY_SOURCES = ['grants_gov', 'sam_gov'] as const;
 export type OpportunitySource = (typeof OPPORTUNITY_SOURCES)[number];
 

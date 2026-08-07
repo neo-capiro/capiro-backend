@@ -10,6 +10,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { runWithSyncRun, emptyCounts, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import { FUNDING_OPPORTUNITIES_FEATURE } from '../src/funding-opportunities/funding-opportunities-flag.guard.js';
 import { decideProducerAction } from '../src/funding-opportunities/producer-decision.js';
+import { sourceRecordIdentityColumns } from '../src/funding-opportunities/funding-opportunity-identity.js';
 import {
   computeEligibility,
   scoreOpportunityRelevance,
@@ -325,8 +326,10 @@ export async function generateFundingGrantCandidates(
                             tenantId,
                             clientId: client.clientId,
                             source: 'grants_gov',
-                            grantOpportunityId: grant.id,
-                            samOpportunityId: null,
+                            // DUAL-WRITE (P13): legacy pointer AND generic
+                            // identity, from one helper so a producer cannot emit
+                            // a row the generic index does not see.
+                            ...sourceRecordIdentityColumns('grants_gov', grant.id),
                             workflowStatus: 'suggested',
                             evidenceSourceType: EVIDENCE_SOURCE_TYPE,
                             userCreated: false,

@@ -21,6 +21,16 @@ import { HUMAN_DECISIONS, OPPORTUNITY_WORKFLOW_STATUSES } from './funding-opport
 
 const MIGRATION_DIR = join(__dirname, '../../prisma/migrations');
 const MIGRATION_NAME = '20260819010000_funding_opportunity_decisions';
+/**
+ * The funding migrations that existed BEFORE this one. A fixed list on purpose:
+ * "everything currently earlier in the sort" would be satisfied by an empty set,
+ * and naming them is what makes the ordering assertion mean something.
+ */
+const PRECEDING_FUNDING_MIGRATIONS = [
+  '20260810010000_funding_opportunities',
+  '20260810020000_funding_opportunities_closeout',
+  '20260810040000_funding_opportunities_lifecycle_truth',
+];
 const SQL_RAW = readFileSync(join(MIGRATION_DIR, MIGRATION_NAME, 'migration.sql'), 'utf8');
 /**
  * Comments stripped. The migration legitimately EXPLAINS what it is not doing —
@@ -199,13 +209,24 @@ describe('migration ordering', () => {
     // Prisma applies by directory name. A migration stamped EARLIER than one
     // already applied is never run — silently — on every environment where the
     // earlier one landed first.
+    //
+    // This used to also assert `fo[fo.length - 1] === MIGRATION_NAME`, i.e. that
+    // P07 is the LAST funding migration. That was true on the day it was written
+    // and became false the moment P13 added one — an over-specified assertion that
+    // turns every future migration into a failure in an unrelated suite. What
+    // actually matters is the property in the comment above: this migration sorts
+    // after the ones that existed before it.
     const names = readdirSync(MIGRATION_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
     const fo = names.filter((n) => /_funding_opportunit/.test(n));
     expect(fo).toContain(MIGRATION_NAME);
-    expect(fo[fo.length - 1]).toBe(MIGRATION_NAME);
+    const index = fo.indexOf(MIGRATION_NAME);
+    for (const earlier of PRECEDING_FUNDING_MIGRATIONS) {
+      expect(fo).toContain(earlier);
+      expect(fo.indexOf(earlier)).toBeLessThan(index);
+    }
     expect([...fo].sort()).toEqual(fo);
   });
 
