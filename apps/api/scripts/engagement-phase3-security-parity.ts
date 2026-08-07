@@ -121,6 +121,7 @@ async function main(): Promise<void> {
   const plan = buildFixturePlan();
   const users = new Map(plan.users.map((row) => [row.key, row.id]));
   const meetings = new Map(plan.meetings.map((row) => [row.key, row.id]));
+  const clients = new Map(plan.clients.map((row) => [row.key, row]));
   const notes = new Map(plan.notes.map((row) => [row.key, row]));
   const user = (key: string) => {
     const value = users.get(key);
@@ -129,6 +130,11 @@ async function main(): Promise<void> {
   };
   const meeting = (key: string) => {
     const value = meetings.get(key);
+    if (!value) throw new Error(`Fixture plan missing ${key}`);
+    return value;
+  };
+  const client = (key: string) => {
+    const value = clients.get(key);
     if (!value) throw new Error(`Fixture plan missing ${key}`);
     return value;
   };
@@ -186,13 +192,17 @@ async function main(): Promise<void> {
     });
 
     await asFixtureActor(prisma, adminUserId, user('actor.wallDenied'), async () => {
-      const wallPath = `/api/engagement/meetings/${meeting('meeting.confidentialDenied')}`;
+      // Use the client-context endpoint rather than the private meeting above.
+      // That removes record-ownership as an alternative reason for denial, so
+      // this case specifically proves the walled client/grant boundary.
+      const walled = client('client.walled');
+      const wallPath = `/api/engagement/context/${walled.id}`;
       const mainResult = await probe(MAIN_URL, wallPath, token);
       const shadowResult = await probe(SHADOW_URL, wallPath, token);
       requireParity('ethical_wall_denied', mainResult, shadowResult, [403, 404]);
-      const marker = notes.get('note.peerConfidential')?.bodyPlaintext ?? 'another user';
-      if (JSON.stringify([mainResult.body, shadowResult.body]).includes(marker)) {
-        throw new Error('ethical_wall_denied leaked confidential note body');
+      const serialized = JSON.stringify([mainResult.body, shadowResult.body]);
+      if (serialized.includes(walled.name) || serialized.includes('another user')) {
+        throw new Error('ethical_wall_denied leaked walled-client content');
       }
       results.push({ label: 'ethical_wall_denied', status: mainResult.status, errorClass: errorClass(mainResult) });
     });
@@ -212,6 +222,7 @@ async function main(): Promise<void> {
           marker: 'ENGAGEMENT_PHASE3_SECURITY_PARITY_COMPLETE',
           cases: results.length,
           realAdminIdentityRestored: true,
+          ethicalWallProbe: 'GET /api/engagement/context/:clientId',
           results,
         },
         null,
