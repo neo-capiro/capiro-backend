@@ -1,10 +1,15 @@
 # Phase 7 handoff — Session 6 → Session 7
 
-**Mission for the next session: Workstream M.**
+**Mission for the next session: finish Workstream M — the surface cutover. Then N, then O.**
 
-Workstreams **A through L are complete** (K bar one M-dependent item). M, N, O
-remain. L's database half — everything the session-5 handoff listed as missing —
-is implemented and demonstrated against a real PostgreSQL.
+Workstreams **A through L are complete**, including K's last item, which turned
+out to be a read concern and landed in M. **M is PARTIAL**: its whole foundation
+and its containment are implemented and demonstrated, and the surface-by-surface
+migration of the read services is not. N and O have not been started.
+
+Read §3 before anything else — it is specific about where the line falls, because
+"Workstream M" appearing in a commit log is otherwise easy to mistake for
+"product APIs run from the active snapshot", which is not true yet.
 
 Authoritative spec: `phase-7-verified-canonical-promotion-production-cutover-v1.md`.
 This handoff records repository reality, not a substitute for that plan.
@@ -31,8 +36,8 @@ This handoff records repository reality, not a substitute for that plan.
 | Item                     | Value                                                            |
 | ------------------------ | ---------------------------------------------------------------- |
 | Branch                   | `agent/pe-budget-canonical-promotion-cutover-v1`                 |
-| HEAD before this handoff | `67854a868`                                                      |
-| Unpushed                 | **5 commits** (3 inherited + 2 from this session)                |
+| HEAD before this handoff | `20ad74f2e`                                                      |
+| Unpushed                 | **7 commits** (3 inherited + 4 from this session)                |
 | `origin/main`            | `458249f8e` — 59 commits ahead of this branch, no new migrations |
 | Merged main this session | **No** — see below                                               |
 | Worktree                 | clean                                                            |
@@ -51,7 +56,9 @@ with `20260902010000`. Merge when the successor PR is opened.
 
 ```text
 67854a868  feat(pe): Phase 7 WS L — outbox drain adapter, pause state, and generic deltas
-           docs(pe): Phase 7 session 6 handoff — next session starts Workstream M
+38d7307cf  docs(pe): Phase 7 session 6 handoff — next session starts Workstream M
+20ad74f2e  feat(pe): Phase 7 WS M — snapshot reads, override overlay, shadow compare, containment
+           docs(pe): Phase 7 session 6 handoff — M partial, surface cutover remains
 ```
 
 Files changed by the first commit: the migration
@@ -175,34 +182,84 @@ Everything in the session 2–5 handoffs still holds. Four more:
     `scoreInputsFromExactDeltaV1`, feeding a 0..1 log curve where the ninth
     decimal cannot change an outcome.
 
+### Workstream M, foundation and containment (`20ad74f2e`)
+
+Everything lands inert. `PE_SNAPSHOT_READ_MODE` defaults to `legacy`, mirroring
+`KG_TRAVERSAL_SOURCE`, so no caller's behaviour changes until a flag moves.
+
+- **`snapshot-read-mode-v1`** — the four modes. Two rules that are not obvious: a
+  non-canary tenant in canary mode is served legacy _and compared_ (the canary
+  exists to find what shadow missed, and dropping comparison for the traffic
+  still on legacy discards the larger sample); and **no active pointer forces
+  legacy in every mode**, because a snapshot read with no activation is a product
+  outage, not an empty result.
+- **`snapshot-read-repository-v1`** — the pointer is resolved **once per
+  request** and every read is scoped to that id. "One response never mixes
+  snapshots" is not satisfied by careful queries: a PE profile issues several
+  reads, and an activation committing between the first and the last hands the
+  caller half of one annual cycle and half of another, each read individually
+  correct. `assertOneSnapshotV1` is the belt to that braces.
+- **`manual-override-overlay-v1`** — Workstream K's last item. The official value
+  survives as `officialMoney`, and the canonical row hash is untouched: an
+  override does not make a row a different government fact, it makes it one
+  someone has corrected. A proposal is not in force. An in-force override whose
+  target the snapshot lacks comes back as `unmatched` rather than applied or
+  dropped.
+- **`shadow-read-comparison-v1`** — all seven plan §M.9 classes. The result type
+  has nowhere to put a value; shadow mode runs on production traffic, so a
+  mismatch log that quoted the bodies would be a continuous export of budget data
+  into a log aggregator. A spec asserts that directly.
+- **`legacy-budget-write-gate-v1`** plus the dispatcher — the twelve verbs that
+  load, rebuild, or repair canonical budget rows now refuse `--commit`. Inspect
+  survives. `PE_LEGACY_BUDGET_WRITES=allow` is the operator override, and a
+  snapshot or canary read mode overrides the override.
+
+The switch is at the entry points rather than inside
+`ProgramElementWriterService` on purpose: that service is the shared write path
+for ordinary product behaviour, and a default-off gate inside it would refuse
+writes the product still legitimately makes, during M rather than at the
+rollout's freeze step.
+
 ---
 
-## 3. Workstream brief — M
+## 3. Workstream brief — finishing M
 
-Plan §M. Read it; this is only what repository reality adds.
+**What exists:** the mode resolver, the active-snapshot resolver, the snapshot
+read port and its Prisma adapter, the override overlay, shadow comparison, and
+the containment gate. All unit-tested, and proved against a real database by
+`scripts/pe-budget-phase7-read-rehearsal.ts` running **as `capiro_app`** — 26
+checks covering pointer resolution, exact money, a real override applied with
+provenance, and four refused write attempts.
 
-1. **Snapshot-aware read repositories** with one active-snapshot resolver.
-   `program-element-read.service.ts` (1700+ lines) and
-   `budget-lines-read.service.ts` (830) are the two surfaces. Existing HTTP
-   response contracts stay stable; provenance fields are additive.
-2. **Read-time manual override overlay** — this is Workstream K's one unfinished
-   item, and it belongs here because it is a read concern. Property 17 from the
-   session-5 handoff: an override is never a source observation and never a
-   column on a canonical row; it is applied _beside_ the snapshot at read time
-   with a visible provenance label.
-3. **Rollout mode** `legacy | shadow | snapshot_canary | snapshot`, with digest
-   comparison over normalized responses and the seven mismatch classes from
-   plan §M.9.
-4. **Legacy writer containment** — runtime kill switch, the new entrypoint
-   commands, dispatcher verbs refusing canonical `--commit`, and the static
-   gates. Note plan §M.15 gates these only _after_ canary acceptance.
-5. **Migrate the `program_element_delta` readers**, or decide explicitly that
-   they stay on the compatibility projection. The six call sites are in
+**What does not exist, and is the next session's work:**
+
+1. **The surface migration.** `program-element-read.service.ts` (1700+ lines),
+   `budget-lines-read.service.ts` (830), `program-element.controller.ts`,
+   `budget-lines.controller.ts`, and `meri/meri-tools.service.ts` all still read
+   the legacy tables. Plan §M's acceptance criterion — "product APIs can run
+   fully from the active snapshot" — **is not met.**
+2. **Family-shaped read models.** The snapshot substrate is one discriminated
+   table; every surface in plan §M.3 (PE finder/profile, timeline, projects,
+   performers, milestones, funding positions, procurement/O&M/MILCON, sources,
+   actions/provisions, movement, watches) needs a projection from canonical rows
+   into the shape its existing response contract already promises. This is the
+   bulk of the remaining work.
+3. **Wiring shadow mode into a request path.** `compareShadowReadV1` is pure and
+   ready; nothing calls it yet, because there is no snapshot response to compare
+   against until (1) and (2) exist.
+4. **Tenant overlays after global snapshot selection** (plan §M.4). The read port
+   is global by design; watches and relevance are tenant-scoped and must join
+   after the snapshot is chosen.
+5. **The `program_element_delta` readers** — migrate them onto
+   `defense_budget_canonical_delta`, or decide explicitly that they stay on the
+   compatibility projection. Six call sites in
    `program-element-read.service.ts`, `action-recommendation.service.ts`,
    `product-metrics.service.ts`, and `delta-engine.service.ts`.
-6. **The admin UI pending state.** Created in session 5 and still open: the
-   two-step override flow means a correction no longer lands on the first click,
-   and nothing in `apps/web` knows.
+6. **Static gates** (plan §M.15) — deliberately absent. The plan places them
+   after canary acceptance, and the runtime switch is the live control until then.
+7. **The admin UI pending state.** Created in session 5, still open: the two-step
+   override flow means a correction no longer lands on the first click, and
+   nothing in `apps/web` knows.
 
 **Do the source sweeps with `grep -a` or `readFileSync`.** See gotcha #6 — it is
 worse than session 5 recorded.
@@ -213,20 +270,21 @@ worse than session 5 recorded.
 
 Measured on this branch, this session, all locally reproduced.
 
-| Check                                     | Result                                                  |
-| ----------------------------------------- | ------------------------------------------------------- |
-| `jest src/defense-budget/promotion`       | **505 passed, 16 suites** (was 423 / 12)                |
-| `jest src/program-element`                | **723 passed, 61 suites**                               |
-| `pnpm --filter @capiro/api typecheck`     | **6 errors**, the documented pre-existing set           |
-| `prettier --check` on every file touched  | clean                                                   |
-| `verify:pe-budget-phase-7:db` (rehearsal) | **98 shell + 24 engine + 39 drain checks**, exit 0      |
-| `verify:pe-budget-phase-1`                | 859 passed, 59 suites, exit 0                           |
-| `verify:pe-budget-phase-2`                | 840 passed, 58 suites, exit 0                           |
-| `verify:pe-budget-phase-3`                | 216 passed, 16 suites, exit 0                           |
-| `verify:pe-budget-phase-4`                | 305 passed, 20 suites, exit 0                           |
-| `verify:pe-budget-phase-5`                | 358 passed, 28 suites, exit 0                           |
-| `verify:pe-budget-phase-6`                | 779 passed, 78 suites + 24/24 negative controls, exit 0 |
-| GitHub Actions                            | still dead repo-wide; every claim above is local        |
+| Check                                                    | Result                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------- |
+| `jest src/defense-budget/promotion`                      | **578 passed, 21 suites** (was 423 / 12)                      |
+| `jest src/config src/defense-budget src/program-element` | **3397 passed, 253 suites**                                   |
+| `jest src/program-element`                               | **723 passed, 61 suites**                                     |
+| `pnpm --filter @capiro/api typecheck`                    | **6 errors**, the documented pre-existing set                 |
+| `prettier --check` on every file touched                 | clean                                                         |
+| `verify:pe-budget-phase-7:db` (rehearsal)                | **100 shell + 24 engine + 39 drain + 26 read checks**, exit 0 |
+| `verify:pe-budget-phase-1`                               | 859 passed, 59 suites, exit 0                                 |
+| `verify:pe-budget-phase-2`                               | 840 passed, 58 suites, exit 0                                 |
+| `verify:pe-budget-phase-3`                               | 216 passed, 16 suites, exit 0                                 |
+| `verify:pe-budget-phase-4`                               | 305 passed, 20 suites, exit 0                                 |
+| `verify:pe-budget-phase-5`                               | 358 passed, 28 suites, exit 0                                 |
+| `verify:pe-budget-phase-6`                               | 779 passed, 78 suites + 24/24 negative controls, exit 0       |
+| GitHub Actions                                           | still dead repo-wide; every claim above is local              |
 
 > The session-5 handoff recorded `jest src/program-element` as "1123 passed, 72
 > suites (with promotion)". That arithmetic implies 700 tests / 60 suites for
@@ -357,6 +415,27 @@ is what N's command should call. This cannot bite production yet — no promotio
 has run there and the promoter role still cannot authenticate — but it will bite
 the first rehearsal or dev promotion that rolls back.
 
+### New: the containment gate changes scheduled-task behaviour on the next deploy
+
+The twelve dispatcher budget verbs now refuse `--commit` with
+`PE_LEGACY_BUDGET_WRITES` unset, and that variable is unset everywhere. **Any
+scheduled ECS task that passes `--commit` to one of them starts exiting 64 the
+first time this image is deployed.** That is the rollout's step-0 freeze arriving
+as a side effect of a deploy rather than as a decision.
+
+This is intended containment, not an accident, but it needs Workstream N to
+finish the thought: N owns setting `PE_LEGACY_BUDGET_WRITES=allow` on whichever
+legacy task definitions are still permitted to run, and removing it again at
+rollout step 15. **Until N does that, do not deploy this branch without checking
+`ingestion-schedule.ts` and `scheduled-ingestion-jobs.ts` for verbs in the
+containment list** — `LEGACY_BUDGET_DISPATCHER_VERBS_V1` in
+`legacy-budget-write-gate-v1.ts` is the authoritative list.
+
+The alert emitters (`emit-changes`, `emit-bill-alerts`, `emit-committee-changes`,
+`send-pe-alert-emails`) are deliberately **not** in that list. They publish rather
+than write canonical rows, and the rollout's own final step is where they are
+gated.
+
 **Operator action still outstanding (Workstream N):** the promoter role's
 Secrets Manager secret and `PROMOTER_USER`/`PROMOTER_PASSWORD` on
 `ApiBootstrapRolesTaskDef`. Until provisioned, `capiro_pe_promoter` cannot
@@ -387,12 +466,24 @@ two; O is its own.
 
 ## 9. Definition of done for the next session
 
-Workstream M: production code implemented, focused tests passing, typecheck
-compared against the **6-error** baseline, formatting applied, and the shadow
-comparison actually run against fixtures rather than described. Then re-run
-`verify:pe-budget-phase-1` through `-6`.
+Finish M: the surface migration in §3 items 1–5, with shadow comparison actually
+wired into a request path and run against fixtures rather than described. The
+honest test of "done" for M is plan §M's own words — a product API served
+entirely from the active snapshot, with a measured mismatch rate.
+
+Then N, then O. N cannot be finalized until D/E/L/M's security boundaries are
+accepted (plan's dependency rules), and N owes the two loose ends this session
+created: the drain resume command, and `PE_LEGACY_BUDGET_WRITES` on the legacy
+task definitions.
+
+Typecheck against the **6-error** baseline, formatting applied, and re-run
+`verify:pe-budget-phase-1` through `-6` before your own handoff.
 
 Open a successor PR to #784, which is merged.
+
+Report exact commands, exit codes, and test counts. A workstream is done when it
+is demonstrated, not when the files exist — and M in particular is easy to
+over-claim, because its foundation is complete and its purpose is not yet served.
 
 Report exact commands, exit codes, and test counts. A workstream is done when it
 is demonstrated, not when the files exist.
