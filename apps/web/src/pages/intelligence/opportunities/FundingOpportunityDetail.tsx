@@ -5,6 +5,7 @@ import { ExportOutlined } from '@ant-design/icons';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { FIT_BAND_COLORS, FIT_BAND_LABELS, explainSignals } from './opportunity-explanations.js';
+import { AcquisitionPositionPanel } from './AcquisitionPositionPanel.js';
 import {
   ELIGIBILITY_LABELS,
   FUNDING_OPPORTUNITIES_FEATURE,
@@ -26,11 +27,12 @@ const { Text, Title, Paragraph } = Typography;
  *
  * ── Why a shell, built now, mostly empty ─────────────────────────────────────
  *
- * Eight sections exist from this phase onwards, and five of them have no data
- * yet — acquisition position arrives in P23, the government landscape in P33,
- * requirements in P31, the notice timeline in P28, the full assessment in P32.
- * Building the navigation once and filling it in is deliberate: the alternative
- * is redesigning where things live five more times, and every redesign moves a
+ * Eight sections exist from this phase onwards. Acquisition position (P23) is
+ * now real — see AcquisitionPositionPanel.tsx — but four still have no data:
+ * the government landscape arrives in P33, requirements in P31, the full
+ * notice timeline in P28, the full assessment in P32. Building the
+ * navigation once and filling it in is deliberate: the alternative is
+ * redesigning where things live four more times, and every redesign moves a
  * deep link somebody has already pasted into a ticket.
  *
  * ── The rule every empty section follows ─────────────────────────────────────
@@ -317,12 +319,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: OpportunityRe
       </Card>
 
       {/* 3 ─ Acquisition position (P22/P23) */}
-      <PendingSection
-        title="Acquisition position"
-        testId="fo-detail-acquisition"
-        what="Whether this client has a credible route to the acquisition — a vehicle they are on, a related entity, or a teaming route — is not calculated yet."
-        arrivesIn="It is not the same question as legal eligibility, and missing provider evidence will be reported as unknown rather than as a determination against the client."
-      />
+      <AcquisitionPositionPanel opportunity={o} />
 
       {/* 4 ─ Government landscape (P33) */}
       <PendingSection

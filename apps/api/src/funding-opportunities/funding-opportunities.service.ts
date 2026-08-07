@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -51,6 +51,14 @@ import {
   sourceRecordIdentityColumns,
   sourceRecordWhere,
 } from './funding-opportunity-identity.js';
+import { isFundingOpportunitiesFeatureEnabled, FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE } from './funding-opportunities-flag.guard.js';
+import {
+  AcquisitionPositionService,
+  type AcquisitionPosition,
+  type AcquisitionPositionReader,
+} from './acquisition-position.js';
+import { TangoStoreService, computeFilterFingerprint } from '../external/tango/tango-store.service.js';
+import { TANGO_GATEWAY, type TangoGateway } from '../external/tango/tango.types.js';
 import {
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
@@ -107,8 +115,67 @@ import {
 @Injectable()
 export class FundingOpportunitiesService {
   private readonly logger = new Logger(FundingOpportunitiesService.name);
+  /**
+   * P23. Constructed once, reused across requests — it holds no per-request
+   * state of its own (tenantId/clientId are call parameters), only the
+   * reader closure over `this.prisma`/`this.tangoStore`/`this.tangoGateway`.
+   */
+  private readonly acquisitionPosition: AcquisitionPositionService;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tangoStore: TangoStoreService,
+    @Inject(TANGO_GATEWAY) private readonly tangoGateway: TangoGateway,
+  ) {
+    this.acquisitionPosition = new AcquisitionPositionService(this.buildAcquisitionPositionReader());
+  }
+
+  /**
+   * Adapts real Prisma + TangoStoreService reads into the fakeable
+   * `AcquisitionPositionReader` interface acquisition-position.spec.ts tests
+   * against directly — no business logic lives here, only fetching and
+   * shaping, matching that file's own doc.
+   */
+  private buildAcquisitionPositionReader(): AcquisitionPositionReader {
+    const SYNC_VERB = 'sync-tango-vehicles';
+    const RESOURCE_TYPE = 'vehicle';
+    const filterFingerprint = computeFilterFingerprint({});
+    return {
+      isConfigured: () => this.tangoGateway.configured,
+      getSyncStatus: async () => {
+        const checkpoint = await this.tangoStore.readCheckpoint(SYNC_VERB, RESOURCE_TYPE, filterFingerprint);
+        return {
+          neverSynced: checkpoint == null,
+          lastSyncedAt: checkpoint?.lastRunAt ? checkpoint.lastRunAt.toISOString() : null,
+        };
+      },
+      listRelevantVehicles: async (tenantId, clientId) => {
+        const rows = await this.prisma.withTenant(tenantId, (tx) =>
+          tx.clientRelevantVehicle.findMany({
+            where: { clientId },
+            select: {
+              tangoVehicleId: true,
+              vehicleName: true,
+              vehicleType: true,
+              relationship: true,
+              recipientUei: true,
+              orderCount: true,
+              idvObligations: true,
+              idvContractsValue: true,
+              lastSyncedAt: true,
+            },
+          }),
+        );
+        return rows;
+      },
+      getVehicleSnapshot: async (tangoVehicleId) => {
+        const snapshot = await this.tangoStore.getActiveSnapshot('vehicle', tangoVehicleId);
+        if (!snapshot) return null;
+        const normalized = snapshot.normalizedJsonb as unknown as { lastDateToOrder?: string | null } | null;
+        return { lastDateToOrder: normalized?.lastDateToOrder ?? null };
+      },
+    };
+  }
 
   // ── Public: unscoped catalog list (optionally scored for one client) ───────
 
@@ -1037,6 +1104,28 @@ export class FundingOpportunitiesService {
 
     const profile = buildClientOpportunityProfile(facts, history);
 
+    // P23. Computed ONCE per client, never per opportunity. Degrades to null
+    // — "flag off" shape, not a request failure — on any error, the same
+    // posture the award-history read just above takes: an additive signal
+    // must never be the reason a triage list fails to load.
+    let acquisitionPosition: AcquisitionPosition | null = null;
+    try {
+      const vehicleFitEnabled = await isFundingOpportunitiesFeatureEnabled(
+        this.prisma,
+        tenantId,
+        FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE,
+      );
+      if (vehicleFitEnabled) {
+        acquisitionPosition = await this.acquisitionPosition.getPosition(tenantId, clientId);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `acquisition-position read failed; acquisitionPosition will be null: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     return {
       clientId,
       profile,
@@ -1044,6 +1133,7 @@ export class FundingOpportunitiesService {
       samProfile: profile.sam,
       completeness: profile.completeness,
       facilitiesById: new Map(facts.facilities.map((f) => [f.id, f])),
+      acquisitionPosition,
     };
   }
 
@@ -1543,7 +1633,18 @@ export class FundingOpportunitiesService {
         eligibility: scored.eligibility.state,
         profileTooThin: profileIsTooThin(facts.completeness),
         asOf,
+        // vehicleAccessRequired/vehicleAccessResolved are deliberately NOT
+        // passed here — see opportunity-recommendation.ts's own class doc
+        // and decision-log D-44. No per-opportunity vehicle crosswalk exists
+        // in this codebase, so there is no honest way to know THIS specific
+        // opportunity requires vehicle access; omitting both is byte-for-
+        // byte the same recommendation as before P23 existed.
       }),
+      // Grants never carry a contract-vehicle concept (see the field's own
+      // doc); a sam_gov row gets the client's own posture, or null when the
+      // funding_opportunities_vehicle_fit flag is off for this tenant —
+      // computed ONCE per client in readClientFacts, not per opportunity.
+      acquisitionPosition: base.source === 'sam_gov' ? facts.acquisitionPosition : null,
       missingProfileFields: missingProfileFields(facts.completeness, base.source),
       // An explicit project site OVERRIDES nothing — it is the only district
       // source for a grant (Grants.gov publishes no geography) and it is a
@@ -1618,6 +1719,11 @@ export class FundingOpportunitiesService {
         // Null, not a placeholder: a recommendation is always relative to a
         // specific client, and the unscoped catalog read has none.
         recommendation: null,
+        // Null for the SAME reason recommendation is — no client, nothing to
+        // score a vehicle position against. Grants never get one at all
+        // (see acquisitionPosition's own doc): a grant carries no contract
+        // vehicle concept regardless of client.
+        acquisitionPosition: null,
         missingProfileFields: [],
         sourceUpdatedAt: (g.lastUpdatedAt ?? g.detailSyncedAt ?? g.syncedAt)?.toISOString() ?? null,
         workflow: null,
@@ -1685,6 +1791,10 @@ export class FundingOpportunitiesService {
       // relative to a specific client, and inventing one for the unscoped catalog
       // would be a claim about a client nobody named.
       recommendation: null,
+      // Null for the unscoped read, same reason as recommendation. The
+      // scored path (shapeScored) fills this from the client's own
+      // acquisition position when the vehicle-fit flag is on.
+      acquisitionPosition: null,
       missingProfileFields: [],
       sourceUpdatedAt: (s.updatedAt ?? s.lastSyncedAt)?.toISOString() ?? null,
       workflow: null,
@@ -2326,6 +2436,12 @@ interface ClientFacts {
     string,
     { id: string; name: string; state: string | null; congressionalDistrict: string | null }
   >;
+  /**
+   * P23. Computed ONCE per client, not per opportunity — this client's own
+   * vehicle-access posture, or null when `funding_opportunities_vehicle_fit`
+   * is off for this tenant. shapeScored attaches it to sam_gov rows only.
+   */
+  acquisitionPosition: AcquisitionPosition | null;
 }
 
 // ── Pure helpers ────────────────────────────────────────────────────────────

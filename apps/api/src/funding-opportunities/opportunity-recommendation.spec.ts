@@ -412,3 +412,66 @@ describe('every combination produces a valid, invariant-respecting result', () =
     expect(count).toBe(2 * 2 * 4 * 2 * 4 * 6 * 3);
   });
 });
+
+// ── P23: acquisition position feeds ONE override, and only into pursue ──────
+
+describe('vehicleAccessRequired (P23) downgrades pursue to needs_review, and nothing else', () => {
+  test('required and unresolved: a would-be pursue becomes needs_review', () => {
+    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: false }));
+    expect(r.machineRecommendation).toBe('needs_review');
+    expect(r.reasonCodes).toContain('vehicle_access_unresolved');
+    expect(r.primaryReason).toMatch(/vehicle access/);
+    // The capability match itself is not disputed — only the route to bid.
+    expect(r.reasonCodes).toContain('strong_capability_match');
+  });
+
+  test('required and resolved: the recommendation is an ordinary pursue, untouched', () => {
+    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: true }));
+    expect(r.machineRecommendation).toBe('pursue');
+    expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
+  });
+
+  test('not required: vehicleAccessResolved is irrelevant, and the recommendation is unaffected', () => {
+    const r = recommendOpportunity(input({ vehicleAccessRequired: false, vehicleAccessResolved: false }));
+    expect(r.machineRecommendation).toBe('pursue');
+    expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
+  });
+
+  test('omitted entirely: byte-for-byte the same result as before this field existed', () => {
+    // Every RecommendationInput built before P23 — and every real caller
+    // today (decision-log D-44) — never sets either field. This is the
+    // contract that guarantees that silence.
+    const withFields = recommendOpportunity(input({ vehicleAccessRequired: undefined, vehicleAccessResolved: undefined }));
+    const withoutFields = recommendOpportunity(input());
+    expect(withFields).toEqual(withoutFields);
+    expect(withoutFields.machineRecommendation).toBe('pursue');
+  });
+
+  test('the override cannot fire on rules 1-6 — a closed notice stays pass even when vehicle access is unresolved', () => {
+    const r = recommendOpportunity(
+      input({ isActive: false, vehicleAccessRequired: true, vehicleAccessResolved: false }),
+    );
+    expect(r.machineRecommendation).toBe('pass');
+    expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
+  });
+
+  test('the override cannot fire on rule 8 (monitor) — moderate-only evidence stays monitor, not needs_review', () => {
+    const r = recommendOpportunity(
+      input({
+        signalStrengths: ['moderate', 'moderate'],
+        vehicleAccessRequired: true,
+        vehicleAccessResolved: false,
+      }),
+    );
+    expect(r.machineRecommendation).toBe('monitor');
+    expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
+  });
+
+  test('unresolved-vehicle needs_review is still a valid, invariant-respecting result', () => {
+    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: false }));
+    expect([...MACHINE_RECOMMENDATIONS]).toContain(r.machineRecommendation);
+    expect([...RECOMMENDATION_CONFIDENCES]).toContain(r.recommendationConfidence);
+    expect(r.primaryReason.length).toBeGreaterThan(0);
+    expect(r.recommendedNextAction.length).toBeGreaterThan(0);
+  });
+});

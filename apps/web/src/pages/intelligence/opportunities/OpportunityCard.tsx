@@ -9,12 +9,14 @@ import {
   MessageOutlined,
 } from '@ant-design/icons';
 import {
+  ACQUISITION_POSITION_LABELS,
   ELIGIBILITY_LABELS,
   KIND_LABELS,
   SOURCE_LABELS,
   WORKFLOW_LABELS,
   formatDeadline,
   moneyLine,
+  type AcquisitionPositionState,
   type FundingOpportunity,
 } from './funding-opportunities-api.js';
 import {
@@ -77,6 +79,20 @@ const STRENGTH_COLOR: Record<string, string> = {
   strong: 'green',
   moderate: 'blue',
   weak: 'default',
+};
+
+/**
+ * `related_entity_access`/`known_teaming_route` share a color, deliberately
+ * DIFFERENT from `direct_prime_access` — see AcquisitionPositionPanel.tsx's
+ * own doc for why the two must never look the same at a glance.
+ */
+const ACQUISITION_POSITION_COLOR: Record<AcquisitionPositionState, string> = {
+  direct_prime_access: 'green',
+  related_entity_access: 'blue',
+  known_teaming_route: 'blue',
+  vehicle_not_identified: 'default',
+  no_direct_access_evidence: 'default',
+  unknown: 'default',
 };
 
 export function OpportunityCard({
@@ -237,6 +253,26 @@ export function OpportunityCard({
             </Tag>
           </Tooltip>
         </span>
+
+        {/*
+          Concise: shown ONLY when a position exists. A grant, an unscored
+          catalog row, or the vehicle-fit flag being off all render nothing
+          extra here — the detail panel is where "why is this missing" gets
+          explained, matching how missingProfileFields and the strongest-
+          signal line already behave on this same card.
+        */}
+        {o.acquisitionPosition ? (
+          <span className="fo-fact">
+            <Text type="secondary" className="fo-fact__label">
+              Vehicle access
+            </Text>
+            <Tooltip title={o.acquisitionPosition.summary}>
+              <Tag color={ACQUISITION_POSITION_COLOR[o.acquisitionPosition.state]}>
+                {ACQUISITION_POSITION_LABELS[o.acquisitionPosition.state]}
+              </Tag>
+            </Tooltip>
+          </span>
+        ) : null}
 
         {o.setAside ? (
           <span className="fo-fact">
