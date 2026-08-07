@@ -6,7 +6,7 @@ export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as con
 export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
 
 /** Responses API reasoning effort used by the configured model. */
-export type MeriV3ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh';
+export type MeriV3ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface MeriV3ReasoningProfile {
   mode: MeriV3ReasoningMode;
