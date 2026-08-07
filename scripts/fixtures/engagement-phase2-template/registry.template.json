@@ -1,0 +1,168 @@
+{
+ "Resources": {
+  "Repository22E53BBD": {
+   "Type": "AWS::ECR::Repository",
+   "Properties": {
+    "EmptyOnDelete": false,
+    "EncryptionConfiguration": {
+     "EncryptionType": "KMS",
+     "KmsKey": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-00000000ecr0"
+    },
+    "ImageScanningConfiguration": {
+     "ScanOnPush": true
+    },
+    "ImageTagMutability": "IMMUTABLE",
+    "LifecyclePolicy": {
+     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Expire untagged images after 7 days\",\"selection\":{\"tagStatus\":\"untagged\",\"countType\":\"sinceImagePushed\",\"countNumber\":7,\"countUnit\":\"days\"},\"action\":{\"type\":\"expire\"}},{\"rulePriority\":2,\"description\":\"Retain the 30 most recent tagged release images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":30},\"action\":{\"type\":\"expire\"}}]}"
+    },
+    "RepositoryName": "capiro/dev/engagement-api",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiRegistry/Repository/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/0XHUQqDMAwA0LP432ZbZCfYAYTuAKOrEaKzlSa1DPHuMvzY1+Mh4B3h2vgqNvST/fAbtqf6MBlHkkoOZHyVF4UMm6MlCWvKX/MY4n/7r13RpehuYuoJRrmsiIAt3JpRmG0uUXkmcKcHFk/IB3cAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiRegistry/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "RepositoryArn": {
+   "Description": "engagement-api ECR repository ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "Repository22E53BBD",
+     "Arn"
+    ]
+   }
+  },
+  "RepositoryUri": {
+   "Description": "engagement-api ECR repository URI (push target)",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "Repository22E53BBD",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "Repository22E53BBD",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "Repository22E53BBD"
+      }
+     ]
+    ]
+   }
+  },
+  "RepositoryName": {
+   "Description": "engagement-api ECR repository name",
+   "Value": {
+    "Ref": "Repository22E53BBD"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

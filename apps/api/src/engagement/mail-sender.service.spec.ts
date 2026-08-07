@@ -6,6 +6,17 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { EngagementProvider } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementMailSender, type EngagementSendMailInput } from './mail-sender.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+
+const runtimePolicy = {
+  backgroundWorkersEnabled: () => true,
+  assertBackgroundOwner: () => {},
+  assertExternalAction: () => {},
+  assertCallbacksEnabled: () => {},
+  externalActionAllowed: () => true,
+  snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+  isRecallWebhookEnabled: () => true,
+} as unknown as EngagementRuntimePolicyService;
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as unknown as TenantContext;
 const input: EngagementSendMailInput = {
@@ -17,7 +28,7 @@ const input: EngagementSendMailInput = {
 function build() {
   const graph = { sendMail: jest.fn(async () => ({ ok: true })) };
   const gmail = { sendMail: jest.fn(async () => ({ ok: true })) };
-  const sender = new EngagementMailSender(graph as never, gmail as never);
+  const sender = new EngagementMailSender(graph as never, gmail as never, runtimePolicy);
   return { sender, graph, gmail };
 }
 

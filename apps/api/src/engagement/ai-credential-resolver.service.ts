@@ -1,16 +1,5 @@
 /**
  * Per-call AI credential resolution (per-tenant AI keys, phase 2).
- *
- * resolveOrder(ctx) returns the provider attempt order for one generation:
- * for each provider (preferred first), the tenant's own decrypted key when an
- * active TenantAiCredential exists, else the global env key. A tenant key
- * also carries its optional model override and usedTenantKey=true, which the
- * usage recorder persists. Anything that can go wrong on the tenant path
- * (encryption key unset, decrypt failure, DB error) degrades to the global
- * key — a misconfigured BYO key must never break generation.
- *
- * validateKey() is the save-time gate: a minimal real call against the
- * provider so invalid keys are rejected before they're stored.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +7,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decryptSecret, parseAesKey } from '../common/secret-crypto.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 export type AiProvider = 'openai' | 'anthropic';
 
@@ -26,8 +16,6 @@ export interface ResolvedAiCredential {
   apiKey: string;
   model: string;
   usedTenantKey: boolean;
-  /** True when the tenant explicitly chose a model (modelOverride was set), so
-   *  callers can honor it even when it equals the provider default. */
   modelOverridden: boolean;
 }
 
@@ -46,6 +34,7 @@ export class AiCredentialResolverService implements OnModuleInit {
   constructor(
     config: ConfigService<AppConfig, true>,
     private readonly prisma: PrismaService,
+    private readonly runtimePolicy?: EngagementRuntimePolicyService,
   ) {
     this.globalOpenaiKey = config.get('OPENAI_API_KEY', { infer: true });
     this.globalAnthropicKey = config.get('ANTHROPIC_API_KEY', { infer: true });
@@ -65,8 +54,16 @@ export class AiCredentialResolverService implements OnModuleInit {
     }
   }
 
-  /** Startup guard (plan task 2.2): stored credentials with no decryption key. */
+  /** Startup advisory. It is background-owned and never runs in shadow mode. */
   async onModuleInit(): Promise<void> {
+    if (this.runtimePolicy && !this.runtimePolicy.backgroundWorkersEnabled()) {
+      const snapshot = this.runtimePolicy.snapshot();
+      this.logger.log(
+        `AI credential advisory disabled by engagement runtime policy ` +
+          `(service=${snapshot.serviceName} owner=${snapshot.backgroundOwner} mode=${snapshot.processMode})`,
+      );
+      return;
+    }
     if (this.encryptionKey) return;
     try {
       const count = await this.prisma.withSystem((tx) => tx.tenantAiCredential.count());
@@ -77,11 +74,10 @@ export class AiCredentialResolverService implements OnModuleInit {
         );
       }
     } catch {
-      // Boot must not depend on this advisory check (e.g. DB not up yet in tests).
+      // Boot must not depend on this advisory check.
     }
   }
 
-  /** True when the BYO-key feature can store/decrypt tenant keys. */
   get tenantKeysEnabled(): boolean {
     return Boolean(this.encryptionKey);
   }
@@ -97,15 +93,11 @@ export class AiCredentialResolverService implements OnModuleInit {
     return provider === 'openai' ? this.openaiModel : this.anthropicModel;
   }
 
-  /**
-   * Provider attempt order for one generation. Preferred provider first,
-   * then the rest; each entry is the tenant credential when available and
-   * decryptable, else the global env key. Providers with neither are absent.
-   */
   async resolveOrder(ctx: TenantContext | null | undefined): Promise<ResolvedAiCredential[]> {
+    this.assertCredentialAccess();
     const providers: AiProvider[] = [];
-    const add = (p: AiProvider) => {
-      if (!providers.includes(p)) providers.push(p);
+    const add = (provider: AiProvider) => {
+      if (!providers.includes(provider)) providers.push(provider);
     };
     if (this.preferredProvider) add(this.preferredProvider);
     add('openai');
@@ -113,34 +105,25 @@ export class AiCredentialResolverService implements OnModuleInit {
 
     const resolved: ResolvedAiCredential[] = [];
     for (const provider of providers) {
-      const cred = await this.resolveForProvider(ctx, provider);
-      if (cred) resolved.push(cred);
+      const credential = await this.resolveForProvider(ctx, provider);
+      if (credential) resolved.push(credential);
     }
     return resolved;
   }
 
-  /**
-   * Resolve a single provider's credential (tenant key first, then global).
-   * Meri uses this to run its Anthropic brain on a tenant's own key + model
-   * override when present, falling back to the global key — without changing
-   * provider. Returns null only when neither a tenant nor a global key exists.
-   */
   async resolveProvider(
     ctx: TenantContext | null | undefined,
     provider: AiProvider,
   ): Promise<ResolvedAiCredential | null> {
+    this.assertCredentialAccess();
     return this.resolveForProvider(ctx, provider);
   }
 
-  /**
-   * Resolve a provider credential from a bare tenantId, for non-request
-   * contexts (scheduled jobs / workers) that don't carry a full TenantContext.
-   * Same tenant-key-first-then-global behavior as resolveProvider.
-   */
   async resolveProviderByTenantId(
     tenantId: string,
     provider: AiProvider,
   ): Promise<ResolvedAiCredential | null> {
+    this.assertCredentialAccess();
     return this.resolveForProvider({ tenantId }, provider);
   }
 
@@ -171,9 +154,7 @@ export class AiCredentialResolverService implements OnModuleInit {
         }
       } catch (err) {
         this.logger.warn(
-          `Tenant AI credential resolve failed for ${provider} (falling back to global key): ${
-            (err as Error).message
-          }`,
+          `Tenant AI credential resolve failed for ${provider} (falling back to global key): ${(err as Error).message}`,
         );
       }
     }
@@ -191,16 +172,12 @@ export class AiCredentialResolverService implements OnModuleInit {
     return null;
   }
 
-  /**
-   * Save-time validation (plan task 2.4): a minimal real generation against
-   * the provider, so a bad key (or a model the key can't access) is rejected
-   * with the provider's own error before anything is stored.
-   */
   async validateKey(
     provider: AiProvider,
     apiKey: string,
     model?: string | null,
   ): Promise<{ ok: boolean; error?: string }> {
+    this.assertCredentialAccess();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
     try {
@@ -215,8 +192,6 @@ export class AiCredentialResolverService implements OnModuleInit {
               body: JSON.stringify({
                 model: model || this.openaiModel,
                 input: 'ping',
-                // Responses API minimum; the cheapest call that proves the
-                // key can actually generate (auth + billing + model access).
                 max_output_tokens: 16,
               }),
               signal: controller.signal,
@@ -253,5 +228,9 @@ export class AiCredentialResolverService implements OnModuleInit {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private assertCredentialAccess(): void {
+    this.runtimePolicy?.assertExternalAction('internal_ai_credential_resolve');
   }
 }

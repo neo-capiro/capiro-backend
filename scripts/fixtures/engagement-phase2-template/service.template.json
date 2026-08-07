@@ -1,0 +1,1748 @@
+{
+ "Resources": {
+  "LogsKeyA6AB43B2": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "Description": "engagement-api CloudWatch Logs encryption (dev)",
+    "KeyPolicy": {
+     "Statement": [
+      {
+       "Action": "kms:*",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":iam::000000000000:root"
+          ]
+         ]
+        }
+       },
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "kms:Decrypt*",
+        "kms:Describe*",
+        "kms:Encrypt*",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*"
+       ],
+       "Condition": {
+        "ArnLike": {
+         "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:us-east-1:000000000000:log-group:/capiro/dev/engagement-api"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "logs.us-east-1.amazonaws.com"
+       },
+       "Resource": "*",
+       "Sid": "AllowCloudWatchLogsForThisLogGroupOnly"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/LogsKey/Resource"
+   }
+  },
+  "LogsKeyAliasEDDECDD8": {
+   "Type": "AWS::KMS::Alias",
+   "Properties": {
+    "AliasName": "alias/capiro-dev-engagement-api-logs",
+    "TargetKeyId": {
+     "Fn::GetAtt": [
+      "LogsKeyA6AB43B2",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/LogsKey/Alias/Resource"
+   }
+  },
+  "LogGroupF5B46931": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "LogsKeyA6AB43B2",
+      "Arn"
+     ]
+    },
+    "LogGroupName": "/capiro/dev/engagement-api",
+    "RetentionInDays": 30,
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/LogGroup/Resource"
+   }
+  },
+  "TaskDefinitionTaskRoleFD40A61D": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/TaskDefinition/TaskRole/Resource"
+   }
+  },
+  "TaskDefinitionTaskRoleDefaultPolicy282E8624": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000data00"
+      },
+      {
+       "Action": "s3:GetObject",
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::capiro-test-assets/*",
+        "arn:aws:s3:::capiro-test-attachments/*",
+        "arn:aws:s3:::capiro-test-directory/*"
+       ],
+       "Sid": "EngagementApiReadOnlyObjects"
+      },
+      {
+       "Action": "s3:ListBucket",
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::capiro-test-assets",
+        "arn:aws:s3:::capiro-test-attachments",
+        "arn:aws:s3:::capiro-test-directory"
+       ],
+       "Sid": "EngagementApiListBuckets"
+      },
+      {
+       "Action": [
+        "ecs:RegisterTaskDefinition",
+        "ecs:UpdateService",
+        "elasticloadbalancing:CreateRule",
+        "elasticloadbalancing:DeleteRule",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:ModifyRule",
+        "iam:PassRole",
+        "kms:Encrypt",
+        "kms:ReEncryptFrom",
+        "kms:ReEncryptTo",
+        "s3:AbortMultipartUpload",
+        "s3:DeleteObject",
+        "s3:PutObject",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:UpdateSecret",
+        "ses:SendEmail",
+        "ses:SendRawEmail",
+        "ses:SendTemplatedEmail"
+       ],
+       "Effect": "Deny",
+       "Resource": "*",
+       "Sid": "EngagementApiDenyMutationAndSend"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TaskDefinitionTaskRoleDefaultPolicy282E8624",
+    "Roles": [
+     {
+      "Ref": "TaskDefinitionTaskRoleFD40A61D"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/TaskDefinition/TaskRole/DefaultPolicy/Resource"
+   }
+  },
+  "TaskDefinitionB36D86D9": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Environment": [
+       {
+        "Name": "NODE_ENV",
+        "Value": "production"
+       },
+       {
+        "Name": "CAPIRO_SERVICE_NAME",
+        "Value": "engagement-api"
+       },
+       {
+        "Name": "RELEASE_SHA",
+        "Value": "0000000000000000000000000000000000000000"
+       },
+       {
+        "Name": "CLERK_JWT_ISSUER",
+        "Value": "https://clerk.test.capiro.invalid"
+       },
+       {
+        "Name": "DB_NAME",
+        "Value": "capiro"
+       },
+       {
+        "Name": "ENGAGEMENT_API_PORT",
+        "Value": "4500"
+       },
+       {
+        "Name": "ENGAGEMENT_API_BIND_HOST",
+        "Value": "0.0.0.0"
+       },
+       {
+        "Name": "ENGAGEMENT_PROCESS_MODE",
+        "Value": "shadow"
+       },
+       {
+        "Name": "ENGAGEMENT_BACKGROUND_OWNER",
+        "Value": "disabled"
+       },
+       {
+        "Name": "ENGAGEMENT_EXTERNAL_ACTIONS",
+        "Value": "disabled"
+       },
+       {
+        "Name": "ENGAGEMENT_CALLBACKS_ENABLED",
+        "Value": "false"
+       },
+       {
+        "Name": "ENGAGEMENT_RECALL_WEBHOOK_ENABLED",
+        "Value": "false"
+       },
+       {
+        "Name": "AWS_REGION_DEFAULT",
+        "Value": "us-east-1"
+       },
+       {
+        "Name": "OUTREACH_V3_PROTOTYPE_SHA256",
+        "Value": "84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453"
+       },
+       {
+        "Name": "OUTREACH_V3_UI_CONTRACT_SHA256",
+        "Value": "0ed86fbe2df0cdae6cc0f9a0eae50a190ae17071889a8cc914610f85ea4c42ea"
+       }
+      ],
+      "Essential": true,
+      "HealthCheck": {
+       "Command": [
+        "CMD-SHELL",
+        "wget -q -O - http://127.0.0.1:4500/health | grep -q '\"service\":\"engagement-api\"'"
+       ],
+       "Interval": 30,
+       "Retries": 3,
+       "StartPeriod": 60,
+       "Timeout": 5
+      },
+      "Image": {
+       "Fn::Join": [
+        "",
+        [
+         "000000000000.dkr.ecr.us-east-1.",
+         {
+          "Ref": "AWS::URLSuffix"
+         },
+         "/capiro/dev/engagement-api@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        ]
+       ]
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroupF5B46931"
+        },
+        "awslogs-stream-prefix": "engagement-api",
+        "awslogs-region": "us-east-1",
+        "mode": "non-blocking"
+       }
+      },
+      "MountPoints": [
+       {
+        "ContainerPath": "/app/tmp",
+        "ReadOnly": false,
+        "SourceVolume": "AppTmp"
+       },
+       {
+        "ContainerPath": "/tmp",
+        "ReadOnly": false,
+        "SourceVolume": "Tmp"
+       }
+      ],
+      "Name": "engagement-api",
+      "PortMappings": [
+       {
+        "ContainerPort": 4500,
+        "Protocol": "tcp"
+       }
+      ],
+      "ReadonlyRootFilesystem": true,
+      "Secrets": [
+       {
+        "Name": "DB_HOST",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA:host::"
+       },
+       {
+        "Name": "DB_PORT",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA:port::"
+       },
+       {
+        "Name": "DB_USER",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF:username::"
+       },
+       {
+        "Name": "DB_PASSWORD",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF:password::"
+       },
+       {
+        "Name": "CLERK_SECRET_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG"
+       },
+       {
+        "Name": "CLERK_WEBHOOK_SIGNING_SECRET",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH"
+       },
+       {
+        "Name": "OAUTH_TOKEN_ENCRYPTION_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
+       },
+       {
+        "Name": "NOTES_ENCRYPTION_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ"
+       }
+      ]
+     }
+    ],
+    "Cpu": "512",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "TaskDefinitionExecutionRole8D61C2FB",
+      "Arn"
+     ]
+    },
+    "Family": "capiro-dev-engagement-api",
+    "Memory": "1024",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "ARM64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "TaskDefinitionTaskRoleFD40A61D",
+      "Arn"
+     ]
+    },
+    "Volumes": [
+     {
+      "Name": "AppTmp"
+     },
+     {
+      "Name": "Tmp"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/TaskDefinition/Resource"
+   }
+  },
+  "TaskDefinitionExecutionRole8D61C2FB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/TaskDefinition/ExecutionRole/Resource"
+   }
+  },
+  "TaskDefinitionExecutionRoleDefaultPolicy1F3406F5": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000data00"
+      },
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":ecr:us-east-1:000000000000:repository/capiro/dev/engagement-api"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "LogGroupF5B46931",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TaskDefinitionExecutionRoleDefaultPolicy1F3406F5",
+    "Roles": [
+     {
+      "Ref": "TaskDefinitionExecutionRole8D61C2FB"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "ServiceD69D759B": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": "capiro-test",
+    "DeploymentConfiguration": {
+     "Alarms": {
+      "AlarmNames": [],
+      "Enable": false,
+      "Rollback": false
+     },
+     "DeploymentCircuitBreaker": {
+      "Enable": true,
+      "Rollback": true
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 100
+    },
+    "DeploymentController": {
+     "Type": "ECS"
+    },
+    "DesiredCount": 1,
+    "EnableECSManagedTags": true,
+    "EnableExecuteCommand": false,
+    "HealthCheckGracePeriodSeconds": 120,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "engagement-api",
+      "ContainerPort": 4500,
+      "TargetGroupArn": {
+       "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       "sg-00000000000000fac"
+      ],
+      "Subnets": [
+       "subnet-0000000000000aaaa",
+       "subnet-0000000000000bbbb"
+      ]
+     }
+    },
+    "PropagateTags": "SERVICE",
+    "ServiceName": "capiro-dev-engagement-api",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "TaskDefinition": {
+     "Ref": "TaskDefinitionB36D86D9"
+    }
+   },
+   "DependsOn": [
+    "TaskDefinitionTaskRoleDefaultPolicy282E8624",
+    "TaskDefinitionTaskRoleFD40A61D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Service/Service"
+   }
+  },
+  "ServiceTaskCountTarget23E25614": {
+   "Type": "AWS::ApplicationAutoScaling::ScalableTarget",
+   "Properties": {
+    "MaxCapacity": 2,
+    "MinCapacity": 1,
+    "ResourceId": {
+     "Fn::Join": [
+      "",
+      [
+       "service/capiro-test/",
+       {
+        "Fn::GetAtt": [
+         "ServiceD69D759B",
+         "Name"
+        ]
+       }
+      ]
+     ]
+    },
+    "RoleARN": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":iam::000000000000:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      ]
+     ]
+    },
+    "ScalableDimension": "ecs:service:DesiredCount",
+    "ServiceNamespace": "ecs"
+   },
+   "DependsOn": [
+    "TaskDefinitionTaskRoleDefaultPolicy282E8624",
+    "TaskDefinitionTaskRoleFD40A61D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Service/TaskCount/Target/Resource"
+   }
+  },
+  "ServiceTaskCountTargetCpuScalingCC8A5DF6": {
+   "Type": "AWS::ApplicationAutoScaling::ScalingPolicy",
+   "Properties": {
+    "PolicyName": "CapirodevEngagementApiServiceTaskCountTargetCpuScaling5BDB4A6A",
+    "PolicyType": "TargetTrackingScaling",
+    "ScalingTargetId": {
+     "Ref": "ServiceTaskCountTarget23E25614"
+    },
+    "TargetTrackingScalingPolicyConfiguration": {
+     "PredefinedMetricSpecification": {
+      "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+     },
+     "ScaleInCooldown": 300,
+     "ScaleOutCooldown": 60,
+     "TargetValue": 60
+    }
+   },
+   "DependsOn": [
+    "TaskDefinitionTaskRoleDefaultPolicy282E8624",
+    "TaskDefinitionTaskRoleFD40A61D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Service/TaskCount/Target/CpuScaling/Resource"
+   }
+  },
+  "ServiceTaskCountTargetMemoryScalingEA4B07C8": {
+   "Type": "AWS::ApplicationAutoScaling::ScalingPolicy",
+   "Properties": {
+    "PolicyName": "CapirodevEngagementApiServiceTaskCountTargetMemoryScalingBBBA3E55",
+    "PolicyType": "TargetTrackingScaling",
+    "ScalingTargetId": {
+     "Ref": "ServiceTaskCountTarget23E25614"
+    },
+    "TargetTrackingScalingPolicyConfiguration": {
+     "PredefinedMetricSpecification": {
+      "PredefinedMetricType": "ECSServiceAverageMemoryUtilization"
+     },
+     "ScaleInCooldown": 300,
+     "ScaleOutCooldown": 60,
+     "TargetValue": 70
+    }
+   },
+   "DependsOn": [
+    "TaskDefinitionTaskRoleDefaultPolicy282E8624",
+    "TaskDefinitionTaskRoleFD40A61D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Service/TaskCount/Target/MemoryScaling/Resource"
+   }
+  },
+  "ObservabilityHealthyHosts2F235481": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api has no healthy target for three consecutive minutes",
+    "AlarmName": "capiro-dev-engagement-api-HealthyHosts",
+    "ComparisonOperator": "LessThanThreshold",
+    "DatapointsToAlarm": 3,
+    "Dimensions": [
+     {
+      "Name": "LoadBalancer",
+      "Value": "app/capiro-test-alb/0000000000000000"
+     },
+     {
+      "Name": "TargetGroup",
+      "Value": {
+       "Fn::Select": [
+        5,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "EvaluationPeriods": 3,
+    "MetricName": "HealthyHostCount",
+    "Namespace": "AWS/ApplicationELB",
+    "Period": 60,
+    "Statistic": "Minimum",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 1,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/HealthyHosts/Resource"
+   }
+  },
+  "ObservabilityTarget5xxC51E0B12": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api returned five or more 5xx responses in five minutes",
+    "AlarmName": "capiro-dev-engagement-api-Target5xx",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "Dimensions": [
+     {
+      "Name": "LoadBalancer",
+      "Value": "app/capiro-test-alb/0000000000000000"
+     },
+     {
+      "Name": "TargetGroup",
+      "Value": {
+       "Fn::Select": [
+        5,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "EvaluationPeriods": 1,
+    "MetricName": "HTTPCode_Target_5XX_Count",
+    "Namespace": "AWS/ApplicationELB",
+    "Period": 300,
+    "Statistic": "Sum",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 5,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/Target5xx/Resource"
+   }
+  },
+  "ObservabilityLatencyP95CE0AB238": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api p95 latency exceeded three seconds",
+    "AlarmName": "capiro-dev-engagement-api-LatencyP95",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "DatapointsToAlarm": 3,
+    "Dimensions": [
+     {
+      "Name": "LoadBalancer",
+      "Value": "app/capiro-test-alb/0000000000000000"
+     },
+     {
+      "Name": "TargetGroup",
+      "Value": {
+       "Fn::Select": [
+        5,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "EvaluationPeriods": 5,
+    "ExtendedStatistic": "p95",
+    "MetricName": "TargetResponseTime",
+    "Namespace": "AWS/ApplicationELB",
+    "Period": 60,
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 3,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/LatencyP95/Resource"
+   }
+  },
+  "ObservabilityCpuCA19DA21": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api CPU above 80%",
+    "AlarmName": "capiro-dev-engagement-api-Cpu",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "DatapointsToAlarm": 3,
+    "Dimensions": [
+     {
+      "Name": "ClusterName",
+      "Value": "capiro-test"
+     },
+     {
+      "Name": "ServiceName",
+      "Value": "capiro-dev-engagement-api"
+     }
+    ],
+    "EvaluationPeriods": 5,
+    "MetricName": "CPUUtilization",
+    "Namespace": "AWS/ECS",
+    "Period": 60,
+    "Statistic": "Average",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 80,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/Cpu/Resource"
+   }
+  },
+  "ObservabilityMemory2D32A50E": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api memory above 80%",
+    "AlarmName": "capiro-dev-engagement-api-Memory",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "DatapointsToAlarm": 3,
+    "Dimensions": [
+     {
+      "Name": "ClusterName",
+      "Value": "capiro-test"
+     },
+     {
+      "Name": "ServiceName",
+      "Value": "capiro-dev-engagement-api"
+     }
+    ],
+    "EvaluationPeriods": 5,
+    "MetricName": "MemoryUtilization",
+    "Namespace": "AWS/ECS",
+    "Period": 60,
+    "Statistic": "Average",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 80,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/Memory/Resource"
+   }
+  },
+  "ObservabilityFatalBootstrapFilter7C3A9783": {
+   "Type": "AWS::Logs::MetricFilter",
+   "Properties": {
+    "FilterPattern": "\"Fatal engagement-api bootstrap error\"",
+    "LogGroupName": {
+     "Ref": "LogGroupF5B46931"
+    },
+    "MetricTransformations": [
+     {
+      "DefaultValue": 0,
+      "MetricName": "FatalBootstrapError",
+      "MetricNamespace": "Capiro/EngagementApi",
+      "MetricValue": "1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/FatalBootstrapFilter/Resource"
+   }
+  },
+  "ObservabilityFatalBootstrap9A1589E0": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api logged a fatal bootstrap error",
+    "AlarmName": "capiro-dev-engagement-api-FatalBootstrap",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "EvaluationPeriods": 1,
+    "MetricName": "FatalBootstrapError",
+    "Namespace": "Capiro/EngagementApi",
+    "Period": 60,
+    "Statistic": "Sum",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 0,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/FatalBootstrap/Resource"
+   }
+  },
+  "ObservabilityInvalidPostureFilter89FF2D42": {
+   "Type": "AWS::Logs::MetricFilter",
+   "Properties": {
+    "FilterPattern": "\"engagement runtime policy rejected\"",
+    "LogGroupName": {
+     "Ref": "LogGroupF5B46931"
+    },
+    "MetricTransformations": [
+     {
+      "DefaultValue": 0,
+      "MetricName": "InvalidShadowPosture",
+      "MetricNamespace": "Capiro/EngagementApi",
+      "MetricValue": "1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/InvalidPostureFilter/Resource"
+   }
+  },
+  "ObservabilityInvalidShadowPostureCCA0E4B5": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "engagement-api rejected its runtime configuration as armed",
+    "AlarmName": "capiro-dev-engagement-api-InvalidShadowPosture",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "EvaluationPeriods": 1,
+    "MetricName": "InvalidShadowPosture",
+    "Namespace": "Capiro/EngagementApi",
+    "Period": 60,
+    "Statistic": "Sum",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 0,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/InvalidShadowPosture/Resource"
+   }
+  },
+  "ObservabilityDatabaseConnections417F1A5E": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms"
+    ],
+    "AlarmDescription": "Aurora connections exceeded the reviewed engagement-api budget threshold; the shared database is the blast radius that matters",
+    "AlarmName": "capiro-dev-engagement-api-DatabaseConnections",
+    "ComparisonOperator": "GreaterThanThreshold",
+    "Dimensions": [
+     {
+      "Name": "DBClusterIdentifier",
+      "Value": "capiro-test-aurora"
+     }
+    ],
+    "EvaluationPeriods": 2,
+    "MetricName": "DatabaseConnections",
+    "Namespace": "AWS/RDS",
+    "Period": 300,
+    "Statistic": "Maximum",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Threshold": 600,
+    "TreatMissingData": "missing"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/DatabaseConnections/Resource"
+   }
+  },
+  "ObservabilityDeploymentFailureRule243601FD": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "engagement-api ECS deployment failure",
+    "EventPattern": {
+     "source": [
+      "aws.ecs"
+     ],
+     "detail-type": [
+      "ECS Deployment State Change"
+     ],
+     "detail": {
+      "eventName": [
+       "SERVICE_DEPLOYMENT_FAILED"
+      ]
+     },
+     "resources": [
+      {
+       "prefix": "arn:aws:ecs:us-east-1:000000000000:service/"
+      }
+     ]
+    },
+    "State": "ENABLED",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Targets": [
+     {
+      "Arn": "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms",
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/DeploymentFailureRule/Resource"
+   }
+  },
+  "ObservabilityStoppedTaskRule2FAA962D": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "engagement-api task stopped unexpectedly",
+    "EventPattern": {
+     "source": [
+      "aws.ecs"
+     ],
+     "detail-type": [
+      "ECS Task State Change"
+     ],
+     "detail": {
+      "lastStatus": [
+       "STOPPED"
+      ],
+      "stoppedReason": [
+       {
+        "anything-but": {
+         "prefix": "Scaling activity initiated by"
+        }
+       }
+      ],
+      "group": [
+       "service:capiro-dev-engagement-api"
+      ]
+     }
+    },
+    "State": "ENABLED",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ],
+    "Targets": [
+     {
+      "Arn": "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms",
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/StoppedTaskRule/Resource"
+   }
+  },
+  "ObservabilityDashboard9A1D08B3": {
+   "Type": "AWS::CloudWatch::Dashboard",
+   "Properties": {
+    "DashboardBody": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"widgets\":[{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":0,\"y\":0,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Tasks (desired vs running)\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/ECS\",\"DesiredTaskCount\",\"ClusterName\",\"capiro-test\",\"ServiceName\",\"",
+       {
+        "Fn::GetAtt": [
+         "ServiceD69D759B",
+         "Name"
+        ]
+       },
+       "\",{\"stat\":\"Maximum\"}],[\"AWS/ECS\",\"RunningTaskCount\",\"ClusterName\",\"capiro-test\",\"ServiceName\",\"",
+       {
+        "Fn::GetAtt": [
+         "ServiceD69D759B",
+         "Name"
+        ]
+       },
+       "\",{\"stat\":\"Minimum\"}]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":8,\"y\":0,\"properties\":{\"view\":\"timeSeries\",\"title\":\"CPU and memory %\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"capiro-test\",\"ServiceName\",\"",
+       {
+        "Fn::GetAtt": [
+         "ServiceD69D759B",
+         "Name"
+        ]
+       },
+       "\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"capiro-test\",\"ServiceName\",\"",
+       {
+        "Fn::GetAtt": [
+         "ServiceD69D759B",
+         "Name"
+        ]
+       },
+       "\"]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":16,\"y\":0,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Healthy hosts\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/ApplicationELB\",\"HealthyHostCount\",\"LoadBalancer\",\"app/capiro-test-alb/0000000000000000\",\"TargetGroup\",\"",
+       {
+        "Fn::Select": [
+         5,
+         {
+          "Fn::Split": [
+           ":",
+           {
+            "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+           }
+          ]
+         }
+        ]
+       },
+       "\",{\"period\":60,\"stat\":\"Minimum\"}]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":0,\"y\":6,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Target 5xx by status class\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/ApplicationELB\",\"HTTPCode_Target_5XX_Count\",\"LoadBalancer\",\"app/capiro-test-alb/0000000000000000\",\"TargetGroup\",\"",
+       {
+        "Fn::Select": [
+         5,
+         {
+          "Fn::Split": [
+           ":",
+           {
+            "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+           }
+          ]
+         }
+        ]
+       },
+       "\",{\"stat\":\"Sum\"}],[\"AWS/ApplicationELB\",\"HTTPCode_Target_4XX_Count\",\"LoadBalancer\",\"app/capiro-test-alb/0000000000000000\",\"TargetGroup\",\"",
+       {
+        "Fn::Select": [
+         5,
+         {
+          "Fn::Split": [
+           ":",
+           {
+            "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+           }
+          ]
+         }
+        ]
+       },
+       "\",{\"stat\":\"Sum\"}]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":8,\"y\":6,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Latency p50 / p95\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/ApplicationELB\",\"TargetResponseTime\",\"LoadBalancer\",\"app/capiro-test-alb/0000000000000000\",\"TargetGroup\",\"",
+       {
+        "Fn::Select": [
+         5,
+         {
+          "Fn::Split": [
+           ":",
+           {
+            "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+           }
+          ]
+         }
+        ]
+       },
+       "\",{\"period\":60,\"stat\":\"p50\"}],[\"AWS/ApplicationELB\",\"TargetResponseTime\",\"LoadBalancer\",\"app/capiro-test-alb/0000000000000000\",\"TargetGroup\",\"",
+       {
+        "Fn::Select": [
+         5,
+         {
+          "Fn::Split": [
+           ":",
+           {
+            "Fn::ImportValue": "Capiro-dev-EngagementApiNetwork:ExportsOutputRefTargetGroup3D7CD9B851D89F1E"
+           }
+          ]
+         }
+        ]
+       },
+       "\",{\"period\":60,\"stat\":\"p95\"}]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":8,\"height\":6,\"x\":16,\"y\":6,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Shared Aurora connections\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"AWS/RDS\",\"DatabaseConnections\",\"DBClusterIdentifier\",\"capiro-test-aurora\",{\"stat\":\"Maximum\"}]],\"yAxis\":{}}},{\"type\":\"metric\",\"width\":24,\"height\":6,\"x\":0,\"y\":12,\"properties\":{\"view\":\"timeSeries\",\"title\":\"Runtime posture and bootstrap errors\",\"region\":\"",
+       {
+        "Ref": "AWS::Region"
+       },
+       "\",\"metrics\":[[\"Capiro/EngagementApi\",\"FatalBootstrapError\",{\"stat\":\"Sum\"}],[\"Capiro/EngagementApi\",\"InvalidShadowPosture\",{\"stat\":\"Sum\"}]],\"yAxis\":{}}}]}"
+      ]
+     ]
+    },
+    "DashboardName": "capiro-dev-engagement-api"
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/Dashboard/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11QS24CMQw9C/uQtlP1ABREF23VamBfmWAGMyEexQkIRbl7lRnKp6v3sf0su9LVS6UfR3CUsVm3Y0srnRYBTKtqFI7eoIKj/CQ0XtfYsVBgf3oFQdXuRad3PKnpxhWYWAIpoidZWW5Epw9u3jzHrhQu/BODJzMnG9CXwq3OCo3oNAffQMAlSDvDDTkKxK70/nfYBSCH/sY7zy7QH8hgGfqjCwMWVraPnXJ0ISuCvU41276vx2+2ZPqzBpYVdJ0lAyUcYmAxYMk1Ol3jfIOhX3TvDLD0YFpyzWKYu+bfGVmJE73kjkz/X2M5ro8QzFaniQW/H35byAxku2Lw62JdRFZ4QBdEpzqez4kWcy7sK4Yuhqwcr1Hv5OFQVbp61k+jnRCNfXSB9qjrAX8B+KO5YRYCAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "Capiro-dev-EngagementApiService/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ServiceName": {
+   "Value": "capiro-dev-engagement-api"
+  },
+  "TaskFamily": {
+   "Value": "capiro-dev-engagement-api"
+  },
+  "LogGroupName": {
+   "Value": "/capiro/dev/engagement-api"
+  },
+  "ReleaseSha": {
+   "Value": "0000000000000000000000000000000000000000"
+  },
+  "ImageDigest": {
+   "Value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

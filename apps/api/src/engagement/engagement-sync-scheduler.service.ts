@@ -5,6 +5,7 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
  * Auto-sync scheduler: periodic reconciliation syncs for connected M365/Google
@@ -60,12 +61,23 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
     private readonly microsoft: MicrosoftGraphSyncService,
     private readonly google: GoogleSyncService,
     config: ConfigService<AppConfig, true>,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {
     this.enabled = config.get('ENGAGEMENT_AUTO_SYNC', { infer: true });
     this.intervalMinutes = config.get('ENGAGEMENT_SYNC_INTERVAL_MINUTES', { infer: true });
   }
 
   onModuleInit(): void {
+    // Engagement API Phase 1 — fail-closed runtime policy check.
+    // In shadow mode the scheduler must not start any timer.
+    if (!this.runtimePolicy.backgroundWorkersEnabled()) {
+      this.logger.log(
+        'engagement-sync-scheduler disabled by runtime policy ' +
+          `(service=${this.runtimePolicy.snapshot().serviceName} ` +
+          `owner=${this.runtimePolicy.snapshot().backgroundOwner})`,
+      );
+      return;
+    }
     if (!this.enabled) {
       this.logger.log('engagement auto-sync disabled (ENGAGEMENT_AUTO_SYNC=off)');
       return;
@@ -93,6 +105,7 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
 
   /** One scheduler pass: claim due connections, sync each, watchdog hourly. */
   async tick(): Promise<void> {
+    this.runtimePolicy.assertBackgroundOwner('engagement-sync-scheduler');
     const claimed = await this.claimDueConnections();
     for (const connection of claimed) {
       await this.syncClaimed(connection);

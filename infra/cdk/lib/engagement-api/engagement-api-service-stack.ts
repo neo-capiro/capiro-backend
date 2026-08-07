@@ -1,0 +1,316 @@
+import * as cdk from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as kms from 'aws-cdk-lib/aws-kms';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import { Construct } from 'constructs';
+
+import {
+  ENGAGEMENT_API_CONTRACT,
+  engagementApiNames,
+  uiContractSha256,
+  type EngagementApiInfraConfig,
+} from './engagement-api-config';
+import {
+  EngagementApiObservability,
+  loadBalancerFullNameFromListenerArn,
+} from './engagement-api-alarms';
+import { buildEngagementApiIam } from './engagement-api-iam';
+import { applyEngagementApiTags } from './engagement-api-tags';
+
+export interface EngagementApiServiceStackProps extends cdk.StackProps {
+  cfg: EngagementApiInfraConfig;
+  /** Target group ARN from the Network stack. */
+  targetGroupArn: string;
+}
+
+/**
+ * The dark `engagement-api` Fargate service.
+ *
+ * Every identifier is imported, with one exception: the log group's own KMS
+ * key. Live discovery (Gate C, 2026-08-06) found the shared `alias/capiro-dev`
+ * CMK's policy scoped to CloudTrail only, with no CloudWatch Logs grant, and
+ * no existing log group in the account uses a CMK at all — importing it
+ * failed deploy with AccessDenied. The stack creates a log group, that log
+ * group's encryption key, a task definition, a service and its autoscaling
+ * target — nothing else. It creates no listener rule, so deploying it cannot
+ * route a single user request.
+ *
+ * The runtime posture is the Phase 1 shadow matrix, written literally rather
+ * than derived from config, so no deployment parameter can arm this service.
+ */
+export class EngagementApiServiceStack extends cdk.Stack {
+  public readonly service: ecs.FargateService;
+  public readonly logGroup: logs.ILogGroup;
+
+  constructor(scope: Construct, id: string, props: EngagementApiServiceStackProps) {
+    super(scope, id, props);
+    const { cfg, targetGroupArn } = props;
+    const names = engagementApiNames(cfg);
+
+    applyEngagementApiTags(this, cfg);
+
+    if (!cfg.imageDigest) {
+      throw new Error(
+        'imageDigest is required to deploy the Service stack. Resolve it from ECR after an ' +
+          'authorized push; Phase 2 never deploys by tag.',
+      );
+    }
+    if (!cfg.releaseSha) {
+      throw new Error('releaseSha is required to deploy the Service stack.');
+    }
+
+    // ── imported ────────────────────────────────────────────────────────────
+    const vpc = ec2.Vpc.fromVpcAttributes(this, 'Vpc', {
+      vpcId: cfg.vpcId,
+      availabilityZones: cfg.privateSubnetAvailabilityZones,
+      privateSubnetIds: cfg.privateSubnetIds,
+    });
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      'ServiceSecurityGroup',
+      cfg.serviceSecurityGroupId,
+      { mutable: false },
+    );
+    const cluster = ecs.Cluster.fromClusterAttributes(this, 'Cluster', {
+      clusterArn: cfg.ecsClusterArn,
+      clusterName: cdk.Fn.select(1, cdk.Fn.split('/', cfg.ecsClusterArn)),
+      vpc,
+      securityGroups: [securityGroup],
+    });
+    const repository = ecr.Repository.fromRepositoryAttributes(this, 'Repository', {
+      repositoryName: names.repository,
+      repositoryArn: cdk.Stack.of(this).formatArn({
+        service: 'ecr',
+        resource: 'repository',
+        resourceName: names.repository,
+      }),
+    });
+    const targetGroup = elbv2.ApplicationTargetGroup.fromTargetGroupAttributes(
+      this,
+      'TargetGroup',
+      { targetGroupArn },
+    );
+
+    // ── logs ────────────────────────────────────────────────────────────────
+    // A dedicated key, not the shared `alias/capiro-dev` CMK: live discovery
+    // (Gate C, 2026-08-06) found that key's policy scoped entirely to
+    // CloudTrail, with no CloudWatch Logs service-principal grant, and no
+    // existing log group in the account uses a CMK at all. Reusing it failed
+    // deploy with AccessDenied. A key this stack owns can carry a policy
+    // scoped to exactly what CloudWatch Logs needs for this one log group,
+    // without touching a key another security control already depends on.
+    const logsEncryptionKey = new kms.Key(this, 'LogsKey', {
+      description: `engagement-api CloudWatch Logs encryption (${cfg.environment})`,
+      alias: `capiro-${cfg.environment}-engagement-api-logs`,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    logsEncryptionKey.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudWatchLogsForThisLogGroupOnly',
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.ServicePrincipal(`logs.${cfg.region}.amazonaws.com`)],
+        actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
+        resources: ['*'],
+        conditions: {
+          ArnLike: {
+            'kms:EncryptionContext:aws:logs:arn': `arn:aws:logs:${cfg.region}:${cfg.accountId}:log-group:${names.logGroup}`,
+          },
+        },
+      }),
+    );
+
+    // Created here because the task definition cannot exist without a log
+    // destination. Micro-session 2.8 adds metric filters, alarms and the
+    // dashboard on top of this group; it does not move it.
+    this.logGroup = new logs.LogGroup(this, 'LogGroup', {
+      logGroupName: names.logGroup,
+      encryptionKey: logsEncryptionKey,
+      retention:
+        cfg.environment === 'prod' ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // ── task definition ─────────────────────────────────────────────────────
+    const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDefinition', {
+      family: names.taskFamily,
+      cpu: ENGAGEMENT_API_CONTRACT.cpu,
+      memoryLimitMiB: ENGAGEMENT_API_CONTRACT.memoryMiB,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+      },
+    });
+
+    // Read-only root means every writable path is an explicit, task-scoped
+    // tmpfs. The entrypoint prefers /dev/shm and falls back to /app/tmp, and
+    // node itself needs /tmp, so both are mounted.
+    for (const name of ['AppTmp', 'Tmp']) {
+      taskDefinition.addVolume({ name });
+    }
+
+    // Roles and the secret map come from the tested least-privilege helper, so
+    // the permission surface is reviewed in one place instead of inline here.
+    const iamRoles = buildEngagementApiIam(this, cfg, taskDefinition);
+
+    const container = taskDefinition.addContainer('engagement-api', {
+      containerName: 'engagement-api',
+      // Digest-pinned. A tag would let the bytes behind a reviewed release SHA
+      // change after review. fromEcrRepository routes a `sha256:` value through
+      // repositoryUriForTagOrDigest, rendering <uri>@sha256:<64-hex>, and grants
+      // the execution role pull on bind.
+      image: ecs.ContainerImage.fromEcrRepository(repository, cfg.imageDigest),
+      essential: true,
+      readonlyRootFilesystem: true,
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'engagement-api',
+        logGroup: this.logGroup,
+        mode: ecs.AwsLogDriverMode.NON_BLOCKING,
+      }),
+      environment: engagementApiTaskEnvironment(cfg),
+      // Exact boot-required and safe-read fields only, mapped individually
+      // rather than as whole JSON documents. See engagement-api-iam.ts.
+      secrets: iamRoles.secrets,
+      healthCheck: {
+        command: [
+          'CMD-SHELL',
+          `wget -q -O - http://127.0.0.1:${ENGAGEMENT_API_CONTRACT.containerPort}/health ` +
+            `| grep -q '"service":"engagement-api"'`,
+        ],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(60),
+      },
+    });
+
+    container.addPortMappings({
+      containerPort: ENGAGEMENT_API_CONTRACT.containerPort,
+      protocol: ecs.Protocol.TCP,
+    });
+    container.addMountPoints(
+      { sourceVolume: 'AppTmp', containerPath: '/app/tmp', readOnly: false },
+      { sourceVolume: 'Tmp', containerPath: '/tmp', readOnly: false },
+    );
+
+    // ── service ─────────────────────────────────────────────────────────────
+    this.service = new ecs.FargateService(this, 'Service', {
+      serviceName: names.service,
+      cluster,
+      taskDefinition,
+      desiredCount: ENGAGEMENT_API_CONTRACT.desiredCount,
+      assignPublicIp: false,
+      vpcSubnets: {
+        subnets: cfg.privateSubnetIds.map((subnetId, index) =>
+          ec2.Subnet.fromSubnetAttributes(this, `PrivateSubnet${index}`, {
+            subnetId,
+            availabilityZone: cfg.privateSubnetAvailabilityZones[index],
+          }),
+        ),
+      },
+      securityGroups: [securityGroup],
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      healthCheckGracePeriod: cdk.Duration.seconds(120),
+      circuitBreaker: { rollback: true },
+      // ECS Exec is a shell into a task holding live tenant data. It stays off.
+      enableExecuteCommand: false,
+      enableECSManagedTags: true,
+      propagateTags: ecs.PropagatedTagSource.SERVICE,
+    });
+
+    this.service.attachToApplicationTargetGroup(targetGroup);
+
+    const scaling = this.service.autoScaleTaskCount({
+      minCapacity: ENGAGEMENT_API_CONTRACT.minimumCount,
+      maxCapacity: ENGAGEMENT_API_CONTRACT.maximumCount,
+    });
+    scaling.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 60,
+      scaleOutCooldown: cdk.Duration.seconds(60),
+      scaleInCooldown: cdk.Duration.seconds(300),
+    });
+    scaling.scaleOnMemoryUtilization('MemoryScaling', {
+      targetUtilizationPercent: 70,
+      scaleOutCooldown: cdk.Duration.seconds(60),
+      scaleInCooldown: cdk.Duration.seconds(300),
+    });
+
+    // Observability is attached here because every alarm dimension needs the
+    // service and log group that this stack owns. Micro-session 2.8 defines
+    // the contract; this stack only wires it.
+    new EngagementApiObservability(this, 'Observability', {
+      cfg,
+      service: this.service,
+      logGroup: this.logGroup,
+      // The listener ARN is a literal from config, so it can be parsed in JS.
+      // The target group ARN is a cross-stack token, so its full name has to be
+      // derived with CFN intrinsics at deploy time. An ELB target group ARN is
+      // `arn:aws:elasticloadbalancing:<region>:<account>:targetgroup/<name>/<id>`,
+      // so the sixth colon-separated segment is exactly the metric dimension.
+      loadBalancerFullName: loadBalancerFullNameFromListenerArn(cfg.httpsListenerArn),
+      targetGroupFullName: cdk.Fn.select(5, cdk.Fn.split(':', targetGroupArn)),
+    });
+
+    new cdk.CfnOutput(this, 'ServiceName', { value: names.service });
+    new cdk.CfnOutput(this, 'TaskFamily', { value: names.taskFamily });
+    new cdk.CfnOutput(this, 'LogGroupName', { value: names.logGroup });
+    new cdk.CfnOutput(this, 'ReleaseSha', { value: cfg.releaseSha });
+    new cdk.CfnOutput(this, 'ImageDigest', { value: cfg.imageDigest });
+  }
+}
+
+/**
+ * The exact task environment.
+ *
+ * The six shadow variables are literals, not config lookups: the point of the
+ * Phase 1 runtime policy is that no deployment parameter can arm this service.
+ * Provenance values are nonsecret and enable nothing.
+ */
+export function engagementApiTaskEnvironment(
+  cfg: EngagementApiInfraConfig,
+): Record<string, string> {
+  return {
+    NODE_ENV: 'production',
+    CAPIRO_SERVICE_NAME: 'engagement-api',
+    RELEASE_SHA: cfg.releaseSha ?? '',
+
+    // Required: engagement-api boots the identical ConfigModule validator as
+    // the main API (engagement-api.app.module.ts imports the same
+    // validateConfig from apps/api/src/config/config.schema.ts), which
+    // fatally throws without this outside NODE_ENV=test. Config validation
+    // makes clerkJwtIssuer a required field precisely so this can never again
+    // reach a task definition unset.
+    CLERK_JWT_ISSUER: cfg.clerkJwtIssuer,
+
+    // Not a secret on the live main API task either — a literal env var.
+    // Live discovery (2.15, capiro-dev, 2026-08-06) found it: DB_NAME is
+    // never in Secrets Manager, unlike DB_HOST/PORT/USER/PASSWORD.
+    DB_NAME: cfg.databaseName,
+
+    ENGAGEMENT_API_PORT: String(ENGAGEMENT_API_CONTRACT.containerPort),
+    ENGAGEMENT_API_BIND_HOST: '0.0.0.0',
+
+    ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+
+    AWS_REGION_DEFAULT: cfg.region,
+
+    OUTREACH_V3_PROTOTYPE_SHA256: cfg.uiContract.prototypeSha256,
+    OUTREACH_V3_UI_CONTRACT_SHA256: uiContractSha256(cfg.uiContract),
+  };
+}
+
+/** Environment variable names that would imply Outreach V3 is available. */
+export const FORBIDDEN_TASK_ENV_PATTERNS = [
+  /^OUTREACH_V3_ENABLED$/,
+  /^VITE_/,
+  /^LANGGRAPH_/,
+  /^CAMPAIGN_SPEC_/,
+];

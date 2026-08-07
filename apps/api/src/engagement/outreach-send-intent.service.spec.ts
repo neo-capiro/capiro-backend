@@ -349,6 +349,15 @@ function makeIntentHarness(opts: {
   const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
   const patch = service as unknown as Record<string, unknown>;
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
+  patch.runtimePolicy = {
+    backgroundWorkersEnabled: () => true,
+    assertBackgroundOwner: () => {},
+    assertExternalAction: () => {},
+    assertCallbacksEnabled: () => {},
+    externalActionAllowed: () => true,
+    snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+    isRecallWebhookEnabled: () => true,
+  };
   patch.staleMs = 120_000;
   patch.sweepMs = 5_000;
   patch.versionedOutreach = true;
@@ -887,6 +896,15 @@ function makeWorkerHarness(opts: {
   const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
   const patch = service as unknown as Record<string, unknown>;
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
+  patch.runtimePolicy = {
+    backgroundWorkersEnabled: () => true,
+    assertBackgroundOwner: () => {},
+    assertExternalAction: () => {},
+    assertCallbacksEnabled: () => {},
+    externalActionAllowed: () => true,
+    snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+    isRecallWebhookEnabled: () => true,
+  };
   patch.staleMs = 120_000;
   patch.prisma = {
     withTenant: (_t: string, fn: (t: unknown) => unknown) => fn(tx),
@@ -920,6 +938,15 @@ describe('persistAcceptance / finishDelivery — guarded to sending rows only (p
     const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
     const patch = service as unknown as Record<string, unknown>;
     patch.logger = { warn: (m: string) => warnings.push(m), error: (m: string) => warnings.push(m) };
+    patch.runtimePolicy = {
+      backgroundWorkersEnabled: () => true,
+      assertBackgroundOwner: () => {},
+      assertExternalAction: () => {},
+      assertCallbacksEnabled: () => {},
+      externalActionAllowed: () => true,
+      snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+      isRecallWebhookEnabled: () => true,
+    };
     patch.prisma = {
       withSystem: (fn: (t: unknown) => unknown) =>
         fn({
@@ -1083,6 +1110,15 @@ describe('worker reconciliation (plan §g4 — bounded and logged)', () => {
     const patch = service as unknown as Record<string, unknown>;
     patch.staleMs = 1000;
     patch.logger = { warn: (m: string) => warnings.push(m), error: () => {} };
+    patch.runtimePolicy = {
+      backgroundWorkersEnabled: () => true,
+      assertBackgroundOwner: () => {},
+      assertExternalAction: () => {},
+      assertCallbacksEnabled: () => {},
+      externalActionAllowed: () => true,
+      snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+      isRecallWebhookEnabled: () => true,
+    };
     patch.prisma = {
       withSystem: (fn: (t: unknown) => unknown) =>
         fn({

@@ -46,6 +46,7 @@ import { OutreachJobService, outreachRecipientKey } from './outreach-job.service
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
+import { EngagementRuntimeAction } from './runtime/engagement-runtime-action.decorator.js';
 
 /**
  * Coerce empty/whitespace-only strings to `undefined` BEFORE validation runs.
@@ -1847,6 +1848,7 @@ export class EngagementController {
   }
 
   @Post('meetings/:id/debrief-draft')
+  @EngagementRuntimeAction('meeting_debrief_generate')
   generateDebriefDraft(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
@@ -1856,6 +1858,7 @@ export class EngagementController {
   }
 
   @Post('meetings/:id/notetaker')
+  @EngagementRuntimeAction('notetaker_dispatch')
   dispatchNotetaker(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
@@ -1871,11 +1874,13 @@ export class EngagementController {
 
   // Kill switch (plan §5 consent control): the bot leaves the call immediately.
   @Delete('meetings/:id/notetaker')
+  @EngagementRuntimeAction('notetaker_remove')
   removeNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
     return this.notetaker.remove(ctx, meetingId);
   }
 
   @Post('meetings/:id/prep')
+  @EngagementRuntimeAction('meeting_prep_generate')
   generatePrep(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
@@ -2022,6 +2027,7 @@ export class EngagementController {
   // Billable AI call (A7). Cap below the global 600/min per-IP limit.
   @Throttle({ long: { ttl: 60_000, limit: 40 } })
   @Post('outreach/insights/talking-points')
+  @EngagementRuntimeAction('outreach_generate')
   generateTalkingPoints(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: GenerateTalkingPointsDto,
@@ -2037,6 +2043,7 @@ export class EngagementController {
   // intact so those near-simultaneous POSTs are not falsely rejected.
   @Throttle({ long: { ttl: 60_000, limit: 120 } })
   @Post('outreach/generate-batch')
+  @EngagementRuntimeAction('outreach_generate')
   generateBatchEmails(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: GenerateBatchEmailDto,
@@ -2049,6 +2056,7 @@ export class EngagementController {
   }
 
   @Post('outreach/send-batch')
+  @EngagementRuntimeAction('outreach_send')
   sendBatchEmails(@CurrentTenant() ctx: TenantContext, @Body() body: SendBatchEmailDto) {
     return this.service.sendBatchEmails(ctx, body);
   }
@@ -2065,6 +2073,7 @@ export class EngagementController {
   // generate-batch above stays the path until the async flag is flipped on.
   @Throttle({ long: { ttl: 60_000, limit: 120 } })
   @Post('outreach/jobs/generate')
+  @EngagementRuntimeAction('outreach_generate')
   async submitGenerateJob(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: OutreachGenerateJobDto,
@@ -2085,6 +2094,7 @@ export class EngagementController {
   // draft is merged into its recipient to form the per-item send payload. Gated
   // on OUTREACH_ASYNC_SEND (sync send-batch stays the path until flipped).
   @Post('outreach/jobs/send')
+  @EngagementRuntimeAction('outreach_send')
   async submitSendJob(@CurrentTenant() ctx: TenantContext, @Body() body: OutreachSendJobDto) {
     if (!this.outreachJobs.asyncEnabled('send')) {
       throw new BadRequestException('Async outreach send is not enabled in this environment');
@@ -2199,6 +2209,7 @@ export class EngagementController {
    * BEFORE any provider request; the worker then delivers at-most-once.
    */
   @Post('outreach/send-intents')
+  @EngagementRuntimeAction('outreach_send')
   createSendIntent(@CurrentTenant() ctx: TenantContext, @Body() body: CreateSendIntentDto) {
     return this.sendIntents.createIntent(ctx, body);
   }
@@ -2266,6 +2277,7 @@ export class EngagementController {
   // Single-record AI regeneration (billable). Cap below the global per-IP limit (A7).
   @Throttle({ long: { ttl: 60_000, limit: 40 } })
   @Post('outreach/:id/generate-draft')
+  @EngagementRuntimeAction('outreach_generate')
   generateOutreachDraft(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
@@ -2280,6 +2292,7 @@ export class EngagementController {
   }
 
   @Post('outreach/:id/send-campaign')
+  @EngagementRuntimeAction('outreach_send')
   sendCampaign(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.sendCampaign(ctx, id);
   }
@@ -2349,6 +2362,7 @@ export class EngagementController {
   }
 
   @Post('attachments/upload-url')
+  @EngagementRuntimeAction('attachment_external_write')
   createAttachmentUploadUrl(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: AttachmentUploadDto,
@@ -2357,6 +2371,7 @@ export class EngagementController {
   }
 
   @Post('attachments/confirm')
+  @EngagementRuntimeAction('attachment_external_write')
   confirmAttachment(@CurrentTenant() ctx: TenantContext, @Body() body: ConfirmAttachmentDto) {
     return this.service.confirmAttachment(ctx, body);
   }
@@ -2379,6 +2394,7 @@ export class EngagementController {
   }
 
   @Post('attachments/:id/extract-text')
+  @EngagementRuntimeAction('attachment_external_read')
   extractAttachmentText(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.extractAttachmentText(ctx, id);
   }
@@ -2440,6 +2456,7 @@ export class EngagementController {
   }
 
   @Post('campaigns/:id/generate')
+  @EngagementRuntimeAction('outreach_generate')
   generateCampaignEmail(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
@@ -2449,11 +2466,13 @@ export class EngagementController {
   }
 
   @Post('campaigns/:id/send')
+  @EngagementRuntimeAction('outreach_send')
   sendCampaignEmails(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.sendCampaignEmails(ctx, id);
   }
 
   @Post('campaigns/:id/send-test')
+  @EngagementRuntimeAction('outreach_test_send', { testMode: true })
   sendCampaignTest(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.sendCampaignTest(ctx, id);
   }

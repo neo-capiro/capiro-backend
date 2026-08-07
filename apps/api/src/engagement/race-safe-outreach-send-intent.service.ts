@@ -12,6 +12,7 @@ import {
   type CreateSendIntentInput,
 } from './outreach-send-intent.service.js';
 import { retryOnceAfterPrismaUnique } from './prisma-unique-retry.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
  * Production DI wrapper for the send-intent check-then-create race.
@@ -31,8 +32,9 @@ export class RaceSafeOutreachSendIntentService extends OutreachSendIntentService
     attachmentContent: AttachmentContentService,
     attachmentScanner: AttachmentScannerService,
     config: ConfigService<AppConfig, true>,
+    runtimePolicy: EngagementRuntimePolicyService,
   ) {
-    super(prisma, engagement, mailSender, attachmentContent, attachmentScanner, config);
+    super(prisma, engagement, mailSender, attachmentContent, attachmentScanner, config, runtimePolicy);
   }
 
   override createIntent(

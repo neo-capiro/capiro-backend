@@ -4,6 +4,7 @@ import type { TenantContext } from '@capiro/shared';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GmailSendService } from './google/gmail-send.service.js';
 import type { EngagementMailSendResult } from './mail-send-result.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
  * Provider-neutral outbound-email payload. Structurally identical to
@@ -75,10 +76,15 @@ export class EngagementMailSender {
   constructor(
     private readonly microsoftGraph: MicrosoftGraphSyncService,
     private readonly gmailSend: GmailSendService,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {}
 
   /**
    * Dispatch to the owning provider adapter and return its FULL result verbatim.
+   *
+   * Engagement API Phase 1 — defense-in-depth: assert outreach_send before
+   * any provider adapter is called. The OutreachSendIntentService owns the
+   * test-only exception before dispatch; here we always assert outreach_send.
    *
    * Deliberately does not catch or rewrite provider exceptions beyond this
    * dispatch: an AmbiguousMailSendError in particular must reach the send-intent
@@ -90,6 +96,10 @@ export class EngagementMailSender {
     connection: SendableConnection,
     input: EngagementSendMailInput,
   ): Promise<EngagementMailSendResult> {
+    // Defense-in-depth: the controller guard and send-intent service already
+    // check, but this is the last gate before the wire. Ordinary calls assert
+    // outreach_send; the test-only exception is owned by OutreachSendIntentService.
+    this.runtimePolicy.assertExternalAction('outreach_send');
     if (connection.provider === EngagementProvider.google_workspace) {
       return this.gmailSend.sendMail(ctx, connection.id, input);
     }
