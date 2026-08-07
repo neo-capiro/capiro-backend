@@ -13,9 +13,18 @@ const steps = [
   ['Phase 3 preview route generation drift', 'node', ['scripts/engagement-phase3-preview-route-patterns.mjs', '--check']],
   ['Phase 3 web preview-header containment', 'node', ['scripts/verify-engagement-web-no-preview-header.mjs']],
   [
-    'Phase 3 fixture contract',
+    'Phase 3 fixture and read-materialization contracts',
     'pnpm',
-    ['-C', 'apps/api', 'exec', 'jest', '--runInBand', '--forceExit', 'scripts/seed-engagement-phase3-parity-fixtures.spec.ts'],
+    [
+      '-C',
+      'apps/api',
+      'exec',
+      'jest',
+      '--runInBand',
+      '--forceExit',
+      'scripts/seed-engagement-phase3-parity-fixtures.spec.ts',
+      'scripts/engagement-phase3-read-materialization.spec.ts',
+    ],
   ],
   // F-003: apps/api's broad typecheck is an && chain whose first pre-existing
   // defense-budget TS6059 failure prevents later projects from running. Invoke
