@@ -127,6 +127,14 @@ const FundingOpportunitiesPage = lazy(async () =>
     default: m.FundingOpportunitiesPage,
   })),
 );
+// The deep-linkable opportunity detail. A SEPARATE lazy chunk from the list page:
+// the two are reached independently (a detail link pasted into a ticket does not
+// go via the inbox), and bundling them would make either one pay for the other.
+const FundingOpportunityDetailPage = lazy(async () =>
+  import('./pages/intelligence/opportunities/FundingOpportunityDetail.js').then((m) => ({
+    default: m.FundingOpportunityDetailPage,
+  })),
+);
 
 export function App() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -318,6 +326,28 @@ export function App() {
               }
             >
               <FundingOpportunitiesPage />
+            </Suspense>
+          }
+        />
+        {/* One opportunity, for one client. Registered AFTER the list route (which
+            is a literal, so order between the two is not actually load-bearing) and
+            BEFORE the `/intelligence/*` catch-all, which would otherwise swallow it
+            and bounce every pasted detail link to /explorer.
+
+            `:sourceRecordId` is a single segment: Grants.gov opportunity numbers and
+            SAM notice ids are both opaque strings the page encodes on the way in. */}
+        <Route
+          path="/intelligence/opportunities/:source/:sourceRecordId"
+          element={
+            <Suspense
+              fallback={
+                <PlaceholderPage
+                  title="Loading opportunity"
+                  description="Loading the opportunity detail..."
+                />
+              }
+            >
+              <FundingOpportunityDetailPage />
             </Suspense>
           }
         />

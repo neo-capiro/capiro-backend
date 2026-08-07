@@ -237,3 +237,61 @@ instruction, each phase merges on its executor's own evidence.
 
 **Consequence, unchanged from D-10:** the `Review` column stays empty. Green CI plus
 self-testing is not the §6.2 gate.
+
+---
+
+## D-14 · 2026-08-06 · The detail body is one component, rendered in two frames
+
+P12 ships `FundingOpportunityDetail` (the body), `FundingOpportunityDrawer` (the
+inbox frame) and `FundingOpportunityDetailPage` (the routed frame). Both frames
+render the body unmodified. There is deliberately no `compact` prop, no
+drawer-specific section subset and no second layout.
+
+**Why:** two renderings of one record that can disagree is how somebody makes a
+decision from the shorter one. Later phases add five sections to this surface; each
+must land in both frames or in neither, and the only way to guarantee that without
+discipline is to make it structurally impossible.
+
+**How to apply:** later phases (P23 acquisition position, P28 timeline, P31
+requirements, P32 assessment, P33 landscape) fill in existing sections in the body.
+They must not add a section to a frame.
+
+---
+
+## D-15 · 2026-08-06 · "Not yet available" and "Not provided" are different sentences
+
+Every empty thing on the detail surface says which kind of empty it is.
+
+- **"Not yet available"** — Capiro does not build this yet. A product gap, and each
+  one names what will fill it.
+- **"Not provided"** — the source holds no value for this field. A source fact.
+
+**Why:** collapsing them blames the wrong party, and both are worse than the third
+option a blank cell produces — reading as a NEGATIVE. An empty requirements panel
+that rendered nothing says "this solicitation has no requirements", which is never
+true. An empty acquisition panel that rendered nothing says "no route to this
+acquisition", which is a determination against a client made from an absence of
+data. The acquisition section carries a test asserting it contains none of "cannot
+bid", "not eligible" or "no access".
+
+**How to apply:** a new section with no data picks one of the two sentences. Neither
+is optional, and neither may be shortened to a dash.
+
+---
+
+## D-16 · 2026-08-06 · Opportunity identity is (source, sourceRecordId, clientId)
+
+`encodeOpportunityRef` / `decodeOpportunityRef` are the only place a ref is built or
+parsed, and every part is `encodeURIComponent`d before joining.
+
+**Why three parts:** relevance, eligibility, the recommendation and the decision are
+all facts about a client-opportunity PAIR. A two-part ref would silently render the
+unscored catalog view.
+
+**Why encoded:** Grants.gov opportunity numbers are free-form source strings. An
+unencoded `:` or `/` in one splits the ref into the wrong pieces — a bug that shows
+up on exactly the records that contain the character and on no others.
+
+**Relationship to P13:** P13 introduces the same idea on the API side
+(`sourceRecordKey` / `sourceRecordType`, with identity parsing centralised). These
+must stay compatible; the web ref is the URL form, P13's key is the storage form.

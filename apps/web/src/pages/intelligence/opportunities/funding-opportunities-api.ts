@@ -369,6 +369,65 @@ export function formatInboxCount(n: number | undefined): string {
   return n < 0 ? '?' : String(n);
 }
 
+// ── Opportunity identity, in one place ──────────────────────────────────────
+
+/**
+ * What it takes to name ONE opportunity for ONE client.
+ *
+ * Three parts, not two. `clientId` is part of the identity because the detail
+ * surface shows relevance, eligibility, the recommendation and the team's
+ * decision — every one of which is a fact about a client-opportunity PAIR. The
+ * same SAM notice is a different thing for two different clients, and a link that
+ * dropped the client would silently render the unscored catalog view instead.
+ */
+export interface OpportunityRef {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  /** Null on the unscoped catalog read, where there is nothing to score against. */
+  clientId: string | null;
+}
+
+/**
+ * Encoded for a single URL parameter, so the inbox drawer is deep-linkable and the
+ * browser Back button closes it.
+ *
+ * Every part is `encodeURIComponent`d before joining. Grants.gov opportunity
+ * numbers are free-form source strings — a colon or a slash in one would otherwise
+ * split the ref into the wrong pieces, which is the kind of bug that only shows up
+ * on the one record that happens to contain the character.
+ */
+export function encodeOpportunityRef(ref: OpportunityRef): string {
+  return [ref.source, ref.sourceRecordId, ref.clientId ?? '']
+    .map((part) => encodeURIComponent(part))
+    .join(':');
+}
+
+/** Returns null for anything malformed. A bad ref renders not-found, never a crash. */
+export function decodeOpportunityRef(raw: string | null): OpportunityRef | null {
+  if (!raw) return null;
+  const parts = raw.split(':');
+  if (parts.length !== 3) return null;
+  let decoded: string[];
+  try {
+    decoded = parts.map((p) => decodeURIComponent(p));
+  } catch {
+    return null;
+  }
+  const [source, sourceRecordId, clientId] = decoded as [string, string, string];
+  if (!isOpportunitySource(source) || !sourceRecordId) return null;
+  return { source, sourceRecordId, clientId: clientId || null };
+}
+
+export function isOpportunitySource(value: string): value is OpportunitySource {
+  return value === 'grants_gov' || value === 'sam_gov';
+}
+
+/** The full-page detail route for a ref. The drawer and this render the same body. */
+export function opportunityDetailPath(ref: OpportunityRef): string {
+  const query = ref.clientId ? `?clientId=${encodeURIComponent(ref.clientId)}` : '';
+  return `/intelligence/opportunities/${ref.source}/${encodeURIComponent(ref.sourceRecordId)}${query}`;
+}
+
 // ── Display helpers ─────────────────────────────────────────────────────────
 
 /** The intel-api flag key gating the whole surface. Byte-matches the API guard. */
