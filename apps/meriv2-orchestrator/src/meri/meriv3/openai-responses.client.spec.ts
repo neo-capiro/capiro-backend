@@ -57,6 +57,21 @@ describe('OpenAiResponsesClient', () => {
     });
   });
 
+  test('returns provider refusal prose but never the reasoning summary', () => {
+    const output = [
+      { type: 'reasoning', summary: [{ type: 'summary_text', text: 'private reasoning' }] },
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'refusal', refusal: 'I cannot help with that request.' }],
+      },
+    ];
+    expect(extractResponsesOutputText(output as never)).toBe(
+      'I cannot help with that request.',
+    );
+    expect(extractResponsesOutputText(output as never)).not.toContain('private reasoning');
+  });
+
   test('sends store=false, native reasoning effort and developer function tools', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const fetchMock = jest.fn(async () =>
@@ -92,6 +107,31 @@ describe('OpenAiResponsesClient', () => {
     });
     expect(result.outputText).toBe('Grounded answer.');
     expect(result.usedTenantKey).toBe(false);
+  });
+
+  test('omits every tool field for the final tool-free synthesis request', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ ...responseBody, output: responseBody.output.slice(0, 2) }), {
+        status: 200,
+      }),
+    );
+    global.fetch = fetchMock as typeof fetch;
+    const client = new OpenAiResponsesClient();
+    await client.complete({
+      profile: resolveMeriV3ReasoningProfile('standard', {}),
+      instructions: 'finish',
+      input: [{ role: 'user', content: 'finish' }],
+      tools: [],
+      toolChoice: 'none',
+    });
+    const sent = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body)) as Record<
+      string,
+      unknown
+    >;
+    expect(sent).not.toHaveProperty('tools');
+    expect(sent).not.toHaveProperty('tool_choice');
+    expect(sent).not.toHaveProperty('parallel_tool_calls');
   });
 
   test('uses an explicit tenant model override but not the resolver default model', async () => {
