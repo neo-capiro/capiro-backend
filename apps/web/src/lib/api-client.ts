@@ -1,6 +1,18 @@
 import axios, { type AxiosInstance } from 'axios';
 import { config } from '../env.js';
 import { clearImpersonationSlug } from '../state/impersonation.js';
+import {
+  engagementPreviewHeader,
+  isEngagementApiRequest,
+} from './engagement-api-preview.js';
+import { markEngagementResponseData } from './engagement-preview-cache.js';
+import {
+  assertEngagementPreviewResponseIdentity,
+  assertEngagementRequestModeCurrent,
+  engagementRequestMode,
+  markEngagementRequest,
+  normalizeEngagementPreviewError,
+} from './engagement-preview-errors.js';
 
 /**
  * Default timeout for ordinary requests (auth, lists, CRUD). Kept tight so a
@@ -76,13 +88,38 @@ export function buildApiClient(
       req.headers = req.headers ?? {};
       req.headers['x-capiro-impersonate-tenant'] = actAsTenantSlug;
     }
+
+    // Engagement API preview (Phase 3). Off by default and, when on, attached
+    // only to paths that exactly match the accepted Engagement route manifest.
+    // That exact match is what keeps the header off /me, Capiro Admin,
+    // Workspace, Strategy, Directory and static assets — none of their paths
+    // are in the manifest, so no per-owner allowlist is needed here and none
+    // can drift out of date. Attached last so it can never displace the
+    // Authorization or impersonation headers set above.
+    const engagementRequest = isEngagementApiRequest(req.url, config.apiBaseUrl);
+    const preview = engagementPreviewHeader(req.url, config.apiBaseUrl);
+    if (preview) {
+      req.headers = req.headers ?? {};
+      req.headers[preview.name] = preview.value;
+    }
+    if (engagementRequest) {
+      // Persist what was ACTUALLY sent. A mode toggle cannot rewrite an
+      // in-flight routing decision, so response/cache handling uses this marker
+      // instead of guessing from the current sessionStorage value.
+      markEngagementRequest(req, preview ? 'preview' : 'main');
+    }
     return req;
   });
   // If the server reports the impersonation session is gone (expired/ended),
   // drop the stale slug and reload so the app falls back to the real context
   // instead of 403-looping every request.
   instance.interceptors.response.use(
-    (res) => res,
+    (res) => {
+      assertEngagementPreviewResponseIdentity(res);
+      assertEngagementRequestModeCurrent(res);
+      if (engagementRequestMode(res.config)) markEngagementResponseData(res.data);
+      return res;
+    },
     (error) => {
       const status = error?.response?.status;
       const msg = String(error?.response?.data?.message ?? '');
@@ -90,7 +127,11 @@ export function buildApiClient(
         clearImpersonationSlug();
         if (typeof window !== 'undefined') window.location.reload();
       }
-      return Promise.reject(error);
+      // Keep the existing impersonation recovery above first and untouched.
+      // Only after that path has seen the original error do we enforce preview
+      // service identity, dispatch-mode freshness, and the exact intentional
+      // shadow-denial translation.
+      return Promise.reject(normalizeEngagementPreviewError(error));
     },
   );
   return instance;

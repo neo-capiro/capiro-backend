@@ -1,0 +1,81 @@
+{
+  "_comment": [
+    "SYNTHETIC config for CI synth and unit tests. Every identifier is fake.",
+    "Account 000000000000 does not exist. Do not copy this file to deploy anything.",
+    "The uiContract hashes are real, because they pin the committed Phase 2.1 and",
+    "2.2 contracts and are not secrets."
+  ],
+  "schemaVersion": 1,
+
+  "environment": "dev",
+  "accountId": "000000000000",
+  "region": "us-east-1",
+
+  "clerkJwtIssuer": "https://clerk.test.capiro.invalid",
+
+  "vpcId": "vpc-0000000000000face",
+  "privateSubnetIds": ["subnet-0000000000000aaaa", "subnet-0000000000000bbbb"],
+  "privateSubnetAvailabilityZones": ["us-east-1a", "us-east-1b"],
+
+  "ecsClusterArn": "arn:aws:ecs:us-east-1:000000000000:cluster/capiro-test",
+  "serviceSecurityGroupId": "sg-00000000000000fac",
+
+  "httpsListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/capiro-test-alb/0000000000000000/1111111111111111",
+  "mainApiTargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/capiro-test-api/2222222222222222",
+  "genericApiRulePriority": 10,
+  "previewRulePriority": 6,
+
+  "auroraClusterIdentifier": "capiro-test-aurora",
+  "databaseHostSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
+  "databaseAppSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
+  "databaseName": "capiro",
+  "clerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG",
+  "clerkWebhookSigningSecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH",
+  "oauthTokenEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII",
+  "notesEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ",
+  "requiredSecretArns": [
+    "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk-secret-key-CCCCCC",
+    "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-DDDDDD",
+    "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-EEEEEE"
+  ],
+
+  "kmsKeyArns": {
+    "ecr": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-00000000ecr0",
+    "data": ["arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000data00"]
+  },
+
+  "bucketNames": {
+    "assets": "capiro-test-assets",
+    "directory": "capiro-test-directory",
+    "attachments": "capiro-test-attachments",
+    "otherReadOnly": []
+  },
+
+  "alarmTopicArn": "arn:aws:sns:us-east-1:000000000000:capiro-test-alarms",
+
+  "imageRepositoryName": "capiro/dev/engagement-api",
+  "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "releaseSha": "0000000000000000000000000000000000000000",
+
+  "cpu": 512,
+  "memoryMiB": 1024,
+  "desiredCount": 1,
+  "minimumCount": 1,
+  "maximumCount": 2,
+
+  "dbConnectionBudget": {
+    "databaseMaxConnections": 1000,
+    "observedSevenDayPeak": 420,
+    "perTaskPoolMaximum": 10,
+    "alarmThreshold": 600
+  },
+
+  "uiContract": {
+    "prototypeSha256": "84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453",
+    "prototypeManifestSha256": "6c9fe00f6d527596bfe9cb5c382dcd53e0e0f61ef4f3ec894ac58d39590fd3d8",
+    "capabilityManifestSha256": "5716bcd3505f9ffe2617df9199784232463cd54fae50fe4bc01b2e64159686cf"
+  },
+
+  "allowPublicIp": false,
+  "allowEcsExec": false
+}

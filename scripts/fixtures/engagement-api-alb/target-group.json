@@ -1,0 +1,11 @@
+{
+  "TargetGroups": [
+    {
+      "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/444",
+      "TargetGroupName": "capiro-dev-engagement-api",
+      "Port": 4500,
+      "Protocol": "HTTP",
+      "VpcId": "vpc-0aaaaaaaaaaaaaaaa"
+    }
+  ]
+}

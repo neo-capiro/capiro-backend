@@ -22,6 +22,7 @@ import {
   type NormalizedBotEvent,
   type RecordingPolicy,
 } from './meeting-bot.provider.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
 
 /** Bot display name in the participant list (part of the consent disclosure; Recall max 100). */
 const DEFAULT_BOT_NAME = 'Meri Notetaker (recording)';
@@ -195,9 +196,19 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     @Inject(MEETING_BOT_PROVIDER) private readonly bot: MeetingBotProvider,
     private readonly engagement: EngagementService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {}
 
   onModuleInit(): void {
+    // Engagement API Phase 1 — fail-closed runtime policy check.
+    if (!this.runtimePolicy.backgroundWorkersEnabled()) {
+      this.logger.log(
+        'notetaker-reconcile disabled by runtime policy ' +
+          `(service=${this.runtimePolicy.snapshot().serviceName} ` +
+          `owner=${this.runtimePolicy.snapshot().backgroundOwner})`,
+      );
+      return;
+    }
     this.reconcileTimer = setInterval(() => {
       // Skip this tick rather than overlap if the previous sweep (LLM debrief
       // generation can take real time) is still running.
@@ -223,6 +234,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    * transcription within the same tick.
    */
   async runReconcileSweep(): Promise<void> {
+    this.runtimePolicy.assertBackgroundOwner('notetaker-reconcile');
     await this.reconcileStuckRecordings();
     await this.reconcileStaleTranscripts();
     // Recover sessions a mid-generation crash stranded in `drafting`, then expire
@@ -480,6 +492,8 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
 
   /** Send a meeting bot to a meeting the caller owns. Strict-consent gated. */
   async dispatch(ctx: TenantContext, meetingId: string, input: DispatchNotetakerInput) {
+    // Engagement API Phase 1 — assert external action before dispatching.
+    this.runtimePolicy.assertExternalAction('notetaker_dispatch');
     const [tenant, requester] = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       Promise.all([
         tx.tenant.findFirst({
@@ -662,6 +676,8 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    * can delete the resulting debrief/transcript like any other.
    */
   async remove(ctx: TenantContext, meetingId: string) {
+    // Engagement API Phase 1 — assert external action before removing.
+    this.runtimePolicy.assertExternalAction('notetaker_remove');
     const session = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },

@@ -38,6 +38,7 @@ import {
   AudiencePolicyRequiredError,
   type GaPolicy,
 } from './generation/government-affairs-policy.registry.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 export type OutreachJobKind = 'generate' | 'send';
 
@@ -226,6 +227,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     private readonly engagement: EngagementService,
     private readonly gateway: GenerationGatewayService,
     config: ConfigService<AppConfig, true>,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {
     this.asyncGen = config.get('OUTREACH_ASYNC_GEN', { infer: true });
     this.asyncSend = config.get('OUTREACH_ASYNC_SEND', { infer: true });
@@ -240,6 +242,15 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
+    // Engagement API Phase 1 — fail-closed runtime policy check.
+    if (!this.runtimePolicy.backgroundWorkersEnabled()) {
+      this.logger.log(
+        'outreach-job-worker disabled by runtime policy ' +
+          `(service=${this.runtimePolicy.snapshot().serviceName} ` +
+          `owner=${this.runtimePolicy.snapshot().backgroundOwner})`,
+      );
+      return;
+    }
     // Only spin the worker when at least one async path is enabled.
     if (!this.asyncGen && !this.asyncSend) return;
     this.timer = setInterval(() => {
@@ -272,6 +283,12 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     ctx: TenantContext,
     input: SubmitOutreachJobInput,
   ): Promise<{ jobId: string; deduped: boolean }> {
+    // Engagement API Phase 1 — assert external action before creating a job.
+    if (input.kind === 'generate') {
+      this.runtimePolicy.assertExternalAction('outreach_generate');
+    } else {
+      this.runtimePolicy.assertExternalAction('outreach_send');
+    }
     this.assertSendJobAllowed(input.kind);
     if (!input.recipients.length) {
       return this.submitEmpty(ctx, input);
@@ -579,6 +596,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   // ── Worker ───────────────────────────────────────────────────────────────
 
   private async tick(): Promise<void> {
+    this.runtimePolicy.assertBackgroundOwner('outreach-job-worker');
     await this.reclaimStale();
     const jobId = await this.findRunnableJobId();
     if (jobId) await this.processJob(jobId);

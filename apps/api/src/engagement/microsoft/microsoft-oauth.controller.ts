@@ -19,6 +19,7 @@ import { RolesGuard } from '../../auth/roles.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
 import { MicrosoftOAuthService } from './microsoft-oauth.service.js';
+import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
 
 class StartOAuthDto {
   @IsOptional()
@@ -56,6 +57,7 @@ export class MicrosoftOAuthController {
   @Delete(':connectionId')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_disconnect')
   disconnect(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -68,6 +70,7 @@ export class MicrosoftOAuthController {
   @Post('start')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_oauth_start')
   start(@CurrentTenant() ctx: TenantContext, @Body() body: StartOAuthDto) {
     return this.oauth.start(ctx, body);
   }
@@ -75,6 +78,7 @@ export class MicrosoftOAuthController {
   @Post(':connectionId/sync')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_sync')
   sync(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -96,6 +100,7 @@ export class MicrosoftOAuthController {
   @Post(':connectionId/calendar-window')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_sync')
   syncCalendarWindow(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -111,6 +116,7 @@ export class MicrosoftOAuthController {
   @Post(':connectionId/subscriptions')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
+  @EngagementRuntimeAction('integration_subscription')
   subscriptions(
     @CurrentTenant() ctx: TenantContext,
     @Param('connectionId') connectionId: string,
@@ -119,6 +125,7 @@ export class MicrosoftOAuthController {
   }
 
   @Get('notifications')
+  @EngagementRuntimeAction('integration_notification', { requiresCallbacks: true })
   validateGet(@Query('validationToken') validationToken: string | undefined, @Res() res: Response) {
     if (validationToken) {
       res.type('text/plain').status(200).send(validationToken);
@@ -129,6 +136,7 @@ export class MicrosoftOAuthController {
 
   @Post('notifications')
   @HttpCode(202)
+  @EngagementRuntimeAction('integration_notification', { requiresCallbacks: true })
   async notifications(
     @Query('validationToken') validationToken: string | undefined,
     @Body() body: unknown,
@@ -149,6 +157,7 @@ export class MicrosoftOAuthController {
   // The route stays under the `/api/engagement/...` global prefix and goes
   // through the same Clerk-aware tenant middleware as every other endpoint.
   @Get('callback')
+  @EngagementRuntimeAction('integration_oauth_callback', { requiresCallbacks: true })
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { MemoryRouter, Outlet } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.js';
 
 // The real AppShell pulls in the whole chrome (Clerk, the flag map, ~20 hooks);
@@ -47,13 +48,22 @@ const SRC = resolve(process.cwd(), 'src');
 const appSource = readFileSync(resolve(SRC, 'App.tsx'), 'utf8');
 const appShellSource = readFileSync(resolve(SRC, 'components/AppShell.tsx'), 'utf8');
 
+function renderAppWithRouter(initialEntries: string[]) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe('Funding Opportunities route registration', () => {
   test('/intelligence/opportunities resolves to the page, not the catch-all redirect', async () => {
-    render(
-      <MemoryRouter initialEntries={['/intelligence/opportunities']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderAppWithRouter(['/intelligence/opportunities']);
 
     await waitFor(() =>
       expect(screen.getByTestId('funding-opportunities-page')).toBeInTheDocument(),
@@ -65,11 +75,7 @@ describe('Funding Opportunities route registration', () => {
   });
 
   test('the /intelligence/* catch-all still redirects every other path', async () => {
-    render(
-      <MemoryRouter initialEntries={['/intelligence/not-a-real-surface']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderAppWithRouter(['/intelligence/not-a-real-surface']);
 
     await waitFor(() => expect(screen.getByTestId('data-explorer-page')).toBeInTheDocument());
     expect(screen.queryByTestId('funding-opportunities-page')).not.toBeInTheDocument();

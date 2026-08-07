@@ -1,10 +1,22 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
+import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
+import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
-import { NotetakerModule } from './notetaker/notetaker.module.js';
+import {
+  NotetakerModule,
+  RAW_MEETING_BOT_PROVIDER,
+} from './notetaker/notetaker.module.js';
+import {
+  MEETING_BOT_PROVIDER,
+  type MeetingBotProvider,
+} from './notetaker/meeting-bot.provider.js';
 import { EngagementController } from './engagement.controller.js';
 import { InternalAiCredentialsController } from './internal-ai-credentials.controller.js';
 import { AiCredentialResolverService } from './ai-credential-resolver.service.js';
@@ -39,7 +51,6 @@ import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachDraftAuditService } from './outreach-draft-audit.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 import { RaceSafeOutreachSendIntentService } from './race-safe-outreach-send-intent.service.js';
-// Phase 1 — governed generation gateway.
 import { LlmCompletionService } from './llm-completion.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
@@ -51,6 +62,27 @@ import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
+import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
+import {
+  guardGmailSendService,
+  guardGoogleOAuthService,
+  guardGoogleSyncService,
+  guardGoogleTokenService,
+  guardMicrosoftGraphSyncService,
+  guardMicrosoftOAuthService,
+  RAW_GMAIL_SEND_SERVICE,
+  RAW_GOOGLE_OAUTH_SERVICE,
+  RAW_GOOGLE_SYNC_SERVICE,
+  RAW_GOOGLE_TOKEN_SERVICE,
+  RAW_MICROSOFT_GRAPH_SYNC_SERVICE,
+  RAW_MICROSOFT_OAUTH_SERVICE,
+} from './runtime/engagement-integration-runtime.boundary.js';
+import {
+  guardMeetingBotProvider,
+  guardNotetakerService,
+} from './runtime/engagement-notetaker-runtime.boundary.js';
 
 @Module({
   imports: [
@@ -70,6 +102,63 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     OutcomeController,
   ],
   providers: [
+    {
+      provide: EngagementRuntimePolicyService,
+      useFactory: () =>
+        new EngagementRuntimePolicyService(
+          resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
+        ),
+    },
+    {
+      provide: MEETING_BOT_PROVIDER,
+      useFactory: (raw: MeetingBotProvider, runtime: EngagementRuntimePolicyService) =>
+        guardMeetingBotProvider(raw, runtime),
+      inject: [RAW_MEETING_BOT_PROVIDER, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GOOGLE_TOKEN_SERVICE, useClass: GoogleTokenService },
+    {
+      provide: GoogleTokenService,
+      useFactory: (raw: GoogleTokenService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleTokenService(raw, runtime),
+      inject: [RAW_GOOGLE_TOKEN_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_MICROSOFT_GRAPH_SYNC_SERVICE, useClass: MicrosoftGraphSyncService },
+    {
+      provide: MicrosoftGraphSyncService,
+      useFactory: (
+        raw: MicrosoftGraphSyncService,
+        runtime: EngagementRuntimePolicyService,
+      ) => guardMicrosoftGraphSyncService(raw, runtime),
+      inject: [RAW_MICROSOFT_GRAPH_SYNC_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_MICROSOFT_OAUTH_SERVICE, useClass: MicrosoftOAuthService },
+    {
+      provide: MicrosoftOAuthService,
+      useFactory: (raw: MicrosoftOAuthService, runtime: EngagementRuntimePolicyService) =>
+        guardMicrosoftOAuthService(raw, runtime),
+      inject: [RAW_MICROSOFT_OAUTH_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GOOGLE_SYNC_SERVICE, useClass: GoogleSyncService },
+    {
+      provide: GoogleSyncService,
+      useFactory: (raw: GoogleSyncService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleSyncService(raw, runtime),
+      inject: [RAW_GOOGLE_SYNC_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GOOGLE_OAUTH_SERVICE, useClass: GoogleOAuthService },
+    {
+      provide: GoogleOAuthService,
+      useFactory: (raw: GoogleOAuthService, runtime: EngagementRuntimePolicyService) =>
+        guardGoogleOAuthService(raw, runtime),
+      inject: [RAW_GOOGLE_OAUTH_SERVICE, EngagementRuntimePolicyService],
+    },
+    { provide: RAW_GMAIL_SEND_SERVICE, useClass: GmailSendService },
+    {
+      provide: GmailSendService,
+      useFactory: (raw: GmailSendService, runtime: EngagementRuntimePolicyService) =>
+        guardGmailSendService(raw, runtime),
+      inject: [RAW_GMAIL_SEND_SERVICE, EngagementRuntimePolicyService],
+    },
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -78,39 +167,68 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
         RAW_ENGAGEMENT_SERVICE,
         ContextPersistenceBoundaryService,
         ContextCompilerService,
+        EngagementRuntimePolicyService,
+      ],
+    },
+    {
+      provide: NotetakerService,
+      useFactory: (
+        prisma: PrismaService,
+        bot: MeetingBotProvider,
+        engagement: EngagementService,
+        config: ConfigService<AppConfig, true>,
+        runtime: EngagementRuntimePolicyService,
+      ) =>
+        guardNotetakerService(
+          new NotetakerService(prisma, bot, engagement, config, runtime),
+          runtime,
+        ),
+      inject: [
+        PrismaService,
+        MEETING_BOT_PROVIDER,
+        EngagementService,
+        ConfigService,
+        EngagementRuntimePolicyService,
       ],
     },
     { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
     OutcomeService,
-    NotetakerService,
     ClientAssociationService,
-    EngagementAiService,
+    {
+      provide: EngagementAiService,
+      useFactory: (
+        config: ConfigService<AppConfig, true>,
+        lobbyIntel: LobbyIntelService,
+        federalSpending: FederalSpendingService,
+        credentials: AiCredentialResolverService,
+        runtime: EngagementRuntimePolicyService,
+      ) =>
+        guardEngagementAiService(
+          new EngagementAiService(config, lobbyIntel, federalSpending, credentials),
+          runtime,
+        ),
+      inject: [
+        ConfigService,
+        LobbyIntelService,
+        FederalSpendingService,
+        AiCredentialResolverService,
+        EngagementRuntimePolicyService,
+      ],
+    },
     AiCredentialResolverService,
     MeetingNotesCryptoService,
-    MicrosoftGraphSyncService,
-    MicrosoftOAuthService,
-    GoogleOAuthService,
-    GoogleSyncService,
     EngagementSyncSchedulerService,
-    GoogleTokenService,
-    GmailSendService,
     EngagementMailSender,
     TokenCryptoService,
-    // Phase 0 — trust boundary. NOTE: ReviewsModule already imports
-    // EngagementModule, so EngagementModule must NEVER import ReviewsModule;
-    // OutreachDraftService is EXPORTED instead and ReviewsService injects it.
     OutreachDraftService,
     OutreachDraftAuditService,
     { provide: OutreachSendIntentService, useClass: RaceSafeOutreachSendIntentService },
-    // Phase 1 §3.g2 — the generation stack. All internal to this module: the
-    // per-source resolvers, the truth builders, the ranker and the style
-    // extractor are implementation detail of the gateway, and exporting them
-    // would invite another surface to assemble its own half-governed path, which
-    // is exactly the fragmentation Phase 1 removes.
-    // LlmCompletionService is a plain (non-@Injectable) class that EngagementAiService
-    // instantiates directly; registered here via a factory so the generation
-    // services can take it by DI and a spec can swap in a fault-injecting fetch.
-    { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
+    {
+      provide: LlmCompletionService,
+      useFactory: (runtime: EngagementRuntimePolicyService) =>
+        new LlmCompletionService({ runtimePolicy: runtime }),
+      inject: [EngagementRuntimePolicyService],
+    },
     AttachmentScannerService,
     AttachmentContentService,
     OutreachTruthService,
@@ -123,18 +241,14 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     AlertPacketClientService,
   ],
   exports: [
+    EngagementRuntimePolicyService,
     OutcomeService,
     EngagementService,
     NotetakerService,
     MicrosoftGraphSyncService,
     EngagementMailSender,
     AiCredentialResolverService,
-    // Exported so ReviewsService can approve/reject an EXACT draft version
-    // inside its own transaction (plan §3.f1) without a module cycle.
     OutreachDraftService,
-    // Only these two are exported (§3.g2): the gateway is the entry point, and
-    // the packet service is what another module would legitimately need to read
-    // provenance from.
     GenerationGatewayService,
     EvidencePacketService,
   ],

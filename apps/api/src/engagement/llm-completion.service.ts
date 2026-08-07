@@ -84,20 +84,32 @@ export interface LlmCompletionServiceOptions {
   /** Injectable for tests so backoff does not actually sleep. */
   sleepImpl?: (ms: number) => Promise<void>;
   logger?: Pick<Logger, 'warn'>;
+  /**
+   * Engagement API Phase 1 — optional runtime policy guard.
+   * When provided, complete() asserts outreach_generate before
+   * creating an AbortController or fetch request.
+   */
+  runtimePolicy?: {
+    assertExternalAction(action: 'outreach_generate'): void;
+  };
 }
 
 export class LlmCompletionService {
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly logger: Pick<Logger, 'warn'>;
+  private readonly runtimePolicy?: { assertExternalAction(action: 'outreach_generate'): void };
 
   constructor(opts: LlmCompletionServiceOptions = {}) {
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.sleep = opts.sleepImpl ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.logger = opts.logger ?? new Logger(LlmCompletionService.name);
+    this.runtimePolicy = opts.runtimePolicy;
   }
 
   async complete(req: LlmCompletionRequest): Promise<LlmCompletionResult> {
+    // Engagement API Phase 1 — assert outreach_generate before any network call.
+    this.runtimePolicy?.assertExternalAction('outreach_generate');
     const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

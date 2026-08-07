@@ -1,4 +1,15 @@
 import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+
+const runtimePolicy = {
+  backgroundWorkersEnabled: () => true,
+  assertBackgroundOwner: () => {},
+  assertExternalAction: () => {},
+  assertCallbacksEnabled: () => {},
+  externalActionAllowed: () => true,
+  snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+  isRecallWebhookEnabled: () => true,
+} as unknown as EngagementRuntimePolicyService;
 
 /**
  * Unit tests for the auto-sync scheduler's tick: provider dispatch, the
@@ -50,6 +61,7 @@ function makeScheduler(opts: {
     microsoft as never,
     google as never,
     config as never,
+    runtimePolicy,
   );
   return { service, microsoft, google, queryRaw };
 }

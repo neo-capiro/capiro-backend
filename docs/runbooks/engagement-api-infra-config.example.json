@@ -1,0 +1,122 @@
+{
+  "_readme": [
+    "EXAMPLE engagement-api deployment config. Every identifier below is a",
+    "placeholder. Fill it from scripts/engagement-api-infra-discover.sh output —",
+    "never by hand and never by guessing.",
+    "",
+    "Usage:",
+    "  ENGAGEMENT_API_INFRA_CONFIG=/absolute/path/to/your-config.json",
+    "",
+    "DO NOT COMMIT a filled copy containing live identifiers. Only this example",
+    "and infra/cdk/fixtures/engagement-api.test.json belong in the repository.",
+    "",
+    "Fields the plan fixes and validation rejects if changed:",
+    "  cpu 512, memoryMiB 1024, desiredCount 1, minimumCount 1, maximumCount 2,",
+    "  previewRulePriority 6, imageRepositoryName capiro/<environment>/engagement-api,",
+    "  allowPublicIp false, allowEcsExec false.",
+    "",
+    "Database budget must satisfy both:",
+    "  observedSevenDayPeak + maximumCount * perTaskPoolMaximum <= floor(max * 0.80)",
+    "  databaseMaxConnections - projectedPeak >= databaseMaxConnections * 0.10",
+    "If Phase 1 hardcodes a pool maximum that breaks this, stop and remediate",
+    "Phase 1. Do not raise Aurora capacity in Phase 2.",
+    "",
+    "databaseMaxConnections: on Aurora Serverless v2, max_connections is the",
+    "formula LEAST(DBInstanceClassMemory/9531392, 5000), not a fixed number —",
+    "it scales with current ACU. Live discovery (2.15, capiro-dev, 2026-08-06)",
+    "found capiro-dev-data's cluster at 0.5-16 ACU. Budget against the FLOOR",
+    "(MinCapacity), never the currently-scaled value — do not guess a single",
+    "number without checking the current ACU range via",
+    "aws rds describe-db-clusters --query DBClusters[0].ServerlessV2ScalingConfiguration.",
+    "",
+    "databaseHostSecretArn and databaseAppSecretArn are DIFFERENT secrets. Live",
+    "discovery found the main API's own task splits DB credentials the same",
+    "way: /capiro/<env>/aurora/master supplies host/port,",
+    "/capiro/<env>/aurora/app supplies username/password. databaseName is not",
+    "a secret at all on that task — it is a literal env var (e.g. \"capiro\").",
+    "",
+    "uiContract pins the accepted Phase 2.1 and 2.2 contracts. Recompute with:",
+    "  node -e \"const{createHash}=require('crypto'),fs=require('fs');const d='apps/api/src/engagement/__fixtures__/';const h=f=>createHash('sha256').update(fs.readFileSync(d+f)).digest('hex');console.log(h('outreach-v3-prototype-state-manifest.v1.json'),h('outreach-v3-ui-api-capability-manifest.v1.json'))\"",
+    "These are nonsecret provenance values. They do not enable any UI.",
+    "",
+    "clerkJwtIssuer is REQUIRED. engagement-api runs the identical NestJS",
+    "ConfigModule validator as the main API, which fatally refuses to boot",
+    "without it outside NODE_ENV=test. Use the SAME value the live",
+    "environment's other services already use (see lib/config.ts's",
+    "clerkJwtIssuer for dev/staging/prod) — do not invent a new Clerk",
+    "instance for this service."
+  ],
+  "schemaVersion": 1,
+
+  "environment": "dev",
+  "accountId": "<12-digit-account-id>",
+  "region": "us-east-1",
+
+  "clerkJwtIssuer": "<the exact live value, e.g. https://clerk.app.capiro.ai>",
+
+  "vpcId": "vpc-<id>",
+  "privateSubnetIds": ["subnet-<a>", "subnet-<b>"],
+  "privateSubnetAvailabilityZones": ["us-east-1a", "us-east-1b"],
+
+  "ecsClusterArn": "arn:aws:ecs:us-east-1:<account>:cluster/<cluster-name>",
+  "serviceSecurityGroupId": "sg-<id>",
+
+  "httpsListenerArn": "arn:aws:elasticloadbalancing:us-east-1:<account>:listener/app/<alb>/<alb-id>/<listener-id>",
+  "mainApiTargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:<account>:targetgroup/<main-api-tg>/<tg-id>",
+  "genericApiRulePriority": 0,
+  "previewRulePriority": 6,
+
+  "auroraClusterIdentifier": "<aurora-cluster-identifier>",
+  "databaseHostSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<aurora-master-secret>",
+  "databaseAppSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<aurora-app-secret>",
+  "databaseName": "<database-name, e.g. capiro>",
+  "clerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-secret-key>",
+  "clerkWebhookSigningSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-webhook-signing-secret>",
+  "oauthTokenEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",
+  "notesEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<notes-encryption-key>",
+  "requiredSecretArns": [
+    "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-secret-key>",
+    "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",
+    "arn:aws:secretsmanager:us-east-1:<account>:secret:<notes-encryption-key>"
+  ],
+
+  "kmsKeyArns": {
+    "ecr": "arn:aws:kms:us-east-1:<account>:key/<ecr-key-id>",
+    "data": ["arn:aws:kms:us-east-1:<account>:key/<data-key-id>"]
+  },
+
+  "bucketNames": {
+    "assets": "<assets-bucket>",
+    "directory": "<directory-bucket>",
+    "attachments": "<attachments-bucket>",
+    "otherReadOnly": []
+  },
+
+  "alarmTopicArn": "arn:aws:sns:us-east-1:<account>:<alarm-topic>",
+
+  "imageRepositoryName": "capiro/dev/engagement-api",
+  "imageDigest": "sha256:<64-hex-resolved-from-ecr-after-push>",
+  "releaseSha": "<40-hex-git-sha>",
+
+  "cpu": 512,
+  "memoryMiB": 1024,
+  "desiredCount": 1,
+  "minimumCount": 1,
+  "maximumCount": 2,
+
+  "dbConnectionBudget": {
+    "databaseMaxConnections": 0,
+    "observedSevenDayPeak": 0,
+    "perTaskPoolMaximum": 0,
+    "alarmThreshold": 0
+  },
+
+  "uiContract": {
+    "prototypeSha256": "84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453",
+    "prototypeManifestSha256": "6c9fe00f6d527596bfe9cb5c382dcd53e0e0f61ef4f3ec894ac58d39590fd3d8",
+    "capabilityManifestSha256": "5716bcd3505f9ffe2617df9199784232463cd54fae50fe4bc01b2e64159686cf"
+  },
+
+  "allowPublicIp": false,
+  "allowEcsExec": false
+}

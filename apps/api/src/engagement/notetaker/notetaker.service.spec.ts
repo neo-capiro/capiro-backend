@@ -14,6 +14,17 @@ import {
   formatDebriefBody,
   notetakerBotName,
 } from './notetaker.service.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+
+const runtimePolicy = {
+  backgroundWorkersEnabled: () => true,
+  assertBackgroundOwner: () => {},
+  assertExternalAction: () => {},
+  assertCallbacksEnabled: () => {},
+  externalActionAllowed: () => true,
+  snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+  isRecallWebhookEnabled: () => true,
+} as unknown as EngagementRuntimePolicyService;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Loosely-typed async mock: keeps mockResolvedValue/mockResolvedValueOnce open to
@@ -107,6 +118,7 @@ function makeService(tx: Tx, configOverrides: Record<string, unknown> = {}) {
     bot as unknown as MeetingBotProvider,
     engagement,
     config,
+    runtimePolicy,
   );
   return { service, bot, engagement, tx };
 }

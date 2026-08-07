@@ -138,3 +138,45 @@ jobs:
       # code path leaked the key onto a different container.
       - name: Test infra-cdk
         run: pnpm --filter @capiro/infra-cdk test
+
+      # Engagement API Phase 1 — local-runtime contract. Runs the DB-free
+      # verifier (runtime policy, route coverage, timer containment, external
+      # boundaries, app module, bootstrap, health, entrypoint tests) and
+      # the API build that produces both dist/main.js and dist/engagement-main.js.
+      # Does NOT connect to a database, call AWS, or call any external provider.
+      - name: Engagement API Phase 1 local-runtime contract
+        run: pnpm verify:engagement-phase-1
+
+  engagement-phase-2:
+    # A SEPARATE job, not a step in `verify` above: the existing "Typecheck
+    # (turbo)" step already fails on main for reasons unrelated to Phase 2
+    # (four pre-existing rootDir violations in apps/api/src/defense-budget —
+    # see docs/plans/engagement-api/phase-2-input-lock.md §6). A step appended
+    # after a failing step in the same job never runs, which would make this
+    # gate silently never execute while still reporting green-by-omission. A
+    # sibling job has no such dependency and reports its own real status.
+    #
+    # Uses no AWS credentials, deploys nothing, pushes no image, mutates no
+    # listener rule, calls no provider, and accesses no production data.
+    # Every AWS/docker interaction the suite exercises runs against a fake
+    # binary recorded and asserted on by the tests themselves.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      # The Outreach V3 prototype is an external, uncommitted asset (frozen by
+      # checksum in the Phase 2 input lock) — CI has no copy. The prototype
+      # drift gate self-skips loudly rather than failing when it is absent,
+      # the same convention DB-backed suites use for a missing DATABASE_URL.
+      - name: Engagement API Phase 2 — code-complete verification (2.0-2.12)
+        run: pnpm verify:engagement-phase-2

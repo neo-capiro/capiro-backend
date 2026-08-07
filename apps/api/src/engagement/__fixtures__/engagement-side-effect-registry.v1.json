@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "description": "Phase 0 manually-reviewed registry of every Engagement process loop, timer, and external side effect.",
+  "reviewedAt": null,
+  "entries": [
+    {
+      "id": "SE-001",
+      "sourceFile": "apps/api/src/engagement/engagement-sync-scheduler.service.ts",
+      "symbol": "EngagementSyncSchedulerService",
+      "trigger": "on_module_init",
+      "effect": "mailbox_sync",
+      "externalSystem": "Microsoft Graph + Google Gmail API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_BACKGROUND_OWNER=api"
+      ],
+      "idempotencyBoundary": "per-connection lastSyncCursor",
+      "concurrencyBoundary": "single setInterval, no distributed lock",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Must be disabled or moved exclusively to engagement-api before activation"
+    },
+    {
+      "id": "SE-002",
+      "sourceFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "symbol": "OutreachJobService",
+      "trigger": "on_module_init",
+      "effect": "llm_call",
+      "externalSystem": "AI provider (OpenAI/Anthropic) via LlmCompletionService",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_BACKGROUND_OWNER=api"
+      ],
+      "idempotencyBoundary": "job claim (claimAvailableJob) with status check",
+      "concurrencyBoundary": "single setInterval + claimAvailableJob row lock",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Must be disabled or moved exclusively to engagement-api before activation"
+    },
+    {
+      "id": "SE-003",
+      "sourceFile": "apps/api/src/engagement/outreach-job.service.ts",
+      "symbol": "OutreachJobService",
+      "trigger": "on_module_init",
+      "effect": "email_send",
+      "externalSystem": "Microsoft Graph / Gmail API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_BACKGROUND_OWNER=api"
+      ],
+      "idempotencyBoundary": "send intent + at-most-once delivery",
+      "concurrencyBoundary": "single setInterval + claimAvailableJob row lock",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Must be disabled or moved exclusively to engagement-api before activation"
+    },
+    {
+      "id": "SE-004",
+      "sourceFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "symbol": "OutreachSendIntentService",
+      "trigger": "on_module_init",
+      "effect": "email_send",
+      "externalSystem": "Microsoft Graph / Gmail API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_BACKGROUND_OWNER=api"
+      ],
+      "idempotencyBoundary": "durable send intent + requestKey dedup",
+      "concurrencyBoundary": "single setInterval + claimPendingSendIntent row lock",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Must be disabled or moved exclusively to engagement-api before activation"
+    },
+    {
+      "id": "SE-005",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "symbol": "MicrosoftGraphSyncService",
+      "trigger": "http_request",
+      "effect": "mailbox_sync",
+      "externalSystem": "Microsoft Graph API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "per-connection lastSyncCursor + delta tokens",
+      "concurrencyBoundary": "per-connection sync lock in DB",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth token storage and sync must route exclusively to engagement-api"
+    },
+    {
+      "id": "SE-006",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "symbol": "MicrosoftGraphSyncService",
+      "trigger": "http_request",
+      "effect": "calendar_sync",
+      "externalSystem": "Microsoft Graph API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "per-connection lastSyncCursor + delta tokens",
+      "concurrencyBoundary": "per-connection sync lock in DB",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth token storage and sync must route exclusively to engagement-api"
+    },
+    {
+      "id": "SE-007",
+      "sourceFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "symbol": "GoogleSyncService",
+      "trigger": "http_request",
+      "effect": "mailbox_sync",
+      "externalSystem": "Google Gmail API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "per-connection historyId cursor",
+      "concurrencyBoundary": "per-connection sync lock in DB",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth token storage and sync must route exclusively to engagement-api"
+    },
+    {
+      "id": "SE-008",
+      "sourceFile": "apps/api/src/engagement/google/google-sync.service.ts",
+      "symbol": "GoogleSyncService",
+      "trigger": "http_request",
+      "effect": "calendar_sync",
+      "externalSystem": "Google Calendar API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "per-connection syncToken cursor",
+      "concurrencyBoundary": "per-connection sync lock in DB",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth token storage and sync must route exclusively to engagement-api"
+    },
+    {
+      "id": "SE-009",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-oauth.service.ts",
+      "symbol": "MicrosoftOAuthService",
+      "trigger": "oauth_callback",
+      "effect": "oauth_exchange",
+      "externalSystem": "Microsoft Identity Platform",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_CALLBACKS_ENABLED=true"
+      ],
+      "idempotencyBoundary": "HMAC-signed state parameter",
+      "concurrencyBoundary": "single callback per connection",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth callbacks must route to engagement-api post-cutover"
+    },
+    {
+      "id": "SE-010",
+      "sourceFile": "apps/api/src/engagement/google/google-oauth.service.ts",
+      "symbol": "GoogleOAuthService",
+      "trigger": "oauth_callback",
+      "effect": "oauth_exchange",
+      "externalSystem": "Google OAuth 2.0",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_CALLBACKS_ENABLED=true"
+      ],
+      "idempotencyBoundary": "HMAC-signed state parameter",
+      "concurrencyBoundary": "single callback per connection",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "OAuth callbacks must route to engagement-api post-cutover"
+    },
+    {
+      "id": "SE-011",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "symbol": "MicrosoftGraphSyncService",
+      "trigger": "webhook",
+      "effect": "notetaker_webhook_processing",
+      "externalSystem": "Microsoft Graph change notifications",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_CALLBACKS_ENABLED=true"
+      ],
+      "idempotencyBoundary": "subscription + notification sequence number",
+      "concurrencyBoundary": "Microsoft's delivery guarantees",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Notification endpoint must route to engagement-api"
+    },
+    {
+      "id": "SE-012",
+      "sourceFile": "apps/api/src/webhooks/recall-webhook.controller.ts",
+      "symbol": "RecallWebhookController",
+      "trigger": "webhook",
+      "effect": "notetaker_webhook_processing",
+      "externalSystem": "Recall.ai",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_RECALL_WEBHOOK_ENABLED=true"
+      ],
+      "idempotencyBoundary": "Svix webhook signature + Recall event idempotency key",
+      "concurrencyBoundary": "Recall's at-least-once delivery",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Recall webhook must route to engagement-api post-cutover"
+    },
+    {
+      "id": "SE-013",
+      "sourceFile": "apps/api/src/engagement/notetaker/notetaker.service.ts",
+      "symbol": "NotetakerService",
+      "trigger": "on_module_init",
+      "effect": "notetaker_dispatch",
+      "externalSystem": "Recall.ai",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_BACKGROUND_OWNER=api"
+      ],
+      "idempotencyBoundary": "notetaker status reconciliation",
+      "concurrencyBoundary": "single setInterval (reconcileTimer)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Must be disabled or moved exclusively to engagement-api before activation"
+    },
+    {
+      "id": "SE-014",
+      "sourceFile": "apps/api/src/engagement/google/gmail-send.service.ts",
+      "symbol": "GmailSendService",
+      "trigger": "http_request",
+      "effect": "email_send",
+      "externalSystem": "Google Gmail API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "durable send intent",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Send path must use engagement-api provider credentials post-cutover"
+    },
+    {
+      "id": "SE-015",
+      "sourceFile": "apps/api/src/engagement/mail-sender.service.ts",
+      "symbol": "EngagementMailSender",
+      "trigger": "http_request",
+      "effect": "email_send",
+      "externalSystem": "Microsoft Graph API",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "durable send intent",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Send path must use engagement-api provider credentials post-cutover"
+    },
+    {
+      "id": "SE-016",
+      "sourceFile": "apps/api/src/engagement/attachment-scanner.service.ts",
+      "symbol": "AttachmentScannerService",
+      "trigger": "http_request",
+      "effect": "attachment_scan",
+      "externalSystem": "S3 (attachment storage)",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "attachment lifecycle status",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Attachment processing should route to engagement-api; S3 access via shared IAM role"
+    },
+    {
+      "id": "SE-017",
+      "sourceFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "symbol": "AttachmentContentService",
+      "trigger": "http_request",
+      "effect": "s3_read",
+      "externalSystem": "AWS S3",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "attachment content hash",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Attachment content extraction should route to engagement-api; S3 access via shared IAM role"
+    },
+    {
+      "id": "SE-018",
+      "sourceFile": "apps/api/src/engagement/attachment-content.service.ts",
+      "symbol": "AttachmentContentService",
+      "trigger": "http_request",
+      "effect": "s3_write",
+      "externalSystem": "AWS S3",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "upload-url signed request",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Attachment upload should route to engagement-api; S3 access via shared IAM role"
+    },
+    {
+      "id": "SE-019",
+      "sourceFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "symbol": "GenerationGatewayService",
+      "trigger": "http_request",
+      "effect": "llm_call",
+      "externalSystem": "AI provider (OpenAI/Anthropic) via LlmCompletionService",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "immutable draft version artifacts",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Generation must use engagement-api provider credentials post-cutover"
+    },
+    {
+      "id": "SE-020",
+      "sourceFile": "apps/api/src/engagement/outreach-draft-audit.service.ts",
+      "symbol": "OutreachDraftAuditService",
+      "trigger": "http_request",
+      "effect": "llm_call",
+      "externalSystem": "AI provider",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "draft version audit records",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Audit must use engagement-api provider credentials post-cutover"
+    },
+    {
+      "id": "SE-021",
+      "sourceFile": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+      "symbol": "AlertPacketClientService",
+      "trigger": "http_request",
+      "effect": "external_http",
+      "externalSystem": "Meri alert-packet service (internal HTTP)",
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "ENGAGEMENT_EXTERNAL_ACTIONS=enabled"
+      ],
+      "idempotencyBoundary": "request dedup by packet ID",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": true,
+      "phase1ContainmentRequirement": "Internal HTTP call - ensure inter-service auth works from engagement-api"
+    },
+    {
+      "id": "SE-022",
+      "sourceFile": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "symbol": "AiCredentialResolverService",
+      "trigger": "on_module_init",
+      "effect": "database_write",
+      "externalSystem": null,
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "always active"
+      ],
+      "idempotencyBoundary": "onModuleInit warmup - no user data",
+      "concurrencyBoundary": "none (single-shot warmup)",
+      "containsSensitiveData": false,
+      "phase1ContainmentRequirement": "Credential warmup should run in engagement-api's own bootstrap"
+    },
+    {
+      "id": "SE-023",
+      "sourceFile": "apps/api/src/engagement/outcome/outcome.service.ts",
+      "symbol": "OutcomeService",
+      "trigger": "http_request",
+      "effect": "database_write",
+      "externalSystem": null,
+      "currentProcessOwner": "main_api",
+      "activationConfig": [
+        "always active"
+      ],
+      "idempotencyBoundary": "per-outcome record",
+      "concurrencyBoundary": "none (per-request)",
+      "containsSensitiveData": false,
+      "phase1ContainmentRequirement": "Standard CRUD - requires shared DB access"
+    }
+  ],
+  "metadata": {
+    "totalOnModuleInitTimers": 5,
+    "totalOAuthExchanges": 2,
+    "totalWebhooks": 2,
+    "totalMailboxSyncPaths": 3,
+    "totalCalendarSyncPaths": 2,
+    "totalSendPaths": 3,
+    "totalLLMCalls": 3,
+    "totalS3Effects": 2,
+    "totalAttachmentScans": 1,
+    "totalExternalHTTPCalls": 1,
+    "currentMainApiOwned": true
+  }
+}
