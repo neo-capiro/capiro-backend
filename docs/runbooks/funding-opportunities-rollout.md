@@ -334,6 +334,25 @@ durability guarantee — the SAME rejected suggestion will not reappear the
 next time `generate-tango-enrichment-candidates` runs, even if Tango's data
 is re-observed unchanged.
 
+### Versioned Federal Business Profile (P21) — read-only, no migration
+
+`federal-business-profile.service.ts` ships in this merge. Pure read
+aggregation over `clients`, `tango_resource_snapshot` (P19/P15), and
+`client_profile_enrichment_candidate` (P20) — nothing new is persisted, and
+there is no schedule entry because this is a query path, not a job.
+
+```bash
+# READ-ONLY. Prints the full versioned profile for one client.
+cd apps/api
+pnpm exec tsx scripts/diag-federal-business-profile.ts --tenant=<uuid> --client=<uuid>
+```
+
+Expect `verified` to be null for a client with no UEI or no Tango sync yet
+— that is a normal state, not an error. `history` grows by one entry each
+time `sync-tango-entities` observes a real content change for that client's
+UEI (P15's versioned-head policy: an unchanged re-observation writes
+nothing new).
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
