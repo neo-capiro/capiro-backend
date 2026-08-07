@@ -1,9 +1,9 @@
 # Phase 3 — Code-Complete Self-Audit
 
-**Repository:** `neo-capiro/capirov2`  
-**Branch:** `agent/engagement-api-phase-3-full-ui-parity`  
-**Accepted execution base:** `3841a5ee58e011be7fb4fb6008adfccf081976d9`  
-**Implementation head reviewed before this document:** `e58b32453d9932e795b1be925a6e3b62147ab883`  
+**Repository:** `neo-capiro/capirov2`
+**Branch:** `agent/engagement-api-phase-3-full-ui-parity`
+**Accepted execution base:** `3841a5ee58e011be7fb4fb6008adfccf081976d9`
+**Implementation head reviewed before this document:** `e58b32453d9932e795b1be925a6e3b62147ab883`
 **Mode:** Phase 3 Stage 3.14 self-audit, not independent validation
 
 ## Decision

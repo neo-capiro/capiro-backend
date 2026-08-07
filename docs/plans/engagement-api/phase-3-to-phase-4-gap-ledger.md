@@ -1,7 +1,7 @@
 # Phase 3 → Phase 4 Gap Ledger
 
-**Repository:** `neo-capiro/capirov2`  
-**Phase 3 branch:** `agent/engagement-api-phase-3-full-ui-parity`  
+**Repository:** `neo-capiro/capirov2`
+**Phase 3 branch:** `agent/engagement-api-phase-3-full-ui-parity`
 **Purpose:** preserve full existing-UI parity without silently moving reverse dependencies or side-effect ownership into Phase 3.
 
 Phase 3 intentionally keeps `engagement-api` in the accepted Phase 2 shadow posture. The current UI may read and perform approved database-local writes through the preview runtime, while every provider/external action remains denied. This ledger records the boundaries Phase 4 must decouple before canonical ownership can move.
