@@ -7,6 +7,15 @@ import './engagement-preview.css';
 
 const PREVIEW_LABEL = 'Engagement API preview — External actions are disabled';
 
+export function turnOffEngagementPreview(reload: () => void = () => window.location.reload()): void {
+  clearEngagementPreview();
+  // 3.9 replaces this hard reload with Engagement-only query invalidation once
+  // the complete cache-family inventory is proven. A reload is intentionally
+  // used in 3.4 so no stale preview response can be presented as canonical
+  // after mode-off. Reload preserves the exact current URL.
+  reload();
+}
+
 /**
  * Small internal-only operator affordance for Phase 3 parity testing. The copy
  * is deliberately fixed: never interpolate tenant/client/target/auth/runtime
@@ -28,14 +37,7 @@ export function EngagementApiPreviewIndicator() {
       <button
         type="button"
         className="engagement-preview-indicator__button"
-        onClick={() => {
-          clearEngagementPreview();
-          // 3.9 replaces this hard reload with Engagement-only query
-          // invalidation once the complete cache-family inventory is proven.
-          // A reload is intentionally used in 3.4 so no stale preview response
-          // can be presented as canonical after mode-off.
-          window.location.reload();
-        }}
+        onClick={() => turnOffEngagementPreview()}
       >
         Turn off preview
       </button>
