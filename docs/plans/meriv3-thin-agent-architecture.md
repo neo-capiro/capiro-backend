@@ -84,20 +84,21 @@ Tenants outside the canary receive a 404 from the hidden V3 capability endpoints
 
 ## Reasoning profiles
 
-Product labels are stable; provider model ids and limits are server configuration.
+Product labels are stable; provider model ids and limits are server configuration. The defaults follow OpenAI's current GPT-5.6 family as verified on 2026-08-07.
 
-| Mode | Default effort | Default output cap | Tool rounds | Turn budget | Intended use |
-|---|---:|---:|---:|---:|---|
-| Fast | low | 8,192 | 6 | 90s | direct lookups and simple questions |
-| Standard | medium | 16,384 | 10 | 180s | everyday government-affairs work |
-| Deep | high | 24,576 | 14 | 300s | ambiguous strategy and multi-source analysis |
-| Max | high | 32,768 | 18 | 480s | hardest configured reasoning tier |
+| Mode | Default model | Default effort | Default output cap | Tool rounds | Turn budget | Intended use |
+|---|---|---:|---:|---:|---:|---|
+| Fast | GPT-5.6 Luna (`gpt-5.6-luna`) | low | 8,192 | 6 | 90s | direct lookups and simple questions |
+| Standard | GPT-5.6 Terra (`gpt-5.6-terra`) | medium | 16,384 | 10 | 180s | everyday government-affairs work |
+| Deep | GPT-5.6 Sol (`gpt-5.6`) | high | 24,576 | 14 | 300s | ambiguous strategy and multi-source analysis |
+| Max | GPT-5.6 Sol (`gpt-5.6`) | max | 32,768 | 18 | 480s | hardest configured reasoning tier |
 
 Defaults:
 
-- `MERIV3_MODEL=gpt-5.1`
-- `MERIV3_FAST_MODEL` falls back to `MERIV3_MODEL`
-- `MERIV3_MAX_MODEL=gpt-5-pro`
+- `MERIV3_FAST_MODEL=gpt-5.6-luna`
+- `MERIV3_MODEL=gpt-5.6-terra`
+- `MERIV3_DEEP_MODEL=gpt-5.6`
+- `MERIV3_MAX_MODEL` falls back to `MERIV3_DEEP_MODEL`
 
 Every value is overrideable through the `MERIV3_*` environment variables in `meriv3-reasoning.ts`. An unsupported model/effort combination fails visibly; MeriV3 never silently downgrades a user-selected reasoning mode.
 
@@ -197,6 +198,20 @@ It handles:
 
 When a compacted summary exists, MeriV3 replays only messages newer than the summary boundary. The summary and old messages are not injected twice.
 
+## Usage and estimated cost
+
+Every model round is recorded under workflow `meriv3_chat` with provider, actual returned model, input/output tokens, cached-input tokens and whether a tenant key was used.
+
+The isolated runtime registers the current GPT-5.6 public list-price estimates:
+
+| Model | Input / 1M | Cached input / 1M | Output / 1M |
+|---|---:|---:|---:|
+| GPT-5.6 Luna | $1.00 | $0.10 | $6.00 |
+| GPT-5.6 Terra | $2.50 | $0.25 | $15.00 |
+| GPT-5.6 Sol | $5.00 | $0.50 | $30.00 |
+
+The existing shared cost helper prices all input tokens at the base input rate, while cached-token counts are stored separately. The database `costUsd` is therefore a conservative estimate when cache hits occur; an exact discounted calculation can be derived from the stored token dimensions during canary analysis.
+
 ## Popup workspace
 
 For the MeriV3 canary, clicking the Meri bubble opens a named, resizable top-level browser window at `/?meriWindow=1`.
@@ -218,7 +233,7 @@ The workspace follows the supplied prototype:
 - white/graphite/neutral palette with restrained rust accent;
 - grouped conversation history;
 - bottom composer;
-- visible client-scope selector;
+- visible server-persisted client-scope selector;
 - Fast / Standard / Deep / Max picker;
 - existing production chat controller for attachments, approvals, citations, research and artifacts.
 
