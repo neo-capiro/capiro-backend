@@ -17,7 +17,11 @@ function effort(
   raw: string | undefined,
   fallback: MeriV3ReasoningEffort,
 ): MeriV3ReasoningEffort {
-  return raw === 'low' || raw === 'medium' || raw === 'high' || raw === 'xhigh'
+  return raw === 'low' ||
+    raw === 'medium' ||
+    raw === 'high' ||
+    raw === 'xhigh' ||
+    raw === 'max'
     ? raw
     : fallback;
 }
@@ -29,21 +33,27 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
 }
 
 /**
- * Translate stable Capiro UX modes into the currently configured OpenAI model,
+ * Translate stable Capiro UX modes into the current OpenAI reasoning family,
  * effort, output ceiling and bounded tool-loop budget.
  *
- * Model ids are environment configuration rather than browser input. A tenant's
- * explicit BYOK model override is applied later by OpenAiResponsesClient; this
- * profile remains the Capiro default and the observability expectation.
+ * - Fast defaults to GPT-5.6 Luna (cost-sensitive / high-volume tier).
+ * - Standard defaults to GPT-5.6 Terra (balanced intelligence and cost).
+ * - Deep and Max default to GPT-5.6 Sol (`gpt-5.6` alias).
+ *
+ * Model ids remain environment configuration rather than browser input. A
+ * tenant's explicit BYOK model override is applied later by
+ * OpenAiResponsesClient; this profile remains the Capiro default and the
+ * observability expectation.
  */
 export function resolveMeriV3ReasoningProfile(
   modeInput: unknown,
   env: NodeJS.ProcessEnv = process.env,
 ): MeriV3ReasoningProfile {
   const mode = normalizeMeriV3ReasoningMode(modeInput);
-  const baseModel = env.MERIV3_MODEL?.trim() || 'gpt-5.1';
-  const fastModel = env.MERIV3_FAST_MODEL?.trim() || baseModel;
-  const maxModel = env.MERIV3_MAX_MODEL?.trim() || 'gpt-5-pro';
+  const fastModel = env.MERIV3_FAST_MODEL?.trim() || 'gpt-5.6-luna';
+  const standardModel = env.MERIV3_MODEL?.trim() || 'gpt-5.6-terra';
+  const deepModel = env.MERIV3_DEEP_MODEL?.trim() || 'gpt-5.6';
+  const maxModel = env.MERIV3_MAX_MODEL?.trim() || deepModel;
 
   switch (mode) {
     case 'fast':
@@ -62,7 +72,7 @@ export function resolveMeriV3ReasoningProfile(
         mode,
         label: 'Deep',
         description: 'More investigation for strategic or ambiguous questions.',
-        model: baseModel,
+        model: deepModel,
         effort: effort(env.MERIV3_DEEP_REASONING_EFFORT, 'high'),
         maxOutputTokens: positiveInt(env.MERIV3_DEEP_MAX_OUTPUT_TOKENS, 24_576, 2_048, 65_536),
         maxToolRounds: positiveInt(env.MERIV3_DEEP_MAX_TOOL_ROUNDS, 14, 1, 30),
@@ -74,10 +84,7 @@ export function resolveMeriV3ReasoningProfile(
         label: 'Max',
         description: 'Highest configured reasoning tier for the hardest work.',
         model: maxModel,
-        // gpt-5-pro supports high only. Operators may opt into xhigh when they
-        // configure a model that supports it; unsupported provider errors fail
-        // honestly rather than silently downgrading.
-        effort: effort(env.MERIV3_MAX_REASONING_EFFORT, 'high'),
+        effort: effort(env.MERIV3_MAX_REASONING_EFFORT, 'max'),
         maxOutputTokens: positiveInt(env.MERIV3_MAX_MAX_OUTPUT_TOKENS, 32_768, 4_096, 65_536),
         maxToolRounds: positiveInt(env.MERIV3_MAX_MAX_TOOL_ROUNDS, 18, 1, 36),
         turnBudgetMs: positiveInt(env.MERIV3_MAX_TURN_BUDGET_MS, 480_000, 60_000, 1_200_000),
@@ -88,7 +95,7 @@ export function resolveMeriV3ReasoningProfile(
         mode: 'standard',
         label: 'Standard',
         description: 'Balanced reasoning for everyday government-affairs work.',
-        model: baseModel,
+        model: standardModel,
         effort: effort(env.MERIV3_STANDARD_REASONING_EFFORT, 'medium'),
         maxOutputTokens: positiveInt(
           env.MERIV3_STANDARD_MAX_OUTPUT_TOKENS,
