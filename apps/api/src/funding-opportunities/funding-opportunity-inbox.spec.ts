@@ -526,6 +526,144 @@ describe('a failure is reported, never rendered as zero', () => {
   });
 });
 
+// ── The selected-client narrowing (P11) ─────────────────────────────────────
+
+describe('narrowing to one client cannot widen the ethical wall', () => {
+  const TWO_CLIENTS = [
+    { id: 'client-1', name: 'Acme Defense', memoryWall: false },
+    { id: 'client-2', name: 'Beta Systems', memoryWall: false },
+  ];
+
+  test('with no clientId the inbox stays cross-client and echoes null', async () => {
+    const { service, rowArgs } = makeFake({ clients: TWO_CLIENTS });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.clientId).toBeNull();
+    expect(rowArgs[0]!.where.clientId.in).toEqual(['client-1', 'client-2']);
+    // No second count pass when nothing is narrowed — it would be the same query twice.
+    expect(res.countsAllClients).toBeNull();
+  });
+
+  test('a visible clientId narrows the row query to exactly that client', async () => {
+    const { service, rowArgs } = makeFake({ clients: TWO_CLIENTS });
+    const res = await service.list(TENANT, USER, { clientId: 'client-2' });
+    expect(res.clientId).toBe('client-2');
+    expect(rowArgs[0]!.where.clientId.in).toEqual(['client-2']);
+  });
+
+  test('a WALLED clientId is silently dropped rather than 404d or honoured', async () => {
+    // Neither a 404 nor a 403: both confirm that a client the reader may not see
+    // EXISTS, which is the one thing the wall is for. The response says which
+    // narrowing was actually applied, so the UI cannot claim otherwise.
+    const { service, rowArgs } = makeFake({
+      clients: [
+        { id: 'client-1', name: 'Acme Defense', memoryWall: false },
+        { id: 'client-walled', name: 'Walled Co', memoryWall: true },
+      ],
+      grants: [],
+    });
+    const res = await service.list(TENANT, USER, { clientId: 'client-walled' });
+    expect(res.clientId).toBeNull();
+    expect(rowArgs[0]!.where.clientId.in).toEqual(['client-1']);
+  });
+
+  test('an unknown clientId is dropped the same way, leaking no existence signal', async () => {
+    const { service, rowArgs } = makeFake({ clients: TWO_CLIENTS });
+    const res = await service.list(TENANT, USER, { clientId: 'client-does-not-exist' });
+    expect(res.clientId).toBeNull();
+    expect(rowArgs[0]!.where.clientId.in).toEqual(['client-1', 'client-2']);
+  });
+
+  test('a cross-tenant clientId cannot be reached through the narrowing', async () => {
+    // `visibleClientIds` is read under withTenant and filtered by tenantId, so an
+    // id belonging to another tenant is never in the allow-list to intersect with.
+    const { service, rowArgs, tx } = makeFake({ clients: TWO_CLIENTS });
+    await service.list(TENANT, USER, { clientId: 'other-tenant-client' });
+    expect(tx.client.findMany.mock.calls[0]![0].where.tenantId).toBe(TENANT);
+    expect(rowArgs[0]!.where.clientId.in).not.toContain('other-tenant-client');
+  });
+
+  test('the narrowed request scopes the COUNTS too, and reports the all-client set beside them', async () => {
+    // A tab badge counting every client while the list below shows one reads as a
+    // broken filter. Both numbers are returned so an empty state can tell "this
+    // client has nothing here" from "nobody has anything here".
+    const { service, tx } = makeFake({ clients: TWO_CLIENTS });
+    const res = await service.list(TENANT, USER, { clientId: 'client-1' });
+    const countScopes = tx.clientFundingOpportunity.count.mock.calls.map(
+      (c: any[]) => c[0].where.clientId.in,
+    );
+    expect(countScopes).toContainEqual(['client-1']);
+    expect(countScopes).toContainEqual(['client-1', 'client-2']);
+    expect(res.countsAllClients).not.toBeNull();
+  });
+
+  test('narrowing keeps the query count bounded — one extra count pass, not one per row', async () => {
+    const rows = Array.from({ length: 40 }, (_v, i) =>
+      row({ id: `wf-${String(i).padStart(4, '0')}`, clientId: i % 2 ? 'client-2' : 'client-1' }),
+    );
+    const wide = makeFake({ clients: TWO_CLIENTS, rows });
+    await wide.service.list(TENANT, USER, {});
+    const narrow = makeFake({ clients: TWO_CLIENTS, rows });
+    await narrow.service.list(TENANT, USER, { clientId: 'client-1' });
+    expect(narrow.queries() - wide.queries()).toBe(INBOX_FILTERS.length);
+  });
+
+  test('the controller declares clientId as a UUID, so it cannot carry a predicate', () => {
+    const controller = readFileSync(join(__dirname, 'funding-opportunities.controller.ts'), 'utf8');
+    const dto = controller.slice(
+      controller.indexOf('class InboxQueryDto'),
+      controller.indexOf('class DismissOpportunityDto'),
+    );
+    expect(dto).toMatch(/@IsUUID\(\)\s*\n\s*clientId\?: string;/);
+  });
+});
+
+describe('source is a filter, not the top-level model', () => {
+  test('no source narrows nothing and echoes null', async () => {
+    const { service, rowArgs } = makeFake();
+    const res = await service.list(TENANT, USER, {});
+    expect(res.source).toBeNull();
+    expect(rowArgs[0]!.where.source).toBeUndefined();
+  });
+
+  test('a known source narrows the row query', async () => {
+    const { service, rowArgs } = makeFake();
+    const res = await service.list(TENANT, USER, { source: 'grants_gov' });
+    expect(res.source).toBe('grants_gov');
+    expect(rowArgs[0]!.where.source).toBe('grants_gov');
+  });
+
+  test('the source narrowing reaches the COUNTS too, so a badge cannot contradict its list', async () => {
+    const { service, tx } = makeFake();
+    await service.list(TENANT, USER, { source: 'sam_gov' });
+    for (const call of tx.clientFundingOpportunity.count.mock.calls) {
+      expect(call[0].where.source).toBe('sam_gov');
+    }
+  });
+
+  test('an unknown source is a 400, NOT a silent widening to every rail', async () => {
+    // Unlike clientId — where dropping the value protects the ethical wall — a
+    // mistyped source has no privacy dimension, and quietly returning grants to a
+    // caller that asked for contracts is worse than saying no.
+    const { service } = makeFake();
+    await expect(service.list(TENANT, USER, { source: 'fpds' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(service.list(TENANT, USER, { source: 'fpds' })).rejects.toThrow(/grants_gov/);
+  });
+
+  test('source and clientId compose', async () => {
+    const { service, rowArgs } = makeFake({
+      clients: [
+        { id: 'client-1', name: 'Acme Defense', memoryWall: false },
+        { id: 'client-2', name: 'Beta Systems', memoryWall: false },
+      ],
+    });
+    await service.list(TENANT, USER, { clientId: 'client-2', source: 'grants_gov' });
+    expect(rowArgs[0]!.where.clientId.in).toEqual(['client-2']);
+    expect(rowArgs[0]!.where.source).toBe('grants_gov');
+  });
+});
+
 // ── Gating ──────────────────────────────────────────────────────────────────
 
 describe('the route ships dark and denies portal users', () => {

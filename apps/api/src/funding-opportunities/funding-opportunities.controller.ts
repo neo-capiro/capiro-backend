@@ -283,6 +283,25 @@ class InboxQueryDto {
   @IsIn(INBOX_FILTERS)
   filter?: InboxFilter;
 
+  /**
+   * Narrow the cross-client inbox to one client.
+   *
+   * The service intersects this with the ethical wall and silently drops an id the
+   * actor cannot see, echoing what it actually applied. It is NOT a tenant or
+   * authorisation input — tenant still comes from `@CurrentTenant()` only.
+   */
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  /**
+   * Narrow to one rail. A FILTER, never the top-level model — the inbox is
+   * organised by what needs deciding, not by which catalog a row came from.
+   */
+  @IsOptional()
+  @IsIn(OPPORTUNITY_SOURCES)
+  source?: OpportunitySource;
+
   @IsOptional()
   @IsString()
   @MaxLength(512)
@@ -368,6 +387,8 @@ export class FundingOpportunitiesController {
       filter: query.filter,
       cursor: query.cursor,
       pageSize: query.pageSize,
+      clientId: query.clientId,
+      source: query.source,
     });
   }
 

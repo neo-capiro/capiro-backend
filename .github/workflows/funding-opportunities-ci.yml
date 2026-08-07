@@ -349,7 +349,9 @@ jobs:
       # (funding-opportunity-decision.spec.ts), 27/865 after P08
       # (funding-opportunity-actions.spec.ts), 28/905 after P09
       # (opportunity-explanation.spec.ts), 29/950 after P10
-      # (funding-opportunity-inbox.spec.ts).
+      # (funding-opportunity-inbox.spec.ts), 29/965 after P11 (no new api suite —
+      # P11 is a web phase — but the inbox suite gained the selected-client and
+      # source-filter narrowing tests the triage UI depends on).
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -358,7 +360,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 29 950
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 29 965
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -376,14 +378,16 @@ jobs:
           src/App.funding-opportunities-nav
 
       # NOTE: vitest counts `describe` BLOCKS in numTotalTestSuites, not files —
-      # measured 32 blocks / 109 tests on this branch (26/79 before this program).
+      # measured 41 blocks / 155 tests on this branch (26/79 before this program).
       # The test count is the tighter signal; the block count is the coarse one.
-      # Raised by P05 (mappings-page body assertions), P08 (atomic action route) and
+      # Raised by P05 (mappings-page body assertions), P08 (atomic action route),
       # P09 (OpportunityCard.test.tsx, which is a NEW file — the block floor has to
-      # move with it or the card's explanation tests could be deleted while green).
+      # move with it or the card's explanation tests could be deleted while green)
+      # and P11 (FundingOpportunityInbox.test.tsx, also new, plus the shell's
+      # flag/URL-state blocks in FundingOpportunitiesPage.test.tsx).
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 30 105
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 40 150
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

@@ -64,6 +64,30 @@
   align-items: center;
 }
 
+/* Triage inbox (P11). The row controls wrap for the same reason the filter row
+   does: the client chip and the queue description are variable-length, and a
+   horizontal scrollbar would hide the source selector on a narrow viewport. */
+.fo-inbox__controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.fo-inbox-row__head {
+  margin-bottom: 6px;
+}
+
+/* The client name leads every row, so it reads as a heading rather than as the
+   link-blue AntD gives a type="link" button by default. */
+.fo-inbox-row__client {
+  padding: 0;
+  height: auto;
+  font-weight: 600;
+  font-size: 13px;
+}
+
 .fo-card__head {
   margin-bottom: 6px;
 }

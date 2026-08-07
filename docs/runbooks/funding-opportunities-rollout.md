@@ -505,6 +505,37 @@ re-verifying on live data.
 Counts of `-1` in the response mean a count query failed, not that a queue is empty.
 `countsUnavailableReason` says why.
 
+### What turning this flag on actually changes (P11)
+
+The flag now controls the **default view**, not just an endpoint. With it on, the
+Funding Opportunities page lands on the triage inbox; the raw catalog becomes a
+second tab, `Explore federal opportunities`. With it off the page is byte-identical
+to P10 — no view switcher, and it does not call the inbox route at all.
+
+Deploy API and web **together** for this phase: the UI sends two query parameters
+(`clientId`, `source`) that the inbox route only accepts from P11 onwards. An older
+API with the newer web would reject them with a 400.
+
+Checks worth running once the flag is on for the internal tenant:
+
+```bash
+# 1. The selected-client narrowing is applied SERVER-side. The response echoes what
+#    it actually applied — this is the field to trust, not the request.
+curl -sS -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?clientId=<visible-client-uuid>"   | jq '{applied: .clientId, rows: (.rows | length), counts, countsAllClients}'
+
+# 2. A WALLED client id must come back as clientId: null with the cross-client list,
+#    NOT as a 404 — a 404 would confirm the client exists.
+curl -sS -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?clientId=<walled-client-uuid>"   | jq '.clientId'   # expect: null
+
+# 3. An unknown source IS a 400. Unlike clientId there is no privacy reason to
+#    soften it, and silently widening to every rail is the worse answer.
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?source=fpds"   # expect: 400
+```
+
+Rollback for the UI is the flag alone: set `enabled = false` and the page returns to
+the raw catalog on the next load. A user sitting on a `?view=inbox` URL falls back to
+Explore rather than breaking, so no bookmark needs fixing.
+
 ## 17. Internal feature flag
 
 ```bash

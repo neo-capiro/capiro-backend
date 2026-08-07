@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
@@ -7,26 +7,83 @@ import { FundingOpportunitiesPage } from './FundingOpportunitiesPage.js';
 import type {
   FundingOpportunity,
   FundingOpportunityListResponse,
+  InboxResponse,
 } from './funding-opportunities-api.js';
 
 /**
- * Mocks `useSearchParams` directly rather than wrapping in a MemoryRouter (repo
- * precedent: Bill360Page.test.tsx, DistrictNexusPage.test.tsx).
+ * PER-FEATURE flags, not one boolean.
+ *
+ * Before P11 this mock returned the same `{enabled, ready}` for every feature,
+ * which was fine when the page read exactly one flag. It now reads two, and a
+ * single shared boolean would silently turn the inbox on for every test in this
+ * file — so every catalog assertion below would have been asserting against a page
+ * that was no longer rendering the catalog.
+ *
+ * `funding_opportunities_client_inbox` defaults to OFF here on purpose. This whole
+ * file is the proof that FLAG-OFF BEHAVIOUR IS UNCHANGED by P11; the inbox has its
+ * own file, and the view switching is tested at the bottom of this one by turning
+ * the flag on explicitly.
  */
-let flag = { enabled: true, ready: true };
-vi.mock('../../../lib/intel-feature-flags.js', () => ({
-  useIntelFeature: () => flag,
-  useIntelFeatureEnabled: () => flag.enabled,
+const { flags, urlStore } = vi.hoisted(() => ({
+  flags: { funding_opportunities: true, funding_opportunities_client_inbox: false } as Record<
+    string,
+    boolean
+  >,
+  /**
+   * A SUBSCRIBABLE search-param store.
+   *
+   * The old mock held the query string in a plain `let` and handed back a fresh
+   * URLSearchParams on each render. That worked while every tab and filter was
+   * component state — but P11 moves all of it into the URL, and a store nothing
+   * can subscribe to means `setSearchParams` updates a string that no component
+   * ever re-reads. Clicking a tab would change the URL and render nothing.
+   *
+   * `useSyncExternalStore` over one module-level string keeps every consumer
+   * (the shell and whichever view is mounted) reading the SAME value, which a
+   * `useState` inside the hook would not.
+   */
+  urlStore: (() => {
+    let search = '';
+    const listeners = new Set<() => void>();
+    return {
+      get: () => search,
+      set: (next: string) => {
+        search = next;
+        for (const l of [...listeners]) l();
+      },
+      subscribe: (l: () => void) => {
+        listeners.add(l);
+        return () => listeners.delete(l);
+      },
+    };
+  })(),
 }));
 
-let search = '';
-const setSearchParamsMock = vi.fn((next: URLSearchParams) => {
-  search = `?${next.toString()}`;
-});
-vi.mock('react-router-dom', () => ({
-  useSearchParams: () => [new URLSearchParams(search), setSearchParamsMock],
-  Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
+let flag = { enabled: true, ready: true };
+vi.mock('../../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: (feature: string) => ({
+    // `flag` still drives the MASTER feature so the existing gating tests, which
+    // flip it, keep meaning what they meant.
+    enabled: feature === 'funding_opportunities' ? flag.enabled : flags[feature] === true,
+    ready: flag.ready,
+  }),
+  useIntelFeatureEnabled: (feature: string) =>
+    feature === 'funding_opportunities' ? flag.enabled : flags[feature] === true,
 }));
+
+const setSearchParamsMock = vi.fn((next: URLSearchParams) => {
+  urlStore.set(next.toString() ? `?${next.toString()}` : '');
+});
+vi.mock('react-router-dom', async () => {
+  const React = await import('react');
+  return {
+    useSearchParams: () => {
+      const search = React.useSyncExternalStore(urlStore.subscribe, urlStore.get, urlStore.get);
+      return [new URLSearchParams(search), setSearchParamsMock];
+    },
+    Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
+  };
+});
 
 /**
  * `vi.hoisted`, not a bare `const`.
@@ -247,7 +304,30 @@ function renderPage() {
   );
 }
 
-function mockApi(list: FundingOpportunityListResponse | Error) {
+function emptyInbox(partial: Partial<InboxResponse> = {}): InboxResponse {
+  return {
+    filter: 'needs_review',
+    clientId: null,
+    source: null,
+    rows: [],
+    nextCursor: null,
+    pageSize: 50,
+    counts: {
+      needs_review: 0,
+      pursuing: 0,
+      deadlines: 0,
+      recently_changed: 0,
+      monitoring: 0,
+      passed: 0,
+    },
+    countsAllClients: null,
+    countsUnavailableReason: null,
+    generatedAt: '2026-07-28T12:00:00.000Z',
+    ...partial,
+  };
+}
+
+function mockApi(list: FundingOpportunityListResponse | Error, inbox?: InboxResponse | Error) {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url === '/api/tenant-members') {
       return { data: [{ id: 'user-1', name: 'Ada Byron', email: 'ada@example.com' }] };
@@ -256,7 +336,21 @@ function mockApi(list: FundingOpportunityListResponse | Error) {
       return { data: [{ id: 'facility-1', name: 'El Paso Plant', city: 'El Paso', state: 'TX' }] };
     }
     if (url.startsWith('/api/clients')) {
-      return { data: [{ id: 'client-1', name: 'Acme Defense', status: 'active' }] };
+      // TWO clients since P11: the selected-client tests need one they can switch
+      // TO, and a single-client list makes "picking a client" untestable.
+      return {
+        data: [
+          { id: 'client-1', name: 'Acme Defense', status: 'active' },
+          { id: 'client-2', name: 'Beta Systems', status: 'active' },
+        ],
+      };
+    }
+    // BEFORE the catalog branch: the inbox path is a prefix match away from the
+    // catalog one, and getting this order wrong serves catalog JSON to the inbox.
+    if (url.startsWith('/api/intelligence/opportunities/inbox')) {
+      const response = inbox ?? emptyInbox();
+      if (response instanceof Error) throw response;
+      return { data: response };
     }
     if (url.startsWith('/api/intelligence/opportunities')) {
       if (list instanceof Error) throw list;
@@ -275,7 +369,8 @@ beforeEach(() => {
   apiPatchMock.mockResolvedValue({ data: {} });
   setSearchParamsMock.mockClear();
   flag = { enabled: true, ready: true };
-  search = '?clientId=client-1';
+  flags.funding_opportunities_client_inbox = false;
+  urlStore.set('?clientId=client-1');
 });
 
 describe('feature gating', () => {
@@ -527,7 +622,7 @@ describe('honest states', () => {
   });
 
   test('with no client selected, the page says scores are not shown', async () => {
-    search = '';
+    urlStore.set('');
     mockApi(listResponse());
     renderPage();
     expect(await screen.findByTestId('fo-no-client')).toBeInTheDocument();
@@ -600,7 +695,7 @@ describe('workflow actions', () => {
   });
 
   test('with no client selected, workflow buttons are disabled with an explanation', async () => {
-    search = '';
+    urlStore.set('');
     mockApi(listResponse({ opportunities: [contract()] }));
     renderPage();
     const save = await screen.findByRole('button', { name: /Save/ });
@@ -908,5 +1003,151 @@ describe('a failing rail is never rendered as healthy', () => {
     });
     renderPage();
     expect(await screen.findByText(/42 active grants awaiting detail fetch/)).toBeInTheDocument();
+  });
+});
+
+// ── P11: the shell, the flag, and URL-restorable state ──────────────────────
+
+describe('the inbox flag decides what the DEFAULT is, and nothing else', () => {
+  test('with the flag off there is no view switcher and no inbox request at all', async () => {
+    mockApi(listResponse());
+    renderPage();
+    await screen.findByTestId('fo-kpis');
+    expect(screen.queryByLabelText('Funding Opportunities view')).not.toBeInTheDocument();
+    // The rollback path is "turn the flag off", so the page must not even TALK to
+    // the inbox route when it is off — a 404 from the inbox guard would otherwise
+    // surface as a broken page for a tenant who never opted in.
+    for (const [url] of apiGetMock.mock.calls) {
+      expect(String(url)).not.toContain('/opportunities/inbox');
+    }
+  });
+
+  test('with the flag off the raw catalog is still what renders', async () => {
+    mockApi(listResponse());
+    renderPage();
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-inbox')).not.toBeInTheDocument();
+  });
+
+  test('with the flag ON the inbox is the landing view, not the catalog', async () => {
+    // The single most important assertion in this file: "no client selected, here
+    // is the entire federal catalog" is no longer the opening screen.
+    flags.funding_opportunities_client_inbox = true;
+    mockApi(listResponse(), emptyInbox());
+    renderPage();
+    expect(await screen.findByTestId('fo-inbox')).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-kpis')).not.toBeInTheDocument();
+  });
+
+  test('the catalog is still reachable, as Explore federal opportunities', async () => {
+    flags.funding_opportunities_client_inbox = true;
+    mockApi(listResponse(), emptyInbox());
+    renderPage();
+    fireEvent.click(await screen.findByRole('radio', { name: /Explore federal opportunities/ }));
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+  });
+
+  test('a ?view=explore deep link opens the catalog even with the inbox enabled', async () => {
+    // Existing bookmarks must keep their destination when a tenant is canaried.
+    flags.funding_opportunities_client_inbox = true;
+    urlStore.set('?clientId=client-1&view=explore');
+    mockApi(listResponse(), emptyInbox());
+    renderPage();
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+  });
+
+  test('a stale ?view=inbox link falls back to the catalog once the flag is off again', async () => {
+    urlStore.set('?clientId=client-1&view=inbox');
+    mockApi(listResponse());
+    renderPage();
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+  });
+
+  test('an un-flagged tenant sees the availability message regardless of the inbox flag', async () => {
+    flag = { enabled: false, ready: true };
+    flags.funding_opportunities_client_inbox = true;
+    mockApi(listResponse(), emptyInbox());
+    renderPage();
+    expect(
+      await screen.findByText(/Funding Opportunities is not enabled for this workspace/i),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('every tab, filter and page number survives a refresh', () => {
+  /** Re-mount from the CURRENT url, which is what a browser refresh does. */
+  function refreshPage() {
+    cleanup();
+    return renderPage();
+  }
+
+  test('the explore tab is restored from the URL', async () => {
+    urlStore.set('?clientId=client-1&tab=pursuing');
+    mockApi(listResponse());
+    renderPage();
+    await waitFor(() =>
+      expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('workflowStatus=pursuing')),
+    );
+  });
+
+  test('clicking a tab writes it to the URL, so a refresh lands on the same tab', async () => {
+    mockApi(listResponse());
+    renderPage();
+    fireEvent.click(await screen.findByRole('radio', { name: 'Dismissed' }));
+    await waitFor(() => expect(urlStore.get()).toContain('tab=dismissed'));
+    apiGetMock.mockClear();
+    refreshPage();
+    await waitFor(() =>
+      expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('workflowStatus=dismissed')),
+    );
+  });
+
+  test('filters are restored from the URL', async () => {
+    urlStore.set('?clientId=client-1&naics=336411&minRelevance=40');
+    mockApi(listResponse());
+    renderPage();
+    await waitFor(() =>
+      expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('naics=336411')),
+    );
+    expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('minRelevance=40'));
+  });
+
+  test('the page number is restored from the URL', async () => {
+    urlStore.set('?clientId=client-1&page=3');
+    mockApi(listResponse({ total: 200 }));
+    renderPage();
+    await waitFor(() => expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('page=3')));
+  });
+
+  test('changing a filter resets to page 1 rather than stranding the reader', async () => {
+    // A filter applied on page 7 of the old result set lands on a page that may
+    // not exist in the new one, which renders as an empty list nobody can explain.
+    urlStore.set('?clientId=client-1&page=7');
+    mockApi(listResponse({ total: 500 }));
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('NAICS code'), { target: { value: '541330' } });
+    await waitFor(() => expect(urlStore.get()).toContain('naics=541330'));
+    expect(urlStore.get()).not.toContain('page=7');
+  });
+
+  test('an unknown tab in the URL falls back to All instead of rendering nothing', async () => {
+    urlStore.set('?clientId=client-1&tab=not-a-tab');
+    mockApi(listResponse());
+    renderPage();
+    await waitFor(() =>
+      expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('activeState=active')),
+    );
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+  });
+
+  test('selecting a client drops a stale cursor and page from the previous result set', async () => {
+    urlStore.set('?clientId=client-1&page=4&cursor=abc');
+    mockApi(listResponse({ total: 500 }));
+    renderPage();
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Client' }));
+    fireEvent.click(await screen.findByText('Beta Systems'));
+    await waitFor(() => expect(urlStore.get()).toContain('clientId=client-2'));
+    expect(urlStore.get()).not.toContain('cursor=abc');
+    expect(urlStore.get()).not.toContain('page=4');
   });
 });
