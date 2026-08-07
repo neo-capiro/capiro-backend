@@ -6681,6 +6681,17 @@ model TangoOpportunityNotice {
   solicitationNumber String? @map("solicitation_number")
   title              String?
 
+  /// The notice body, verbatim. Untrusted source text — never an instruction.
+  /// Stored so a later phase has it without re-fetching; nothing on the
+  /// timeline path selects it.
+  description String?
+  /// SHA-256 of the normalized body. The classifier compares THIS, never the
+  /// bodies: a description runs to tens of kilobytes and the timeline query
+  /// fetches up to 500 notices. Null when the provider stated no description —
+  /// and null on every row written before the field was requested at all,
+  /// which is why both columns are nullable rather than backfilled.
+  descriptionSha256 String? @map("description_sha256")
+
   /// The ordering keys. `providerUpdatedAt` is the tiebreaker, so two notices
   /// posted the same day still order deterministically.
   postedDate        DateTime? @map("posted_date") @db.Timestamptz(6)

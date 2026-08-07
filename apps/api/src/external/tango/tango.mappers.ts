@@ -318,6 +318,7 @@ export function mapNotice(raw: Record<string, unknown>, fetchedAt: string): Tang
     noticeId,
     solicitationNumber: str(picked.solicitation_number),
     title: str(picked.title),
+    description: str(picked.description),
     postedDate: iso(picked.posted_date),
     responseDeadline: iso(picked.response_deadline),
     active: bool(picked.active),

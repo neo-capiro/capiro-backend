@@ -31,35 +31,38 @@
  * ── What this provider resource does NOT support, and why that is stated ─────
  *
  * The plan asks for nine change dimensions. The SDK's bundled `NOTICE_SCHEMA`
- * — the audited field list in `tango.shapes.ts` — declares eleven fields, and
- * FOUR of the plan's dimensions have no counterpart among them:
+ * declares seventeen fields, and THREE of the plan's dimensions have no
+ * counterpart among them:
  *
- *   stage (notice type)   the provider states no `notice_type` on a NOTICE.
- *                         `tango.shapes.ts`'s own doc already records that the
- *                         notice type "lives on individual notices" relative to
- *                         an opportunity — but the SDK's notice schema does not
- *                         expose it.
+ *   stage (notice type)   the schema declares no `notice_type` on a NOTICE.
  *   place of performance  absent from the notice schema.
  *   contact               absent from the notice schema.
- *   description           absent from the notice schema, so there is no body to
- *                         hash.
  *
- * Those four are declared in {@link CHANGE_DIMENSIONS} and reported through
+ * Those three are declared in {@link CHANGE_DIMENSIONS} and reported through
  * {@link UNSUPPORTED_DIMENSIONS} with a reason, NOT silently omitted and NOT
  * reported as "no change". "The set-aside did not change" and "we cannot see
  * the set-aside" are different statements, and only one of them is a fact about
  * the notice.
  *
+ * `description` was ORIGINALLY IN THAT LIST AND SHOULD NOT HAVE BEEN.
+ * `NOTICE_SCHEMA` declares it as a plain optional `str`; the mistake was
+ * reading `TangoNotice` — whose own field list had omitted it — instead of the
+ * SDK's schema. It is a supported dimension now, and compared by HASH rather
+ * than by value: see {@link classifyNoticeChange}.
+ *
  * ── A caveat worth acting on ────────────────────────────────────────────────
  *
- * This program has now found FOUR separate cases (decision-log D-35, D-41,
- * D-42, D-45) where the installed SDK's bundled schema disagreed with the live
- * server — twice because the server had MORE than the SDK declared. The four
- * dimensions above are unsupported *according to the SDK*. Whether the live
- * server exposes `notice_type` or a description on this resource is a
- * live-key investigation of exactly the kind D-45 documents: request a
- * deliberately invalid field and read the `available_fields` payload the server
- * sends back. That needs a key and is not something this phase could do.
+ * This program has now found four cases (decision-log D-35, D-41, D-42, D-45)
+ * where the installed SDK's bundled schema disagreed with the LIVE SERVER —
+ * twice because the server had more than the SDK declared. The `description`
+ * mistake above is the same class of error in the opposite direction: trusting
+ * a Capiro-side type instead of the schema. Both are read-the-source problems.
+ *
+ * Whether the live server exposes a `notice_type` is still open, and the
+ * parent-opportunity link is a related open question: `NOTICE_SCHEMA` declares
+ * an `opportunity` field but as a `dict` with `nestedModel: null`, so its inner
+ * keys cannot be validated or guessed. Both are D-45-style investigations that
+ * need a key.
  */
 
 // ── The dimensions ───────────────────────────────────────────────────────────
@@ -96,8 +99,6 @@ export const UNSUPPORTED_DIMENSIONS: Readonly<Record<string, string>> = Object.f
     'The provider states no place of performance on a notice, so a change of location cannot be observed.',
   contact:
     'The provider states no point of contact on a notice, so a change of contact cannot be observed.',
-  description:
-    'The provider states no description on a notice, so there is no body text to hash or compare.',
 });
 
 export function isSupportedDimension(dimension: ChangeDimension): boolean {
@@ -138,6 +139,20 @@ const SEVERITY: Readonly<Record<ChangeDimension, ChangeSeverity>> = Object.freez
 export interface NoticeObservation {
   tangoNoticeId: string;
   title: string | null;
+  /**
+   * SHA-256 of the normalized notice body, or null when the provider stated
+   * none.
+   *
+   * A HASH rather than the body itself, for two reasons. A solicitation
+   * description runs to tens of kilobytes, and the timeline query fetches up to
+   * 500 notices — loading every body to compare two adjacent ones would make a
+   * detail page read megabytes to answer "did the text change". And the ANSWER
+   * is all a timeline can honestly give: a diff of two legal documents is not
+   * something to summarize in a sentence, and quoting an excerpt would pick the
+   * paragraph the differ happened to start at rather than the one that matters.
+   * The entry says the body changed and links to the source.
+   */
+  descriptionHash: string | null;
   postedDate: Date | null;
   providerUpdatedAt: Date | null;
   responseDeadline: Date | null;
@@ -301,6 +316,28 @@ export function classifyNoticeChange(
         ? `The title was removed. It previously read: ${b}.`
         : `The title changed from “${b}” to “${a}”.`,
   );
+
+  // ── Description. Compared by HASH, and reported WITHOUT either body.
+  //
+  // The before/after carry the two hashes rather than the two texts. A reader
+  // cannot act on a hash, and that is the point: the actionable fact is "the
+  // body changed, go read it", and the entry links to the source. Putting a
+  // truncated excerpt here would quote whichever paragraph came first rather
+  // than whichever one mattered.
+  if (previous.descriptionHash !== next.descriptionHash) {
+    changes.push({
+      dimension: 'description',
+      severity: SEVERITY.description,
+      before: previous.descriptionHash,
+      after: next.descriptionHash,
+      summary:
+        previous.descriptionHash == null
+          ? 'A description was added to this notice. Read it at the source.'
+          : next.descriptionHash == null
+            ? 'The description was removed from this notice.'
+            : 'The description text changed. Read the new version at the source — the change is not summarised here, because a summary of a legal document is a claim about it.',
+    });
+  }
 
   // ── Attachments. A COUNT, and the direction is stated: an attachment
   // disappearing is not the same event as one appearing.

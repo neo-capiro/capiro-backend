@@ -110,6 +110,8 @@ export interface NoticeRow {
   samOpportunityId: string | null;
   solicitationNumber: string | null;
   title: string | null;
+  description: string | null;
+  descriptionSha256: string | null;
   postedDate: Date | null;
   providerUpdatedAt: Date | null;
   responseDeadline: Date | null;
@@ -144,12 +146,21 @@ export function toNoticeRow(
 ): NoticeRow {
   const { provenance, ...rest } = notice;
   const snapshot = { ...rest } as Record<string, unknown>;
+  // Whitespace-normalized before hashing, so an agency reflowing its own
+  // paragraphs is not reported as a rewrite. The BODY is stored verbatim —
+  // only the comparison form is normalized.
+  const description = notice.description?.trim() ? notice.description : null;
   return {
     tangoNoticeId: notice.noticeId,
     tangoOpportunityId: crosswalk.tangoOpportunityId,
     samOpportunityId: crosswalk.samOpportunityId,
     solicitationNumber: notice.solicitationNumber,
     title: notice.title,
+    description,
+    descriptionSha256:
+      description == null
+        ? null
+        : createHash('sha256').update(description.replace(/\s+/g, ' ').trim()).digest('hex'),
     postedDate: toDate(notice.postedDate),
     providerUpdatedAt: toDate(provenance.providerUpdatedAt),
     responseDeadline: toDate(notice.responseDeadline),

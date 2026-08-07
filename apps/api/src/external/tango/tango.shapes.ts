@@ -124,11 +124,39 @@ export const OPPORTUNITY_FIELDS = [
 ] as const;
 export const OPPORTUNITY_SHAPE = shapeOf(OPPORTUNITY_FIELDS);
 
-/** Notice — one entry in an opportunity's history. Source: `NOTICE_SCHEMA`. */
+/**
+ * Notice — one entry in an opportunity's history. Source: `NOTICE_SCHEMA`.
+ *
+ * `description` was MISSING from this list until it was added here, and its
+ * absence had a downstream consequence worth recording: P28's change classifier
+ * declared "description" one of four dimensions the provider does not supply,
+ * which was wrong. `NOTICE_SCHEMA` declares it as a plain optional `str`. The
+ * mistake was reading `TangoNotice` (which reflected this list) instead of the
+ * SDK's own schema — the reverse of decision-log D-35/D-42/D-45, where the
+ * SDK's schema was the thing that could not be trusted. Both directions have
+ * now bitten this program; the lesson is the same one, which is to read the
+ * schema rather than the code that consumes it.
+ *
+ * THREE fields in `NOTICE_SCHEMA` are still deliberately NOT requested:
+ *
+ *   `award_number`  a notice that has become an award is out of scope for a
+ *                   timeline of an open competition, and P00's own baseline
+ *                   already excludes award notices from the pursuable set.
+ *   `naics` / `psc` the nested `CodeDescription` objects. The flat
+ *                   `naics_code`/`psc_code` are already requested and are what
+ *                   every comparison in this program uses; the descriptions are
+ *                   a second copy of a label nothing reads.
+ *
+ * And one is UNREQUESTABLE rather than unwanted: `opportunity` is declared as a
+ * `dict` with `nestedModel: null`, so the SDK's own shape parser cannot
+ * validate a sub-selector for it and Capiro cannot know which key holds the
+ * parent id without a live call. See `TangoNotice.description`'s own note.
+ */
 export const NOTICE_FIELDS = [
   'notice_id',
   'solicitation_number',
   'title',
+  'description',
   'posted_date',
   'response_deadline',
   'active',
