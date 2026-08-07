@@ -192,12 +192,19 @@ export function buildPhase3BrowserScenarios(fixtures) {
     state('home-cross-surface', 'cross-surface', '/', '/', {
       requireEngagementRequest: true,
     }),
+    // The product has no /clients/:id route. ClientWorkspacePage deliberately
+    // deep-links a profile through the query string so the portfolio and profile
+    // share one route and preserve the selected tab.
     state(
       'client-profile-cross-surface',
       'cross-surface',
-      `/clients/${clientId}`,
-      `/clients/${clientId}`,
-      { requireEngagementRequest: true, requiredText: ['Alpha Systems'] },
+      `/clients?clientId=${encodeURIComponent(clientId)}`,
+      '/clients',
+      {
+        expectedSearch: { clientId },
+        requireEngagementRequest: true,
+        requiredText: ['Alpha Systems'],
+      },
     ),
   ];
 }
