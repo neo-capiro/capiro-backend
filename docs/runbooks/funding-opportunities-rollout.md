@@ -168,6 +168,31 @@ SELECT relname, relrowsecurity AS rls_enabled
  WHERE relname IN ('tango_resource_snapshot','tango_resource_link','tango_sync_checkpoint','tango_api_usage');
 ```
 
+### Config and secret wiring (P16) — code merged, nothing live changes
+
+`apps/api/src/config/config.schema.ts` gained `TANGO_API_KEY` (optional),
+`TANGO_API_BASE_URL` (HTTPS-enforced), and the timeout/page-size/ceiling/
+circuit-breaker values P18 will read. `infra/cdk/lib/config.ts`'s dev
+`externalSecretArns.tangoApiKey` now holds the real ARN for the `tango` secret
+(created out-of-band, provenance in decision-log D-26).
+
+**None of this takes effect until the next `cdk deploy`,** and per the plan's
+own instruction this phase does not run one — live task-definition wiring
+waits until P17 is ready to actually use the key. If a deploy DOES happen for
+an unrelated reason after this merges, `TANGO_API_KEY` will be injected onto
+the `capiro-<env>-api-sync-jobs` task only; verify with:
+
+```bash
+# READ-ONLY. Confirms placement without needing a real ecs run-task.
+aws ecs describe-task-definition --profile capiro-dev --region us-east-1   --task-definition capiro-dev-api-sync-jobs   --query "taskDefinition.containerDefinitions[0].secrets[?name=='TANGO_API_KEY']"
+# Expect ONE entry. The same query against capiro-dev-api (serve) and
+# capiro-dev-api-migrate must return an EMPTY array.
+```
+
+This is also proven at synth time, unconditionally, by
+`pnpm --filter @capiro/infra-cdk test` (wired into `ci-pr.yml`) — see
+decision-log D-25.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

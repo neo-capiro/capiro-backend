@@ -262,6 +262,23 @@ export class ComputeStack extends cdk.Stack {
           cfg.externalSecretArns.recallWebhookSecret,
         )
       : undefined;
+    // MakeGov/Tango API key (Funding Opportunities P16). GATED on its ARN, same
+    // reasoning as recallWebhookSecret above: the secret is genuinely optional
+    // (P00-P16 ship and work with none), so wiring an unconfigured/nonexistent
+    // ARN onto a task would make that task fail to start
+    // ("unable to pull secrets" → circuit-breaker rollback) for a feature that
+    // is not supposed to require it yet.
+    //
+    // Named by plain secret name ("tango"), not a `capiro/${cfg.envName}/...`
+    // path — that IS this secret's real name; see config.ts's dev entry.
+    //
+    // WHERE THIS GOES IS THE WHOLE POINT: added ONLY to apiSyncSecrets below,
+    // never to apiServeSecrets or apiMigrateSecrets. The request path must
+    // never depend on a live MakeGov call (plan §4.1), so the long-lived serve
+    // task has no way to reach for this key even if a future bug tried.
+    const tangoApiKeySecret = cfg.externalSecretArns?.tangoApiKey
+      ? importExternalSecret(this, 'ImportedTangoApiKey', 'tango', cfg.externalSecretArns.tangoApiKey)
+      : undefined;
 
     // Google Workspace OAuth (engagement Gmail/Calendar integration + the
     // onboarding IT-admin test-connect). Both live out-of-band today; see
@@ -501,10 +518,18 @@ export class ComputeStack extends cdk.Stack {
     // Census key. Kept separate from apiServeSecrets so the long-lived
     // API/web tasks never receive LEGISTORM_API_KEY/CENSUS_API_KEY (only the
     // ephemeral sync task does).
+    //
+    // TANGO_API_KEY joins this bundle for exactly the same reason (P16): the
+    // Tango sync jobs P19+ will add are ephemeral, scheduled tasks, and the key
+    // is spread in CONDITIONALLY — its absence (the common case until P17) must
+    // not add an `undefined` value to the secrets map, which ECS would reject.
     const apiSyncSecrets = {
       ...apiMigrateSecrets,
       LEGISTORM_API_KEY: ecs.Secret.fromSecretsManager(legistormApiKeyImported),
       CENSUS_API_KEY: ecs.Secret.fromSecretsManager(censusApiKeyImported),
+      ...(tangoApiKeySecret
+        ? { TANGO_API_KEY: ecs.Secret.fromSecretsManager(tangoApiKeySecret) }
+        : {}),
     };
 
     const apiSharedEnv: Record<string, string> = {
