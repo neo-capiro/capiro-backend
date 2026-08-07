@@ -1,20 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
-import {
-  activateEngagementPreview,
-  ENGAGEMENT_PREVIEW_STORAGE_KEY,
-} from '../../lib/engagement-api-preview.js';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { activateEngagementPreview } from '../../lib/engagement-api-preview.js';
 import {
   ENGAGEMENT_PREVIEW_INDICATOR_LABEL,
   EngagementApiPreviewIndicator,
-  turnOffEngagementPreview,
+  previewTurnOffSearch,
 } from './EngagementApiPreviewIndicator.js';
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output aria-label="location">{`${location.pathname}${location.search}${location.hash}`}</output>;
+}
 
 function renderIndicator() {
   return render(
-    <MemoryRouter initialEntries={['/settings/integrations?clientId=keep-me']}>
+    <MemoryRouter initialEntries={['/settings/integrations?clientId=keep-me#account']}>
       <EngagementApiPreviewIndicator />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -46,15 +49,22 @@ describe('EngagementApiPreviewIndicator', () => {
     }
   });
 
-  test('turn-off clears only preview mode and preserves the current URL', () => {
+  test('turn-off preserves pathname, hash, and unrelated query state', async () => {
     activateEngagementPreview();
-    const before = window.location.href;
-    const reload = vi.fn();
+    renderIndicator();
 
-    turnOffEngagementPreview(reload);
+    fireEvent.click(screen.getByRole('button', { name: 'Turn off preview' }));
 
-    expect(window.sessionStorage.getItem(ENGAGEMENT_PREVIEW_STORAGE_KEY)).toBeNull();
-    expect(window.location.href).toBe(before);
-    expect(reload).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.getByLabelText('location')).toHaveTextContent(
+        '/settings/integrations?clientId=keep-me&engagement-api-preview=off#account',
+      ),
+    );
+  });
+
+  test('pure search helper replaces an existing control value without dropping state', () => {
+    expect(previewTurnOffSearch('?meetingId=m1&engagement-api-preview=v3&detail=notes')).toBe(
+      '?meetingId=m1&engagement-api-preview=off&detail=notes',
+    );
   });
 });
