@@ -424,6 +424,7 @@ jobs:
           scripts/repair-set-aside-certifications.spec.ts
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
+          scripts/diag-tango-capabilities.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -454,6 +455,19 @@ jobs:
       # proof for the secret's task placement lives in infra/cdk's OWN test
       # suite (pnpm --filter @capiro/infra-cdk test, wired into ci-pr.yml, not
       # this gate) since it needs no Postgres and is not apps/api code.
+      # 36/1238 after P17: two NEW suites. tango-capability-probe.service.spec.ts
+      # (27 tests) covers the registry's structural invariants, the
+      # identifier-gated vs genuinely-unsupported vs deliberately-excluded
+      # three-way status split, the request ceiling, the auth short-circuit
+      # (and that a null-call probe's status survives one), the not_found-vs-
+      # generic-error distinction (a REAL live-run finding: a search-shaped
+      # probe answered with a classified 404, which is meaningfully different
+      # from "this call is broken" — see the ProbeResult.status doc), redaction,
+      # and a real-SDK-via-fake-fetch proof for createProbeClient. diag-
+      # tango-capabilities.spec.ts (12 tests) covers the CLI's flag/env
+      # precedence and the human-readable summary formatter. Both new files
+      # are also named explicitly in this job's jest invocation above —
+      # scripts/ is not glob-matched the way src/external/tango/ is.
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -462,7 +476,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 34 1199
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 36 1238
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

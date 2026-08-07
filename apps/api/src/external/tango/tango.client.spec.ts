@@ -141,16 +141,27 @@ describe('only the adapter may import the SDK', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('the adapter itself references the SDK in exactly ONE file', () => {
+  test('the adapter itself references the SDK in exactly these two files', () => {
     // Matches the SPECIFIER, not a `from '...'` clause. The SDK is ESM-only and
-    // apps/api is CommonJS, so tango.client.ts reaches it through a dynamic
-    // `import()` — a boundary test keyed on the SYNTAX rather than the DEPENDENCY
-    // would have silently started passing for the wrong reason (finding nothing)
-    // the moment that changed. It did, once, which is why this comment exists.
+    // apps/api is CommonJS, so both files reach it through a dynamic `import()`
+    // — a boundary test keyed on the SYNTAX rather than the DEPENDENCY would
+    // have silently started passing for the wrong reason (finding nothing) the
+    // moment that changed. It did, once, which is why this comment exists.
+    //
+    // Two files, not one: tango.client.ts is the narrow, PRODUCT-facing
+    // TangoGateway (8 methods P19+ actually call). tango-capability-probe
+    // .service.ts (P17) is the deliberately WIDE, diagnostic-only probe surface
+    // — widening TangoGateway itself to every rarely-used capability-check
+    // method would pollute the contract product code relies on. Both stay
+    // inside this same reviewed boundary directory; nothing outside it may
+    // reference the SDK (enforced by the previous test).
     const inAdapter = walk(ADAPTER_DIR).filter(
       (f) => !f.endsWith('.spec.ts') && /@makegov\/tango-node/.test(code(f)),
     );
-    expect(inAdapter.map((f) => f.split(/[\\/]/).pop())).toEqual(['tango.client.ts']);
+    expect(inAdapter.map((f) => f.split(/[\\/]/).pop()).sort()).toEqual([
+      'tango-capability-probe.service.ts',
+      'tango.client.ts',
+    ]);
   });
 
   test('the jest transform carve-out is scoped to that one package', () => {

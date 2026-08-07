@@ -587,3 +587,129 @@ key — a later, deliberate, separate action.
 call in this phase read the secret's contents (`GetSecretValue` was never
 invoked); the CDK `Secret.fromSecretsManager` construct only ever needs to
 know that the secret exists, not what it holds.
+
+---
+
+## D-27 · 2026-08-07 · A second reviewed file inside the SDK boundary, and a three-way "why is `call` null" split
+
+P17 needs to probe roughly 30 SDK methods to check capability/tier across
+every dataset P19–P47 might depend on. `TangoGateway` (`tango.client.ts`,
+P14) is deliberately narrow — 8 methods, exactly what product code calls.
+Widening it to every rarely-used diagnostic method would pollute the
+contract product code actually relies on, so `tango-capability-probe
+.service.ts` is a SECOND file, still inside `external/tango/` (the boundary
+that matters — no code outside this directory may ever import the SDK).
+`tango.client.spec.ts`'s import-boundary test now names both files
+explicitly rather than asserting exactly one; the invariant it protects is
+unchanged.
+
+Several probes have no SDK method to call at all (`exclusions`, `dibbs`,
+`sbir_sttr`, `mcp_key_header_compatibility`, `webhook_write_apis`), and two
+more (`entities`, `vehicle_awardees`, `vehicle_orders`,
+`budget_flows_by_entity`) need a real UEI/vehicle-uuid this run may not have
+been given. Both end up with `call: null` — but they are not the same fact,
+and collapsing them into one `unsupported` status would actively mislead:
+
+- **`unsupported_by_provider`** → reports `unsupported`. A genuine SDK gap —
+  no DIBBS/SBIR-STTR method exists, no dedicated exclusions endpoint, MCP is
+  an unwrapped separate connector. A fact about the provider/SDK surface.
+- **`no_identifier_supplied`** → reports `not_attempted`. A fact about how
+  THIS run was invoked, not the provider. An invented UEI would only prove
+  the 404 path — pass a real one to actually exercise these probes.
+- **`mutating_write_excluded`** → also reports `not_attempted`, but for a
+  different reason than the one above: the SDK **demonstrably has**
+  `createWebhookEndpoint` et al. — this is not a provider gap at all. This
+  probe's own read-only policy forbids calling a mutating method, ever
+  (see the class doc's "what this must never do" list). Reporting this as
+  `unsupported` would tell a reader the provider cannot do webhook writes,
+  when the true, narrower fact is that this diagnostic chose not to try.
+
+The first draft of this file collapsed all three into a single
+`unsupported`/`call: null` branch with no `skippedReason` field at all —
+caught and corrected before merging, not after; see D-28 for a second,
+independent bug the same review pass found in the same file.
+
+**What this forbids:** any future probe added to this file must set
+`skippedReason` if `call` is null — there is no fourth, unlabeled reason to
+fall back on, and the `run()` method has no default branch that guesses.
+
+---
+
+## D-28 · 2026-08-07 · A script's own test suite triggered a live API call, because `main()` ran on import
+
+`diag-tango-capabilities.spec.ts` imports `parseArgs`/`formatSummary` from
+`diag-tango-capabilities.ts` to test them without a real key or network
+access. The script's first draft called `main().catch(...)` unconditionally
+at module scope — exactly the line every other executable script in
+`apps/api/scripts/` already guards against, via an `isDirectRun` check on
+`process.argv[1]` (see `backfill-sam-opportunity-fields.ts`). Missing that
+guard here meant every test run (and any future script importing this one's
+exports for reuse) would silently attempt a real, live call against the
+Tango API as a side effect of the `import` statement alone — in test, that
+surfaced as a harmless "no API key" error on stderr; in an environment where
+`TANGO_API_KEY` happens to be set, the same import would have fired for
+real, unrequested and unlogged as a deliberate action.
+
+Caught by actually reading the test run's console output rather than only
+its pass/fail line — the suite was green throughout; the bug produced no
+failing assertion, only an unexpected `console.error` line riding along with
+a passing test.
+
+Fixed by adding the same `isDirectRun` guard every sibling script already
+uses, and exporting `main` explicitly (unused today, but the established
+convention, and it costs nothing).
+
+**What this forbids:** a new script under `apps/api/scripts/` that performs
+a real side effect (network call, write, mutation) must gate its `main()`
+invocation behind an `isDirectRun` check if it exports anything a spec file
+might import — "it has tests" is not evidence the import itself is safe.
+
+---
+
+## D-29 · 2026-08-07 · The real account run found a genuine gap in the report's own status vocabulary
+
+Per the plan's P17 acceptance criteria, the probe was run once against the
+real Tango account (key fetched from Secrets Manager `tango`, ARN
+`arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk`,
+piped directly into the subprocess environment in one command — the raw
+value never appeared separately in this session's own visible output at any
+point). Authentication succeeded; 14 of 24 probed capabilities are supported
+outright. Full sanitized report:
+`docs/plans/funding-opportunities-makegov-v1/p17-tango-capability-report.json`.
+
+**The live run itself found a bug in `tango-capability-probe.service.ts`**,
+not just in the Tango account's capabilities: `attachment_metadata` and
+`extracted_text` (both calls into `searchOpportunityAttachments`) answered a
+synthetic one-character query with a classified HTTP 404, and `run()`'s
+error branch only ever distinguished `tier_gated` from a catch-all `error`
+— every other `TangoErrorKind` (`auth` past the version preflight, `not_found`,
+`validation`, `rate_limit`, `transient`, `permanent`) collapsed into the same
+generic `error` status. `tango.errors.ts` already documents `not_found` as
+"often meaningful evidence, not a failure" — a 404 from a SEARCH-shaped
+endpoint is unusual (most REST search endpoints answer "nothing matched"
+with 200 + an empty page, not 404), which makes it exactly the kind of fact
+this phase exists to surface, not bury inside an undifferentiated `error`
+bucket that reads identically to "this call is broken."
+
+Added `not_found` as its own `ProbeStatus`. The probe was then re-run
+against the real account a second time, against the corrected code, to
+capture the report that is actually attached as evidence — the first run's
+raw output was discarded rather than hand-edited, so the committed artifact
+is real tool output, not a report doctored to match the code after the fact.
+
+Other real findings from the run (all consistent with SDK-level findings
+already recorded in D-14/D-20's method inventory, now confirmed against the
+live account rather than only the SDK's static surface): `exclusions`,
+`dibbs`, `sbir_sttr`, and `mcp_key_header_compatibility` are confirmed
+genuinely unreachable through this SDK version — P39–P45 must not assume
+otherwise. `webhook_write_apis` remains untested by policy; P46/47's
+tier-documentation discrepancy is still open. `entities` and both vehicle
+probes were `not_attempted` because this run supplied no `--uei`/
+`--vehicle-uuid` — a follow-up run with a real identifier is needed before
+P19–P23 can rely on those specific findings.
+
+**What this forbids:** treating a `call: null` finding derived from static
+SDK-surface reading (D-27) as equivalent to a LIVE finding derived from an
+actual account response — both are real, but only the latter proves the
+account's own tier/configuration, not just the SDK's method list. The report
+schema keeps them as visibly different statuses for exactly this reason.

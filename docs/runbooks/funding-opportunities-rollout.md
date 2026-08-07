@@ -193,6 +193,42 @@ This is also proven at synth time, unconditionally, by
 `pnpm --filter @capiro/infra-cdk test` (wired into `ci-pr.yml`) — see
 decision-log D-25.
 
+### The Tango capability probe (P17) — read-only, run once, evidence attached
+
+`apps/api/src/external/tango/tango-capability-probe.service.ts` and
+`apps/api/scripts/diag-tango-capabilities.ts` ship in this merge. Nothing
+schedules this automatically — it is a deliberate operator tool, invoked by
+hand via `pnpm diag:tango-capabilities` (or `diag-tango-capabilities` through
+`entrypoint-dispatcher.inc` on a running task) when a human wants a fresh
+read of what the account can currently do. Deploying this merge changes
+nothing observable on its own.
+
+It was already run once against the real account as part of this phase's own
+acceptance evidence — see decision-log D-29 and
+`docs/plans/funding-opportunities-makegov-v1/p17-tango-capability-report.json`.
+Re-running it is safe (GET / `limit: 1` calls only, never a create/update/
+delete — see the service's class doc for the full "what this must never do"
+list) and cheap; do so whenever a later phase (P19–P47) needs to confirm a
+capability finding is still current, or after a MakeGov SDK upgrade:
+
+```bash
+# READ-ONLY against the real account. Never echoes the key: fetch and inject
+# in one command, same pattern as this doc uses everywhere else the real
+# secret is needed.
+cd apps/api
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/diag-tango-capabilities.ts --request-ceiling=30
+# Add --uei=<a real UEI> --vehicle-uuid=<a real vehicle uuid> to also exercise
+# the identifier-gated probes (entities, vehicle_awardees, vehicle_orders,
+# budget_flows_by_entity), which the committed evidence report left
+# not_attempted — no invented identifier was substituted for them.
+```
+
+Expect `authenticationFailed: false` and the same shape of result the
+committed report shows. A NEW `unsupported`/`not_found`/`tier_gated` finding
+relative to that report is real signal — the account's tier or the SDK's
+surface changed — not a flake to retry past.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
