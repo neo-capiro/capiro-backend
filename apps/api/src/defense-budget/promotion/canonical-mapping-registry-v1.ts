@@ -486,6 +486,22 @@ const REQUEST_SIDE_FIELDS: readonly FundingFieldV1[] = ['request'];
 /** Every funding field, for stage positions whose field is authority-derived. */
 const ALL_STAGE_FIELDS: readonly FundingFieldV1[] = FUNDING_FIELD_V1_VALUES;
 
+/**
+ * Every funding field that some stage authority owns — derived from
+ * `STAGE_AUTHORITY_FIELD` rather than restated, so a new authority extends this
+ * set automatically and the two cannot drift.
+ *
+ * A row may carry one of these fields only when a stage authority published it.
+ * That is what stops a Phase 4/5 request-side candidate from asserting a
+ * congressional mark on a per-FY position row: the `*_year` entities allow
+ * every field so the per-FY union can eventually hold the whole lifecycle, but
+ * the authority-owned half of that union is reachable only through a Phase 6
+ * stage projection that carries its authority.
+ */
+const AUTHORITY_OWNED_FIELDS: ReadonlySet<FundingFieldV1> = new Set(
+  Object.values(STAGE_AUTHORITY_FIELD),
+);
+
 /* ------------------------------------------------------------------ */
 /* B7. The registry                                                    */
 /* ------------------------------------------------------------------ */
@@ -1200,12 +1216,30 @@ export function validateFundingFieldForMappingV1(
     };
   }
 
-  if (entry.fieldAuthority.mode === 'stage_authority') {
+  /*
+   * Two cases require the field to be re-derived from a stage authority rather
+   * than trusted from the projection:
+   *
+   * 1. a `stage_authority` entity, which derives every field it carries; and
+   * 2. any entity at all asserting a field a stage authority owns — because a
+   *    congressional mark is only ever published by the authority that voted
+   *    it, never by the request-side document a Phase 4/5 candidate came from.
+   *
+   * Case 2 is what makes `mode: 'projection_funding_field'` safe on the
+   * per-FY `*_year` rows, which allow every field so the union can hold the
+   * whole lifecycle. Without it, an O&M or procurement candidate could assert
+   * an NDAA conference mark with no stage, no authority, and no congressional
+   * evidence, and every downstream layer would accept it.
+   */
+  if (entry.fieldAuthority.mode === 'stage_authority' || AUTHORITY_OWNED_FIELDS.has(field)) {
     if (stageAuthority == null) {
       return {
         supported: false,
         reason: 'stage_authority_field_mismatch',
-        detail: `${entry.canonicalEntity} derives its field from the stage authority, which was not supplied`,
+        detail:
+          entry.fieldAuthority.mode === 'stage_authority'
+            ? `${entry.canonicalEntity} derives its field from the stage authority, which was not supplied`
+            : `"${field}" is owned by a stage authority and may not be asserted by a projection that carries none`,
       };
     }
     const derived = STAGE_AUTHORITY_FIELD[stageAuthority];

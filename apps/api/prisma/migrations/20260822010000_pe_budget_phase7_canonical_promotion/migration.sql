@@ -524,8 +524,15 @@ CREATE TABLE "defense_budget_canonical_row" (
     -- database's copy of STAGE_AUTHORITY_FIELD: an authorization-track stage
     -- physically cannot write an appropriations field, and NDAA conference
     -- physically cannot write the appropriations conference field.
+    --
+    -- Every field except 'request' is owned by some stage authority, so a row
+    -- carrying one must name the stage that published it. Leaving "stage" NULL
+    -- is not an escape hatch: without the IS NOT NULL arm below, a request-side
+    -- Phase 4/5 row could assert a congressional mark simply by declaring no
+    -- stage, and this constraint would pass trivially.
     CONSTRAINT "defense_budget_canonical_row_stage_field_check"
-        CHECK ("stage" IS NULL OR "funding_field" IS NULL OR (
+        CHECK ("funding_field" IS NULL OR "funding_field" = 'request' OR (
+            "stage" IS NOT NULL AND (
             ("stage" = 'hasc' AND "funding_field" = 'hascMark') OR
             ("stage" = 'sasc' AND "funding_field" = 'sascMark') OR
             ("stage" = 'ndaa_conference' AND "funding_field" = 'ndaaConference') OR
@@ -536,7 +543,7 @@ CREATE TABLE "defense_budget_canonical_row" (
             ("stage" = 'continuing_resolution' AND "funding_field" = 'enacted') OR
             ("stage" = 'reprogramming' AND "funding_field" = 'reprogrammed') OR
             ("stage" = 'execution' AND "funding_field" = 'executed')
-        )),
+        ))),
 
     CONSTRAINT "defense_budget_canonical_row_evidence_check"
         CHECK (jsonb_typeof("evidence_ids") = 'array')

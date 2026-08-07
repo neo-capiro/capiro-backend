@@ -215,6 +215,49 @@ describe('Phase 7 Workstream B — field authority', () => {
     const refused = validateFundingFieldForMappingV1(entry, 'enacted');
     expect(refused.supported).toBe(false);
   });
+
+  /*
+   * The four `*_year` entities allow every funding field so the per-FY union
+   * can eventually hold the whole lifecycle. That breadth is only safe because
+   * the authority-owned half of the union requires a stage authority to assert
+   * it — otherwise a Phase 4/5 request-side candidate could write a
+   * congressional mark with no stage and no congressional evidence.
+   */
+  const YEAR_ENTITY_KINDS = [
+    'rdte:ProgramElementYear',
+    'non_rdte:ProcurementBudgetLineYear',
+    'non_rdte:OmSagYear',
+    'non_rdte:MilconProjectYear',
+  ] as const;
+
+  it.each(YEAR_ENTITY_KINDS)(
+    '%s refuses a congressional mark asserted with no stage authority',
+    (kind) => {
+      const entry = entryFor(kind);
+      expect(entry.fieldAuthority.mode).toBe('projection_funding_field');
+
+      const refused = validateFundingFieldForMappingV1(entry, 'ndaaConference');
+      expect(refused.supported).toBe(false);
+      if (!refused.supported) expect(refused.reason).toBe('stage_authority_field_mismatch');
+    },
+  );
+
+  it.each(YEAR_ENTITY_KINDS)('%s still admits the request field with no authority', (kind) => {
+    expect(validateFundingFieldForMappingV1(entryFor(kind), 'request').supported).toBe(true);
+  });
+
+  it('admits a congressional mark on a year row when its authority published it', () => {
+    const entry = entryFor('non_rdte:OmSagYear');
+    expect(
+      validateFundingFieldForMappingV1(entry, 'ndaaConference', 'ndaa_conference_authorization')
+        .supported,
+    ).toBe(true);
+    // ...but not one a different authority owns.
+    expect(
+      validateFundingFieldForMappingV1(entry, 'ndaaConference', 'appropriations_conference')
+        .supported,
+    ).toBe(false);
+  });
 });
 
 describe('Phase 7 Workstream B — actions are not positions', () => {

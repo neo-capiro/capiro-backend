@@ -967,6 +967,108 @@ describe('Phase 7 WS F/G/H â€” refuse rather than default', () => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* F/G/H/I â€” a request-side candidate cannot assert a congressional mark */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A Phase 4/5 candidate comes from a budget *request* document and carries no
+ * stage authority. The per-FY `*_year` entities allow every funding field so
+ * the union can hold the whole lifecycle, so without an authority check a
+ * request-side candidate could assert an NDAA conference mark that no committee
+ * ever voted â€” with no stage, no authority, and no congressional evidence.
+ */
+describe('Phase 7 WS F/G/H/I â€” congressional marks require a stage authority', () => {
+  const omYear = (fundingField: string): ProjectionCandidateInputV1 =>
+    candidate({
+      candidateId: 'c-om-year',
+      target: 'OmSagYear',
+      naturalKey: `OM_SAG:ARMY:OMA:011|2027|${fundingField}`,
+      values: {
+        identityNaturalKey: 'OM_SAG:ARMY:OMA:011',
+        fiscalYear: 2027,
+        fundingField,
+        ...MONEY,
+      },
+    });
+
+  const CONGRESSIONAL_FIELDS = [
+    'hascMark',
+    'sascMark',
+    'hacDMark',
+    'sacDMark',
+    'ndaaConference',
+    'conference',
+    'enacted',
+    'reprogrammed',
+    'executed',
+  ] as const;
+
+  it.each(CONGRESSIONAL_FIELDS)('refuses an O&M year row claiming "%s"', (field) => {
+    const { projections, refusals } = projectOmCandidatesV1([omYear(field)]);
+    expect(projections).toEqual([]);
+    expect(refusals.map((r) => r.reason)).toEqual(['stage_authority_violation']);
+  });
+
+  it('still promotes the request field, which no authority owns', () => {
+    const { projections, refusals } = projectOmCandidatesV1([omYear('request')]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.fundingField).toBe('request');
+  });
+
+  it('refuses a procurement year row claiming an appropriations conference mark', () => {
+    const { projections, refusals } = projectProcurementCandidatesV1([
+      candidate({
+        candidateId: 'c-proc-year',
+        target: 'ProcurementBudgetLineYear',
+        naturalKey: 'PROC:NAVY:APN:0204|2027|conference',
+        values: {
+          identityNaturalKey: 'PROC:NAVY:APN:0204',
+          fiscalYear: 2027,
+          fundingField: 'conference',
+          ...MONEY,
+        },
+      }),
+    ]);
+    expect(projections).toEqual([]);
+    expect(refusals.map((r) => r.reason)).toEqual(['stage_authority_violation']);
+  });
+
+  it('leaves the Phase 6 stage projector able to write the same field', () => {
+    // The mark is legitimate when the authority that voted it publishes it.
+    const voted = {
+      schemaVersion: 'phase6_native_projection_v1',
+      projectionId: 'p6-ndaa',
+      naturalKey: 'native-hash|2027|ndaa_conference|ndaaConference',
+      idempotencyKey: 'idem-ndaa',
+      projectionKind: 'stage_position',
+      verificationCandidateId: 'vc-1',
+      verificationRunId: 'vr-1',
+      artifactId: 'artifact-1',
+      artifactContentSha256: SHA('a'),
+      sourceDocumentId: 'doc-1',
+      sourcePdfSha256: SHA('b'),
+      sourceProfileHash: SHA('c'),
+      nativeIdentityHash: SHA('d'),
+      track: 'authorization',
+      stage: 'ndaa_conference',
+      fundingField: 'ndaaConference',
+      money: { originalValue: '10', originalUnit: 'millions' as const, valueMillions: '10' },
+      directOrDerived: 'direct',
+      evidenceIds: ['ev-1'],
+      bindingStatus: 'accepted',
+      projectionStatus: 'verified',
+      payload: { fiscalYear: 2027 },
+      canonicalWriteAllowed: false,
+    } as Phase6NativeProjectionV1;
+
+    const { projections, refusals } = projectPhase6ProjectionsV1([voted]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.fundingField).toBe('ndaaConference');
+    expect(projections[0]?.stageAuthority).toBe('ndaa_conference_authorization');
+  });
+});
+
 describe('Phase 7 WS F/G/H â€” no legacy writer is reachable', () => {
   const raw = readFileSync(join(__dirname, 'canonical-projectors-v1.ts'), 'utf8');
 

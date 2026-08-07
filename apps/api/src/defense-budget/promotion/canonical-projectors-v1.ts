@@ -335,6 +335,23 @@ function projectOne(
     );
   }
 
+  /*
+   * A Phase 4/5 candidate carries no stage authority — it came from a budget
+   * request document, not from a committee. Validating with no authority is
+   * therefore the correct call, and it refuses two things this projector
+   * previously passed through: a field outside the entity's allowed set, and
+   * any field a stage authority owns. The planner repeats this check and the
+   * database repeats it again as a CHECK constraint.
+   */
+  const fieldCheck = validateFundingFieldForMappingV1(
+    entry,
+    fundingField as FundingFieldV1 | null,
+    undefined,
+  );
+  if (!fieldCheck.supported) {
+    return refuse('stage_authority_violation', fieldCheck.detail);
+  }
+
   const fiscalYear = readInteger(candidate.values, FISCAL_YEAR_KEYS);
   if (moneyIsRequired && fiscalYear == null) {
     return refuse('fiscal_year_absent', `${entry.canonicalEntity} is a per-year position`);

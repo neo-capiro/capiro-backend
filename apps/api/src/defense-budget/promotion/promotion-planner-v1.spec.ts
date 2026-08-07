@@ -123,6 +123,55 @@ const yearRowHash = (valueMillions = '1.25', originalValue = '1250') =>
     values: { money: { originalValue, originalUnit: 'thousands', valueMillions } },
   });
 
+describe('Phase 7 Workstream C — congressional marks require a stage authority', () => {
+  /*
+   * The planner is the second of three layers that refuse this: the projector
+   * refuses at source, the planner blocks a projection that reached it anyway,
+   * and the canonical row's stage/field CHECK constraint refuses the insert.
+   * A per-FY row may carry a congressional field, but only when the authority
+   * that voted it is on the projection.
+   */
+  const congressionalYear = (overrides: Partial<PromotionProjectionInputV1> = {}) =>
+    sagYear({
+      naturalKey: `${SAG_KEY}|2027|ndaaConference`,
+      fundingField: 'ndaaConference',
+      ...overrides,
+    });
+
+  it('blocks a year row asserting a congressional mark with no authority', () => {
+    const plan = buildPromotionPlanV1(planInput({ projections: [congressionalYear()] }));
+    expect(firstItem(plan).operation).toBe('BLOCKED');
+    expect(firstItem(plan).blockReason).toBe('field_authority_violation');
+    expect(plan.blocked).toBe(true);
+  });
+
+  it('blocks it when a mismatched authority is supplied', () => {
+    const plan = buildPromotionPlanV1(
+      planInput({
+        projections: [congressionalYear({ stageAuthority: 'appropriations_conference' })],
+      }),
+    );
+    expect(firstItem(plan).operation).toBe('BLOCKED');
+    expect(firstItem(plan).blockReason).toBe('field_authority_violation');
+  });
+
+  it('admits it when the authority that owns the field published it', () => {
+    const plan = buildPromotionPlanV1(
+      planInput({
+        projections: [congressionalYear({ stageAuthority: 'ndaa_conference_authorization' })],
+      }),
+    );
+    expect(firstItem(plan).operation).toBe('INSERT');
+    expect(plan.blocked).toBe(false);
+  });
+
+  it('leaves the request field promotable with no authority at all', () => {
+    const plan = buildPromotionPlanV1(planInput());
+    expect(firstItem(plan).operation).toBe('INSERT');
+    expect(firstItem(plan).blockReason).toBeNull();
+  });
+});
+
 describe('Phase 7 Workstream C — operations', () => {
   it('plans an INSERT when no active row exists', () => {
     const plan = buildPromotionPlanV1(planInput());

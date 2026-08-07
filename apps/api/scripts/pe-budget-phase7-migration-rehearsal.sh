@@ -209,6 +209,42 @@ ok "canonical row inserted into a STAGING snapshot"
 ok "money stored exactly as NUMERIC(24,9) alongside its printed string"
 
 # =============================================================================
+log "Stage authority owns every field except 'request'"
+# =============================================================================
+# A request-side Phase 4/5 row leaves `stage` NULL. If a NULL stage satisfied
+# the stage/field constraint, such a row could assert a congressional mark that
+# no committee ever voted, so the constraint requires a stage for every field a
+# stage authority owns.
+congressional_row() {
+  local key="$1"; local field="$2"; local stage="$3"
+  echo "
+INSERT INTO defense_budget_canonical_row
+  (snapshot_id, promotion_run_id, canonical_entity, canonical_natural_key,
+   family, fiscal_year, funding_field, stage, canonical_row_hash,
+   money_original_value, money_original_unit, money_value_millions,
+   direct_or_derived, source_projection_id, source_assertion_id, evidence_ids,
+   artifact_id, artifact_content_sha256, verification_candidate_id,
+   verification_run_id, source_document_id, source_pdf_sha256, mapping_registry_hash)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_om_sag_year', '$key', 'om', 2027, '$field', $stage, '$SHA_A',
+   '10', 'millions', 10, 'direct', 'proj-1', 'assert-1', '[\"ev-1\"]'::jsonb,
+   'artifact-1', '$SHA_A', 'cand-1', 'run-1', 'doc-1', '$SHA_B', '$SHA_A');"
+}
+
+expect_fail "a congressional mark on a row that names no stage" \
+  "$(congressional_row 'ARMY|OMA|SAG-111|2027|ndaaConference' 'ndaaConference' 'NULL')"
+
+expect_fail "a stage writing a field a different authority owns" \
+  "$(congressional_row 'ARMY|OMA|SAG-112|2027|conference' 'conference' "'ndaa_conference'")"
+
+"${PSQL[@]}" -c "$(congressional_row 'ARMY|OMA|SAG-113|2027|ndaaConference' 'ndaaConference' "'ndaa_conference'")" >/dev/null \
+  || fail "a congressional mark published by its own authority was refused"
+ok "a congressional mark is storable only when its authority is named"
+
+run_sql "DELETE FROM defense_budget_canonical_row WHERE canonical_natural_key = 'ARMY|OMA|SAG-113|2027|ndaaConference';"
+
+# =============================================================================
 log "Role boundary"
 # =============================================================================
 expect_fail "general serve role writes a canonical row" "
