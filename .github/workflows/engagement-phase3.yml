@@ -8,6 +8,7 @@ on:
     branches:
       - main
       - agent/engagement-api-phase-2-dark-fargate
+      - agent/engagement-api-phase-1-local-runtime
     paths:
       - 'apps/api/src/engagement/**'
       - 'apps/api/scripts/*engagement-phase3*'
