@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { tenantFeatureEnabled, meriV2Enabled, type MeriV2FlagKey } from '../common/tenant-flags.js';
+import {
+  MERIV3_CHAT_FLAG,
+  meriV3CanaryTenantSlugs,
+  meriV3EnvironmentEnabled,
+} from '../common/meriv3-flags.js';
 
 const CACHE_TTL_MS = 60_000;
 
@@ -37,20 +42,21 @@ export class MeriFeatureFlagsService {
   }
 
   /**
-   * MeriV2 surface gate (P0-T3): a surface proxies to the meriv2-orchestrator
-   * ONLY when the global MERIV2_ENABLED env kill-switch is on AND the per-tenant
-   * flag resolves true.
-   *
-   * GA (2026-07): MeriV2 is now the default for every tenant. The per-tenant
-   * flag defaults ON, so a tenant WITHOUT an explicit flag (including every
-   * future tenant, no matter which creation path made it) runs on MeriV2 as
-   * soon as MERIV2_ENABLED is set. To opt a tenant OUT, set the flag explicitly
-   * to `false` in settings_jsonb.clioFeatureFlags. MERIV2_ENABLED=false is still
-   * the instant global kill-switch. The 60s cache means a flip lands within a
-   * minute (SC0.4).
+   * MeriV2 surface gate. MeriV2 is fleet-default whenever its env switch is on;
+   * an explicit tenant false remains the rollback carve-out.
    */
   async isMeriV2SurfaceEnabled(tenantId: string, flag: MeriV2FlagKey): Promise<boolean> {
     if (!meriV2Enabled()) return false;
     return this.isEnabled(tenantId, flag, true);
+  }
+
+  /**
+   * MeriV3 full chat is a strict canary: global switch, server-resolved slug
+   * allowlist, and explicit tenant true. The browser cannot widen this gate.
+   */
+  async isMeriV3ChatEnabled(tenantId: string, tenantSlug: string): Promise<boolean> {
+    if (!meriV3EnvironmentEnabled()) return false;
+    if (!meriV3CanaryTenantSlugs().has(tenantSlug.trim().toLowerCase())) return false;
+    return this.isEnabled(tenantId, MERIV3_CHAT_FLAG, false);
   }
 }
