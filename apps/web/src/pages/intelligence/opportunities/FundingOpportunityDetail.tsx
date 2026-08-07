@@ -13,6 +13,7 @@ import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
 import { OpportunityActionPlan } from './OpportunityActionPlan.js';
 import { MeriOpportunityAssessment } from './MeriOpportunityAssessment.js';
 import { OpportunityBudgetContext } from './OpportunityBudgetContext.js';
+import { OpportunityRiskPanel } from './OpportunityRiskPanel.js';
 import {
   DetailSectionBoundary,
   OpportunityAssessmentPanel,
@@ -334,6 +335,13 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
               letting the placement imply one. */}
       <DetailSectionBoundary title="Federal account execution" testId="fo-detail-budget-section">
         <OpportunityBudgetContext clientId={clientId} />
+      </DetailSectionBoundary>
+
+      {/* 5d ─ Procurement risk (P45). Evidence with a date and a source; an
+              active exclusion routes to legal or compliance and is never a
+              determination here. Client-keyed, like the budget panel above. */}
+      <DetailSectionBoundary title="Procurement risk" testId="fo-detail-risk-section">
+        <OpportunityRiskPanel clientId={clientId} />
       </DetailSectionBoundary>
 
       {/* 6 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}

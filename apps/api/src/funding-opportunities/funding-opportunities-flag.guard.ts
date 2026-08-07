@@ -323,3 +323,22 @@ export class FundingOpportunitiesBudgetFlagGuard extends FundingOpportunitiesFla
     return FUNDING_OPPORTUNITIES_BUDGET_CONTEXT_FEATURE;
   }
 }
+
+/**
+ * P45. Gates protest and exclusion risk context.
+ *
+ * Its own flag, and of every flag in this program it is the one most worth
+ * keeping separate: an exclusion observation is compliance-adjacent, and a firm
+ * enabling it is accepting that its analysts will see a flag before legal does.
+ * That is a decision a workspace makes on purpose, not one it inherits by
+ * turning on a budget panel.
+ */
+export const FUNDING_OPPORTUNITIES_RISK_CONTEXT_FEATURE = 'funding_opportunities_risk_context';
+
+/** P45's risk guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesRiskFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_RISK_CONTEXT_FEATURE;
+  }
+}

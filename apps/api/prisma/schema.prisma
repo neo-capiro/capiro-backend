@@ -6757,6 +6757,122 @@ model TangoBudgetVendorFlow {
   @@map("tango_budget_vendor_flow")
 }
 
+/// A bid protest (GAO or the Court of Federal Claims), as the provider states
+/// it (P45).
+///
+/// CONTEXT, NOT A CONCLUSION. A protest on a related procurement is evidence a
+/// capture team should weigh. It is not proof that this procurement is invalid,
+/// that the agency did anything wrong, or that an award will be overturned —
+/// and nothing derived from this table is permitted to say otherwise. The
+/// outcome column holds the provider's own word for what happened and is never
+/// re-phrased into a judgement.
+///
+/// GLOBAL — no tenant_id, no RLS. A GAO docket is a public record about the
+/// federal marketplace, same category as every other tango_* catalog table.
+///
+/// LINKED BY EXACT IDENTIFIER OR NOT AT ALL. `samOpportunityId` is populated
+/// only when the provider states an identifier Capiro can match exactly, under
+/// P27's own one-match rule. A protest about "a similar Navy contract" is not
+/// linked to this notice, because "similar" is not an identifier.
+model TangoProcurementProtest {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own case id. The sync's upsert key.
+  tangoCaseId  String  @unique @map("tango_case_id")
+  /// The docket number a human reads and can look up, e.g. "B-421234.2".
+  caseNumber   String? @map("case_number")
+  /// 'gao' | 'cofc' as the provider states it. Never normalized into a Capiro
+  /// vocabulary — the two forums have different procedures and different
+  /// meanings for the same outcome word.
+  sourceSystem String? @map("source_system")
+
+  /// The provider's own outcome word, verbatim. Null means the case is open or
+  /// the provider has not stated one — NOT that the protest failed.
+  outcome      String?   @map("outcome")
+  caseType     String?   @map("case_type")
+  filedDate    DateTime? @map("filed_date") @db.Date
+  decisionDate DateTime? @map("decision_date") @db.Date
+
+  agencyName String? @map("agency_name")
+  /// The protester as named on the docket, plus its resolved UEI when the
+  /// provider supplies one. The UEI is the ONLY key a client match may use.
+  protesterName String? @map("protester_name")
+  protesterUei  String? @map("protester_uei")
+
+  /// The docket entries, verbatim. Stored whole rather than flattened: a
+  /// docket's shape varies by forum and losing an entry to a column that did
+  /// not exist would be losing the record of a filing.
+  docket Json? @map("docket")
+
+  /// Populated ONLY on an exact identifier match. Nullable forever — most
+  /// protests will never link to a notice Capiro holds.
+  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+
+  snapshot  Json    @map("snapshot")
+  sourceUrl String? @map("source_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([protesterUei], map: "tango_procurement_protest_protester_idx")
+  @@index([samOpportunityId], map: "tango_procurement_protest_opportunity_idx")
+  @@index([agencyName], map: "tango_procurement_protest_agency_idx")
+  @@map("tango_procurement_protest")
+}
+
+/// The provider's exclusion observation for one entity, keyed by UEI (P45).
+///
+/// THERE IS NO EXCLUSIONS ENDPOINT. P17's capability probe established this
+/// against the real account: @makegov/tango-node@1.1.0 exposes no exclusions
+/// resource at all, and the fields live on the Entity record instead
+/// (`exclusion_status_flag`, `exclusion_url`). This table is therefore an
+/// OBSERVATION of an entity's flag at a moment, not a copy of a SAM exclusion
+/// record — and it carries exactly what the Entity resource carries.
+///
+/// WHICH MEANS THERE ARE NO DATES. `exclusionStartDate`/`exclusionEndDate` are
+/// declared and are ALWAYS NULL today: the Entity resource states neither.
+/// They are kept because a future provider release may add them and because the
+/// derivation rule already honours them — not as an oversight, the same posture
+/// P24 took for `psc_code`. Until then, expiry cannot be read off a date, so
+/// FRESHNESS carries that weight: an observation older than the staleness
+/// window is reported `unverified`, never `active`, because "we saw a flag
+/// three months ago" is not "they are excluded today".
+///
+/// ABSENCE IS NOT GOOD STANDING. No row for a UEI means Capiro has not observed
+/// that entity, and a row with the flag clear means the provider did not report
+/// one at that moment. Neither is a clearance, and the read service says so on
+/// every response.
+model TangoEntityExclusion {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// One current observation per entity. The upsert key.
+  uei String @unique
+
+  /// The provider's own flag value, verbatim and untranslated. A boolean here
+  /// would throw away the distinction between "the provider said no" and "the
+  /// provider said nothing".
+  exclusionStatusFlag String? @map("exclusion_status_flag")
+  exclusionUrl        String? @map("exclusion_url")
+
+  /// Always null today — see the model doc.
+  exclusionStartDate DateTime? @map("exclusion_start_date") @db.Date
+  exclusionEndDate   DateTime? @map("exclusion_end_date") @db.Date
+
+  /// When the provider was last asked. This is what expiry is judged on while
+  /// no dates exist, so it is NOT NULL.
+  observedAt DateTime @map("observed_at") @db.Timestamptz(6)
+
+  snapshot Json @map("snapshot")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([observedAt], map: "tango_entity_exclusion_observed_idx")
+  @@map("tango_entity_exclusion")
+}
+
 /// Per-FIELD agreement between Capiro's first-party SAM.gov row and
 /// MakeGov/Tango's own observation of the same opportunity (P27).
 ///

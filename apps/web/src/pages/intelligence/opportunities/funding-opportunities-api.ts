@@ -943,6 +943,52 @@ export function budgetContextApiPath(clientId: string): string {
   return `/api/intelligence/clients/${encodeURIComponent(clientId)}/budget-context`;
 }
 
+// ── Procurement risk (P45) ──────────────────────────────────────────────────
+
+/** The risk flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_RISK_FEATURE = 'funding_opportunities_risk_context';
+
+export interface ProtestViewData {
+  caseNumber: string | null;
+  sourceSystem: string | null;
+  /** The provider's own word. Null means OPEN or unstated, never "failed". */
+  outcome: string | null;
+  outcomeCaveat: string;
+  caseType: string | null;
+  filedDate: string | null;
+  decisionDate: string | null;
+  agencyName: string | null;
+  protesterName: string | null;
+  sourceUrl: string | null;
+  matchedOn: 'protester_uei';
+}
+
+export interface ExclusionViewData {
+  state: 'none_observed' | 'active' | 'expired' | 'unverified';
+  explanation: string;
+  providerFlag: string | null;
+  sourceUrl: string | null;
+  observedAt: string | null;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export interface RiskContextView {
+  state: 'available' | 'disabled' | 'denied' | 'no_client_identity';
+  explanation: string;
+  /** `needs_review` or nothing. There is no value that reads as a clearance. */
+  recommendationHint: { state: 'needs_review'; reason: string } | null;
+  exclusion: ExclusionViewData;
+  protests: ProtestViewData[];
+  caveats: string[];
+  asOf: string;
+}
+
+/** Keyed on the client: risk evidence is matched to a UEI, not to a notice. */
+export function riskContextApiPath(clientId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/risk-context`;
+}
+
 // ── Meri assessment (P38) ───────────────────────────────────────────────────
 
 /** The Meri flag. Byte-matches the API guard's own constant. */
