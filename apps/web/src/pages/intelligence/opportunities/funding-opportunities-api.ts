@@ -744,6 +744,72 @@ export function timelineApiPath(source: string, sourceRecordId: string): string 
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/timeline`;
 }
 
+// ── Requirements extracted from documents (P31) ──────────────────────────────
+
+/** The documents flag. Gates attachments (P29), text (P30) and requirements (P31). */
+export const FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE = 'funding_opportunities_documents';
+
+/** Mirrors REQUIREMENT_TYPES in apps/api's opportunity-requirement.schema.ts. */
+export const REQUIREMENT_TYPE_LABELS: Record<string, string> = {
+  technical: 'Technical',
+  deliverable: 'Deliverable',
+  evaluation: 'Evaluation criteria',
+  past_performance: 'Past performance',
+  clearance_security: 'Clearance / security',
+  vehicle: 'Contract vehicle',
+  certification: 'Certification',
+  place_of_performance: 'Place of performance',
+  submission: 'Submission',
+  question_deadline: 'Question deadline',
+  key_date: 'Key date',
+};
+
+/**
+ * One extracted requirement, with the citation that makes it checkable.
+ *
+ * There is no shape here that carries a statement WITHOUT its excerpt, span and
+ * document. A compliance list nobody can check against the source invites a
+ * team to build a proposal against Capiro's paraphrase.
+ */
+export interface OpportunityRequirementView {
+  id: string;
+  requirementType: string;
+  statement: string;
+  /** VERBATIM from the document. Never a paraphrase. */
+  sourceExcerpt: string;
+  excerptStart: number;
+  excerptEnd: number;
+  sourcePage: number | null;
+  fileName: string | null;
+  extractionMethod: string;
+  extractionModel: string;
+  /** Evidence quality. NEVER a probability that the requirement is real. */
+  confidence: string;
+  /** 'pending' | 'accepted' | 'rejected'. A candidate is not a conclusion. */
+  reviewStatus: string;
+  /** Set when the document changed after this was extracted. */
+  supersededAt: string | null;
+}
+
+export interface OpportunityRequirementsResponse {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  requirements: OpportunityRequirementView[];
+  /**
+   * Why the list is the length it is. Only `read_none_found` is a fact about the
+   * solicitation; the other two are facts about Capiro's coverage.
+   */
+  coverage: 'available' | 'no_documents' | 'no_text' | 'read_none_found';
+  coverageExplanation: string;
+  /** P30's per-document text status, carried through verbatim rather than re-summarised. */
+  documentTextStatus: Array<{ fileName: string | null; status: string; explanation: string }>;
+  generatedAt: string;
+}
+
+export function requirementsApiPath(source: string, sourceRecordId: string): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/requirements`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**

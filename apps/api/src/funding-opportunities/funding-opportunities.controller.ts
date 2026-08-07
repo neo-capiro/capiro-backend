@@ -29,8 +29,10 @@ import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesDocumentsFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
+import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
   FundingOpportunityInboxService,
@@ -377,6 +379,7 @@ export class FundingOpportunitiesController {
     private readonly inboxService: FundingOpportunityInboxService,
     private readonly forecasts: ForecastOpportunityReadService,
     private readonly timeline: OpportunityTimelineService,
+    private readonly requirements: OpportunityRequirementService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -465,6 +468,27 @@ export class FundingOpportunitiesController {
   @UseGuards(FundingOpportunitiesNoticeHistoryFlagGuard)
   timelineFor(@Param() params: SourceParamDto, @Param('id') id: string) {
     return this.timeline.getTimeline(params.source, id);
+  }
+
+  /**
+   * The requirements extracted from one solicitation's own documents (P31).
+   *
+   * READ-ONLY, and every row carries its citation — there is no shape in the
+   * response that returns a statement without the excerpt, the span and the
+   * document it came from.
+   *
+   * The REQUIREMENT is a global fact about a public document; the REVIEW is this
+   * tenant's decision, read under RLS. A requirement with no review for this
+   * tenant reads as `pending`, never as another tenant's conclusion.
+   */
+  @Get('opportunities/:source/:id/requirements')
+  @UseGuards(FundingOpportunitiesDocumentsFlagGuard)
+  requirementsFor(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+  ) {
+    return this.requirements.getRequirements(ctx.tenantId, params.source, id);
   }
 
   @Get('opportunities/:source/:id')

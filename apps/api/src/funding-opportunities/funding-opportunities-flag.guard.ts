@@ -58,6 +58,18 @@ export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
   'funding_opportunities_notice_history';
 
 /**
+ * P29/P30/P31. Gates the whole document story: attachments, their extracted
+ * text, and the requirements extracted from that text.
+ *
+ * ONE flag for three phases, deliberately. They are not independently useful —
+ * requirements without text is an empty list, text without archived attachments
+ * has nothing to be the text OF — so three flags would mean three ways to
+ * configure a half-working surface. The plan names
+ * `funding_opportunities_documents` for exactly this span.
+ */
+export const FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE = 'funding_opportunities_documents';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -210,5 +222,13 @@ export class FundingOpportunitiesForecastFlagGuard extends FundingOpportunitiesF
 export class FundingOpportunitiesNoticeHistoryFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE;
+  }
+}
+
+/** P29-P31's documents guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesDocumentsFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE;
   }
 }
