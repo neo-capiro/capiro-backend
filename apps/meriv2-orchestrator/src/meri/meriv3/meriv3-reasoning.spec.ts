@@ -5,22 +5,29 @@ import {
 } from './meriv3-reasoning.js';
 
 describe('MeriV3 reasoning profiles', () => {
-  test('unknown or missing input defaults to Standard', () => {
+  test('unknown or missing input defaults to balanced GPT-5.6 Terra', () => {
     expect(normalizeMeriV3ReasoningMode(undefined)).toBe('standard');
     expect(normalizeMeriV3ReasoningMode('ultra')).toBe('standard');
     expect(resolveMeriV3ReasoningProfile(undefined, {})).toMatchObject({
       mode: 'standard',
       effort: 'medium',
-      model: 'gpt-5.1',
+      model: 'gpt-5.6-terra',
     });
   });
 
-  test('exposes exactly the four product modes in stable order', () => {
-    expect(listMeriV3ReasoningProfiles({}).map((profile) => profile.mode)).toEqual([
+  test('maps the four product modes onto the current GPT-5.6 family', () => {
+    const profiles = listMeriV3ReasoningProfiles({});
+    expect(profiles.map((profile) => profile.mode)).toEqual([
       'fast',
       'standard',
       'deep',
       'max',
+    ]);
+    expect(profiles.map(({ model, effort }) => ({ model, effort }))).toEqual([
+      { model: 'gpt-5.6-luna', effort: 'low' },
+      { model: 'gpt-5.6-terra', effort: 'medium' },
+      { model: 'gpt-5.6', effort: 'high' },
+      { model: 'gpt-5.6', effort: 'max' },
     ]);
   });
 
@@ -39,7 +46,7 @@ describe('MeriV3 reasoning profiles', () => {
 
   test('keeps provider ids server-configured and clamps numeric overrides', () => {
     const profile = resolveMeriV3ReasoningProfile('deep', {
-      MERIV3_MODEL: 'gpt-custom-reasoning',
+      MERIV3_DEEP_MODEL: 'gpt-custom-reasoning',
       MERIV3_DEEP_REASONING_EFFORT: 'xhigh',
       MERIV3_DEEP_MAX_TOOL_ROUNDS: '999',
       MERIV3_DEEP_TURN_BUDGET_MS: '1',
@@ -48,6 +55,15 @@ describe('MeriV3 reasoning profiles', () => {
     expect(profile.effort).toBe('xhigh');
     expect(profile.maxToolRounds).toBe(30);
     expect(profile.turnBudgetMs).toBe(30_000);
+  });
+
+  test('accepts the current max effort when the configured model supports it', () => {
+    expect(
+      resolveMeriV3ReasoningProfile('max', {
+        MERIV3_MAX_MODEL: 'gpt-5.6-sol',
+        MERIV3_MAX_REASONING_EFFORT: 'max',
+      }),
+    ).toMatchObject({ model: 'gpt-5.6-sol', effort: 'max' });
   });
 
   test('does not silently accept unsupported product labels or malformed numbers', () => {
