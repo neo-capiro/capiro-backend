@@ -7,12 +7,12 @@ Phase 3 cannot close until **open P0 = 0, open P1 = 0, blocking P2 = 0**
 Repairs happen in a dedicated 3.R session per coherent finding — never as a
 silent fix inside an unrelated session (master execution prompt, rule 14).
 
-**Status:** 2 open (1 P1, 1 P2 non-blocking) · 1 closed
+**Status:** 1 open (0 P1, 1 P2 non-blocking) · 2 closed
 
 | ID | Severity | Classification | Surface | Summary | Status |
 |---|---|---|---|---|---|
 | F-001 | P1 | current baseline defect | build tooling | Phase 2 verifier's "no product web change" gate fails on every descendant branch | **closed** |
-| F-002 | P1 | current baseline defect | build tooling | No-preview-header guard forbids the exact string Phase 3 must introduce | open — repair sequenced with 3.3 |
+| F-002 | P1 | current baseline defect | build tooling | No-preview-header guard forbids the exact string Phase 3 must introduce | **closed** in 3.3 |
 | F-003 | P2 (non-blocking) | current baseline defect | build tooling | `apps/api` typecheck chain short-circuits on a pre-existing failure, so 14 later tsconfig projects never run | open — input to 3.13 |
 
 ---
@@ -150,6 +150,33 @@ Replace the blanket string ban with a scoped assertion:
 
 That is strictly stronger than the current check for everything except the one
 file that has to have it.
+
+### Resolution — closed in 3.3
+
+Repaired as part of 3.3 rather than a standalone 3.R session: the guard and the
+code it guards are one change, and landing the header without the narrowed guard
+would have left the branch red between two commits. This is the plan's
+"repair as part of 3.3" disposition recorded in the 3.2 handoff, not a silent
+fix of an unrelated defect.
+
+Implemented exactly as proposed, with one addition. `FORBIDDEN` now holds only
+`VITE_ENGAGEMENT_API_URL` and the two `localhost:4500` forms, still banned
+everywhere. The header token moved to its own allowlisted check
+(`PREVIEW_HEADER_ALLOWED`), naming `apps/web/src/lib/engagement-api-preview.ts`
+and its spec.
+
+The addition: the guard also fails when an **allowlisted file no longer contains
+the token**. Without it the allowlist would outlive the code it was written for
+and silently pre-authorize any future file at that path. This fired for real
+during 3.3 — the spec initially imported the header constant instead of spelling
+it, so the entry was stale on its first run. The spec now asserts the literal
+`X-Capiro-Engagement-Preview` / `v3` pair, which is the actual contract with the
+Phase 2 ALB rule; a rename that only touched the constant would otherwise pass
+every test and fail only live.
+
+**Rehearsed negative control:** adding the token to `apps/web/src/lib/billing.ts`
+fails the guard with `ENGAGEMENT_WEB_PREVIEW_HEADER_GUARD_FAILED`; removing it
+passes.
 
 ---
 

@@ -28,6 +28,7 @@ import DistrictDetailPage from './pages/directory/DistrictDetailPage.js';
 import { HelpPage } from './pages/help/HelpPage.js';
 import { HomePage } from './pages/HomePage.js';
 import { EngagementPage } from './pages/engagement/EngagementPage.js';
+import { EngagementPreviewBoundary } from './pages/engagement/EngagementPreviewBoundary.js';
 import { IntegrationsPage } from './pages/settings/IntegrationsPage.js';
 import { AiUsagePage } from './pages/settings/AiUsagePage.js';
 import { ComingSoonIntelligence } from './pages/intelligence/ComingSoonIntelligence.js';
@@ -142,7 +143,13 @@ export function App() {
   }
 
   return (
-    <Routes>
+    <>
+      {/* Internal Engagement API preview switch (Phase 3). Renders nothing and
+          is inert unless ?engagement-api-preview= is present. Mounted beside
+          the route table, not inside /engagement/*, because the mode is
+          session-wide — /settings/integrations is an Engagement consumer too. */}
+      <EngagementPreviewBoundary />
+      <Routes>
       <Route path="/sign-in/*" element={<AuthPage mode="sign-in" />} />
       <Route path="/sign-up/*" element={<AuthPage mode="sign-up" />} />
       {/* Welcome / paywall. Signed-in but standalone (outside AppShell + the
@@ -379,7 +386,8 @@ export function App() {
           }
         />
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { config } from '../env.js';
 import { clearImpersonationSlug } from '../state/impersonation.js';
+import { engagementPreviewHeader } from './engagement-api-preview.js';
 
 /**
  * Default timeout for ordinary requests (auth, lists, CRUD). Kept tight so a
@@ -75,6 +76,19 @@ export function buildApiClient(
     if (actAsTenantSlug && !isAdminConsole) {
       req.headers = req.headers ?? {};
       req.headers['x-capiro-impersonate-tenant'] = actAsTenantSlug;
+    }
+
+    // Engagement API preview (Phase 3). Off by default and, when on, attached
+    // only to paths that exactly match the accepted Engagement route manifest.
+    // That exact match is what keeps the header off /me, Capiro Admin,
+    // Workspace, Strategy, Directory and static assets — none of their paths
+    // are in the manifest, so no per-owner allowlist is needed here and none
+    // can drift out of date. Attached last so it can never displace the
+    // Authorization or impersonation headers set above.
+    const preview = engagementPreviewHeader(req.url, config.apiBaseUrl);
+    if (preview) {
+      req.headers = req.headers ?? {};
+      req.headers[preview.name] = preview.value;
     }
     return req;
   });
