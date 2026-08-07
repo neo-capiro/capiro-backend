@@ -38,9 +38,9 @@ gate() {
 node_test() {
   local name="$1" file="$2"
   local log="${LOG_DIR}/$(echo "$name" | tr ' /:' '___').log"
-  if node "$file" >"$log" 2>&1 && grep -qE '^# fail 0' "$log"; then
+  if node "$file" >"$log" 2>&1 && grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
     local count
-    count="$(grep -oE '^# pass [0-9]+' "$log" | grep -oE '[0-9]+' || echo '?')"
+    count="$(grep -oE '(^# pass [0-9]+|^ℹ pass [0-9]+)' "$log" | grep -oE '[0-9]+' || echo '?')"
     pass "$name  (${count} assertions)"
   else
     fail "$name  (see $log)"
@@ -51,7 +51,7 @@ ts_test() {
   local name="$1" file="$2"
   local log="${LOG_DIR}/$(echo "$name" | tr ' /:' '___').log"
   if (cd infra/cdk && node "C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js" exec ts-node --prefer-ts-exts "$file") >"$log" 2>&1 &&
-    grep -qE '^# fail 0' "$log"; then
+    grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
     local count
     count="$(grep -oE '^# pass [0-9]+' "$log" | grep -oE '[0-9]+' || echo '?')"
     pass "$name  (${count} assertions)"
