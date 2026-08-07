@@ -1110,14 +1110,7 @@ export class FundingOpportunitiesService {
     // must never be the reason a triage list fails to load.
     let acquisitionPosition: AcquisitionPosition | null = null;
     try {
-      const vehicleFitEnabled = await isFundingOpportunitiesFeatureEnabled(
-        this.prisma,
-        tenantId,
-        FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE,
-      );
-      if (vehicleFitEnabled) {
-        acquisitionPosition = await this.acquisitionPosition.getPosition(tenantId, clientId);
-      }
+      acquisitionPosition = await this.getClientAcquisitionPosition(tenantId, clientId);
     } catch (error) {
       this.logger.warn(
         `acquisition-position read failed; acquisitionPosition will be null: ${
@@ -1135,6 +1128,37 @@ export class FundingOpportunitiesService {
       facilitiesById: new Map(facts.facilities.map((f) => [f.id, f])),
       acquisitionPosition,
     };
+  }
+
+  /**
+   * One client's own vehicle-access posture, or null when
+   * `funding_opportunities_vehicle_fit` is off for the tenant (P23).
+   *
+   * PUBLIC, and source-agnostic: this is a fact about the CLIENT, not about any
+   * opportunity — which is why the same value is correct for a SAM notice and
+   * for an agency forecast. Extracted from `readClientFacts` above so a second
+   * reader cannot build a second `AcquisitionPositionService` with its own
+   * reader closure and drift from this one; P26's forecast read is the second
+   * caller.
+   *
+   * DELIBERATELY DOES NOT CATCH, for the same reason
+   * `isFundingOpportunitiesFeatureEnabled` does not: every caller degrades
+   * differently. `readClientFacts` swallows to null (an additive field must not
+   * break a triage list); the forecast read reports the signal as UNAVAILABLE
+   * with a reason, which is a different and more informative degradation. A
+   * catch here would make both call sites' handling dead code.
+   */
+  async getClientAcquisitionPosition(
+    tenantId: string,
+    clientId: string,
+  ): Promise<AcquisitionPosition | null> {
+    const vehicleFitEnabled = await isFundingOpportunitiesFeatureEnabled(
+      this.prisma,
+      tenantId,
+      FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE,
+    );
+    if (!vehicleFitEnabled) return null;
+    return this.acquisitionPosition.getPosition(tenantId, clientId);
   }
 
   // ── Step 2: global catalog reads ─────────────────────────────────────────

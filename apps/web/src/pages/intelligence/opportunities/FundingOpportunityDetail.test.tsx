@@ -9,6 +9,8 @@ import {
   decodeOpportunityRef,
   encodeOpportunityRef,
   opportunityDetailPath,
+  type CatalogOpportunityRef,
+  type ForecastOpportunityRecord,
   type FundingOpportunity,
   type OpportunityRef,
 } from './funding-opportunities-api.js';
@@ -120,15 +122,70 @@ function notFoundError() {
   return error;
 }
 
+/**
+ * The forecast read's own payload (P26).
+ *
+ * A separate fixture from `opportunity()`, because the two records are
+ * DIFFERENT SHAPES — that is the whole reason the forecast has its own route and
+ * its own body. Serving one from the other's fixture is exactly the conflation
+ * the split exists to prevent.
+ */
+function forecastRecord(): ForecastOpportunityRecord {
+  return {
+    source: 'agency_forecast',
+    sourceRecordId: 'FCST-1',
+    externalId: 'APFS-9001',
+    title: 'Depot-level turbofan sustainment',
+    description: null,
+    agency: 'Department of the Navy',
+    departmentName: null,
+    organizationAgencyName: null,
+    officeName: null,
+    facts: {
+      anticipatedAwardDate: '2027-03-01',
+      anticipatedSolicitationDate: null,
+      estimatedPeriod: null,
+      fiscalYear: 2027,
+      sourceSystem: 'APFS',
+      status: 'Forecasted',
+      isActive: true,
+      lastSyncedAt: '2026-08-06T02:00:00.000Z',
+      providerModifiedAt: null,
+    },
+    naicsCode: '336412',
+    pscCode: null,
+    setAside: null,
+    contractVehicle: null,
+    placeOfPerformance: null,
+    primaryContact: null,
+    sourceUrl: null,
+    recommendation: null,
+    clientId: 'client-1',
+    decision: null,
+    workflow: null,
+    linkedOpportunity: null,
+    missingProfileFields: [],
+    generatedAt: '2026-08-07T12:00:00.000Z',
+  };
+}
+
 function mockApi() {
   apiGetMock.mockImplementation(async (url: string) => {
     requestedUrls.push(url);
+    if (url.includes('/opportunities/forecasts/')) return { data: forecastRecord() };
     if (detail instanceof Error) throw detail;
     return { data: detail };
   });
 }
 
-const REF: OpportunityRef = {
+/**
+ * A CATALOG ref, which is what `FundingOpportunityDetail` takes (P26).
+ *
+ * The wider `OpportunityRef` now admits `agency_forecast`, and a forecast is a
+ * different record shape rendered by a different body — so the compiler, not a
+ * comment, keeps a forecast ref out of this component.
+ */
+const REF: CatalogOpportunityRef = {
   source: 'sam_gov',
   sourceRecordId: 'notice-1',
   clientId: 'client-1',
@@ -163,6 +220,9 @@ beforeEach(() => {
   setupBrowserMocks();
   apiGetMock.mockReset();
   flags.funding_opportunities = true;
+  // P26. Off by default, matching every real tenant — a forecast test turns it on
+  // explicitly, so no existing assertion can start depending on it silently.
+  flags.funding_opportunities_forecasts = false;
   detail = opportunity();
   requestedUrls = [];
   mockApi();
@@ -177,7 +237,7 @@ describe('the ref is the identity, and it round-trips', () => {
     // Grants.gov opportunity numbers are free-form source strings. A colon in one
     // would split the ref into the wrong pieces if the parts were not encoded —
     // the kind of bug that only appears on the one record that has the character.
-    const awkward: OpportunityRef = {
+    const awkward: CatalogOpportunityRef = {
       source: 'grants_gov',
       sourceRecordId: 'DE-FOA:0001/A B',
       clientId: 'client-1',
@@ -186,7 +246,7 @@ describe('the ref is the identity, and it round-trips', () => {
   });
 
   test('an unscoped ref round-trips with a null client', () => {
-    const unscoped: OpportunityRef = {
+    const unscoped: CatalogOpportunityRef = {
       source: 'sam_gov',
       sourceRecordId: 'notice-1',
       clientId: null,
@@ -416,6 +476,51 @@ describe('bad input is a named state, not a blank page', () => {
       /not a source Capiro holds/i,
     );
     expect(apiGetMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('the same route serves agency forecasts, as a different record type (P26)', () => {
+  test('a forecast deep link renders the FORECAST body and hits the forecast route', async () => {
+    flags.funding_opportunities_forecasts = true;
+    renderRoute('/intelligence/opportunities/agency_forecast/FCST-1?clientId=client-1');
+    await screen.findByTestId('fo-forecast-detail');
+    // A different endpoint, because a forecast is a different record shape — not
+    // `opportunities/:source/:id`, which would have to invent a deadline, an
+    // eligibility state and a money figure the provider never states.
+    expect(requestedUrls[0]).toBe(
+      '/api/intelligence/opportunities/forecasts/FCST-1?clientId=client-1',
+    );
+    // And the opportunity body is NOT rendered alongside it.
+    expect(screen.queryByTestId('fo-detail')).not.toBeInTheDocument();
+  });
+
+  test('with the forecast flag OFF the link says the CAPABILITY is off, not that the record is missing', async () => {
+    // Two different facts, and only one of them is about the forecast. The API's
+    // own forecast guard 404s with the flag off, so rendering the body first
+    // would show "No such agency forecast" for a record that exists.
+    flags.funding_opportunities_forecasts = false;
+    renderRoute('/intelligence/opportunities/agency_forecast/FCST-1?clientId=client-1');
+    const el = await screen.findByTestId('fo-forecast-not-enabled');
+    expect(el).toHaveTextContent(/Agency forecasts are not enabled for this workspace/i);
+    expect(el).toHaveTextContent(/says nothing about whether the forecast exists/i);
+    expect(apiGetMock).not.toHaveBeenCalled();
+  });
+
+  test('the master flag still gates the forecast route, before the forecast flag is consulted', async () => {
+    flags.funding_opportunities = false;
+    flags.funding_opportunities_forecasts = true;
+    renderRoute('/intelligence/opportunities/agency_forecast/FCST-1');
+    expect(
+      await screen.findByText(/Funding Opportunities is not enabled for this workspace/i),
+    ).toBeInTheDocument();
+    expect(apiGetMock).not.toHaveBeenCalled();
+  });
+
+  test('the bad-ref message names all three rails the route accepts', async () => {
+    renderRoute('/intelligence/opportunities/fpds/notice-1');
+    expect(await screen.findByTestId('fo-detail-bad-ref')).toHaveTextContent(
+      /grants_gov, sam_gov and agency_forecast/,
+    );
   });
 });
 

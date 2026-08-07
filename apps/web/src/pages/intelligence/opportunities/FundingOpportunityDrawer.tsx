@@ -1,7 +1,13 @@
 import { Button, Drawer, Grid, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { FundingOpportunityDetail } from './FundingOpportunityDetail.js';
-import { opportunityDetailPath, type OpportunityRef } from './funding-opportunities-api.js';
+import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
+import {
+  FORECAST_SOURCE,
+  asCatalogRef,
+  opportunityDetailPath,
+  type OpportunityRef,
+} from './funding-opportunities-api.js';
 
 /**
  * The inbox's detail frame.
@@ -38,6 +44,11 @@ export function FundingOpportunityDrawer({
   const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   /**
+   * Null for a forecast ref, which is the dispatch below. Computed once so the
+   * title and the body cannot disagree about which record type is open.
+   */
+  const catalogRef = refValue ? asCatalogRef(refValue) : null;
+  /**
    * Full width below the `md` breakpoint. A 720px drawer on a phone renders as a
    * sliver of content under a mask, which is worse than no drawer at all.
    */
@@ -49,7 +60,7 @@ export function FundingOpportunityDrawer({
       onClose={onClose}
       width={width}
       destroyOnClose
-      title="Opportunity detail"
+      title={refValue?.source === FORECAST_SOURCE ? 'Agency forecast detail' : 'Opportunity detail'}
       rootClassName="fo-detail__drawer"
       data-testid="fo-detail-drawer"
       extra={
@@ -67,7 +78,22 @@ export function FundingOpportunityDrawer({
         ) : null
       }
     >
-      {refValue ? <FundingOpportunityDetail refValue={refValue} /> : null}
+      {/*
+        ONE body per RECORD TYPE, and the choice is made here rather than inside
+        a body. A forecast is a different shape from a `FundingOpportunity` — no
+        response deadline, no eligibility, no money — so rendering it through the
+        opportunity body would mean either inventing those three or showing
+        "Unknown" against questions that do not apply to it. Both bodies are
+        rendered UNMODIFIED, exactly as the full page renders them.
+      */}
+      {refValue == null ? null : catalogRef == null ? (
+        <ForecastOpportunityDetail
+          forecastId={refValue.sourceRecordId}
+          clientId={refValue.clientId}
+        />
+      ) : (
+        <FundingOpportunityDetail refValue={catalogRef} />
+      )}
     </Drawer>
   );
 }

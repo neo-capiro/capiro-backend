@@ -250,6 +250,58 @@ function row(over: Partial<Row> = {}): Row {
 }
 
 /**
+ * A `tango_procurement_forecast` row as `titlesFor` selects it (P26).
+ *
+ * Widened from the P25-era `{ tangoForecastId, title, agency }` triple because
+ * the inbox card now states the forecast's own source facts — the SELECT grew,
+ * the query count did not.
+ */
+interface ForecastFixture {
+  tangoForecastId: string;
+  title: string;
+  agency: string | null;
+  anticipatedAwardDate: Date | null;
+  estimatedPeriod: string | null;
+  fiscalYear: number | null;
+  sourceSystem: string | null;
+  status: string | null;
+  isActive: boolean | null;
+  lastSyncedAt: Date | null;
+  providerModifiedAt: Date | null;
+}
+
+/**
+ * The one workflow-row shape a forecast can legally have: both legacy pointers
+ * null, identity carried entirely by P13's generic `sourceRecordKey`, and no
+ * response-deadline snapshot — there is no deadline to snapshot.
+ */
+const FORECAST_ROW: Row = {
+  ...row(),
+  source: 'agency_forecast',
+  grantOpportunityId: null,
+  samOpportunityId: null,
+  sourceRecordKey: 'FCST-1',
+  responseDeadlineSnapshot: null,
+};
+
+function forecastFixture(over: Partial<ForecastFixture> = {}): ForecastFixture {
+  return {
+    tangoForecastId: 'FCST-1',
+    title: 'Synthetic Depot Sustainment',
+    agency: 'VA',
+    anticipatedAwardDate: new Date('2027-03-01T00:00:00Z'),
+    estimatedPeriod: 'Q2 FY27',
+    fiscalYear: 2027,
+    sourceSystem: 'APFS',
+    status: 'Forecasted',
+    isActive: true,
+    lastSyncedAt: new Date('2026-08-06T02:00:00Z'),
+    providerModifiedAt: null,
+    ...over,
+  };
+}
+
+/**
  * A deliberately DUMB double. It returns the rows it is given, in order, and does
  * not emulate filtering or the cursor — those are covered above, as data. What it
  * does faithfully is COUNT queries, which is the property these tests are for.
@@ -260,7 +312,7 @@ function makeFake(
     clients?: Array<{ id: string; name: string; memoryWall: boolean }>;
     grants?: Array<{ clientId: string }>;
     failCounts?: boolean;
-    forecasts?: Array<{ tangoForecastId: string; title: string; agency: string | null }>;
+    forecasts?: ForecastFixture[];
   } = {},
 ) {
   const clients = opts.clients ?? [{ id: 'client-1', name: 'Acme Defense', memoryWall: false }];
@@ -304,7 +356,7 @@ function makeFake(
     tangoProcurementForecast: {
       findMany: jest.fn(async () => {
         queries += 1;
-        return opts.forecasts ?? [{ tangoForecastId: 'FCST-1', title: 'Synthetic Depot Sustainment', agency: 'VA' }];
+        return opts.forecasts ?? [forecastFixture()];
       }),
     },
     clientFundingOpportunity: {
@@ -527,7 +579,7 @@ describe('a failure is reported, never rendered as zero', () => {
           responseDeadlineSnapshot: null,
         }),
       ],
-      forecasts: [{ tangoForecastId: 'FCST-1', title: 'Synthetic Depot Sustainment', agency: 'VA' }],
+      forecasts: [forecastFixture()],
     });
     const res = await service.list(TENANT, USER, {});
     expect(res.rows[0]!.title).toBe('Synthetic Depot Sustainment');
@@ -555,6 +607,89 @@ describe('a failure is reported, never rendered as zero', () => {
     const { service, tx } = makeFake({ rows: [row()] });
     await service.list(TENANT, USER, {});
     expect(tx.tangoProcurementForecast.findMany).not.toHaveBeenCalled();
+  });
+
+  // ── P26: a forecast row can SAY it is a forecast, and carry its own facts ──
+
+  test('a forecast row reports source `agency_forecast`, which the type now permits', async () => {
+    // Before P26 `InboxRow.source` was typed `OpportunitySource` while the
+    // service cast a raw column into it, so a forecast row claimed at the type
+    // level to be grants_gov or sam_gov and a UI switching on it had no legal
+    // value to switch to.
+    const { service } = makeFake({ rows: [FORECAST_ROW] });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.source).toBe('agency_forecast');
+  });
+
+  test('a forecast row carries the source facts a forecast card states', async () => {
+    const { service } = makeFake({ rows: [FORECAST_ROW] });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.forecast).toEqual({
+      // A DATE column, rendered as a date — not an instant that a browser west
+      // of Greenwich would display as the previous day.
+      anticipatedAwardDate: '2027-03-01',
+      // Explicit null: this provider resource states no solicitation date at all.
+      anticipatedSolicitationDate: null,
+      estimatedPeriod: 'Q2 FY27',
+      fiscalYear: 2027,
+      sourceSystem: 'APFS',
+      status: 'Forecasted',
+      isActive: true,
+      lastSyncedAt: '2026-08-06T02:00:00.000Z',
+      providerModifiedAt: null,
+    });
+  });
+
+  test('a grant or SAM row carries NO forecast block at all', async () => {
+    const { service } = makeFake({ rows: [row()] });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.forecast).toBeNull();
+  });
+
+  test('a forecast row whose record is gone gets no fabricated facts block', async () => {
+    // An empty facts object would read as "the agency stated nothing"; null
+    // alongside the "no longer in the catalog" title reads as "we no longer
+    // hold it", which is the true statement.
+    const { service } = makeFake({
+      rows: [{ ...FORECAST_ROW, sourceRecordKey: 'FCST-VANISHED' }],
+      forecasts: [],
+    });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.title).toMatch(/no longer in the catalog/i);
+    expect(res.rows[0]!.forecast).toBeNull();
+  });
+
+  test('`?source=agency_forecast` narrows to the forecast rail and is echoed back', async () => {
+    const { service, rowArgs } = makeFake({ rows: [FORECAST_ROW] });
+    const res = await service.list(TENANT, USER, { source: 'agency_forecast' });
+    expect(rowArgs[0].where.source).toBe('agency_forecast');
+    expect(res.source).toBe('agency_forecast');
+  });
+
+  test('an unknown source is still a 400, and the message now lists three rails', async () => {
+    const { service } = makeFake();
+    await expect(service.list(TENANT, USER, { source: 'dibbs' })).rejects.toThrow(
+      /grants_gov, sam_gov, agency_forecast/,
+    );
+  });
+
+  test('the forecast narrowing applies to the tab counts too, so a badge cannot disagree with its list', async () => {
+    const { service, tx } = makeFake({ rows: [FORECAST_ROW] });
+    await service.list(TENANT, USER, { source: 'agency_forecast' });
+    const calls = (tx.clientFundingOpportunity.count as jest.Mock).mock.calls as Array<[any]>;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [args] of calls) {
+      expect(args.where.source).toBe('agency_forecast');
+    }
+  });
+
+  test('a forecast row still has no deadline of its own — the snapshot column stays null', async () => {
+    // No response deadline is ever fabricated for a forecast: there is nothing
+    // to respond to. The row sorts into the undated tail of a deadline queue.
+    const { service } = makeFake({ rows: [FORECAST_ROW] });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.responseDeadline).toBeNull();
+    expect(res.rows[0]!.daysUntilDeadline).toBeNull();
   });
 
   test('a stale row is flagged rather than hidden', async () => {

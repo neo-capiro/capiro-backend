@@ -6,17 +6,20 @@ import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { FIT_BAND_COLORS, FIT_BAND_LABELS, explainSignals } from './opportunity-explanations.js';
 import { AcquisitionPositionPanel } from './AcquisitionPositionPanel.js';
+import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
 import {
   ELIGIBILITY_LABELS,
+  FORECAST_SOURCE,
   FUNDING_OPPORTUNITIES_FEATURE,
+  FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
   KIND_LABELS,
   SOURCE_LABELS,
   WORKFLOW_LABELS,
   formatDeadline,
   isOpportunitySource,
   moneyLine,
+  type CatalogOpportunityRef,
   type FundingOpportunity,
-  type OpportunityRef,
 } from './funding-opportunities-api.js';
 import './funding-opportunities.css';
 
@@ -93,7 +96,7 @@ function sourceValue(value: string | null | undefined): React.ReactNode {
   return value && value.trim() ? value : <Text type="secondary">Not provided</Text>;
 }
 
-export function FundingOpportunityDetail({ refValue }: { refValue: OpportunityRef }) {
+export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpportunityRef }) {
   const api = useApi();
   const { source, sourceRecordId, clientId } = refValue;
 
@@ -524,11 +527,21 @@ const RECOMMENDATION_COLORS: Record<string, string> = {
  */
 export function FundingOpportunityDetailPage() {
   const { enabled, ready } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
+  /**
+   * The forecast flag, read here rather than inferred from the URL.
+   *
+   * A deep link to `agency_forecast/...` in a workspace without the flag must
+   * render a NAMED not-enabled state, not the forecast body waiting on a route
+   * that will 404 anyway (the API's own forecast guard 404s with the flag off).
+   * Saying so up front is the difference between "this workspace does not have
+   * agency forecasts" and "that forecast does not exist".
+   */
+  const forecasts = useIntelFeature(FUNDING_OPPORTUNITIES_FORECASTS_FEATURE);
   const params = useParams<{ source?: string; sourceRecordId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  if (!ready) return <Skeleton active paragraph={{ rows: 8 }} />;
+  if (!ready || !forecasts.ready) return <Skeleton active paragraph={{ rows: 8 }} />;
   if (!enabled) {
     return (
       <Alert
@@ -542,6 +555,40 @@ export function FundingOpportunityDetailPage() {
 
   const source = params.source ?? '';
   const sourceRecordId = params.sourceRecordId ?? '';
+  const clientId = searchParams.get('clientId');
+
+  const back = (
+    <Button
+      size="small"
+      className="fo-detail__back"
+      onClick={() => navigate('/intelligence/opportunities')}
+    >
+      ← Funding Opportunities
+    </Button>
+  );
+
+  // ── Agency forecasts: a different record type, at the same route shape ──────
+  if (source === FORECAST_SOURCE && sourceRecordId) {
+    if (!forecasts.enabled) {
+      return (
+        <div className="fo-page" data-testid="fo-forecast-not-enabled">
+          <Alert
+            type="info"
+            showIcon
+            message="Agency forecasts are not enabled for this workspace"
+            description="Pre-solicitation agency forecasts are a separate capability from Grants.gov and SAM.gov opportunity matching. This link will work once they are turned on; it says nothing about whether the forecast exists."
+            action={back}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="fo-page">
+        {back}
+        <ForecastOpportunityDetail forecastId={sourceRecordId} clientId={clientId} />
+      </div>
+    );
+  }
 
   // A malformed URL is a NAMED state, not a blank page and not a request. There is
   // no point asking the API about a source rail that does not exist.
@@ -552,7 +599,7 @@ export function FundingOpportunityDetailPage() {
           type="warning"
           showIcon
           message="That is not a valid opportunity link"
-          description={`“${source || 'nothing'}” is not a source Capiro holds. Valid sources are grants_gov and sam_gov.`}
+          description={`“${source || 'nothing'}” is not a source Capiro holds. Valid sources are grants_gov, sam_gov and agency_forecast.`}
           action={
             <Button size="small" onClick={() => navigate('/intelligence/opportunities')}>
               Back to Funding Opportunities
@@ -565,18 +612,12 @@ export function FundingOpportunityDetailPage() {
 
   return (
     <div className="fo-page">
-      <Button
-        size="small"
-        className="fo-detail__back"
-        onClick={() => navigate('/intelligence/opportunities')}
-      >
-        ← Funding Opportunities
-      </Button>
+      {back}
       <FundingOpportunityDetail
         refValue={{
           source,
           sourceRecordId,
-          clientId: searchParams.get('clientId'),
+          clientId,
         }}
       />
     </div>

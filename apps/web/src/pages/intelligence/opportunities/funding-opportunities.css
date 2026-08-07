@@ -166,6 +166,32 @@
   margin-bottom: 6px;
 }
 
+/*
+ * Agency forecasts (P26). A left border rather than a background tint or a
+ * different card colour: the distinction has to survive a dark theme, a
+ * high-contrast mode and a printout, and it has to be visible WITHOUT being the
+ * thing that carries the meaning — the meaning is in the "Agency forecast ·
+ * early signal" label, which is text, not decoration.
+ *
+ * The token falls back to a literal because --ant-gold-6 is only defined when the
+ * app's theme provider is mounted, and this stylesheet is also loaded by the
+ * detail page in isolation.
+ */
+.fo-card--forecast {
+  border-left: 3px solid var(--ant-gold-6, #d48806);
+}
+
+/* The forecast fact strip carries two date fields whose labels are long
+   ("Anticipated solicitation"), so it needs more room per item than the
+   opportunity card's strip before it wraps mid-label. */
+.fo-card--forecast .fo-fact {
+  min-width: 132px;
+}
+
+.fo-detail--forecast .fo-detail__section {
+  width: 100%;
+}
+
 .fo-card__actions {
   display: flex;
   gap: 10px;
