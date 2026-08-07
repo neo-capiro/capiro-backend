@@ -18,6 +18,8 @@
  *   - only an `accepted` binding may produce a position — candidate, conflicting,
  *     and unresolved bindings become omissions and cannot machine-pass;
  *   - an action row never becomes an absolute position;
+ *   - action rows accept delta semantics only; an absolute total on an action row
+ *     is rejected rather than reinterpreted;
  *   - a unit the profile does not declare is rejected rather than inferred;
  *   - a `narrative_only` table produces no money at all, and `totals_only`
  *     forbids deriving a total from a change;
@@ -32,6 +34,7 @@ import {
 } from './budget-line-reference-v1.js';
 import {
   ACTION_ROW_KINDS,
+  DELTA_MONEY_SEMANTICS,
   deriveAbsolutePositionV1,
   rowMoneyV1,
   type CongressionalRowV1,
@@ -191,6 +194,18 @@ export function emitStageRowsV1(input: StageEmitInput): StageEmissionV1 {
       );
       if (actionMoney.length === 0) {
         omit('row_not_interpretable', `action row ${row.semanticKind} carries no amount`);
+        continue;
+      }
+      const invalidSemantics = actionMoney.filter(
+        (money) => !DELTA_MONEY_SEMANTICS.includes(money.semantic),
+      );
+      if (invalidSemantics.length > 0) {
+        omit(
+          'row_not_interpretable',
+          `action row ${row.semanticKind} carries absolute semantic(s): ${invalidSemantics
+            .map((money) => money.semantic)
+            .join(',')}`,
+        );
         continue;
       }
       for (const money of actionMoney) {

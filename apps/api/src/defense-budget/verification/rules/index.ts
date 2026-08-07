@@ -1,4 +1,4 @@
-/** Barrel exports for verification rules (Workstreams E–H + Phase 6 D/G). */
+/** Barrel exports for verification rules (Workstreams E–H + Phase 6 D–L). */
 export type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 export { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from './rule-types.js';
 export {
@@ -23,6 +23,8 @@ export { IDENTITY_RULE } from './identity.rules.js';
 export { FUNDING_FIELD_OWNERSHIP_RULE } from './funding-field-ownership.rules.js';
 export { NUMERIC_RULE } from './numeric.rules.js';
 export { DUPLICATE_RULE } from './duplicate.rules.js';
+export { ENACTMENT_PROOF_RULE } from './enactment-proof.rules.js';
+export { APPROPRIATIONS_CONFERENCE_VEHICLE_RULE } from './appropriations-conference-vehicle.rules.js';
 export {
   RDTE_SUMMARY_DETAIL_RULE,
   PROJECT_ROLLUP_RULE,
@@ -55,6 +57,8 @@ import { IDENTITY_RULE } from './identity.rules.js';
 import { FUNDING_FIELD_OWNERSHIP_RULE } from './funding-field-ownership.rules.js';
 import { NUMERIC_RULE } from './numeric.rules.js';
 import { DUPLICATE_RULE } from './duplicate.rules.js';
+import { ENACTMENT_PROOF_RULE } from './enactment-proof.rules.js';
+import { APPROPRIATIONS_CONFERENCE_VEHICLE_RULE } from './appropriations-conference-vehicle.rules.js';
 import { RDTE_SUMMARY_DETAIL_RULE } from './arithmetic/rdte-summary-detail.rules.js';
 import { PROJECT_ROLLUP_RULE } from './arithmetic/project-rollup.rules.js';
 import { PROCUREMENT_ROLLUP_RULE } from './arithmetic/procurement-rollup.rules.js';
@@ -76,6 +80,8 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   FUNDING_FIELD_OWNERSHIP_RULE,
   NUMERIC_RULE,
   DUPLICATE_RULE,
+  ENACTMENT_PROOF_RULE,
+  APPROPRIATIONS_CONFERENCE_VEHICLE_RULE,
   RDTE_SUMMARY_DETAIL_RULE,
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
@@ -88,12 +94,14 @@ import { CROSS_DOCUMENT_SUMMARY_DETAIL_RULE } from './comparison/comparison.rule
 import { HISTORICAL_CONSISTENCY_RULE } from './comparison/comparison.rules.js';
 import { COMMITTEE_REQUEST_REFERENCE_RULE } from './comparison/committee-request-baseline.rules.js';
 import { NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE } from './comparison/ndaa-conference-chamber.rules.js';
+import { APPROPRIATIONS_CONFERENCE_CHAMBER_REFERENCE_RULE } from './comparison/appropriations-conference-chamber.rules.js';
 
 export const ALL_EXECUTABLE_RULES: readonly VerificationRuleV1[] = [
   ...ALL_VERIFICATION_RULES,
   CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
   COMMITTEE_REQUEST_REFERENCE_RULE,
   NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE,
+  APPROPRIATIONS_CONFERENCE_CHAMBER_REFERENCE_RULE,
   HISTORICAL_CONSISTENCY_RULE,
 ];
 

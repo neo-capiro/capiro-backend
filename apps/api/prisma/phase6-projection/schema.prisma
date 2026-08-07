@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/phase6-projection-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Phase 6 audit/projection-only schema. These tables are explicitly NONCANONICAL.
+// They exist for reproducibility/certification and are never read as product truth.
+model Phase6AuditProjection {
+  id                         String   @id @default(uuid()) @db.Uuid
+  projectionId               String   @unique(map: "phase6_projection_projection_id_key") @map("projection_id")
+  naturalKey                 String   @map("natural_key") @db.Text
+  idempotencyKey             String   @unique(map: "phase6_projection_idempotency_key_key") @map("idempotency_key") @db.Text
+  projectionKind             String   @map("projection_kind") @db.VarChar(40)
+  verificationCandidateId    String   @map("verification_candidate_id") @db.Text
+  verificationRunId          String   @map("verification_run_id") @db.Text
+  artifactId                 String   @map("artifact_id") @db.Text
+  artifactContentSha256      String   @map("artifact_content_sha256") @db.Char(64)
+  sourceDocumentId           String   @map("source_document_id") @db.Text
+  sourcePdfSha256            String   @map("source_pdf_sha256") @db.Char(64)
+  sourceProfileHash          String   @map("source_profile_hash") @db.Char(64)
+  nativeIdentityHash         String   @map("native_identity_hash") @db.Char(64)
+  track                      String   @db.VarChar(32)
+  stage                      String   @db.VarChar(40)
+  fundingField               String?  @map("funding_field") @db.VarChar(40)
+  originalValue              String?  @map("original_value") @db.Text
+  originalUnit               String?  @map("original_unit") @db.VarChar(16)
+  amountMillions             Decimal? @map("amount_millions") @db.Decimal(24, 9)
+  directOrDerived            String   @map("direct_or_derived") @db.VarChar(20)
+  evidenceIds                Json     @map("evidence_ids_jsonb")
+  bindingStatus              String   @map("binding_status") @db.VarChar(24)
+  projectionStatus           String   @map("projection_status") @db.VarChar(24)
+  enactmentProofId           String?  @map("enactment_proof_id") @db.Text
+  supersedesProjectionId     String?  @map("supersedes_projection_id") @db.Text
+  payload                    Json     @map("payload_jsonb")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([verificationRunId], map: "phase6_projection_verification_run_idx")
+  @@index([sourceDocumentId], map: "phase6_projection_source_document_idx")
+  @@index([stage, fundingField], map: "phase6_projection_stage_field_idx")
+  @@map("phase6_audit_projection")
+}
+
+model Phase6CycleCertification {
+  id                 String   @id @default(uuid()) @db.Uuid
+  cycleId            String   @map("cycle_id") @db.Text
+  fiscalYear         Int      @map("fiscal_year")
+  manifestHash       String   @map("manifest_hash") @db.Char(64)
+  contentSha256      String   @unique(map: "phase6_cycle_cert_content_sha_key") @map("content_sha256") @db.Char(64)
+  status             String   @db.VarChar(24)
+  report             Json     @map("report_jsonb")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([cycleId, contentSha256], map: "phase6_cycle_cert_idempotency_key")
+  @@index([fiscalYear, status], map: "phase6_cycle_cert_fy_status_idx")
+  @@map("phase6_cycle_certification")
+}

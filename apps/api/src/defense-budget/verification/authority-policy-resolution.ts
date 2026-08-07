@@ -18,7 +18,16 @@ const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
   Partial<
     Record<
       string,
-      Extract<FundingFieldV1, 'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'ndaaConference'>
+      Extract<
+        FundingFieldV1,
+        | 'hascMark'
+        | 'sascMark'
+        | 'hacDMark'
+        | 'sacDMark'
+        | 'ndaaConference'
+        | 'conference'
+        | 'enacted'
+      >
     >
   >
 > = {
@@ -27,6 +36,8 @@ const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
   hac_d: 'hacDMark',
   sac_d: 'sacDMark',
   ndaa_conference: 'ndaaConference',
+  appropriations_conference: 'conference',
+  public_law: 'enacted',
 };
 
 export class AmbiguousVerificationPolicyError extends Error {
@@ -50,6 +61,26 @@ function phase6AuthorityOverrides(
       requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
       requiredComparisonRules: ['ndaa_conference_chamber_reference'],
       arithmeticRules: ['ndaa_conference_arithmetic'],
+    };
+  }
+  if (authority === 'appropriations_conference') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['conference'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: ['appropriations_conference_chamber_reference'],
+      arithmeticRules: [],
+    };
+  }
+  if (authority === 'public_law') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['enacted'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: [],
+      arithmeticRules: [],
     };
   }
   return {

@@ -27,3 +27,4 @@ export {
   NDAA_CONFERENCE_CHAMBER_REFERENCE_RULE,
   ndaaConferenceComparablesV1,
 } from './ndaa-conference-chamber.rules.js';
+export { APPROPRIATIONS_CONFERENCE_CHAMBER_REFERENCE_RULE } from './appropriations-conference-chamber.rules.js';

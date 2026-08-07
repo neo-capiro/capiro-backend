@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "phase6_golden_cycle_v1",
+  "cycleId": "golden-fy2027-defense",
+  "fiscalYear": 2027,
+  "lineKinds": [
+    { "lineKind": "RDTE_PE", "key": "0605053A" },
+    { "lineKind": "PROCUREMENT_BLIN", "key": "ARMY|2035A|W12002" },
+    { "lineKind": "OM_SAG", "key": "ARMY|2020A|121" },
+    { "lineKind": "MILCON_PROJECT", "key": "AF|PN12345|Eglin AFB" }
+  ],
+  "stages": [
+    { "stage": "hasc", "track": "authorization", "field": "hascMark", "value": "100" },
+    { "stage": "sasc", "track": "authorization", "field": "sascMark", "value": "105" },
+    { "stage": "ndaa_conference", "track": "authorization", "field": "ndaaConference", "value": "103" },
+    { "stage": "hac_d", "track": "appropriations", "field": "hacDMark", "value": "98" },
+    { "stage": "sac_d", "track": "appropriations", "field": "sacDMark", "value": "101" },
+    { "stage": "appropriations_conference", "track": "appropriations", "field": "conference", "value": "100" },
+    { "stage": "public_law", "track": "appropriations", "field": "enacted", "value": "100", "proofId": "proof-golden" },
+    { "stage": "reprogramming", "track": "post_enactment", "field": "reprogrammed", "value": "95", "revisedTotalBasis": "explicit_after" },
+    { "stage": "execution", "track": "post_enactment", "field": "executed", "value": "75", "metric": "obligations", "asOfDate": "2027-12-31", "cumulative": true }
+  ],
+  "actions": [
+    { "type": "increase", "amount": "5" },
+    { "type": "decrease", "amount": "-2" },
+    { "type": "transfer_out", "amount": "-3", "group": "t1" },
+    { "type": "transfer_in", "amount": "3", "group": "t1" },
+    { "type": "rescission", "amount": "-1" },
+    { "type": "undistributed_adjustment", "amount": "-4" },
+    { "type": "general_provision" }
+  ],
+  "vehicles": {
+    "ndaaConference": { "billId": "H.R. 5000", "reportNumber": "H. Rept. 119-500" },
+    "appropriationsConference": { "billId": "H.R. 5001", "reportNumber": "H. Rept. 119-800", "structure": "standalone" },
+    "publicLaw": { "publicLawNumber": "P.L. 119-99", "enactmentDate": "2027-09-30" }
+  }
+}
