@@ -63,7 +63,12 @@
     "scripts/diag-tango-health.spec.ts",
     // P19: reviewed-UEI entity shadow sync.
     "scripts/sync-tango-entities.ts",
-    "scripts/sync-tango-entities.spec.ts"
+    "scripts/sync-tango-entities.spec.ts",
+    // P20: client profile enrichment review workflow.
+    "scripts/generate-tango-enrichment-candidates.ts",
+    "scripts/generate-tango-enrichment-candidates.spec.ts",
+    "scripts/review-tango-enrichment-candidate.ts",
+    "scripts/review-tango-enrichment-candidate.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

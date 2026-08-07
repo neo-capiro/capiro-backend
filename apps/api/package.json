@@ -56,6 +56,8 @@
     "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",
     "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",
     "sync:tango-entities": "tsx scripts/sync-tango-entities.ts",
+    "generate:tango-enrichment-candidates": "tsx scripts/generate-tango-enrichment-candidates.ts",
+    "review:tango-enrichment-candidate": "tsx scripts/review-tango-enrichment-candidate.ts",
     "sync:sam-opportunities-all-federal": "tsx scripts/sync-sam-opportunities.ts --all-federal",
     "match:pe-person": "tsx scripts/match-pe-person.ts",
     "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",

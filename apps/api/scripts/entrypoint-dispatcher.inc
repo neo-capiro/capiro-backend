@@ -532,6 +532,14 @@ case "${1:-serve}" in
   # default; a dispatched task passes --commit. Resumable via
   # tango_sync_checkpoint. Optional --limit=<n>.
   sync-tango-entities) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-entities.ts "$@" ;;
+  # Funding Opportunities P20: propose client profile enrichment candidates by
+  # comparing each UEI-having client against its P19 Tango snapshot. Never
+  # writes to clients — only to client_profile_enrichment_candidate.
+  generate-tango-enrichment-candidates) shift; exec ./node_modules/.bin/tsx scripts/generate-tango-enrichment-candidates.ts "$@" ;;
+  # Funding Opportunities P20: review EXACTLY ONE enrichment candidate
+  # (--list | --candidate=<id> --accept|--reject --reviewed-by=<userId>
+  # [--reason=...]). No bulk flag exists anywhere in this verb, by design.
+  review-tango-enrichment-candidate) shift; exec ./node_modules/.bin/tsx scripts/review-tango-enrichment-candidate.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

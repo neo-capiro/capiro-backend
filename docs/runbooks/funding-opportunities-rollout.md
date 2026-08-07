@@ -295,6 +295,45 @@ SDK-vs-server incompatibility (`entity_structure`/`state_of_incorporation`,
 now permanently excluded from the request) so a future finding isn't
 mistaken for a repeat of that one.
 
+### Client profile enrichment review workflow (P20) — a migration, and an interim CLI
+
+`prisma/migrations/20260823010000_client_profile_enrichment_candidates` adds
+a NEW tenant-scoped, RLS-enabled table. Apply it in the normal migration
+step (§4/§86 below) — additive, no existing table touched.
+
+`scripts/generate-tango-enrichment-candidates.ts` is declared `enabled:
+false` in `ingestion-schedule.ts` (id `GenerateTangoEnrichmentCandidates`)
+pending canary. It never writes to `clients` — only to
+`client_profile_enrichment_candidate` — so enabling it is lower-risk than
+most jobs in that file; it is still off by default, same posture as
+everything else there.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the generator has run.
+SELECT status, field, count(*) FROM client_profile_enrichment_candidate GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+Reviewing a candidate is a deliberate, one-at-a-time CLI action — there is
+no bulk/all flag anywhere in `review-tango-enrichment-candidate.ts`, by
+design (this phase's own acceptance bar: no accept-all, especially for
+certifications):
+
+```bash
+cd apps/api
+# See what's pending for one client (or the whole tenant if --client is omitted).
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --list --tenant=<uuid> --status=pending
+
+# Accept or reject EXACTLY ONE candidate. --reason is required when rejecting.
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --tenant=<uuid> --candidate=<uuid> --accept --reviewed-by=<userId>
+pnpm exec tsx scripts/review-tango-enrichment-candidate.ts --tenant=<uuid> --candidate=<uuid> --reject --reviewed-by=<userId> --reason="not accurate for this client"
+```
+
+Accepting applies the proposed value to the client's own field immediately;
+rejecting never touches `clients` at all, and — per this phase's own
+durability guarantee — the SAME rejected suggestion will not reappear the
+next time `generate-tango-enrichment-candidates` runs, even if Tango's data
+is re-observed unchanged.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

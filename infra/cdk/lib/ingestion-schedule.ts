@@ -556,6 +556,22 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: reviewed-UEI entity shadow sync into tango_resource_snapshot (daily 12:05 UTC)',
     enabled: false,
   },
+  // Funding Opportunities P20: proposes durable review candidates by diffing
+  // each UEI-having client against its P19 snapshot. Never writes to
+  // `clients` — only to `client_profile_enrichment_candidate` — so this is
+  // safe to enable independently of the review workflow's own rollout;
+  // still declared disabled for now, same posture as every other job here.
+  // Scheduled 20 minutes after SyncTangoEntities so same-day snapshot
+  // changes are reflected the same day, not a full cycle behind.
+  {
+    id: 'GenerateTangoEnrichmentCandidates',
+    command: ['generate-tango-enrichment-candidates'],
+    cron: { minute: '25', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: propose client profile enrichment candidates from Tango snapshots (daily 12:25 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

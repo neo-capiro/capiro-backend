@@ -3,6 +3,7 @@ import { FundingOpportunitiesController } from './funding-opportunities.controll
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
+import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
@@ -27,6 +28,12 @@ import {
  * an unrelated bootstrap cycle appears. (District Nexus needed
  * RepresentationModule and its docblock records why importing the owning module
  * directly is the only thing that works; nothing here needs that dependency.)
+ *
+ * `ClientProfileEnrichmentService` (P20) is the one exception to "no imports":
+ * it depends on `TangoStoreService`, resolved via `TangoModule`'s `@Global()`
+ * registration (P14) the same way every provider here already resolves
+ * `PrismaService` via the global `PrismaModule` — no explicit import needed,
+ * and for the same reason.
  */
 @Module({
   controllers: [FundingOpportunitiesController],
@@ -39,9 +46,10 @@ import {
     // its own transaction and the whole point of P08 is one transaction.
     FundingOpportunityActionsService,
     FundingOpportunityInboxService,
+    ClientProfileEnrichmentService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
   ],
-  exports: [FundingOpportunitiesService],
+  exports: [FundingOpportunitiesService, ClientProfileEnrichmentService],
 })
 export class FundingOpportunitiesModule {}

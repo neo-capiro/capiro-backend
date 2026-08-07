@@ -966,3 +966,107 @@ specific gateway method end-to-end (`getEntity`, through `getVersion`-only
 in P17's probe). Where both are true at once, run the real pipeline against
 a real, disposable database before calling the phase done — a passing unit
 suite proves the LOGIC; it does not prove the REQUEST.
+
+---
+
+## D-37 · 2026-08-07 · A new tenant-scoped table, not a stretch of an existing one
+
+P20 needs to relate a proposed profile CHANGE to a client. Two existing
+tables were considered and rejected on inspection, not just on vibes:
+
+- `tango_resource_link` (P15) is reserved for linking a Tango resource into
+  Capiro's own GLOBAL reference tables — `assertKnownLocalType` explicitly
+  refuses a tenant-owned local type, and `clients` carries `tenant_id`.
+- `client_intel_mapping` (P05) answers "is this external entity the SAME
+  LEGAL ENTITY as this client" — a different question from "should this
+  FIELD on the client's own profile change to this value". Reusing it would
+  mean overloading `externalId`/`externalName`/`matchBasis` — a mapping's
+  own vocabulary — to mean something else entirely for a different kind of
+  row, which is exactly the kind of stretch that reads fine today and
+  confuses the next person who has to reason about what a row in that table
+  can mean.
+
+So: a new table, `client_profile_enrichment_candidate`, TENANT-scoped
+(unlike every Tango-owned table before it) with its own RLS, its own
+vocabulary (`field` is the CLIENT model's own field name, verbatim), and
+its own durability rule — modeled on, but not sharing storage with, the
+propose/review pattern P15 and P05 both already established.
+
+**What this forbids:** reusing `tango_resource_link` for anything that
+would need to name a tenant-owned row as its "local" side. If a future
+Tango-sourced fact needs to attach to a tenant-owned record, it gets its own
+table (as here) or its own columns on that record (as P19's sync-status
+columns), never a bent read of the global link table's own local-type CHECK.
+
+---
+
+## D-38 · 2026-08-07 · Certifications: a curated exact-match vocabulary, not a classifier
+
+A false certification claim (HUBZONE, 8(a), SDVOSB, WOSB, EDWOSB, VOSB) has
+real compliance consequences — this is exactly why the phase's own
+acceptance bar singles out "no accept-all for certifications" specifically,
+not just as one example among equally-risky fields.
+
+`TANGO_BUSINESS_TYPE_TO_CERTIFICATION` is therefore a short, hand-reviewed,
+case-insensitive EXACT-match table from Tango business-type description
+strings to Capiro's six-value durable certification vocabulary
+(`set-aside.ts`). A Tango business type that does not exactly match an entry
+is never proposed — not fuzzy-matched, not substring-matched, not inferred
+from a partial phrase. Same "UEI-first, never fuzzy" discipline this program
+already applies to identity matching (P02), now applied to certification
+TEXT.
+
+Writing the curated table surfaced a real, easy-to-get-wrong distinction in
+federal-contracting terminology: SAM.gov's plain WOSB designation is
+singular ("**Woman** Owned Small Business"), while the EDWOSB program's
+official name is plural ("**Women**-Owned Small Business"). A first draft of
+the map used the plural form for both, which would have silently failed to
+match the far more common plain-WOSB phrasing. Caught by a test asserting a
+concrete, realistic business-type string maps correctly — not by inspection
+of the map alone. Both singular and plural are now curated for plain WOSB
+specifically, since this program has not yet observed a real Tango response
+to confirm which phrasing this specific provider actually uses.
+
+Also load-bearing: an EXISTING certification is never proposed for REMOVAL
+just because a Tango snapshot's `businessTypes` doesn't mention it.
+Absence of evidence is not evidence of absence — Tango not listing a
+certification is not proof the client lacks it, and this service only ever
+proposes ADDITIONS, never removals, for every array field it manages (NAICS
+and PSC codes included).
+
+**What this forbids:** widening the certification matcher to substring or
+fuzzy matching, ever, regardless of how tempting a "close enough" partial
+match looks when a real Tango response uses slightly different punctuation
+or wording than the curated list. Add the new exact phrase to the curated
+map instead — deliberately, reviewed, one entry at a time.
+
+---
+
+## D-39 · 2026-08-07 · Migration rehearsal PLUS a real (non-fake) service run, against real RLS
+
+Same composed discipline D-36 established for P19, extended one step
+further: after the usual clean replay / ordered upgrade / retry-as-no-op,
+every CHECK constraint, the unique durability index, and both foreign keys
+were proven by ACTUAL INSERT against the rehearsal database (8 cases: an
+invalid `field`, a pending row wrongly carrying a reviewer, an accepted row
+missing one, a valid pending row, a valid accepted row, a true duplicate
+proposal refused, a same-hash-different-field row correctly accepted, and a
+bogus client id refused by the FK) — not just read back out of the SQL file.
+
+Then, uniquely for this phase: the REAL `ClientProfileEnrichmentService`
+(not a fake double) was run directly against that same RLS-enabled,
+FORCE-enabled database — propose, list, accept one candidate, reject
+another, re-propose to prove durability, and a final read of the client row
+confirming the accepted field changed and the rejected one did not. This
+matters specifically because P20 is the first phase whose OWN correctness
+depends on `PrismaService.withTenant`'s real tenant-scoping query-extension
+actually working — every fake-double unit test necessarily bypasses that
+mechanism entirely (the fake `withTenant` is `(id, fn) => fn(tx)`, no
+scoping at all), so it is the one thing the unit suite structurally cannot
+prove about this service.
+
+**What this forbids:** treating `withTenant`/`withSystem` fakes in a unit
+suite as proof that tenant isolation holds for a NEW service using them for
+the first time. A fake that unconditionally calls through proves the
+business logic; it actively cannot prove the isolation, because the fake's
+whole job is to skip the part that would.
