@@ -33,6 +33,7 @@ const steps = [
       'src/lib/engagement-api-preview.spec.ts',
       'src/lib/engagement-preview-errors.spec.ts',
       'src/lib/engagement-preview-cache.spec.ts',
+      'src/lib/engagement-preview-resilience.spec.ts',
       'src/lib/api-client.test.ts',
       'src/pages/engagement/EngagementApiPreviewIndicator.test.tsx',
       'src/pages/engagement/EngagementPreviewBoundary.test.tsx',
