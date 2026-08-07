@@ -856,6 +856,55 @@ under a new hash (P29's key *is* the hash), the old text row stops covering it,
 and the uncovered-attachment query correctly picks it up again — which is how a
 stale extraction gets replaced rather than silently kept.
 
+### Deterministic action plan (P34) — no migration, NO new flag, and the landscape flag now gates two surfaces
+
+**Nothing to apply.** P34 adds no table, no column and no flag. The plan is
+composed from rows P22, P24, P31 and P33 already write, and the accept path is
+P08's existing `POST clients/:clientId/opportunities/:source/:id/action`.
+
+**The operationally important part: the blast radius of one existing flag grew.**
+`funding_opportunities_government_landscape` gated one read-only panel at P33. It
+now also gates `GET opportunities/:source/:id/action-plan` AND the Accept button
+that panel renders. Turning that flag on for a tenant therefore enables a surface
+that can WRITE — a task plus a workflow decision — where before it only read.
+
+One flag for both is deliberate: an action plan without the landscape it derives
+its evidence from is a list of steps nobody can check, so the two are not
+independently useful and two flags would mean a way to configure exactly that.
+But it does mean a tenant enabled at P33 gains the write path on the deploy that
+carries P34, with no second decision. Check who has it before deploying:
+
+```sql
+-- READ-ONLY. Expect 0 rows unless somebody enabled the landscape at P33.
+SELECT tenant_id, enabled, updated_at
+  FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_government_landscape';
+```
+
+If a row exists and you are not ready for the write path, set it to `false`
+BEFORE the deploy rather than after.
+
+**Nothing is written by opening the page.** The plan route is a GET that composes
+and returns; it holds no transaction and creates no row. A task exists only after
+a human presses Accept, and that press goes through P08 — same idempotency key,
+same pursuit guard, same single transaction. A closed notice is refused there
+exactly as it is on the save path, and the plan does not propose pursuing one in
+the first place.
+
+**Accepting twice does not make two tasks.** P08's key is
+`<source>:<sourceRecordId>:<intent>`, so two `review` actions accepted from one
+plan land on ONE task and the second returns it with `reused: true`. This is P08
+working as designed, and the panel says so on screen. If an operator reports
+"three actions, one task", that is the expected behaviour, not a defect.
+
+**Forecasts are read-only here.** P08's route is bounded to `sam_gov` and
+`grants_gov`, so a forecast plan renders its proposals with no Accept control and
+an explanation. Do not widen `SourceParamDto` to fix this — the workflow row has
+no place to put a forecast, and admitting one would let a forecast id reach
+handlers that assume a notice.
+
+---
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

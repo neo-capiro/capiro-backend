@@ -42,6 +42,16 @@ function makeService(over: Partial<LandscapePort> = {}) {
       { id: 'fac-1', name: 'Jacksonville Depot', state: 'FL', congressionalDistrict: '04' },
     ],
     readNoticePlace: async () => ({ state: 'FL' }),
+    // P34's reads. Defaults describe an open solicitation with no requirements
+    // extracted and no vehicle position — the state a freshly-synced notice is
+    // actually in, so a test that wants the comfortable case has to say so.
+    readPlanLifecycle: async () => ({
+      kind: 'solicitation',
+      isActive: true,
+      responseDeadline: new Date('2026-10-01T17:00:00.000Z'),
+    }),
+    readRequirementCount: async () => 0,
+    readClientVehiclePositions: async () => 0,
   };
   const merged = { ...base, ...over };
   // Counted in the WRAPPER, not in the default implementation: an override
@@ -61,6 +71,9 @@ function makeService(over: Partial<LandscapePort> = {}) {
       calls.place += 1;
       return merged.readNoticePlace(...args);
     },
+    readPlanLifecycle: merged.readPlanLifecycle,
+    readRequirementCount: merged.readRequirementCount,
+    readClientVehiclePositions: merged.readClientVehiclePositions,
   };
   return { service: new GovernmentLandscapeService({} as never).withPort(port), calls };
 }
@@ -356,14 +369,20 @@ describe('one query per source, and no model anywhere', () => {
 
   test('the only clock is the caller’s asOf parameter', () => {
     // A packet whose hash moved must mean a fact moved, so no clock may appear
-    // in the composition. The one permitted `new Date()` is the DEFAULT VALUE of
-    // the `asOf` parameter itself, which is the caller's clock by another name.
-    // Prose stripped first: the file's own doc explains the exception, and a
-    // raw count would score the explanation as a violation.
+    // in the composition. The only permitted `new Date()` is the DEFAULT VALUE
+    // of an `asOf` parameter, which is the caller's clock by another name.
+    //
+    // Counted as an EQUALITY rather than against a fixed number: P34 added a
+    // second entry point with its own `asOf` default, and a hard-coded count
+    // would have to be bumped for each one — turning a real invariant into a
+    // number somebody edits until the test passes.
+    //
+    // Prose stripped first: the file's own doc explains the exception, and a raw
+    // count would score the explanation as a violation.
     const code = source.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
     const clocks = code.match(/new Date\(\)/g) ?? [];
     const defaults = code.match(/asOf: Date = new Date\(\)/g) ?? [];
-    expect(clocks.length).toBe(1);
-    expect(defaults.length).toBe(1);
+    expect(defaults.length).toBeGreaterThan(0);
+    expect(clocks.length).toBe(defaults.length);
   });
 });

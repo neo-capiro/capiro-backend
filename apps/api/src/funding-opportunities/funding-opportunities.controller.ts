@@ -344,6 +344,19 @@ class SourceParamDto {
 }
 
 /**
+ * The wider vocabulary, for routes that also serve agency forecasts (P26/P34).
+ *
+ * Separate from {@link SourceParamDto} rather than a widening of it: every
+ * existing route that takes a source writes to or reads a catalog row keyed on
+ * one of the two OPPORTUNITY_SOURCES, and quietly admitting `agency_forecast`
+ * there would let a forecast id reach a handler that assumes a notice.
+ */
+class InboxSourceParamDto {
+  @IsIn(INBOX_SOURCES)
+  source!: InboxSource;
+}
+
+/**
  * Funding Opportunities.
  *
  * ── Roles ────────────────────────────────────────────────────────────────────
@@ -517,6 +530,34 @@ export class FundingOpportunitiesController {
     @Query('clientId') clientId: string,
   ) {
     return this.landscape.compose(ctx.tenantId, ctx.userId, clientId, params.source, id);
+  }
+
+  /**
+   * The deterministic action plan for one client-opportunity pair (P34).
+   *
+   * PROPOSALS ONLY. This route writes nothing; accepting an action is a separate
+   * POST to the P08 idempotent server action below, which is the only path that
+   * creates a task. A GET that created tasks would create them every time a
+   * detail page was opened.
+   *
+   * Behind the SAME flag as the landscape, because a plan without the evidence
+   * it is derived from is a list of steps nobody can check.
+   */
+  @Get('opportunities/:source/:id/action-plan')
+  @UseGuards(FundingOpportunitiesLandscapeFlagGuard)
+  actionPlanFor(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: InboxSourceParamDto,
+    @Param('id') id: string,
+    @Query('clientId') clientId: string,
+  ) {
+    return this.landscape.composeActionPlan(
+      ctx.tenantId,
+      ctx.userId,
+      clientId,
+      params.source,
+      id,
+    );
   }
 
   @Get('opportunities/:source/:id')
