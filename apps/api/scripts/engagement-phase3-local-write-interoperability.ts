@@ -2,16 +2,14 @@
 /**
  * Phase 3 safe database-local write interoperability proof.
  *
- * Exercises the user-visible safe-write classes the Phase 3 plan permits while
- * preview external actions remain denied: meeting create/edit, task
- * create/edit, prep edit/approve, note/debrief create/edit/approve, Outreach v2
- * draft persistence, and report target/status overrides. Every entity is
- * written through one runtime and read/continued through the other against the
- * same row, then all created rows are deleted and the one edited fixture is
- * restored before containment testing begins.
+ * Exercises every approved product write class while preview external actions
+ * remain denied. Each entity is written through one runtime and read/continued
+ * through the other against the same row. Created rows are removed and the one
+ * edited fixture is restored before resilience/security/containment run.
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { MeetingPrepStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 interface FixtureIndex {
@@ -20,6 +18,11 @@ interface FixtureIndex {
 }
 
 type JsonObject = Record<string, unknown>;
+type PrepSnapshot = {
+  summary: string | null;
+  agenda: Prisma.JsonValue;
+  status: MeetingPrepStatus;
+};
 
 const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
 const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');
@@ -49,8 +52,11 @@ function object(value: unknown, label: string): JsonObject {
 
 function idOf(value: unknown, label: string): string {
   const row = object(value, label);
-  if (typeof row.id !== 'string' || !row.id) throw new Error(`${label} did not return an id`);
-  return row.id;
+  const candidate = typeof row.id === 'string' ? row.id : row.targetId;
+  if (typeof candidate !== 'string' || !candidate) {
+    throw new Error(`${label} did not return an id`);
+  }
+  return candidate;
 }
 
 function rows(value: unknown): JsonObject[] {
@@ -81,7 +87,7 @@ async function jsonRequest(
   try {
     body = text ? JSON.parse(text) : null;
   } catch {
-    // retain text for the diagnostic below
+    // Retain text for the diagnostic below.
   }
   if (preview && response.headers.get('x-capiro-service') !== 'engagement-api') {
     throw new Error(`${init.method ?? 'GET'} ${relative}: preview service identity missing`);
@@ -106,6 +112,7 @@ async function main(): Promise<void> {
   const clientId = fixtureId(fixtures, 'client.alpha');
   const existingMeetingId = fixtureId(fixtures, 'meeting.past');
   const prepId = fixtureId(fixtures, 'prep.generated.2');
+  const prepMeetingId = fixtureId(fixtures, 'meeting.upcomingWithClient');
   const anchor = new Date(fixtures.anchor);
   if (Number.isNaN(anchor.getTime())) throw new Error('Phase 3 fixture anchor is invalid');
 
@@ -119,17 +126,11 @@ async function main(): Promise<void> {
     outreachId: '',
     reportTargetId: '',
   };
-  let prepBefore:
-    | {
-        summary: string | null;
-        agenda: string[];
-        status: 'generated' | 'edited' | 'approved' | 'stale' | 'failed';
-      }
-    | null = null;
+  let prepBefore: PrepSnapshot | null = null;
   let cleanupComplete = false;
   const evidence: Array<Record<string, unknown>> = [];
 
-  const cleanup = async () => {
+  const cleanup = async (): Promise<void> => {
     await prisma.withSystem(async (tx) => {
       if (created.reportTargetId) {
         await tx.engagementReportTargetOffice.deleteMany({ where: { id: created.reportTargetId } });
@@ -148,7 +149,7 @@ async function main(): Promise<void> {
           where: { id: prepId },
           data: {
             summary: prepBefore.summary,
-            agenda: prepBefore.agenda,
+            agenda: prepBefore.agenda as Prisma.InputJsonValue,
             status: prepBefore.status,
           },
         });
@@ -158,7 +159,7 @@ async function main(): Promise<void> {
   };
 
   try {
-    // ── Meeting: create through preview, edit through main, read through preview.
+    // Meeting: create via preview, edit via main, read via preview.
     const startsAt = new Date(anchor.getTime() + 20 * 24 * 60 * 60 * 1000);
     const endsAt = new Date(startsAt.getTime() + 45 * 60 * 1000);
     const meetingSubject = `${MARKER} safe meeting interoperability`;
@@ -213,7 +214,7 @@ async function main(): Promise<void> {
     }
     evidence.push({ entity: 'meeting', createOwner: 'preview', updateOwner: 'main' });
 
-    // ── Task: create through main, edit through preview, read through main.
+    // Task: create via main, edit via preview, read via main.
     const taskTitle = `${MARKER} safe task interoperability`;
     const taskUpdatedTitle = `${taskTitle} — updated through preview`;
     created.taskId = idOf(
@@ -232,21 +233,25 @@ async function main(): Promise<void> {
       PROXY_URL,
       `/api/engagement/tasks/${created.taskId}`,
       token,
-      { method: 'PATCH', body: JSON.stringify({ title: taskUpdatedTitle, status: 'in_progress' }) },
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ title: taskUpdatedTitle, status: 'in_progress' }),
+      },
       true,
     );
-    const taskMainList = await jsonRequest(
-      MAIN_URL,
-      `/api/engagement/tasks?clientId=${encodeURIComponent(clientId)}`,
-      token,
-    );
-    const taskMain = rows(taskMainList).find((row) => row.id === created.taskId);
+    const taskMain = rows(
+      await jsonRequest(
+        MAIN_URL,
+        `/api/engagement/tasks?clientId=${encodeURIComponent(clientId)}`,
+        token,
+      ),
+    ).find((row) => row.id === created.taskId);
     if (!taskMain || taskMain.title !== taskUpdatedTitle || taskMain.status !== 'in_progress') {
       throw new Error('Task updated through preview was not readable through main');
     }
     evidence.push({ entity: 'engagement_task', createOwner: 'main', updateOwner: 'preview' });
 
-    // ── Prep: edit through preview, approve through main, read through preview.
+    // Prep: edit via preview, approve via main, read via preview, then restore.
     prepBefore = await prisma.withSystem((tx) =>
       tx.meetingPrep.findUnique({
         where: { id: prepId },
@@ -268,8 +273,7 @@ async function main(): Promise<void> {
     await jsonRequest(MAIN_URL, `/api/engagement/meeting-preps/${prepId}/approve`, token, {
       method: 'POST',
     });
-    const prepMeetingId = fixtureId(fixtures, 'meeting.upcomingWithClient');
-    const prepPreviewMeeting = object(
+    const prepMeeting = object(
       await jsonRequest(
         PROXY_URL,
         `/api/engagement/meetings/${prepMeetingId}`,
@@ -279,16 +283,15 @@ async function main(): Promise<void> {
       ),
       'preview meeting read for prep',
     );
-    const prepRows = Array.isArray(prepPreviewMeeting.preps)
-      ? (prepPreviewMeeting.preps as JsonObject[])
-      : [];
-    const prepRow = prepRows.find((row) => row.id === prepId);
+    const prepRow = (Array.isArray(prepMeeting.preps) ? prepMeeting.preps : []).find(
+      (row: unknown) => object(row, 'prep row').id === prepId,
+    ) as JsonObject | undefined;
     if (!prepRow || prepRow.summary !== prepSummary || prepRow.status !== 'approved') {
       throw new Error('Prep edit/approval was not shared across runtimes');
     }
     evidence.push({ entity: 'meeting_prep', editOwner: 'preview', approveOwner: 'main' });
 
-    // ── Note: create through preview, edit through main, approve through preview.
+    // Note: create via preview, edit via main, approve via preview, read via main.
     const noteBody = `${MARKER} note created through preview`;
     const noteUpdatedBody = `${noteBody} — edited through main`;
     created.noteId = idOf(
@@ -328,18 +331,24 @@ async function main(): Promise<void> {
       { method: 'POST' },
       true,
     );
-    const noteMainList = await jsonRequest(
-      MAIN_URL,
-      `/api/engagement/meetings/${existingMeetingId}/notes`,
-      token,
-    );
-    const noteMain = rows(noteMainList).find((row) => row.id === created.noteId);
+    const noteMain = rows(
+      await jsonRequest(
+        MAIN_URL,
+        `/api/engagement/meetings/${existingMeetingId}/notes`,
+        token,
+      ),
+    ).find((row) => row.id === created.noteId);
     if (!noteMain || noteMain.body !== noteUpdatedBody || noteMain.status !== 'approved') {
       throw new Error('Note create/edit/approval was not shared across runtimes');
     }
-    evidence.push({ entity: 'meeting_note', createOwner: 'preview', editOwner: 'main', approveOwner: 'preview' });
+    evidence.push({
+      entity: 'meeting_note',
+      createOwner: 'preview',
+      editOwner: 'main',
+      approveOwner: 'preview',
+    });
 
-    // ── Debrief: create through main, edit through preview, approve through main.
+    // Debrief: create via main, edit via preview, approve via main, read via preview.
     const debriefBody = `${MARKER} debrief created through main`;
     const debriefUpdatedBody = `${debriefBody} — edited through preview`;
     created.debriefId = idOf(
@@ -378,14 +387,15 @@ async function main(): Promise<void> {
       token,
       { method: 'POST' },
     );
-    const debriefPreviewList = await jsonRequest(
-      PROXY_URL,
-      `/api/engagement/meetings/${existingMeetingId}/debriefs`,
-      token,
-      {},
-      true,
-    );
-    const debriefPreview = rows(debriefPreviewList).find((row) => row.id === created.debriefId);
+    const debriefPreview = rows(
+      await jsonRequest(
+        PROXY_URL,
+        `/api/engagement/meetings/${existingMeetingId}/debriefs`,
+        token,
+        {},
+        true,
+      ),
+    ).find((row) => row.id === created.debriefId);
     if (
       !debriefPreview ||
       debriefPreview.body !== debriefUpdatedBody ||
@@ -393,9 +403,14 @@ async function main(): Promise<void> {
     ) {
       throw new Error('Debrief create/edit/approval was not shared across runtimes');
     }
-    evidence.push({ entity: 'meeting_debrief', createOwner: 'main', editOwner: 'preview', approveOwner: 'main' });
+    evidence.push({
+      entity: 'meeting_debrief',
+      createOwner: 'main',
+      editOwner: 'preview',
+      approveOwner: 'main',
+    });
 
-    // ── Outreach v2 draft: create through preview, continue through main, read through preview.
+    // Outreach v2 draft: create via preview, continue via main, read via preview.
     const outreachTitle = `${MARKER} safe Outreach v2 draft`;
     const outreachUpdatedTitle = `${outreachTitle} — continued through main`;
     created.outreachId = idOf(
@@ -457,39 +472,37 @@ async function main(): Promise<void> {
     }
     evidence.push({ entity: 'outreach_record', createOwner: 'preview', updateOwner: 'main' });
 
-    // ── Reports: create target through preview, override status through main, read through preview.
+    // Reports: create target via preview, override statuses via main, read via preview.
     const memberPrincipal = `${MARKER} Safe Target Office`;
-    const createdTarget = object(
-      await jsonRequest(
-        PROXY_URL,
-        '/api/engagement/reports/target-offices',
-        token,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            clientId,
-            memberPrincipal,
-            committee: 'PHASE3',
-            staffer: 'Safe Staffer',
-            building: 'Local',
-            leadOwner: 'Phase 3',
-          }),
-        },
-        true,
-      ),
-      'preview report target create',
+    const createdTarget = await jsonRequest(
+      PROXY_URL,
+      '/api/engagement/reports/target-offices',
+      token,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          clientId,
+          memberPrincipal,
+          committee: 'PHASE3',
+          staffer: 'Safe Staffer',
+          building: 'Local',
+          leadOwner: 'Phase 3',
+        }),
+      },
+      true,
     );
-    created.reportTargetId =
-      typeof createdTarget.id === 'string'
-        ? createdTarget.id
-        : await prisma.withSystem(async (tx) => {
-            const row = await tx.engagementReportTargetOffice.findFirst({
-              where: { memberPrincipal, clientId },
-              select: { id: true },
-            });
-            if (!row) throw new Error('Created report target could not be resolved');
-            return row.id;
-          });
+    try {
+      created.reportTargetId = idOf(createdTarget, 'preview report target create');
+    } catch {
+      created.reportTargetId = await prisma.withSystem(async (tx) => {
+        const row = await tx.engagementReportTargetOffice.findFirst({
+          where: { memberPrincipal, clientId },
+          select: { id: true },
+        });
+        if (!row) throw new Error('Created report target could not be resolved');
+        return row.id;
+      });
+    }
     const targetRow = await prisma.withSystem((tx) =>
       tx.engagementReportTargetOffice.findUnique({
         where: { id: created.reportTargetId },
@@ -518,7 +531,7 @@ async function main(): Promise<void> {
         }),
       },
     );
-    const reportPreview = object(
+    const reportRows = rows(
       await jsonRequest(
         PROXY_URL,
         `/api/engagement/reports/overview?period=all&clientId=${encodeURIComponent(clientId)}`,
@@ -526,9 +539,7 @@ async function main(): Promise<void> {
         {},
         true,
       ),
-      'preview report read',
     );
-    const reportRows = Array.isArray(reportPreview.rows) ? (reportPreview.rows as JsonObject[]) : [];
     const reportRow = reportRows.find((row) => row.memberPrincipal === memberPrincipal);
     if (
       !reportRow ||
@@ -538,9 +549,12 @@ async function main(): Promise<void> {
     ) {
       throw new Error('Report target/status override was not shared across runtimes');
     }
-    evidence.push({ entity: 'engagement_report_target_office', createOwner: 'preview', updateOwner: 'main' });
+    evidence.push({
+      entity: 'engagement_report_target_office',
+      createOwner: 'preview',
+      updateOwner: 'main',
+    });
 
-    // Shared-row uniqueness before cleanup: one physical row per created id.
     const sharedCounts = await prisma.withSystem(async (tx) => ({
       meetings: await tx.meeting.count({ where: { id: created.meetingId } }),
       tasks: await tx.engagementTask.count({ where: { id: created.taskId } }),
@@ -556,7 +570,7 @@ async function main(): Promise<void> {
     }
 
     await cleanup();
-    const residual = await prisma.withSystem(async (tx) => ({
+    const cleanupResidual = await prisma.withSystem(async (tx) => ({
       meetings: await tx.meeting.count({ where: { id: created.meetingId } }),
       tasks: await tx.engagementTask.count({ where: { id: created.taskId } }),
       notes: await tx.meetingNote.count({ where: { id: created.noteId } }),
@@ -566,8 +580,10 @@ async function main(): Promise<void> {
         where: { id: created.reportTargetId },
       }),
     }));
-    if (Object.values(residual).some((count) => count !== 0)) {
-      throw new Error(`Safe-write cleanup left residual rows: ${JSON.stringify(residual)}`);
+    if (Object.values(cleanupResidual).some((count) => count !== 0)) {
+      throw new Error(
+        `Safe-write cleanup left residual rows: ${JSON.stringify(cleanupResidual)}`,
+      );
     }
 
     await writeFile(
@@ -578,7 +594,7 @@ async function main(): Promise<void> {
           entities: evidence,
           entityClasses: evidence.length,
           sharedCounts,
-          cleanupResidual: residual,
+          cleanupResidual,
           prepFixtureRestored: true,
           dualWrite: false,
         },
