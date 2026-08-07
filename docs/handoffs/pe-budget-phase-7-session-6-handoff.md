@@ -484,6 +484,3 @@ Open a successor PR to #784, which is merged.
 Report exact commands, exit codes, and test counts. A workstream is done when it
 is demonstrated, not when the files exist — and M in particular is easy to
 over-claim, because its foundation is complete and its purpose is not yet served.
-
-Report exact commands, exit codes, and test counts. A workstream is done when it
-is demonstrated, not when the files exist.
