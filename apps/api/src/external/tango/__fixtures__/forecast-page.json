@@ -1,0 +1,51 @@
+{
+  "_comment": "SYNTHETIC, against FORECAST_SCHEMA. Note what the provider does NOT model on a forecast: no anticipated solicitation date, no PSC, no estimated value. The fixture records that absence rather than inventing the fields.",
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "cursor": null,
+  "results": [
+    {
+      "id": 90001,
+      "external_id": "SYN-FCST-0001",
+      "title": "Synthetic Depot Sustainment Services",
+      "description": "Placeholder description for a synthetic forecast record.",
+      "agency": "Synthetic Defense Logistics Agency",
+      "anticipated_award_date": "2027-04-01",
+      "estimated_period": "Q3 FY27",
+      "fiscal_year": 2027,
+      "naics_code": "336412",
+      "set_aside": { "code": "SBA", "description": "Total Small Business Set-Aside" },
+      "contract_vehicle": "Synthetic MAC IDIQ",
+      "place_of_performance": "Ogden, UT",
+      "primary_contact": "contracting@example.invalid",
+      "status": "Planned",
+      "is_active": true,
+      "source_system": "Synthetic Agency Forecast Portal"
+    },
+    {
+      "id": 90002,
+      "external_id": null,
+      "title": "Synthetic Research Support",
+      "description": null,
+      "agency": null,
+      "anticipated_award_date": null,
+      "estimated_period": "",
+      "fiscal_year": null,
+      "naics_code": null,
+      "set_aside": null,
+      "contract_vehicle": null,
+      "place_of_performance": null,
+      "primary_contact": null,
+      "status": "TBD",
+      "is_active": null,
+      "source_system": null
+    },
+    {
+      "id": 90003,
+      "title": "Synthetic Minimal Line",
+      "fiscal_year": "2026",
+      "is_active": false
+    }
+  ]
+}

@@ -360,3 +360,72 @@ shrink it exists to prevent. Widened to `*_funding_opportunit*`, which now cover
 **How to apply:** a gate that globs on a naming convention needs a test that the
 glob still matches something it is supposed to. This one had `if [ -z "$names" ]`,
 which only catches matching NOTHING — not matching a shrinking subset.
+
+---
+
+## D-20 · 2026-08-06 · The Tango SDK is real, and its models are thinner than the plan assumed
+
+The plan names `@makegov/tango-node` without specifying a version. The package
+exists on npm at `1.1.0` and was pinned exactly (no `^`/`~`).
+
+Two things the SDK's real schemas contradict about the plan's field list, both
+discovered by driving the actual SDK against a fake transport rather than by
+inspecting its `.d.ts` files by hand:
+
+- **Opportunities carry no notice TYPE and no single posted date.** The provider
+  models notice type and posting date on individual NOTICES; an opportunity has
+  `first_notice_date` / `last_notice_date` only. `TangoOpportunity` reflects this —
+  there is no `noticeType` field, and no synthetic one was invented.
+- **Forecasts carry no anticipated solicitation date, no PSC, and no estimated
+  value.** `TangoForecast` has an `estimatedPeriod` (free text, e.g. "Q3 FY27")
+  instead of a parseable date, and no money field at all. P24, which builds on
+  this type, cannot promise a forecast dollar figure — that is a fact about the
+  provider, not a gap in this adapter.
+
+**Why this was caught here and not later:** `tango.client.spec.ts` runs the real
+SDK through a fake `fetchImpl`, so the SDK's own `explicitSchemas` validation
+executes in CI. The first draft of `tango.shapes.ts` invented plausible-sounding
+field names (`legal_business_name` was right; `registration_expiration_date`,
+`total_awards_obligated`, `notice_type` on an opportunity were not) and every one
+was rejected by the SDK before a request was even issued — `ShapeValidationError:
+Field "X" does not exist on model "Y"`. A mocked SDK would not have caught this;
+the mock would have agreed with whatever the mapper assumed.
+
+**How to apply:** when a phase's field list came from the PLAN rather than from
+the vendor's own schema, verify it against the vendor before writing the mapper.
+For this SDK specifically, the source of truth is
+`node_modules/@makegov/tango-node/dist/shapes/explicitSchemas.js` — a generated
+file with the real field name, type, and nesting for every model, not a `.d.ts`
+comment or the plan's own description.
+
+---
+
+## D-21 · 2026-08-06 · The SDK is ESM-only; apps/api is CommonJS
+
+`@makegov/tango-node@1.1.0` declares `"type": "module"` and ships no CommonJS
+build. `apps/api` compiles to CJS. TypeScript refuses a static `import` of an ESM
+package from a CJS file outright (TS1479), and its own error message says to use
+a dynamic `import()` instead — which is what `tango.client.ts` does.
+
+That created a SECOND problem: a bare type-only `typeof import('@makegov/tango-node')`
+also failed to build under TS 5.9 (TS1542), because a type-only import of an ESM
+module from a CJS file needs an explicit `resolution-mode` import attribute. Fixed
+with `typeof import('@makegov/tango-node', { with: { 'resolution-mode': 'import' } })`.
+
+A THIRD problem, orthogonal to both: jest's own CommonJS module registry cannot
+`require()` an ESM package, even though Node 22 can. A static import died at
+collection ("Unexpected token 'export'"); `new Function('return import(s)')` was
+still intercepted by jest's VM and demanded `--experimental-vm-modules`;
+`createRequire(__filename)` still landed in jest's patched compiler. What actually
+works is transforming the ONE package back to CJS for tests — `jest.config.cjs`
+gained a second `transform` entry plus a `transformIgnorePatterns` carve-out
+scoped to `@makegov`, so no other package in `node_modules` is touched.
+
+**Net effect for the adapter:** `tango.client.ts` loads the SDK through a memoised
+dynamic `import()`, which is also why the SDK module is never parsed for a
+deployment with no key — a side benefit of the same design, not the reason for it.
+
+**How to apply:** the carve-out is scoped to `@makegov` on purpose. If another
+ESM-only dependency needs the same treatment, widen the `transformIgnorePatterns`
+regex deliberately — do not switch it to transform all of `node_modules`, which
+would slow every suite in `apps/api` for every future test run.

@@ -1,0 +1,43 @@
+{
+  "_comment": "SYNTHETIC, against VEHICLE_SCHEMA. Covers the three money cases the adapter must keep apart: a decimal string, an absent value, and a stated ZERO — which is a fact and must survive as 0.",
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "cursor": null,
+  "results": [
+    {
+      "uuid": "22222222-bbbb-4ccc-8ddd-000000000001",
+      "program_acronym": "SYN-MAC",
+      "solicitation_title": "Synthetic Multiple Award Construction",
+      "solicitation_identifier": "SYN-RFP-0001",
+      "vehicle_type": { "code": "IDIQ", "description": "Indefinite Delivery Indefinite Quantity" },
+      "agency_id": "9700",
+      "organization_id": "ORG-SYN-1",
+      "naics_code": 236220,
+      "psc_code": "Y1AZ",
+      "set_aside": "Total Small Business Set-Aside",
+      "who_can_use": { "description": "Agency-wide" },
+      "award_date": "2024-05-01",
+      "last_date_to_order": "2029-04-30",
+      "idv_count": 12,
+      "awardee_count": 12,
+      "order_count": 340,
+      "total_obligated": "1250000.75"
+    },
+    {
+      "uuid": "22222222-bbbb-4ccc-8ddd-000000000002",
+      "program_acronym": null,
+      "solicitation_title": "Synthetic Unvalued Vehicle",
+      "total_obligated": null,
+      "idv_count": null,
+      "order_count": null
+    },
+    {
+      "uuid": "22222222-bbbb-4ccc-8ddd-000000000003",
+      "program_acronym": "SYN-ZERO",
+      "solicitation_title": "Synthetic Zero-Obligation Vehicle",
+      "total_obligated": 0,
+      "order_count": 0
+    }
+  ]
+}

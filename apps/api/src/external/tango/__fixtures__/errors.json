@@ -1,0 +1,11 @@
+{
+  "_comment": "SYNTHETIC error bodies, one per classification. The auth and tier bodies deliberately ECHO a key-shaped string back, because redaction has to survive an upstream that quotes what you sent it. The value below is not a credential.",
+  "auth401": { "detail": "Invalid API key: sk_live_NOTAREALKEY_0123456789abcdef" },
+  "auth403": { "detail": "Authentication credentials were revoked." },
+  "tier403": { "detail": "Your plan does not include access to the forecasts dataset. Upgrade to Pro." },
+  "notFound404": { "detail": "Not found." },
+  "validation400": { "detail": "Unknown query parameter: 'nonsense'." },
+  "rateLimit429": { "detail": "Request was throttled.", "wait_in_seconds": 42 },
+  "server500": { "detail": "Internal server error." },
+  "teapot418": { "detail": "I am a teapot." }
+}
