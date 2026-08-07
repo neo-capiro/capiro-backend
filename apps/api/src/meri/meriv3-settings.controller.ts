@@ -23,7 +23,7 @@ import {
 } from './meriv3-conversation.helpers.js';
 
 class SetMeriV3ReasoningModeDto {
-  @IsIn(MERIV3_REASONING_MODES as unknown as string[])
+  @IsIn([...MERIV3_REASONING_MODES])
   reasoningMode!: MeriV3ReasoningMode;
 }
 
