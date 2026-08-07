@@ -17,12 +17,7 @@ describe('MeriV3 reasoning profiles', () => {
 
   test('maps the four product modes onto the current GPT-5.6 family', () => {
     const profiles = listMeriV3ReasoningProfiles({});
-    expect(profiles.map((profile) => profile.mode)).toEqual([
-      'fast',
-      'standard',
-      'deep',
-      'max',
-    ]);
+    expect(profiles.map((profile) => profile.mode)).toEqual(['fast', 'standard', 'deep', 'max']);
     expect(profiles.map(({ model, effort }) => ({ model, effort }))).toEqual([
       { model: 'gpt-5.6-luna', effort: 'low' },
       { model: 'gpt-5.6-terra', effort: 'medium' },

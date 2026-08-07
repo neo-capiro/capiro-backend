@@ -112,9 +112,7 @@ export class MeriV3Controller {
           ...(result.intent ? { intent: result.intent } : {}),
           ...(result.usage ? { usage: result.usage } : {}),
           ...(result.citations?.length ? { citations: result.citations } : {}),
-          ...(result.pendingApprovals?.length
-            ? { pendingApprovals: result.pendingApprovals }
-            : {}),
+          ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
           ...(meriContext.contextPacket ? { contextPacket: meriContext.contextPacket } : {}),
           aborted: abort.signal.aborted,
         });

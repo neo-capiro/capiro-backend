@@ -14,15 +14,8 @@ function positiveInt(raw: string | undefined, fallback: number, min: number, max
   return Math.min(Math.max(parsed, min), max);
 }
 
-function effort(
-  raw: string | undefined,
-  fallback: MeriV3ReasoningEffort,
-): MeriV3ReasoningEffort {
-  return raw === 'low' ||
-    raw === 'medium' ||
-    raw === 'high' ||
-    raw === 'xhigh' ||
-    raw === 'max'
+function effort(raw: string | undefined, fallback: MeriV3ReasoningEffort): MeriV3ReasoningEffort {
+  return raw === 'low' || raw === 'medium' || raw === 'high' || raw === 'xhigh' || raw === 'max'
     ? raw
     : fallback;
 }
@@ -98,12 +91,7 @@ export function resolveMeriV3ReasoningProfile(
         description: 'Balanced reasoning for everyday government-affairs work.',
         model: standardModel,
         effort: effort(env.MERIV3_STANDARD_REASONING_EFFORT, 'medium'),
-        maxOutputTokens: positiveInt(
-          env.MERIV3_STANDARD_MAX_OUTPUT_TOKENS,
-          16_384,
-          2_048,
-          49_152,
-        ),
+        maxOutputTokens: positiveInt(env.MERIV3_STANDARD_MAX_OUTPUT_TOKENS, 16_384, 2_048, 49_152),
         maxToolRounds: positiveInt(env.MERIV3_STANDARD_MAX_TOOL_ROUNDS, 10, 1, 24),
         turnBudgetMs: positiveInt(env.MERIV3_STANDARD_TURN_BUDGET_MS, 180_000, 30_000, 720_000),
       };

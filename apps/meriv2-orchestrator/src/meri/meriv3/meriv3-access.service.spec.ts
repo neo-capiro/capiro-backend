@@ -24,11 +24,7 @@ describe('MeriV3 canary access', () => {
   test('requires the exact tenant flag to be explicitly true', () => {
     expect(tenantFlagEnabled(null)).toBe(false);
     expect(tenantFlagEnabled({})).toBe(false);
-    expect(tenantFlagEnabled({ clioFeatureFlags: { [MERIV3_TENANT_FLAG]: false } })).toBe(
-      false,
-    );
-    expect(tenantFlagEnabled({ clioFeatureFlags: { [MERIV3_TENANT_FLAG]: true } })).toBe(
-      true,
-    );
+    expect(tenantFlagEnabled({ clioFeatureFlags: { [MERIV3_TENANT_FLAG]: false } })).toBe(false);
+    expect(tenantFlagEnabled({ clioFeatureFlags: { [MERIV3_TENANT_FLAG]: true } })).toBe(true);
   });
 });

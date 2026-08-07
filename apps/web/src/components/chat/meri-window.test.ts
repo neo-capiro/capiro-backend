@@ -14,7 +14,10 @@ describe('MeriV3 browser window', () => {
 
   test('opens a named, reusable, resizable browser window', () => {
     const focus = vi.fn();
-    const open = vi.fn(() => ({ focus }) as unknown as Window);
+    const open = vi.fn(
+      (_url?: string | URL, _target?: string, _features?: string) =>
+        ({ focus }) as unknown as Window,
+    );
     const opener = {
       open,
       screenX: 100,

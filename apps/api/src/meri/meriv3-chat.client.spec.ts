@@ -24,7 +24,7 @@ describe('MeriV3ChatClient', () => {
   });
 
   test('posts the reasoning mode and parses frames across the V3 route', async () => {
-    const fetchMock = jest.fn(async () =>
+    const fetchMock = jest.fn(async (..._args: Parameters<typeof fetch>) =>
       sseResponse([
         { type: 'runtime', runtime: 'meriv3', model: 'gpt-5.1', reasoningMode: 'deep' },
         { type: 'text', text: 'Answer' },
@@ -62,9 +62,7 @@ describe('MeriV3ChatClient', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(init.headers).toEqual(
-      expect.objectContaining({ authorization: 'Bearer bearer' }),
-    );
+    expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer bearer' }));
     expect(JSON.parse(String(init.body))).toMatchObject({ reasoningMode: 'deep' });
     expect(events).toHaveLength(3);
   });

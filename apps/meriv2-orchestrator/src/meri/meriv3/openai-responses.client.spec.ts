@@ -66,19 +66,18 @@ describe('OpenAiResponsesClient', () => {
         content: [{ type: 'refusal', refusal: 'I cannot help with that request.' }],
       },
     ];
-    expect(extractResponsesOutputText(output as never)).toBe(
-      'I cannot help with that request.',
-    );
+    expect(extractResponsesOutputText(output as never)).toBe('I cannot help with that request.');
     expect(extractResponsesOutputText(output as never)).not.toContain('private reasoning');
   });
 
   test('sends store=false, native reasoning effort and developer function tools', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify(responseBody), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async (..._args: Parameters<typeof fetch>) =>
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();
@@ -111,10 +110,11 @@ describe('OpenAiResponsesClient', () => {
 
   test('omits every tool field for the final tool-free synthesis request', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ ...responseBody, output: responseBody.output.slice(0, 2) }), {
-        status: 200,
-      }),
+    const fetchMock = jest.fn(
+      async (..._args: Parameters<typeof fetch>) =>
+        new Response(JSON.stringify({ ...responseBody, output: responseBody.output.slice(0, 2) }), {
+          status: 200,
+        }),
     );
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();

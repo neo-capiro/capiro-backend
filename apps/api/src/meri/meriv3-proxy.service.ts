@@ -71,7 +71,10 @@ export class MeriV3ProxyService {
     const emit = (event: Record<string, unknown>) =>
       sse.write(`data: ${JSON.stringify(event)}\n\n`);
     if (!this.client.configured) {
-      emit({ type: 'error', message: 'MeriV3 is enabled but its isolated runtime URL is missing.' });
+      emit({
+        type: 'error',
+        message: 'MeriV3 is enabled but its isolated runtime URL is missing.',
+      });
       emit({ type: 'done' });
       return;
     }
@@ -160,10 +163,7 @@ export class MeriV3ProxyService {
       mode === 'new' && process.env.MERI_RESEARCH_PROMOTE !== 'false'
         ? detectDeliverableReportRequest(content)
         : null;
-    if (
-      reportRequest &&
-      (await this.flags.isEnabled(ctx.tenantId, 'deepResearchPromote', true))
-    ) {
+    if (reportRequest && (await this.flags.isEnabled(ctx.tenantId, 'deepResearchPromote', true))) {
       const offer =
         'This looks like a request for a full sourced deliverable. Run it through **Deep Research** so every figure, bill number, Program Element, and name is retrieved and verified before release. Use **Run as Deep Research** below, or rephrase for a quick chat answer.';
       emit({ type: 'start', intent: 'deep_research_offer', tier: 'deep', runtime: 'meriv3' });
@@ -220,7 +220,10 @@ export class MeriV3ProxyService {
     let accumulated = '';
     let errorMessage: string | null = null;
     let runtimeModel = 'meriv3';
-    let runtimeEffort = reasoningMode;
+    // Effort is only known once the runtime/done frame reports it. Seeding this
+    // with the reasoning *mode* recorded a mode label ('deep') in the
+    // reasoningEffort metadata whenever a turn failed before the first frame.
+    let runtimeEffort = 'unknown';
     let doneFrame: Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null = null;
     const steps: Array<{
       tool: string;
@@ -250,7 +253,7 @@ export class MeriV3ProxyService {
               ? 'Completed'
               : event.status === 'pending_approval'
                 ? 'Held for your approval'
-                : event.detail ?? (event.status === 'blocked' ? 'Blocked' : 'Errored');
+                : (event.detail ?? (event.status === 'blocked' ? 'Blocked' : 'Errored'));
           emit({
             type: 'sources',
             sources: [
@@ -515,7 +518,7 @@ export class MeriV3ProxyService {
           text: document.textContent ?? '',
         });
       }
-      const imageIds = (lastUser ? refsByMessage.get(lastUser.id) ?? [] : [])
+      const imageIds = (lastUser ? (refsByMessage.get(lastUser.id) ?? []) : [])
         .filter((ref) => ref.kind === 'image')
         .map((ref) => ref.id);
       if (imageIds.length) {

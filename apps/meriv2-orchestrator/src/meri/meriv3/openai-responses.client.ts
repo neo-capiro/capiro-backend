@@ -51,8 +51,9 @@ export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage
 
 export function extractResponsesOutputText(output: OpenAiResponsesOutputItem[]): string {
   return output
-    .filter((item): item is Extract<OpenAiResponsesOutputItem, { type: 'message' }> =>
-      item.type === 'message',
+    .filter(
+      (item): item is Extract<OpenAiResponsesOutputItem, { type: 'message' }> =>
+        item.type === 'message',
     )
     .flatMap((item) => item.content ?? [])
     .map((part) => {
@@ -130,9 +131,7 @@ export class OpenAiResponsesClient {
     }
     const usedTenantKey = Boolean(requestOpenAi?.usedTenantKey && requestOpenAi.apiKey);
     const model =
-      usedTenantKey && requestOpenAi?.modelOverridden
-        ? requestOpenAi.model
-        : params.profile.model;
+      usedTenantKey && requestOpenAi?.modelOverridden ? requestOpenAi.model : params.profile.model;
 
     let lastError: unknown;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -171,9 +170,7 @@ export class OpenAiResponsesClient {
             },
             max_output_tokens: params.profile.maxOutputTokens,
             store: false,
-            ...(params.safetyIdentifier
-              ? { safety_identifier: params.safetyIdentifier }
-              : {}),
+            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
           }),
           signal: controller.signal,
         });

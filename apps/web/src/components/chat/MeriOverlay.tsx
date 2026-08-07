@@ -98,12 +98,7 @@ export function MeriOverlay({ selectedClientName }: MeriOverlayProps) {
     return <MeriWorkspaceWindow controller={controller} />;
   }
 
-  return (
-    <MeriOverlaySurface
-      controller={controller}
-      openInBrowserWindow={meriv3Enabled}
-    />
-  );
+  return <MeriOverlaySurface controller={controller} openInBrowserWindow={meriv3Enabled} />;
 }
 
 export function MeriOverlaySurface({

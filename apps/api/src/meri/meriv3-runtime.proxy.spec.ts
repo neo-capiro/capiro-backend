@@ -36,12 +36,7 @@ describe('Meri runtime proxy', () => {
     (meriv3.shouldHandle as jest.Mock).mockResolvedValue(true);
     const writer = { write: jest.fn() };
     await service.streamMessage(ctx as never, 'conversation', 'hello', writer);
-    expect(meriv3.streamMessage).toHaveBeenCalledWith(
-      ctx,
-      'conversation',
-      'hello',
-      writer,
-    );
+    expect(meriv3.streamMessage).toHaveBeenCalledWith(ctx, 'conversation', 'hello', writer);
     expect(raw.streamMessage).not.toHaveBeenCalled();
   });
 

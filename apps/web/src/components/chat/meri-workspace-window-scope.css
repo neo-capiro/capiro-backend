@@ -8,7 +8,7 @@
   outline: 0;
   color: var(--meri-v3-secondary);
   background: #f8f9fa;
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.035em;
@@ -50,7 +50,7 @@
   padding: 24px;
   color: #48525f;
   background: #f0f1f4;
-  font-family: "Hanken Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Hanken Grotesk', Inter, ui-sans-serif, system-ui, sans-serif;
   text-align: center;
 }
 

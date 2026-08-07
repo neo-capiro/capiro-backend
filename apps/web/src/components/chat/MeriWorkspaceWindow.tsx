@@ -117,8 +117,9 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
           type="button"
           className="meri-v3-new-thread"
           onClick={() => void controller.handleNewSession()}
+          aria-label="New thread"
         >
-          <PlusOutlined />
+          <PlusOutlined aria-hidden="true" />
           New thread
         </button>
         <div className="meri-v3-thread-rail">

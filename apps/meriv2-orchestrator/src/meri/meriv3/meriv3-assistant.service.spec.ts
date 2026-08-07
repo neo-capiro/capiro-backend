@@ -107,31 +107,33 @@ describe('MeriV3AssistantService', () => {
       .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
       .mockResolvedValueOnce(response({ outputText: 'The stored name is Kestrel.' }));
     const invoke = jest.fn(async () => ({ rows: [{ key: 'nickname', value: 'Kestrel' }] }));
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
-    global.fetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          schemas: [
-            {
-              name: 'search_memory',
-              description: 'Search governed memory',
-              input_schema: {
-                type: 'object',
-                properties: { query: { type: 'string' } },
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Search governed memory',
+                input_schema: {
+                  type: 'object',
+                  properties: { query: { type: 'string' } },
+                },
               },
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
+            ],
+          }),
+          { status: 200 },
+        ),
     ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run(
-      { bearerToken: 'bearer' },
-      () =>
-        assistant.run(context, {
-          messages: [{ role: 'user', text: 'What nickname do you remember?' }],
-        }),
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'What nickname do you remember?' }],
+      }),
     );
     expect(invoke).toHaveBeenCalledWith('search_memory', { query: 'Kestrel' }, context);
     const secondInput = complete.mock.calls[1]?.[0].input as Array<Record<string, unknown>>;
@@ -195,24 +197,24 @@ describe('MeriV3AssistantService', () => {
       complete,
       createProposal,
     );
-    global.fetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          schemas: [
-            {
-              name: 'send_email',
-              description: 'Send email',
-              input_schema: { type: 'object', properties: {} },
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'send_email',
+                description: 'Send email',
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
     ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run(
-      { bearerToken: 'bearer' },
-      () => assistant.run(context, { messages: [{ role: 'user', text: 'Send this email' }] }),
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, { messages: [{ role: 'user', text: 'Send this email' }] }),
     );
     expect(invoke).not.toHaveBeenCalled();
     expect(createProposal).toHaveBeenCalledTimes(1);
@@ -237,31 +239,30 @@ describe('MeriV3AssistantService', () => {
       registry([{ name: 'get_client_context', readOnly: true }], invoke),
       complete,
     );
-    global.fetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          schemas: [
-            {
-              name: 'get_client_context',
-              description: 'Get client context',
-              input_schema: {
-                type: 'object',
-                properties: { clientId: { type: 'string' } },
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'get_client_context',
+                description: 'Get client context',
+                input_schema: {
+                  type: 'object',
+                  properties: { clientId: { type: 'string' } },
+                },
               },
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
+            ],
+          }),
+          { status: 200 },
+        ),
     ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run(
-      { bearerToken: 'bearer' },
-      () =>
-        assistant.run(context, {
-          clientId: 'client-a',
-          messages: [{ role: 'user', text: 'Tell me about client B' }],
-        }),
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        clientId: 'client-a',
+        messages: [{ role: 'user', text: 'Tell me about client B' }],
+      }),
     );
     expect(invoke).not.toHaveBeenCalled();
     expect(result.steps).toEqual([

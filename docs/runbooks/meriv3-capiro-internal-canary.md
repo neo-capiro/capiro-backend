@@ -86,6 +86,7 @@ Optional limits are documented in `meriv3-reasoning.ts`. Do not increase them du
    ```
 
    remains healthy.
+
 3. Deploy `apps/api` with the new image and configuration.
 4. Verify normal non-canary Meri chat still responds through MeriV2.
 5. Deploy `apps/web`.
@@ -337,10 +338,10 @@ Provider usage is also written through `recordAiUsageEvent` with workflow `meriv
 The current GPT-5.6 list-price estimates are registered in the isolated runtime:
 
 | Model | Input / 1M | Cached input / 1M | Output / 1M |
-|---|---:|---:|---:|
-| Luna | $1.00 | $0.10 | $6.00 |
-| Terra | $2.50 | $0.25 | $15.00 |
-| Sol | $5.00 | $0.50 | $30.00 |
+| ----- | ---------: | ----------------: | ----------: |
+| Luna  |      $1.00 |             $0.10 |       $6.00 |
+| Terra |      $2.50 |             $0.25 |      $15.00 |
+| Sol   |      $5.00 |             $0.50 |      $30.00 |
 
 `ai_usage_events.cost_usd` is conservative when cache hits occur because the existing shared helper prices every input token at the base rate. Use `cache_read_tokens` to calculate the exact discounted comparison during canary analysis.
 

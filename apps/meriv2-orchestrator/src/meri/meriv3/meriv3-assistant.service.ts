@@ -90,8 +90,7 @@ function addUsage(total: ProviderUsage, next: ProviderUsage): void {
   total.inputTokens += next.inputTokens;
   total.outputTokens += next.outputTokens;
   total.cacheReadTokens = (total.cacheReadTokens ?? 0) + (next.cacheReadTokens ?? 0);
-  total.cacheCreationTokens =
-    (total.cacheCreationTokens ?? 0) + (next.cacheCreationTokens ?? 0);
+  total.cacheCreationTokens = (total.cacheCreationTokens ?? 0) + (next.cacheCreationTokens ?? 0);
 }
 
 function parseArguments(raw: string): Record<string, unknown> {
@@ -104,9 +103,7 @@ function parseArguments(raw: string): Record<string, unknown> {
 }
 
 function safetyIdentifier(ctx: MeriContext): string {
-  return createHash('sha256')
-    .update(`${ctx.tenantId}:${ctx.userId}`)
-    .digest('hex');
+  return createHash('sha256').update(`${ctx.tenantId}:${ctx.userId}`).digest('hex');
 }
 
 function finishInstructions(): string {
@@ -303,7 +300,8 @@ export class MeriV3AssistantService {
         if (!response.functionCalls.length) {
           finalText = response.outputText;
           if (response.incompleteReason === 'max_output_tokens' && finalText) {
-            finalText += '\n\n_(I reached this mode’s output limit. Ask me to continue if needed.)_';
+            finalText +=
+              '\n\n_(I reached this mode’s output limit. Ask me to continue if needed.)_';
           }
           break;
         }
@@ -331,7 +329,9 @@ export class MeriV3AssistantService {
             output: execution.serialized,
           });
           if (dto.pageWrite && PAGE_WRITE_DRAFT_TOOLS.has(execution.call.name)) {
-            const draft = extractChatArtifacts(execution.result).find((artifact) => artifact.bodyText);
+            const draft = extractChatArtifacts(execution.result).find(
+              (artifact) => artifact.bodyText,
+            );
             if (draft?.bodyText) {
               pageWritePayload = { subject: draft.title, body: draft.bodyText };
             }
@@ -461,7 +461,8 @@ export class MeriV3AssistantService {
     return String(
       [...(dto.messages ?? [])]
         .reverse()
-        .find((message) => message?.role === 'user' && typeof message.text === 'string')?.text ?? '',
+        .find((message) => message?.role === 'user' && typeof message.text === 'string')?.text ??
+        '',
     );
   }
 
@@ -745,7 +746,11 @@ export class MeriV3AssistantService {
       }
     }
 
-    if (args.assuranceMode !== 'off' && args.assuranceRisk.requiresBufferBeforeRelease && released.trim()) {
+    if (
+      args.assuranceMode !== 'off' &&
+      args.assuranceRisk.requiresBufferBeforeRelease &&
+      released.trim()
+    ) {
       try {
         const claimLedger = buildClaimLedgerFromToolResults({
           output: released,

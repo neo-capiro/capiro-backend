@@ -9,9 +9,13 @@ const mocks = vi.hoisted(() => ({
   changeScope: vi.fn(),
 }));
 
-vi.mock('../../lib/use-api.js', () => ({
-  useApi: () => ({ get: mocks.get, patch: mocks.patch }),
-}));
+// The real useApi() is memoized, so its identity is stable across renders.
+// Returning a fresh object here would re-fire the reasoning-mode fetch effect
+// on every render and clobber a just-selected mode.
+vi.mock('../../lib/use-api.js', () => {
+  const client = { get: mocks.get, patch: mocks.patch };
+  return { useApi: () => client };
+});
 vi.mock('./ChatDrawer.js', () => ({
   MeriLegacyDrawer: () => <div data-testid="production-chat">Production chat</div>,
 }));
@@ -71,10 +75,9 @@ describe('MeriWorkspaceWindow', () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('option', { name: /Deep/ }));
     await waitFor(() =>
-      expect(mocks.patch).toHaveBeenCalledWith(
-        '/api/clio/v3/conversations/conv-1/reasoning-mode',
-        { reasoningMode: 'deep' },
-      ),
+      expect(mocks.patch).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode', {
+        reasoningMode: 'deep',
+      }),
     );
     expect(screen.getByRole('button', { name: 'Reasoning mode: Deep' })).toBeTruthy();
   });

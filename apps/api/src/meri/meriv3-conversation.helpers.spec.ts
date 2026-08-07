@@ -9,15 +9,15 @@ describe('MeriV3 conversation reasoning metadata', () => {
     expect(normalizeMeriV3ReasoningMode(undefined)).toBe('standard');
     expect(normalizeMeriV3ReasoningMode('ultra')).toBe('standard');
     expect(reasoningModeFromConversationMetadata(null)).toBe('standard');
-    expect(
-      reasoningModeFromConversationMetadata({ meriv3: { reasoningMode: 'not-a-mode' } }),
-    ).toBe('standard');
+    expect(reasoningModeFromConversationMetadata({ meriv3: { reasoningMode: 'not-a-mode' } })).toBe(
+      'standard',
+    );
   });
 
   test('reads an allowed mode from the server-owned conversation row', () => {
-    expect(
-      reasoningModeFromConversationMetadata({ meriv3: { reasoningMode: 'deep' } }),
-    ).toBe('deep');
+    expect(reasoningModeFromConversationMetadata({ meriv3: { reasoningMode: 'deep' } })).toBe(
+      'deep',
+    );
   });
 
   test('preserves unrelated metadata and MeriV3 keys when changing the mode', () => {
