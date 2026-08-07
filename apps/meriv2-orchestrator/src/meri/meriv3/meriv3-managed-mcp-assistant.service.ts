@@ -126,17 +126,20 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
       if (!isManagedTool(args.name)) return nativeInvoke(args);
       const label = managedLabel(args.name) || toolLabel(args.name);
-      args.emit({ type: 'tool_call', tool: args.name, label });
+      // Keep managed server ids invisible in the work log: use the human label
+      // as the event tool identity so the raw `mcp__meriv3_hubspot__` namespace
+      // never reaches the browser/SSE stream.
+      args.emit({ type: 'tool_call', tool: label, label });
       try {
         const result = await managedMcp.executeRead(args.name, args.input);
         args.steps.push({ tool: args.name, label, status: 'done' });
-        args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
+        args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
         return result;
       } catch (error) {
         const detail =
           error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
         args.steps.push({ tool: args.name, label, status: 'error', detail });
-        args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+        args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
         return { error: detail, connectedApp: true };
       }
     };

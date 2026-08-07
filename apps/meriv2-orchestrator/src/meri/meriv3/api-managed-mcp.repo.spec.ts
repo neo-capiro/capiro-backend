@@ -69,8 +69,9 @@ describe('ApiManagedMcpRepo', () => {
         }),
       }),
     );
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(init.headers).not.toHaveProperty('x-internal-service-secret');
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const init = calls[0]?.[1];
+    expect(init?.headers).not.toHaveProperty('x-internal-service-secret');
   });
 
   test('execution carries bearer, impersonation and service identity', async () => {
