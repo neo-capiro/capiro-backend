@@ -429,3 +429,94 @@ deployment with no key — a side benefit of the same design, not the reason for
 ESM-only dependency needs the same treatment, widen the `transformIgnorePatterns`
 regex deliberately — do not switch it to transform all of `node_modules`, which
 would slow every suite in `apps/api` for every future test run.
+
+---
+
+## D-22 · 2026-08-06 · The versioned-head policy for tango_resource_snapshot
+
+Plan §P15 asks for "duplicate same-hash snapshot is a no-op; changed content
+creates a new observation/version or updates a versioned head according to the
+documented policy" — leaving the exact policy to the implementer. Documented
+here since nothing else in the plan specifies it.
+
+**The policy:** `tango_resource_snapshot` is APPEND-ONLY. A given row's content
+columns (`contentSha256`, `normalizedJsonb`, `sourceUpdatedAt`,
+`providerFetchedAt`) never change after INSERT. At most one row per
+`(resourceType, externalId)` carries `active = true` — the current head — enforced
+by a partial unique index, not just application discipline. When new content
+differs from the current head, the old head is flipped to `active = false` with
+`supersededAt` stamped, and the new content is inserted as a new row, versioned
+one past it. An EXACT repeat of already-stored content (same `contentSha256` for
+that resource) is a true no-op: no row is touched, not even a timestamp.
+
+**Why append-only rather than update-in-place:** the plan's own acceptance
+criteria ask for "immutable observation hashes," and an update-in-place head
+would mean the row's hash is only ever true of whatever the LATEST write left
+behind — there would be no way to answer "what did we observe on this resource
+in March" six months later. Append-only costs one column (`version`) and one
+partial index; it buys the full history for free.
+
+**Why the natural-key check happens BEFORE touching the current head:** an exact
+repeat must supersede nothing — if duplicate suppression ran after the
+supersession step, a nightly re-sync of completely unchanged data would flip the
+active row to inactive and immediately back to active, doubling write volume for
+zero informational gain and creating a churn of `supersededAt` timestamps that
+lie about when anything actually changed.
+
+**How to apply:** P19/P22/P24/P27, the phases that will actually call
+`writeSnapshot`, do not need to reason about this policy themselves — call the
+method and trust the invariant. A phase that needs "what changed since I last
+looked" reads `getSnapshotHistory` and diffs against its own last-seen version,
+never by comparing `updatedAt` (there is no such column, on purpose).
+
+---
+
+## D-23 · 2026-08-06 · proposeLink vs reviewLink: durability protects against automation, not correction
+
+`tango_resource_link` has two write paths with a deliberately different
+durability rule, both proven by tests:
+
+- `proposeLink` (called by AUTOMATED crosswalk code, e.g. P27) is idempotent and
+  **never resurrects a rejected link** — re-proposing the same pair after a human
+  rejected it returns the rejected row unchanged.
+- `reviewLink` (an EXPLICIT human action) **may** move a rejected link back to
+  active, stamping a fresh actor and timestamp every time it is called.
+
+**Why the asymmetry, rather than making rejection permanently final everywhere:**
+plan §4.6 requires "rejected mappings and enrichment proposals remain durably
+rejected," and the risk that invariant guards against is a NIGHTLY JOB silently
+undoing a human's considered decision by re-proposing the same candidate. It does
+not — and should not — mean a human can never correct a mistaken rejection
+through a deliberate, audited action of their own. Making rejection truly
+permanent would mean the only fix for a wrong rejection is a second row for the
+same pair, which the natural-key uniqueness on `(local_resource_type,
+local_resource_id, tango_resource_type, tango_external_id)` explicitly forbids.
+
+**How to apply:** any later phase adding a THIRD write path to this table must
+decide which category it falls into — automated proposal (never resurrects) or
+human review (may transition freely) — and there is no third option that is
+"a little bit of both."
+
+---
+
+## D-24 · 2026-08-06 · D-19's CI gap re-checked, and re-found, on this migration's own name
+
+D-19 (P13) widened the "every index a migration creates is declared in
+schema.prisma" glob from `*_funding_opportunities*` to `*_funding_opportunit*`
+after discovering P07 and P13's own migration directories didn't match the
+original pattern.
+
+This migration's directory, `20260821010000_tango_source_substrate`, matches
+NEITHER glob — it contains neither `funding_opportunit` nor, at the time D-19 was
+written, any pattern for `tango`. Checked deliberately before merging (the
+lesson from D-19 was "a gate that globs on a naming convention needs a test that
+the glob still matches something," which prompted actually re-running the check
+against this migration's name rather than assuming the P13 fix generalized), and
+found to need a second glob: `apps/api/prisma/migrations/*_tango_*/migration.sql`.
+
+**How to apply:** every phase that adds a new migration directory outside the
+`_funding_opportunit*` naming family (P19, P22, P24, P27, and beyond — anything
+prefixed `_tango_*` is covered now, but a differently-named future migration is
+not) must re-verify this glob actually matches its directory before considering
+the phase's CI wiring complete. "It worked for the last phase" is not evidence
+that it works for this one.

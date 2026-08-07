@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TangoGatewayService } from './tango.client.js';
+import { TangoStoreService } from './tango-store.service.js';
 import { TANGO_GATEWAY } from './tango.types.js';
 
 /**
@@ -30,6 +31,11 @@ import { TANGO_GATEWAY } from './tango.types.js';
  * Several unrelated modules will consume this (sync scripts, the diagnostics
  * commands, later the enrichment services). `@Global` avoids re-importing it in
  * each, which is the pattern PrismaModule already uses here.
+ *
+ * `TangoStoreService` (P15) is the OTHER export: provider-owned persistence, not
+ * the API gateway. It depends only on `PrismaService`, needs no key and no
+ * config, and is registered here for the same reason — later phases (P19, P22,
+ * P24, P27) inject it without any module-wiring change of their own.
  */
 @Global()
 @Module({
@@ -53,7 +59,13 @@ import { TANGO_GATEWAY } from './tango.types.js';
           timeoutMs: config.get<number>('TANGO_TIMEOUT_MS'),
         }),
     },
+    // The provider-owned persistence substrate (P15). Depends only on
+    // PrismaService, which PrismaModule already exports globally — no key, no
+    // config, no network. Nothing calls it yet; it is wired here so the later
+    // phases that DO (P19, P22, P24, P27) find it already registered rather
+    // than needing their own module-wiring change.
+    TangoStoreService,
   ],
-  exports: [TANGO_GATEWAY],
+  exports: [TANGO_GATEWAY, TangoStoreService],
 })
 export class TangoModule {}

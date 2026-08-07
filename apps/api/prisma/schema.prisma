@@ -6114,6 +6114,268 @@ model ClientFundingOpportunity {
   @@map("client_funding_opportunity")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MakeGov/Tango provider substrate (P15).
+//
+// Every model below is GLOBAL — no `tenantId` field, no RLS, same category as
+// `FederalGrant` / `SamOpportunity` / `FederalContractor` above. That is
+// deliberate, not an oversight: a Tango observation of an entity, opportunity,
+// forecast or vehicle is a fact about the FEDERAL MARKETPLACE, not about any one
+// tenant, exactly like the existing global reference tables it sits beside.
+// `PrismaService.tenantScopedModels` is derived from the schema by scanning for a
+// `tenantId` field, so omitting it here is what keeps
+// `tenant-scope-guard.spec.ts` correctly silent on plain
+// `this.prisma.tangoResourceSnapshot.*` calls — no `withTenant`/`withSystem`
+// wrapping, no `// tenant-scope-exempt:` comment, because there is no tenant
+// dimension to exempt.
+//
+// No tenant API exposes a raw row from any of these tables. Everything a tenant
+// sees is either (a) a REVIEWED, promoted fact written into tenant-owned storage
+// by a later phase (P19's entity profile, P20's enrichment acceptance), or (b) a
+// derived read the service layer shapes — never `SELECT *` surfaced verbatim.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// One OBSERVATION of a Tango resource, at a point in time.
+///
+/// APPEND-ONLY AND IMMUTABLE once written: `contentSha256`, `normalizedJsonb`,
+/// `sourceUpdatedAt` and `providerFetchedAt` on a given row never change after
+/// INSERT. The only fields that ever transition are `active` (true → false,
+/// exactly once, when a NEWER observation supersedes this one) and
+/// `supersededAt`. That is the "versioned head" the plan's acceptance criterion
+/// asks for: `(resourceType, externalId)` has at most one row with `active =
+/// true` at any moment — its current head — and every prior observation stays in
+/// the table, unmodified, as history.
+///
+/// DUPLICATE SUPPRESSION: `TangoStoreService.writeSnapshot` computes a canonical
+/// SHA-256 over the normalized payload (stable key ordering, so field-order
+/// noise from the provider never produces a spurious "change") and looks it up
+/// against `(resourceType, externalId, contentSha256)` BEFORE writing anything.
+/// An exact repeat is a true no-op — no row touched, no timestamp bumped — which
+/// is what makes a nightly re-sync of unchanged data free of write amplification.
+model TangoResourceSnapshot {
+  id       String @id @default(uuid()) @db.Uuid
+  /// 'entity' | 'opportunity' | 'notice' | 'forecast' | 'vehicle' |
+  /// 'vehicle_awardee'. Mirrors TANGO_RESOURCE_TYPES in
+  /// apps/api/src/external/tango/tango.types.ts (P14) — CHECK-constrained in the
+  /// migration to that exact vocabulary, not re-derived from it, since a schema
+  /// file cannot import a TypeScript const array.
+  resourceType String @map("resource_type") @db.VarChar(32)
+  /// The provider's own identifier for this record (a UEI, an opportunity id, a
+  /// forecast id, a vehicle uuid, …). Together with `resourceType` this is the
+  /// NATURAL KEY the plan asks for — deterministic, and never Capiro-assigned.
+  externalId String @map("external_id") @db.Text
+
+  /// Which version of Capiro's OWN mapping (apps/api/src/external/tango/
+  /// tango.mappers.ts) produced `normalizedJsonb`. Lets a later phase identify
+  /// "this observation was normalized by an older mapper" and re-fetch, even when
+  /// the provider's raw content has not changed — a mapper bug fix is not a
+  /// provider content change, and conflating the two would hide the fix from
+  /// every already-synced row.
+  schemaVersion Int @default(1) @map("schema_version")
+
+  /// The provider's own last-modified stamp for this record, when it supplies
+  /// one. NULL is a fact some resources carry honestly — P14's TangoForecast, for
+  /// instance, has no modified stamp at all — never backfilled with `fetchedAt`.
+  sourceUpdatedAt DateTime? @map("source_updated_at") @db.Timestamptz(6)
+  /// When CAPIRO fetched this observation. Always set; this is "when we looked",
+  /// distinct from `sourceUpdatedAt`'s "when the source says it changed".
+  providerFetchedAt DateTime @map("provider_fetched_at") @db.Timestamptz(6)
+  /// The provider's own URL for this record, when one exists (an opportunity's
+  /// `sam_url`, for example). NULL for resource types the provider gives no
+  /// direct link for — an entity has none.
+  sourceUrl String? @map("source_url") @db.Text
+
+  /// Lower-case hex SHA-256 (64 chars), over a CANONICALIZED serialization of
+  /// `normalizedJsonb` (recursively sorted object keys, so key-order noise from
+  /// the provider can never look like a content change). CHECK-constrained to the
+  /// hex-64 shape in the migration.
+  contentSha256 String @map("content_sha256") @db.VarChar(64)
+  /// The NORMALIZED domain object (TangoEntity, TangoOpportunity, …) as produced
+  /// by tango.mappers.ts — never the provider's raw response. This is what makes
+  /// "no raw payload reaches a tenant API" true by construction rather than by
+  /// convention: nothing in this column ever held an un-mapped field, because the
+  /// mapper's allow-list already dropped it before this row was built.
+  normalizedJsonb Json @map("normalized_jsonb")
+
+  /// TRUE for exactly one row per (resourceType, externalId) — the current head.
+  /// Enforced by a partial unique index, not just application logic.
+  active Boolean @default(true)
+  /// Monotonic per (resourceType, externalId), starting at 1. Lets a reader ask
+  /// "how many times has this changed" without counting rows by hand.
+  version Int @default(1)
+  /// Set once, when a NEWER observation supersedes this row. NULL while active.
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Natural-key uniqueness: the same exact content can never be stored twice for
+  // the same resource. This is the query `writeSnapshot` uses to detect a no-op.
+  @@unique([resourceType, externalId, contentSha256], map: "tango_resource_snapshot_natural_key_uniq")
+  // History lookups: "every observation of this resource, oldest first."
+  @@index([resourceType, externalId, version], map: "tango_resource_snapshot_history_idx")
+  @@map("tango_resource_snapshot")
+}
+
+/// A REVIEWED crosswalk between a GLOBAL Capiro resource and a Tango resource.
+///
+/// Deliberately narrow in what it may link. `localResourceType` is
+/// CHECK-constrained to the small set of EXISTING global reference tables
+/// (`sam_opportunity`, `federal_grant`, `federal_contractor`, `federal_award`) —
+/// the exact tables this schema already treats as tenant-scope-exempt. A
+/// TENANT-owned resource (a client, a client_funding_opportunity row) is never a
+/// valid target here: linking tenant data into a globally-readable crosswalk
+/// table would be the same class of leak RLS exists to prevent, just via a table
+/// that has none. Tenant-facing review workflows (a client's entity match, an
+/// enrichment proposal) belong to P19/P20's own tenant-scoped tables instead.
+model TangoResourceLink {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// 'sam_opportunity' | 'federal_grant' | 'federal_contractor' | 'federal_award'.
+  /// CHECK-constrained in the migration. No FK: the target table is polymorphic
+  /// (selected by this column), which Postgres cannot express as a single FK
+  /// constraint — enforced instead by TangoStoreService validating against
+  /// LOCAL_LINK_RESOURCE_TYPES before every write, and proven by a rehearsal
+  /// insert that an unsupported type is refused.
+  localResourceType String @map("local_resource_type") @db.VarChar(32)
+  /// The target row's own primary key, as TEXT regardless of its native type —
+  /// `sam_opportunity.id` is a uuid, `federal_grant.id` is a free-form Grants.gov
+  /// opportunity number. Text is the only type that holds both honestly.
+  localResourceId String @map("local_resource_id") @db.Text
+
+  /// Mirrors TangoResourceSnapshot.resourceType. CHECK-constrained to the same
+  /// TANGO_RESOURCE_TYPES vocabulary.
+  tangoResourceType String @map("tango_resource_type") @db.VarChar(32)
+  tangoExternalId   String @map("tango_external_id") @db.Text
+
+  /// HOW this link was established. Only two values, and neither is a fuzzy
+  /// name match — the same "never fuzzy-match identity" invariant P02 enforced
+  /// for award history applies here:
+  ///   'exact_identifier' — an unambiguous identifier equality (an opportunity
+  ///                         id, a solicitation number, a UEI). No human judgment
+  ///                         was involved in proposing it.
+  ///   'reviewed_manual'  — a human explicitly confirmed this specific pair.
+  /// CHECK-constrained in the migration.
+  basis String @map("basis") @db.VarChar(24)
+  /// 'active' | 'rejected' | 'superseded'. CHECK-constrained. A rejection is
+  /// DURABLE — the CHECK below requires an actor and timestamp whenever status is
+  /// 'rejected', the same actor+timestamp pairing rule as P07's human-decision
+  /// columns, so a rejection can never be silently recreated as an unattributed
+  /// row.
+  status String @default("active") @map("status") @db.VarChar(16)
+  /// 'high' | 'medium' | 'low'. CHECK-constrained. Always populated — an
+  /// 'exact_identifier' link is 'high' by construction; a future phase proposing
+  /// a less-certain candidate before promotion would use 'medium' or 'low'.
+  confidenceBand String @map("confidence_band") @db.VarChar(8)
+  /// 'none' | 'field_conflict' | 'identity_conflict'. CHECK-constrained. Records
+  /// that a linked pair disagrees on some field (P27's per-field agreement
+  /// tracking) without resolving the disagreement here — resolution is a
+  /// source-precedence decision the linking phase owns, per plan §4.2: no source
+  /// silently overwrites the other.
+  conflictState String @default("none") @map("conflict_state") @db.VarChar(24)
+
+  reviewedBy   String?   @map("reviewed_by") @db.Uuid
+  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes  String?   @map("review_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // One link row per pair. Re-proposing the same pair finds this row rather than
+  // creating a duplicate.
+  @@unique([localResourceType, localResourceId, tangoResourceType, tangoExternalId], map: "tango_resource_link_pair_uniq")
+  @@index([tangoResourceType, tangoExternalId], map: "tango_resource_link_tango_idx")
+  @@map("tango_resource_link")
+}
+
+/// Resumable pagination state for ONE provider-side sync walk.
+///
+/// Keyed on (syncVerb, resourceType, filterFingerprint) rather than just
+/// (syncVerb, resourceType): a sync re-run with DIFFERENT filters — a different
+/// fiscal year, a different NAICS — must not resume from a cursor that belongs to
+/// an unrelated filtered walk. `filterFingerprint` is a deterministic hash of the
+/// exact filter object, so the same filters always land on the same checkpoint
+/// and different filters never collide.
+///
+/// This checkpoint is about Tango's OWN pagination (walking its global
+/// forecast/opportunity/vehicle lists), which is not partitioned by tenant
+/// upstream — a separate concern from P03/P04's tenant-and-client keyset walk,
+/// which already has its own resumable-cursor mechanism in
+/// producer-pagination.ts. The two are not the same cursor and must not be
+/// confused.
+model TangoSyncCheckpoint {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The sync script name, e.g. 'sync-tango-client-entities'. Mirrors
+  /// `sync_run.source`'s convention.
+  syncVerb String @map("sync_verb") @db.VarChar(64)
+  /// Mirrors TangoResourceSnapshot.resourceType. CHECK-constrained.
+  resourceType String @map("resource_type") @db.VarChar(32)
+  /// Lower-case hex SHA-256 of the canonicalized filter object used for this
+  /// walk. CHECK-constrained to the hex-64 shape, same as the snapshot's content
+  /// hash.
+  filterFingerprint String @map("filter_fingerprint") @db.VarChar(64)
+
+  /// OPAQUE. Pass back to the provider verbatim; never parsed or constructed
+  /// client-side — the same rule as the P10 inbox cursor, for the same reason:
+  /// the provider's cursor encoding is not part of any contract Capiro owns.
+  cursor String? @map("cursor") @db.Text
+  /// The incremental "changed since" window this walk is covering, when the sync
+  /// is windowed rather than a full walk.
+  windowStart DateTime? @map("window_start") @db.Timestamptz(6)
+  windowEnd   DateTime? @map("window_end") @db.Timestamptz(6)
+
+  /// 'in_progress' | 'complete' | 'incomplete'. CHECK-constrained. Mirrors the
+  /// COMPLETE/INCOMPLETE vocabulary in producer-pagination.ts (P03/P04) — the
+  /// same two words mean the same thing everywhere in this program.
+  completeness  String   @default("in_progress") @map("completeness") @db.VarChar(16)
+  rowsProcessed Int      @default(0) @map("rows_processed")
+  lastRunAt     DateTime? @map("last_run_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([syncVerb, resourceType, filterFingerprint], map: "tango_sync_checkpoint_walk_uniq")
+  @@map("tango_sync_checkpoint")
+}
+
+/// One provider API call, for account-level usage accounting.
+///
+/// NEVER carries a request header or a key — there is no column for either, on
+/// purpose, and `TangoStoreService.recordUsage`'s input type has no field that
+/// could hold one. P18 reads this table to answer "how close are we to the
+/// account's rate limit" and "when did we last successfully sync resource X";
+/// this phase only creates the substrate — nothing writes to it yet.
+model TangoApiUsage {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The gateway method that was called (`getEntity`, `listForecasts`, …) —
+  /// mirrors TangoError.operation from tango.errors.ts (P14). Called "call
+  /// family" per the plan's own wording.
+  callFamily String @map("call_family") @db.VarChar(64)
+  /// Bucketed to the minute, so usage aggregates cheaply without a GROUP BY over
+  /// raw timestamps at query time.
+  timestampBucket DateTime @map("timestamp_bucket") @db.Timestamptz(6)
+  /// 'success' or one of TangoErrorKind's 7 values. CHECK-constrained to exactly
+  /// that set, so a usage row's status is always one this program already knows
+  /// how to reason about.
+  status String @map("status") @db.VarChar(16)
+  /// How many domain rows the call returned. NULL for a get-by-id call, where
+  /// "one or none" is not a count worth a column.
+  rowCount Int? @map("row_count")
+
+  rateLimitRemaining Int? @map("rate_limit_remaining")
+  rateLimitLimit     Int? @map("rate_limit_limit")
+  rateLimitResetIn   Int? @map("rate_limit_reset_in")
+  durationMs         Int  @map("duration_ms")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Time-ordered scan for "usage in the last N minutes", the shape P18's health
+  // check and rate-ceiling logic both need.
+  @@index([callFamily, timestampBucket], map: "tango_api_usage_family_time_idx")
+  @@map("tango_api_usage")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program
