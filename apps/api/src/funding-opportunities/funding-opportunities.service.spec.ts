@@ -1518,3 +1518,174 @@ describe('pursuit is refused for notices that cannot be pursued', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+// ── P07: the human decision ─────────────────────────────────────────────────
+
+describe('decide — the team decision, separate from workflow status', () => {
+  test('pursue moves workflow to pursuing AND records the decision', async () => {
+    const { service, state } = makeService(makeState({ sam: [samRow()] }));
+    const decision = await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pursue',
+      actorUserId: USER,
+      reason: 'Client confirmed interest',
+    });
+    expect(decision.decision).toBe('pursue');
+    expect(decision.reason).toBe('Client confirmed interest');
+    expect(decision.decidedByUserId).toBe(USER);
+    expect(state.workflows[0]!.workflowStatus).toBe('pursuing');
+    expect(state.workflows[0]!.humanDecision).toBe('pursue');
+  });
+
+  test('monitor saves the row but is NOT a pursuit', async () => {
+    // The distinction the whole phase exists for: a team can decide to keep
+    // watching something without committing to bid it.
+    const { service, state } = makeService(makeState({ sam: [samRow()] }));
+    const decision = await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'monitor',
+      actorUserId: USER,
+    });
+    expect(decision.decision).toBe('monitor');
+    expect(state.workflows[0]!.workflowStatus).toBe('saved');
+    expect(state.workflows[0]!.workflowStatus).not.toBe('pursuing');
+  });
+
+  test('pass records the judgement and does NOT dismiss the row', async () => {
+    // Dismissing is a visibility action; passing is a judgement. Collapsing them
+    // would make "we declined to bid" unrecoverable from "somebody hid this".
+    const { service, state } = makeService(
+      makeState({
+        sam: [samRow()],
+        workflows: [
+          {
+            id: 'wf-pass',
+            clientId: CLIENT,
+            source: 'sam_gov',
+            grantOpportunityId: null,
+            samOpportunityId: SAM_ID,
+            workflowStatus: 'saved',
+            ownerUserId: null,
+            facilityId: null,
+            notes: null,
+            dismissedReason: null,
+            outcomeNote: null,
+            userCreated: true,
+            staleAt: null,
+            createdAt: new Date('2026-07-01T00:00:00Z'),
+            updatedAt: new Date('2026-07-02T00:00:00Z'),
+          },
+        ],
+      }),
+    );
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pass',
+      actorUserId: USER,
+      reason: 'Outside our core capability',
+    });
+    expect(state.workflows[0]!.humanDecision).toBe('pass');
+    expect(state.workflows[0]!.workflowStatus).toBe('saved');
+    expect(state.workflows[0]!.workflowStatus).not.toBe('dismissed');
+  });
+
+  test('the pursuit guard still applies to a decision of pursue', async () => {
+    // A decision endpoint must not become a second, unguarded way to pursue a
+    // notice the save path refuses.
+    const { service } = makeService(
+      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
+    );
+    await expect(
+      service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        decision: 'pursue',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('passing on a CLOSED notice is allowed — declining is always available', async () => {
+    // The guard is about pursuing, not about deciding. A team must be able to
+    // record "we passed on this" after the window closed.
+    const { service, state } = makeService(
+      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
+    );
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pass',
+      actorUserId: USER,
+    });
+    expect(state.workflows[0]!.humanDecision).toBe('pass');
+  });
+
+  test('a next-action due date with no action is refused', async () => {
+    const { service } = makeService(makeState({ sam: [samRow()] }));
+    await expect(
+      service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        decision: 'monitor',
+        actorUserId: USER,
+        nextActionDueAt: '2026-09-01T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('a next action with no due date is fine', async () => {
+    const { service } = makeService(makeState({ sam: [samRow()] }));
+    const decision = await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'monitor',
+      actorUserId: USER,
+      nextAction: 'Ask the client whether they want to bid',
+    });
+    expect(decision.nextAction).toBe('Ask the client whether they want to bid');
+    expect(decision.nextActionDueAt).toBeNull();
+  });
+
+  test('a malformed due date is a 400, not a silent null', async () => {
+    const { service } = makeService(makeState({ sam: [samRow()] }));
+    await expect(
+      service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        decision: 'monitor',
+        actorUserId: USER,
+        nextAction: 'x',
+        nextActionDueAt: 'not-a-date',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('a decision on an unknown opportunity is a 404', async () => {
+    const { service } = makeService(makeState({ sam: [] }));
+    await expect(
+      service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        decision: 'monitor',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('the row a decision creates is user-created, so the producer leaves it alone', async () => {
+    const { service, state } = makeService(makeState({ sam: [samRow()] }));
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'monitor',
+      actorUserId: USER,
+    });
+    expect(state.workflows[0]!.userCreated).toBe(true);
+    expect(state.workflows[0]!.evidenceSourceType).toBe('user_action');
+  });
+
+  test('the machine recommendation can disagree with the human decision', async () => {
+    // The point of keeping them separate. A row passed on by a human still gets a
+    // freshly computed recommendation on read, and the disagreement is signal.
+    const { service } = makeService(makeState({ sam: [samRow()] }));
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pass',
+      actorUserId: USER,
+    });
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const row = res.opportunities.find((o) => o.sourceRecordId === SAM_ID);
+    expect(row?.decision?.decision).toBe('pass');
+    // Recomputed independently — never read back from the stored decision.
+    expect(row?.recommendation).not.toBeNull();
+  });
+
+  test('an undecided row reports decision null, not pass', async () => {
+    const { service } = makeService(makeState({ sam: [samRow()] }));
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const row = res.opportunities.find((o) => o.sourceRecordId === SAM_ID);
+    expect(row?.decision).toBeNull();
+  });
+});

@@ -55,6 +55,7 @@ import { MessagePlanService } from './message-plan.service.js';
 import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
 import { GenerationVerifierService, type VerifierFinding } from './generation-verifier.service.js';
 import { AuthorStyleProfileService } from './author-style-profile.service.js';
+import { extractJsonObject } from './json-extract.js';
 import {
   buildGatewayPrompt,
   GATEWAY_DRAFT_JSON_SCHEMA,
@@ -776,7 +777,7 @@ function emailDomain(email: string | null): string | null {
 
 function parseDraft(text: string): { subject: string; body: string; contextNote: string } | null {
   try {
-    const raw: unknown = JSON.parse(text);
+    const raw: unknown = JSON.parse(extractJsonObject(text) ?? text);
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const o = raw as Record<string, unknown>;
     const subject = typeof o.subject === 'string' ? o.subject.trim() : '';

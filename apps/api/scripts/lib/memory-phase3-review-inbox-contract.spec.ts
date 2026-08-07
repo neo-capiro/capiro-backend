@@ -112,9 +112,10 @@ describe('Memory Review Phase 3 inbox contract', () => {
     expect(inboxUi).toContain('/api/memory/review/notifications/read-all');
   });
 
-  it('uses the real nested Settings route for email deep links', () => {
-    expect(notificationHelpers).toContain('/settings/memory?review=');
+  it('does not embed email rendering or deep-link helpers in notification helpers', () => {
+    expect(notificationHelpers).not.toContain('/settings/memory?review=');
     expect(notificationHelpers).not.toContain('/settings?tab=memory-review');
+    expect(notificationHelpers).not.toContain('renderMemoryReviewNotificationEmail');
   });
 
   it('rehearses the real database boundaries before printing the Phase 3 marker', () => {

@@ -1,0 +1,108 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from '@jest/globals';
+
+function apiRoot(): string {
+  const cwd = process.cwd();
+  if (existsSync(resolve(cwd, 'prisma/schema.prisma'))) return cwd;
+  const candidate = resolve(cwd, 'apps/api');
+  if (existsSync(resolve(candidate, 'prisma/schema.prisma'))) return candidate;
+  throw new Error(`Could not resolve apps/api from ${cwd}.`);
+}
+
+const root = apiRoot();
+const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+const readWeb = (path: string) => readFileSync(resolve(root, '../web', path), 'utf8');
+const migration = read(
+  'prisma/migrations/20260818050000_memory_admin_self_approval_policy/migration.sql',
+);
+const policy = read('src/memory/memory-review-admin-policy.ts');
+const authorization = read('src/memory/memory-authorization.helpers.ts');
+const authorizationService = read('src/memory/memory-authorization.service.ts');
+const workflow = read('src/memory/memory-review-workflow.service.ts');
+const candidate = read('src/memory/memory-candidate.service.ts');
+const immutable = read('src/memory/immutable-memory-version.service.ts');
+const adminInbox = read('src/memory/memory-review-admin-inbox.service.ts');
+const dispatcher = read('src/memory/memory-review-notification-dispatcher.service.ts');
+const notificationHelpers = read('src/memory/memory-review-notification.helpers.ts');
+const moduleSource = read('src/memory/memory.module.ts');
+const editor = readWeb('src/components/MemoryFileEditor.tsx');
+const pendingPanel = readWeb('src/components/PendingMemoryReviewPanel.tsx');
+const reviewInbox = readWeb('src/components/MemoryReviewInbox.tsx');
+
+describe('memory administrator self-approval policy contract', () => {
+  it('permits only candidate- and actor-bound active tenant administrators at the database boundary', () => {
+    expect(migration).toContain("tm.status = 'active'::membership_status");
+    expect(migration).toContain("'user_admin'::tenant_role");
+    expect(migration).toContain("'capiro_admin'::tenant_role");
+    expect(migration).toContain(
+      "current_setting('app.memory_admin_review_candidate_id', true)",
+    );
+    expect(migration).toContain(
+      "current_setting('app.memory_admin_review_actor_id', true)",
+    );
+    expect(migration).toContain('capability_candidate_id = NEW.id::text');
+    expect(migration).toContain('capability_actor_id = NEW.decided_by::text');
+    expect(migration).toContain('actor_is_active_admin AND admin_decision_capability');
+    expect(migration).toContain('MEMORY_REVIEW_SELF_DECISION_DENIED');
+    expect(migration).toContain('MEMORY_REVIEW_ASSIGNED_REVIEWER_REQUIRED');
+  });
+
+  it('sets exact transaction-local capabilities only after canonical admin authorization', () => {
+    expect(authorizationService).toContain('decision.allowed');
+    expect(authorizationService).toContain('options.emitDenialMetrics !== false');
+    expect(authorizationService).toContain('isMemoryReviewAdminRole(effectiveRole)');
+    expect(authorizationService).toContain(
+      "set_config('app.memory_admin_review_candidate_id', $1, true)",
+    );
+    expect(authorizationService).toContain(
+      "set_config('app.memory_admin_review_actor_id', $1, true)",
+    );
+  });
+
+  it('keeps walls and client status in canonical authorization while exempting admins from self-review denial', () => {
+    expect(policy).toContain("role === 'user_admin' || role === 'capiro_admin'");
+    expect(authorization).toContain('if (isMemoryReviewAdminRole(effectiveRole)) return false');
+    expect(authorization).toContain("reason: 'ethical_wall'");
+    expect(authorization).toContain("reason: 'archived_client'");
+    expect(authorization).toContain("reason: 'self_review'");
+  });
+
+  it('makes assignment optional for admins but preserves it for standard reviewers', () => {
+    expect(workflow).toContain('if (!isMemoryReviewAdminRole(ctx.role))');
+    expect(workflow).toContain('workflow.assignedTo !== ctx.userId');
+    expect(workflow).toContain('A non-admin proposer cannot decide');
+    expect(candidate).toContain('isMemoryReviewAdminRole(actorContext?.role)');
+    expect(immutable).toContain('!isMemoryReviewAdminRole(ctx.role)');
+  });
+
+  it('expands only the admin inbox path and batches current authorization checks', () => {
+    expect(adminInbox).toContain('extends MemoryReviewInboxService');
+    expect(adminInbox).toContain('if (!isMemoryReviewAdminRole(ctx.role)) return super.list');
+    expect(adminInbox).toContain("requestedView === 'needs_my_review' ? 'all_pending'");
+    expect(adminInbox).toContain('this.adminPrisma.withTenantUser');
+    expect(adminInbox).toContain('this.adminAuthorization.loadCandidateInTx');
+    expect(adminInbox).toContain("'approve'");
+    expect(moduleSource).toContain(
+      '{ provide: MemoryReviewInboxService, useExisting: MemoryReviewAdminInboxService }',
+    );
+  });
+
+  it('removes the independent-approver claim from every active shared-memory UI surface', () => {
+    expect(editor).toContain('Submitted for approval');
+    expect(editor).not.toContain('Submitted for independent review');
+    expect(pendingPanel).toContain('Waiting for approval');
+    expect(pendingPanel).not.toContain('independent reviewer');
+    expect(reviewInbox).toContain('authorized administrator or reviewer approves it');
+    expect(reviewInbox).not.toContain('independent reviewer approves it');
+  });
+
+  it('keeps Memory Review notifications in-app only', () => {
+    expect(dispatcher).toContain('in-app notification table only');
+    expect(dispatcher).not.toContain('MemoryReviewNotificationEmailService');
+    expect(dispatcher).not.toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
+    expect(notificationHelpers).not.toContain('renderMemoryReviewNotificationEmail');
+    expect(notificationHelpers).not.toContain('memoryReviewEmailDeliveryEnabled');
+    expect(moduleSource).not.toContain('MemoryReviewNotificationEmailService');
+  });
+});

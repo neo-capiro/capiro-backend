@@ -15,6 +15,7 @@ import {
   type MemoryAuthorizationSubject,
   type MemoryOperation,
 } from './memory-authorization.helpers.js';
+import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 
 export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
   id: string;
@@ -22,6 +23,8 @@ export interface GovernedMemorySubjectRow extends MemoryAuthorizationSubject {
   clientId: string | null;
   ownerUserId: string | null;
   clientStatus: string | null;
+  /** Legacy memory_candidate.status. Present only for candidate subjects. */
+  legacyCandidateStatus?: string | null;
 }
 
 export interface MemoryAuthorizationOptions {
@@ -31,6 +34,8 @@ export interface MemoryAuthorizationOptions {
    * Eligibility/read-model calculations use the exact authorization policy but
    * are not attempted mutations. Suppress denial counters for those read-only
    * simulations so polling a status surface cannot manufacture control events.
+   * The same signal prevents simulations from receiving the transaction-local
+   * administrator decision capability used by the database trigger.
    */
   emitDenialMetrics?: boolean;
 }
@@ -124,6 +129,35 @@ export class MemoryAuthorizationService {
         emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
       }
     }
+
+    const effectiveRole = options.impersonating
+      ? (options.actorRole ?? ctx.role)
+      : ctx.role;
+    // The governed candidate column deliberately defaults to `suggested`, while
+    // the legacy workflow uses status='pending'. Shared Settings submissions can
+    // therefore be a real pending review before governed_status advances. Bind
+    // the DB capability to either representation, but only for candidate rows
+    // (identified by proposedByUserId) and only after canonical authorization.
+    const pendingCandidate =
+      Boolean(subject.proposedByUserId) &&
+      (subject.status === 'pending_review' || subject.legacyCandidateStatus === 'pending');
+    if (
+      decision.allowed &&
+      options.emitDenialMetrics !== false &&
+      isMemoryReviewAdminRole(effectiveRole) &&
+      (operation === 'approve' || operation === 'review') &&
+      pendingCandidate
+    ) {
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_candidate_id', $1, true)`,
+        subject.id,
+      );
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.memory_admin_review_actor_id', $1, true)`,
+        ctx.userId,
+      );
+    }
+
     return decision;
   }
 
@@ -164,6 +198,7 @@ export class MemoryAuthorizationService {
              mc.memory_class AS "memoryClass",
              mc.memory_scope AS scope,
              mc.governed_status AS status,
+             mc.status AS "legacyCandidateStatus",
              mc.legal_hold AS "legalHold",
              c.status AS "clientStatus"
       FROM memory_candidate mc

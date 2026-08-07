@@ -15,11 +15,11 @@ import { GovernedMemoryCandidateService } from './governed-memory-candidate.serv
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import { MemoryReviewAdminInboxService } from './memory-review-admin-inbox.service.js';
 import { MemoryReviewInboxService } from './memory-review-inbox.service.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
 import { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 import { MemoryReviewNotificationDispatcherService } from './memory-review-notification-dispatcher.service.js';
-import { MemoryReviewNotificationEmailService } from './memory-review-notification-email.service.js';
 import { MemorySettingsReviewReadinessService } from './memory-settings-review-readiness.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -45,13 +45,7 @@ import { MemoryVersionController } from './memory-version.controller.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
-/**
- * Institutional Memory module.
- *
- * Phase 2 review workflow state is a companion to memory_candidate. Phase 3
- * adds the body-free Review Inbox, protected revision detail, and recipient-
- * scoped notification read state without changing canonical activation paths.
- */
+/** Institutional Memory module. */
 @Module({
   imports: [PrismaModule, TenantModule],
   controllers: [
@@ -85,8 +79,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewWorkflowService,
     MemoryReviewRevisionService,
     MemoryCandidateReviewService,
-    MemoryReviewInboxService,
-    MemoryReviewNotificationEmailService,
+    MemoryReviewAdminInboxService,
+    { provide: MemoryReviewInboxService, useExisting: MemoryReviewAdminInboxService },
     MemoryReviewNotificationDispatcherService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,

@@ -1182,6 +1182,7 @@ export class MeriService {
         const thinkingState = createThinkingState();
         const roundUsage = emptyUsage();
         let stopReason: string | null = null;
+        let stopDetails: { category?: string; explanation?: string } | null = null;
         const roundStartMs = Date.now();
 
         try {
@@ -1258,6 +1259,9 @@ export class MeriService {
                   }
                 } else if (evt.type === 'message_delta') {
                   stopReason = evt.delta?.stop_reason ?? stopReason;
+                  // Populated only on a refusal — carries the policy category
+                  // and explanation, which is what makes one diagnosable.
+                  if (evt.delta?.stop_details) stopDetails = evt.delta.stop_details;
                 }
               } catch {
                 /* incomplete chunk */
@@ -1274,6 +1278,42 @@ export class MeriService {
           `Meri usage [round ${round}] in=${roundUsage.inputTokens} out=${roundUsage.outputTokens} ` +
             `cacheRead=${roundUsage.cacheReadInputTokens} cacheCreate=${roundUsage.cacheCreationInputTokens}`,
         );
+
+        // Separate the stop reasons that are NOT a clean finish. The
+        // `stopReason !== 'tool_use'` test below swept refusal and max_tokens
+        // into the same "turn complete" path, so a policy refusal reached the
+        // user as a blank answer and a truncated reply reached them as a
+        // finished one — with nothing logged either way. Each branch only
+        // augments the stream/log; the completion test below still ends the turn.
+        if (stopReason === 'refusal') {
+          this.logger.warn(
+            `Meri chat: model refused` +
+              (stopDetails?.category ? ` (category=${stopDetails.category})` : '') +
+              (stopDetails?.explanation ? `: ${stopDetails.explanation.slice(0, 200)}` : ''),
+          );
+          if (!assistantContent.trim()) {
+            const msg =
+              'I can’t help with that request. Try rephrasing it — or flag it to the Capiro team if you think it was blocked in error.';
+            assistantContent += msg;
+            sse.write(`data: ${JSON.stringify({ type: 'text', text: msg })}\n\n`);
+          }
+        } else if (stopReason === 'max_tokens') {
+          // Keep what already streamed, but stop presenting a fragment as final.
+          this.logger.warn(
+            `Meri chat: hit max_tokens cap (${thinking.maxTokens}) in round ${round}; reply truncated`,
+          );
+          const notice =
+            '\n\n_(I hit my length limit here — ask me to continue, or narrow the request.)_';
+          assistantContent += notice;
+          sse.write(`data: ${JSON.stringify({ type: 'text', text: notice })}\n\n`);
+        } else if (stopReason === 'pause_turn') {
+          // This loop declares no server-side tools, so it should not be able to
+          // pause. Logged rather than resumed: inventing an untestable resume
+          // path here is worse than surfacing that the assumption broke.
+          this.logger.warn(
+            `Meri chat: unexpected pause_turn in round ${round} (no server-side tools declared); ending turn`,
+          );
+        }
 
         // If the model did not request tools, the turn is complete.
         if (stopReason !== 'tool_use' || toolUseById.size === 0) {

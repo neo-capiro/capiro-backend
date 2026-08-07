@@ -26,6 +26,10 @@ vi.mock('./pages/intelligence/opportunities/FundingOpportunitiesPage.js', () => 
   FundingOpportunitiesPage: () => <div data-testid="funding-opportunities-page">page</div>,
 }));
 
+vi.mock('./pages/intelligence/opportunities/FundingOpportunityDetail.js', () => ({
+  FundingOpportunityDetailPage: () => <div data-testid="funding-opportunity-detail-page">detail</div>,
+}));
+
 vi.mock('./pages/explorer/DataExplorerPage.js', () => ({
   DataExplorerPage: () => <div data-testid="data-explorer-page">explorer</div>,
 }));
@@ -71,6 +75,35 @@ describe('Funding Opportunities route registration', () => {
     expect(screen.queryByTestId('funding-opportunities-page')).not.toBeInTheDocument();
   });
 
+  test('/intelligence/opportunities/:source/:id resolves to the detail page (P12)', async () => {
+    // The failure this guards against is the same silent one as above, and it is
+    // WORSE for a detail link: pasted into a ticket, an unregistered detail route
+    // redirects to Data Explorer, so the record looks like it was deleted.
+    render(
+      <MemoryRouter initialEntries={['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('funding-opportunity-detail-page')).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('data-explorer-page')).not.toBeInTheDocument();
+    // The list route is a literal and must not swallow the two-segment path.
+    expect(screen.queryByTestId('funding-opportunities-page')).not.toBeInTheDocument();
+  });
+
+  test('a one-segment path under opportunities still falls through to the catch-all', async () => {
+    // `/intelligence/opportunities/foo` matches neither the literal list route nor
+    // the two-param detail route.
+    render(
+      <MemoryRouter initialEntries={['/intelligence/opportunities/foo']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('data-explorer-page')).toBeInTheDocument());
+  });
+
   test('the page is code-split, not in the eager import graph', () => {
     // Asserted at the source level: whether a chunk is split is a bundler fact,
     // and a render test cannot tell a lazy component from an eager one once the
@@ -79,6 +112,16 @@ describe('Funding Opportunities route registration', () => {
       /const FundingOpportunitiesPage = lazy\([\s\S]{0,300}?opportunities\/FundingOpportunitiesPage\.js'\)/,
     );
     expect(appSource).not.toMatch(/^import .*opportunities\/FundingOpportunitiesPage/m);
+  });
+
+  test('the detail page is its own lazy chunk, not bundled with the list', () => {
+    // A detail link is reached independently of the inbox — pasted into a ticket,
+    // it is the first thing the browser loads. Sharing a chunk would make either
+    // page pay for the other.
+    expect(appSource).toMatch(
+      /const FundingOpportunityDetailPage = lazy\([\s\S]{0,300}?opportunities\/FundingOpportunityDetail\.js'\)/,
+    );
+    expect(appSource).not.toMatch(/^import .*opportunities\/FundingOpportunityDetail/m);
   });
 });
 

@@ -98,6 +98,46 @@ export interface ContractValue {
   basis: 'not_stated_by_source' | 'source_backed';
 }
 
+export const MACHINE_RECOMMENDATIONS = ['pursue', 'monitor', 'pass', 'needs_review'] as const;
+export type MachineRecommendation = (typeof MACHINE_RECOMMENDATIONS)[number];
+
+export const RECOMMENDATION_CONFIDENCES = ['high', 'medium', 'low'] as const;
+export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[number];
+
+/** Mirrors OpportunityRecommendationView in apps/api. */
+export interface OpportunityRecommendationView {
+  machineRecommendation: MachineRecommendation;
+  /**
+   * EVIDENCE QUALITY, not a probability of winning. A high-confidence `pass` is a
+   * confident recommendation NOT to bid — rendering this as a win rate would be
+   * the most misleading thing the UI could do with it.
+   */
+  recommendationConfidence: RecommendationConfidence;
+  primaryReason: string;
+  primaryRisk: string | null;
+  recommendedNextAction: string;
+  reasonCodes: string[];
+}
+
+export const HUMAN_DECISIONS = ['pursue', 'monitor', 'pass'] as const;
+export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
+
+/**
+ * Mirrors OpportunityDecision in apps/api.
+ *
+ * Deliberately NOT the same vocabulary as OpportunityWorkflowStatus: `monitor` and
+ * `pass` have no workflow equivalent, and `suggested`/`expired` are machine states
+ * nobody decides.
+ */
+export interface OpportunityDecision {
+  decision: HumanDecision;
+  reason: string | null;
+  decidedAt: string;
+  decidedByUserId: string;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+}
+
 export interface OpportunityWorkflow {
   id: string;
   status: OpportunityWorkflowStatus;
@@ -155,6 +195,24 @@ export interface FundingOpportunity {
   relevanceScore: number;
   eligibility: { state: EligibilityState; reason: string };
   matchedSignals: OpportunityMatchedSignal[];
+  /**
+   * What to do with this, and why. Null on the unscoped catalog read, where there
+   * is no client to recommend anything relative to.
+   *
+   * P06 adds the field; P09 renders it. Nothing in the UI reads it yet, and that
+   * is deliberate — an additive API field deploys before the web that consumes it.
+   */
+  recommendation: OpportunityRecommendationView | null;
+  /**
+   * The team's persisted DECISION, or null when nobody has decided yet.
+   *
+   * Null is NOT the same as `pass`: "nobody has looked at this" and "we looked and
+   * declined" are different facts, which is why the column has no default.
+   *
+   * Separate from `workflow.status` (where a pursuit is) and from
+   * `recommendation` (recomputed on read). All three can legitimately disagree.
+   */
+  decision: OpportunityDecision | null;
   missingProfileFields: MissingProfileField[];
   sourceUpdatedAt: string | null;
   workflow: OpportunityWorkflow | null;
@@ -210,10 +268,180 @@ export interface ClientFundingOpportunitySummary {
   generatedAt: string;
 }
 
+// ── The cross-client triage inbox ───────────────────────────────────────────
+
+/**
+ * Mirrors INBOX_FILTERS in apps/api's funding-opportunity-inbox.service.ts.
+ *
+ * ORDER IS THE TAB ORDER. `needs_review` is first because it is the API default
+ * and the question the surface exists to answer; `passed` is last because it is
+ * history.
+ */
+export const INBOX_FILTERS = [
+  'needs_review',
+  'pursuing',
+  'deadlines',
+  'recently_changed',
+  'monitoring',
+  'passed',
+] as const;
+export type InboxFilter = (typeof INBOX_FILTERS)[number];
+
+export const INBOX_FILTER_LABELS: Record<InboxFilter, string> = {
+  needs_review: 'Needs review',
+  pursuing: 'Pursuing',
+  deadlines: 'Deadlines',
+  recently_changed: 'Recently changed',
+  monitoring: 'Monitoring',
+  passed: 'Passed',
+};
+
+/**
+ * What each queue actually contains, for the empty state and the tab tooltip.
+ *
+ * Written as facts about the DATA rather than instructions, because an empty
+ * queue's job is to say what would have to be true for a row to appear here.
+ */
+export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
+  needs_review: 'Machine suggestions nobody has decided on yet, whose source is still open.',
+  pursuing: 'Opportunities somebody decided to pursue, or whose workflow is already pursuing.',
+  deadlines: 'Dated, still-open opportunities nobody has passed on.',
+  recently_changed: 'Everything the sources or the team touched most recently, passes excluded.',
+  monitoring: 'Opportunities a human decided to watch rather than bid.',
+  passed: 'Opportunities the team declined. Kept, because a decision is a durable fact.',
+};
+
+/** Mirrors InboxRow in apps/api. One CLIENT-OPPORTUNITY decision context. */
+export interface InboxRow {
+  id: string;
+  client: { id: string; name: string };
+  source: OpportunitySource;
+  sourceRecordId: string;
+  title: string;
+  agency: string | null;
+  responseDeadline: string | null;
+  daysUntilDeadline: number | null;
+  workflowStatus: string;
+  humanDecision: string | null;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+  owner: { userId: string; name: string | null; email: string | null } | null;
+  relevanceScore: number | null;
+  eligibility: { state: string | null; reason: string | null };
+  /** The producer stopped suggesting this, but a human decision stands. */
+  noLongerSuggested: boolean;
+  /** The SOURCE has closed since it was last observed. */
+  sourceClosed: boolean;
+  updatedAt: string;
+}
+
+/** Mirrors InboxResponse in apps/api. */
+export interface InboxResponse {
+  filter: InboxFilter;
+  /**
+   * The client narrowing the server ACTUALLY applied, which is not necessarily
+   * the one requested: a walled or unknown id is dropped and reported as null.
+   * Render from this, never from the request parameter.
+   */
+  clientId: string | null;
+  /**
+   * The source narrowing the server applied, or null for every rail. Source is a
+   * FILTER on this surface, never the top-level model.
+   */
+  source: OpportunitySource | null;
+  rows: InboxRow[];
+  nextCursor: string | null;
+  pageSize: number;
+  counts: Record<InboxFilter, number>;
+  /** Counts across every visible client. Non-null only when `clientId` narrows. */
+  countsAllClients: Record<InboxFilter, number> | null;
+  /**
+   * Non-null when a count could not be read. The counts then hold -1, because
+   * "we could not count" and "there are none" are different facts.
+   */
+  countsUnavailableReason: string | null;
+  generatedAt: string;
+}
+
+/** A count of -1 means "unreadable", not "none". Never render it as a number. */
+export function formatInboxCount(n: number | undefined): string {
+  if (n == null) return '—';
+  return n < 0 ? '?' : String(n);
+}
+
+// ── Opportunity identity, in one place ──────────────────────────────────────
+
+/**
+ * What it takes to name ONE opportunity for ONE client.
+ *
+ * Three parts, not two. `clientId` is part of the identity because the detail
+ * surface shows relevance, eligibility, the recommendation and the team's
+ * decision — every one of which is a fact about a client-opportunity PAIR. The
+ * same SAM notice is a different thing for two different clients, and a link that
+ * dropped the client would silently render the unscored catalog view instead.
+ */
+export interface OpportunityRef {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  /** Null on the unscoped catalog read, where there is nothing to score against. */
+  clientId: string | null;
+}
+
+/**
+ * Encoded for a single URL parameter, so the inbox drawer is deep-linkable and the
+ * browser Back button closes it.
+ *
+ * Every part is `encodeURIComponent`d before joining. Grants.gov opportunity
+ * numbers are free-form source strings — a colon or a slash in one would otherwise
+ * split the ref into the wrong pieces, which is the kind of bug that only shows up
+ * on the one record that happens to contain the character.
+ */
+export function encodeOpportunityRef(ref: OpportunityRef): string {
+  return [ref.source, ref.sourceRecordId, ref.clientId ?? '']
+    .map((part) => encodeURIComponent(part))
+    .join(':');
+}
+
+/** Returns null for anything malformed. A bad ref renders not-found, never a crash. */
+export function decodeOpportunityRef(raw: string | null): OpportunityRef | null {
+  if (!raw) return null;
+  const parts = raw.split(':');
+  if (parts.length !== 3) return null;
+  let decoded: string[];
+  try {
+    decoded = parts.map((p) => decodeURIComponent(p));
+  } catch {
+    return null;
+  }
+  const [source, sourceRecordId, clientId] = decoded as [string, string, string];
+  if (!isOpportunitySource(source) || !sourceRecordId) return null;
+  return { source, sourceRecordId, clientId: clientId || null };
+}
+
+export function isOpportunitySource(value: string): value is OpportunitySource {
+  return value === 'grants_gov' || value === 'sam_gov';
+}
+
+/** The full-page detail route for a ref. The drawer and this render the same body. */
+export function opportunityDetailPath(ref: OpportunityRef): string {
+  const query = ref.clientId ? `?clientId=${encodeURIComponent(ref.clientId)}` : '';
+  return `/intelligence/opportunities/${ref.source}/${encodeURIComponent(ref.sourceRecordId)}${query}`;
+}
+
 // ── Display helpers ─────────────────────────────────────────────────────────
 
 /** The intel-api flag key gating the whole surface. Byte-matches the API guard. */
 export const FUNDING_OPPORTUNITIES_FEATURE = 'funding_opportunities';
+
+/**
+ * The client-first inbox flag. Byte-matches
+ * FUNDING_OPPORTUNITIES_INBOX_FEATURE in the API's flag guard.
+ *
+ * SEPARATE from the master flag on purpose: the inbox changes what the default
+ * experience IS, so a tenant already using the catalog keeps it until this is
+ * explicitly turned on for them.
+ */
+export const FUNDING_OPPORTUNITIES_INBOX_FEATURE = 'funding_opportunities_client_inbox';
 
 export const KIND_LABELS: Record<OpportunityKind, string> = {
   grant: 'Grant',

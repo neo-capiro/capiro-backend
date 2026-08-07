@@ -12,9 +12,9 @@ import {
   type PendingMemoryReviewState,
 } from './PendingMemoryReviewPanel.js';
 
-const missingReviewerMessage =
-  'Firm memory requires approval from another active administrator. ' +
-  'No eligible reviewer is available.';
+const missingApproverMessage =
+  'Firm memory requires an active administrator who can approve it. ' +
+  'No eligible administrator is available.';
 
 describe('MemoryFileEditor Phase 3 result wording', () => {
   it('never labels a shared candidate submission as Saved', () => {
@@ -24,7 +24,7 @@ describe('MemoryFileEditor Phase 3 result wording', () => {
         candidateId: 'cand-1',
         activeItemUnchanged: true,
       }),
-    ).toBe('Submitted for independent review');
+    ).toBe('Submitted for approval');
   });
 
   it('keeps the immediate personal-save wording', () => {
@@ -36,11 +36,11 @@ describe('MemoryFileEditor Phase 3 result wording', () => {
       memorySaveErrorMessage({
         response: {
           data: {
-            message: missingReviewerMessage,
+            message: missingApproverMessage,
           },
         },
       }),
-    ).toBe(missingReviewerMessage);
+    ).toBe(missingApproverMessage);
   });
 });
 
@@ -52,7 +52,7 @@ describe('Shared memory review status wording', () => {
   };
 
   it('uses plain language and visibly distinguishes blocked review', () => {
-    expect(pendingReviewHeadline(pending)).toBe('Waiting for independent review');
+    expect(pendingReviewHeadline(pending)).toBe('Waiting for approval');
     expect(pendingReviewTone(pending)).toBe('info');
     expect(pendingReviewHeadline({ ...pending, blocked: true })).toBe('Review blocked');
     expect(pendingReviewTone({ ...pending, blocked: true })).toBe('error');
@@ -76,7 +76,7 @@ describe('Shared memory review status wording', () => {
         allPending: 7,
         blocked: 1,
       },
-      message: '1 pending submission has no eligible independent reviewer.',
+      message: '1 pending submission has no eligible approver.',
     };
     expect(memoryReviewSummaryStats(summary)).toEqual([
       { key: 'awaiting', title: 'Needs my review', value: 2 },

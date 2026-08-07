@@ -99,6 +99,47 @@ deployed and digest-verified, and still 500'd for every tenant because its
 migrations were never applied. A green ECS digest proves the right *image* is
 running. It does not prove the schema that image needs exists.
 
+### Funding Opportunities migrations, in apply order
+
+| Migration | Phase | What it adds |
+|---|---|---|
+| `20260810010000_funding_opportunities` | pre-program | `client_funding_opportunity`, RLS, the two partial unique indexes |
+| `20260810020000_funding_opportunities_closeout` | pre-program | closeout fields |
+| `20260810040000_funding_opportunities_lifecycle_truth` | pre-program | lifecycle snapshot columns + 3 indexes |
+| `20260819010000_funding_opportunity_decisions` | P07 | 6 nullable decision columns, 3 CHECKs, partial decision index |
+| `20260820010000_funding_opportunity_generic_source` | P13 | `source_record_type` / `source_record_key`, widened vocabulary, expanded exclusivity CHECK, partial generic unique index |
+
+All are additive and forward-only. **None may be rolled back by dropping a column.**
+
+#### P13 specifically
+
+Ordering matters and the safe order is the normal one: **migration first, API
+second.** The two new columns are nullable and, for the two legacy sources,
+optional — so an API still running pre-P13 code keeps inserting rows with only the
+legacy pointer, and the CHECK admits them. New code reads either form and backfills
+the generic pair the first time it touches such a row.
+
+The one-shot backfill inside the migration is idempotent (`WHERE source_record_key
+IS NULL`). After applying, confirm it reached everything:
+
+```sql
+-- READ-ONLY. Expect 0 and 0.
+SELECT count(*) AS missing_generic_identity
+  FROM client_funding_opportunity
+ WHERE source IN ('grants_gov','sam_gov')
+   AND (source_record_key IS NULL OR source_record_type IS NULL);
+
+SELECT count(*) AS generic_disagrees_with_legacy
+  FROM client_funding_opportunity
+ WHERE source IN ('grants_gov','sam_gov')
+   AND source_record_key <> coalesce(grant_opportunity_id, sam_opportunity_id::text);
+```
+
+A non-zero first count after the API has fully rolled means rows were written by
+pre-P13 code during the deploy window; re-running the two `UPDATE` statements from
+the migration file is safe and fixes it. A non-zero second count is a real defect —
+stop and investigate, do not "repair" it.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
@@ -363,6 +404,41 @@ window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run close
 ... "command":["generate-funding-grant-candidates","--commit"]
 ```
 
+### Coverage is now algorithmic (P03)
+
+`OPPORTUNITY_SCAN_CAP` (4,000) and `CLIENT_CAP` (500) are gone. Both dimensions
+are walked with deterministic keyset pages (`id > cursor ORDER BY id`), so the run
+covers the whole corpus rather than the first N rows by close date.
+
+Read the last line of the run output:
+
+```text
+coverage=COMPLETE   clients=<n> grants=<n>     -> the whole corpus was evaluated
+coverage=INCOMPLETE                            -> a runaway guard tripped
+```
+
+`INCOMPLETE` is **not** the old `CAPPED`. It sets `complete: false` on the
+SyncRun, which `statusFromCounts` records as `partial`, and
+`lastSuccessfulWatermark` only reads `status='success'` — so a partial run does
+not advance the incremental watermark and the unseen tail stays retryable.
+
+There is no cap to raise. Finish the walk from where it stopped:
+
+```bash
+# The INCOMPLETE warning prints the exact cursor.
+... "command":["generate-funding-grant-candidates","--resume-client","<cursor>"]
+```
+
+The cursor is carried by the operator (it is printed and persisted in the
+SyncRun's `incompleteReason`), not stored in a dedicated column — P03 ships no
+migration. Re-running from a cursor is safe: the walk resumes at `id > cursor`,
+and every write is find-then-branch, so nothing is duplicated.
+
+**Expect this run to be slower than the pre-P03 one and to create more
+suggestions**, for two independent reasons: it now evaluates every grant instead
+of 4,000, and P01/P02 corrected award-history identity. Compare a dry run against
+the previous run's counts before committing.
+
 ## 15. SAM producer
 
 ```bash
@@ -371,6 +447,35 @@ window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run close
 # MUTATING — Neo approval
 ... "command":["generate-sam-opportunity-candidates","--commit"]
 ```
+
+### Coverage is now algorithmic (P04)
+
+Same contract as §14, same words, same `--resume-client` flag — deliberately, so
+one operator habit covers both producers.
+
+```text
+coverage=COMPLETE clients=<n> notices=<n> pursuable=<n>
+coverage=INCOMPLETE
+```
+
+`SAM_OPPORTUNITY_SCAN_CAP` and `SAM_CANDIDATE_CLIENT_CAP` **no longer exist**.
+They were env-overridable purely so an operator could raise the cap for a full
+sweep; with a keyset walk every run is a full sweep, so setting them now does
+nothing. Remove them from any task definition that carries them.
+
+**This is the run whose cost changes most.** Measured on `capiro-dev` on
+2026-07-29 there were 17,915 active in-deadline notices against a 4,000 bound, so
+this producer previously evaluated ~22% of the corpus. It will now evaluate all of
+it: expect roughly 4.5x the pairs, and a corresponding rise in `created`.
+
+`pursuable` is reported separately from `notices` because award and special notices
+are excluded from the scored set entirely. A corpus that is entirely informational
+is `COMPLETE` with `evaluated=0` — which is a fully covered run, not a truncated
+one, and is exactly what the old `capped` flag could not express.
+
+Before committing, dry-run and compare `created` against the last run. A large
+jump is expected here for three independent reasons (full corpus, P01 profile
+unification, P02 identity correction) and none of them is a defect.
 
 ## 16. Lifecycle pass
 
@@ -408,6 +513,93 @@ old defect resurfacing, and the schedule must not be enabled.
 ---
 
 # Part G — rollout
+
+## 16b. Triage inbox flag (P10)
+
+The inbox is gated on a SECOND flag, `funding_opportunities_client_inbox`, and it
+stays off after §17 turns the master flag on. Two flags on purpose: a tenant already
+using the raw catalog must keep it while the inbox is canaried, and turning the inbox
+on must never be a side effect of turning the feature on.
+
+```sql
+-- MUTATING — Neo approval. Note tenant_id is TEXT; do NOT cast to uuid.
+INSERT INTO intel_feature_flag (tenant_id, feature, enabled)
+VALUES ('<capiro-internal-uuid>', 'funding_opportunities_client_inbox', true)
+ON CONFLICT (tenant_id, feature) DO UPDATE SET enabled = true;
+```
+
+Before enabling it, confirm the endpoint is dark:
+
+```bash
+# Expect 404 while the flag is absent — the same 404 a disabled master flag gives,
+# so the route leaks nothing about whether the feature exists.
+curl -sS -o /dev/null -w '%{http_code}
+'   -H "Authorization: Bearer <token>"   https://<host>/api/intelligence/opportunities/inbox
+```
+
+After enabling, check the wall holds. Pick a client with `memory_wall = true` and a
+user with no `client_memory_access` grant: that client's rows must not appear in the
+inbox for that user. A walled client with zero grants is invisible to everyone,
+admins included — that is by construction, and it is the property most worth
+re-verifying on live data.
+
+Counts of `-1` in the response mean a count query failed, not that a queue is empty.
+`countsUnavailableReason` says why.
+
+### What turning this flag on actually changes (P11)
+
+The flag now controls the **default view**, not just an endpoint. With it on, the
+Funding Opportunities page lands on the triage inbox; the raw catalog becomes a
+second tab, `Explore federal opportunities`. With it off the page is byte-identical
+to P10 — no view switcher, and it does not call the inbox route at all.
+
+Deploy API and web **together** for this phase: the UI sends two query parameters
+(`clientId`, `source`) that the inbox route only accepts from P11 onwards. An older
+API with the newer web would reject them with a 400.
+
+Checks worth running once the flag is on for the internal tenant:
+
+```bash
+# 1. The selected-client narrowing is applied SERVER-side. The response echoes what
+#    it actually applied — this is the field to trust, not the request.
+curl -sS -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?clientId=<visible-client-uuid>"   | jq '{applied: .clientId, rows: (.rows | length), counts, countsAllClients}'
+
+# 2. A WALLED client id must come back as clientId: null with the cross-client list,
+#    NOT as a 404 — a 404 would confirm the client exists.
+curl -sS -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?clientId=<walled-client-uuid>"   | jq '.clientId'   # expect: null
+
+# 3. An unknown source IS a 400. Unlike clientId there is no privacy reason to
+#    soften it, and silently widening to every rail is the worse answer.
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/inbox?source=fpds"   # expect: 400
+```
+
+Rollback for the UI is the flag alone: set `enabled = false` and the page returns to
+the raw catalog on the next load. A user sitting on a `?view=inbox` URL falls back to
+Explore rather than breaking, so no bookmark needs fixing.
+
+### The detail surface (P12)
+
+`/intelligence/opportunities/:source/:sourceRecordId?clientId=<uuid>` is a real
+route from P12 onwards. It is gated on the MASTER `funding_opportunities` flag only,
+not on the inbox flag — a detail link has to keep working for a tenant that is on
+the catalog. It reads the existing `GET /opportunities/:source/:id`, which has been
+deployed since before this program started, so there is nothing new to smoke-test on
+the API side.
+
+Five of its eight sections are placeholders until later phases fill them
+(acquisition position P23, government landscape P33, requirements P29–P31, notice
+timeline P28, full assessment P32). Each says "Not yet available" and names what it
+will hold. If a reviewer reports these as bugs, they are the shell working as
+designed — see decision-log D-15.
+
+```bash
+# A stale or wrong record id must return the record-does-not-exist state, not a
+# blank page. The API answers 404; the page renders "No such opportunity".
+curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer <token>"   "https://<host>/api/intelligence/opportunities/sam_gov/00000000-0000-0000-0000-000000000000"   # expect: 404
+```
+
+Rollback is reverting the route and the two components. There is no data, schema or
+flag change to undo.
 
 ## 17. Internal feature flag
 

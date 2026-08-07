@@ -16,7 +16,6 @@ const migration = read(
   'prisma/migrations/20260818040200_memory_phase2_notification_dispatcher/migration.sql',
 );
 const dispatcher = read('src/memory/memory-review-notification-dispatcher.service.ts');
-const email = read('src/memory/memory-review-notification-email.service.ts');
 const helpers = read('src/memory/memory-review-notification.helpers.ts');
 const moduleSource = read('src/memory/memory.module.ts');
 const command = read('scripts/dispatch-memory-review-notifications.ts');
@@ -58,18 +57,15 @@ describe('memory Phase 2 notification dispatcher contract', () => {
     expect(migration).toMatch(
       /memory_review_in_app_notification_recipient_fk[\s\S]{0,240}ON DELETE RESTRICT/,
     );
+    expect(dispatcher).toContain('INSERT INTO memory_review_in_app_notification');
     expect(dispatcher).toContain('ON CONFLICT (');
     expect(dispatcher).toContain('DO NOTHING');
   });
 
-  it('keeps delivery bodies and reviewer feedback out of both channels', () => {
+  it('keeps proposal bodies and reviewer feedback out of the in-app channel', () => {
     const inAppInsert = dispatcher.slice(
       dispatcher.indexOf('INSERT INTO memory_review_in_app_notification'),
-      dispatcher.indexOf('const uncertainPriorEmailAttempt'),
-    );
-    const renderFunction = helpers.slice(
-      helpers.indexOf('export function renderMemoryReviewNotificationEmail'),
-      helpers.indexOf('export function normalizeNotificationTitle'),
+      dispatcher.indexOf('return true;'),
     );
     for (const forbidden of [
       'sourceExcerpt',
@@ -81,34 +77,32 @@ describe('memory Phase 2 notification dispatcher contract', () => {
       "'reason'",
     ]) {
       expect(inAppInsert).not.toContain(forbidden);
-      expect(renderFunction).not.toContain(forbidden);
     }
     expect(migration).toContain("'feedbackReason'");
     expect(migration).toContain("'sourceExcerpt'");
   });
 
-  it('uses default-off at-most-once email delivery and preserves prior outcomes', () => {
-    expect(helpers).toContain("raw?.trim().toLowerCase() === 'enforce'");
-    expect(email).toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
-    expect(dispatcher).toContain("row.emailStatus === 'sending'");
-    expect(dispatcher).toContain("SET email_status = 'sending'");
-    expect(dispatcher).toContain('completedEmailStatus(row.emailStatus)');
-    expect(dispatcher).toContain('outbox.provider_message_id AS "providerMessageId"');
-    expect(dispatcher).not.toContain('reason: authorized');
-    expect(email).not.toContain('input.reason');
+  it('has no Memory Review email transport or email feature flag', () => {
+    expect(dispatcher).not.toContain('MemoryReviewNotificationEmailService');
+    expect(dispatcher).not.toContain('emailStatus');
+    expect(dispatcher).not.toContain('providerMessageId');
+    expect(dispatcher).not.toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
+    expect(helpers).not.toContain('renderMemoryReviewNotificationEmail');
+    expect(helpers).not.toContain('memoryReviewEmailDeliveryEnabled');
+    expect(moduleSource).not.toContain('MemoryReviewNotificationEmailService');
+    expect(command).not.toContain('MEMORY_REVIEW_EMAIL_DELIVERY');
   });
 
-  it('wires the dispatcher without scheduling or enabling it', () => {
+  it('wires the in-app dispatcher without scheduling or enabling feature flags', () => {
     expect(moduleSource).toContain('MemoryReviewNotificationDispatcherService');
-    expect(moduleSource).toContain('MemoryReviewNotificationEmailService');
     expect(command).toContain('dispatchBatch(limit)');
     expect(command).toContain('MEMORY_REVIEW_NOTIFICATION_DISPATCH');
     expect(command).not.toContain("process.env.MEMORY_CLIENT_REVIEW =");
-    expect(command).not.toContain("process.env.MEMORY_REVIEW_EMAIL_DELIVERY =");
   });
 
-  it('reports every successful in-app delivery independently of email outcome', () => {
-    expect(dispatcher).toContain('summary.delivered += 1');
+  it('reports every successful in-app delivery directly', () => {
+    expect(dispatcher).toContain("type DispatchOutcome = 'delivered' | 'deferred' | 'terminated'");
+    expect(dispatcher).toContain("return 'delivered'");
     expect(dispatcher).toContain('summary[outcome] += 1');
   });
 

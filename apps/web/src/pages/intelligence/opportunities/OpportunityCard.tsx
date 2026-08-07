@@ -1,4 +1,4 @@
-import { Button, Card, Dropdown, Space, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Collapse, Dropdown, Space, Tag, Tooltip, Typography } from 'antd';
 import {
   BookOutlined,
   CloseOutlined,
@@ -17,6 +17,11 @@ import {
   moneyLine,
   type FundingOpportunity,
 } from './funding-opportunities-api.js';
+import {
+  FIT_BAND_COLORS,
+  FIT_BAND_LABELS,
+  explainSignals,
+} from './opportunity-explanations.js';
 
 const { Text, Paragraph } = Typography;
 
@@ -92,6 +97,12 @@ export function OpportunityCard({
   const money = moneyLine(o);
   const dismissed = o.workflow?.status === 'dismissed';
   const canAct = Boolean(clientId);
+  /**
+   * Signals turned into words, sorted strongest-first HERE rather than trusted from
+   * the response — so the leading reason cannot change because a payload happened
+   * to serialise in a different order.
+   */
+  const explained = explainSignals(o.matchedSignals);
 
   /**
    * Can this notice be PURSUED at all?
@@ -190,11 +201,30 @@ export function OpportunityCard({
           <Text className="fo-fact__value">{money.value}</Text>
         </span>
 
+        {/*
+          A FIT BAND, not a bare number. "Relevance 62" is not a claim anybody can
+          check or dispute; "Strong fit" plus the reason below is. The number itself
+          moves to the evidence panel — kept, because an operator auditing a match
+          needs it, just not as the headline.
+
+          The band comes from the STRONGEST signal, never from a count, so five
+          weak word-hits cannot out-rank one exact NAICS match.
+        */}
         <span className="fo-fact">
           <Text type="secondary" className="fo-fact__label">
-            Relevance
+            Fit
           </Text>
-          <Text className="fo-fact__value">{o.relevanceScore}</Text>
+          <Tooltip
+            title={
+              explained.strongest
+                ? `${explained.strongest.label} — matched on "${explained.strongest.matchedOn}"`
+                : 'No matching signals against this client’s recorded profile.'
+            }
+          >
+            <Tag color={FIT_BAND_COLORS[explained.fitBand]} aria-label={`Fit: ${FIT_BAND_LABELS[explained.fitBand]}`}>
+              {FIT_BAND_LABELS[explained.fitBand]}
+            </Tag>
+          </Tooltip>
         </span>
 
         <span className="fo-fact">
@@ -263,24 +293,69 @@ export function OpportunityCard({
         ) : null}
       </div>
 
-      {o.matchedSignals.length > 0 ? (
+      {/*
+        The strongest reason, in words, as the card's default evidence line. It used
+        to print `{s.signal}: {s.matchedOn}` for every signal — so `naicsExact` and
+        `genericTopical` appeared as identical-looking bullets, and a reader could
+        not tell an exact classification match from the word "defense" turning up in
+        a DoD notice.
+
+        Every label names the matched VALUE, because the point of matchedOn is that
+        an operator can go and check it.
+      */}
+      {explained.strongest ? (
         <div className="fo-card__signals">
           <Text type="secondary" style={{ fontSize: 11 }}>
-            Matched on:{' '}
+            Strongest reason:{' '}
           </Text>
-          <Space size={4} wrap>
-            {o.matchedSignals.map((s) => (
-              <Tooltip
-                key={`${s.signal}:${s.matchedOn}`}
-                title={`${s.strength} signal · matched on "${s.matchedOn}"`}
-              >
-                <Tag color={STRENGTH_COLOR[s.strength]} style={{ fontSize: 11 }}>
-                  {s.signal}: {s.matchedOn}
-                </Tag>
-              </Tooltip>
-            ))}
-          </Space>
+          <Tooltip title={`Matched on "${explained.strongest.matchedOn}"`}>
+            <Tag color={FIT_BAND_COLORS[explained.strongest.strength]} style={{ fontSize: 11 }}>
+              {explained.strongest.label}: {explained.strongest.matchedOn}
+            </Tag>
+          </Tooltip>
         </div>
+      ) : null}
+
+      {/*
+        The full evidence, behind a disclosure. Nothing is hidden — the numeric
+        relevance and every signal including the weak ones are here, because an
+        operator judging a match needs to see that most of the evidence was thin.
+        They are just not what the card leads with.
+      */}
+      {o.matchedSignals.length > 0 ? (
+        <Collapse
+          ghost
+          size="small"
+          className="fo-card__evidence"
+          items={[
+            {
+              key: 'evidence',
+              label: (
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  Evidence ({o.matchedSignals.length}) · relevance {o.relevanceScore}
+                </Text>
+              ),
+              children: (
+                <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                  {explained.signals.map((s) => (
+                    <div key={`${s.signal}:${s.matchedOn}`}>
+                      <Tag color={FIT_BAND_COLORS[s.strength]} style={{ fontSize: 11 }}>
+                        {s.label}
+                      </Tag>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        matched on “{s.matchedOn}”
+                      </Text>
+                      {/* The raw key, for anyone reconciling against the scorer. */}
+                      <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }} code>
+                        {s.signal}
+                      </Text>
+                    </div>
+                  ))}
+                </Space>
+              ),
+            },
+          ]}
+        />
       ) : null}
 
       {o.missingProfileFields.length > 0 ? (

@@ -141,7 +141,11 @@ interface MockBlock {
   name?: string;
   input?: Record<string, unknown>;
 }
-const sseFromContent = (content: unknown[], stop_reason: string): string => {
+const sseFromContent = (
+  content: unknown[],
+  stop_reason: string,
+  stop_details?: Record<string, unknown>,
+): string => {
   const ev = (o: Record<string, unknown>) =>
     `event: ${String(o.type)}\ndata: ${JSON.stringify(o)}\n\n`;
   let out = ev({ type: 'message_start', message: { usage: { input_tokens: 1 } } });
@@ -167,7 +171,11 @@ const sseFromContent = (content: unknown[], stop_reason: string): string => {
     }
     out += ev({ type: 'content_block_stop', index });
   });
-  out += ev({ type: 'message_delta', delta: { stop_reason }, usage: { output_tokens: 5 } });
+  out += ev({
+    type: 'message_delta',
+    delta: { stop_reason, ...(stop_details ? { stop_details } : {}) },
+    usage: { output_tokens: 5 },
+  });
   out += ev({ type: 'message_stop' });
   return out;
 };
@@ -183,18 +191,34 @@ const streamBody = (sse: string) => {
   };
 };
 
-const anthropic = (content: unknown[], stop_reason: string) => ({
+const anthropic = (
+  content: unknown[],
+  stop_reason: string,
+  stop_details?: Record<string, unknown>,
+) => ({
   ok: true,
   status: 200,
-  body: streamBody(sseFromContent(content, stop_reason)),
-  json: async () => ({ content, stop_reason }),
+  body: streamBody(sseFromContent(content, stop_reason, stop_details)),
+  json: async () => ({ content, stop_reason, ...(stop_details ? { stop_details } : {}) }),
 });
 
-const schemasResponse = (names: string[]) => ({
+// `extraProps` lets a test declare that a specific tool's real (apps/api)
+// schema allows a given input property — e.g. conversationId, which is only
+// injected by augmentToolInput when the tool's OWN schema declares it (see
+// chat-assistant.service.ts). Tools not listed here get the old bare
+// `{ type: 'object' }` shape, matching what a tool with no declared
+// properties actually looks like.
+const schemasResponse = (names: string[], extraProps: Record<string, string[]> = {}) => ({
   ok: true,
   status: 200,
   json: async () => ({
-    schemas: names.map((name) => ({ name, description: 'x', input_schema: { type: 'object' } })),
+    schemas: names.map((name) => ({
+      name,
+      description: 'x',
+      input_schema: extraProps[name]
+        ? { type: 'object', properties: Object.fromEntries(extraProps[name].map((p) => [p, {}])) }
+        : { type: 'object' },
+    })),
   }),
 });
 
@@ -451,7 +475,8 @@ describe('ChatAssistantService.run', () => {
 
     let call = 0;
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
-      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      if (url.includes('/api/clio/tool-schemas'))
+        return schemasResponse(['create_word'], { create_word: ['conversationId', 'clientId'] });
       call += 1;
       if (call === 1)
         return anthropic(
@@ -750,7 +775,8 @@ describe('ChatAssistantService.run', () => {
 
     let call = 0;
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
-      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
+      if (url.includes('/api/clio/tool-schemas'))
+        return schemasResponse(['send_email'], { send_email: ['conversationId'] });
       call += 1;
       if (call === 1)
         return anthropic(
@@ -785,8 +811,12 @@ describe('ChatAssistantService.run', () => {
     // The durable proposal is created with exactly the tool/input/conversation
     // the model proposed — the API, not the orchestrator, computes the
     // fingerprint/policy/tenant/user authority server-side. augmentToolInput
-    // (pre-existing behavior) also threads conversationId onto the input
-    // object itself, same as every other write tool call.
+    // also threads conversationId onto the input object itself, but ONLY
+    // because send_email's own schema (mocked above) declares it as an
+    // allowed property — a write tool whose schema omits it must not receive
+    // it in `input`, or apps/api's strict per-tool validator 400s with
+    // "input.conversationId: is not an allowed property" (the bug this
+    // schema-gating fixed).
     expect(actionProposalsRepo.create).toHaveBeenCalledWith({
       tool: 'send_email',
       input: { ...emailInput, conversationId: 'conv-9' },
@@ -916,6 +946,80 @@ describe('ChatAssistantService.run', () => {
     expect(
       bodies.filter((b) => (b.tool_choice as { type?: string } | undefined)?.type === 'none'),
     ).toHaveLength(1);
+  });
+
+  // Regression: three stop reasons the loop used to treat as a clean finish.
+  // A refusal or a max_tokens truncation looked identical to "done" from the
+  // client's side — the reported "Meri stops responding / cuts off mid-sentence".
+  it('surfaces a refusal instead of spending another call re-deriving it', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    const bodies: Array<Record<string, unknown>> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas'))
+          return schemasResponse(['search_congress_bills']);
+        bodies.push(init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : {});
+        // A refusal: HTTP 200, empty content, stop_details carries the category.
+        return anthropic([], 'refusal', { category: 'cyber', explanation: 'declined' });
+      },
+    );
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'q' }] }),
+    );
+
+    expect(out.reply).toContain('can’t help with that request');
+    // The old code fell through to synthesizeFinalAnswer (a tool_choice:none
+    // round) and burned a second call re-deriving the same refusal.
+    expect(
+      bodies.filter((b) => (b.tool_choice as { type?: string } | undefined)?.type === 'none'),
+    ).toHaveLength(0);
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('flags a max_tokens truncation instead of returning the fragment as final', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    const bodies: Array<Record<string, unknown>> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas'))
+          return schemasResponse(['search_congress_bills']);
+        bodies.push(init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : {});
+        return anthropic([{ type: 'text', text: 'A partial answer that got cut' }], 'max_tokens');
+      },
+    );
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'q' }] }),
+    );
+
+    // The partial text is kept — the user kept what streamed — but the reply now
+    // says it was cut off rather than presenting the fragment as complete.
+    expect(out.reply).toContain('A partial answer that got cut');
+    expect(out.reply).toContain('length limit');
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('resumes a paused turn (pause_turn) rather than ending it', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    const bodies: Array<Record<string, unknown>> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas'))
+          return schemasResponse(['search_congress_bills']);
+        bodies.push(init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : {});
+        return bodies.length === 1
+          ? anthropic([{ type: 'text', text: 'Working on it' }], 'pause_turn')
+          : anthropic([{ type: 'text', text: 'Finished answer.' }], 'end_turn');
+      },
+    );
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'q' }] }),
+    );
+
+    expect(bodies).toHaveLength(2); // the paused round resumed instead of finalizing
+    expect(out.reply).toBe('Finished answer.');
   });
 
   it('stops the loop when the signal aborts (no further model calls)', async () => {

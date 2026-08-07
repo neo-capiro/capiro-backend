@@ -89,6 +89,19 @@ export function embeddingSimilarityFloor(hasCapabilitySignal: boolean): number {
   return hasCapabilitySignal ? TRACKED_BILL_SIMILARITY_FLOOR : THIN_SIGNAL_SIMILARITY_FLOOR;
 }
 
+/**
+ * Mapping sources that attribute FEDERAL AWARD MONEY to a client.
+ *
+ * These are the only sources where "it matched" is not an answer to "whose money
+ * is this", so every one of them needs an explicit reviewed relationship and an
+ * explicit roll-up decision. Every other source (lda, fec_*, lobby_intel, sec,
+ * fara) is a reference link and carries no attribution claim.
+ */
+export const AWARD_BEARING_MAPPING_SOURCES: ReadonlySet<string> = new Set([
+  'contracting',
+  'assistance_recipient',
+]);
+
 @Injectable()
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
@@ -2686,7 +2699,7 @@ export class IntelligenceService {
     );
     if (!client) throw new NotFoundException('Client not found');
     if (
-      ['contracting', 'assistance_recipient'].includes(input.source) &&
+      AWARD_BEARING_MAPPING_SOURCES.has(input.source) &&
       (input.relationshipType == null || input.rollUpAwards == null)
     ) {
       throw new BadRequestException(
@@ -2991,16 +3004,36 @@ export class IntelligenceService {
         : null;
       if (!existing || !owned) throw new NotFoundException('Mapping not found');
 
-      const relationshipType = input.relationshipType ?? existing.relationshipType;
-      const rollUpAwards = input.rollUpAwards ?? existing.rollUpAwards;
-      if (
-        input.confirmed &&
-        existing.source === 'contracting' &&
-        (relationshipType == null || rollUpAwards == null)
-      ) {
-        throw new BadRequestException(
-          'Confirming a federal contractor requires a relationship type and an explicit award roll-up decision.',
-        );
+      // P05 — award-bearing identity may only be decided EXPLICITLY, per decision.
+      //
+      // Three things changed here, each closing a separate hole:
+      //
+      // 1. `assistance_recipient` is now covered. Only `contracting` was, so an
+      //    assistance mapping could be confirmed with relationshipType and
+      //    rollUpAwards left NULL — and NULL means "do not roll up", so the row was
+      //    confirmed but invisible to every roll-up read. Confirmed-but-inert is
+      //    the worst of the three possible states because it looks decided.
+      //
+      // 2. The values must be present in THIS request. The old code fell back to
+      //    `?? existing.*`, so re-confirming a row silently reused a decision made
+      //    at some other time, for some other reason, possibly by someone else —
+      //    and a bulk toggle sending only `{confirmed:true}` satisfied the guard.
+      //
+      // 3. Rejecting an award-bearing mapping now needs a written reason. A reject
+      //    is a single PATCH, so the server cannot tell a bulk sweep from an
+      //    individual decision; requiring a reason is what a sweep cannot supply.
+      if (AWARD_BEARING_MAPPING_SOURCES.has(existing.source)) {
+        if (input.confirmed) {
+          if (input.relationshipType == null || input.rollUpAwards == null) {
+            throw new BadRequestException(
+              'Confirming an award-bearing identity requires an explicit relationship type and an explicit award roll-up decision on this request. Whose money this is cannot be inherited from a previous decision.',
+            );
+          }
+        } else if (!input.rejectionReason?.trim()) {
+          throw new BadRequestException(
+            'Rejecting an award-bearing identity requires a written reason, so the decision is reviewable later.',
+          );
+        }
       }
 
       const saved = await tx.clientIntelMapping.update({

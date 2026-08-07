@@ -5972,6 +5972,29 @@ model ClientFundingOpportunity {
   /// SamOpportunity.id (uuid) — set iff source='sam_gov'.
   samOpportunityId   String? @map("sam_opportunity_id") @db.Uuid
 
+  /// GENERIC source identity (P13), alongside — never instead of — the two legacy
+  /// pointers above.
+  ///
+  /// The pair of nullable pointer columns works for exactly two sources. Agency
+  /// forecasts, DIBBS and SBIR/STTR each want this same durable decision record,
+  /// and a third column per source means a wider CHECK, another partial unique
+  /// index and another branch in every writer, forever.
+  ///
+  /// `sourceRecordType` is the SHAPE of the thing pointed at
+  /// ('grants_gov_opportunity' | 'sam_notice' | 'tango_procurement_forecast' | …),
+  /// which is a different question from `source` (the product rail) and will stop
+  /// being 1:1 with it once Tango supplies three record types under three rails.
+  ///
+  /// NULLABLE for both legacy sources, and that is load-bearing rather than lax:
+  /// pre-P13 code writing during a rolling deploy sets neither, so a NOT NULL
+  /// would make the older API a hard failure the moment the migration lands.
+  /// The migration backfills every existing row; the update path backfills the
+  /// rolling-deploy tail; reads fall back to the legacy pointer either way.
+  /// A FUTURE source, by contrast, MUST carry both and no legacy pointer — see
+  /// client_funding_opportunity_one_source_chk in the P13 migration.
+  sourceRecordType   String? @map("source_record_type") @db.VarChar(48)
+  sourceRecordKey    String? @map("source_record_key") @db.Text
+
   /// 'suggested' | 'saved' | 'pursuing' | 'dismissed' | 'won' | 'lost' | 'expired'.
   /// CHECK-constrained in the migration.
   workflowStatus String  @default("suggested") @map("workflow_status") @db.VarChar(16)
@@ -6024,6 +6047,25 @@ model ClientFundingOpportunity {
   sourceActiveSnapshot     Boolean?  @map("source_active_snapshot")
   alertState               Json      @default("{}") @map("alert_state_jsonb")
 
+  /// The team's DECISION, kept separate from `workflowStatus` (where a pursuit is)
+  /// and from the machine recommendation (which is recomputed on read, never
+  /// stored). A team can decide to monitor something with no pursuit, or to pass on
+  /// something whose source is still wide open — folding those into workflowStatus
+  /// makes "we chose not to bid" indistinguishable from "the source closed", and
+  /// only one of those is a decision somebody can be asked about later.
+  /// NULL means nobody has decided yet, correct for every producer-created row.
+  /// CHECK-constrained to pursue|monitor|pass (migration 20260819010000), and the
+  /// same migration CHECKs that a decision always carries its actor and timestamp.
+  humanDecision    String?   @map("human_decision") @db.VarChar(16)
+  decisionReason   String?   @map("decision_reason") @db.Text
+  decisionAt       DateTime? @map("decision_at") @db.Timestamptz(6)
+  decisionByUserId String?   @map("decision_by_user_id") @db.Uuid
+  /// What happens next, and by when. A due date with no action is a reminder about
+  /// nothing, so the migration CHECKs that direction; an action with no due date is
+  /// fine.
+  nextAction       String?   @map("next_action") @db.Text
+  nextActionDueAt  DateTime? @map("next_action_due_at") @db.Timestamptz(6)
+
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
   outcomeNote     String? @map("outcome_note") @db.Text
@@ -6057,6 +6099,18 @@ model ClientFundingOpportunity {
   // beyond 5,000 tracked rows the pass was silently partial — rows after the cap
   // were never expired and never alerted. It now walks `id > cursor ORDER BY id`.
   @@index([tenantId, id], map: "client_funding_opportunity_tenant_cursor_idx")
+  // Partial on human_decision: only decided rows are indexed, which is a small
+  // fraction of a table that is overwhelmingly machine suggestions. Read by the
+  // P10 triage inbox as "decided rows for this tenant, soonest action first".
+  @@index([tenantId, humanDecision, nextActionDueAt], map: "client_funding_opportunity_decision_idx")
+  // The GENERIC identity index (P13). Also a PARTIAL unique index — created only
+  // in the migration, for the same reason as the two legacy ones: Prisma cannot
+  // express `WHERE source_record_key IS NOT NULL`, and without the predicate every
+  // row that has not been backfilled yet would collide on NULL.
+  //   client_funding_opportunity_generic_uniq
+  //     UNIQUE (tenant_id, client_id, source, source_record_key)
+  //     WHERE source_record_key IS NOT NULL
+  @@index([tenantId, sourceRecordType, sourceRecordKey], map: "client_funding_opportunity_source_record_idx")
   @@map("client_funding_opportunity")
 }
 

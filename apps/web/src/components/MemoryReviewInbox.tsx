@@ -572,7 +572,7 @@ export function MemoryReviewInbox({ isAdmin }: { isAdmin: boolean }) {
                 type="info"
                 showIcon
                 message="Active memory is unchanged"
-                description="This proposal remains separate until an independent reviewer approves it."
+                description="This proposal remains separate until an authorized administrator or reviewer approves it."
               />
             )}
 

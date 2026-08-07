@@ -349,3 +349,50 @@ describe('honest failure', () => {
     expect(err.textContent).toMatch(/request failure, not an empty result/i);
   });
 });
+
+describe('P05 — the PATCH body carries no row identifier', () => {
+  test('an individual toggle sends the id in the PATH only', async () => {
+    // This page used to spread the whole mutation input into the body, `id`
+    // included. The API declares no `id` on ConfirmMappingDto and runs
+    // forbidNonWhitelisted, so every one of those calls was in fact 400ing —
+    // invisibly, because axios is mocked here. Asserting the BODY, not just the
+    // URL, is what makes that regression catchable from this side.
+    renderPage();
+    await screen.findByText('ACME DEFENSE LLC');
+
+    const toggles = await screen.findAllByRole('switch');
+    fireEvent.click(toggles[0]!);
+
+    await waitFor(() => expect(apiPatchMock).toHaveBeenCalled());
+    const [url, body] = apiPatchMock.mock.calls[0]!;
+    expect(String(url)).toMatch(/^\/api\/intelligence\/mappings\/m-\d+$/);
+    expect(body).not.toHaveProperty('id');
+    expect(body).toHaveProperty('confirmed');
+  });
+
+  test('bulk reject skips award-bearing sources and sends a written reason', async () => {
+    // Before P05 this swept `contracting` and `assistance_recipient` rows and wrote
+    // a DURABLE rejection on each — and a durable rejection is precisely what
+    // entity resolution then refuses to revisit.
+    renderPage();
+    await screen.findByText('ACME DEFENSE LLC');
+
+    const rejectAll = screen.queryByRole('button', { name: /Reject All/i });
+    if (rejectAll && !rejectAll.hasAttribute('disabled')) {
+      fireEvent.click(rejectAll);
+      await waitFor(() => expect(apiPatchMock).toHaveBeenCalled());
+      for (const [, body] of apiPatchMock.mock.calls) {
+        const payload = body as { confirmed: boolean; rejectionReason?: string };
+        if (payload.confirmed === false) {
+          expect(typeof payload.rejectionReason).toBe('string');
+          expect(payload.rejectionReason!.trim().length).toBeGreaterThan(0);
+        }
+      }
+    } else {
+      // Every low-confidence row in the fixture is award-bearing, so the button is
+      // correctly disabled — which is itself the assertion.
+      expect(rejectAll).toBeTruthy();
+      expect(rejectAll!.hasAttribute('disabled')).toBe(true);
+    }
+  });
+});
