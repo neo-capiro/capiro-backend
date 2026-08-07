@@ -5,7 +5,8 @@
  * One disposable pgvector database, one main API, one shadow engagement-api,
  * one unchanged web SPA, and one localhost proxy that reproduces the Phase 2
  * ALB header rule. The browser harness creates isolated main and preview
- * contexts against the same fixture rows.
+ * contexts against the same fixture rows, then replays its observed reads
+ * directly across both API processes before ephemeral auth material is removed.
  */
 
 import { spawn } from 'node:child_process';
@@ -66,6 +67,8 @@ const commonEnv = {
   ENGAGEMENT_PHASE3_EVIDENCE_DIR: EVIDENCE,
   ENGAGEMENT_PHASE3_BASE_URL: `http://127.0.0.1:${WEB_PORT}`,
   ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE: TOKEN_FILE,
+  ENGAGEMENT_PHASE3_MAIN_URL: `http://127.0.0.1:${MAIN_PORT}`,
+  ENGAGEMENT_PHASE3_ENGAGEMENT_URL: `http://127.0.0.1:${ENGAGEMENT_PORT}`,
   VITE_API_BASE_URL: `http://127.0.0.1:${PROXY_PORT}`,
   VITE_CLERK_PUBLISHABLE_KEY: clerkPublishableKey,
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? clerkPublishableKey,
@@ -277,7 +280,11 @@ async function main() {
     );
     await waitForHttp(`http://127.0.0.1:${WEB_PORT}/`, (status) => status === 200, 90_000);
 
-    await run('phase3-browser-parity', 'node', ['apps/web/scripts/engagement-phase3-browser-parity.mjs']);
+    await run(
+      'phase3-browser-and-read-parity',
+      'node',
+      ['apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs'],
+    );
 
     const previewDecisions = proxyDecisions.filter((entry) => entry.owner === 'engagement-api');
     const mainDecisions = proxyDecisions.filter((entry) => entry.owner === 'main-api');
@@ -301,6 +308,7 @@ async function main() {
           webPort: Number(WEB_PORT),
           previewRoutingObserved: previewDecisions.length > 0,
           normalRoutingObserved: mainDecisions.length > 0,
+          browserAndReadParity: true,
           externalActionsEnabled: false,
           callbacksEnabled: false,
           recallEnabled: false,
