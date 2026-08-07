@@ -12,6 +12,7 @@ import { SessionRail } from './SessionRail.js';
 import type { MeriChatController } from './useMeriChatController.js';
 import meriBubbleImage from '../../assets/chat/meri-bubble.png';
 import './meri-workspace-window.css';
+import './meri-workspace-window-scope.css';
 
 const REASONING_MODES = [
   {
