@@ -417,6 +417,60 @@ data (or the provider adding the field) is the only thing that changes
 that — re-adding `parent_uei` to the shape without re-confirming server
 support first will reproduce the original `unknown_field` failure.
 
+### Acquisition-position scoring and UI (P23) — no migration, a new field-level flag
+
+`acquisition-position.ts` ships in this merge, along with the
+`acquisitionPosition` field on every `FundingOpportunity` response and a
+concise badge + full detail panel in the web app. No migration — it reads
+P22's `client_relevant_vehicle` and P15's `tango_resource_snapshot`/
+`tango_sync_checkpoint`, all already-existing tables.
+
+**This is gated by a NEW flag, `funding_opportunities_vehicle_fit`, and it
+is NOT a route guard.** Unlike `funding_opportunities` and
+`funding_opportunities_client_inbox` (which 404 an entire endpoint),
+acquisition position is a field inside the already-flagged opportunity
+response. With no `intel_feature_flag` row for this flag, every tenant
+gets `acquisitionPosition: null` on every opportunity — byte-for-byte the
+same shape P22 returned, per this phase's own acceptance bar — so merging
+this PR changes nothing for anybody until the flag is explicitly turned on:
+
+```sql
+-- Turn it on for one tenant. Same table, same shape, as funding_opportunities itself.
+INSERT INTO intel_feature_flag (feature, tenant_id, enabled)
+VALUES ('funding_opportunities_vehicle_fit', '<tenant-uuid>', true)
+ON CONFLICT (feature, tenant_id) DO UPDATE SET enabled = true;
+```
+
+```sql
+-- READ-ONLY. Confirm what a tenant will actually see before/after the flag write.
+SELECT feature, tenant_id, enabled FROM intel_feature_flag
+ WHERE feature IN ('funding_opportunities', 'funding_opportunities_vehicle_fit')
+   AND tenant_id = '<tenant-uuid>';
+```
+
+**Read this before assuming a client's acquisition position looks wrong.**
+The position is a CLIENT posture — computed once from every vehicle P22's
+sync found relevant to that client — never a crosswalk from one specific
+opportunity to one specific required vehicle (decision-log D-44 explains
+why no such crosswalk exists anywhere in this codebase, and why building
+one from notice text would be a fabrication this program's own identity
+rules already forbid). The same position is attached identically to every
+`sam_gov` opportunity for that client; a grant always gets `null`.
+`vehicle_not_identified` means the sync ran and found zero relevant
+vehicles for this client; `no_direct_access_evidence` means it found some,
+but every one is past its own last date to order — these are genuinely
+different facts, not two spellings of the same gap. `unknown` means Tango
+is not configured or `sync-tango-vehicles` (P22) has never completed a
+run — check `tango_sync_checkpoint` for `sync_verb = 'sync-tango-vehicles'`
+before assuming a client's own data is the problem.
+
+The `known_teaming_route` state and the recommendation engine's
+`vehicleAccessRequired` override are both real, tested code with **no live
+trigger today** — the same posture as D-41's dormant `'parent'`
+relationship. Neither will appear in a real response until a future phase
+adds a teaming-partner data source or a real opportunity-to-vehicle
+crosswalk (P27+). Seeing neither in production is expected, not a bug.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

@@ -119,6 +119,48 @@ export interface OpportunityRecommendationView {
   reasonCodes: string[];
 }
 
+/** Mirrors ACQUISITION_POSITION_STATES in apps/api's acquisition-position.ts. */
+export const ACQUISITION_POSITION_STATES = [
+  'direct_prime_access',
+  'related_entity_access',
+  'known_teaming_route',
+  'vehicle_not_identified',
+  'no_direct_access_evidence',
+  'unknown',
+] as const;
+export type AcquisitionPositionState = (typeof ACQUISITION_POSITION_STATES)[number];
+
+export type AcquisitionRelationship = 'self' | 'parent' | 'teaming';
+
+export interface AcquisitionVehicleEvidence {
+  tangoVehicleId: string;
+  vehicleName: string | null;
+  vehicleType: string | null;
+  relationship: AcquisitionRelationship;
+  recipientUei: string;
+  orderCount: number | null;
+  idvObligations: number | null;
+  idvContractsValue: number | null;
+  lastDateToOrder: string | null;
+  expired: boolean | null;
+  lastSyncedAt: string;
+}
+
+/**
+ * Mirrors AcquisitionPosition in apps/api. A credible PATH to an acquisition
+ * — never legal eligibility (`eligibility`) and never a probability of
+ * winning (`recommendation.recommendationConfidence`). See
+ * AcquisitionPositionPanel.tsx's own doc for the UI-copy rules this powers.
+ */
+export interface AcquisitionPosition {
+  state: AcquisitionPositionState;
+  evidence: AcquisitionVehicleEvidence[];
+  summary: string;
+  recommendedRoute: string;
+  source: 'tango';
+  freshness: { lastSyncedAt: string | null; neverSynced: boolean };
+}
+
 export const HUMAN_DECISIONS = ['pursue', 'monitor', 'pass'] as const;
 export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
 
@@ -203,6 +245,13 @@ export interface FundingOpportunity {
    * is deliberate — an additive API field deploys before the web that consumes it.
    */
   recommendation: OpportunityRecommendationView | null;
+  /**
+   * Null when there is no client, the source is `grants_gov` (no contract
+   * vehicle concept), or `funding_opportunities_vehicle_fit` is off for this
+   * tenant — in which case every other field is byte-for-byte what P22
+   * returned.
+   */
+  acquisitionPosition: AcquisitionPosition | null;
   /**
    * The team's persisted DECISION, or null when nobody has decided yet.
    *
@@ -465,6 +514,21 @@ export const ELIGIBILITY_LABELS: Record<EligibilityState, string> = {
   eligible: 'Eligible',
   ineligible: 'Not eligible',
   needs_review: 'Needs review',
+  unknown: 'Unknown',
+};
+
+/**
+ * NEVER "eligible"/"ineligible"/a percentage — acquisition position answers
+ * a different question than `ELIGIBILITY_LABELS` does, and a shared word
+ * between the two is exactly the blend AcquisitionPositionPanel.tsx's own
+ * doc exists to prevent.
+ */
+export const ACQUISITION_POSITION_LABELS: Record<AcquisitionPositionState, string> = {
+  direct_prime_access: 'Direct prime access',
+  related_entity_access: 'Related-entity access',
+  known_teaming_route: 'Known teaming route',
+  vehicle_not_identified: 'Vehicle not identified',
+  no_direct_access_evidence: 'No current access evidence',
   unknown: 'Unknown',
 };
 

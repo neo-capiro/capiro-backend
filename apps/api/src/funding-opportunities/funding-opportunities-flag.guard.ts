@@ -16,6 +16,51 @@ export const FUNDING_OPPORTUNITIES_FEATURE = 'funding_opportunities';
 export const FUNDING_OPPORTUNITIES_INBOX_FEATURE = 'funding_opportunities_client_inbox';
 
 /**
+ * P23. Gates acquisition-position scoring specifically. Unlike the two flags
+ * above, nothing sits behind this as a ROUTE — the field lives inside the
+ * existing, already-flagged opportunity response — so this flag is never
+ * read by a guard. `isFundingOpportunitiesFeatureEnabled` below is the
+ * boolean-returning read `funding-opportunities.service.ts` uses instead,
+ * so "flag off" can mean "compute nothing, respond exactly like P22" rather
+ * than "404 the whole endpoint".
+ */
+export const FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE = 'funding_opportunities_vehicle_fit';
+
+/**
+ * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
+ * ::uuid cast — see the guard's own docblock for why both details matter),
+ * factored out so a route guard and a data-shape check can never drift into
+ * disagreeing about what "enabled" means for the same flag row.
+ *
+ * DELIBERATELY DOES NOT CATCH. A guard and a plain data check fail closed for
+ * DIFFERENT reasons and at different volumes — a guard 404s and logs loudly,
+ * because a broken read there hides an entire endpoint; a field like P23's
+ * acquisition position can fail closed quietly, because its absence is
+ * additive. Swallowing the error HERE would make both callers' own
+ * try/catch dead code and turn a broken flag read silent everywhere,
+ * exactly the failure mode this file's own docblock already names as having
+ * happened once (the District Nexus `::uuid` incident). Every caller must
+ * wrap this itself.
+ */
+export async function isFundingOpportunitiesFeatureEnabled(
+  prisma: PrismaService,
+  tenantId: string,
+  feature: string,
+): Promise<boolean> {
+  const rows = await prisma.withSystem((tx) =>
+    tx.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok
+      FROM intel_feature_flag
+      WHERE feature = ${feature}
+        AND tenant_id = ${tenantId}
+        AND enabled = true
+      LIMIT 1
+    `,
+  );
+  return rows.length > 0;
+}
+
+/**
  * Gates every Funding Opportunities endpoint on a per-tenant
  * `funding_opportunities` row in `intel_feature_flag`.
  *
@@ -71,29 +116,23 @@ export class FundingOpportunitiesFlagGuard implements CanActivate {
     // the same 404 a disabled flag produces so this path leaks nothing either.
     if (!tenantId) throw new NotFoundException();
 
+    // Shares its fail-closed SQL with isFundingOpportunitiesFeatureEnabled
+    // (P23) so a route guard and a data-shape check can never disagree about
+    // what "enabled" means for the same flag row. This class still owns the
+    // ERROR LOGGING and the 404-on-disabled behavior a route guard needs,
+    // which the shared helper deliberately does not do (see its own doc).
+    let enabled: boolean;
     try {
-      const rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ ok: number }>>`
-          SELECT 1 AS ok
-          FROM intel_feature_flag
-          WHERE feature = ${this.feature()}
-            AND tenant_id = ${tenantId}
-            AND enabled = true
-          LIMIT 1
-        `,
-      );
-      if (rows.length === 0) throw new NotFoundException();
-      return true;
+      enabled = await isFundingOpportunitiesFeatureEnabled(this.prisma, tenantId, this.feature());
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      // Fail closed. A flag read that errors must not open the feature — the
-      // whole point of the gate is that unseeded tenants see nothing.
       this.logger.error(
-        `${FUNDING_OPPORTUNITIES_FEATURE} flag read failed for tenant ${tenantId}; failing closed`,
+        `${this.feature()} flag read failed for tenant ${tenantId}; failing closed`,
         error instanceof Error ? error.stack : String(error),
       );
       throw new NotFoundException();
     }
+    if (!enabled) throw new NotFoundException();
+    return true;
   }
 }
 

@@ -58,6 +58,7 @@ function opportunity(partial: Partial<FundingOpportunity> = {}): FundingOpportun
     eligibility: { state: 'needs_review', reason: 'Set-aside not evaluated.' },
     matchedSignals: [],
     recommendation: null,
+    acquisitionPosition: null,
     decision: null,
     missingProfileFields: [],
     sourceUpdatedAt: null,
@@ -203,5 +204,48 @@ describe('screen readers can tell the three concepts apart', () => {
     expect(screen.getByText('Eligibility')).toBeInTheDocument();
     expect(screen.getByText('Needs review')).toBeInTheDocument();
     expect(screen.getByText('Saved')).toBeInTheDocument();
+  });
+});
+
+// ── P23: the concise acquisition-position badge ─────────────────────────────
+
+describe('the acquisition-position badge is concise: present only when there is something to say', () => {
+  test('no badge at all when acquisitionPosition is null', () => {
+    renderCard(opportunity({ acquisitionPosition: null }));
+    expect(screen.queryByText('Vehicle access')).not.toBeInTheDocument();
+  });
+
+  test('a direct position renders its own label', () => {
+    renderCard(
+      opportunity({
+        acquisitionPosition: {
+          state: 'direct_prime_access',
+          evidence: [],
+          summary: 'This client holds a live position on Test GWAC.',
+          recommendedRoute: 'Bid directly under Test GWAC.',
+          source: 'tango',
+          freshness: { lastSyncedAt: '2026-08-01T00:00:00.000Z', neverSynced: false },
+        },
+      }),
+    );
+    expect(screen.getByText('Vehicle access')).toBeInTheDocument();
+    expect(screen.getByText('Direct prime access')).toBeInTheDocument();
+  });
+
+  test('a related-entity position never renders with the same text as direct access', () => {
+    renderCard(
+      opportunity({
+        acquisitionPosition: {
+          state: 'related_entity_access',
+          evidence: [],
+          summary: 'A related entity holds a live position.',
+          recommendedRoute: 'Route through the related entity.',
+          source: 'tango',
+          freshness: { lastSyncedAt: '2026-08-01T00:00:00.000Z', neverSynced: false },
+        },
+      }),
+    );
+    expect(screen.getByText('Related-entity access')).toBeInTheDocument();
+    expect(screen.queryByText('Direct prime access')).not.toBeInTheDocument();
   });
 });

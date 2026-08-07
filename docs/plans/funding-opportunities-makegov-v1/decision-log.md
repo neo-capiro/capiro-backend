@@ -1269,3 +1269,114 @@ the exact `limit` sent to the gateway, not just the processed count.
 "full" page size independent of how much of an overall `--limit` remains,
 and any test fake for a paginated gateway method that silently ignores the
 `limit` it was called with.
+
+---
+
+## D-44 · 2026-08-07 · Acquisition position is a CLIENT posture, not an opportunity crosswalk — and why the recommendation hook has no live trigger yet
+
+P23's plan names six states, including `vehicle_not_identified` as distinct
+from `no_direct_access_evidence`, and asks for a recommendation-engine
+override "when vehicle access is required but unresolved." Both phrases
+read, on first pass, as if this phase should determine which SPECIFIC
+contract vehicle a SPECIFIC SAM/Grants.gov opportunity requires. It does
+not, and this entry records why, because the alternative reading would have
+produced a fabrication.
+
+**No structured signal for "this opportunity requires a vehicle" exists.**
+`FundingOpportunity` was checked field by field: `setAside`/`setAsideCode`
+carry socio-economic set-aside categories (8(a), HUBZone, SDVOSB, WOSB),
+never a vehicle restriction. `fundingInstrument` is populated for
+`grants_gov` rows only — always `null` for `sam_gov`, confirmed by reading
+`shapeUnscored`'s own SAM branch directly. No field anywhere carries a
+vehicle name, IDV number, or "task order under X" fact. The only way to
+infer one would be matching free text in the notice's title or description
+against a known vehicle name — exactly the fuzzy-text-matching-as-identity
+this program's own award-history rules (P02) forbid, restated here for a
+different kind of identity claim. This phase's own plan lists no new
+Prisma model or migration, confirming no crosswalk was ever in scope here —
+that is P27+ territory ("Tango↔SAM crosswalk and parity ledger"), if it is
+ever built at all.
+
+**So acquisition position is computed once PER CLIENT, from P22's
+`client_relevant_vehicle` data alone, and attached identically to every
+`sam_gov` opportunity for that client** — the same shape of design P21's
+`FederalBusinessProfile` already uses for provider-verified context. The
+six states resolve from that CLIENT-level evidence:
+
+  - `direct_prime_access` / `related_entity_access` / `known_teaming_route`
+    — the best (self beats parent beats teaming) NON-EXPIRED relationship
+    found. Expiry is read from the vehicle's own `lastDateToOrder`, joined
+    from its full Tango snapshot (P15's `tango_resource_snapshot`) rather
+    than added as a new column — P22's own materialized summary table
+    never captured that field, and the full snapshot already holds it.
+  - `no_direct_access_evidence` — the sync ran and found relevant vehicles,
+    but every one is expired.
+  - `vehicle_not_identified` — the sync ran and found ZERO relevant
+    vehicles for this client at all.
+  - `unknown` — Tango is not configured, or the vehicle sync
+    (`sync-tango-vehicles`, P22) has never completed a run — read from
+    P15's `tango_sync_checkpoint`, the same table `sync-tango-vehicles.ts`
+    itself writes to.
+
+`vehicle_not_identified` and `no_direct_access_evidence` stay genuinely
+separate states — "found nothing at all" and "found vehicles but none
+current" are different fact patterns a capture strategist would act on
+differently — even though neither is opportunity-specific. Grants never
+get a position at all (`acquisitionPosition: null`): a grant carries no
+contract-vehicle concept, a source fact rather than a product gap.
+
+**`known_teaming_route` is real, tested, and has no producer.** P22's
+`client_relevant_vehicle.relationship` column is CHECK-constrained to
+`'self'`/`'parent'` only — nothing anywhere writes `'teaming'`. The state
+stays in `computeAcquisitionPosition`'s vocabulary and truth table (the
+function accepts a `'teaming'` relationship and scores it correctly) so a
+future teaming-partner data source — a formal partner/JV registry Capiro
+does not have today — is a producer to add, not a scoring-function change.
+Same shape of fact as D-41's dormant 'parent' relationship.
+
+**The recommendation-engine override is real, tested, and has no live
+trigger either — for the same underlying reason.** `vehicleAccessRequired`
+would need to answer "does THIS opportunity specifically require vehicle
+access", which is exactly the crosswalk that does not exist. Rather than
+leave the acceptance criterion ("recommendation can move from pursue to
+needs-review when vehicle access is required but unresolved") unbuilt,
+`opportunity-recommendation.ts` gained the real, fully-tested override —
+checked only after the existing 8 rules produce `pursue`, downgrading that
+one outcome when `vehicleAccessRequired && !vehicleAccessResolved` — as a
+POST-PROCESSING step, not a ninth numbered rule, so the original 8 rules'
+carefully-ordered precedence is untouched. Both fields are optional; no
+real caller sets either today, proven directly (`recommendOpportunity`
+called with both fields omitted is byte-for-byte identical to the pre-P23
+result — a dedicated test asserts this, not just describes it).
+
+**Fix/build, concretely:** `acquisition-position.ts`'s
+`computeAcquisitionPosition` is the pure, DB-free truth table
+(`acquisition-position.spec.ts`, 18 tests: prime, affiliate, partner,
+expired vehicle, multiple vehicles winning by rank not array order, and
+both flavors of missing provider data). `AcquisitionPositionService` adapts
+real `PrismaService`/`TangoStoreService` reads into that function's input
+shape — constructed directly inside `FundingOpportunitiesService`, not a
+separate DI-registered provider, matching how `recommendOpportunity` itself
+is a plain function services call rather than an injectable service.
+`funding-opportunities.service.ts`'s own new tests (+6) prove the WIRING
+specifically — the one risk `acquisition-position.spec.ts`'s fakes cannot
+catch, such as a wrong Prisma model or field name. Gated by a NEW flag,
+`funding_opportunities_vehicle_fit`, read as a plain boolean
+(`isFundingOpportunitiesFeatureEnabled`, factored out of
+`FundingOpportunitiesFlagGuard` so a route guard and a data-shape check
+share one fail-closed SQL query and can never disagree about what
+"enabled" means) rather than a route guard — the field lives inside an
+already-flagged response, so "off" must mean "respond exactly like P22"
+plus one null-valued key, never a 404.
+
+**What this forbids:** inferring a required vehicle from an opportunity's
+title, description, or any other free-text field — that is a fuzzy-
+matching identity claim, the exact failure mode P02 already closed off for
+award history. Setting `vehicleAccessRequired: true` anywhere in
+`funding-opportunities.service.ts` without a genuine, structured, per-
+opportunity vehicle signal — which does not exist as of this phase and may
+never exist without P27's crosswalk actually being built. Computing
+`configured`/`neverSynced`/expiry any way other than reading the REAL
+`TANGO_GATEWAY.configured` flag and P15's own checkpoint/snapshot tables —
+inventing a client-side proxy for either would silently drift from what
+P22's own sync actually knows.

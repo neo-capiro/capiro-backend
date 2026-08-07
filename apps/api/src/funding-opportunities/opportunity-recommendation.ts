@@ -47,6 +47,27 @@
  * A forecasted opportunity has no response window and cannot be pursued or
  * passed on in the same sense. P25 adds forecast rules; until then the caller
  * must not route forecasts through this function.
+ *
+ * ACQUISITION POSITION IS A POST-PROCESSING OVERRIDE, NOT A NINTH RULE (P23)
+ * ---------------------------------------------------------------------------
+ * `vehicleAccessRequired`/`vehicleAccessResolved` do not slot into the
+ * numbered precedence above. They are checked ONLY after the 8 rules produce
+ * `pursue`, and downgrade that ONE outcome to `needs_review` when access is
+ * required but unresolved — never a pass, never a monitor, and never
+ * reachable from any of rules 1-6 (a source that is closed, informational,
+ * barred, unscored or below the evidence floor is already decided for
+ * unrelated reasons; whether a vehicle exists has nothing to add there).
+ *
+ * `vehicleAccessRequired` is real, and this file's own test suite proves the
+ * override fires correctly — but no caller sets it to `true` today.
+ * acquisition-position.ts computes a client's OWN vehicle-access posture
+ * from P22's data, not a crosswalk from THIS specific opportunity to a
+ * specific required vehicle: no such crosswalk exists anywhere in this
+ * codebase (P27+ scope), and inferring "this notice needs a vehicle" from
+ * free text would be exactly the fuzzy-matching-as-identity this program's
+ * award-history rules (P02) forbid. See decision-log D-44. This is the same
+ * shape of fact as D-41's dormant 'parent' relationship: real, tested code
+ * with no live trigger yet, documented as such rather than left unbuilt.
  */
 
 import type { EligibilityState, OpportunityKind, OpportunitySource } from './funding-opportunities.types.js';
@@ -76,6 +97,8 @@ export const RECOMMENDATION_REASON_CODES = [
   'deadline_imminent',
   'deadline_not_stated',
   'no_award_history_evidence',
+  /** P23: a pursue was downgraded because vehicle access is required but not yet resolved. */
+  'vehicle_access_unresolved',
 ] as const;
 export type RecommendationReasonCode = (typeof RECOMMENDATION_REASON_CODES)[number];
 
@@ -98,6 +121,22 @@ export interface RecommendationInput {
   eligibility: EligibilityState;
   /** True when the client profile cannot support a judgement yet. */
   profileTooThin: boolean;
+  /**
+   * P23. True when THIS opportunity is known to require going through a
+   * specific contract vehicle. Optional and defaults to false — see this
+   * file's own class doc for why no caller sets it to true today, and
+   * decision-log D-44 for the full reasoning. Absent entirely, existing
+   * callers (and every recommendation fixture written before P23) are
+   * unaffected.
+   */
+  vehicleAccessRequired?: boolean;
+  /**
+   * P23. Meaningful only when `vehicleAccessRequired` is true: whether a
+   * credible route (direct, related-entity, or teaming — any of
+   * acquisition-position.ts's non-absence states) has been established.
+   * Ignored when `vehicleAccessRequired` is false or absent.
+   */
+  vehicleAccessResolved?: boolean;
   /** The caller's clock. Never `new Date()` inside this module. */
   asOf: Date;
 }
@@ -277,6 +316,28 @@ export function recommendOpportunity(
     const codes: RecommendationReasonCode[] = ['strong_capability_match'];
     if (hasAgencyHistory) codes.push('prior_agency_award_history');
     else codes.push('no_award_history_evidence');
+
+    // P23 override: a pursue is downgraded to needs_review when vehicle
+    // access is required but not yet resolved — see this file's own class
+    // doc for why no real caller sets vehicleAccessRequired true today. Only
+    // THIS one outcome is interceptable; rules 1-6 already decided pass,
+    // monitor or needs_review for reasons a vehicle question cannot override.
+    if (input.vehicleAccessRequired && !input.vehicleAccessResolved) {
+      return {
+        machineRecommendation: 'needs_review',
+        // The capability match is strong — that part is not in question —
+        // but committing bid effort without a resolved acquisition route is
+        // exactly what this program's "credible path, not a score" design
+        // exists to catch.
+        recommendationConfidence: 'medium',
+        primaryReason:
+          'Strong capability match, but this opportunity requires vehicle access that has not been resolved.',
+        primaryRisk: risk,
+        recommendedNextAction: 'Resolve acquisition position (direct, related-entity, or teaming) before committing bid effort.',
+        reasonCodes: ['vehicle_access_unresolved', ...codes, ...deadlineCodes],
+      };
+    }
+
     return {
       machineRecommendation: 'pursue',
       // High needs BOTH a strong capability match and prior agency history. One

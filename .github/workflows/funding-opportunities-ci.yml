@@ -583,9 +583,30 @@ jobs:
       # Capiro's own `client` table via a real Prisma keyset cursor and calls
       # single-record `getEntity` per row, never `listEntities`.
       #
+      # 46/1412 after P23: one NEW suite, acquisition-position.spec.ts (18
+      # tests) — the six-state truth table this phase's own acceptance bar
+      # names (prime/affiliate/partner/expired vehicle/multiple vehicles/
+      # missing provider data) plus the AcquisitionPositionService wiring
+      # tests (real-shaped rows joined against their own vehicle snapshot,
+      # an unrecognized relationship string dropped as unmappable, never
+      # trusted). opportunity-recommendation.ts grew a documented POST-
+      # PROCESSING override (not a ninth numbered rule): a would-be pursue
+      # downgrades to needs_review when vehicleAccessRequired is true and
+      # vehicleAccessResolved is false — both fields optional, so every
+      # existing caller and fixture is byte-for-byte unaffected; no real
+      # caller sets either today (decision-log D-44: no per-opportunity
+      # vehicle crosswalk exists anywhere in this codebase, and inferring
+      # "this notice needs a vehicle" from free text would be exactly the
+      # fuzzy-matching-as-identity P02 forbids). funding-opportunities.
+      # service.spec.ts grew by 6 (88 -> 94) proving the WIRING specifically
+      # — a wrong Prisma model or field name is a risk acquisition-position
+      # .spec.ts's own fakes cannot catch. Zero new migrations: the whole
+      # phase reads P22's client_relevant_vehicle and P15's tango_resource_
+      # snapshot/tango_sync_checkpoint, all already-existing tables.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 45 1381
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 46 1412
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -612,9 +633,22 @@ jobs:
       # flag/URL-state blocks in FundingOpportunitiesPage.test.tsx) and P12
       # (FundingOpportunityDetail.test.tsx — the ref round-trip, the eight sections,
       # the route, and the drawer/page equivalence).
+      #
+      # 54/226 after P23: one NEW file, AcquisitionPositionPanel.test.tsx —
+      # the three distinct reasons acquisitionPosition can be null (no
+      # client, a grant, or the vehicle-fit flag off) each get their own
+      # explanation and none reads as a negative determination; every
+      # populated state renders and never with an eligibility or win-
+      # probability word; related/teaming access never renders with
+      # direct_prime_access's own text. OpportunityCard.test.tsx gained the
+      # concise-badge proof: no badge at all when acquisitionPosition is
+      # null, and a related-entity badge never shares text with a direct
+      # one. FundingOpportunityDetail.test.tsx's "eight sections" sweep
+      # shrank from three still-pending sections to two — acquisition
+      # position is real now.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 49 205
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 54 226
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
