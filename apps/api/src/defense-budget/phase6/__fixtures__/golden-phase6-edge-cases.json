@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "phase6_golden_edge_cases_v1",
+  "fiscalYear": 2027,
+  "nativeRows": [
+    {
+      "lineKind": "RDTE_PE",
+      "key": "0605053A",
+      "originalUnit": "thousands",
+      "request": "100000",
+      "change": "25000",
+      "after": "125000"
+    },
+    {
+      "lineKind": "PROCUREMENT_BLIN",
+      "key": "ARMY|2035A|W12002",
+      "originalUnit": "millions",
+      "quantity": "12",
+      "request": "80",
+      "change": "-5",
+      "after": "75"
+    },
+    {
+      "lineKind": "OM_SAG",
+      "key": "ARMY|2020A|121",
+      "originalUnit": "thousands",
+      "request": "40000",
+      "change": "2000",
+      "after": "42000"
+    },
+    {
+      "lineKind": "MILCON_PROJECT",
+      "key": "AF|PN12345|Eglin AFB",
+      "originalUnit": "dollars",
+      "request": "20000000",
+      "change": "5000000",
+      "after": "25000000"
+    }
+  ],
+  "actions": [
+    { "actionType": "increase", "signedValueMillions": "25" },
+    { "actionType": "decrease", "signedValueMillions": "-5" },
+    { "actionType": "transfer_out", "signedValueMillions": "-3", "transferGroupId": "t1" },
+    { "actionType": "transfer_in", "signedValueMillions": "3", "transferGroupId": "t1" },
+    { "actionType": "rescission", "signedValueMillions": "-1" },
+    { "actionType": "undistributed_adjustment", "signedValueMillions": "-4" },
+    { "actionType": "general_provision" }
+  ],
+  "incorporatedEnactmentProof": {
+    "publicLawSourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lineDetailSourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "incorporationCitation": "Section 4 incorporates the explanatory statement"
+  },
+  "reviewCases": [
+    { "kind": "missing_comparison", "expectedOutcome": "NOT_RUN" },
+    { "kind": "candidate_identity", "expectedOutcome": "REVIEW" },
+    { "kind": "unresolved_identity", "expectedOutcome": "REVIEW" },
+    { "kind": "conflicting_identity", "expectedOutcome": "BLOCKED" },
+    { "kind": "conflicting_duplicate", "expectedOutcome": "BLOCKED" }
+  ]
+}

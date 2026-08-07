@@ -1,0 +1,33 @@
+[
+  {
+    "page": 88,
+    "printedPage": "S. Rept. 119-39, p. 522",
+    "text": "PROCUREMENT, ARMY ($ in billions)",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "TITLE I — PROCUREMENT"
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "rowCount": 2,
+        "columnCount": 3,
+        "warnings": [],
+        "cells": [
+          {"rowIndex": 0, "columnIndex": 0, "text": "Line Item"},
+          {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Budget Estimate"},
+          {"rowIndex": 0, "columnIndex": 2, "text": "Senate Recommendation"},
+          {"rowIndex": 1, "columnIndex": 0, "text": "BLIN W12002 Robotics"},
+          {"rowIndex": 1, "columnIndex": 1, "text": "0.08"},
+          {"rowIndex": 1, "columnIndex": 2, "text": "0.075"}
+        ]
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

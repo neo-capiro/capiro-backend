@@ -1,13 +1,6 @@
-/**
- * R8.3 — Authority-aware verification policy selection.
- *
- * Several committee documents intentionally share the same family/exhibit
- * vocabulary. Selecting by family + exhibit alone can apply another chamber's
- * required funding fields. This resolver uses manifest authority and fails
- * closed on ambiguity. Registry entries marked unsupported route to the
- * service's explicit verification_policy_not_implemented result.
- */
+/** R8.3 — Authority-aware verification policy selection. */
 import type { BudgetCycleManifestDocumentV1 } from '../contracts/budget-cycle-manifest-v1.js';
+import type { FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
 import type { VerificationPolicyV1 } from './verification-policy-v1.js';
 import { getAllPolicies } from './verification-policy-registry.js';
 
@@ -21,11 +14,83 @@ const AUTHORITY_POLICY_KEYS: Readonly<Record<string, string>> = {
   public_law: 'PUBLIC_LAW',
 };
 
+const PHASE6_AUTHORITY_MARK_FIELDS: Readonly<
+  Partial<
+    Record<
+      string,
+      Extract<
+        FundingFieldV1,
+        | 'hascMark'
+        | 'sascMark'
+        | 'hacDMark'
+        | 'sacDMark'
+        | 'ndaaConference'
+        | 'conference'
+        | 'enacted'
+      >
+    >
+  >
+> = {
+  hasc: 'hascMark',
+  sasc: 'sascMark',
+  hac_d: 'hacDMark',
+  sac_d: 'sacDMark',
+  ndaa_conference: 'ndaaConference',
+  appropriations_conference: 'conference',
+  public_law: 'enacted',
+};
+
 export class AmbiguousVerificationPolicyError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'AmbiguousVerificationPolicyError';
   }
+}
+
+function phase6AuthorityOverrides(
+  authority: string,
+  policy: VerificationPolicyV1,
+): VerificationPolicyV1 {
+  const ownedField = PHASE6_AUTHORITY_MARK_FIELDS[authority];
+  if (ownedField == null) return policy;
+  if (authority === 'ndaa_conference') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['ndaaConference'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: ['ndaa_conference_chamber_reference'],
+      arithmeticRules: ['ndaa_conference_arithmetic'],
+    };
+  }
+  if (authority === 'appropriations_conference') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['conference'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: ['appropriations_conference_chamber_reference'],
+      arithmeticRules: [],
+    };
+  }
+  if (authority === 'public_law') {
+    return {
+      ...policy,
+      requiredDataCategories: ['funding'],
+      requiredFundingFields: ['enacted'],
+      requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+      requiredComparisonRules: [],
+      arithmeticRules: [],
+    };
+  }
+  return {
+    ...policy,
+    requiredDataCategories: ['funding'],
+    requiredFundingFields: [ownedField],
+    requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
+    requiredComparisonRules: ['committee_request_reference'],
+    arithmeticRules: ['committee_adjustment'],
+  };
 }
 
 export function lookupPolicyForManifestDocument(
@@ -45,22 +110,18 @@ export function lookupPolicyForManifestDocument(
           `(documentKey=${document.documentKey})`,
       );
     }
-    if (
-      entry.policy.family !== document.family ||
-      entry.policy.exhibit !== document.exhibit
-    ) {
+    if (entry.policy.family !== document.family || entry.policy.exhibit !== document.exhibit) {
       throw new AmbiguousVerificationPolicyError(
         `authority policy ${authorityKey} does not match manifest ` +
           `family=${document.family} exhibit=${document.exhibit} ` +
           `(documentKey=${document.documentKey})`,
       );
     }
-    return entry.supported ? entry.policy : null;
+    return entry.supported ? phase6AuthorityOverrides(document.authority, entry.policy) : null;
   }
 
   const matches = entries.filter(
-    (entry) =>
-      entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
+    (entry) => entry.policy.family === document.family && entry.policy.exhibit === document.exhibit,
   );
 
   if (matches.length === 0) return null;

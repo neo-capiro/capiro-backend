@@ -1,0 +1,20 @@
+[
+  {
+    "page": 77,
+    "printedPage": "S. Rept. 119-39, p. 411",
+    "text": "PROCUREMENT, ARMY | ACCOUNT: 2035A | COMPONENT: ARMY | $ in thousands",
+    "blocks": [{"blockIndex":0,"blockType":"heading","text":"TITLE I — PROCUREMENT"}],
+    "tables": [{
+      "tableIndex":0,"rowCount":2,"columnCount":3,"warnings":[],
+      "cells":[
+        {"rowIndex":0,"columnIndex":0,"text":"Line Item"},
+        {"rowIndex":0,"columnIndex":1,"text":"FY 2027 Budget Estimate"},
+        {"rowIndex":0,"columnIndex":2,"text":"SASC Recommendation"},
+        {"rowIndex":1,"columnIndex":0,"text":"BLIN W12002 Robotics and Applique Systems"},
+        {"rowIndex":1,"columnIndex":1,"text":"80,000a"},
+        {"rowIndex":1,"columnIndex":2,"text":"75,000(b)"}
+      ]
+    }],
+    "images":[],"evidencePrecision":"cell_bbox","warnings":[]
+  }
+]

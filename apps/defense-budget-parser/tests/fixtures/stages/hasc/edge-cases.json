@@ -1,0 +1,28 @@
+[
+  {
+    "page": 150,
+    "text": "TITLE III — PROCUREMENT\nComponent: ARMY",
+    "printedPage": "150",
+    "blocks": [{"blockIndex": 0, "blockType": "heading", "text": "TITLE III — PROCUREMENT", "readingOrder": 0}],
+    "tables": [{
+      "tableIndex": 0,
+      "label": "Procurement BLIN ($ in Billions)",
+      "rowCount": 2,
+      "columnCount": 4,
+      "cells": [
+        {"rowIndex": 0, "columnIndex": 0, "text": "Line Item"},
+        {"rowIndex": 0, "columnIndex": 1, "text": "FY 2027 Request"},
+        {"rowIndex": 0, "columnIndex": 2, "text": "Change"},
+        {"rowIndex": 0, "columnIndex": 3, "text": "Committee Recommendation"},
+        {"rowIndex": 1, "columnIndex": 0, "text": "BLIN W12002 Robotics and Applique Systems"},
+        {"rowIndex": 1, "columnIndex": 1, "text": "1"},
+        {"rowIndex": 1, "columnIndex": 2, "text": "0.1"},
+        {"rowIndex": 1, "columnIndex": 3, "text": "1.1"}
+      ],
+      "warnings": []
+    }],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

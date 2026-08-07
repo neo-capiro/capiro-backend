@@ -1,23 +1,62 @@
 /**
- * Workstream H6 — Committee adjustment arithmetic rule.
+ * Phase 6 Workstream D — committee adjustment arithmetic.
  *
- * When a report provides request, adjustment, and mark:
- *   mark = request + additions - reductions ± transfers/rescissions
- *
- * Only run when all required terms are represented.
- * If adjustment detail is absent, return NOT_RUN; do not infer zero
- * adjustments.
+ * Verifies mark = printed request baseline + typed stage actions. Request
+ * baselines are non-owning document facts and adjustments are
+ * `defense_budget_stage_action_v1` document facts. The post-enactment
+ * `reprogrammed` funding field is never used as a committee-adjustment proxy.
  */
-import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
-import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
+import type {
+  BudgetLineIdentityV1,
+  DefenseBudgetAssertionV1,
+} from '../../../contracts/extraction-artifact-v1.js';
+import {
+  DEFENSE_BUDGET_STAGE_ACTION_FIELD,
+  committeeStageActionV1Schema,
+  type CommitteeStageActionV1,
+} from '../../../stages/authorization/committee-stage-facts-v1.js';
+import { committeeRequestComparablesV1 } from '../comparison/committee-request-baseline.rules.js';
 import {
   addDecimals,
-  subtractDecimals,
+  absDifference,
   compareWithTolerance,
   printedUnitToleranceMillions,
-  absDifference,
+  sumDecimals,
 } from './exact-arithmetic.js';
-import type { DefenseBudgetAssertionV1 } from '../../../contracts/extraction-artifact-v1.js';
+import {
+  failCheck,
+  makeDiscrepancy,
+  notRunCheck,
+  passCheck,
+  skippedCheck,
+  type RuleResultV1,
+  type VerificationRuleV1,
+} from '../rule-types.js';
+
+export interface CommitteeAdjustmentGroupV1 {
+  identity: BudgetLineIdentityV1;
+  fiscalYear: number;
+  mark: Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }>;
+  baselineCandidates: ReturnType<typeof committeeRequestComparablesV1>;
+  actions: CommitteeStageActionV1[];
+}
+
+export function committeeStageActionsV1(
+  assertions: readonly DefenseBudgetAssertionV1[],
+): CommitteeStageActionV1[] {
+  const out: CommitteeStageActionV1[] = [];
+  for (const assertion of assertions) {
+    if (
+      assertion.assertionKind !== 'document_fact' ||
+      assertion.fieldName !== DEFENSE_BUDGET_STAGE_ACTION_FIELD
+    ) {
+      continue;
+    }
+    const parsed = committeeStageActionV1Schema.safeParse(assertion.value);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
 
 export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
   code: 'committee_adjustment',
@@ -30,11 +69,11 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
     const runId = ctx.verificationRunId;
-    const { artifact } = input;
-
-    // R8.1 §3.1: policy-resolved required/blocking.
-    const isRequired = policy.requiredComparisonRules.includes('committee_adjustment');
-    const ov = { required: isRequired, blocking: isRequired || COMMITTEE_ADJUSTMENT_RULE.blocking };
+    const isRequired = policy.arithmeticRules.includes('committee_adjustment');
+    const overrides = {
+      required: isRequired,
+      blocking: isRequired || COMMITTEE_ADJUSTMENT_RULE.blocking,
+    };
 
     if (!policy.arithmeticRules.includes('committee_adjustment')) {
       return {
@@ -42,31 +81,34 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
           COMMITTEE_ADJUSTMENT_RULE,
           runId,
           'committee_adjustment not in policy.arithmeticRules',
-          ov,
+          overrides,
         ),
         discrepancies: [],
       };
     }
-
-    // Only run for committee report artifacts
-    if (artifact.source.family !== 'committee') {
+    if (input.artifact.source.family !== 'committee') {
       return {
         check: skippedCheck(
           COMMITTEE_ADJUSTMENT_RULE,
           runId,
           'not a committee report artifact',
-          ov,
+          overrides,
         ),
         discrepancies: [],
       };
     }
 
-    const funding = artifact.assertions.filter(
-      (a): a is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
-        a.assertionKind === 'funding',
+    const marks = input.artifact.assertions.filter(
+      (assertion): assertion is Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }> =>
+        assertion.assertionKind === 'funding' &&
+        ['hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'ndaaConference', 'conference'].includes(
+          assertion.field,
+        ),
     );
+    const baselines = committeeRequestComparablesV1(input.artifact);
+    const actions = committeeStageActionsV1(input.artifact.assertions);
 
-    if (funding.length === 0) {
+    if (marks.length === 0) {
       return {
         check: notRunCheck(
           COMMITTEE_ADJUSTMENT_RULE,
@@ -74,58 +116,58 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
           [],
           [],
           [],
-          'no funding assertions',
+          actions.length > 0
+            ? 'typed committee actions exist, but no absolute committee mark was emitted'
+            : 'no committee funding marks',
           undefined,
-          ov,
+          overrides,
         ),
         discrepancies: [],
       };
     }
 
-    // Group by identity + fiscalYear
-    const groups = new Map<string, typeof funding>();
-    for (const f of funding) {
-      const key = JSON.stringify({ identity: f.identity, fiscalYear: f.fiscalYear });
-      const existing = groups.get(key);
-      if (existing) {
-        existing.push(f);
-      } else {
-        groups.set(key, [f]);
-      }
-    }
-
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
     const failingIds: string[] = [];
+    const passingIds: string[] = [];
+    let evaluatedGroups = 0;
 
-    for (const [key, group] of groups) {
-      const request = group.find((f) => f.field === 'request');
-      const mark = group.find(
-        (f) =>
-          f.field === 'hascMark' ||
-          f.field === 'sascMark' ||
-          f.field === 'hacDMark' ||
-          f.field === 'sacDMark' ||
-          f.field === 'ndaaConference' ||
-          f.field === 'conference',
+    for (const mark of marks) {
+      const key = JSON.stringify(mark.identity);
+      const matchingBaselines = baselines.filter(
+        (baseline) =>
+          JSON.stringify(baseline.identity) === key && baseline.fiscalYear === mark.fiscalYear,
+      );
+      const matchingActions = actions.filter(
+        (action) =>
+          action.identity != null &&
+          JSON.stringify(action.identity) === key &&
+          action.fiscalYear === mark.fiscalYear,
       );
 
-      // Only run when both request and mark are present
-      if (!request || !mark) continue;
-
-      // For now, we only check the simple identity:
-      //   mark = request + adjustments
-      // If there are no adjustment assertions (separate reprogramming/transfer
-      // assertions), we return NOT_RUN — do not infer zero adjustments.
-      const hasAdjustments = group.some((f) => f.field === 'reprogrammed');
-
-      if (!hasAdjustments) {
-        // No adjustment detail — NOT_RUN, do not infer zero
+      if (matchingBaselines.length !== 1) {
+        discrepancies.push(
+          makeDiscrepancy(
+            matchingBaselines.length === 0
+              ? 'committee_adjustment_baseline_absent'
+              : 'committee_adjustment_baseline_ambiguous',
+            'review',
+            matchingBaselines.length === 0
+              ? `no printed request baseline for ${key} FY${mark.fiscalYear}`
+              : `multiple printed request baselines for ${key} FY${mark.fiscalYear}`,
+            [mark.assertionId, ...matchingBaselines.map((item) => item.assertionId)],
+            [],
+            [],
+          ),
+        );
+        continue;
+      }
+      if (matchingActions.length === 0) {
         discrepancies.push(
           makeDiscrepancy(
             'committee_adjustment_detail_absent',
             'review',
-            `no adjustment detail for ${key}: cannot verify mark = request + adjustments`,
-            [request.assertionId, mark.assertionId],
+            `no typed action detail for ${key} FY${mark.fiscalYear}; zero adjustment is not inferred`,
+            [mark.assertionId, matchingBaselines[0]!.assertionId],
             [],
             [],
           ),
@@ -133,30 +175,36 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
         continue;
       }
 
-      // mark = request + additions - reductions
-      // The adjustment is in the reprogrammed field
-      const adjustment = group.find((f) => f.field === 'reprogrammed');
-      if (!adjustment) continue;
-
-      const requestVal = request.money.valueMillions;
-      const adjustmentVal = adjustment.money.valueMillions;
-      const markVal = mark.money.valueMillions;
-      const computedMark = addDecimals(requestVal, adjustmentVal);
-      const tolerance = printedUnitToleranceMillions(group.length);
-      const cmp = compareWithTolerance(markVal, computedMark, tolerance);
-
-      if (cmp !== 0) {
-        const diff = absDifference(markVal, computedMark);
-        failingIds.push(request.assertionId, mark.assertionId, adjustment.assertionId);
+      evaluatedGroups += 1;
+      const baseline = matchingBaselines[0]!;
+      const netActions = sumDecimals(matchingActions.map((action) => action.signedValueMillions));
+      const computed = addDecimals(baseline.money.valueMillions, netActions);
+      const tolerance = printedUnitToleranceMillions(matchingActions.length + 2);
+      if (compareWithTolerance(mark.money.valueMillions, computed, tolerance) !== 0) {
+        failingIds.push(
+          mark.assertionId,
+          baseline.assertionId,
+          ...matchingActions.map((action) => action.actionId),
+        );
         discrepancies.push(
           makeDiscrepancy(
             'committee_adjustment_mismatch',
             'blocking',
-            `committee adjustment: request(${requestVal}) + adjustment(${adjustmentVal}) = ${computedMark}M, mark=${markVal}M, diff=${diff}M`,
-            [request.assertionId, mark.assertionId, adjustment.assertionId],
+            `request(${baseline.money.valueMillions}) + actions(${netActions}) = ${computed}M, mark=${mark.money.valueMillions}M, diff=${absDifference(mark.money.valueMillions, computed)}M`,
+            [
+              mark.assertionId,
+              baseline.assertionId,
+              ...matchingActions.map((action) => action.actionId),
+            ],
             [],
             [],
           ),
+        );
+      } else {
+        passingIds.push(
+          mark.assertionId,
+          baseline.assertionId,
+          ...matchingActions.map((action) => action.actionId),
         );
       }
     }
@@ -169,34 +217,38 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
           [...new Set(failingIds)],
           [],
           [],
-          `committee adjustment mismatches: ${discrepancies.filter((d) => d.severity === 'blocking').length}`,
+          `${discrepancies.filter((item) => item.severity === 'blocking').length} committee adjustment mismatches`,
+          { evaluatedGroups, typedActionCount: actions.length },
+          overrides,
         ),
         discrepancies,
       };
     }
-
-    if (discrepancies.length > 0) {
+    if (discrepancies.length > 0 || evaluatedGroups === 0) {
       return {
         check: notRunCheck(
           COMMITTEE_ADJUSTMENT_RULE,
           runId,
+          [...new Set(passingIds)],
           [],
           [],
-          [],
-          `${discrepancies.length} groups lack adjustment detail`,
+          `${discrepancies.length} committee mark groups lack exact baseline/action coverage`,
+          { evaluatedGroups, typedActionCount: actions.length },
+          overrides,
         ),
         discrepancies,
       };
     }
-
     return {
       check: passCheck(
         COMMITTEE_ADJUSTMENT_RULE,
         runId,
+        [...new Set(passingIds)],
         [],
         [],
-        [],
-        'all committee adjustments verified',
+        `all ${evaluatedGroups} committee mark groups satisfy request + typed actions = mark`,
+        { evaluatedGroups, typedActionCount: actions.length },
+        overrides,
       ),
       discrepancies: [],
     };

@@ -1,9 +1,4 @@
-/**
- * Tests for Workstream E-H rules.
- *
- * These tests verify the core rule infrastructure, check builders, and
- * the behavior of representative rules from each workstream.
- */
+/** Tests for the trusted verification rule registry, including Phase 6 rules. */
 import { describe, it, expect } from '@jest/globals';
 import {
   passCheck,
@@ -21,25 +16,48 @@ import {
   FUNDING_FIELD_OWNERSHIP_RULE,
   NUMERIC_RULE,
   DUPLICATE_RULE,
+  ENACTMENT_PROOF_RULE,
+  APPROPRIATIONS_CONFERENCE_VEHICLE_RULE,
   RDTE_SUMMARY_DETAIL_RULE,
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
+  NDAA_CONFERENCE_ARITHMETIC_RULE,
   ALL_VERIFICATION_RULES,
+  ALL_EXECUTABLE_RULES,
 } from './index.js';
 
 describe('rule infrastructure', () => {
-  it('exports all 17 verification rules', () => {
-    expect(ALL_VERIFICATION_RULES).toHaveLength(17);
+  it('exports every required core and Phase 6 verification rule by stable code', () => {
+    const codes = new Set(ALL_EXECUTABLE_RULES.map((rule) => rule.code));
+    for (const required of [
+      'contract_integrity',
+      'manifest_binding',
+      'completeness',
+      'evidence_binding',
+      'money_evidence_policy',
+      'warning_policy',
+      'identity_validation',
+      'funding_field_ownership',
+      'numeric_validation',
+      'duplicate_detection',
+      'committee_adjustment',
+      'ndaa_conference_arithmetic',
+      'ndaa_conference_chamber_reference',
+      'appropriations_conference_vehicle_proof',
+      'appropriations_conference_chamber_reference',
+      'enactment_proof',
+    ]) {
+      expect(codes.has(required)).toBe(true);
+    }
   });
 
-  it('each rule has a unique code', () => {
-    const codes = ALL_VERIFICATION_RULES.map((r) => r.code);
-    const unique = new Set(codes);
-    expect(unique.size).toBe(codes.length);
+  it('each executable rule has a unique code', () => {
+    const codes = ALL_EXECUTABLE_RULES.map((rule) => rule.code);
+    expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it('each rule has a non-empty version', () => {
+  it('each core rule has a non-empty version', () => {
     for (const rule of ALL_VERIFICATION_RULES) {
       expect(rule.version).toBeTruthy();
       expect(rule.code).toBeTruthy();
@@ -91,60 +109,26 @@ describe('check builders', () => {
   });
 });
 
-describe('rule codes match plan', () => {
-  it('Workstream E: contract_integrity', () => {
+describe('rule codes match contracts', () => {
+  it('keeps legacy/core codes stable', () => {
     expect(CONTRACT_INTEGRITY_RULE.code).toBe('contract_integrity');
-  });
-
-  it('Workstream E: manifest_binding', () => {
     expect(MANIFEST_BINDING_RULE.code).toBe('manifest_binding');
-  });
-
-  it('Workstream E: completeness', () => {
     expect(COMPLETENESS_RULE.code).toBe('completeness');
-  });
-
-  it('Workstream F: evidence_binding', () => {
     expect(EVIDENCE_BINDING_RULE.code).toBe('evidence_binding');
-  });
-
-  it('Workstream F: money_evidence_policy', () => {
     expect(MONEY_EVIDENCE_RULE.code).toBe('money_evidence_policy');
-  });
-
-  it('Workstream F: warning_policy', () => {
     expect(WARNING_POLICY_RULE.code).toBe('warning_policy');
-  });
-
-  it('Workstream G: identity_validation', () => {
     expect(IDENTITY_RULE.code).toBe('identity_validation');
-  });
-
-  it('Workstream G: funding_field_ownership', () => {
     expect(FUNDING_FIELD_OWNERSHIP_RULE.code).toBe('funding_field_ownership');
-  });
-
-  it('Workstream G: numeric_validation', () => {
     expect(NUMERIC_RULE.code).toBe('numeric_validation');
-  });
-
-  it('Workstream G: duplicate_detection', () => {
     expect(DUPLICATE_RULE.code).toBe('duplicate_detection');
-  });
-
-  it('Workstream H: rdte_summary_detail', () => {
     expect(RDTE_SUMMARY_DETAIL_RULE.code).toBe('rdte_summary_detail');
-  });
-
-  it('Workstream H: project_rollup', () => {
     expect(PROJECT_ROLLUP_RULE.code).toBe('project_rollup');
-  });
-
-  it('Workstream H: procurement_rollup', () => {
     expect(PROCUREMENT_ROLLUP_RULE.code).toBe('procurement_rollup');
-  });
-
-  it('Workstream H: committee_adjustment', () => {
     expect(COMMITTEE_ADJUSTMENT_RULE.code).toBe('committee_adjustment');
+    expect(NDAA_CONFERENCE_ARITHMETIC_RULE.code).toBe('ndaa_conference_arithmetic');
+    expect(APPROPRIATIONS_CONFERENCE_VEHICLE_RULE.code).toBe(
+      'appropriations_conference_vehicle_proof',
+    );
+    expect(ENACTMENT_PROOF_RULE.code).toBe('enactment_proof');
   });
 });

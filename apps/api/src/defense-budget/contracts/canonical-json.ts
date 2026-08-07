@@ -41,6 +41,31 @@ export function sha256Bytes(input: Buffer | Uint8Array): string {
   return createHash('sha256').update(input).digest('hex');
 }
 
+/**
+ * Drop object properties whose value is `undefined`, recursively.
+ *
+ * An optional property that is explicitly `undefined` and one that is absent
+ * are the same value in TypeScript, but only the absent form is canonically
+ * serializable. Schemas whose parse output is hashed or embedded in an
+ * artifact should normalize through this so that callers who build objects
+ * with `{ field: maybe ?? undefined }` produce the same bytes as callers who
+ * omit the field. This does not relax `serialize`: it removes the ambiguity
+ * before serialization rather than silently tolerating it during.
+ */
+export function stripUndefinedProperties<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedProperties(item)) as unknown as T;
+  }
+  if (value === null || typeof value !== 'object') return value;
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (item === undefined) continue;
+    out[key] = stripUndefinedProperties(item);
+  }
+  return out as T;
+}
+
 function serialize(value: JsonValue, seen: Set<object>): string {
   if (value === null) return 'null';
   switch (typeof value) {

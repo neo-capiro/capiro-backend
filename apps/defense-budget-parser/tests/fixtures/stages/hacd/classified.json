@@ -1,0 +1,69 @@
+[
+  {
+    "page": 111,
+    "text": "CLASSIFIED PROGRAMS \u2014 DEFENSE-WIDE",
+    "printedPage": "111",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "heading",
+        "text": "CLASSIFIED PROGRAMS \u2014 DEFENSE-WIDE",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "Classified Programs Adjustments ($ in Thousands)",
+        "rowCount": 2,
+        "columnCount": 4,
+        "cells": [
+          {
+            "rowIndex": 0,
+            "columnIndex": 0,
+            "text": "Classified Program"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 1,
+            "text": "FY 2027 Request"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 2,
+            "text": "Adjustment"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 3,
+            "text": "Committee Recommendation"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 0,
+            "text": "Classified adjustment \u2014 undistributed"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 1,
+            "text": ""
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 2,
+            "text": "-10000"
+          },
+          {
+            "rowIndex": 1,
+            "columnIndex": 3,
+            "text": ""
+          }
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  }
+]

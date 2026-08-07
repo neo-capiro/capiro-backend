@@ -1,0 +1,46 @@
+[
+  {
+    "page": 40,
+    "printedPage": "S. Rept. 119-39, p. 212",
+    "text": "RESEARCH, DEVELOPMENT, TEST AND EVALUATION, ARMY ($ in thousands)",
+    "blocks": [{"blockIndex":0,"blockType":"heading","text":"TITLE II — RDT&E, ARMY"}],
+    "tables": [{
+      "tableIndex":0,"rowCount":2,"columnCount":4,"warnings":[],
+      "cells":[
+        {"rowIndex":0,"columnIndex":0,"text":"Program Element"},
+        {"rowIndex":0,"columnIndex":1,"text":"FY 2027 Budget Estimate"},
+        {"rowIndex":0,"columnIndex":2,"text":"Change"},
+        {"rowIndex":0,"columnIndex":3,"text":"Senate Recommendation"},
+        {"rowIndex":1,"columnIndex":0,"text":"PE 0605053A Ground Robotics"},
+        {"rowIndex":1,"columnIndex":1,"text":""},
+        {"rowIndex":1,"columnIndex":2,"text":""},
+        {"rowIndex":1,"columnIndex":3,"text":""}
+      ]
+    }],
+    "images":[],"evidencePrecision":"page_only","warnings":[]
+  },
+  {
+    "page": 41,
+    "printedPage": "S. Rept. 119-39, p. 213",
+    "text": "RESEARCH, DEVELOPMENT, TEST AND EVALUATION, ARMY ($ in thousands)",
+    "blocks": [{"blockIndex":0,"blockType":"header","text":"TITLE II — RDT&E, ARMY — Continued"}],
+    "tables": [{
+      "tableIndex":0,"rowCount":3,"columnCount":4,"warnings":[],
+      "cells":[
+        {"rowIndex":0,"columnIndex":0,"text":"Program Element"},
+        {"rowIndex":0,"columnIndex":1,"text":"FY 2027 Budget Estimate"},
+        {"rowIndex":0,"columnIndex":2,"text":"Change"},
+        {"rowIndex":0,"columnIndex":3,"text":"Senate Recommendation"},
+        {"rowIndex":1,"columnIndex":0,"text":"Program Element"},
+        {"rowIndex":1,"columnIndex":1,"text":"FY 2027 Budget Estimate"},
+        {"rowIndex":1,"columnIndex":2,"text":"Change"},
+        {"rowIndex":1,"columnIndex":3,"text":"Senate Recommendation"},
+        {"rowIndex":2,"columnIndex":0,"text":"—Continued"},
+        {"rowIndex":2,"columnIndex":1,"text":"100,000(a)"},
+        {"rowIndex":2,"columnIndex":2,"text":"25,000*"},
+        {"rowIndex":2,"columnIndex":3,"text":"125,000†"}
+      ]
+    }],
+    "images":[],"evidencePrecision":"page_only","warnings":[]
+  }
+]

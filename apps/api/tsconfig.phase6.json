@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "."
+  },
+  "include": [
+    "src/defense-budget/stages/**/*.ts",
+    "src/defense-budget/phase6/**/*.ts",
+    "src/defense-budget/verification/authority-policy-resolution.ts",
+    "src/defense-budget/verification/rules/**/*.ts",
+    "scripts/phase6-stage-cycle.ts",
+    "scripts/verify-pe-budget-phase6-negative-controls.ts",
+    "scripts/verify-pe-budget-phase6-safety.ts",
+    "scripts/parse-defense-approps-public-law.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
