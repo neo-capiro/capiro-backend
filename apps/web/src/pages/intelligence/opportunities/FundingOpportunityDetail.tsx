@@ -10,6 +10,7 @@ import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
 import { OpportunityTimeline } from './OpportunityTimeline.js';
 import { OpportunityRequirementsPanel } from './OpportunityRequirementsPanel.js';
 import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
+import { OpportunityActionPlan } from './OpportunityActionPlan.js';
 import {
   DetailSectionBoundary,
   OpportunityAssessmentPanel,
@@ -294,7 +295,19 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         />
       </DetailSectionBoundary>
 
-      {/* 5 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}
+      {/* 5 ─ Action plan (P34). Proposals derived from the same landscape packet
+             the section above shows, so an action can only cite evidence the
+             reader can already see. */}
+      <DetailSectionBoundary title="Action plan" testId="fo-detail-action-plan">
+        <OpportunityActionPlan
+          clientId={clientId}
+          source={o.source}
+          sourceRecordId={o.sourceRecordId}
+          workflowStatus={o.workflow?.status ?? null}
+        />
+      </DetailSectionBoundary>
+
+      {/* 6 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}
       <Card
         size="small"
         title="Pursuit plan"
@@ -336,7 +349,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         ) : null}
       </Card>
 
-      {/* 6 ─ Timeline. Source dates today; the notice history arrives in P28. */}
+      {/* 7 ─ Timeline. Source dates today; the notice history arrives in P28. */}
       <Card
         size="small"
         title="Timeline"
@@ -386,20 +399,20 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         </Text>
       </Card>
 
-      {/* 6b ─ Notice history (P28). Its own card, and its own flag: the dates
+      {/* 7b ─ Notice history (P28). Its own card, and its own flag: the dates
              above are the record's current state, and the timeline is the
              record of how it got there. Two different questions. */}
       <DetailSectionBoundary title="Notice history" testId="fo-timeline">
         <OpportunityTimeline source={o.source} sourceRecordId={o.sourceRecordId} />
       </DetailSectionBoundary>
 
-      {/* 7 ─ Requirements (P31). Real now: every row quotes the document it
+      {/* 8 ─ Requirements (P31). Real now: every row quotes the document it
              came from, and an empty panel says WHICH kind of empty. */}
       <DetailSectionBoundary title="Requirements" testId="fo-detail-requirements">
         <OpportunityRequirementsPanel source={o.source} sourceRecordId={o.sourceRecordId} />
       </DetailSectionBoundary>
 
-      {/* 8 ─ Source record. Provenance, always, and the link out. */}
+      {/* 9 ─ Source record. Provenance, always, and the link out. */}
       <Card
         size="small"
         title="Source record"

@@ -1139,9 +1139,49 @@ jobs:
       # asOf does NOT move it, a changed basis does. Two composes of the same
       # facts are byte-identical, and there is no clock in the composition
       # besides the caller's own `asOf` default.
+      # 62/1953 after P34: one NEW suite, NO migration and NO new flag. The
+      # plan is composed from rows P22, P24, P31 and P33 already write, and the
+      # accept path is P08's existing server action.
+      #
+      # opportunity-action-plan.spec.ts (63 tests) covers five properties.
+      #
+      # PROPOSALS, NOT COMMITMENTS. The builder is a PURE function - the suite
+      # greps its own source for prisma, tx., $queryRaw, fetch and any model
+      # reference, because a plan that could create tasks would create them the
+      # moment a detail page was opened. Accepting an action posts to P08 and
+      # nowhere else, so a plan-accepted task and a hand-made one are the same
+      # kind of row.
+      #
+      # NO TARGET WITHOUT A SOURCE-BACKED REASON. Only P33 items whose basis is
+      # `source_backed` produce a target. A quarantined PE match - which is what
+      # a NAICS or keyword coincidence produces - contributes NOTHING, and the
+      # suite asserts no action's evidence ever cites an inferred item. A target
+      # is also never a PERSON: reviewed_relationship and acquisition_personnel
+      # are both not_wired, so naming an individual would invent the
+      # introduction outright.
+      #
+      # A CLOSED NOTICE AND A FORECAST NEVER PROPOSE A PURSUIT. Enforced
+      # STRUCTURALLY by STAGE_ALLOWED_INTENTS and a thrown error, not by trusting
+      # each branch to remember - a silent downgrade would ship a buggy rule with
+      # a plausible plan on top of it. Forecast is decided by SOURCE and wins
+      # over everything, so a withdrawn forecast still gets shaping advice rather
+      # than "watch for a repost".
+      #
+      # AN UNMET DEPENDENCY IS STATED, NOT ASSUMED. "Build the compliance matrix"
+      # with no requirements extracted is a step somebody starts and stalls on.
+      # There is likewise NO fallback due date: a fabricated deadline on a notice
+      # that states none is the most confidently wrong thing this plan could
+      # emit, and a PAST date is returned rather than clamped to today.
+      #
+      # DETERMINISM. Same packet and same asOf produce a byte-identical plan,
+      # ids and fingerprint included. `asOf` is threaded all the way into the
+      # lifecycle read - a composer that consulted the wall clock there could
+      # return two different plans for the same inputs. The fingerprint covers
+      # facts only, so re-observing does not move it and a resolved prerequisite
+      # does.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 61 1889
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 62 1953
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1281,7 +1321,7 @@ jobs:
       # explicitly rules out reading it as a pass.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 75 314
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 80 333
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

@@ -881,6 +881,102 @@ export function landscapeApiPath(
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/landscape?clientId=${encodeURIComponent(clientId)}`;
 }
 
+// ── Deterministic action plan (P34) ─────────────────────────────
+
+/** Mirrors ACTION_CATEGORIES in apps/api. Declaration order is display order. */
+export const ACTION_CATEGORY_LABELS: Record<string, string> = {
+  qualify: 'Qualify',
+  shape: 'Shape',
+  respond: 'Respond',
+  research: 'Research',
+  monitor: 'Monitor',
+  reference: 'Reference',
+};
+
+export interface ProposedActionView {
+  id: string;
+  category: string;
+  title: string;
+  rationale: string;
+  /** `review` and `pursuit` are P08 intents; `none` creates nothing. */
+  intent: 'review' | 'pursuit' | 'none';
+  evidence: Array<{ source: string; sourceId: string; matchedOn: string }>;
+  /** Only ever from a source-backed landscape item. Null is the common case. */
+  suggestedTarget: string | null;
+  dueDateBasis: string | null;
+  dueDate: string | null;
+  unresolvedPrerequisites: string[];
+}
+
+export interface ActionPlanView {
+  source: string;
+  sourceRecordId: string;
+  clientId: string;
+  stage: string;
+  actions: ProposedActionView[];
+  fingerprint: string;
+  generatedAt: string;
+}
+
+export interface ActionPlanResultView {
+  state: 'available' | 'denied' | 'unknown_record';
+  explanation: string;
+  /** Null under `denied` and `unknown_record` — there is no stage to name. */
+  plan: ActionPlanView | null;
+  acceptance: { wired: boolean; explanation: string };
+}
+
+export const PLAN_STAGE_LABELS: Record<string, string> = {
+  forecast: 'Forecast',
+  sources_sought: 'Sources sought',
+  presolicitation: 'Presolicitation',
+  solicitation: 'Solicitation',
+  amendment: 'Amendment',
+  grant: 'Grant',
+  closed_or_informational: 'Closed or informational',
+};
+
+/**
+ * Which workflow statuses mean the workflow ALREADY carries this decision.
+ *
+ * Mirrors what P08 writes: `review` -> `saved`, `pursuit` -> `pursuing`. The
+ * terminal statuses are included because a won or lost opportunity was pursued
+ * to get there, so re-proposing the decision would be noise.
+ *
+ * Deliberately labelled "recorded" rather than "committed" in the UI: a `saved`
+ * row may have been saved by hand rather than by accepting this proposal, and
+ * claiming the plan caused it would be a claim the client cannot check.
+ */
+export const RECORDED_STATUSES_BY_INTENT: Record<'review' | 'pursuit', readonly string[]> = {
+  review: ['saved', 'pursuing', 'won', 'lost'],
+  pursuit: ['pursuing', 'won', 'lost'],
+};
+
+export function isActionRecorded(
+  intent: ProposedActionView['intent'],
+  workflowStatus: string | null | undefined,
+): boolean {
+  if (intent === 'none' || workflowStatus == null) return false;
+  return RECORDED_STATUSES_BY_INTENT[intent].includes(workflowStatus);
+}
+
+export function actionPlanApiPath(
+  source: string,
+  sourceRecordId: string,
+  clientId: string,
+): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/action-plan?clientId=${encodeURIComponent(clientId)}`;
+}
+
+/** P08's idempotent server action. The ONLY path that commits an action. */
+export function opportunityActionApiPath(
+  clientId: string,
+  source: string,
+  sourceRecordId: string,
+): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/action`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**
