@@ -149,6 +149,25 @@ exists (P16 wires the config; P17 is the first phase that reads a real key).
 Nothing here changes the deploy sequence below — verify the API still boots with
 no `TANGO_API_KEY` set, which is the same as verifying nothing at all changed.
 
+### The Tango substrate (P15) — a migration, still nothing that writes
+
+`tango_resource_snapshot`, `tango_resource_link`, `tango_sync_checkpoint` and
+`tango_api_usage` ship in migration `20260821010000_tango_source_substrate`.
+Apply it in the normal migration step (§4/§86 below) whenever this merge is
+deployed — it is additive, and none of the four tables carry a `tenant_id` or RLS,
+so applying it changes nothing any tenant can observe.
+
+`TangoStoreService` (the code that reads and writes these tables) is registered
+in `TangoModule` but **nothing calls it yet** — that starts at P19. There is no
+data to inspect and no schedule to check after this migration lands.
+
+```sql
+-- READ-ONLY, post-migration. Expect all 4 rows, all with rls_enabled = f.
+SELECT relname, relrowsecurity AS rls_enabled
+  FROM pg_class
+ WHERE relname IN ('tango_resource_snapshot','tango_resource_link','tango_sync_checkpoint','tango_api_usage');
+```
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

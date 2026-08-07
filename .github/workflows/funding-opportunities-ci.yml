@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -312,6 +312,40 @@ jobs:
           # that the pair be present.
           check "exclusivity CHECK guards both equalities against NULL"             "SELECT (length(pg_get_constraintdef(oid)) - length(replace(pg_get_constraintdef(oid), 'source_record_type IS NOT NULL', '')))/length('source_record_type IS NOT NULL') FROM pg_constraint WHERE conname='client_funding_opportunity_one_source_chk'"             "3"
 
+          # ── P15 Tango substrate: four GLOBAL tables, none with RLS ────────────
+          # Same category as federal_grant / sam_opportunity, which also carry no
+          # RLS — a Tango observation is a fact about the federal marketplace, not
+          # about any one tenant. Asserting the ABSENCE of RLS is as load-bearing
+          # here as asserting its presence is on client_funding_opportunity above:
+          # a false "no tenant RLS claimed" would mean these tables silently
+          # started acting tenant-scoped with no policy to actually scope them.
+          for t in tango_resource_snapshot tango_resource_link tango_sync_checkpoint tango_api_usage; do
+            check "$t has NO tenant_id column"               "SELECT count(*) FROM information_schema.columns WHERE table_name='$t' AND column_name='tenant_id'"               "0"
+            check "$t RLS is NOT enabled"               "SELECT relrowsecurity FROM pg_class WHERE relname='$t'"               "f"
+            check "$t has NO policies"               "SELECT count(*) FROM pg_policies WHERE tablename='$t'"               "0"
+          done
+
+          # The versioned-head invariant: at most one ACTIVE row per resource,
+          # enforced as a partial unique index, not just application discipline.
+          check "snapshot one-active-per-resource index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_resource_snapshot_one_active_uniq'"             "1"
+          check "snapshot one-active index is PARTIAL"             "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='tango_resource_snapshot_one_active_uniq'"             "yes"
+          check "snapshot natural-key index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_resource_snapshot_natural_key_uniq'"             "1"
+          check "snapshot content hash format CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_resource_snapshot_hash_chk'"             "1"
+          check "snapshot active-consistency CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_resource_snapshot_active_consistency_chk'"             "1"
+
+          # The link table may only point at EXISTING global reference tables — a
+          # tenant resource must never be a valid target for a table with no RLS.
+          for local_type in sam_opportunity federal_grant federal_contractor federal_award; do
+            check "link local-type vocabulary admits $local_type"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$local_type''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_resource_link_local_type_chk'"               "yes"
+          done
+          check "link local-type vocabulary does NOT admit a tenant table"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%client%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_resource_link_local_type_chk'"             "no"
+          check "link basis is exactly the two non-fuzzy values"             "SELECT pg_get_constraintdef(oid) LIKE '%exact_identifier%' AND pg_get_constraintdef(oid) LIKE '%reviewed_manual%' AND pg_get_constraintdef(oid) NOT LIKE '%fuzzy%' AND pg_get_constraintdef(oid) NOT LIKE '%name_fallback%'"             "t"
+          check "link rejection-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_resource_link_rejection_actor_chk'"             "1"
+          check "link pair uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_resource_link_pair_uniq'"             "1"
+
+          check "checkpoint walk uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_sync_checkpoint_walk_uniq'"             "1"
+          check "usage status vocabulary has no room for a header or key column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_api_usage' AND (column_name LIKE '%header%' OR column_name LIKE '%key%' OR column_name LIKE '%token%')"             "0"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -329,8 +363,16 @@ jobs:
           # named ...opportunitY_<thing>, so the narrower glob silently stopped
           # covering every migration added after the first three — the exact quiet
           # shrink this gate exists to prevent.
+          #
+          # A SECOND glob for `_tango_*`, added at P15: `tango_source_substrate`
+          # matches NEITHER pattern above, so without this the exact same class of
+          # gap D-19 found for P07/P13 would have reopened immediately for the
+          # Tango migrations — caught this time before merging rather than after,
+          # by asking "does the new migration's directory name actually match one
+          # of these globs" instead of assuming a prior fix generalizes.
           names=$(grep -ho 'CREATE INDEX IF NOT EXISTS "[a-z_]*"' \
                     apps/api/prisma/migrations/*_funding_opportunit*/migration.sql \
+                    apps/api/prisma/migrations/*_tango_*/migration.sql \
                   | sed 's/.*"\(.*\)"/\1/' | sort -u)
           if [ -z "$names" ]; then
             echo "::error::found no CREATE INDEX statements in the funding migrations — the glob is wrong."
@@ -400,7 +442,9 @@ jobs:
       # move with it or the dual-read/dual-write proof could be deleted while green),
       # 32/1115 after P14 (tango.client.spec.ts + tango.module.spec.ts, both new —
       # the import-boundary test, the ESM/CJS proof, and the redaction sweep all
-      # live in the first one).
+      # live in the first one), 33/1180 after P15 (tango-store.service.spec.ts,
+      # a NEW suite covering the versioned-head policy, the propose/review link
+      # durability distinction, checkpoint resumability, and usage recording).
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -409,7 +453,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 32 1115
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 33 1180
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

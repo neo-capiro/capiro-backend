@@ -2,8 +2,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TangoModule } from './tango.module.js';
 import { TangoGatewayService } from './tango.client.js';
+import { TangoStoreService } from './tango-store.service.js';
 import { TANGO_GATEWAY, type TangoGateway } from './tango.types.js';
 import { TangoNotConfiguredError } from './tango.errors.js';
+import { PrismaModule } from '../../prisma/prisma.module.js';
 
 /**
  * The module wiring.
@@ -24,7 +26,12 @@ async function build(env: Record<string, string | undefined>) {
   }
   try {
     const moduleRef = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ ignoreEnvFile: true }), TangoModule],
+      // PrismaModule is @Global() in the real app (imported once by AppModule),
+      // but Nest's isolated testing module builder does not pull in a global
+      // module unless something in the tested graph actually imports it — so an
+      // isolated TangoModule test has to import it explicitly, the same way any
+      // OTHER consumer of a global module would if it were tested alone.
+      imports: [ConfigModule.forRoot({ ignoreEnvFile: true }), PrismaModule, TangoModule],
     }).compile();
     return moduleRef;
   } finally {
@@ -74,6 +81,14 @@ describe('the module boots with or without a key', () => {
     const moduleRef = await build({ TANGO_API_KEY: undefined });
     expect(() => moduleRef.get(TangoGatewayService)).toThrow();
     expect(moduleRef.get(TANGO_GATEWAY)).toBeDefined();
+    await moduleRef.close();
+  });
+
+  test('TangoStoreService (P15) is also exported, and needs no key at all', async () => {
+    // Provider-owned persistence depends only on PrismaService — no config, no
+    // network — so it is resolvable in EVERY configuration, including no key.
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    expect(moduleRef.get(TangoStoreService)).toBeInstanceOf(TangoStoreService);
     await moduleRef.close();
   });
 
