@@ -5,7 +5,9 @@ on:
     branches:
       - agent/engagement-api-phase-3-full-ui-parity
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - agent/engagement-api-phase-2-dark-fargate
     paths:
       - 'apps/api/src/engagement/**'
       - 'apps/api/scripts/*engagement-phase3*'
