@@ -44,6 +44,13 @@ import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { MeriV2ChatClient } from './meriv2-chat.client.js';
+import { MeriV3ChatClient } from './meriv3-chat.client.js';
+import { MeriV3ProxyService } from './meriv3-proxy.service.js';
+import { MeriV3SettingsController } from './meriv3-settings.controller.js';
+import {
+  createMeriRuntimeService,
+  RAW_MERI_SERVICE,
+} from './meriv3-runtime.proxy.js';
 
 @Module({
   imports: [
@@ -64,13 +71,21 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
   ],
   controllers: [
     MeriController,
+    MeriV3SettingsController,
     MeriActionProposalController,
     MeriContextPacketController,
     MeriPolicyPackController,
     MeriMcpOAuthController,
   ],
   providers: [
-    MeriService,
+    { provide: RAW_MERI_SERVICE, useClass: MeriService },
+    MeriV3ChatClient,
+    MeriV3ProxyService,
+    {
+      provide: MeriService,
+      useFactory: createMeriRuntimeService,
+      inject: [RAW_MERI_SERVICE, MeriV3ProxyService],
+    },
     { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
     {
       provide: MeriToolsService,

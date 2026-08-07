@@ -5,6 +5,24 @@ import { setAlerts, setChatOpen, resetChatStoreForTests } from './chat-store.js'
 const mocks = vi.hoisted(() => ({
   close: vi.fn(),
   newSession: vi.fn(),
+  openWorkspace: vi.fn(),
+  meriv3: false,
+}));
+
+vi.mock('../../lib/me.js', () => ({
+  useMe: () => ({
+    data: { features: { meriv3Chat: mocks.meriv3 } },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('./meri-window.js', () => ({
+  isMeriWorkspaceWindow: () => false,
+  openMeriWorkspaceWindow: () => mocks.openWorkspace(),
+}));
+
+vi.mock('./MeriWorkspaceWindow.js', () => ({
+  MeriWorkspaceWindow: () => <div data-testid="meri-workspace-window">Workspace</div>,
 }));
 
 vi.mock('./useMeriChatController.js', async () => {
@@ -62,6 +80,8 @@ describe('MeriOverlay window state integration', () => {
     window.localStorage.clear();
     mocks.close.mockClear();
     mocks.newSession.mockClear();
+    mocks.openWorkspace.mockReset();
+    mocks.meriv3 = false;
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
   });
@@ -94,6 +114,24 @@ describe('MeriOverlay window state integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close Meri' }));
     expect(mocks.close).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /^Open Meri/ })).toBeTruthy();
+  });
+
+  test('MeriV3 opens a real browser window instead of the skinny drawer', () => {
+    mocks.meriv3 = true;
+    mocks.openWorkspace.mockReturnValue({ focus: vi.fn() });
+    render(<MeriOverlay />);
+    fireEvent.click(screen.getByRole('button', { name: /Open Meri workspace window/i }));
+    expect(mocks.openWorkspace).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Meri assistant')).toBeNull();
+  });
+
+  test('a popup blocker falls back to the full undocked surface, never docked', () => {
+    mocks.meriv3 = true;
+    mocks.openWorkspace.mockReturnValue(null);
+    render(<MeriOverlay />);
+    fireEvent.click(screen.getByRole('button', { name: /Open Meri workspace window/i }));
+    expect(screen.getByLabelText('Meri assistant').className).toContain('meri-overlay--undocked');
+    expect(screen.getByLabelText('Meri assistant').className).not.toContain('meri-overlay--docked');
   });
 
   test('renders an already-open legacy caller as the docked surface', () => {

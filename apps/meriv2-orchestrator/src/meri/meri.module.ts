@@ -18,28 +18,31 @@ import { StrategyAssistantService } from './strategy/strategy-assistant.service.
 import { StrategyContextPackService } from './strategy/strategy-context-pack.service.js';
 import { StewardController } from './steward/steward.controller.js';
 import { StewardExtractService } from './steward/steward-extract.service.js';
+import { MeriV3Controller } from './meriv3/meriv3.controller.js';
+import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
+import { MeriV3AssistantService } from './meriv3/meriv3-assistant.service.js';
+import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
 
 /**
- * Hosts the MeriV2 tool registry over HTTP at `/meri-api/tools/*` plus the
- * in-editor assistant surface at `/meri-api/in-editor-assistant` and the full
- * chat surface at `/meri-api/chat` (C4). Thin: all reasoning lives in
- * `@capiro/meriv2-core`; this module wires the data adapters (the api-delegating
- * client-context repo, the generic tool executor, the approval repo), the
- * in-editor + chat loops, and the tenant-scoped invocation path.
+ * Hosts the isolated Meri runtime service. MeriV2 remains the established
+ * surface at `/meri-api/chat`; MeriV3 is a separate, fail-closed canary at
+ * `/meri-api/v3/chat`, sharing Capiro's governed registry, context compiler,
+ * action authority and audit stores without replacing Workspace, in-editor,
+ * Strategy or Steward generation.
  */
 @Module({
   controllers: [
     MeriController,
     InEditorController,
     ChatController,
+    MeriV3Controller,
     WorkspaceGenController,
     StrategyController,
     StewardController,
   ],
   providers: [
-    // PrismaService is NOT listed here: it now comes from the @Global
-    // PrismaModule. Re-providing it locally would create a second
-    // PrismaClient and a second connection pool.
+    // PrismaService is NOT listed here: it comes from the @Global PrismaModule.
+    // Re-providing it would create a second PrismaClient and connection pool.
     MeriContextResolver,
     OrchestratorContextCompilerService,
     ApiClientContextRepo,
@@ -49,6 +52,9 @@ import { StewardExtractService } from './steward/steward-extract.service.js';
     MeriRegistryService,
     InEditorAssistantService,
     ChatAssistantService,
+    MeriV3AccessService,
+    OpenAiResponsesClient,
+    MeriV3AssistantService,
     WorkspaceGenClient,
     StrategyAssistantService,
     StrategyContextPackService,

@@ -1,0 +1,144 @@
+name: meriv3-canary-ci
+
+on:
+  push:
+    branches:
+      - agent/meriv3-openai-responses-canary
+    paths:
+      - 'apps/api/src/meri/**'
+      - 'apps/api/src/common/meriv3-*'
+      - 'apps/api/src/users/users.controller.ts'
+      - 'apps/api/src/capiro-admin/meriv3-*'
+      - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
+      - 'apps/meriv2-orchestrator/src/meri/**'
+      - 'apps/web/src/components/chat/**'
+      - 'apps/web/src/lib/me.ts'
+      - 'docs/plans/meriv3-*'
+      - 'docs/runbooks/meriv3-*'
+      - '.github/workflows/meriv3-canary-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/meri/**'
+      - 'apps/api/src/common/meriv3-*'
+      - 'apps/api/src/users/users.controller.ts'
+      - 'apps/api/src/capiro-admin/meriv3-*'
+      - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
+      - 'apps/meriv2-orchestrator/src/meri/**'
+      - 'apps/web/src/components/chat/**'
+      - 'apps/web/src/lib/me.ts'
+      - 'docs/plans/meriv3-*'
+      - 'docs/runbooks/meriv3-*'
+      - '.github/workflows/meriv3-canary-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meriv3-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Format gate — MeriV3 changed paths
+        run: >
+          pnpm exec prettier --check
+          "apps/meriv2-orchestrator/src/meri/meriv3/**/*.ts"
+          "apps/meriv2-orchestrator/src/meri/meri.module.ts"
+          "apps/api/src/meri/meriv3*.ts"
+          "apps/api/src/common/meriv3*.ts"
+          "apps/api/src/capiro-admin/meriv3*.ts"
+          "apps/api/src/capiro-admin/capiro-admin.module.ts"
+          "apps/api/src/users/users.controller.ts"
+          "apps/web/src/components/chat/MeriOverlay.tsx"
+          "apps/web/src/components/chat/MeriOverlay.test.tsx"
+          "apps/web/src/components/chat/MeriWorkspaceWindow.tsx"
+          "apps/web/src/components/chat/MeriWorkspaceWindow.test.tsx"
+          "apps/web/src/components/chat/meri-window.ts"
+          "apps/web/src/components/chat/meri-window.test.ts"
+          "apps/web/src/components/chat/meri-workspace-window.css"
+          "apps/web/src/components/chat/meri-workspace-window-scope.css"
+          "apps/web/src/lib/me.ts"
+          "docs/plans/meriv3-thin-agent-architecture.md"
+          "docs/runbooks/meriv3-capiro-internal-canary.md"
+          ".github/workflows/meriv3-canary-ci.yml"
+
+      - name: Build shared package prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+          # meriv2-orchestrator's strategy module imports this package; without
+          # its dist the orchestrator typecheck and `nest build` both fail.
+          pnpm --filter @capiro/strategy-verifier build
+
+      - name: Typecheck MeriV3 deployables
+        run: |
+          pnpm --filter @capiro/meriv2-orchestrator typecheck
+          pnpm --filter @capiro/api exec tsc --noEmit
+          pnpm --filter @capiro/web typecheck
+
+      - name: Test isolated MeriV3 runtime
+        run: >
+          pnpm --filter @capiro/meriv2-orchestrator exec jest
+          --runInBand --forceExit
+          src/meri/meriv3
+
+      - name: Test API routing, flags and transport
+        run: >
+          pnpm --filter @capiro/api exec jest
+          --runInBand --forceExit
+          src/meri/meriv3-chat.client.spec.ts
+          src/meri/meriv3-runtime.proxy.spec.ts
+          src/meri/meriv3-conversation.helpers.spec.ts
+          src/common/meriv3-flags.spec.ts
+
+      - name: Test popup workspace and launcher
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          src/components/chat/MeriOverlay.test.tsx
+          src/components/chat/MeriWorkspaceWindow.test.tsx
+          src/components/chat/meri-window.test.ts
+          --testTimeout=20000 --hookTimeout=20000
+
+      - name: Boundary guard — adjacent runtimes remain independent
+        run: |
+          set -e
+          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
+            echo "MeriV3 must not be imported into Workspace, Strategy or intel-api during the chat canary."
+            exit 1
+          fi
+          if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \
+            apps/api/src/meri/meriv3-proxy.service.ts; then
+            echo "MeriV3 must not expose raw reasoning/thinking SSE events."
+            exit 1
+          fi
+          echo "MeriV3 isolation and reasoning-redaction guards passed."
+
+      - name: Build MeriV3 deployables
+        run: |
+          pnpm --filter @capiro/meriv2-orchestrator build
+          pnpm --filter @capiro/api build
+          pnpm --filter @capiro/web build
