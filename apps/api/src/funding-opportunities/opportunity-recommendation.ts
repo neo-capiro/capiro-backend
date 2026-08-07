@@ -42,11 +42,19 @@
  * Rule 5 is the other one stated explicitly: strong relevance with unresolved
  * eligibility is `needs_review`, not `pursue`.
  *
- * FORECASTS ARE OUT OF SCOPE
- * --------------------------
- * A forecasted opportunity has no response window and cannot be pursued or
- * passed on in the same sense. P25 adds forecast rules; until then the caller
- * must not route forecasts through this function.
+ * FORECASTS NEVER ROUTE THROUGH `recommendOpportunity` ITSELF (P25)
+ * --------------------------------------------------------------------
+ * A forecast has no response window and cannot be pursued or passed on in
+ * the same sense an active solicitation can — `forecast-relevance.ts`'s
+ * `scoreForecastRelevance` is a SEPARATE function with its own four-value
+ * vocabulary (`shape_now`/`monitor`/`pass`/`needs_review`) and its own rule
+ * order, never this one. What THIS file exports for that function to use is
+ * `FORECAST_TO_MACHINE_RECOMMENDATION`, below — the one, explicit, tested
+ * mapping from the forecast vocabulary to the common `MachineRecommendation`
+ * every `FundingOpportunity.recommendation` already carries, so a triage
+ * surface that only knows the common vocabulary can still render a forecast
+ * sensibly. `shape_now` maps to `'monitor'`, NEVER `'pursue'` — see that
+ * constant's own doc for why.
  *
  * ACQUISITION POSITION IS A POST-PROCESSING OVERRIDE, NOT A NINTH RULE (P23)
  * ---------------------------------------------------------------------------
@@ -77,6 +85,43 @@ export type MachineRecommendation = (typeof MACHINE_RECOMMENDATIONS)[number];
 
 export const RECOMMENDATION_CONFIDENCES = ['high', 'medium', 'low'] as const;
 export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[number];
+
+/**
+ * P25's forecast vocabulary, and the one, explicit mapping from it to the
+ * common `MachineRecommendation` above.
+ *
+ * `shape_now` — not `pursue` — is the forecast rail's strongest signal, and
+ * it maps to `'monitor'`, never `'pursue'`. Three independent reasons, all
+ * of which have to hold for this mapping to ever change:
+ *
+ *   1. A forecast is "here is what an agency expects to buy", never a live
+ *      competition with a submission to make — calling that `pursue` would
+ *      claim a bid exists when it does not.
+ *   2. `FundingOpportunityCounts.pursuing` and the inbox's own `pursuing`
+ *      filter are keyed on `workflowStatus`/`humanDecision`, not `source` —
+ *      they have no source-aware carve-out to add one. A forecast reaching
+ *      `machineRecommendation: 'pursue'` would count toward pursuit-stage
+ *      KPIs automatically, which is exactly what "not pursuit-stage KPIs
+ *      until a human explicitly qualifies them" (this phase's own
+ *      acceptance line) forbids.
+ *   3. `'monitor'` already means "not committed, but worth watching" in the
+ *      common vocabulary — `shape_now`'s own next actions (a capability
+ *      briefing, program-office research, a teaming conversation) are
+ *      exactly that, just with more urgency than an ordinary `monitor`. The
+ *      forecast-specific `forecastRecommendation` field (see
+ *      forecast-relevance.ts) is where that extra urgency stays visible;
+ *      the common field stays honest instead.
+ */
+export const FORECAST_RECOMMENDATIONS = ['shape_now', 'monitor', 'pass', 'needs_review'] as const;
+export type ForecastRecommendation = (typeof FORECAST_RECOMMENDATIONS)[number];
+
+export const FORECAST_TO_MACHINE_RECOMMENDATION: Readonly<Record<ForecastRecommendation, MachineRecommendation>> =
+  Object.freeze({
+    shape_now: 'monitor',
+    monitor: 'monitor',
+    pass: 'pass',
+    needs_review: 'needs_review',
+  });
 
 /**
  * The bounded reason vocabulary. Bounded so the web mirror can label every value

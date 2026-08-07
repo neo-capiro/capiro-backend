@@ -204,6 +204,10 @@ interface Row {
   source: string;
   grantOpportunityId: string | null;
   samOpportunityId: string | null;
+  /** P13's generic identity. Null for every existing fixture row — both
+   * legacy sources always carry a legacy pointer — except the P25 forecast
+   * fixture below, which carries ONLY this. */
+  sourceRecordKey: string | null;
   workflowStatus: string;
   humanDecision: string | null;
   nextAction: string | null;
@@ -225,6 +229,7 @@ function row(over: Partial<Row> = {}): Row {
     source: 'sam_gov',
     grantOpportunityId: null,
     samOpportunityId: 'notice-1',
+    sourceRecordKey: null,
     workflowStatus: 'suggested',
     humanDecision: null,
     nextAction: null,
@@ -255,6 +260,7 @@ function makeFake(
     clients?: Array<{ id: string; name: string; memoryWall: boolean }>;
     grants?: Array<{ clientId: string }>;
     failCounts?: boolean;
+    forecasts?: Array<{ tangoForecastId: string; title: string; agency: string | null }>;
   } = {},
 ) {
   const clients = opts.clients ?? [{ id: 'client-1', name: 'Acme Defense', memoryWall: false }];
@@ -293,6 +299,12 @@ function makeFake(
       findMany: jest.fn(async () => {
         queries += 1;
         return [{ id: 'notice-1', title: 'Turbofan Sustainment', agency: 'DEPT OF THE NAVY' }];
+      }),
+    },
+    tangoProcurementForecast: {
+      findMany: jest.fn(async () => {
+        queries += 1;
+        return opts.forecasts ?? [{ tangoForecastId: 'FCST-1', title: 'Synthetic Depot Sustainment', agency: 'VA' }];
       }),
     },
     clientFundingOpportunity: {
@@ -497,6 +509,52 @@ describe('a failure is reported, never rendered as zero', () => {
     const { service } = makeFake({ rows: [row({ samOpportunityId: 'vanished' })] });
     const res = await service.list(TENANT, USER, {});
     expect(res.rows[0]!.title).toMatch(/no longer in the catalog/i);
+  });
+
+  test('a row addressed ONLY through the generic identity (P13) resolves a real title, not "no longer in the catalog" (P25 fix)', async () => {
+    // Before this fix, ANY row with both legacy pointers null — exactly the
+    // shape P13's own generic-identity CHECK constraint already requires
+    // for a non-legacy source like agency_forecast — computed an empty-id
+    // lookup key here and always fell through to the "gone" message, even
+    // though the record was never gone: titlesFor simply never looked.
+    const { service } = makeFake({
+      rows: [
+        row({
+          source: 'agency_forecast',
+          grantOpportunityId: null,
+          samOpportunityId: null,
+          sourceRecordKey: 'FCST-1',
+          responseDeadlineSnapshot: null,
+        }),
+      ],
+      forecasts: [{ tangoForecastId: 'FCST-1', title: 'Synthetic Depot Sustainment', agency: 'VA' }],
+    });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.title).toBe('Synthetic Depot Sustainment');
+    expect(res.rows[0]!.agency).toBe('VA');
+    expect(res.rows[0]!.sourceRecordId).toBe('FCST-1');
+  });
+
+  test('a generic-identity row for an id NOT in the forecast table still says "gone", not blank', async () => {
+    const { service } = makeFake({
+      rows: [
+        row({
+          source: 'agency_forecast',
+          grantOpportunityId: null,
+          samOpportunityId: null,
+          sourceRecordKey: 'FCST-VANISHED',
+        }),
+      ],
+      forecasts: [],
+    });
+    const res = await service.list(TENANT, USER, {});
+    expect(res.rows[0]!.title).toMatch(/no longer in the catalog/i);
+  });
+
+  test('the forecast lookup is never queried when the page has no agency_forecast rows', async () => {
+    const { service, tx } = makeFake({ rows: [row()] });
+    await service.list(TENANT, USER, {});
+    expect(tx.tangoProcurementForecast.findMany).not.toHaveBeenCalled();
   });
 
   test('a stale row is flagged rather than hidden', async () => {

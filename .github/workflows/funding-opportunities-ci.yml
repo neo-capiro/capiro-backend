@@ -634,9 +634,48 @@ jobs:
       # across two real commit runs and confirming resumability (row count
       # 5 -> 10, cursor page 2 -> 3, no duplicates) against the real API.
       #
+      # 49/1463 after P25: NO new suite — forecast-relevance.spec.ts (23
+      # tests + a 144-case cross-product sweep) is a NEW FILE but this repo
+      # already counts it inside the existing src/funding-opportunities/
+      # glob, so the suite count moves by +1 same as any grown-in-place
+      # file would; the real news is what it proves. The six-rule truth
+      # table: an inactive forecast is always pass regardless of every
+      # other signal; a thin profile is needs_review; zero client evidence
+      # — including an approaching award date ALONE, proven explicitly to
+      # not count — is pass; any of four exact signals (NAICS/PSC/
+      # capability/a source-backed PE link) is shape_now; weaker evidence
+      # alone is monitor; confidence needs a strong match PLUS (prior
+      # history OR vehicle access) to reach high. shape_now maps to the
+      # common vocabulary's 'monitor', proven across the full sweep to
+      # NEVER produce 'pursue' — load-bearing (decision-log D-47):
+      # FundingOpportunityCounts.pursuing and the inbox's own pursuing
+      # filter are both keyed on workflowStatus/humanDecision alone, with
+      # no source-aware carve-out to add one, confirmed by reading both
+      # directly. No response deadline is ever fabricated (proven: the
+      # anticipated award date changes wording only, never the
+      # recommendation; "deadline" never appears in any output text). No
+      # eligibility state is inferred (proven: no eligibility-shaped field
+      # on the result, no eligibility word in any output text). A REAL BUG
+      # found and fixed along the way (D-47): funding-opportunity-inbox
+      # .service.ts's titlesFor built its lookup key from the two legacy
+      # pointers only, never consulting P13's own generic sourceRecordKey
+      # — so a row addressed purely through the generic identity (the
+      # exact shape the DB CHECK constraint already requires for
+      # agency_forecast) always rendered "gone" even when the record
+      # existed. Fixed via readSourceRecordId, P13's own dual-read helper.
+      # funding-opportunity-identity.spec.ts's P13-era "no new source is
+      # enabled by this phase" guard was narrowed HONESTLY, not gamed:
+      # funding-opportunity-inbox.service.ts moved to its own describe
+      # block proving the narrower thing that stayed true (no
+      # create/update/upsert call in the file at all, OPPORTUNITY_SOURCES
+      # unchanged, the ?source= filter still legacy-only) — 3 net new
+      # tests there (54 -> effectively replacing 1 with 4). No new Prisma
+      # model, no producer, no DI-registered caller — ships logic dark,
+      # per this phase's own instruction and its own unchanged file list.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 48 1433
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 49 1463
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

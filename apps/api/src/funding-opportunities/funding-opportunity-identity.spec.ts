@@ -461,14 +461,13 @@ describe('schema.prisma agrees with the migration', () => {
   });
 });
 
-// ── Nothing writes a planned source yet ─────────────────────────────────────
+// ── Nothing WRITES a planned source yet, and nothing widens the API vocabulary ──
 
 describe('no new source is enabled by this phase', () => {
   const dir = join(__dirname);
   const files = [
     'funding-opportunities.service.ts',
     'funding-opportunities.controller.ts',
-    'funding-opportunity-inbox.service.ts',
     'funding-opportunity-actions.service.ts',
   ];
 
@@ -485,6 +484,59 @@ describe('no new source is enabled by this phase', () => {
       '../../scripts/generate-sam-opportunity-candidates.ts',
     ]) {
       const source = readFileSync(join(dir, script), 'utf8');
+      for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
+        expect(source).not.toContain(`'${planned}'`);
+      }
+    }
+  });
+});
+
+/**
+ * P25's own, narrow, deliberate exception to the guard above.
+ *
+ * `funding-opportunity-inbox.service.ts` DOES now name `'agency_forecast'`
+ * — its `titlesFor` helper looks up a forecast's title/agency when a
+ * workflow row is addressed purely through the generic identity, the exact
+ * shape P13's own DB CHECK constraint already allows for a non-legacy
+ * source. This is deliberately NARROWER than "enabling" the source in the
+ * sense the guard above protects: it is a READ-ONLY title/agency lookup for
+ * a row that does not exist yet (no producer writes one), not a write path,
+ * and not a widening of `OPPORTUNITY_SOURCES` — the tests immediately below
+ * pin exactly that boundary so a future change cannot quietly cross it
+ * without a test noticing.
+ */
+describe('the inbox service\'s forecast-title lookup (P25) stays a READ, and the API vocabulary stays unwidened', () => {
+  const inboxSource = readFileSync(join(__dirname, 'funding-opportunity-inbox.service.ts'), 'utf8');
+
+  test('the inbox never WRITES a client_funding_opportunity row at all — the exception is read-only by construction', () => {
+    // Same proof `funding-opportunity-inbox.service.ts`'s own class doc
+    // makes in prose ("purely a read-time filter"), pinned here as a
+    // structural check: no create/update/upsert call on the model this
+    // whole guard file is about.
+    expect(inboxSource).not.toMatch(/clientFundingOpportunity\.(create|update|upsert)\(/);
+  });
+
+  test('the API-facing source vocabulary is untouched by this phase', () => {
+    expect([...OPPORTUNITY_SOURCES]).toEqual(['grants_gov', 'sam_gov']);
+    for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
+      expect(OPPORTUNITY_SOURCES as readonly string[]).not.toContain(planned);
+    }
+  });
+
+  test('the ?source= query-param filter (parseSource) still only accepts the two legacy sources', () => {
+    // A forecast-sourced row is still returned unconditionally (it is never
+    // excluded by a source predicate the caller did not ask for) — it just
+    // cannot be explicitly REQUESTED by `?source=agency_forecast` yet.
+    expect(inboxSource).toMatch(/source must be one of: \$\{OPPORTUNITY_SOURCES\.join/);
+  });
+
+  test('every OTHER file the guard above protects still names no planned source, unchanged', () => {
+    for (const file of [
+      'funding-opportunities.service.ts',
+      'funding-opportunities.controller.ts',
+      'funding-opportunity-actions.service.ts',
+    ]) {
+      const source = readFileSync(join(__dirname, file), 'utf8');
       for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
         expect(source).not.toContain(`'${planned}'`);
       }
