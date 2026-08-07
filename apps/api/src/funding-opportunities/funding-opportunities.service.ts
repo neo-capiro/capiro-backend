@@ -6,13 +6,27 @@ import {
   scoreOpportunityRelevance,
   type ClientRelevanceProfile,
 } from '../district-nexus/grant-opportunity-relevance.js';
-import { shapeClientRelevanceProfile } from '../district-nexus/grant-opportunity-candidates.js';
 import {
   computeSamEligibility,
   scoreSamOpportunityRelevance,
   type SamClientProfile,
   type SamOpportunityProfile,
 } from './sam-opportunity-relevance.js';
+import {
+  buildClientOpportunityProfile,
+  emptyAwardHistory,
+} from './client-opportunity-profile.builder.js';
+import {
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from './award-history-identity.js';
+import {
+  asProfileReadClient,
+  readAwardHistoryByBasis,
+  readClientProfileFacts,
+  resolveContractorUeis,
+} from './client-opportunity-profile.repository.js';
+import type { ClientOpportunityProfileV1 } from './client-opportunity-profile.types.js';
 import { grantsGovKind, samNoticeKind } from './opportunity-kind.js';
 import {
   GRANT_ACTIVE_SQL,
@@ -30,9 +44,12 @@ import {
   profileIsTooThin,
   type ProfileCompleteness,
 } from './missing-profile-fields.js';
+import { recommendOpportunity } from './opportunity-recommendation.js';
 import {
   HUMAN_DECISION_STATUSES,
   NON_PURSUABLE_KINDS,
+  type HumanDecision,
+  type OpportunityDecision,
   WORKFLOW_SORT_PRIORITY,
   type ClientFundingOpportunitySummary,
   type EmptyReason,
@@ -362,6 +379,329 @@ export class FundingOpportunitiesService {
   }
 
   /**
+   * Record the team's DECISION on one opportunity.
+   *
+   * A DEDICATED endpoint, not an overload of the generic PATCH. The generic patch
+   * takes five independent optional fields and any subset of them; a decision is a
+   * single atomic assertion that must always carry its actor and timestamp, and the
+   * database CHECKs that. Threading it through the patch would mean a body with
+   * `{notes}` and nothing else could not be told apart from one that also meant to
+   * clear a decision.
+   *
+   * THE THREE CONCEPTS STAY SEPARATE
+   *   - `humanDecision` is what the team decided.
+   *   - `workflowStatus` is where a pursuit is.
+   *   - the machine recommendation is recomputed on read and never stored.
+   * All three can disagree, and that is information rather than corruption.
+   *
+   * WHAT EACH DECISION DOES TO WORKFLOW
+   *   `pursue`  -> moves workflow to `pursuing`, subject to the SAME source guard
+   *                as every other pursuit. A closed or informational notice is
+   *                refused here exactly as it is on the save path.
+   *   `monitor` -> keeps (or creates) a `saved` workflow row. It is NOT a pursuit.
+   *   `pass`    -> records the decision and leaves workflow alone. Deliberately
+   *                does NOT set `dismissed`: dismissing is a UI-visibility action,
+   *                whereas passing is a judgement, and collapsing them would make
+   *                "we declined to bid" unrecoverable from "somebody hid the row".
+   */
+  async decide(
+    tenantId: string,
+    clientId: string,
+    source: OpportunitySource,
+    sourceRecordId: string,
+    input: {
+      decision: HumanDecision;
+      actorUserId: string;
+      reason?: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: string | null;
+    },
+  ): Promise<OpportunityDecision> {
+    await this.assertClientInTenant(tenantId, clientId);
+    const row = await this.fetchOneSourceRow(source, sourceRecordId);
+    if (!row) throw new NotFoundException('Opportunity not found');
+
+    // A due date with no action is a reminder about nothing. Rejected here as well
+    // as by the CHECK so the caller gets a 400 explaining it rather than a 500.
+    if (input.nextActionDueAt != null && !input.nextAction?.trim()) {
+      throw new BadRequestException(
+        'A next-action due date needs a next action. Describe what is due, or leave the date empty.',
+      );
+    }
+    const dueAt = input.nextActionDueAt != null ? new Date(input.nextActionDueAt) : null;
+    if (dueAt != null && Number.isNaN(dueAt.getTime())) {
+      throw new BadRequestException('nextActionDueAt must be an ISO-8601 timestamp.');
+    }
+
+    // `pursue` is a pursuit, so it faces the same guard as the save path: a closed
+    // or informational notice cannot be pursued however the request is spelled.
+    const workflowStatus: OpportunityWorkflowStatus | null =
+      input.decision === 'pursue' ? 'pursuing' : input.decision === 'monitor' ? 'saved' : null;
+    if (workflowStatus) this.assertPursuable(row, workflowStatus);
+
+    const decidedAt = new Date();
+    const facts = await this.readClientFacts(tenantId, clientId);
+    const score = this.scoreRow(row, facts);
+    const snapshot = this.sourceSnapshot(row);
+
+    const decisionData = {
+      humanDecision: input.decision,
+      decisionReason: input.reason?.trim() ? input.reason.trim() : null,
+      decisionAt: decidedAt,
+      decisionByUserId: input.actorUserId,
+      ...(input.nextAction !== undefined
+        ? { nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null }
+        : {}),
+      ...(input.nextActionDueAt !== undefined ? { nextActionDueAt: dueAt } : {}),
+      updatedBy: input.actorUserId,
+    };
+
+    const write = async () =>
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        const data = {
+          ...decisionData,
+          // `pass` leaves workflow untouched. A pass is a judgement, not a
+          // visibility action, and overwriting the workflow status would destroy
+          // whatever the team had actually been doing with the row.
+          ...(workflowStatus ? { workflowStatus } : {}),
+          relevanceScore: score.relevanceScore,
+          matchSignals: score.matchedSignals as unknown as Prisma.InputJsonValue,
+          eligibilityState: score.eligibility.state,
+          eligibilityReason: score.eligibility.reason,
+          sourceStatusSnapshot: snapshot.status,
+          responseDeadlineSnapshot: snapshot.deadline,
+          sourceUpdatedAtSnapshot: snapshot.updatedAt,
+          userCreated: true,
+          staleAt: null,
+        };
+        const saved = existing
+          ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+          : await tx.clientFundingOpportunity.create({
+              data: {
+                tenantId,
+                clientId,
+                source,
+                grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
+                samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+                // A decision IS a human action, so the row it creates is
+                // user-created and the producer must never overwrite it.
+                evidenceSourceType: 'user_action',
+                workflowStatus: workflowStatus ?? 'saved',
+                createdBy: input.actorUserId,
+                ...data,
+              },
+            });
+
+        // Same transaction as the write. An audit row written afterwards can be
+        // lost exactly when it matters most.
+        await this.writeWorkflowAudit(tx, {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: `funding_opportunity.decision.${input.decision}`,
+          entityId: saved.id,
+          before: existing
+            ? {
+                humanDecision: existing.humanDecision ?? null,
+                workflowStatus: existing.workflowStatus,
+                nextAction: existing.nextAction ?? null,
+              }
+            : null,
+          after: {
+            humanDecision: saved.humanDecision ?? null,
+            workflowStatus: saved.workflowStatus,
+            nextAction: saved.nextAction ?? null,
+          },
+        });
+        return this.shapeDecision(saved)!;
+      });
+
+    try {
+      return await write();
+    } catch (error) {
+      // The partial unique indexes are the concurrency backstop: two simultaneous
+      // first decisions can both observe no row, and the loser must retry as an
+      // update rather than leak a P2002.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (!existing) throw error;
+        const saved = await tx.clientFundingOpportunity.update({
+          where: { id: existing.id },
+          data: { ...decisionData, ...(workflowStatus ? { workflowStatus } : {}) },
+        });
+        return this.shapeDecision(saved)!;
+      });
+    }
+  }
+
+  // ── P08: the atomic action surface ────────────────────────────────────────
+
+  /**
+   * Everything the action service needs to build a task, plus whether a pursuit is
+   * allowed and why not.
+   *
+   * The refusal REASON is returned rather than thrown so the caller can validate
+   * before writing anything. Throwing here would mean the check had to happen
+   * after the task insert to know the title, which is the ordering that leaves an
+   * orphan task behind on a refused pursuit.
+   */
+  async describeForAction(
+    tenantId: string,
+    clientId: string,
+    source: OpportunitySource,
+    sourceRecordId: string,
+  ): Promise<{
+    title: string;
+    sourceReference: string | null;
+    sourceUrl: string | null;
+    responseDeadline: string | null;
+    isPursuable: boolean;
+    pursuitRefusal: string | null;
+  }> {
+    await this.assertClientInTenant(tenantId, clientId);
+    const row = await this.fetchOneSourceRow(source, sourceRecordId);
+    if (!row) throw new NotFoundException('Opportunity not found');
+    const base = this.shapeUnscored(row);
+
+    let pursuitRefusal: string | null = null;
+    try {
+      this.assertPursuable(row, 'pursuing');
+    } catch (error) {
+      pursuitRefusal = error instanceof BadRequestException ? error.message : 'Not pursuable';
+    }
+
+    return {
+      title: base.title,
+      sourceReference: base.sourceReference,
+      sourceUrl: base.sourceUrl,
+      responseDeadline: base.responseDeadline,
+      isPursuable: pursuitRefusal == null,
+      pursuitRefusal,
+    };
+  }
+
+  /** An owner must belong to the tenant. Same check the save path applies. */
+  async assertOwnerAssignable(tenantId: string, ownerUserId: string): Promise<void> {
+    await this.assertUserInTenant(tenantId, ownerUserId);
+  }
+
+  /**
+   * Write the decision and workflow change on an EXISTING transaction.
+   *
+   * Takes `tx` rather than opening its own, which is the whole reason P08 can be
+   * atomic: the caller has already inserted the Engagement task on this same
+   * transaction, so a failure here rolls both back together.
+   */
+  async applyActionDecision(
+    tx: Prisma.TransactionClient,
+    input: {
+      tenantId: string;
+      clientId: string;
+      source: OpportunitySource;
+      sourceRecordId: string;
+      actorUserId: string;
+      decision: HumanDecision;
+      workflowStatus: OpportunityWorkflowStatus;
+      ownerUserId?: string | null;
+      notes?: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: Date | null;
+      taskId: string;
+    },
+  ): Promise<{ id: string; workflowStatus: string }> {
+    const existing = await this.findWorkflowRow(
+      tx,
+      input.clientId,
+      input.source,
+      input.sourceRecordId,
+    );
+
+    const data = {
+      workflowStatus: input.workflowStatus,
+      humanDecision: input.decision,
+      decisionAt: new Date(),
+      decisionByUserId: input.actorUserId,
+      ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+      ...(input.notes !== undefined
+        ? { notes: input.notes?.trim() ? input.notes.trim() : null }
+        : {}),
+      nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null,
+      // The SAME date the task carries. Two dates that could drift is how a task
+      // says one thing and the inbox says another.
+      nextActionDueAt: input.nextActionDueAt ?? null,
+      userCreated: true,
+      staleAt: null,
+      updatedBy: input.actorUserId,
+    };
+
+    const saved = existing
+      ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+      : await tx.clientFundingOpportunity.create({
+          data: {
+            tenantId: input.tenantId,
+            clientId: input.clientId,
+            source: input.source,
+            grantOpportunityId: input.source === 'grants_gov' ? input.sourceRecordId : null,
+            samOpportunityId: input.source === 'sam_gov' ? input.sourceRecordId : null,
+            evidenceSourceType: 'user_action',
+            createdBy: input.actorUserId,
+            ...data,
+          },
+        });
+
+    await this.writeWorkflowAudit(tx, {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      action: `funding_opportunity.action.${input.decision}`,
+      entityId: saved.id,
+      before: existing
+        ? {
+            workflowStatus: existing.workflowStatus,
+            humanDecision: existing.humanDecision ?? null,
+          }
+        : null,
+      after: {
+        workflowStatus: saved.workflowStatus,
+        humanDecision: saved.humanDecision ?? null,
+        // The link between the two rows this action wrote, so an auditor can join
+        // them without guessing.
+        engagementTaskId: input.taskId,
+      },
+    });
+
+    return { id: saved.id, workflowStatus: saved.workflowStatus };
+  }
+
+  /**
+   * Read-model for the persisted decision. Null when nobody has decided.
+   *
+   * The actor/timestamp pair is required by a CHECK, so a row with a decision
+   * always has both — but this reads defensively rather than asserting, because a
+   * legacy row predating the constraint would otherwise crash a list request.
+   */
+  private shapeDecision(row: {
+    humanDecision: string | null;
+    decisionReason: string | null;
+    decisionAt: Date | null;
+    decisionByUserId: string | null;
+    nextAction: string | null;
+    nextActionDueAt: Date | null;
+  }): OpportunityDecision | null {
+    if (!row.humanDecision || !row.decisionAt || !row.decisionByUserId) return null;
+    return {
+      decision: row.humanDecision as HumanDecision,
+      reason: row.decisionReason ?? null,
+      decidedAt: row.decisionAt.toISOString(),
+      decidedByUserId: row.decisionByUserId,
+      nextAction: row.nextAction ?? null,
+      nextActionDueAt: row.nextActionDueAt ? row.nextActionDueAt.toISOString() : null,
+    };
+  }
+
+  /**
    * Patch a workflow row's mutable fields — CREATING the row if the edit itself
    * is the first human action.
    *
@@ -645,192 +985,50 @@ export class FundingOpportunitiesService {
    * the transaction).
    */
   private async readClientFacts(tenantId: string, clientId: string): Promise<ClientFacts> {
-    const scoped = await this.prisma.withTenant(tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
-        select: {
-          id: true,
-          name: true,
-          uei: true,
-          cageCode: true,
-          naicsCodes: true,
-          pscCodes: true,
-          applicantTypes: true,
-          setAsideCertifications: true,
-          sectorTag: true,
-          capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
-          facilities: {
-            select: {
-              id: true,
-              name: true,
-              city: true,
-              state: true,
-              zip: true,
-              congressionalDistrict: true,
-            },
-          },
-        },
-      });
-      if (!client) throw new NotFoundException('Client not found');
+    // Tenant facts in a SHORT tenant-scoped transaction. The award-history read
+    // that follows hits global tables and is the slow one, so it stays outside:
+    // holding a tenant transaction open across it turns one slow client into a
+    // connection-pool problem for every other request.
+    const facts = await this.prisma.withTenant(tenantId, (tx) =>
+      readClientProfileFacts(asProfileReadClient(tx), { clientId }),
+    );
+    if (!facts) throw new NotFoundException('Client not found');
 
-      const mappings = await tx.clientIntelMapping.findMany({
-        where: {
-          clientId,
-          confirmed: true,
-          reviewStatus: 'confirmed',
-          rollUpAwards: true,
-          source: { in: ['contracting', 'assistance_recipient'] },
-        },
-        select: { source: true, externalId: true, externalName: true },
-      });
-      return { client, mappings };
-    });
-
-    const { client, mappings } = scoped;
-    const contracting = mappings.filter((m) => m.source === 'contracting');
-    const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
-    const ownUei = client.uei && isUeiShaped(client.uei) ? client.uei.toUpperCase() : null;
-
-    const contractorUeis = dedupe([
-      ownUei,
-      ...contracting.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
-    ]);
-    const contractorNames = dedupe(contracting.map((m) => m.externalName)).map((n) => n.toLowerCase());
-    const assistanceUeis = dedupe([
-      ownUei,
-      ...assistance.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
-    ]);
-    const assistanceNames = dedupe(assistance.map((m) => m.externalName)).map((n) => n.toLowerCase());
-
-    const history = await this.readAwardHistory({
-      contractorUeis,
-      contractorNames,
-      assistanceUeis,
-      assistanceNames,
-    });
-
-    const capabilityKeywords = dedupe([
-      ...client.capabilities.map((c) => c.name),
-      ...client.capabilities.flatMap((c) => c.keywords ?? []),
-      ...client.capabilities.flatMap((c) => stringTags(c.tags)),
-    ]);
-
-    const grantProfile: ClientRelevanceProfile = shapeClientRelevanceProfile({
-      sectorTag: client.sectorTag,
-      capabilities: client.capabilities.map((c) => ({ name: c.name, tags: c.tags })),
-      facilityStates: client.facilities.map((f) => f.state),
-      priorAssistanceListings: history.assistanceListings,
-      priorAgencies: history.assistanceAgencies,
-      applicantTypes: client.applicantTypes,
-    });
-
-    const samProfile: SamClientProfile = {
-      naicsCodes: client.naicsCodes,
-      pscCodes: client.pscCodes,
-      capabilityKeywords,
-      programElementCodes: dedupe(client.capabilities.flatMap((c) => c.peNumbers ?? [])),
-      priorAgencies: history.contractAgencies,
-      priorOffices: history.contractOffices,
-      facilityStates: dedupe(client.facilities.map((f) => f.state)),
-      facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
-      setAsideCertifications: client.setAsideCertifications,
-      sector: client.sectorTag,
-      applicantTypes: client.applicantTypes,
-    };
-
-    const completeness: ProfileCompleteness = {
-      clientId,
-      hasUei: Boolean(client.uei),
-      hasCageCode: Boolean(client.cageCode),
-      naicsCount: client.naicsCodes.length,
-      pscCount: client.pscCodes.length,
-      applicantTypeCount: client.applicantTypes.length,
-      capabilityCount: client.capabilities.length,
-      facilityCount: client.facilities.length,
-      hasSector: Boolean(client.sectorTag),
-      confirmedContractorMappings: contracting.length,
-      priorAssistanceListingCount: dedupe(history.assistanceListings).length,
-      priorAgencyCount: dedupe([...history.assistanceAgencies, ...history.contractAgencies]).length,
-      programElementCount: samProfile.programElementCodes.length,
-    };
-
-    return {
-      clientId,
-      grantProfile,
-      samProfile,
-      completeness,
-      facilitiesById: new Map(client.facilities.map((f) => [f.id, f])),
-    };
-  }
-
-  private async readAwardHistory(input: {
-    contractorUeis: string[];
-    contractorNames: string[];
-    assistanceUeis: string[];
-    assistanceNames: string[];
-  }): Promise<{
-    assistanceListings: string[];
-    assistanceAgencies: string[];
-    contractAgencies: string[];
-    contractOffices: string[];
-  }> {
+    // The read path degrades to empty history rather than failing the request.
+    // The producers deliberately do NOT — see the repository docblock. That is
+    // why `readAwardHistory` throws and this try/catch lives here.
+    let history;
     try {
-      const assistancePromise =
-        input.assistanceUeis.length || input.assistanceNames.length
-          ? this.prisma.$queryRaw<
-              Array<{ assistance_listing_number: string | null; awarding_agency: string | null }>
-            >`
-              SELECT DISTINCT assistance_listing_number, awarding_agency
-              FROM federal_assistance_award
-              WHERE recipient_uei = ANY(${input.assistanceUeis}::text[])
-                 OR lower(recipient_name) = ANY(${input.assistanceNames}::text[])
-              LIMIT ${HISTORY_ROW_CAP}
-            `
-          : Promise.resolve([]);
-      const contractPromise =
-        input.contractorUeis.length || input.contractorNames.length
-          ? this.prisma.$queryRaw<
-              Array<{ awarding_agency: string | null; awarding_sub_tier: string | null }>
-            >`
-              SELECT DISTINCT awarding_agency, awarding_sub_tier
-              FROM federal_award
-              WHERE recipient_uei = ANY(${input.contractorUeis}::text[])
-                 OR lower(contractor_name) = ANY(${input.contractorNames}::text[])
-              LIMIT ${HISTORY_ROW_CAP}
-            `
-          : Promise.resolve([]);
-      const [assistance, contracts] = await Promise.all([assistancePromise, contractPromise]);
-      return {
-        assistanceListings: dedupe(assistance.map((r) => r.assistance_listing_number)),
-        assistanceAgencies: dedupe(assistance.map((r) => r.awarding_agency)),
-        // Both tiers are agency evidence, and they are needed at BOTH
-        // granularities: sam_opportunity.agency is sub-tier shaped
-        // ('DEPT OF THE NAVY'), so awarding_agency alone ('Department of
-        // Defense') never matched a single notice.
-        contractAgencies: dedupe([
-          ...contracts.map((r) => r.awarding_agency),
-          ...contracts.map((r) => r.awarding_sub_tier),
-        ]),
-        // Intentionally empty: federal_award has no contracting-office column.
-        // Feeding it the sub-tier put agency-shaped strings into an
-        // office-shaped signal, where they could never match
-        // sam_opportunity.office and were surfaced to users as "prior office"
-        // target terms. Populate this only when a real office column exists.
-        contractOffices: [],
-      };
+      // The contracting rail's externalId is a federal_contractor UUID, so the
+      // verified UEI has to be resolved before identity can be decided. Global
+      // reference table, so it reads outside the tenant transaction.
+      const contractorUeis = await resolveContractorUeis(
+        this.prisma,
+        contractorIdsToResolve([facts]),
+      );
+      history = await readAwardHistoryByBasis(
+        this.prisma,
+        buildAwardHistoryIdentity(facts, contractorUeis),
+      );
     } catch (error) {
       this.logger.warn(
         `award-history read failed; source-specific history signals will not fire: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return {
-        assistanceListings: [],
-        assistanceAgencies: [],
-        contractAgencies: [],
-        contractOffices: [],
-      };
+      history = emptyAwardHistory();
     }
+
+    const profile = buildClientOpportunityProfile(facts, history);
+
+    return {
+      clientId,
+      profile,
+      grantProfile: profile.grant,
+      samProfile: profile.sam,
+      completeness: profile.completeness,
+      facilitiesById: new Map(facts.facilities.map((f) => [f.id, f])),
+    };
   }
 
   // ── Step 2: global catalog reads ─────────────────────────────────────────
@@ -1282,10 +1480,16 @@ export class FundingOpportunitiesService {
     };
   }
 
+  /**
+   * `asOf` is a parameter, not `new Date()`, so a recommendation is reproducible:
+   * the same request replayed against the same data gives the same answer, and a
+   * test can pin deadline proximity without freezing the clock.
+   */
   private shapeScored(
     src: SourceRow,
     facts: ClientFacts,
     workflows: WorkflowRowWithRefs[],
+    asOf: Date = new Date(),
   ): FundingOpportunity {
     const base = this.shapeUnscored(src);
     const scored = this.scoreRow(src, facts);
@@ -1302,6 +1506,21 @@ export class FundingOpportunitiesService {
       relevanceScore: scored.relevanceScore,
       matchedSignals: scored.matchedSignals,
       eligibility: scored.eligibility,
+      // Computed, never persisted. Recomputing on read is what keeps it honest
+      // against a client profile that has changed since the producer last ran.
+      recommendation: recommendOpportunity({
+        source: base.source,
+        kind: base.kind,
+        isActive: base.isActive,
+        isPursuable: base.isPursuable,
+        responseDeadline: base.responseDeadline,
+        relevanceScore: scored.relevanceScore,
+        signalStrengths: scored.matchedSignals.map((sig) => sig.strength),
+        signalKeys: scored.matchedSignals.map((sig) => sig.signal),
+        eligibility: scored.eligibility.state,
+        profileTooThin: profileIsTooThin(facts.completeness),
+        asOf,
+      }),
       missingProfileFields: missingProfileFields(facts.completeness, base.source),
       // An explicit project site OVERRIDES nothing — it is the only district
       // source for a grant (Grants.gov publishes no geography) and it is a
@@ -1313,6 +1532,9 @@ export class FundingOpportunitiesService {
         : base.districtKey,
       districtBasis: linkedFacility ? 'linked_project_site' : base.districtBasis,
       workflow: wf ? this.shapeWorkflow(wf.row, wf.owner, wf.facility) : null,
+      // Null when nobody has decided. NOT the same as `pass`: "nobody looked"
+      // and "we looked and declined" are different facts.
+      decision: wf ? this.shapeDecision(wf.row) : null,
       _meetsFloor: scored.meetsSuggestionFloor,
     } as FundingOpportunity & { _meetsFloor: boolean };
   }
@@ -1370,9 +1592,13 @@ export class FundingOpportunitiesService {
         relevanceScore: 0,
         eligibility: { state: 'unknown', reason: NO_CLIENT_REASON },
         matchedSignals: [],
+        // Null, not a placeholder: a recommendation is always relative to a
+        // specific client, and the unscoped catalog read has none.
+        recommendation: null,
         missingProfileFields: [],
         sourceUpdatedAt: (g.lastUpdatedAt ?? g.detailSyncedAt ?? g.syncedAt)?.toISOString() ?? null,
         workflow: null,
+        decision: null,
         clientId: null,
       };
     }
@@ -1432,9 +1658,14 @@ export class FundingOpportunitiesService {
       relevanceScore: 0,
       eligibility: { state: 'unknown', reason: NO_CLIENT_REASON },
       matchedSignals: [],
+      // Null, not a 'needs_review' placeholder: a recommendation is always
+      // relative to a specific client, and inventing one for the unscoped catalog
+      // would be a claim about a client nobody named.
+      recommendation: null,
       missingProfileFields: [],
       sourceUpdatedAt: (s.updatedAt ?? s.lastSyncedAt)?.toISOString() ?? null,
       workflow: null,
+      decision: null,
       clientId: null,
     };
   }
@@ -1874,9 +2105,6 @@ const DEFAULT_QUERY: OpportunityQuery = { activeState: 'active' };
 const SCAN_CAP_PER_SOURCE = 1200;
 const TARGET_TERM_CAP = 20;
 
-/** Cap on award-history rows read per client. DISTINCT is applied in SQL first. */
-const HISTORY_ROW_CAP = 5000;
-
 /** Cap on workflow rows read per client. Far above any realistic pursuit list. */
 const WORKFLOW_ROW_CAP = 2000;
 
@@ -1891,8 +2119,6 @@ const CARD_TOP_N = 3;
  * list reorder for no visible reason the first time a producer ran.
  */
 const SUGGESTION_PRIORITY = WORKFLOW_SORT_PRIORITY.suggested;
-
-const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -2038,6 +2264,15 @@ interface WorkflowRowWithRefs {
     notes: string | null;
     dismissedReason: string | null;
     outcomeNote: string | null;
+    // P07 decision columns. Read on the list path so a row's decision travels with
+    // it — otherwise every card would need a second round trip to learn whether
+    // anybody had decided anything.
+    humanDecision: string | null;
+    decisionReason: string | null;
+    decisionAt: Date | null;
+    decisionByUserId: string | null;
+    nextAction: string | null;
+    nextActionDueAt: Date | null;
     userCreated: boolean;
     staleAt: Date | null;
     createdAt: Date;
@@ -2054,6 +2289,13 @@ interface WorkflowRowWithRefs {
 
 interface ClientFacts {
   clientId: string;
+  /**
+   * The versioned profile, exactly as both producers build it. `grantProfile`,
+   * `samProfile` and `completeness` below are views onto it, kept as named fields
+   * because ~20 call sites read them and renaming those is churn this phase does
+   * not need. They are the SAME objects — not copies — so they cannot drift.
+   */
+  profile: ClientOpportunityProfileV1;
   grantProfile: ClientRelevanceProfile;
   samProfile: SamClientProfile;
   completeness: ProfileCompleteness;
@@ -2087,10 +2329,6 @@ function normCode(v: string | null | undefined): string {
   return (v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function isUeiShaped(value: string): boolean {
-  return /^[A-Z0-9]{12}$/.test(value.toUpperCase());
-}
-
 /**
  * A run is degraded when it errored outright, completed with errors, or reported a
  * non-zero error count. `running` is NOT degraded — it has not finished.
@@ -2099,10 +2337,6 @@ function isDegraded(status: string | null, errorCount: number | null): boolean {
   if (status === 'error') return true;
   if (status === 'success_with_errors') return true;
   return (errorCount ?? 0) > 0;
-}
-
-function stringTags(tags: unknown): string[] {
-  return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
 function startOfUtcDay(d: Date): Date {

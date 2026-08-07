@@ -152,6 +152,17 @@ function asMappingSource(raw: string | null | undefined): MappingSource | undefi
  */
 const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'fec_committee', 'contracting']);
 
+/**
+ * The subset of the above that attributes federal award MONEY, and therefore
+ * cannot be confirmed without an explicit relationship type and roll-up decision.
+ * Mirrors AWARD_BEARING_MAPPING_SOURCES in apps/api's intelligence.service.ts.
+ *
+ * Narrower than REQUIRES_INDIVIDUAL_REVIEW on purpose: `fec_committee` is
+ * compliance-sensitive and stays out of bulk actions, but it makes no award
+ * attribution claim, so it has no relationship or roll-up to decide.
+ */
+const AWARD_BEARING_SOURCES = new Set<string>(['contracting', 'assistance_recipient']);
+
 function confidenceColor(confidence: number): string {
   if (confidence >= 0.85) return '#52c41a';
   if (confidence >= 0.5) return '#faad14';
@@ -236,13 +247,22 @@ export function IntelligenceMappingsPage() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: async (input: {
+    // `id` is destructured OUT of the body deliberately. It identifies the row in
+    // the PATH; sending it in the body too gave the request two sources of truth
+    // about which row to write, and since the API runs `forbidNonWhitelisted`
+    // against a DTO that declares no `id`, every call from this page was in fact
+    // being rejected with 400 `property id should not exist`. The mocked axios in
+    // this page's tests could not see that.
+    mutationFn: async ({
+      id,
+      ...body
+    }: {
       id: string;
       confirmed: boolean;
       relationshipType?: string;
       rollUpAwards?: boolean;
       rejectionReason?: string;
-    }) => api.patch(`/api/intelligence/mappings/${input.id}`, input),
+    }) => api.patch(`/api/intelligence/mappings/${id}`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
       void qc.invalidateQueries({ queryKey: ['contractor-candidates'] });
@@ -307,11 +327,29 @@ export function IntelligenceMappingsPage() {
   }
 
   async function handleRejectAll() {
-    const toReject = filtered.filter((m) => m.confidence < 0.5 && !m.confirmed);
+    // REQUIRES_INDIVIDUAL_REVIEW applies to reject too, since P05. It was only on
+    // confirm, so a bulk reject swept federal-contractor and assistance-recipient
+    // rows and wrote a DURABLE rejection on each — and a durable rejection is
+    // exactly what entity resolution then refuses to revisit. Rejecting a real
+    // identity by accident is not the harmless direction of this pair; it silently
+    // removes award history the client is entitled to.
+    const lowConfidence = filtered.filter((m) => m.confidence < 0.5 && !m.confirmed);
+    const toReject = lowConfidence.filter((m) => !REQUIRES_INDIVIDUAL_REVIEW.has(m.source));
+    const skipped = lowConfidence.length - toReject.length;
     for (const m of toReject) {
-      await confirmMutation.mutateAsync({ id: m.id, confirmed: false });
+      await confirmMutation.mutateAsync({
+        id: m.id,
+        confirmed: false,
+        rejectionReason: 'Bulk rejected below the 50% confidence threshold',
+      });
     }
-    notification.success({ message: `Rejected ${toReject.length} low-confidence mapping(s)` });
+    notification.success({
+      message: `Rejected ${toReject.length} low-confidence mapping(s)`,
+      description:
+        skipped > 0
+          ? `${skipped} mapping(s) skipped — federal contractor, assistance-recipient, and PAC-committee matches require individual review, and a rejection there needs a written reason.`
+          : undefined,
+    });
   }
 
   const columns: ColumnsType<ClientIntelMapping> = [
@@ -392,8 +430,18 @@ export function IntelligenceMappingsPage() {
         if (record.reviewStatus === 'rejected') {
           return <Tooltip title={record.rejectionReason ?? 'Rejected by reviewer'}><Tag color="red">Rejected</Tag></Tooltip>;
         }
-        if (record.source === 'contracting' && !confirmed) {
-          return <Tag color="orange">Review individually</Tag>;
+        // Both award-bearing sources, not just `contracting`. An
+        // `assistance_recipient` row used to get a bare toggle, and a toggle sends
+        // only `{confirmed}` — which the API now refuses, because relationship and
+        // roll-up cannot be inherited from a previous decision. Before P05 it was
+        // accepted and left both columns NULL, producing a row that LOOKS decided
+        // and rolls up nothing.
+        if (AWARD_BEARING_SOURCES.has(record.source) && !confirmed) {
+          return (
+            <Tooltip title="Whose money this is has to be decided explicitly — a relationship type and an award roll-up choice. Use “Add mapping manually” to record both.">
+              <Tag color="orange">Review individually</Tag>
+            </Tooltip>
+          );
         }
         return (
           <Switch
@@ -524,14 +572,23 @@ export function IntelligenceMappingsPage() {
                 Confirm All ≥ 60%
               </Button>
             </Tooltip>
-            <Button
-              size="small"
-              danger
-              onClick={() => void handleRejectAll()}
-              disabled={!filtered.some((m) => m.confidence < 0.5 && !m.confirmed)}
-            >
-              Reject All &lt; 50%
-            </Button>
+            <Tooltip title="Excludes federal-contractor, assistance-recipient, and PAC-committee mappings — a rejection there is durable, so it needs individual review and a written reason.">
+              <Button
+                size="small"
+                danger
+                onClick={() => void handleRejectAll()}
+                disabled={
+                  !filtered.some(
+                    (m) =>
+                      m.confidence < 0.5 &&
+                      !m.confirmed &&
+                      !REQUIRES_INDIVIDUAL_REVIEW.has(m.source),
+                  )
+                }
+              >
+                Reject All &lt; 50%
+              </Button>
+            </Tooltip>
           </Space>
         </div>
       </Card>

@@ -90,6 +90,11 @@ function grant(partial: Partial<FundingOpportunity> = {}): FundingOpportunity {
     kind: 'grant',
     kindRaw: 'Grant',
     baseKind: null,
+    // P06/P07 additive fields. Null here: an undecided machine suggestion is the
+    // common case, and a fixture that invented either would assert behaviour these
+    // tests do not own.
+    recommendation: null,
+    decision: null,
     title: 'Advanced Manufacturing Research',
     agency: 'Department of Energy',
     subAgency: null,
@@ -377,15 +382,22 @@ describe('grant versus contract labels, and null money', () => {
 });
 
 describe('relevance and eligibility are shown separately', () => {
-  test('both a relevance number and an eligibility badge appear', async () => {
+  test('fit and eligibility appear as two separate facts', async () => {
     mockApi(listResponse({ opportunities: [grant()] }));
     renderPage();
     const card = await screen.findByTestId('fo-card-grants_gov:GRANT-1');
-    // Two separate facts on the card, never one merged score. "Eligibility" also
-    // appears as a filter label, so this asserts against the CARD, not the page.
-    expect(card).toHaveTextContent('Relevance');
+    // Still two separate facts, never one merged score — that is the invariant this
+    // test has always been about. P09 changed the FIT side from a bare number
+    // ("Relevance 54") to a band plus a reason, because a number is not a claim
+    // anybody can check. The number is still on the card, inside the evidence
+    // disclosure. "Eligibility" also appears as a filter label, so this asserts
+    // against the CARD, not the page.
+    expect(card).toHaveTextContent('Fit');
+    expect(card).toHaveTextContent('Strong fit');
     expect(card).toHaveTextContent('Eligibility');
     expect(card).toHaveTextContent('Eligible');
+    // The two are still distinguishable from each other, which is the point.
+    expect(card).toHaveTextContent(/relevance 54/);
   });
 
   test('a contract eligibility of unknown is labelled Unknown, not Eligible', async () => {
@@ -394,10 +406,21 @@ describe('relevance and eligibility are shown separately', () => {
     expect(await screen.findByText('Unknown')).toBeInTheDocument();
   });
 
-  test('matched signals are listed with the value that matched', async () => {
+  test('the matched value is shown, under a human label rather than a machine key', async () => {
+    // This test used to assert `assistanceListing: 81.086` — i.e. it asserted the
+    // defect. A raw camelCase key rendered as prose taught operators a private
+    // vocabulary and made an exact classification match indistinguishable from the
+    // word "defense" appearing in a DoD notice.
+    //
+    // What actually matters is preserved and strengthened: the matched VALUE is
+    // still on the card, because the whole point of `matchedOn` is that somebody
+    // can go and check it.
     mockApi(listResponse({ opportunities: [grant()] }));
     renderPage();
-    expect(await screen.findByText(/assistanceListing: 81\.086/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Prior award under this Assistance Listing: 81\.086/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/assistanceListing:/)).not.toBeInTheDocument();
   });
 });
 
@@ -655,7 +678,11 @@ describe('workflow actions', () => {
     );
   });
 
-  test('create task uses the existing engagement task route', async () => {
+  test('create task goes through the ATOMIC action, not the raw task route', async () => {
+    // P08. The old call posted straight to /api/engagement/tasks, which created a
+    // task titled "Pursue: X" and changed nothing else — so a task saying "pursue
+    // this" could exist while the opportunity was still an untouched machine
+    // suggestion. Asserting the ROUTE is what keeps that from coming back.
     mockApi(listResponse({ opportunities: [contract()] }));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
@@ -664,16 +691,17 @@ describe('workflow actions', () => {
       target: { value: 'Prepare bid/no-bid review.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
-    await waitFor(() =>
-      expect(apiPostMock).toHaveBeenCalledWith(
-        '/api/engagement/tasks',
-        expect.objectContaining({
-          clientId: 'client-1',
-          title: expect.stringContaining('Pursue:'),
-          description: expect.stringContaining('Prepare bid/no-bid review.'),
-        }),
-      ),
-    );
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalled());
+
+    const [url, body] = apiPostMock.mock.calls[0]!;
+    expect(String(url)).not.toContain('/api/engagement/tasks');
+    expect(String(url)).toMatch(/\/opportunities\/sam_gov\/[^/]+\/action$/);
+    // The server derives title, description, due date and the idempotency key.
+    // Sending them from here is what let the two rows drift apart.
+    expect(body).not.toHaveProperty('title');
+    expect(body).not.toHaveProperty('dueDate');
+    expect(body).toMatchObject({ notes: 'Prepare bid/no-bid review.' });
+    expect(['review', 'pursuit']).toContain((body as { intent: string }).intent);
   });
 });
 

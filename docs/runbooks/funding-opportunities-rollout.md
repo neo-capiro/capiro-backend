@@ -363,6 +363,41 @@ window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run close
 ... "command":["generate-funding-grant-candidates","--commit"]
 ```
 
+### Coverage is now algorithmic (P03)
+
+`OPPORTUNITY_SCAN_CAP` (4,000) and `CLIENT_CAP` (500) are gone. Both dimensions
+are walked with deterministic keyset pages (`id > cursor ORDER BY id`), so the run
+covers the whole corpus rather than the first N rows by close date.
+
+Read the last line of the run output:
+
+```text
+coverage=COMPLETE   clients=<n> grants=<n>     -> the whole corpus was evaluated
+coverage=INCOMPLETE                            -> a runaway guard tripped
+```
+
+`INCOMPLETE` is **not** the old `CAPPED`. It sets `complete: false` on the
+SyncRun, which `statusFromCounts` records as `partial`, and
+`lastSuccessfulWatermark` only reads `status='success'` — so a partial run does
+not advance the incremental watermark and the unseen tail stays retryable.
+
+There is no cap to raise. Finish the walk from where it stopped:
+
+```bash
+# The INCOMPLETE warning prints the exact cursor.
+... "command":["generate-funding-grant-candidates","--resume-client","<cursor>"]
+```
+
+The cursor is carried by the operator (it is printed and persisted in the
+SyncRun's `incompleteReason`), not stored in a dedicated column — P03 ships no
+migration. Re-running from a cursor is safe: the walk resumes at `id > cursor`,
+and every write is find-then-branch, so nothing is duplicated.
+
+**Expect this run to be slower than the pre-P03 one and to create more
+suggestions**, for two independent reasons: it now evaluates every grant instead
+of 4,000, and P01/P02 corrected award-history identity. Compare a dry run against
+the previous run's counts before committing.
+
 ## 15. SAM producer
 
 ```bash
@@ -371,6 +406,35 @@ window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run close
 # MUTATING — Neo approval
 ... "command":["generate-sam-opportunity-candidates","--commit"]
 ```
+
+### Coverage is now algorithmic (P04)
+
+Same contract as §14, same words, same `--resume-client` flag — deliberately, so
+one operator habit covers both producers.
+
+```text
+coverage=COMPLETE clients=<n> notices=<n> pursuable=<n>
+coverage=INCOMPLETE
+```
+
+`SAM_OPPORTUNITY_SCAN_CAP` and `SAM_CANDIDATE_CLIENT_CAP` **no longer exist**.
+They were env-overridable purely so an operator could raise the cap for a full
+sweep; with a keyset walk every run is a full sweep, so setting them now does
+nothing. Remove them from any task definition that carries them.
+
+**This is the run whose cost changes most.** Measured on `capiro-dev` on
+2026-07-29 there were 17,915 active in-deadline notices against a 4,000 bound, so
+this producer previously evaluated ~22% of the corpus. It will now evaluate all of
+it: expect roughly 4.5x the pairs, and a corresponding rise in `created`.
+
+`pursuable` is reported separately from `notices` because award and special notices
+are excluded from the scored set entirely. A corpus that is entirely informational
+is `COMPLETE` with `evaluated=0` — which is a fully covered run, not a truncated
+one, and is exactly what the old `capped` flag could not express.
+
+Before committing, dry-run and compare `created` against the last run. A large
+jump is expected here for three independent reasons (full corpus, P01 profile
+unification, P02 identity correction) and none of them is a defect.
 
 ## 16. Lifecycle pass
 
@@ -408,6 +472,38 @@ old defect resurfacing, and the schedule must not be enabled.
 ---
 
 # Part G — rollout
+
+## 16b. Triage inbox flag (P10)
+
+The inbox is gated on a SECOND flag, `funding_opportunities_client_inbox`, and it
+stays off after §17 turns the master flag on. Two flags on purpose: a tenant already
+using the raw catalog must keep it while the inbox is canaried, and turning the inbox
+on must never be a side effect of turning the feature on.
+
+```sql
+-- MUTATING — Neo approval. Note tenant_id is TEXT; do NOT cast to uuid.
+INSERT INTO intel_feature_flag (tenant_id, feature, enabled)
+VALUES ('<capiro-internal-uuid>', 'funding_opportunities_client_inbox', true)
+ON CONFLICT (tenant_id, feature) DO UPDATE SET enabled = true;
+```
+
+Before enabling it, confirm the endpoint is dark:
+
+```bash
+# Expect 404 while the flag is absent — the same 404 a disabled master flag gives,
+# so the route leaks nothing about whether the feature exists.
+curl -sS -o /dev/null -w '%{http_code}
+'   -H "Authorization: Bearer <token>"   https://<host>/api/intelligence/opportunities/inbox
+```
+
+After enabling, check the wall holds. Pick a client with `memory_wall = true` and a
+user with no `client_memory_access` grant: that client's rows must not appear in the
+inbox for that user. A walled client with zero grants is invisible to everyone,
+admins included — that is by construction, and it is the property most worth
+re-verifying on live data.
+
+Counts of `-1` in the response mean a count query failed, not that a queue is empty.
+`countsUnavailableReason` says why.
 
 ## 17. Internal feature flag
 

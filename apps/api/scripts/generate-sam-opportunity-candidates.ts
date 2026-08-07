@@ -56,6 +56,27 @@ import {
   type SamClientProfile,
   type SamOpportunityProfile,
 } from '../src/funding-opportunities/sam-opportunity-relevance.js';
+import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+import type { ClientProfileFacts } from '../src/funding-opportunities/client-opportunity-profile.types.js';
+import {
+  DEFAULT_MAX_PAGES,
+  DEFAULT_PAGE_SIZE,
+  completeCoverage,
+  incompleteCoverage,
+  walkKeyset,
+  type KeysetWalkOutcome,
+  type ProducerCompletion,
+} from '../src/funding-opportunities/producer-pagination.js';
+import {
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from '../src/funding-opportunities/award-history-identity.js';
+import {
+  asProfileReadClient,
+  readAwardHistoryByBasis,
+  readClientProfileFactsMany,
+  resolveContractorUeis,
+} from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 import { samNoticeKind } from '../src/funding-opportunities/opportunity-kind.js';
 import { NON_PURSUABLE_KINDS } from '../src/funding-opportunities/funding-opportunities.types.js';
 import {
@@ -83,18 +104,55 @@ const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
 export const DEFAULT_MIN_RELEVANCE = 15;
 
 /**
- * Bound on notices evaluated per run. Mirrors the read path's own scan cap.
- *
- * Env-overridable (same pattern as SAM_MAX_PAGES in sync-sam-opportunities.ts)
- * because the default is genuinely binding: measured on capiro-dev 2026-07-29
- * there were 17,915 active, in-deadline notices, so a 4,000 cap evaluates 22%
- * of them and the run self-reports CAPPED. Ordering is soonest-deadline-first,
- * so the covered slice is the most urgent one — raise this via
- * SAM_OPPORTUNITY_SCAN_CAP for a full sweep rather than editing the constant.
+ * Page size for BOTH keyset walks. Not a coverage boundary — see
+ * producer-pagination.ts. Replaces OPPORTUNITY_SCAN_CAP / CLIENT_CAP, which were
+ * coverage boundaries: measured on capiro-dev 2026-07-29 there were 17,915 active
+ * in-deadline notices, so the 4,000 notice bound evaluated 22% of them.
  */
-export const OPPORTUNITY_SCAN_CAP = Number(process.env.SAM_OPPORTUNITY_SCAN_CAP) || 4000;
-/** Bound on clients evaluated per tenant per run. */
-export const CLIENT_CAP = Number(process.env.SAM_CANDIDATE_CLIENT_CAP) || 500;
+export const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+/** Runaway guard per walk. Reaching it is INCOMPLETE, never a clean success. */
+export const MAX_PAGES = DEFAULT_MAX_PAGES;
+
+/** Fields the SAM scorer and the workflow snapshot need. */
+const NOTICE_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  noticeType: true,
+  agency: true,
+  subAgency: true,
+  office: true,
+  naicsCode: true,
+  pscCode: true,
+  setAside: true,
+  setAsideCode: true,
+  placeOfPerformance: true,
+  active: true,
+  responseDeadline: true,
+  updatedAt: true,
+  lastSyncedAt: true,
+  matches: { where: { reviewStatus: 'accepted' }, select: { peCode: true } },
+} as const;
+
+type SamNoticeRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  noticeType: string;
+  agency: string | null;
+  subAgency: string | null;
+  office: string | null;
+  naicsCode: string | null;
+  pscCode: string | null;
+  setAside: string | null;
+  setAsideCode: string | null;
+  placeOfPerformance: unknown;
+  active: boolean;
+  responseDeadline: Date | null;
+  updatedAt: Date;
+  lastSyncedAt: Date;
+  matches: Array<{ peCode: string | null }>;
+};
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -112,6 +170,8 @@ export interface ParsedArgs {
   tenantId: string | null;
   clientId: string | null;
   minRelevance: number;
+  /** Resume point from a prior INCOMPLETE run's reported cursor. */
+  resumeClient: string | null;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -121,6 +181,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     tenantId: flagValue(argv, 'tenant') ?? null,
     clientId: flagValue(argv, 'client') ?? null,
     minRelevance: minArg != null && minArg.length > 0 ? Number(minArg) : DEFAULT_MIN_RELEVANCE,
+    resumeClient: flagValue(argv, 'resume-client') ?? null,
   };
 }
 
@@ -128,14 +189,6 @@ function dedupe(values: Array<string | null | undefined>): string[] {
   return Array.from(
     new Set(values.map((v) => v?.trim()).filter((v): v is string => !!v && v.length > 0)),
   );
-}
-
-function isUeiShaped(value: string): boolean {
-  return /^[A-Z0-9]{12}$/.test(value.toUpperCase());
-}
-
-function stringTags(tags: unknown): string[] {
-  return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
 
 /** Minimal Prisma slice this job touches — duck-typed so it is unit-testable. */
@@ -261,6 +314,8 @@ export interface GenerateOptions {
   clientId: string | null;
   minRelevance: number;
   commit: boolean;
+  /** Resume point from a prior INCOMPLETE run's reported cursor. */
+  resumeClientCursor?: string | null;
 }
 
 export interface GenerateResult extends RunCounts {
@@ -269,18 +324,23 @@ export interface GenerateResult extends RunCounts {
   refreshed: number;
   markedStale: number;
   humanDecisionsPreserved: number;
-  /** True when the notice scan or the client list hit its cap. */
-  capped: boolean;
+  /** Shared completion vocabulary — identical words in the grant producer. */
+  completion: ProducerCompletion;
+  clientsRead: number;
+  opportunitiesRead: number;
+  pursuableRead: number;
+  resumeClientCursor: string | null;
 }
 
 /**
  * Core loop. Reads ALWAYS run, so a dry run reports the REAL counts of what
  * would happen; only the create/update is gated on `commit`.
  *
- * Query shape: one notice scan for the whole run, then per tenant one client
- * read, one mapping read, one award-history read and one workflow read. There is
- * NO query per (client, notice) pair — scoring is a pure function over rows
- * already in memory.
+ * Query shape (P04): nested keyset walks, clients outer and notices inner. Per
+ * client page: one client read, one mapping read, one contractor-UEI resolution,
+ * and one award-history read per client per rail. Per (client page x notice page):
+ * one notice read and one workflow read. There is still NO query per
+ * (client, notice) pair — scoring is a pure function over rows already in memory.
  */
 export async function generateSamCandidates(
   prisma: SamCandidatesPrisma,
@@ -292,321 +352,287 @@ export async function generateSamCandidates(
   let refreshed = 0;
   let markedStale = 0;
   let humanDecisionsPreserved = 0;
-  let capped = false;
+  let clientsRead = 0;
+  let noticeCorpus = 0;
+  let pursuableCorpus = 0;
+  let noticeWalkIncomplete = false;
+  let clientWalkOutcome: KeysetWalkOutcome | null = null;
 
-  // ── ONE global notice scan for the entire run ────────────────────────────
   const now = new Date();
-  const notices = await prisma.samOpportunity.findMany({
-    where: {
-      active: true,
-      OR: [{ responseDeadline: null }, { responseDeadline: { gte: now } }],
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      noticeType: true,
-      agency: true,
-      subAgency: true,
-      office: true,
-      naicsCode: true,
-      pscCode: true,
-      setAside: true,
-      setAsideCode: true,
-      placeOfPerformance: true,
-      active: true,
-      responseDeadline: true,
-      updatedAt: true,
-      lastSyncedAt: true,
-      matches: { where: { reviewStatus: 'accepted' }, select: { peCode: true } },
-    },
-    orderBy: [{ responseDeadline: 'asc' }, { id: 'asc' }],
-    take: OPPORTUNITY_SCAN_CAP,
-  });
-  if (notices.length >= OPPORTUNITY_SCAN_CAP) capped = true;
-
-  // Award notices and special notices are not pursuits, so they are never
-  // suggested — filtered here rather than in the SQL so the notice-type
-  // vocabulary lives in exactly one place (opportunity-kind.ts).
-  const pursuable = notices.filter((n) => !NON_PURSUABLE_KINDS.has(samNoticeKind(n.noticeType)));
-
-  const noticeProfiles: Array<{
-    id: string;
-    profile: SamOpportunityProfile;
-    status: string;
-    deadline: Date | null;
-    updatedAt: Date;
-  }> = pursuable.map((n) => ({
-    id: n.id,
-    status: n.active ? 'active' : 'archived',
-    deadline: n.responseDeadline,
-    updatedAt: n.updatedAt ?? n.lastSyncedAt,
-    profile: {
-      title: n.title,
-      description: n.description,
-      agency: n.agency,
-      subAgency: n.subAgency,
-      office: n.office,
-      naicsCode: n.naicsCode,
-      pscCode: n.pscCode,
-      setAside: n.setAside,
-      setAsideCode: n.setAsideCode,
-      placeOfPerformance: readPlaceOfPerformance(n.placeOfPerformance),
-      acceptedProgramElementCodes: dedupe(n.matches.map((m) => m.peCode)),
-    },
-  }));
-
-  console.log(
-    `[sam-candidates] ${notices.length} active notices scanned, ${pursuable.length} pursuable`,
-  );
+  // Active, in-deadline notices. The predicate is unchanged; what changed is that
+  // the walk visits ALL of them instead of the first 4,000 by response deadline.
+  const activeNoticeWhere = {
+    active: true,
+    OR: [{ responseDeadline: null }, { responseDeadline: { gte: now } }],
+  };
 
   for (const tenantId of options.tenantIds) {
-    // ── Tenant-scoped reads: bypass + EXPLICIT tenantId, always both ────────
-    const { clients, mappings, existingRows } = await withBypass(prisma, async (tx) => {
-      const clients = await tx.client.findMany({
-        where: {
-          tenantId,
-          status: { not: 'archived' },
-          profileStatus: 'ACTIVE',
-          ...(options.clientId ? { id: options.clientId } : {}),
-        },
-        select: {
-          id: true,
-          naicsCodes: true,
-          pscCodes: true,
-          applicantTypes: true,
-          setAsideCertifications: true,
-          sectorTag: true,
-          capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
-          facilities: { select: { city: true, state: true, zip: true } },
-        },
-        take: CLIENT_CAP,
-      });
-      const clientIds = clients.map((c) => c.id);
-      const mappings = clientIds.length
-        ? await tx.clientIntelMapping.findMany({
-            where: {
-              tenantId,
-              clientId: { in: clientIds },
-              confirmed: true,
-              reviewStatus: 'confirmed',
-              rollUpAwards: true,
-              source: 'contracting',
-            },
-            select: {
-              clientId: true,
-              source: true,
-              externalId: true,
-              externalName: true,
-              rollUpAwards: true,
-            },
-          })
-        : [];
-      const existingRows = clientIds.length
-        ? await tx.clientFundingOpportunity.findMany({
-            where: { tenantId, clientId: { in: clientIds }, source: 'sam_gov' },
-            select: {
-              id: true,
-              clientId: true,
-              samOpportunityId: true,
-              workflowStatus: true,
-              userCreated: true,
-              evidenceSourceType: true,
-              staleAt: true,
-            },
-          })
-        : [];
-      return { clients, mappings, existingRows };
-    });
+    // Outer walk: tenant clients, keyset on client id.
+    clientWalkOutcome = await walkKeyset<ClientProfileFacts>({
+      pageSize: PAGE_SIZE,
+      maxPages: MAX_PAGES,
+      startCursor: options.resumeClientCursor ?? null,
+      key: (client) => client.clientId,
+      shouldStop: () => noticeWalkIncomplete,
+      // Tenant-scoped read: bypass + EXPLICIT tenantId, always both.
+      read: (cursor, take) =>
+        withBypass(prisma, (tx) =>
+          readClientProfileFactsMany(asProfileReadClient(tx), {
+            tenantId,
+            clientId: options.clientId,
+            cursor,
+            take,
+          }),
+        ),
+      onPage: async (clientPage) => {
+        clientsRead += clientPage.length;
+        const clientIds = clientPage.map((c) => c.clientId);
 
-    if (clients.length >= CLIENT_CAP) capped = true;
+        // Per PAGE, not per client.
+        const contractorUeis = await resolveContractorUeis(
+          prisma,
+          contractorIdsToResolve(clientPage),
+        );
 
-    const mappingsByClient = new Map<string, typeof mappings>();
-    for (const m of mappings) {
-      const list = mappingsByClient.get(m.clientId) ?? [];
-      list.push(m);
-      mappingsByClient.set(m.clientId, list);
-    }
-    const existingByKey = new Map<string, (typeof existingRows)[number]>();
-    for (const r of existingRows) {
-      if (r.samOpportunityId) existingByKey.set(`${r.clientId}:${r.samOpportunityId}`, r);
-    }
-
-    for (const client of clients) {
-      const profile = await buildSamProfileForClient(prisma, client, mappingsByClient.get(client.id) ?? []);
-
-      for (const notice of noticeProfiles) {
-        evaluated += 1;
-        try {
-          const scored = scoreSamOpportunityRelevance(profile, notice.profile);
-          const existing = existingByKey.get(`${client.id}:${notice.id}`) ?? null;
-          const decision = decideProducerAction({
-            existing,
-            relevanceScore: scored.relevanceScore,
-            meetsSuggestionFloor: scored.meetsSuggestionFloor,
-            minRelevance: options.minRelevance,
-          });
-
-          switch (decision.action) {
-            case 'skip_human_decision':
-              humanDecisionsPreserved += 1;
-              counts.skipped += 1;
-              break;
-            case 'skip_below_floor':
-            case 'noop':
-              counts.skipped += 1;
-              break;
-            case 'create': {
-              const eligibility = computeSamEligibility(profile, notice.profile);
-              created += 1;
-              counts.inserted += 1;
-              if (options.commit) {
-                await withBypass(prisma, (tx) =>
-                  tx.clientFundingOpportunity.create({
-                    data: {
-                      tenantId,
-                      clientId: client.id,
-                      source: 'sam_gov',
-                      samOpportunityId: notice.id,
-                      grantOpportunityId: null,
-                      workflowStatus: 'suggested',
-                      evidenceSourceType: EVIDENCE_SOURCE_TYPE,
-                      userCreated: false,
-                      relevanceScore: scored.relevanceScore,
-                      matchSignals: scored.matchedSignals,
-                      eligibilityState: eligibility.state,
-                      eligibilityReason: eligibility.reason,
-                      sourceStatusSnapshot: notice.status,
-                      responseDeadlineSnapshot: notice.deadline,
-                      sourceUpdatedAtSnapshot: notice.updatedAt,
-                    },
-                  }),
-                );
-              }
-              break;
-            }
-            case 'refresh': {
-              const eligibility = computeSamEligibility(profile, notice.profile);
-              refreshed += 1;
-              counts.updated += 1;
-              if (options.commit) {
-                await withBypass(prisma, (tx) =>
-                  tx.clientFundingOpportunity.update({
-                    where: { id: decision.id },
-                    data: {
-                      relevanceScore: scored.relevanceScore,
-                      matchSignals: scored.matchedSignals,
-                      eligibilityState: eligibility.state,
-                      eligibilityReason: eligibility.reason,
-                      sourceStatusSnapshot: notice.status,
-                      responseDeadlineSnapshot: notice.deadline,
-                      sourceUpdatedAtSnapshot: notice.updatedAt,
-                      staleAt: null,
-                    },
-                  }),
-                );
-              }
-              break;
-            }
-            case 'mark_stale':
-              markedStale += 1;
-              counts.updated += 1;
-              if (options.commit) {
-                await withBypass(prisma, (tx) =>
-                  tx.clientFundingOpportunity.update({
-                    where: { id: decision.id },
-                    // staleAt only. NOT a status change and NOT a delete: the row
-                    // is what change detection diffs against, and "we stopped
-                    // suggesting this" is itself the signal.
-                    data: { staleAt: new Date() },
-                  }),
-                );
-              }
-              break;
-          }
-        } catch (err) {
-          // One bad pair must not abort the rest (sync-grants.ts precedent).
-          counts.errors += 1;
-          console.warn(
-            `[sam-candidates] failed ${client.id} × ${notice.id}: ${(err as Error).message}`,
+        // One award-history read per client per rail, built ONCE and reused across
+        // every notice page below. Throws rather than degrading to empty history: a
+        // run that scored every client against no award history would mark real
+        // suggestions stale.
+        const profileByClient = new Map<string, SamClientProfile>();
+        for (const client of clientPage) {
+          const history = await readAwardHistoryByBasis(
+            prisma,
+            buildAwardHistoryIdentity(client, contractorUeis),
           );
+          profileByClient.set(client.clientId, buildClientOpportunityProfile(client, history).sam);
         }
-      }
-    }
+
+        let pursuableThisWalk = 0;
+
+        // Inner walk: global SAM notices, keyset on notice id.
+        const noticeWalk = await walkKeyset<SamNoticeRow>({
+          pageSize: PAGE_SIZE,
+          maxPages: MAX_PAGES,
+          key: (notice) => notice.id,
+          read: (cursor, take) =>
+            prisma.samOpportunity.findMany({
+              where: { ...activeNoticeWhere, ...(cursor ? { id: { gt: cursor } } : {}) },
+              select: NOTICE_SELECT,
+              // Keyset order, NOT responseDeadline order. responseDeadline is
+              // nullable, non-unique and mutable, so paging on it can show a row
+              // twice or never.
+              orderBy: { id: 'asc' },
+              take,
+            }) as Promise<SamNoticeRow[]>,
+          onPage: async (noticePage) => {
+            // Award notices and special notices are not pursuits, so they are never
+            // suggested — filtered here rather than in the SQL so the notice-type
+            // vocabulary lives in exactly one place (opportunity-kind.ts). They are
+            // excluded from the scored set entirely, not merely down-ranked.
+            const pursuable = noticePage.filter(
+              (n) => !NON_PURSUABLE_KINDS.has(samNoticeKind(n.noticeType)),
+            );
+            pursuableThisWalk += pursuable.length;
+            if (pursuable.length === 0) return;
+
+            const noticeProfiles = pursuable.map((n) => ({
+              id: n.id,
+              status: n.active ? 'active' : 'archived',
+              deadline: n.responseDeadline,
+              updatedAt: n.updatedAt ?? n.lastSyncedAt,
+              profile: {
+                title: n.title,
+                description: n.description,
+                agency: n.agency,
+                subAgency: n.subAgency,
+                office: n.office,
+                naicsCode: n.naicsCode,
+                pscCode: n.pscCode,
+                setAside: n.setAside,
+                setAsideCode: n.setAsideCode,
+                placeOfPerformance: readPlaceOfPerformance(n.placeOfPerformance),
+                acceptedProgramElementCodes: dedupe(n.matches.map((m) => m.peCode)),
+              } satisfies SamOpportunityProfile,
+            }));
+
+            // Existing rows for this (client page x notice page) only. Scoping to
+            // the notice page keeps memory bounded regardless of how many
+            // suggestions a client already has, and it is ONE query for the whole
+            // block rather than one per pair.
+            const existingRows = await withBypass(prisma, (tx) =>
+              tx.clientFundingOpportunity.findMany({
+                where: {
+                  tenantId,
+                  clientId: { in: clientIds },
+                  source: 'sam_gov',
+                  samOpportunityId: { in: noticeProfiles.map((n) => n.id) },
+                },
+                select: {
+                  id: true,
+                  clientId: true,
+                  samOpportunityId: true,
+                  workflowStatus: true,
+                  userCreated: true,
+                  evidenceSourceType: true,
+                  staleAt: true,
+                },
+              }),
+            );
+            const existingByKey = new Map<string, (typeof existingRows)[number]>();
+            for (const r of existingRows) {
+              if (r.samOpportunityId) existingByKey.set(`${r.clientId}:${r.samOpportunityId}`, r);
+            }
+
+            for (const client of clientPage) {
+              const profile = profileByClient.get(client.clientId)!;
+              for (const notice of noticeProfiles) {
+                evaluated += 1;
+                try {
+                  const scored = scoreSamOpportunityRelevance(profile, notice.profile);
+                  const existing = existingByKey.get(`${client.clientId}:${notice.id}`) ?? null;
+                  const decision = decideProducerAction({
+                    existing,
+                    relevanceScore: scored.relevanceScore,
+                    meetsSuggestionFloor: scored.meetsSuggestionFloor,
+                    minRelevance: options.minRelevance,
+                  });
+
+                  switch (decision.action) {
+                    case 'skip_human_decision':
+                      humanDecisionsPreserved += 1;
+                      counts.skipped += 1;
+                      break;
+                    case 'skip_below_floor':
+                    case 'noop':
+                      counts.skipped += 1;
+                      break;
+                    case 'create': {
+                      const eligibility = computeSamEligibility(profile, notice.profile);
+                      created += 1;
+                      counts.inserted += 1;
+                      if (options.commit) {
+                        await withBypass(prisma, (tx) =>
+                          tx.clientFundingOpportunity.create({
+                            data: {
+                              tenantId,
+                              clientId: client.clientId,
+                              source: 'sam_gov',
+                              samOpportunityId: notice.id,
+                              grantOpportunityId: null,
+                              workflowStatus: 'suggested',
+                              evidenceSourceType: EVIDENCE_SOURCE_TYPE,
+                              userCreated: false,
+                              relevanceScore: scored.relevanceScore,
+                              matchSignals: scored.matchedSignals,
+                              eligibilityState: eligibility.state,
+                              eligibilityReason: eligibility.reason,
+                              sourceStatusSnapshot: notice.status,
+                              responseDeadlineSnapshot: notice.deadline,
+                              sourceUpdatedAtSnapshot: notice.updatedAt,
+                            },
+                          }),
+                        );
+                      }
+                      break;
+                    }
+                    case 'refresh': {
+                      const eligibility = computeSamEligibility(profile, notice.profile);
+                      refreshed += 1;
+                      counts.updated += 1;
+                      if (options.commit) {
+                        await withBypass(prisma, (tx) =>
+                          tx.clientFundingOpportunity.update({
+                            where: { id: decision.id },
+                            data: {
+                              relevanceScore: scored.relevanceScore,
+                              matchSignals: scored.matchedSignals,
+                              eligibilityState: eligibility.state,
+                              eligibilityReason: eligibility.reason,
+                              sourceStatusSnapshot: notice.status,
+                              responseDeadlineSnapshot: notice.deadline,
+                              sourceUpdatedAtSnapshot: notice.updatedAt,
+                              staleAt: null,
+                            },
+                          }),
+                        );
+                      }
+                      break;
+                    }
+                    case 'mark_stale':
+                      markedStale += 1;
+                      counts.updated += 1;
+                      if (options.commit) {
+                        await withBypass(prisma, (tx) =>
+                          tx.clientFundingOpportunity.update({
+                            where: { id: decision.id },
+                            // staleAt only. NOT a status change and NOT a delete:
+                            // the row is what change detection diffs against, and
+                            // "we stopped suggesting this" is itself the signal.
+                            data: { staleAt: new Date() },
+                          }),
+                        );
+                      }
+                      break;
+                  }
+                } catch (err) {
+                  // One bad pair must not abort the rest (sync-grants.ts precedent).
+                  counts.errors += 1;
+                  console.warn(
+                    `[sam-candidates] failed ${client.clientId} x ${notice.id}: ${
+                      (err as Error).message
+                    }`,
+                  );
+                }
+              }
+            }
+          },
+        });
+
+        if (noticeWalk.completion === 'INCOMPLETE') noticeWalkIncomplete = true;
+        // Every notice walk covers the same corpus, so the largest is the corpus
+        // size rather than a sum across client pages.
+        noticeCorpus = Math.max(noticeCorpus, noticeWalk.rowsRead);
+        pursuableCorpus = Math.max(pursuableCorpus, pursuableThisWalk);
+      },
+    });
   }
 
-  if (capped) counts.errors += 1;
-  return { ...counts, evaluated, created, refreshed, markedStale, humanDecisionsPreserved, capped };
-}
+  console.log(
+    `[sam-candidates] ${noticeCorpus} active notices scanned, ${pursuableCorpus} pursuable`,
+  );
 
-/**
- * The client half of SAM scoring. One award-history query per client, never one
- * per notice.
- */
-async function buildSamProfileForClient(
-  prisma: SamCandidatesPrisma,
-  client: {
-    id: string;
-    naicsCodes: string[];
-    pscCodes: string[];
-    applicantTypes: string[];
-    setAsideCertifications: string[];
-    sectorTag: string | null;
-    capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
-    facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
-  },
-  mappings: Array<{ source: string; externalId: string | null; externalName: string | null; rollUpAwards: boolean | null }>,
-): Promise<SamClientProfile> {
-  // A parent/subsidiary mapping only contributes when a reviewer said its awards
-  // roll up. The relationship existing is not the same as the money being the
-  // client's.
-  const usable = mappings.filter((m) => m.source === 'contracting' && m.rollUpAwards === true);
-  const ueis = dedupe(usable.map((m) => m.externalId)).filter(isUeiShaped).map((u) => u.toUpperCase());
-  const names = dedupe(usable.map((m) => m.externalName)).map((n) => n.toLowerCase());
+  const coverage =
+    noticeWalkIncomplete || clientWalkOutcome?.completion === 'INCOMPLETE'
+      ? incompleteCoverage({
+          clientsRead,
+          opportunitiesRead: noticeCorpus,
+          resumeClientCursor: clientWalkOutcome?.resumeCursor ?? null,
+          guard: noticeWalkIncomplete ? 'opportunity_pages' : 'client_pages',
+          resumeFlag: '--resume-client',
+        })
+      : completeCoverage(clientsRead, noticeCorpus);
 
-  let priorAgencies: string[] = [];
-  // Stays empty: federal_award has no contracting-office column, and
-  // sam_opportunity.office holds codes ('0413 AQ HQ  RCO-HI'). Feeding it the
-  // awarding sub-tier created an office signal that could never fire and
-  // surfaced agency names to users as "prior office" terms.
-  const priorOffices: string[] = [];
-  if (ueis.length || names.length) {
-    const rows = await prisma.$queryRaw<{
-      awarding_agency: string | null;
-      awarding_sub_tier: string | null;
-    }>`
-      SELECT DISTINCT awarding_agency, awarding_sub_tier
-      FROM federal_award
-      WHERE recipient_uei = ANY(${ueis}::text[])
-         OR lower(contractor_name) = ANY(${names}::text[])
-      LIMIT 5000
-    `;
-    // Both tiers count as agency history. sam_opportunity.agency is sub-tier
-    // shaped ('DEPT OF THE NAVY'), so awarding_agency on its own
-    // ('Department of Defense') matched nothing; normAgency reconciles the
-    // Dept/Department spelling.
-    priorAgencies = dedupe([
-      ...rows.map((r) => r.awarding_agency),
-      ...rows.map((r) => r.awarding_sub_tier),
-    ]);
+  // An INCOMPLETE run must not read as a clean success. `complete: false` makes
+  // statusFromCounts return 'partial', and lastSuccessfulWatermark only reads
+  // status='success' — so the unseen tail stays retryable and the incremental
+  // watermark does not advance past data nobody looked at.
+  if (coverage.completion === 'INCOMPLETE') {
+    counts.complete = false;
+    counts.incompleteReason = coverage.incompleteReason ?? undefined;
   }
 
   return {
-    naicsCodes: client.naicsCodes,
-    pscCodes: client.pscCodes,
-    capabilityKeywords: dedupe([
-      ...client.capabilities.map((c) => c.name),
-      ...client.capabilities.flatMap((c) => c.keywords ?? []),
-      ...client.capabilities.flatMap((c) => stringTags(c.tags)),
-    ]),
-    programElementCodes: dedupe(client.capabilities.flatMap((c) => c.peNumbers ?? [])),
-    priorAgencies,
-    priorOffices,
-    facilityStates: dedupe(client.facilities.map((f) => f.state)),
-    facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
-    sector: client.sectorTag,
-    applicantTypes: client.applicantTypes,
-    setAsideCertifications: client.setAsideCertifications,
+    ...counts,
+    evaluated,
+    created,
+    refreshed,
+    markedStale,
+    humanDecisionsPreserved,
+    completion: coverage.completion,
+    clientsRead: coverage.clientsRead,
+    opportunitiesRead: coverage.opportunitiesRead,
+    pursuableRead: pursuableCorpus,
+    resumeClientCursor: coverage.resumeClientCursor,
   };
 }
 
@@ -664,17 +690,21 @@ async function main(): Promise<void> {
         clientId: args.clientId,
         minRelevance: args.minRelevance,
         commit: args.commit,
+        resumeClientCursor: args.resumeClient,
       });
-      if (result.capped) {
+      if (result.completion === 'INCOMPLETE') {
+        // Deliberately does NOT say "raise the cap" — there is no cap. It names
+        // the guard that tripped and the exact flag needed to finish the walk.
         console.warn(
-          `[sam-candidates] ⚠️ CAPPED: the notice scan or client list hit its bound ` +
-            `(notices=${OPPORTUNITY_SCAN_CAP}, clients=${CLIENT_CAP}). Coverage for this run is PARTIAL.`,
+          `[sam-candidates] ⚠️ INCOMPLETE: ${result.incompleteReason ?? 'coverage is partial'}`,
         );
       }
       console.log(
         `[sam-candidates] evaluated=${result.evaluated} created=${result.created} ` +
           `refreshed=${result.refreshed} markedStale=${result.markedStale} ` +
           `humanDecisionsPreserved=${result.humanDecisionsPreserved} errors=${result.errors} ` +
+          `coverage=${result.completion} clients=${result.clientsRead} ` +
+          `notices=${result.opportunitiesRead} pursuable=${result.pursuableRead} ` +
           `in ${((Date.now() - t0) / 1000).toFixed(1)}s ` +
           `(${args.commit ? 'COMMITTED' : 'DRY-RUN, nothing written'})`,
       );

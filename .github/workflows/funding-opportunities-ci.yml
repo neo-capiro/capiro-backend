@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.manual-mapping|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -234,7 +234,23 @@ jobs:
             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='source_active_snapshot'" \
             "YES"
 
-          # The three indexes this migration creates.
+          # P07 decision columns. ALL nullable, and none may carry a DEFAULT: a
+          # default would fabricate a decision for the entire existing corpus, and
+          # NOT NULL would need a backfill that invents one.
+          for col in human_decision decision_reason decision_at decision_by_user_id next_action next_action_due_at; do
+            check "$col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='$col'"               "YES"
+          done
+          check "no decision column has a DEFAULT"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name IN ('human_decision','decision_reason','decision_at','decision_by_user_id','next_action','next_action_due_at') AND column_default IS NOT NULL"             "0"
+
+          # The three P07 CHECKs. The actor one is a three-way all-or-nothing, so a
+          # decision can never exist without the person and the moment it was made.
+          check "human_decision vocabulary CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_human_decision_chk'" "1"
+          check "decision actor+timestamp CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_decision_actor_chk'" "1"
+          check "next-action due-date CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_next_action_chk'" "1"
+          check "decision index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_decision_idx'" "1"
+          check "decision index is PARTIAL"             "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_decision_idx'"             "yes"
+
+          # The three indexes the lifecycle migration creates.
           check "lifecycle keyset cursor index" \
             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_tenant_cursor_idx'" "1"
           check "grant discovery/enrichment index" \
@@ -309,6 +325,7 @@ jobs:
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           src/funding-opportunities/
           src/intelligence/intelligence.manual-mapping.spec.ts
+          src/intelligence/intelligence.mapping-governance.spec.ts
           scripts/enrich-grant-details.spec.ts
           scripts/sync-sam-opportunities.spec.ts
           scripts/sync-grants.spec.ts
@@ -321,12 +338,27 @@ jobs:
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
 
-      # Floors: jest counts FILES in numTotalTestSuites. Measured 19 files / 509 tests
+      # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
       # editing this line, while REMOVING a suite fails the gate.
+      #
+      # History: 19/500 before P00, 20/575 after P00 (baseline-contract.spec.ts),
+      # 21/630 after P01 (client-opportunity-profile.spec.ts), 22/660 after P02
+      # (award-history-identity.spec.ts), 23/700 after P03 (producer-pagination.spec.ts), 23/710 after P04, 24/740 after P05 (intelligence.mapping-governance.spec.ts), 25/790 after P06
+      # (opportunity-recommendation.spec.ts), 26/840 after P07
+      # (funding-opportunity-decision.spec.ts), 27/865 after P08
+      # (funding-opportunity-actions.spec.ts), 28/905 after P09
+      # (opportunity-explanation.spec.ts), 29/950 after P10
+      # (funding-opportunity-inbox.spec.ts).
+      # The suite floor MUST move with the file
+      # count — otherwise the frozen-contract, profile-parity or identity suite could
+      # be deleted and the gate would stay green. These numbers are also mirrored in
+      # __fixtures__/baseline-contract-v1.json, which asserts this line is at or
+      # above them, so lowering a floor takes two edits and both show up in the diff.
+      # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 19 500
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 29 950
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -344,11 +376,14 @@ jobs:
           src/App.funding-opportunities-nav
 
       # NOTE: vitest counts `describe` BLOCKS in numTotalTestSuites, not files —
-      # measured 26 blocks / 79 tests on this branch. The test count is the tighter
-      # signal; the block count is the coarse one.
+      # measured 32 blocks / 109 tests on this branch (26/79 before this program).
+      # The test count is the tighter signal; the block count is the coarse one.
+      # Raised by P05 (mappings-page body assertions), P08 (atomic action route) and
+      # P09 (OpportunityCard.test.tsx, which is a NEW file — the block floor has to
+      # move with it or the card's explanation tests could be deleted while green).
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 25 75
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 30 105
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

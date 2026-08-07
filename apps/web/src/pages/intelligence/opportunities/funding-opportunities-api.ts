@@ -98,6 +98,46 @@ export interface ContractValue {
   basis: 'not_stated_by_source' | 'source_backed';
 }
 
+export const MACHINE_RECOMMENDATIONS = ['pursue', 'monitor', 'pass', 'needs_review'] as const;
+export type MachineRecommendation = (typeof MACHINE_RECOMMENDATIONS)[number];
+
+export const RECOMMENDATION_CONFIDENCES = ['high', 'medium', 'low'] as const;
+export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[number];
+
+/** Mirrors OpportunityRecommendationView in apps/api. */
+export interface OpportunityRecommendationView {
+  machineRecommendation: MachineRecommendation;
+  /**
+   * EVIDENCE QUALITY, not a probability of winning. A high-confidence `pass` is a
+   * confident recommendation NOT to bid — rendering this as a win rate would be
+   * the most misleading thing the UI could do with it.
+   */
+  recommendationConfidence: RecommendationConfidence;
+  primaryReason: string;
+  primaryRisk: string | null;
+  recommendedNextAction: string;
+  reasonCodes: string[];
+}
+
+export const HUMAN_DECISIONS = ['pursue', 'monitor', 'pass'] as const;
+export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
+
+/**
+ * Mirrors OpportunityDecision in apps/api.
+ *
+ * Deliberately NOT the same vocabulary as OpportunityWorkflowStatus: `monitor` and
+ * `pass` have no workflow equivalent, and `suggested`/`expired` are machine states
+ * nobody decides.
+ */
+export interface OpportunityDecision {
+  decision: HumanDecision;
+  reason: string | null;
+  decidedAt: string;
+  decidedByUserId: string;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+}
+
 export interface OpportunityWorkflow {
   id: string;
   status: OpportunityWorkflowStatus;
@@ -155,6 +195,24 @@ export interface FundingOpportunity {
   relevanceScore: number;
   eligibility: { state: EligibilityState; reason: string };
   matchedSignals: OpportunityMatchedSignal[];
+  /**
+   * What to do with this, and why. Null on the unscoped catalog read, where there
+   * is no client to recommend anything relative to.
+   *
+   * P06 adds the field; P09 renders it. Nothing in the UI reads it yet, and that
+   * is deliberate — an additive API field deploys before the web that consumes it.
+   */
+  recommendation: OpportunityRecommendationView | null;
+  /**
+   * The team's persisted DECISION, or null when nobody has decided yet.
+   *
+   * Null is NOT the same as `pass`: "nobody has looked at this" and "we looked and
+   * declined" are different facts, which is why the column has no default.
+   *
+   * Separate from `workflow.status` (where a pursuit is) and from
+   * `recommendation` (recomputed on read). All three can legitimately disagree.
+   */
+  decision: OpportunityDecision | null;
   missingProfileFields: MissingProfileField[];
   sourceUpdatedAt: string | null;
   workflow: OpportunityWorkflow | null;
