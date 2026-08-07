@@ -1,12 +1,10 @@
 {
   // Engagement Phase 3 fixture and local-acceptance scripts.
   //
-  // The base tsconfig excludes `scripts/`, so a seed written against the typed
-  // Prisma client would otherwise be unchecked — and the whole reason 3.2 uses
-  // the typed client instead of Phase 0's raw SQL is that `tsc` should catch a
-  // schema mistake without a database round-trip. Keep the runtime auth binder
-  // in the same narrow project so the acceptance-only identity bridge cannot
-  // drift away from the Prisma schema either.
+  // The base tsconfig excludes `scripts/`, so these acceptance scripts would
+  // otherwise be unchecked. Keep the fixture seed, runtime auth binder, and
+  // external-action DB-invariant verifier in one narrow project so schema drift
+  // is caught even while F-003 short-circuits the broad apps/api typecheck.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
@@ -17,7 +15,8 @@
     "scripts/engagement-phase3-fixture-plan.ts",
     "scripts/seed-engagement-phase3-parity-fixtures.ts",
     "scripts/seed-engagement-phase3-parity-fixtures.spec.ts",
-    "scripts/bind-engagement-phase3-auth-fixtures.ts"
+    "scripts/bind-engagement-phase3-auth-fixtures.ts",
+    "scripts/engagement-phase3-external-denial.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
