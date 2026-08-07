@@ -197,4 +197,46 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
       "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
     readOnly: true,
   },
+  // ── Funding Opportunities (P37) ─────────────────────────────────────────
+  // Delegated here rather than to IN_EDITOR_DELEGATED_TOOLS, following
+  // `search_sam_opportunities` above: these answer a full-chat research
+  // question about a client's federal pipeline, not an in-editor drafting one.
+  // All six are read-only — none writes, and `build_opportunity_action_plan`
+  // returns proposals a person accepts elsewhere.
+  {
+    name: 'get_funding_opportunity',
+    description:
+      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
+    readOnly: true,
+  },
+  {
+    name: 'explain_opportunity_match',
+    description:
+      'Explain WHY an opportunity matched a client: every matched signal with its strength and the exact value it matched on, the overall fit band, and the four separate judgements Capiro keeps apart — relevance (capability/agency fit), eligibility (can they bid), the machine recommendation (pursue/monitor/pass/needs_review), and the human decision if one has been made. Use this instead of guessing from a score. Also names the client profile fields Capiro is missing, so a weak match can be reported as unassessable rather than as a poor fit.',
+    readOnly: true,
+  },
+  {
+    name: 'get_opportunity_client_context',
+    description:
+      "Load one client's federal-opportunity posture: counts by rail, the next deadline, top-ranked grants and contracts, per-source data freshness, and — importantly — which client profile fields Capiro is missing. Use this FIRST when asked how a client is doing on federal opportunities, and to distinguish 'no matches' from 'the catalog has not synced' from 'the profile is too thin to score'.",
+    readOnly: true,
+  },
+  {
+    name: 'get_opportunity_government_landscape',
+    description:
+      'Load the government-affairs context Capiro can evidence for a SAM.gov contract opportunity: reviewed Program Element links (only an ACCEPTED review counts as source-backed; an unreviewed match is labelled inferred and is not evidence of a link), the client’s recorded facilities, and state-level place-of-performance overlap. Reports coverage and which context sources are not yet wired — an unwired source means Capiro cannot look, never that nothing is there. SAM.gov only.',
+    readOnly: true,
+  },
+  {
+    name: 'compare_funding_opportunities',
+    description:
+      'Compare two to five opportunities side by side for one client, using local facts only: deadlines, activity, relevance, eligibility, recommendation and recorded decision. Pass `opportunities` as a list of {source, sourceRecordId}. Grant funding and contract value are reported separately and are never summed. A record Capiro cannot read is listed with its reason rather than silently dropped, so the comparison cannot look more complete than it is.',
+    readOnly: true,
+  },
+  {
+    name: 'build_opportunity_action_plan',
+    description:
+      'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
+    readOnly: true,
+  },
 ] as const;

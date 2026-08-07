@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -611,6 +611,7 @@ jobs:
           src/config/config.schema.spec.ts
           src/intelligence/intelligence.manual-mapping.spec.ts
           src/intelligence/intelligence.mapping-governance.spec.ts
+          src/meri/meri-tools.registration.spec.ts
           scripts/enrich-grant-details.spec.ts
           scripts/sync-sam-opportunities.spec.ts
           scripts/sync-grants.spec.ts
@@ -1262,9 +1263,68 @@ jobs:
       #
       # PRODUCERS CANNOT MOVE A STAGE: actor_user_id is NOT NULL on the audit row,
       # and the spec greps all three producer scripts for the column names.
+      #
+      # 65/2050 after P37: TWO suites join the gate, and only ONE of them is a new
+      # file. meri-opportunity-tools.spec.ts (40 tests) is new and lands inside the
+      # existing src/funding-opportunities/ glob. src/meri/meri-tools.registration
+      # .spec.ts (6 tests) ALREADY EXISTED and is newly named here, for the same
+      # reason config.schema.spec.ts and the two intelligence.* files are named:
+      # it is topically owned by this program even though it does not live under
+      # funding-opportunities/. Meri's tool registry now carries six Funding
+      # Opportunities entries, and that spec is the thing standing between a
+      # refactor and silently dropping one — outside this gate, a dropped tool
+      # would be invisible here. The scope-detection regex above gained the three
+      # src/meri/ files this phase touches, NOT the whole directory: pulling in
+      # ~60 Meri suites would make this gate's runtime and its floor a function of
+      # a subsystem it does not own.
+      #
+      # THE DEPENDENCY RUNS ONE WAY, and that is a test rather than a convention.
+      # The adapter lives in src/funding-opportunities/; MeriModule imports THIS
+      # module. A spec reads every .ts file in the directory and asserts none
+      # imports from src/meri. The reverse edge is not a style preference —
+      # MeriModule imports thirteen feature modules, so it would be a Nest
+      # bootstrap failure, the kind that shows up as a broken deploy rather than a
+      # red build.
+      #
+      # NO PROVIDER REACH, asserted structurally: the adapter's constructor takes
+      # exactly three local collaborators (checked by arity AND by name), and its
+      # source names no `external/tango`, `@makegov`, secret, gateway, `fetch` or
+      # http client. That is what makes "Capiro has not synced this" an answer
+      # these tools can give, and "let me check the provider" one they cannot.
+      #
+      # THE GATE IS FLAG, THEN ROLE, THEN WALL — in that order, and the order is
+      # the point. A tenant without the capability learns nothing about its own
+      # client roster. A portal user is refused BEFORE any client read is issued,
+      # proven by call counts rather than by reading the code, so the refusal
+      # cannot be timed. Only then does the ethical wall run.
+      #
+      # A DENIED CLIENT IS BYTE-IDENTICAL TO A NON-EXISTENT ONE, asserted with
+      # toEqual across all six tools: anything that distinguishes them turns the
+      # tool into an oracle for which clients exist behind a wall. P33's own denied
+      # packet carries no `denied` flag — it is deliberately shaped like an empty
+      # one down to the fingerprint — so the adapter detects it through the
+      # per-source state, in a named and tested predicate, including the
+      # `[].every() === true` case that would otherwise read a malformed empty
+      # packet as an access refusal.
+      #
+      # REFUSALS ARE RESULTS, NOT EXCEPTIONS. A Meri tool result is text the model
+      # reads mid-turn: a throw there either kills the turn or arrives as an opaque
+      # stack-shaped string the model then paraphrases to a user. Every refusal is
+      # a typed state with wording about what Capiro did, never about what is true
+      # of the world. A THROWING flag read fails closed quietly here, unlike the
+      # route guard's deliberately non-catching read — the two differ because a
+      # broken read hides an endpoint in one case and degrades one answer in the
+      # other.
+      #
+      # OUTPUT IS BOUNDED BY RANK, NOT BY BYTES. A byte budget drops whatever
+      # happens to be last, so the same query could return different evidence on
+      # two runs as unrelated fields grow; per-collection caps keep "which items
+      # survived" a property of the data. `truncated` is ABSENT when nothing was
+      # dropped rather than an empty array, and a clamped free-text field carries
+      # its own marker INSIDE the string, because that value gets quoted.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 63 2005
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 65 2050
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

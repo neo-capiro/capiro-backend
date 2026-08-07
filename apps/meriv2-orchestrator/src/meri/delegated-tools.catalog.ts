@@ -114,13 +114,13 @@ export const IN_EDITOR_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'search_program_elements',
     description:
-      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
+      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1/R-2 RDT&E Program Elements AND P-1/P-40 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
     readOnly: true,
   },
   {
     name: 'get_program_element',
     description:
-      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1 procurement line item vs R-1 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1/P-40 procurement line item vs R-1/R-2 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
     readOnly: true,
   },
   {

@@ -10,6 +10,7 @@ import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { FundingOpportunityPipelineService } from './funding-opportunity-pipeline.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
+import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
@@ -84,6 +85,13 @@ import {
     // resolvable here — see the note above) and ClientProfileEnrichmentService
     // (a sibling provider in this SAME module) — no new import needed.
     FederalBusinessProfileService,
+    // P37. Depends on PrismaService and two SIBLING providers in this module —
+    // no new import, and deliberately no dependency on Meri. MeriModule imports
+    // THIS module to reach the adapter; the reverse would be a cycle, since
+    // MeriModule already imports eleven feature modules. See the adapter's own
+    // docblock, and meri-opportunity-tools.spec.ts, which asserts the import
+    // graph rather than trusting the comment.
+    MeriOpportunityToolsAdapter,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
@@ -92,6 +100,11 @@ import {
     FundingOpportunitiesLandscapeFlagGuard,
     FundingOpportunitiesPipelineFlagGuard,
   ],
-  exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
+  exports: [
+    FundingOpportunitiesService,
+    ClientProfileEnrichmentService,
+    FederalBusinessProfileService,
+    MeriOpportunityToolsAdapter,
+  ],
 })
 export class FundingOpportunitiesModule {}

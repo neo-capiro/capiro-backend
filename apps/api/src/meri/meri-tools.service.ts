@@ -100,8 +100,21 @@ import { CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 import { ymdInZone } from '../intelligence/time-bounds.js';
 import { resolveStateName } from '../common/us-states.js';
+import { MeriOpportunityToolsAdapter } from '../funding-opportunities/meri-opportunity-tools.adapter.js';
 
 const PRODUCT_NAME = 'Meri';
+
+/**
+ * The three fields the Funding Opportunities adapter needs from a turn.
+ *
+ * Narrowed deliberately rather than handing over the whole `TenantContext`: the
+ * adapter's gate is (flag, role, wall), and passing it a `clerkUserId` or a
+ * `tenantSlug` it has no business reading would make the next person's
+ * "convenient" use of one a compile-time success.
+ */
+function toolActor(ctx: TenantContext): { tenantId: string; userId: string; role: TenantContext['role'] } {
+  return { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role };
+}
 
 // get_committee_roster (M4.1) title-matching now uses the SHARED matchesRole
 // (@capiro/shared, W4.1) — one definition consumed by both this tool and
@@ -497,6 +510,48 @@ export const TOOL_DEFINITIONS = [
       'with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and ' +
       'they have approved them. Pass only the fields/rows you are changing. Requires user approval.',
   },
+  // ── Funding Opportunities (P37) ─────────────────────────────────────────
+  // Six READ-ONLY tools over Capiro's own normalized tables. Implemented in
+  // apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts, not
+  // here: this module imports FundingOpportunitiesModule, and the reverse would
+  // be a cycle. None of them can reach MakeGov/Tango — the adapter holds no
+  // gateway — so "Capiro has not synced this" is an answer they can give and
+  // "let me check the provider" is not.
+  //
+  // Every one takes `clientId`, deliberately: the chat loop's client-scope
+  // enforcement keys on that field, so a tool without it would read across a
+  // scoped session's boundary. meri-opportunity-tools.spec.ts asserts all six
+  // declare it as REQUIRED.
+  {
+    name: 'get_funding_opportunity',
+    description:
+      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
+  },
+  {
+    name: 'explain_opportunity_match',
+    description:
+      'Explain WHY an opportunity matched a client: every matched signal with its strength and the exact value it matched on, the overall fit band, and the four separate judgements Capiro keeps apart — relevance (capability/agency fit), eligibility (can they bid), the machine recommendation (pursue/monitor/pass/needs_review), and the human decision if one has been made. Use this instead of guessing from a score. Also names the client profile fields Capiro is missing, so a weak match can be reported as unassessable rather than as a poor fit.',
+  },
+  {
+    name: 'get_opportunity_client_context',
+    description:
+      "Load one client's federal-opportunity posture: counts by rail, the next deadline, top-ranked grants and contracts, per-source data freshness, and — importantly — which client profile fields Capiro is missing. Use this FIRST when asked how a client is doing on federal opportunities, and to distinguish 'no matches' from 'the catalog has not synced' from 'the profile is too thin to score'.",
+  },
+  {
+    name: 'get_opportunity_government_landscape',
+    description:
+      'Load the government-affairs context Capiro can evidence for a SAM.gov contract opportunity: reviewed Program Element links (only an ACCEPTED review counts as source-backed; an unreviewed match is labelled inferred and is not evidence of a link), the client’s recorded facilities, and state-level place-of-performance overlap. Reports coverage and which context sources are not yet wired — an unwired source means Capiro cannot look, never that nothing is there. SAM.gov only.',
+  },
+  {
+    name: 'compare_funding_opportunities',
+    description:
+      'Compare two to five opportunities side by side for one client, using local facts only: deadlines, activity, relevance, eligibility, recommendation and recorded decision. Pass `opportunities` as a list of {source, sourceRecordId}. Grant funding and contract value are reported separately and are never summed. A record Capiro cannot read is listed with its reason rather than silently dropped, so the comparison cannot look more complete than it is.',
+  },
+  {
+    name: 'build_opportunity_action_plan',
+    description:
+      'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
+  },
 ] as const;
 
 type MeriToolName = (typeof TOOL_DEFINITIONS)[number]['name'];
@@ -582,6 +637,10 @@ export class MeriToolsService {
     private readonly memoryIngest: MemoryIngestService,
     private readonly memoryCandidates: MemoryCandidateService,
     private readonly memoryStore: MemoryStoreService,
+    // P37. Lives in the Funding Opportunities module, resolved through
+    // MeriModule's import of it. The dependency runs one way only — see the
+    // adapter's docblock for why the reverse would be a bootstrap cycle.
+    private readonly opportunityTools: MeriOpportunityToolsAdapter,
   ) {}
 
   manifest() {
@@ -1308,6 +1367,70 @@ export class MeriToolsService {
         },
         ['clientId'],
       ),
+
+      // ── Funding Opportunities (P37) ───────────────────────────────────
+      // `clientId` is REQUIRED on all six. Two reasons, and the second is the
+      // load-bearing one: every answer is scored relative to a client, so a
+      // client-less call has nothing to be right about; and the chat loop's
+      // client-scope enforcement (meri-client-scope-fail-closed.spec.ts)
+      // refuses a `clientId` that is not the conversation's — a tool that
+      // omitted the field would sail past that check and read across the
+      // boundary the session exists to draw.
+      get_funding_opportunity: obj(
+        {
+          clientId: str('Client UUID the opportunity is scored against'),
+          source: str("'grants_gov' or 'sam_gov'"),
+          sourceRecordId: str("The source's own record id (Grants.gov opportunity id, or SAM row uuid)"),
+        },
+        ['clientId', 'source', 'sourceRecordId'],
+      ),
+      explain_opportunity_match: obj(
+        {
+          clientId: str('Client UUID the match is relative to'),
+          source: str("'grants_gov' or 'sam_gov'"),
+          sourceRecordId: str("The source's own record id"),
+        },
+        ['clientId', 'source', 'sourceRecordId'],
+      ),
+      get_opportunity_client_context: obj(
+        { clientId: str('Client UUID') },
+        ['clientId'],
+      ),
+      get_opportunity_government_landscape: obj(
+        {
+          clientId: str('Client UUID the context is composed for'),
+          source: str("'sam_gov' — the landscape is composed for SAM.gov notices only"),
+          sourceRecordId: str('SAM opportunity row uuid'),
+        },
+        ['clientId', 'source', 'sourceRecordId'],
+      ),
+      compare_funding_opportunities: {
+        type: 'object',
+        properties: {
+          clientId: { type: 'string', description: 'Client UUID all rows are scored against' },
+          opportunities: {
+            type: 'array',
+            description: 'Two to five {source, sourceRecordId} pairs to compare.',
+            items: {
+              type: 'object',
+              properties: {
+                source: { type: 'string', description: "'grants_gov' or 'sam_gov'" },
+                sourceRecordId: { type: 'string', description: "The source's own record id" },
+              },
+              required: ['source', 'sourceRecordId'],
+            },
+          },
+        },
+        required: ['clientId', 'opportunities'],
+      },
+      build_opportunity_action_plan: obj(
+        {
+          clientId: str('Client UUID the plan is for'),
+          source: str("'sam_gov' or 'agency_forecast'"),
+          sourceRecordId: str('The source record id'),
+        },
+        ['clientId', 'source', 'sourceRecordId'],
+      ),
     };
 
     return TOOL_DEFINITIONS.map((tool) => ({
@@ -1728,6 +1851,49 @@ export class MeriToolsService {
         return this.updateEngagementTask(ctx, input);
       case 'update_client_profile':
         return this.updateClientProfile(ctx, input);
+      // ── Funding Opportunities (P37) ─────────────────────────────────────
+      // Every case delegates verbatim. No shaping, no defaulting, no wall check
+      // here: the adapter owns the flag read, the role bar and the ethical wall,
+      // in that order, so there is exactly ONE place those three can be wrong.
+      // A second copy in this file would be a second thing to keep in step.
+      case 'get_funding_opportunity':
+        return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      case 'explain_opportunity_match':
+        return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      case 'get_opportunity_client_context':
+        return this.opportunityTools.getOpportunityClientContext(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+        });
+      case 'get_opportunity_government_landscape':
+        return this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      case 'compare_funding_opportunities':
+        return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          opportunities: Array.isArray(input.opportunities)
+            ? (input.opportunities as Array<Record<string, unknown>>).map((o) => ({
+                source: String(o?.source ?? ''),
+                sourceRecordId: String(o?.sourceRecordId ?? ''),
+              }))
+            : [],
+        });
+      case 'build_opportunity_action_plan':
+        return this.opportunityTools.buildOpportunityActionPlan(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
       default:
         assertNever(name);
     }

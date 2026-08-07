@@ -100,6 +100,14 @@ const EXPECTED_TOOLS = [
   'create_task',
   'update_task',
   'update_client_profile',
+  // Funding Opportunities (P37) — six READ-ONLY local tools. None is
+  // side-effecting, so all six survive the read-only chat surface below.
+  'get_funding_opportunity',
+  'explain_opportunity_match',
+  'get_opportunity_client_context',
+  'get_opportunity_government_landscape',
+  'compare_funding_opportunities',
+  'build_opportunity_action_plan',
 ] as const;
 
 /** Tools whose schema must enforce required inputs, and exactly which. */
@@ -147,6 +155,15 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_task: ['title'],
   update_task: ['taskId'],
   update_client_profile: ['clientId'],
+  // P37. `clientId` is required on all six — see the schema block's own note:
+  // the chat loop's client-scope refusal keys on that field, so a tool without
+  // it would read straight past a scoped session's boundary.
+  get_funding_opportunity: ['clientId', 'source', 'sourceRecordId'],
+  explain_opportunity_match: ['clientId', 'source', 'sourceRecordId'],
+  get_opportunity_client_context: ['clientId'],
+  get_opportunity_government_landscape: ['clientId', 'source', 'sourceRecordId'],
+  compare_funding_opportunities: ['clientId', 'opportunities'],
+  build_opportunity_action_plan: ['clientId', 'source', 'sourceRecordId'],
 };
 
 // anthropicToolSchemas() is self-contained (no constructor deps), so an

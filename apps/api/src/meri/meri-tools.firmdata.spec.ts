@@ -110,6 +110,10 @@ function makeMocks() {
     { projectClioMemory: jest.fn(), removeClioMemory: jest.fn() } as never, // memoryIngest
     { proposeSaveMemory: jest.fn() } as never, // memoryCandidates
     { confirmMemory: jest.fn(), correctMemory: jest.fn(), forgetMemory: jest.fn() } as never, // memoryStore
+    // P37 opportunityTools. This suite exercises none of the six, so an empty
+    // double is honest here — a stub that returned a plausible envelope would
+    // be a second implementation nobody keeps in step with the real one.
+    {} as never, // opportunityTools
   );
 
   return {
