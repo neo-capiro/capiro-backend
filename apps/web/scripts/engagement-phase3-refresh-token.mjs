@@ -4,6 +4,13 @@
  * sweeps. Browser interaction acceptance can run for minutes; reusing the token
  * it obtained at startup risks turning later parity into matching 401s.
  *
+ * This token intentionally has NO active Clerk organization and uses the default
+ * session JWT. The deterministic fixture actor has exactly one membership, so
+ * TenantContextMiddleware exercises its supported sole-membership fallback.
+ * That same orgless token can be temporarily rebound to the fixture Capiro Admin
+ * (whose sole membership is the internal tenant) to prove real impersonation
+ * without fabricating JWT claims.
+ *
  * The bearer is written only to the OS-temp path supplied by the local runner
  * and is deleted by runner cleanup. It is never included in evidence.
  */
@@ -18,7 +25,6 @@ const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
 const CLERK_SECRET_KEY = required('CLERK_SECRET_KEY');
 const CLERK_API_URL = process.env.CLERK_API_URL?.trim() || 'https://api.clerk.com';
 const ADMIN_CLERK_USER_ID = required('ENGAGEMENT_PHASE3_ADMIN_CLERK_USER_ID');
-const PRIMARY_CLERK_ORG_ID = required('ENGAGEMENT_PHASE3_PRIMARY_CLERK_ORG_ID');
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -140,29 +146,24 @@ async function main() {
       cdp,
       sessionId,
       `(async () => {
-        if (window.Clerk?.organization?.id !== ${JSON.stringify(PRIMARY_CLERK_ORG_ID)}) {
-          await window.Clerk?.setActive({ organization: ${JSON.stringify(PRIMARY_CLERK_ORG_ID)} });
+        if (window.Clerk?.organization?.id) {
+          await window.Clerk?.setActive({ organization: null });
         }
-        return window.Clerk?.organization?.id === ${JSON.stringify(PRIMARY_CLERK_ORG_ID)};
+        return !window.Clerk?.organization?.id;
       })()`,
     );
-    await waitFor(
-      cdp,
-      sessionId,
-      `window.Clerk?.organization?.id === ${JSON.stringify(PRIMARY_CLERK_ORG_ID)}`,
-      30_000,
-    );
+    await waitFor(cdp, sessionId, '!window.Clerk?.organization?.id', 30_000);
     const token = await evaluate(
       cdp,
       sessionId,
-      `(async () => window.Clerk?.session?.getToken({ template: 'capiro' }))()`,
+      `(async () => window.Clerk?.session?.getToken())()`,
     );
     if (typeof token !== 'string' || token.length < 20) {
-      throw new Error('Fresh Phase 3 capiro bearer was unavailable');
+      throw new Error('Fresh Phase 3 orgless bearer was unavailable');
     }
     await writeFile(TOKEN_FILE, token, { mode: 0o600 });
     await chmod(TOKEN_FILE, 0o600).catch(() => undefined);
-    console.log('ENGAGEMENT_PHASE3_BEARER_REFRESHED');
+    console.log('ENGAGEMENT_PHASE3_ORGLESS_BEARER_REFRESHED');
   } finally {
     const killed = chrome.kill();
     if (killed && typeof killed.then === 'function') await killed;
