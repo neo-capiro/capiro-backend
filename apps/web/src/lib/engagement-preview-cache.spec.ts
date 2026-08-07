@@ -38,12 +38,12 @@ describe('Engagement preview cache isolation', () => {
   });
 
   test.each([
-    ['engagement-integrations'],
-    ['engagement-meetings', '2026-08'],
-    ['engagement-mail-threads'],
-    ['client-meetings', 'client-1'],
-    ['client-mail-threads', 'client-1'],
-    ['integration-capabilities', 'google'],
+    [['engagement-integrations']],
+    [['engagement-meetings', '2026-08']],
+    [['engagement-mail-threads']],
+    [['client-meetings', 'client-1']],
+    [['client-mail-threads', 'client-1']],
+    [['integration-capabilities', 'google']],
   ])('recognizes reviewed pending/primitive fallback key %j', (key) => {
     const client = new QueryClient();
     client.setQueryData(key, 1);
