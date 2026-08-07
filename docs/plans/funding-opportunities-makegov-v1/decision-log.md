@@ -177,3 +177,63 @@ executor's final SHA who does not trust the handoff. The `Review` column in
 **Does not change:** nothing about D-01 through D-09. In particular no migration is
 applied, no flag is enabled, no schedule is created, no secret is read, and no data
 job is run by this branch.
+
+---
+
+## D-11 · 2026-08-06 · P11 adds two query parameters to the P10 inbox route
+
+Plan §9's P11 lists only `apps/web/…` under **Primary files**. P11 as merged also
+touches `funding-opportunity-inbox.service.ts` and
+`funding-opportunities.controller.ts`, adding two optional query parameters —
+`clientId` and `source` — plus a `clientId` / `source` / `countsAllClients` echo on
+the response.
+
+**Why:** two items in P11's own Work list cannot be built honestly without them.
+
+- *"Preserve client deep links and enable a selected-client view."* The inbox is
+  cursor-paginated. Narrowing to one client in the browser filters ONE PAGE of a
+  keyset walk, so a page containing no rows for the chosen client renders as "this
+  client has nothing" while more rows sit further down the walk. The narrowing has
+  to be in the WHERE clause or it is wrong.
+- *"Keep source type as a filter, not the top-level workflow model."* There was no
+  source filter on the inbox to keep.
+
+**How to apply:** when a phase's Work list requires a capability the phase's file
+list does not include, add the capability and log it here. Do not implement the
+requirement client-side where it produces a different answer than the server would.
+
+**Security note:** `clientId` is intersected with the ethical-wall allow-list, never
+trusted. An unknown or walled id is silently dropped and the response reports the
+narrowing it actually applied — deliberately not a 404 or 403, either of which would
+confirm that a client the reader may not see exists. `source` is the opposite: an
+unknown value is a 400, because a mistyped source has no privacy dimension and
+quietly returning grants to a caller that asked for contracts is worse than refusing.
+
+---
+
+## D-12 · 2026-08-06 · The inbox pays for its own freshness read
+
+The inbox reads `client_funding_opportunity` snapshots, so a dead source rail does
+not empty it — it serves last week's picture, which is the more dangerous failure.
+Rather than add `freshness` to the inbox response (whose computation is three raw
+queries including two full-table counts, on an endpoint whose whole design goal is
+to stay cheap), the inbox view issues `GET /opportunities?pageSize=1` and reads only
+`freshness` from it.
+
+**Why:** this is the SAME request the page issued on every load before P11, just with
+`pageSize=1` instead of `25`. Net request count per page view is unchanged, and the
+default experience keeps the rail-health strip it would otherwise have lost.
+
+**How to apply:** when a new default view needs a fact an old view got for free, check
+whether the old request can be shrunk before widening a new one.
+
+---
+
+## D-13 · 2026-08-06 · P11 continues the single-branch model (D-10 extended)
+
+P11 was executed and merged as its own branch and PR — closer to §6.1 than D-10's
+P00–P10 range — but still with no §6.2 independent tester. Per explicit user
+instruction, each phase merges on its executor's own evidence.
+
+**Consequence, unchanged from D-10:** the `Review` column stays empty. Green CI plus
+self-testing is not the §6.2 gate.

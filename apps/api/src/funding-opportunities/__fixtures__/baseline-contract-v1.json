@@ -251,9 +251,9 @@
   "testFloors": {
     "note": "Floors enforced by scripts/assert-test-summary.mjs in .github/workflows/funding-opportunities-ci.yml. A floor may be RAISED freely. Lowering one is indistinguishable from the gate shrinking and requires a written reason in the PR description.",
     "measuredAtFreeze": { "api": { "suites": 20, "tests": 584 }, "web": { "suites": 26, "tests": 79 } },
-    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740", "P06": "24/740 -> 25/790", "P07": "25/790 -> 26/840", "P08": "26/840 -> 27/865", "P09": "27/865 -> 28/905 (api), 25/75 -> 30/105 (web)", "P10": "28/905 -> 29/950" },
-    "api": { "suites": 29, "tests": 950 },
-    "web": { "suites": 30, "tests": 105 }
+    "raisedByPhase": { "P00": "19/500 -> 20/575", "P01": "20/575 -> 21/630", "P02": "21/630 -> 22/660", "P03": "22/660 -> 23/700", "P04": "23/700 -> 23/710", "P05": "23/710 -> 24/740", "P06": "24/740 -> 25/790", "P07": "25/790 -> 26/840", "P08": "26/840 -> 27/865", "P09": "27/865 -> 28/905 (api), 25/75 -> 30/105 (web)", "P10": "28/905 -> 29/950", "P11": "29/950 -> 29/965 (api), 30/105 -> 40/150 (web)" },
+    "api": { "suites": 29, "tests": 965 },
+    "web": { "suites": 40, "tests": 150 }
   },
 
   "sourceFreshnessSemantics": {

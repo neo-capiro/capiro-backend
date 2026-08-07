@@ -300,13 +300,23 @@ describe('a retry returns the same task, never a second one', () => {
 // ── The UI no longer bypasses this ──────────────────────────────────────────
 
 describe('the web page routes through the atomic action', () => {
-  const page = readFileSync(
-    join(__dirname, '../../../web/src/pages/intelligence/opportunities/FundingOpportunitiesPage.tsx'),
-    'utf8',
-  );
+  /**
+   * P11 split the page into a shell plus two views, and the workflow actions moved
+   * to the Explore view with the rest of the catalog. The assertions below are
+   * about behaviour, not about which file holds it, so they read BOTH: the shell
+   * must still be free of the split-brain call, and the action route must exist
+   * somewhere in the surface rather than in one named file.
+   */
+  const WEB = '../../../web/src/pages/intelligence/opportunities';
+  const shell = readFileSync(join(__dirname, `${WEB}/FundingOpportunitiesPage.tsx`), 'utf8');
+  const explore = readFileSync(join(__dirname, `${WEB}/FundingOpportunityExplore.tsx`), 'utf8');
+  const inbox = readFileSync(join(__dirname, `${WEB}/FundingOpportunityInbox.tsx`), 'utf8');
+  const page = [shell, explore, inbox].join('\n');
 
   test('it no longer posts directly to /api/engagement/tasks', () => {
     // That call is the split-brain. It created a task and changed nothing else.
+    // Asserted across every file in the surface so the bypass cannot come back in
+    // whichever view happens to be new.
     expect(page).not.toContain("'/api/engagement/tasks'");
   });
 

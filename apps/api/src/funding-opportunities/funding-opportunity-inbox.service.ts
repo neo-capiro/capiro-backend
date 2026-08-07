@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { OpportunitySource } from './funding-opportunities.types.js';
+import { OPPORTUNITY_SOURCES, type OpportunitySource } from './funding-opportunities.types.js';
 
 /**
  * The cross-client triage inbox: what a government-affairs team needs to look at,
@@ -98,12 +98,47 @@ export interface InboxRow {
 
 export interface InboxResponse {
   filter: InboxFilter;
+  /**
+   * Echo of the client narrowing actually applied, or null for the cross-client
+   * inbox.
+   *
+   * ECHOED rather than assumed, because the service DROPS a `clientId` the actor
+   * cannot see (see `list`). A UI that assumed its own request parameter took
+   * effect would render "Acme Defense · no rows in this queue" for a walled client
+   * the reader is not allowed to know exists — which both lies about the queue and
+   * confirms the client's existence.
+   */
+  clientId: string | null;
+  /**
+   * Echo of the source narrowing applied, or null for every rail.
+   *
+   * Source is a FILTER here, never the top-level model. The catalog page made
+   * "Grants" and "Government contracts" primary tabs, which framed the work as
+   * "which rail am I reading" instead of "what needs deciding" — and it meant a
+   * deadline in three days on the other rail was one click away from invisible.
+   */
+  source: OpportunitySource | null;
   rows: InboxRow[];
   /** Opaque. Pass back verbatim; never construct one client-side. */
   nextCursor: string | null;
   pageSize: number;
-  /** Per-filter counts, so tabs can show a number without a second round trip. */
+  /**
+   * Per-filter counts, so tabs can show a number without a second round trip.
+   *
+   * Narrowed by `clientId` when one is applied: a tab badge that counted every
+   * client while the list below it showed one would read as a broken filter.
+   */
   counts: Record<InboxFilter, number>;
+  /**
+   * Per-filter counts across EVERY visible client, present only when `clientId`
+   * narrows the view.
+   *
+   * This is what lets an empty state tell "this client has nothing in this queue"
+   * apart from "nobody has anything in this queue" — two different problems, and
+   * the first one is the reader's cue to clear the client filter rather than go
+   * looking for a broken producer.
+   */
+  countsAllClients: Record<InboxFilter, number> | null;
   /**
    * Non-null when a count could not be read. The counts then hold -1 rather than
    * 0, because "we could not count" and "there are none" are different facts and
@@ -237,9 +272,16 @@ export class FundingOpportunityInboxService {
   async list(
     tenantId: string,
     actorUserId: string,
-    query: { filter?: string; cursor?: string; pageSize?: number },
+    query: {
+      filter?: string;
+      cursor?: string;
+      pageSize?: number;
+      clientId?: string;
+      source?: string;
+    },
   ): Promise<InboxResponse> {
     const filter = this.parseFilter(query.filter);
+    const source = this.parseSource(query.source);
     const pageSize = this.parsePageSize(query.pageSize);
     const cursor = query.cursor ? decodeInboxCursor(query.cursor) : null;
     const sort = FILTER_SORT[filter];
@@ -254,9 +296,25 @@ export class FundingOpportunityInboxService {
         return this.emptyResponse(filter, pageSize, 'no visible clients');
       }
 
+      /**
+       * The selected-client narrowing, INTERSECTED with the wall rather than
+       * trusted.
+       *
+       * An unknown or walled `clientId` resolves to null — the cross-client inbox —
+       * and the response says so through `clientId`. It deliberately does NOT 404
+       * or 403: either would confirm that a client the reader may not see exists,
+       * which is the one thing an ethical wall is for. The scoped ids are always a
+       * SUBSET of `visibleClientIds`, so the wall cannot be widened by a query
+       * parameter.
+       */
+      const appliedClientId =
+        query.clientId && visibleClientIds.includes(query.clientId) ? query.clientId : null;
+      const scopedClientIds = appliedClientId ? [appliedClientId] : visibleClientIds;
+
       const where: Prisma.ClientFundingOpportunityWhereInput = {
         tenantId,
-        clientId: { in: visibleClientIds },
+        clientId: { in: scopedClientIds },
+        ...(source ? { source } : {}),
         ...this.filterWhere(filter),
         ...(cursor ? this.cursorWhere(sort, cursor) : {}),
       };
@@ -361,15 +419,27 @@ export class FundingOpportunityInboxService {
             )
           : null;
 
-      const { counts, unavailableReason } = await this.counts(tx, tenantId, visibleClientIds);
+      // Scoped counts always. The all-client set is read ONLY when a client filter
+      // is applied — otherwise it would be the identical query run twice.
+      //
+      // The SOURCE narrowing is applied to both, so a tab badge and the list under
+      // it always agree; `countsAllClients` widens the CLIENT scope only, because
+      // its one job is to answer "does another client have rows in this queue".
+      const { counts, unavailableReason } = await this.counts(tx, tenantId, scopedClientIds, source);
+      const allClients = appliedClientId
+        ? await this.counts(tx, tenantId, visibleClientIds, source)
+        : null;
 
       return {
         filter,
+        clientId: appliedClientId,
+        source,
         rows: shaped,
         nextCursor,
         pageSize,
         counts,
-        countsUnavailableReason: unavailableReason,
+        countsAllClients: allClients?.counts ?? null,
+        countsUnavailableReason: unavailableReason ?? allClients?.unavailableReason ?? null,
         generatedAt: now.toISOString(),
       };
     });
@@ -379,6 +449,20 @@ export class FundingOpportunityInboxService {
     if (raw == null || raw === '') return 'needs_review';
     if ((INBOX_FILTERS as readonly string[]).includes(raw)) return raw as InboxFilter;
     throw new BadRequestException(`filter must be one of: ${INBOX_FILTERS.join(', ')}`);
+  }
+
+  /**
+   * The optional source narrowing.
+   *
+   * An UNKNOWN source is a 400 rather than a silent widening to every rail: unlike
+   * `clientId` — where dropping the value protects the ethical wall — a mistyped
+   * source has no privacy dimension, and quietly returning grants to a caller that
+   * asked for contracts is worse than saying no.
+   */
+  private parseSource(raw: string | undefined): OpportunitySource | null {
+    if (raw == null || raw === '') return null;
+    if ((OPPORTUNITY_SOURCES as readonly string[]).includes(raw)) return raw as OpportunitySource;
+    throw new BadRequestException(`source must be one of: ${OPPORTUNITY_SOURCES.join(', ')}`);
   }
 
   private parsePageSize(raw: number | undefined): number {
@@ -513,12 +597,18 @@ export class FundingOpportunityInboxService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     visibleClientIds: string[],
+    source: OpportunitySource | null = null,
   ): Promise<{ counts: Record<InboxFilter, number>; unavailableReason: string | null }> {
     try {
       const entries = await Promise.all(
         INBOX_FILTERS.map(async (filter) => {
           const n = await tx.clientFundingOpportunity.count({
-            where: { tenantId, clientId: { in: visibleClientIds }, ...this.filterWhere(filter) },
+            where: {
+              tenantId,
+              clientId: { in: visibleClientIds },
+              ...(source ? { source } : {}),
+              ...this.filterWhere(filter),
+            },
           });
           return [filter, n] as const;
         }),
@@ -538,15 +628,18 @@ export class FundingOpportunityInboxService {
   }
 
   private emptyResponse(filter: InboxFilter, pageSize: number, reason: string): InboxResponse {
+    this.logger.debug(`inbox returned empty: ${reason}`);
     return {
       filter,
+      clientId: null,
+      source: null,
       rows: [],
       nextCursor: null,
       pageSize,
       counts: Object.fromEntries(INBOX_FILTERS.map((f) => [f, 0])) as Record<InboxFilter, number>,
+      countsAllClients: null,
       countsUnavailableReason: null,
       generatedAt: new Date().toISOString(),
-      ...(reason ? {} : {}),
     };
   }
 }

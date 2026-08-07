@@ -268,10 +268,121 @@ export interface ClientFundingOpportunitySummary {
   generatedAt: string;
 }
 
+// ── The cross-client triage inbox ───────────────────────────────────────────
+
+/**
+ * Mirrors INBOX_FILTERS in apps/api's funding-opportunity-inbox.service.ts.
+ *
+ * ORDER IS THE TAB ORDER. `needs_review` is first because it is the API default
+ * and the question the surface exists to answer; `passed` is last because it is
+ * history.
+ */
+export const INBOX_FILTERS = [
+  'needs_review',
+  'pursuing',
+  'deadlines',
+  'recently_changed',
+  'monitoring',
+  'passed',
+] as const;
+export type InboxFilter = (typeof INBOX_FILTERS)[number];
+
+export const INBOX_FILTER_LABELS: Record<InboxFilter, string> = {
+  needs_review: 'Needs review',
+  pursuing: 'Pursuing',
+  deadlines: 'Deadlines',
+  recently_changed: 'Recently changed',
+  monitoring: 'Monitoring',
+  passed: 'Passed',
+};
+
+/**
+ * What each queue actually contains, for the empty state and the tab tooltip.
+ *
+ * Written as facts about the DATA rather than instructions, because an empty
+ * queue's job is to say what would have to be true for a row to appear here.
+ */
+export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
+  needs_review: 'Machine suggestions nobody has decided on yet, whose source is still open.',
+  pursuing: 'Opportunities somebody decided to pursue, or whose workflow is already pursuing.',
+  deadlines: 'Dated, still-open opportunities nobody has passed on.',
+  recently_changed: 'Everything the sources or the team touched most recently, passes excluded.',
+  monitoring: 'Opportunities a human decided to watch rather than bid.',
+  passed: 'Opportunities the team declined. Kept, because a decision is a durable fact.',
+};
+
+/** Mirrors InboxRow in apps/api. One CLIENT-OPPORTUNITY decision context. */
+export interface InboxRow {
+  id: string;
+  client: { id: string; name: string };
+  source: OpportunitySource;
+  sourceRecordId: string;
+  title: string;
+  agency: string | null;
+  responseDeadline: string | null;
+  daysUntilDeadline: number | null;
+  workflowStatus: string;
+  humanDecision: string | null;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+  owner: { userId: string; name: string | null; email: string | null } | null;
+  relevanceScore: number | null;
+  eligibility: { state: string | null; reason: string | null };
+  /** The producer stopped suggesting this, but a human decision stands. */
+  noLongerSuggested: boolean;
+  /** The SOURCE has closed since it was last observed. */
+  sourceClosed: boolean;
+  updatedAt: string;
+}
+
+/** Mirrors InboxResponse in apps/api. */
+export interface InboxResponse {
+  filter: InboxFilter;
+  /**
+   * The client narrowing the server ACTUALLY applied, which is not necessarily
+   * the one requested: a walled or unknown id is dropped and reported as null.
+   * Render from this, never from the request parameter.
+   */
+  clientId: string | null;
+  /**
+   * The source narrowing the server applied, or null for every rail. Source is a
+   * FILTER on this surface, never the top-level model.
+   */
+  source: OpportunitySource | null;
+  rows: InboxRow[];
+  nextCursor: string | null;
+  pageSize: number;
+  counts: Record<InboxFilter, number>;
+  /** Counts across every visible client. Non-null only when `clientId` narrows. */
+  countsAllClients: Record<InboxFilter, number> | null;
+  /**
+   * Non-null when a count could not be read. The counts then hold -1, because
+   * "we could not count" and "there are none" are different facts.
+   */
+  countsUnavailableReason: string | null;
+  generatedAt: string;
+}
+
+/** A count of -1 means "unreadable", not "none". Never render it as a number. */
+export function formatInboxCount(n: number | undefined): string {
+  if (n == null) return '—';
+  return n < 0 ? '?' : String(n);
+}
+
 // ── Display helpers ─────────────────────────────────────────────────────────
 
 /** The intel-api flag key gating the whole surface. Byte-matches the API guard. */
 export const FUNDING_OPPORTUNITIES_FEATURE = 'funding_opportunities';
+
+/**
+ * The client-first inbox flag. Byte-matches
+ * FUNDING_OPPORTUNITIES_INBOX_FEATURE in the API's flag guard.
+ *
+ * SEPARATE from the master flag on purpose: the inbox changes what the default
+ * experience IS, so a tenant already using the catalog keeps it until this is
+ * explicitly turned on for them.
+ */
+export const FUNDING_OPPORTUNITIES_INBOX_FEATURE = 'funding_opportunities_client_inbox';
 
 export const KIND_LABELS: Record<OpportunityKind, string> = {
   grant: 'Grant',
