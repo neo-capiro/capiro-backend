@@ -539,6 +539,48 @@ that needs to. `psc_code` and `source_url` stay as columns for a future
 provider release but are confirmed absent from this resource today, same
 posture as D-35/D-41's other confirmed-absent fields.
 
+### Forecast recommendation and lifecycle rules (P25) — no migration, no new caller either
+
+`forecast-relevance.ts` ships in this merge: a pure, DB-free scoring
+function (`scoreForecastRelevance`), exactly matching this phase's own
+plan file list — no new Prisma model, no producer script, no DI-registered
+service. **Nothing calls it with real data yet.** That wiring — a producer
+proposing `client_funding_opportunity` rows for forecasts relevant to a
+real client — is P26+ scope; this phase ships the rules "logic dark," per
+its own ship instruction, and decision-log D-47 records exactly why the
+file list stops there rather than growing to include a caller.
+
+There is nothing to run or verify live for this phase specifically — the
+function takes no network dependency of its own, and its inputs
+(`FederalBusinessProfile` from P21, `AcquisitionPosition` from P23, real
+forecast data from P24) are each already live-verified in their own
+phases. Correctness here rests on the exhaustive unit suite instead: 23
+tests plus a 144-case cross-product sweep proving, among other things,
+that `machineRecommendation` never once produces `'pursue'` and that the
+word "deadline" never appears in any output text on any branch.
+
+**Read this if a forecast-sourced inbox row ever renders "Source record no
+longer in the catalog" and you are sure the forecast still exists.** That
+was a real, confirmed bug (decision-log D-47) in
+`funding-opportunity-inbox.service.ts`'s `titlesFor`, fixed this phase: the
+lookup key used to come from the two legacy pointers only, never
+consulting P13's own generic `sourceRecordKey` column, so a row addressed
+purely through the generic identity always fell through to the "gone"
+message. Fixed via `readSourceRecordId` — the same dual-read helper the
+row's own `sourceRecordId` field already used two lines away. No
+producer writes an `agency_forecast` row today, so if you are seeing this
+message on a REAL row, the more likely explanation is still a genuinely
+deleted or mistyped forecast id — this fix only changes what happens once
+such a row exists at all.
+
+```bash
+# READ-ONLY. Confirm the fix's own boundary hasn't drifted: no write path,
+# no widened API vocabulary. (Also runs as part of the normal test suite —
+# this is for a manual spot-check.)
+cd apps/api
+pnpm exec jest funding-opportunity-identity.spec.ts --silent
+```
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

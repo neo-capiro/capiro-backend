@@ -373,7 +373,11 @@ export class FundingOpportunityInboxService {
 
       const now = new Date();
       const shaped: InboxRow[] = page.map((row) => {
-        const key = `${row.source}:${row.grantOpportunityId ?? row.samOpportunityId ?? ''}`;
+        // readSourceRecordId, not a hand-rolled grantOpportunityId ??
+        // samOpportunityId fallback (P25 fix) — see titlesFor's own doc for
+        // why the fallback alone could never match a generic-identity-only
+        // row (both legacy pointers null) in the first place.
+        const key = `${row.source}:${readSourceRecordId(row) ?? ''}`;
         const meta = titlesByKey.get(key);
         const owner = row.ownerUserId ? ownersById.get(row.ownerUserId) : undefined;
         const deadline = row.responseDeadlineSnapshot;
@@ -558,20 +562,46 @@ export class FundingOpportunityInboxService {
   }
 
   /**
-   * Titles and agencies for one page, in two queries — one per rail.
+   * Titles and agencies for one page, in three queries — one per rail.
    *
-   * tenant-scope-exempt: `federal_grant` and `sam_opportunity` are global
-   * public-domain federal reference tables with no tenant_id, same as
-   * `federal_award`. The rows fetched are constrained to ids that already came from
-   * this tenant's own workflow rows.
+   * tenant-scope-exempt: `federal_grant`, `sam_opportunity` and
+   * `tango_procurement_forecast` are global public-domain federal reference
+   * tables with no tenant_id, same as `federal_award`. The rows fetched are
+   * constrained to ids that already came from this tenant's own workflow
+   * rows.
+   *
+   * KEYED VIA `readSourceRecordId`, NOT a hand-rolled
+   * `grantOpportunityId ?? samOpportunityId` fallback (P25 fix). A row
+   * addressed purely through P13's generic identity — both legacy pointers
+   * null, `sourceRecordKey` set — is exactly the shape
+   * `SOURCE_RECORD_TYPES.agency_forecast = 'tango_procurement_forecast'`
+   * (`funding-opportunity-identity.ts`) already anticipates, and the ONLY
+   * thing missing was this function actually looking one up: before this
+   * fix, ANY such row computed an empty-id key (`"agency_forecast:"`) here
+   * and unconditionally rendered "Source record no longer in the catalog"
+   * — not because the record was gone, but because this function never knew
+   * to look. No producer writes an `agency_forecast` row yet (that starts in
+   * a later phase), so this was unreachable with today's data — same shape
+   * of finding as decision-log D-41/D-44's other dormant-but-tested paths —
+   * but it was a real, findable bug in the meantime for anyone reaching this
+   * path by hand.
    */
   private async titlesFor(
     tx: Prisma.TransactionClient,
-    rows: Array<{ source: string; grantOpportunityId: string | null; samOpportunityId: string | null }>,
+    rows: Array<{
+      source: string;
+      grantOpportunityId: string | null;
+      samOpportunityId: string | null;
+      sourceRecordKey: string | null;
+    }>,
   ): Promise<Map<string, { title: string; agency: string | null }>> {
     const grantIds = rows.map((r) => r.grantOpportunityId).filter((v): v is string => v != null);
     const samIds = rows.map((r) => r.samOpportunityId).filter((v): v is string => v != null);
-    const [grants, sam] = await Promise.all([
+    const forecastIds = rows
+      .filter((r) => r.source === 'agency_forecast')
+      .map((r) => readSourceRecordId(r))
+      .filter((v): v is string => v != null);
+    const [grants, sam, forecasts] = await Promise.all([
       grantIds.length
         ? tx.federalGrant.findMany({
             where: { id: { in: [...new Set(grantIds)] } },
@@ -584,10 +614,17 @@ export class FundingOpportunityInboxService {
             select: { id: true, title: true, agency: true },
           })
         : Promise.resolve([]),
+      forecastIds.length
+        ? tx.tangoProcurementForecast.findMany({
+            where: { tangoForecastId: { in: [...new Set(forecastIds)] } },
+            select: { tangoForecastId: true, title: true, agency: true },
+          })
+        : Promise.resolve([]),
     ]);
     const out = new Map<string, { title: string; agency: string | null }>();
     for (const g of grants) out.set(`grants_gov:${g.id}`, { title: g.title, agency: g.agency });
     for (const s of sam) out.set(`sam_gov:${s.id}`, { title: s.title, agency: s.agency });
+    for (const f of forecasts) out.set(`agency_forecast:${f.tangoForecastId}`, { title: f.title, agency: f.agency });
     return out;
   }
 

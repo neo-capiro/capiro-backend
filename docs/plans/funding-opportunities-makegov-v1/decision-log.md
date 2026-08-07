@@ -1491,3 +1491,80 @@ forecast version history emerges later (e.g., tracking how an anticipated
 award date has slipped over time), that is a new, separate table to design
 against that specific question — not a retrofit of `tango_resource_snapshot`
 onto a resource shape it was never sized for.
+
+---
+
+## D-47 · 2026-08-07 · Forecast recommendation stays a pure, unwired function — and a real title-resolution bug found while proving it stays safe
+
+P25's plan lists four files: `forecast-relevance.ts`, its spec,
+`opportunity-recommendation.ts`, and `funding-opportunity-inbox.service.ts`.
+No producer script, no new Prisma model, no DI-registered service calling
+`FederalBusinessProfileService`/`AcquisitionPositionService` live. That
+file list, read literally against "ship logic dark" (this phase's own ship
+instruction), is the specification: the SCORING FUNCTION exists, complete
+and exhaustively tested; nothing yet calls it with real signals gathered
+from a real client and a real forecast. That wiring — a producer that
+proposes `client_funding_opportunity` rows for relevant forecasts, the
+thing that would make "forecasts can enter the inbox" observable in a real
+tenant — is P26+ scope, not this one.
+
+**`shape_now` maps to `'monitor'` in the common vocabulary, never
+`'pursue'`, and this is load-bearing, not stylistic.**
+`FundingOpportunityCounts.pursuing` and the inbox's own `pursuing` filter
+predicate are keyed on `workflowStatus`/`humanDecision` alone — confirmed
+by reading both directly, neither has a source-aware carve-out to add one
+later. A forecast whose `machineRecommendation` ever reached `'pursue'`
+would count toward pursuit-stage KPIs the moment a producer existed to
+propose it, with no additional code required to make that happen — exactly
+what "not pursuit-stage KPIs until a human explicitly qualifies them"
+(this phase's own acceptance line) forbids. Mapping `shape_now` to
+`'monitor'` closes that door structurally, at the vocabulary level, rather
+than relying on every future caller remembering not to open it.
+
+**A real bug, found while proving the boundary above stays where the plan
+puts it.** Extending `funding-opportunity-inbox.service.ts` was scoped down
+to the minimum defensible touch: NOT a new write path, NOT widening
+`OPPORTUNITY_SOURCES` — just making the EXISTING generic-identity read
+path (P13's own `sourceRecordType`/`sourceRecordKey` columns, present on
+`client_funding_opportunity` since that phase) actually resolve a title.
+Tracing exactly why it did not already work found `titlesFor`'s lookup key
+was built from `` `${row.source}:${row.grantOpportunityId ?? row.samOpportunityId ?? ''}` `` — never consulting `sourceRecordKey` at all. A row
+addressed purely through the generic identity (both legacy pointers null,
+exactly what P13's own DB CHECK constraint already requires for any
+non-legacy source) computed an empty-id key and ALWAYS rendered "Source
+record no longer in the catalog" — not because the record was gone, but
+because this function never knew to look. `readSourceRecordId` (P13's own
+dual-read helper, already used two lines below for the row's OWN
+`sourceRecordId` field) was sitting unused for exactly this purpose. No
+producer writes an `agency_forecast` row today, so this was unreachable
+with live data — same shape of finding as D-41/D-44's other dormant-but-
+tested paths — but it was a real, findable defect in the meantime for
+anyone reaching this path by hand, and is now fixed and proven both ways
+(a forecast row WITH a matching catalog entry resolves its real title; one
+WITHOUT still honestly says "gone").
+
+**The boundary this fix does NOT cross, proven as tests, not just
+asserted in prose:** `funding-opportunity-identity.spec.ts`'s own P13-era
+guard (`'no new source is enabled by this phase'`) scans a fixed file list
+for the literal string `'agency_forecast'` and fails if it appears —
+correctly, since this phase's touch to `funding-opportunity-inbox.service.ts`
+does now contain it. Rather than work around the string (e.g., referencing
+`SOURCE_RECORD_TYPES` instead of the literal, which would satisfy the scan
+without satisfying its actual purpose), the guard was narrowed HONESTLY:
+`funding-opportunity-inbox.service.ts` moved out of the blanket "never
+names a planned source" list into its own describe block asserting the
+exact, narrower thing that stayed true — no
+`clientFundingOpportunity.create/update/upsert` call anywhere in the file
+(the exception is read-only by construction), `OPPORTUNITY_SOURCES`
+unchanged, and the `?source=` query-param filter still only accepting the
+two legacy sources.
+
+**What this forbids:** adding a `ForecastRelevanceService`, a producer
+script, or any DI wiring that calls `scoreForecastRelevance` with real
+data under this phase's own commit — that is a deliberate, separate,
+later decision (P26+), not an oversight here. Any future write path for an
+`agency_forecast`-sourced `client_funding_opportunity` row must widen
+`OPPORTUNITY_SOURCES` and update `funding-opportunity-identity.spec.ts`'s
+guard explicitly when it does — the point of narrowing the guard here
+rather than deleting it is that the NEXT boundary-crossing gets caught by
+a failing test too, the same way this one was.

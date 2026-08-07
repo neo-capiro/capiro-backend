@@ -1,5 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import {
+  FORECAST_RECOMMENDATIONS,
+  FORECAST_TO_MACHINE_RECOMMENDATION,
   IMMINENT_DEADLINE_DAYS,
   MACHINE_RECOMMENDATIONS,
   RECOMMENDATION_CONFIDENCES,
@@ -51,6 +53,19 @@ describe('the vocabularies are bounded', () => {
 
   test('confidence is evidence quality, expressed in three bands', () => {
     expect([...RECOMMENDATION_CONFIDENCES]).toEqual(['high', 'medium', 'low']);
+  });
+
+  test('the forecast vocabulary (P25) is shape_now/monitor/pass/needs_review, and maps to the common one WITHOUT ever producing pursue', () => {
+    expect([...FORECAST_RECOMMENDATIONS]).toEqual(['shape_now', 'monitor', 'pass', 'needs_review']);
+    for (const forecastRec of FORECAST_RECOMMENDATIONS) {
+      const mapped = FORECAST_TO_MACHINE_RECOMMENDATION[forecastRec];
+      expect([...MACHINE_RECOMMENDATIONS]).toContain(mapped);
+      expect(mapped).not.toBe('pursue');
+    }
+    // The one case worth naming explicitly: the STRONGEST forecast signal
+    // still lands on 'monitor', never 'pursue' — see this constant's own
+    // doc in opportunity-recommendation.ts for why.
+    expect(FORECAST_TO_MACHINE_RECOMMENDATION.shape_now).toBe('monitor');
   });
 
   test('every reason code a rule can emit is in the declared vocabulary', () => {
