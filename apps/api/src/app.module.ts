@@ -48,6 +48,7 @@ import { InternalOnboardingModule } from './internal-onboarding/internal-onboard
 // Defense budget packages: global public-domain funding read APIs (R3 §3.4).
 import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
+import { TangoModule } from './external/tango/tango.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
 @Module({
@@ -64,6 +65,15 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
       cache: true,
       validate: (raw) => validateConfig(raw as Record<string, unknown>),
     }),
+    // MakeGov/Tango provider boundary (P14). Registered UNCONDITIONALLY and
+    // configured optionally: with no TANGO_API_KEY the gateway constructs fine,
+    // makes no network call and reads no secret, so boot is identical either way.
+    //
+    // Conditional registration would turn a missing environment variable into a
+    // startup dependency-resolution failure — the API refusing to boot because an
+    // additive, dark provider is not configured yet. Same reasoning as
+    // GovInfoModule above.
+    TangoModule,
     // Per-IP rate limiting at the application edge. WAF already drops
     // sustained 2000 req/IP at the ALB; this is the second-layer defence
     // that catches accidental client loops and bot-net-style fan-out within

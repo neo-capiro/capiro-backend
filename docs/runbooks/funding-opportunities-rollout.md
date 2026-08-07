@@ -140,6 +140,15 @@ pre-P13 code during the deploy window; re-running the two `UPDATE` statements fr
 the migration file is safe and fixes it. A non-zero second count is a real defect —
 stop and investigate, do not "repair" it.
 
+### The Tango adapter (P14) — nothing to deploy differently
+
+`src/external/tango/` and the `@makegov/tango-node` dependency ship in this
+merge. There is no live call path: `TangoModule` registers unconditionally and
+every gateway method throws `TangoNotConfiguredError` until `TANGO_API_KEY`
+exists (P16 wires the config; P17 is the first phase that reads a real key).
+Nothing here changes the deploy sequence below — verify the API still boots with
+no `TANGO_API_KEY` set, which is the same as verifying nothing at all changed.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

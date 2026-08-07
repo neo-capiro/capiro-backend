@@ -1,0 +1,46 @@
+{
+  "_comment": "SYNTHETIC, against IDV_SCHEMA. The recipient block is nested, which is what the shape's recipient(uei,display_name,legal_business_name,parent_uei) selector returns. One awardee has no recipient at all, and one is on the vehicle only through a PARENT — an awardee Capiro cannot tie to the client's own UEI is never evidence of direct access.",
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "cursor": null,
+  "results": [
+    {
+      "uuid": "11111111-aaaa-4bbb-8ccc-000000000001",
+      "key": "SYN-CONTRACT-1",
+      "piid": "SYN0001",
+      "title": "Synthetic Turbine Works — SYN-MAC award",
+      "award_date": "2024-05-01",
+      "order_count": 17,
+      "idv_obligations": "820000.00",
+      "idv_contracts_value": "4100000.00",
+      "recipient": {
+        "uei": "ZZTESTUEI001",
+        "display_name": "Synthetic Turbine Works LLC",
+        "legal_business_name": "Synthetic Turbine Works LLC",
+        "parent_uei": null
+      }
+    },
+    {
+      "uuid": "11111111-aaaa-4bbb-8ccc-000000000002",
+      "key": "SYN-CONTRACT-2",
+      "piid": "SYN0002",
+      "award_date": "2023-01-15",
+      "order_count": 0,
+      "idv_obligations": null,
+      "recipient": null
+    },
+    {
+      "uuid": "11111111-aaaa-4bbb-8ccc-000000000003",
+      "key": "SYN-CONTRACT-3",
+      "piid": "SYN0003",
+      "award_date": "2025-02-02",
+      "order_count": 4,
+      "recipient": {
+        "uei": "ZZTESTUEI777",
+        "display_name": "Synthetic Holdings Subsidiary",
+        "parent_uei": "ZZTESTUEI001"
+      }
+    }
+  ]
+}
