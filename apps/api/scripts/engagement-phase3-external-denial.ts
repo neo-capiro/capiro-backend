@@ -4,13 +4,18 @@
  *
  * Drives every current UI consumer classified `external_action` through the
  * localhost preview proxy, requires the exact shadow denial and service header,
- * and compares a before/after digest of every side-effect-bearing Engagement
- * table. This proves refusal rather than relying on a provider/S3 failure.
+ * and compares a before/after digest of every relevant tenant-scoped business,
+ * draft, provider, AI-usage, and audit table. This proves refusal rather than
+ * relying on a provider/S3 failure or on a narrow hand-picked projection.
  */
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import {
+  PHASE3_REQUIRED_CONTAINMENT_TABLES,
+  isPhase3ProtectedSideEffectTable,
+} from './engagement-phase3-containment-tables.js';
 
 interface InventoryRequest {
   method: string;
@@ -29,6 +34,11 @@ interface FixtureIndex {
   ids: Record<string, string>;
 }
 
+interface TableDigest {
+  count: number;
+  digest: string;
+}
+
 const ROOT = path.resolve(__dirname, '../../..');
 const INVENTORY = path.join(
   ROOT,
@@ -39,6 +49,8 @@ const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');
 const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
 const PROXY_URL = process.env.ENGAGEMENT_PHASE3_PROXY_URL ?? 'http://127.0.0.1:4600';
 const EXPECTED_CODE = 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SAFE_IDENTIFIER = /^[a-z0-9_]+$/;
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -50,25 +62,71 @@ function sha(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+async function discoverProtectedTables(prisma: PrismaService): Promise<string[]> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ table_name: string }>>(`
+    SELECT DISTINCT t.table_name
+    FROM information_schema.tables AS t
+    JOIN information_schema.columns AS c
+      ON c.table_schema = t.table_schema
+     AND c.table_name = t.table_name
+     AND c.column_name = 'tenant_id'
+    WHERE t.table_schema = 'public'
+      AND t.table_type = 'BASE TABLE'
+    ORDER BY t.table_name
+  `);
+  const tables = rows
+    .map((row) => row.table_name)
+    .filter((table) => isPhase3ProtectedSideEffectTable(table));
+
+  for (const table of tables) {
+    if (!SAFE_IDENTIFIER.test(table)) {
+      throw new Error(`PostgreSQL returned an unsafe table identifier: ${table}`);
+    }
+  }
+  const missing = PHASE3_REQUIRED_CONTAINMENT_TABLES.filter(
+    (requiredTable) => !tables.includes(requiredTable),
+  );
+  if (missing.length) {
+    throw new Error(
+      `Phase 3 containment discovery is missing required table(s): ${missing.join(', ')}`,
+    );
+  }
+  return tables;
+}
+
 /**
- * Hash complete rows, not a hand-picked projection. The full-row digest is
- * deliberately stronger and also immune to verifier drift when a model gains
- * a new side-effect-bearing column.
+ * Hash complete rows for every protected table. Ordering by the JSON text avoids
+ * assuming each table has an `id` column and catches inserts, deletes, and any
+ * field update, including a generated-success audit/usage row.
  */
-async function sideEffectState(prisma: PrismaService, tenantIds: string[]) {
-  const where = { tenantId: { in: tenantIds } };
-  return prisma.withSystem(async (tx) => ({
-    outreachJobs: await tx.outreachJob.findMany({ where, orderBy: { id: 'asc' } }),
-    sendIntents: await tx.outreachSendIntent.findMany({ where, orderBy: { id: 'asc' } }),
-    deliveries: await tx.outreachDelivery.findMany({ where, orderBy: { id: 'asc' } }),
-    outreachRecords: await tx.outreachRecord.findMany({ where, orderBy: { id: 'asc' } }),
-    botSessions: await tx.meetingBotSession.findMany({ where, orderBy: { id: 'asc' } }),
-    connections: await tx.integrationConnection.findMany({ where, orderBy: { id: 'asc' } }),
-    connectionTokens: await tx.integrationConnectionToken.findMany({ where, orderBy: { id: 'asc' } }),
-    attachments: await tx.engagementAttachment.findMany({ where, orderBy: { id: 'asc' } }),
-    preps: await tx.meetingPrep.findMany({ where, orderBy: { id: 'asc' } }),
-    debriefs: await tx.meetingDebrief.findMany({ where, orderBy: { id: 'asc' } }),
-  }));
+async function sideEffectState(
+  prisma: PrismaService,
+  tenantIds: string[],
+): Promise<Record<string, TableDigest>> {
+  for (const id of tenantIds) {
+    if (!UUID.test(id)) throw new Error(`Unsafe Phase 3 tenant id: ${id}`);
+  }
+  const tenantSql = tenantIds.map((id) => `'${id}'::uuid`).join(', ');
+  const tables = await discoverProtectedTables(prisma);
+  const state: Record<string, TableDigest> = {};
+
+  for (const table of tables) {
+    const result = await prisma.$queryRawUnsafe<Array<{ count: bigint; digest: string }>>(`
+      SELECT
+        COUNT(*)::bigint AS count,
+        COALESCE(
+          md5(string_agg(to_jsonb(t)::text, '|' ORDER BY to_jsonb(t)::text)),
+          md5('')
+        ) AS digest
+      FROM "${table}" AS t
+      WHERE t.tenant_id IN (${tenantSql})
+    `);
+    state[table] = {
+      count: Number(result[0]?.count ?? 0n),
+      digest: result[0]?.digest ?? '',
+    };
+  }
+  return state;
 }
 
 function materializePath(pathname: string, fallbackId: string): string {
@@ -88,11 +146,13 @@ async function main(): Promise<void> {
   });
   const fallbackId =
     fixtures.ids['absent.meeting'] ??
-    Object.values(fixtures.ids).find((id) => /^[0-9a-f-]{36}$/i.test(id));
+    Object.values(fixtures.ids).find((id) => UUID.test(id));
   if (!fallbackId) throw new Error('Fixture index has no well-formed fallback UUID');
 
   const unique = new Map<string, InventoryRequest>();
-  for (const request of inventory.requests.filter((row) => row.classification === 'external_action')) {
+  for (const request of inventory.requests.filter(
+    (row) => row.classification === 'external_action',
+  )) {
     unique.set(`${request.method} ${request.requestPath}`, request);
   }
   if (!unique.size) throw new Error('UI inventory contains no external-action requests');
@@ -101,6 +161,7 @@ async function main(): Promise<void> {
   await prisma.$connect();
   try {
     const before = await sideEffectState(prisma, tenantIds);
+    const protectedTables = Object.keys(before);
     const beforeHash = sha(before);
     const results: Array<Record<string, unknown>> = [];
 
@@ -145,7 +206,12 @@ async function main(): Promise<void> {
     const after = await sideEffectState(prisma, tenantIds);
     const afterHash = sha(after);
     if (afterHash !== beforeHash) {
-      throw new Error('External-action denial sweep mutated protected Engagement state');
+      const changed = protectedTables.filter(
+        (table) => JSON.stringify(before[table]) !== JSON.stringify(after[table]),
+      );
+      throw new Error(
+        `External-action denial sweep mutated protected Engagement state: ${changed.join(', ')}`,
+      );
     }
 
     await writeFile(
@@ -154,6 +220,8 @@ async function main(): Promise<void> {
         {
           marker: 'ENGAGEMENT_PHASE3_EXTERNAL_ACTION_DENIALS_COMPLETE',
           routes: results.length,
+          protectedTables,
+          protectedTableCount: protectedTables.length,
           beforeHash,
           afterHash,
           unchanged: true,
@@ -163,7 +231,10 @@ async function main(): Promise<void> {
         2,
       )}\n`,
     );
-    console.log(`ENGAGEMENT_PHASE3_EXTERNAL_ACTION_DENIALS_COMPLETE routes=${results.length}`);
+    console.log(
+      `ENGAGEMENT_PHASE3_EXTERNAL_ACTION_DENIALS_COMPLETE routes=${results.length} ` +
+        `tables=${protectedTables.length}`,
+    );
   } finally {
     await prisma.$disconnect();
   }
