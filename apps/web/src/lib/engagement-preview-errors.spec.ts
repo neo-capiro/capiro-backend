@@ -1,11 +1,18 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
+import {
+  activateEngagementPreview,
+  clearEngagementPreview,
+} from './engagement-api-preview.js';
 import {
   ENGAGEMENT_EXTERNAL_ACTION_DISABLED,
   ENGAGEMENT_PREVIEW_EXTERNAL_ACTION_MESSAGE,
   ENGAGEMENT_PREVIEW_ROUTE_MISS,
+  ENGAGEMENT_PREVIEW_STALE_RESPONSE,
   assertEngagementPreviewResponseIdentity,
+  assertEngagementRequestModeCurrent,
   markEngagementPreviewRequest,
+  markEngagementRequest,
   normalizeEngagementPreviewError,
   wasEngagementPreviewRequest,
 } from './engagement-preview-errors.js';
@@ -16,6 +23,7 @@ function response(
 ): AxiosResponse {
   const config = { headers: {} } as AxiosRequestConfig;
   if (preview) markEngagementPreviewRequest(config);
+  else markEngagementRequest(config, 'main');
   return {
     data: {},
     status: 200,
@@ -31,11 +39,15 @@ function axiosError(res: AxiosResponse): Error & { response: AxiosResponse; code
 }
 
 describe('Engagement preview response identity', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   test('accepts the exact engagement-api service identity on a marked request', () => {
     expect(() => assertEngagementPreviewResponseIdentity(response())).not.toThrow();
   });
 
-  test.each([undefined, 'main-api', 'ENGAGEMENT-API']) (
+  test.each([undefined, 'main-api', 'ENGAGEMENT-API'])(
     'rejects a marked response whose service identity is %s',
     (service) => {
       const headers = service ? { 'x-capiro-service': service } : {};
@@ -62,7 +74,44 @@ describe('Engagement preview response identity', () => {
   });
 });
 
+describe('Engagement request-mode freshness', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  test('accepts main response while main remains current', () => {
+    expect(() => assertEngagementRequestModeCurrent(response({}, false))).not.toThrow();
+  });
+
+  test('accepts preview response while preview remains current', () => {
+    activateEngagementPreview();
+    expect(() => assertEngagementRequestModeCurrent(response())).not.toThrow();
+  });
+
+  test('negative control: preview response after toggle-off is discarded', () => {
+    activateEngagementPreview();
+    const res = response();
+    clearEngagementPreview();
+    expect(() => assertEngagementRequestModeCurrent(res)).toThrowError(
+      expect.objectContaining({ code: ENGAGEMENT_PREVIEW_STALE_RESPONSE }),
+    );
+  });
+
+  test('negative control: main response after toggle-on is discarded', () => {
+    const res = response({}, false);
+    activateEngagementPreview();
+    expect(() => assertEngagementRequestModeCurrent(res)).toThrowError(
+      expect.objectContaining({ code: ENGAGEMENT_PREVIEW_STALE_RESPONSE }),
+    );
+  });
+});
+
 describe('Engagement preview denial normalization', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    activateEngagementPreview();
+  });
+
   test('translates only the exact external-action denial code', () => {
     const res = response({
       status: 503,
