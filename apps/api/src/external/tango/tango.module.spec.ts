@@ -2,8 +2,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TangoModule } from './tango.module.js';
 import { TangoGatewayService } from './tango.client.js';
+import { TangoResilienceService } from './tango-resilience.service.js';
 import { TangoStoreService } from './tango-store.service.js';
-import { TANGO_GATEWAY, type TangoGateway } from './tango.types.js';
+import { TANGO_GATEWAY, TANGO_RESILIENT_GATEWAY, type TangoGateway } from './tango.types.js';
 import { TangoNotConfiguredError } from './tango.errors.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 
@@ -99,5 +100,70 @@ describe('the module boots with or without a key', () => {
     const { join } = await import('node:path');
     const source = readFileSync(join(__dirname, 'tango.module.ts'), 'utf8');
     expect(source).not.toMatch(/SecretsManager|getSecretValue|fetch\(|https?:\/\//);
+  });
+});
+
+describe('the resilient wrapper (P18) is exported and config-driven', () => {
+  test('it resolves with NO key at all, same as the raw gateway', async () => {
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    const resilient = moduleRef.get<TangoGateway>(TANGO_RESILIENT_GATEWAY);
+    expect(resilient).toBeInstanceOf(TangoResilienceService);
+    expect(resilient.configured).toBe(false);
+    await moduleRef.close();
+  });
+
+  test('an unconfigured wrapped gateway still fails only when CALLED, with the SAME error type', async () => {
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    const resilient = moduleRef.get<TangoGateway>(TANGO_RESILIENT_GATEWAY);
+    await expect(resilient.getVersion()).rejects.toBeInstanceOf(TangoNotConfiguredError);
+    await moduleRef.close();
+  });
+
+  test('it wraps a DIFFERENT instance than the raw TANGO_GATEWAY token', async () => {
+    // The two tokens are deliberately not aliases of the same object — see
+    // tango-resilience.service.ts's class doc on why both continue to exist.
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    const raw = moduleRef.get(TANGO_GATEWAY);
+    const resilient = moduleRef.get(TANGO_RESILIENT_GATEWAY);
+    expect(resilient).not.toBe(raw);
+    expect(raw).toBeInstanceOf(TangoGatewayService);
+    expect(resilient).toBeInstanceOf(TangoResilienceService);
+    await moduleRef.close();
+  });
+
+  test('the request ceiling and breaker settings are picked up from config, not hard-coded', async () => {
+    // This harness's bare ConfigModule.forRoot (no `validate:` schema hook,
+    // unlike app.module.ts's real wiring two files up) does not coerce env
+    // strings to numbers the way the real app's Zod schema does — that
+    // coercion is already proven by config.schema.spec.ts. This test only
+    // proves the WIRING reaches the service instead of a hard-coded value,
+    // so it compares numerically rather than assuming either representation.
+    const moduleRef = await build({
+      TANGO_API_KEY: undefined,
+      TANGO_REQUEST_CEILING_PER_RUN: '17',
+      TANGO_CIRCUIT_BREAKER_THRESHOLD: '3',
+      TANGO_CIRCUIT_BREAKER_COOLDOWN_MS: '9000',
+    });
+    const resilient = moduleRef.get<TangoResilienceService>(TANGO_RESILIENT_GATEWAY);
+    const health = resilient.getHealth();
+    expect(Number(health.requestCeiling)).toBe(17);
+    expect(Number(health.breakerThreshold)).toBe(3);
+    await moduleRef.close();
+  });
+
+  test('with no override, the documented defaults apply', async () => {
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    const resilient = moduleRef.get<TangoResilienceService>(TANGO_RESILIENT_GATEWAY);
+    const health = resilient.getHealth();
+    expect(health.requestCeiling).toBe(5_000);
+    expect(health.breakerThreshold).toBe(5);
+    expect(health.breakerState).toBe('closed');
+    await moduleRef.close();
+  });
+
+  test('TangoStoreService (P15) is also exported', async () => {
+    const moduleRef = await build({ TANGO_API_KEY: undefined });
+    expect(moduleRef.get(TangoStoreService)).toBeInstanceOf(TangoStoreService);
+    await moduleRef.close();
   });
 });

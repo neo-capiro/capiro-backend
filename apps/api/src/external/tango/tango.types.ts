@@ -324,3 +324,15 @@ export interface TangoGateway {
 
 /** DI token. Product code injects the INTERFACE, never the implementation class. */
 export const TANGO_GATEWAY = Symbol('TANGO_GATEWAY');
+
+/**
+ * DI token for the resilient wrapper (P18): retry, circuit breaker, request
+ * ceiling, and usage recording around {@link TANGO_GATEWAY}. Implements the
+ * SAME `TangoGateway` interface, so a consumer switching between the two
+ * tokens changes nothing about how it calls the methods — only whether
+ * calling them is protected. P19 and later sync/enrichment phases should
+ * inject THIS token, not the raw one, unless they have a specific, documented
+ * reason not to want that protection (see tango-resilience.service.ts's class
+ * doc for why both tokens continue to exist side by side).
+ */
+export const TANGO_RESILIENT_GATEWAY = Symbol('TANGO_RESILIENT_GATEWAY');

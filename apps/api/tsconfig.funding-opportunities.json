@@ -57,7 +57,10 @@
     // P17: read-only Tango capability/tier probe CLI. Lives in scripts/, same
     // rootDir gap as every entry above.
     "scripts/diag-tango-capabilities.ts",
-    "scripts/diag-tango-capabilities.spec.ts"
+    "scripts/diag-tango-capabilities.spec.ts",
+    // P18: read-only Tango usage/health report CLI.
+    "scripts/diag-tango-health.ts",
+    "scripts/diag-tango-health.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

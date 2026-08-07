@@ -425,6 +425,7 @@ jobs:
           scripts/funding-opportunities-entrypoint.spec.ts
           scripts/sam-opportunity-matcher.spec.ts
           scripts/diag-tango-capabilities.spec.ts
+          scripts/diag-tango-health.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -465,9 +466,33 @@ jobs:
       # from "this call is broken" — see the ProbeResult.status doc), redaction,
       # and a real-SDK-via-fake-fetch proof for createProbeClient. diag-
       # tango-capabilities.spec.ts (12 tests) covers the CLI's flag/env
-      # precedence and the human-readable summary formatter. Both new files
-      # are also named explicitly in this job's jest invocation above —
-      # scripts/ is not glob-matched the way src/external/tango/ is.
+      # precedence and the human-readable summary formatter.
+      #
+      # 38/1294 after P18: two MORE new suites. tango-resilience.service.spec.ts
+      # (38 tests, FAKE-CLOCK — no real timers) covers: delegation of all 8
+      # TangoGateway methods; usage recorded per network attempt (success and
+      # every classified failure kind); retry honors TangoError.retryable
+      # exactly (a validation/400 is attempted ONCE, never retried — this
+      # phase's own acceptance line); backoff honors the provider's
+      # retryAfter over local exponential backoff; the circuit breaker's exact
+      # documented semantics (N consecutive transient/rate-limit FAILURES —
+      # not raw attempts — opens it, a non-retryable kind never trips it, the
+      # half-open trial closes on success and reopens for a FULL fresh
+      # cooldown on failure); the request ceiling counts real attempts only
+      # (retries included, refusals excluded); the auth fast-path (one
+      # rejection short-circuits every later call in the run, without
+      # repeating a guaranteed-401); and TangoNotConfiguredError short-
+      # circuiting before the loop, breaker, or ceiling are ever touched.
+      # diag-tango-health.spec.ts (4 tests) covers its CLI flag parsing. Two
+      # more files gained tests in-place rather than new suites:
+      # tango-store.service.spec.ts (+8, getUsageHealth's window/aggregation/
+      # boundary behavior) and tango.module.spec.ts (+6, the new
+      # TANGO_RESILIENT_GATEWAY token resolves independently of the raw one
+      # and picks its settings up from config, not a hard-coded default).
+      # All four new/grown files are also named explicitly in this job's jest
+      # invocation above where they live under scripts/ — that directory is
+      # not glob-matched the way src/external/tango/ is.
+      #
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -476,7 +501,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 36 1238
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 38 1294
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

@@ -216,6 +216,12 @@ function makeFakePrisma() {
         usage.push(data);
         return { id: freshId(), ...data };
       }),
+      findMany: jest.fn(async ({ where }: any) => {
+        const since: Date = where.timestampBucket.gte;
+        return usage
+          .filter((u) => (u.timestampBucket as Date) >= since)
+          .map((u) => ({ callFamily: u.callFamily, status: u.status, timestampBucket: u.timestampBucket }));
+      }),
     },
   };
 
@@ -708,5 +714,92 @@ describe('recordUsage never forwards a header or a key', () => {
     await svc.recordUsage({ callFamily: 'getVersion', status: 'success', durationMs: 1, at });
     const bucket = usage.at(-1)!.timestampBucket as Date;
     expect(bucket.toISOString()).toBe('2026-08-06T12:34:00.000Z');
+  });
+});
+
+describe('getUsageHealth (P18): aggregates the persisted usage log, not live process state', () => {
+  const ASOF = new Date('2026-08-07T00:00:00.000Z');
+
+  test('with no rows in the window, totals are zero and successRate is NULL, not zero', async () => {
+    const { service: svc } = service();
+    const health = await svc.getUsageHealth(60, ASOF);
+    expect(health.totalCalls).toBe(0);
+    expect(health.byStatus).toEqual({});
+    expect(health.successRate).toBeNull();
+    expect(health.rateLimitHits).toBe(0);
+    expect(health.mostRecentCallAt).toBeNull();
+  });
+
+  test('counts by status and by call family, over a mix of outcomes', async () => {
+    const { service: svc } = service();
+    await svc.recordUsage({ callFamily: 'getVersion', status: 'success', durationMs: 1, at: ASOF });
+    await svc.recordUsage({ callFamily: 'listForecasts', status: 'success', durationMs: 1, at: ASOF });
+    await svc.recordUsage({ callFamily: 'listForecasts', status: 'rate_limit', durationMs: 1, at: ASOF });
+    await svc.recordUsage({ callFamily: 'listForecasts', status: 'rate_limit', durationMs: 1, at: ASOF });
+
+    const health = await svc.getUsageHealth(60, ASOF);
+    expect(health.totalCalls).toBe(4);
+    expect(health.byStatus).toEqual({ success: 2, rate_limit: 2 });
+    expect(health.byCallFamily.listForecasts).toEqual({ total: 3, byStatus: { success: 1, rate_limit: 2 } });
+    expect(health.byCallFamily.getVersion).toEqual({ total: 1, byStatus: { success: 1 } });
+    expect(health.rateLimitHits).toBe(2);
+    expect(health.successRate).toBe(0.5);
+  });
+
+  test('a row older than the window is excluded', async () => {
+    const { service: svc } = service();
+    const old = new Date(ASOF.getTime() - 61 * 60_000);
+    await svc.recordUsage({ callFamily: 'getVersion', status: 'success', durationMs: 1, at: old });
+    const health = await svc.getUsageHealth(60, ASOF);
+    expect(health.totalCalls).toBe(0);
+  });
+
+  test('a row exactly at the window boundary is included (inclusive lower bound)', async () => {
+    const { service: svc } = service();
+    const boundary = new Date(ASOF.getTime() - 60 * 60_000);
+    await svc.recordUsage({ callFamily: 'getVersion', status: 'success', durationMs: 1, at: boundary });
+    const health = await svc.getUsageHealth(60, ASOF);
+    expect(health.totalCalls).toBe(1);
+  });
+
+  test('mostRecentCallAt is the latest bucketed timestamp in the window', async () => {
+    const { service: svc } = service();
+    await svc.recordUsage({
+      callFamily: 'getVersion',
+      status: 'success',
+      durationMs: 1,
+      at: new Date('2026-08-06T23:00:00.000Z'),
+    });
+    await svc.recordUsage({
+      callFamily: 'getVersion',
+      status: 'success',
+      durationMs: 1,
+      at: new Date('2026-08-06T23:55:00.000Z'),
+    });
+    const health = await svc.getUsageHealth(120, ASOF);
+    expect(health.mostRecentCallAt).toBe('2026-08-06T23:55:00.000Z');
+  });
+
+  test('windowMinutes and since/asOf are echoed back for a self-describing report', async () => {
+    const { service: svc } = service();
+    const health = await svc.getUsageHealth(30, ASOF);
+    expect(health.windowMinutes).toBe(30);
+    expect(health.asOf).toBe(ASOF.toISOString());
+    expect(health.since).toBe(new Date(ASOF.getTime() - 30 * 60_000).toISOString());
+  });
+
+  test('defaults to a 60-minute window and the real clock when called with no arguments', async () => {
+    const { service: svc } = service();
+    const before = Date.now();
+    const health = await svc.getUsageHealth();
+    expect(health.windowMinutes).toBe(60);
+    expect(new Date(health.asOf).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  test('a 100% failure window still divides correctly (successRate 0, not null)', async () => {
+    const { service: svc } = service();
+    await svc.recordUsage({ callFamily: 'getVersion', status: 'transient', durationMs: 1, at: ASOF });
+    const health = await svc.getUsageHealth(60, ASOF);
+    expect(health.successRate).toBe(0);
   });
 });

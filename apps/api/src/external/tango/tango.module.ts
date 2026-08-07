@@ -1,8 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TangoGatewayService } from './tango.client.js';
+import { TangoResilienceService } from './tango-resilience.service.js';
 import { TangoStoreService } from './tango-store.service.js';
-import { TANGO_GATEWAY } from './tango.types.js';
+import { TANGO_GATEWAY, TANGO_RESILIENT_GATEWAY, type TangoGateway } from './tango.types.js';
 
 /**
  * The MakeGov/Tango provider boundary, as a module.
@@ -36,6 +37,13 @@ import { TANGO_GATEWAY } from './tango.types.js';
  * the API gateway. It depends only on `PrismaService`, needs no key and no
  * config, and is registered here for the same reason — later phases (P19, P22,
  * P24, P27) inject it without any module-wiring change of their own.
+ *
+ * `TANGO_RESILIENT_GATEWAY` (P18) wraps `TANGO_GATEWAY` with retry, a circuit
+ * breaker, a per-run request ceiling, and usage recording into
+ * `TangoStoreService` — see tango-resilience.service.ts's class doc for the
+ * full reasoning. Later phases that make real Tango calls (P19, P22, P24,
+ * P27) should inject THIS token, not the raw `TANGO_GATEWAY`, unless they
+ * have a specific, documented reason not to want that protection.
  */
 @Global()
 @Module({
@@ -65,7 +73,21 @@ import { TANGO_GATEWAY } from './tango.types.js';
     // phases that DO (P19, P22, P24, P27) find it already registered rather
     // than needing their own module-wiring change.
     TangoStoreService,
+    // The resilient wrapper (P18). Config-driven ceiling/breaker values, so a
+    // deployment can tune them without a code change; unset envs fall back to
+    // this class's own documented defaults (same optionality posture as every
+    // other TANGO_* key — see config.schema.ts).
+    {
+      provide: TANGO_RESILIENT_GATEWAY,
+      inject: [TANGO_GATEWAY, TangoStoreService, ConfigService],
+      useFactory: (gateway: TangoGateway, store: TangoStoreService, config: ConfigService) =>
+        new TangoResilienceService(gateway, store, {
+          requestCeiling: config.get<number>('TANGO_REQUEST_CEILING_PER_RUN'),
+          breakerThreshold: config.get<number>('TANGO_CIRCUIT_BREAKER_THRESHOLD'),
+          breakerCooldownMs: config.get<number>('TANGO_CIRCUIT_BREAKER_COOLDOWN_MS'),
+        }),
+    },
   ],
-  exports: [TANGO_GATEWAY, TangoStoreService],
+  exports: [TANGO_GATEWAY, TangoStoreService, TANGO_RESILIENT_GATEWAY],
 })
 export class TangoModule {}
