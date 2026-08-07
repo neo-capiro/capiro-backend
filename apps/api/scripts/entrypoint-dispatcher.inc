@@ -552,6 +552,40 @@ case "${1:-serve}" in
   # by default; a dispatched task passes --commit. Resumable via
   # tango_sync_checkpoint, same as sync-tango-vehicles above.
   sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts "$@" ;;
+  # Funding Opportunities P27: Tango<->SAM SHADOW sync. Reads the provider's
+  # opportunity catalog and writes ONLY provider-owned tables — the P15
+  # snapshot, the P15 exact-identifier link, and the P27 per-field parity
+  # ledger. It never writes to sam_opportunity: first-party ingestion stays
+  # canonical and a conflict is recorded, never merged. Links only when
+  # EXACTLY ONE local notice carries the same solicitation number; more than
+  # one is 'ambiguous' and links nothing. Dry-run by default; a dispatched
+  # task passes --commit. Optional --limit=<n> --changed-since=<ISO date>.
+  sync-tango-opportunity-shadow) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-shadow.ts "$@" ;;
+  # Funding Opportunities P27: READ-ONLY crosswalk/parity report. No Tango
+  # call and no key — reads Capiro's own tango_opportunity_parity,
+  # tango_resource_link and tango_sync_checkpoint. Exits nonzero ONLY when an
+  # operator-set threshold is breached (--max-conflicts / --max-ambiguous /
+  # --stale-hours); an ordinary unlinked row is the expected state of a
+  # verification rail, not a failure.
+  diag-tango-opportunity-parity) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-opportunity-parity.ts "$@" ;;
+  # Funding Opportunities P28: notice-history sync. Writes ONE table,
+  # tango_opportunity_notice, and emits no alert of any kind — a material
+  # change becomes visible on the read-only timeline and nothing else
+  # (alerting is P48's). Each notice is stamped with a local sam_opportunity
+  # id only when EXACTLY ONE local notice carries its solicitation number,
+  # reusing P27's own crosswalk rule. Dry-run by default; a dispatched task
+  # passes --commit. Optional --limit=<n> --posted-since=<ISO date>.
+  sync-tango-opportunity-notices) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-notices.ts "$@" ;;
+  # Funding Opportunities P29: attachment discovery and secure archive.
+  # Discovers attachment URLs from Capiro's OWN stored SAM.gov payload
+  # (sam_opportunity.raw.resourceLinks) — the installed Tango SDK exposes no
+  # attachment ENUMERATION, only a semantic search. Every URL and every
+  # redirect hop is checked for SSRF, scheme, credentials, host allow-list,
+  # MIME allow-list, size and decompression ratio before a byte is stored. A
+  # REFUSED attachment is never re-attempted; a FAILED one is. Dry-run by
+  # default; --discover-only writes metadata without fetching. Needs
+  # OPPORTUNITY_ATTACHMENT_BUCKET to archive. Optional --limit=<n> (default 50).
+  sync-tango-opportunity-attachments) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-attachments.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

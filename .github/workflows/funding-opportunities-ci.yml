@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -346,6 +346,115 @@ jobs:
           check "checkpoint walk uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_sync_checkpoint_walk_uniq'"             "1"
           check "usage status vocabulary has no room for a header or key column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_api_usage' AND (column_name LIKE '%header%' OR column_name LIKE '%key%' OR column_name LIKE '%token%')"             "0"
 
+          # ── P27 Tango↔SAM parity ledger ───────────────────────────────────
+          # GLOBAL, like every other tango_* table: "SAM.gov and the provider
+          # disagree about this notice's deadline" is a fact about the federal
+          # marketplace, not about any one tenant. Asserting the ABSENCE of RLS
+          # is as load-bearing here as asserting its presence is on
+          # client_funding_opportunity — a false "no tenant RLS claimed" would
+          # mean the table silently started acting tenant-scoped with no policy
+          # to actually scope it.
+          check "tango_opportunity_parity has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_opportunity_parity' AND column_name='tenant_id'"             "0"
+          check "tango_opportunity_parity RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_opportunity_parity'"             "f"
+          check "tango_opportunity_parity has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_opportunity_parity'"             "0"
+
+          # NO foreign key, deliberately. The ledger is an observation about two
+          # INDEPENDENTLY-synced catalogs; a cascade from either side would
+          # delete the evidence that they ever disagreed, which is the one thing
+          # the table exists to keep.
+          check "tango_opportunity_parity has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_opportunity_parity'::regclass AND contype='f'"             "0"
+
+          # The three bounded vocabularies. `field` admits only lifecycle facts
+          # BOTH catalogs carry — a provider-exclusive field would report as a
+          # conflict on every row and belongs in the snapshot instead.
+          for f in title solicitation_number response_deadline active set_aside naics_code psc_code agency; do
+            check "parity field vocabulary admits $f"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$f''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_field_chk'"               "yes"
+          done
+          check "parity field vocabulary does NOT admit a provider-exclusive field"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%estimated_value%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_field_chk'"             "no"
+
+          # FIVE agreement values, not two. "They disagree" and "only one of
+          # them said anything" are different findings and only the first is a
+          # conflict a human needs to look at.
+          for a in agree conflict local_only provider_only both_absent; do
+            check "parity agreement vocabulary admits $a"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$a''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_agreement_chk'"               "yes"
+          done
+
+          # A resolution that OVERWRITES the local value must not be expressible
+          # as a vocabulary entry — plan §4.2 forbids the merge, so the column
+          # can record "we accepted the provider's value as the better one" but
+          # there is no value meaning "we wrote it over ours".
+          for r in unreviewed local_canonical accepted_provider dismissed; do
+            check "parity resolution vocabulary admits $r"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$r''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_resolution_chk'"               "yes"
+          done
+
+          # The three-way all-or-nothing: a reviewed row carries its actor AND
+          # its moment, and an unreviewed row carries NEITHER. Same shape, and
+          # same reason, as client_funding_opportunity_decision_actor_chk (P07).
+          check "parity review-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_parity_review_actor_chk'"             "1"
+          check "parity review-actor CHECK guards BOTH directions"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%IS NULL%' AND pg_get_constraintdef(oid) LIKE '%IS NOT NULL%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_review_actor_chk'"             "yes"
+
+          # One row per (provider record, local record, field) — what makes a
+          # re-run an UPDATE of the same comparison rather than a second opinion.
+          check "parity record/field uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_record_field_uniq'"             "1"
+          check "parity conflict-scan index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_conflict_idx'"             "1"
+          check "parity local-side lookup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_sam_idx'"             "1"
+
+          # ── P28 notice history ────────────────────────────────────────────
+          # Global, same category and same reasoning as every other tango_*
+          # table, and no FK for the same reason as P27's ledger: the record
+          # that an amendment happened must outlive either catalog's own row
+          # lifecycle.
+          check "tango_opportunity_notice has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_opportunity_notice' AND column_name='tenant_id'"             "0"
+          check "tango_opportunity_notice RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_opportunity_notice'"             "f"
+          check "tango_opportunity_notice has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_opportunity_notice'"             "0"
+          check "tango_opportunity_notice has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_opportunity_notice'::regclass AND contype='f'"             "0"
+
+          # The content hash is what makes a re-sync free: identical content,
+          # same hash, no new observation, no phantom change on the derived
+          # timeline. A truncated or differently-cased hash silently defeats
+          # that, so the format is a CHECK rather than a convention.
+          check "notice content-hash format CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_notice_hash_chk'"             "1"
+          # A negative count is a mapping bug, not fewer attachments.
+          check "notice attachment-count CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_notice_attachment_count_chk'"             "1"
+          # `sam_opportunity_id` MUST stay nullable: a notice whose parent is
+          # ambiguous is stored unstamped and becomes reachable when the
+          # ambiguity resolves. NOT NULL would mean discarding it instead.
+          check "notice sam_opportunity_id is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_opportunity_notice' AND column_name='sam_opportunity_id'"             "YES"
+
+          check "notice id uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_notice_id_uniq'"             "1"
+          check "notice parent-ordering index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_parent_idx'"             "1"
+          check "notice local-side ordering index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_sam_idx'"             "1"
+
+          # The timeline is DERIVED on read, never stored. A table holding one
+          # would be a second thing that can be wrong about its own inputs.
+          check "no stored timeline table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE '%opportunity_timeline%'"             "0"
+
+          # ── P29 attachment archive ────────────────────────────────────────
+          check "opportunity_attachment has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_attachment' AND column_name='tenant_id'"             "0"
+          check "opportunity_attachment RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_attachment'"             "f"
+          check "opportunity_attachment has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='opportunity_attachment'::regclass AND contype='f'"             "0"
+
+          # THE acceptance line, as a constraint: a failed fetch cannot mark
+          # metadata complete. `archived` requires every archive fact, and a
+          # NON-archived row may carry none of them — so a stale bucket/key
+          # from an earlier success cannot make a failed row look citable.
+          check "archived-completeness CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_archived_chk'"             "1"
+          check "archived CHECK names every archive fact"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%archive_bucket%' AND pg_get_constraintdef(oid) LIKE '%archive_key%' AND pg_get_constraintdef(oid) LIKE '%content_sha256%' AND pg_get_constraintdef(oid) LIKE '%observed_size_bytes%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_attachment_archived_chk'"             "yes"
+          check "unarchived-cleanliness CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_unarchived_chk'"             "1"
+          check "an unexplained refusal or failure is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_failure_chk'"             "1"
+          check "an attachment with no parent is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_parent_chk'"             "1"
+          check "attachment content-hash format CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_attachment_hash_chk'"             "1"
+          for s in metadata_only archived refused failed; do
+            check "attachment status vocabulary admits $s"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$s''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_attachment_status_chk'"               "yes"
+          done
+
+          # The uniqueness COALESCEs both parent columns. Postgres treats NULLs
+          # as distinct, so a plain composite would admit unlimited duplicates
+          # for a notice-parented row (whose sam_opportunity_id is null).
+          check "attachment parent/url uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "1"
+          check "attachment uniqueness COALESCEs both parents"             "SELECT CASE WHEN indexdef LIKE '%COALESCE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "yes"
+          check "attachment content-hash dedup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_hash_idx'"             "1"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -432,6 +541,10 @@ jobs:
           scripts/diag-federal-business-profile.spec.ts
           scripts/sync-tango-vehicles.spec.ts
           scripts/sync-tango-forecasts.spec.ts
+          scripts/sync-tango-opportunity-shadow.spec.ts
+          scripts/diag-tango-opportunity-parity.spec.ts
+          scripts/sync-tango-opportunity-notices.spec.ts
+          scripts/sync-tango-opportunity-attachments.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -673,9 +786,193 @@ jobs:
       # model, no producer, no DI-registered caller — ships logic dark,
       # per this phase's own instruction and its own unchanged file list.
       #
+      # 50/1530 after P26: one NEW suite,
+      # forecast-opportunity-read.spec.ts (56 tests), picked up by the existing
+      # src/funding-opportunities/ glob above — no new path needed in the jest
+      # invocation, same as forecast-relevance.spec.ts at P25. What it proves:
+      # every forecast signal is established by EXACT comparison or not at all
+      # (a NAICS industry-group near miss is NOT a match — sam-opportunity-
+      # relevance.ts deliberately bands one as MODERATE for live notices, and
+      # `ForecastRelevanceInput.exactNaicsMatch` is a different contract); a
+      # capability keyword matches only as a WHOLE TOKEN and never as a
+      # substring, with keywords of two characters or fewer refused outright
+      # ("IT"/"AI" appear in almost every federal description, and a signal that
+      # fires on almost everything reads as evidence); a PE link needs the
+      # client's own code VERBATIM in the record's text, the same bar
+      # sam-opportunity-matcher.ts enforces before it will auto-accept one; the
+      # THREE-WAY distinction between an established signal, an evaluated
+      # non-match, and a signal that could not be evaluated AT ALL (PSC is
+      # confirmed absent from this provider resource — D-45 — and no strategic-
+      # priority review workflow exists, so both are reported as `unavailable`
+      # with a reason naming the SOURCE, never as a claim about the client); a
+      # Postgres DATE serialized as YYYY-MM-DD rather than an instant (a
+      # UTC-midnight `toISOString()` renders an agency's stated March award as
+      # 28 February for every reader west of Greenwich); a decision reported
+      # only when it carries its actor AND its moment, matching the P07
+      # migration's own three-way CHECK; a walled clientId DROPPED and reported
+      # as null rather than 403'd; a failing vehicle-access read degrading to
+      # "unavailable with a reason" instead of a confident false; and the
+      # structural guarantees — the forecast read never writes, never calls
+      # Tango, and never sets a responseDeadline or an eligibility field.
+      #
+      # This is also the phase that finally gives P25's `scoreForecastRelevance`
+      # a real caller (its handoff said it had none by design), and the phase
+      # that fixes a real type-level defect: `InboxRow.source` was declared
+      # `OpportunitySource` while the service cast a raw column into it, so a
+      # forecast row claimed to be grants_gov or sam_gov and a UI switching on
+      # it had no legal value to switch to. `INBOX_SOURCES` is a THIRD
+      # vocabulary, deliberately not a widening of `OPPORTUNITY_SOURCES` —
+      # funding-opportunity-identity.spec.ts pins both sides of that line, and
+      # its P25-era guard block was rewritten (not deleted) to assert the
+      # narrower things that stayed true: the catalog vocabulary is still
+      # exactly two entries, `SourceParamDto` still validates against it, and
+      # no forecast is servable through the `FundingOpportunity` shape.
+      # funding-opportunity-inbox.spec.ts grew by 8 in place (63 -> 71) and
+      # funding-opportunity-identity.spec.ts by 3.
+      # 53/1622 after P27: three NEW suites, one migration, no web change.
+      #
+      # tango-opportunity.mapper.spec.ts (35 tests) keeps IDENTITY and CONTENT
+      # apart, because comparing fields across two records that might not be
+      # the same record produces confident-looking nonsense. Identity: exactly
+      # one local notice carrying the same solicitation number LINKS; more than
+      # one is `ambiguous` and links NOTHING (a presolicitation, a solicitation
+      # and its amendments are separate sam_opportunity rows under one number,
+      # and picking whichever sorted first is how a closed notice acquires a
+      # live deadline); none is `unlinked`; there is no title match and no
+      # scoring. Solicitation numbers are NORMALIZED, not fuzzy-matched — the
+      # test proves no character is added, removed or transposed, so two
+      # genuinely different numbers cannot collide. Content: five outcomes, not
+      # two ('local_only'/'provider_only'/'both_absent' are coverage facts, only
+      # 'conflict' is a data-quality finding worth somebody's attention), a
+      # SECONDS-level deadline difference is NOT a conflict (the two catalogs
+      # round the same SAM.gov value differently and a rounding artefact would
+      # bury the real ones) while a MINUTE-level one is, and `false` is never
+      # read as absent.
+      #
+      # sync-tango-opportunity-shadow.spec.ts (31 tests) covers the walk and,
+      # more importantly, what the script must NOT write. Plan §4.2 is the whole
+      # point of the phase: first-party ingestion stays authoritative, a Tango
+      # observation may verify or identify a conflict, and no "last write wins"
+      # merge is permitted. That is proven behaviourally (the fakes expose no
+      # dependency through which a write could reach sam_opportunity) AND
+      # structurally (a grep over the source), because a future edit could add a
+      # write the fakes were never given a chance to see. Also: an UNLINKED
+      # provider record still writes its snapshot — "the provider has a notice
+      # Capiro's own rail does not" is exactly what a verification rail exists
+      # to surface — and a re-run keeps `first_observed_at` unless the OUTCOME
+      # changed, so a conflict can be reported as having stood for three weeks
+      # rather than as "seen five minutes ago", which is true of all of them.
+      #
+      # diag-tango-opportunity-parity.spec.ts (26 tests) is almost entirely
+      # about the EXIT CODE. An ordinary unlinked row is the expected state of a
+      # verification rail and is never blocking, whatever the count; only an
+      # OPERATOR-SET threshold (--max-conflicts / --max-ambiguous /
+      # --stale-hours) exits nonzero, and a conflict a human has reviewed and
+      # kept the local value for stops counting toward it — otherwise doing the
+      # correct thing under source precedence would leave the check red forever.
+      # A never-run sync BREACHES --stale-hours rather than reporting as fresh.
+      #
+      # Migration 20260826010000_tango_opportunity_crosswalk adds ONE global
+      # table (no tenant_id, no RLS, and deliberately no FK — a cascade from
+      # either catalog would delete the evidence that they ever disagreed).
+      # There is no second link table: P15's tango_resource_link already links a
+      # `sam_opportunity` to a Tango `opportunity` with a basis restricted to
+      # exact_identifier | reviewed_manual, and a parallel table would mean two
+      # answers to "is this linked". Rehearsed against a fresh
+      # pgvector/pgvector:pg16: clean replay, retry-as-no-op, idempotent
+      # re-deploy, and 10 constraint proofs BY ACTUAL INSERT — six refusals
+      # (unknown field, unknown agreement, unknown resolution, reviewed-without-
+      # actor, reviewed-without-timestamp, unreviewed-WITH-actor, duplicate
+      # record/field) and four acceptances.
+      # 55/1692 after P28: two NEW suites and one migration.
+      #
+      # opportunity-change-classifier.spec.ts (45 tests) covers the four
+      # properties this phase's acceptance bar names, each in its own block.
+      # ORDER INDEPENDENCE is the big one: every permutation of three notices
+      # produces a byte-identical timeline, because buildNoticeTimeline sorts on
+      # a TOTAL order (postedDate, providerUpdatedAt, noticeId) before comparing
+      # anything — without the id tiebreaker the same set could produce two
+      # timelines depending on which page the provider handed back first. An
+      # UNDATED notice sorts LAST, not first: placing it at the head would make
+      # it the baseline every later notice is compared against, inventing a
+      # change on the second. DUPLICATES collapse to one entry with the later
+      # providerUpdatedAt winning, which is what makes the incremental
+      # overlap free rather than a source of phantom changes. ABSENCE is
+      # reported in BOTH directions with different sentences — a deadline being
+      # REMOVED is the more alarming direction and gets its own copy — and
+      # `active` going to NULL is deliberately NOT reported as a cancellation
+      # (the provider ceasing to state a flag is not the agency withdrawing the
+      # notice). A seconds-level deadline difference is not a change, same
+      # rounding-artefact reasoning as P27's ledger.
+      #
+      # sync-tango-opportunity-notices.spec.ts (25 tests) covers the walk and
+      # two load-bearing properties. The content hash is computed over the
+      # normalized object with `provenance` REMOVED: `fetchedAt` changes on
+      # every fetch, so hashing it in would make every re-sync look like an
+      # amendment and defeat the whole no-op path. And a notice is stamped with
+      # a local sam_opportunity id only under P27's exact-identifier rule,
+      # reused verbatim rather than reimplemented — an AMBIGUOUS solicitation
+      # number stamps NOTHING and the notice is still stored, because attaching
+      # an amendment's deadline to whichever notice sorted first is the exact
+      # failure that rule exists to prevent.
+      #
+      # Migration 20260827010000_tango_opportunity_notice_history adds ONE
+      # global table (no tenant_id, no RLS, no FK). `sam_opportunity_id` stays
+      # NULLABLE on purpose: an unstamped notice becomes reachable the moment
+      # the ambiguity resolves, and NOT NULL would mean discarding it. The
+      # timeline itself is DERIVED on read and never stored — a stored copy
+      # alongside its own inputs is a second thing that can be wrong about them,
+      # and the schema assertion above proves no such table exists. Rehearsed
+      # against the same fresh pgvector container P27 used, as an ORDERED
+      # UPGRADE onto P27's own schema: clean apply, plus 8 constraint proofs by
+      # actual insert — four refusals (short hash, uppercase hash, negative
+      # attachment count, duplicate notice id) and four acceptances (a legal
+      # row, zero attachments, an uncrosswalked notice, an orphaned local id).
+      # 57/1780 after P29: two NEW suites and one migration.
+      #
+      # opportunity-attachment.spec.ts (59 tests) is almost entirely about the
+      # four ways fetching an attacker-chosen URL goes wrong, and each block
+      # includes the case that defeats a NAIVE version of the guard.
+      # SSRF: 169.254.169.254 (EC2 IMDS) and 169.254.170.2 (ECS task metadata)
+      # both refused, plus the IPv4-mapped IPv6 form — and that last test FOUND
+      # A REAL HOLE, because `new URL()` canonicalizes an IPv6 host to
+      # compressed hex, so `::ffff:169.254.169.254` reached the guard as
+      # `::ffff:a9fe:a9fe` and a dotted-quad-only branch never matched it. With
+      # the default allow-list it was still refused; with the documented
+      # "any public host" configuration it would have reached the metadata
+      # service. REDIRECTS: every hop is re-checked, and the test that matters
+      # is the one whose FIRST url is fine and whose 302 is not. EXHAUSTION: a
+      # 200-byte zip expanding 40 GB is caught by RATIO, which every size check
+      # on the compressed bytes misses. CONFUSION: a PDF that arrives as
+      # something else is refused as a MISMATCH, which is a finding even when
+      # the observed type would be allowed on its own.
+      #
+      # Also pinned: refusals and failures are disjoint vocabularies and only
+      # failures are retryable (retrying an SSRF attempt on a schedule is the
+      # attack working, slowly); the archive key IS the content hash, so
+      # identical bytes are a free no-op and CHANGED bytes get a new key rather
+      # than overwriting — a requirement P31 extracts from version A must still
+      # resolve to version A's bytes; and no failure detail is built by
+      # interpolating the body, checked structurally.
+      #
+      # sync-tango-opportunity-attachments.spec.ts (21 tests) covers discovery
+      # and the run. The attachment URLs come from Capiro's OWN stored SAM.gov
+      # payload, not from the provider: the installed SDK exposes no attachment
+      # ENUMERATION at all, only `searchOpportunityAttachments`, a semantic
+      # search that cannot answer "what documents does this solicitation have".
+      # A MISSING `resourceLinks` key is reported as `noLinksField`, never as
+      # "no attachments" — SAM.gov omits it for older records, and a zero
+      # meaning "none" would tell a reader a 300-page package was not there.
+      #
+      # Migration 20260829010000_opportunity_attachments adds ONE global table.
+      # Rehearsed as an ordered upgrade with 13 constraint proofs by actual
+      # insert — nine refusals (no parent, archived-without-location,
+      # non-archived-WITH-location, unexplained failure, unknown status,
+      # malformed hash, negative size, and two duplicate-key cases including a
+      # NULL-parent one the COALESCE index catches) and four acceptances.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 49 1463
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 57 1780
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -715,9 +1012,57 @@ jobs:
       # one. FundingOpportunityDetail.test.tsx's "eight sections" sweep
       # shrank from three still-pending sections to two — acquisition
       # position is real now.
+      # 63/274 after P26: one NEW file, ForecastOpportunityCard.test.tsx (33
+      # tests across 6 blocks) — the card, the detail body, and the two pure
+      # formatters. Its central block is named after the phase's own acceptance
+      # line and asserts on RENDERED TEXT rather than on props: none of "open",
+      # "eligible" or "deadline" appears anywhere in a forecast card, and the
+      # ONE permitted use of "solicitation" is the field label whose value is
+      # "Not provided by the source". A component can be perfectly wired and
+      # still say "Deadline: none stated", which is the exact false claim the
+      # phase exists to prevent — so the test reads the DOM.
+      #
+      # It also pins: Pursue and Submit are ABSENT from a forecast, not disabled
+      # (a disabled button that never enables is a promise the surface does not
+      # keep); with no action handler the whole action row is absent rather than
+      # inert; a signal that could not be EVALUATED renders differently from one
+      # evaluated and unmatched; and `formatSourceDate` formats a YYYY-MM-DD from
+      # its PARTS, because `new Date('2027-03-01')` parsed as UTC midnight and
+      # formatted locally shows 28 February to every reader west of Greenwich.
+      #
+      # FundingOpportunityInbox.test.tsx grew by 11 (38 -> 49): the flag-ON path
+      # (forecast card rendered, forecast rail offered in the source filter, a
+      # forecast ref written to the URL, the drawer titled as a forecast) and the
+      # flag-OFF path (rail NOT offered, because an empty result from a filter
+      # the capability cannot serve reads as "this client has no forecasts";
+      # forecast rows WITHHELD with the count stated, because the tab badges
+      # still include them and a silent discrepancy reads as a broken filter; and
+      # a stale ?source=agency_forecast deep link degrading to ALL sources rather
+      # than to an empty list). FundingOpportunityDetail.test.tsx grew by 4
+      # (47 -> 51) for the shared route: a forecast deep link renders the
+      # forecast body and hits the FORECAST endpoint, and with the flag off it
+      # says the CAPABILITY is off rather than that the record is missing — two
+      # different facts, and only one of them is about the forecast.
+      # 67/287 after P28: one NEW file, OpportunityTimeline.test.tsx (13 tests
+      # across 3 blocks). Its subject is the sentence on screen. The panel must
+      # never say "the notice was updated" — that label is the reason the phase
+      # exists, because an amendment that moved a deadline two weeks earlier and
+      # one that added a Q&A attachment are not the same event. Every entry
+      # names the DIMENSION and the composed summary, and the test reads the DOM
+      # to prove it.
+      #
+      # The other block covers FOUR different kinds of nothing, only ONE of
+      # which is a fact about the notice: the flag being off, the sync never
+      # having run, the notice not being crosswalked, and the solicitation
+      # genuinely never having been amended. Each gets its own sentence, and
+      # each of the first three explicitly says it means nothing about whether
+      # the solicitation was amended. Collapsing any of them into "no
+      # amendments" is the false claim this program exists to avoid. A grant
+      # never calls the API at all — Grants.gov publishes no notice history, a
+      # fact about the source rather than a Capiro gap.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 54 226
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 67 287
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

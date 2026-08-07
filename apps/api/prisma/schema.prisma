@@ -6586,6 +6586,209 @@ model TangoProcurementForecast {
   @@map("tango_procurement_forecast")
 }
 
+/// Per-FIELD agreement between Capiro's first-party SAM.gov row and
+/// MakeGov/Tango's own observation of the same opportunity (P27).
+///
+/// EVIDENCE, NOT A MERGE. Nothing in this program writes to `sam_opportunity`
+/// from a Tango observation. Plan §4.2: first-party ingestion stays
+/// authoritative for canonical lifecycle fields, a Tango observation may
+/// verify or identify a conflict, the conflict is RECORDED, and no
+/// "last write wins" merge is permitted. `resolution` starts 'unreviewed' and
+/// the local value stays canonical until a human says otherwise.
+///
+/// The LINK itself is not here — it lives in P15's `tango_resource_link`,
+/// whose `basis` column admits only `exact_identifier` | `reviewed_manual`.
+/// A second link table would mean two answers to "is this linked".
+///
+/// Global table — no tenant_id, no RLS. "SAM.gov and the provider disagree
+/// about this notice's deadline" is a fact about the federal marketplace,
+/// same category as `sam_opportunity` and `tango_resource_snapshot`.
+model TangoOpportunityParity {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's opportunity id. Also the tango_resource_link /
+  /// tango_resource_snapshot external id for the same record.
+  tangoOpportunityId String @map("tango_opportunity_id")
+  /// `sam_opportunity.id`. A SOFT pointer with no FK, matching
+  /// tango_resource_link's own local_resource_id: a cascade from either
+  /// catalog would delete the evidence that they ever disagreed.
+  samOpportunityId   String @map("sam_opportunity_id") @db.Uuid
+
+  /// Bounded by tango_opportunity_parity_field_chk. Only lifecycle facts BOTH
+  /// catalogs carry — a provider-exclusive field would report as a conflict on
+  /// every row and belongs in the snapshot instead.
+  field String
+
+  /// Both sides verbatim, stringified for storage AFTER the typed comparison.
+  /// NULL means that side stated nothing — never zero, never false, never "no".
+  localValue    String? @map("local_value")
+  providerValue String? @map("provider_value")
+
+  /// 'agree' | 'conflict' | 'local_only' | 'provider_only' | 'both_absent'.
+  /// Five values, not two: "they disagree" and "only one of them said
+  /// anything" are different findings and only the first needs a human.
+  agreement String
+
+  /// 'unreviewed' | 'local_canonical' | 'accepted_provider' | 'dismissed'.
+  /// 'local_canonical' is recorded explicitly rather than left implied, so
+  /// "nobody has looked" stays distinguishable from "we looked and kept ours".
+  resolution  String  @default("unreviewed")
+  reviewedBy  String? @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes String? @map("review_notes")
+
+  /// When this comparison was first seen with its CURRENT outcome, and when it
+  /// was last confirmed. A conflict standing for three weeks reads differently
+  /// from one that appeared this morning.
+  firstObservedAt DateTime @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  lastObservedAt  DateTime @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tangoOpportunityId, samOpportunityId, field], map: "tango_opportunity_parity_record_field_uniq")
+  @@index([agreement, resolution, lastObservedAt], map: "tango_opportunity_parity_conflict_idx")
+  @@index([samOpportunityId], map: "tango_opportunity_parity_sam_idx")
+  @@map("tango_opportunity_parity")
+}
+
+/// One observation of one notice in an opportunity's history (P28).
+///
+/// The material-change TIMELINE is DERIVED from these rows at read time by
+/// `opportunity-change-classifier.ts`, never stored: a derived timeline kept
+/// alongside its own inputs is a second thing that can be wrong about them.
+///
+/// Not folded into P15's `tango_resource_snapshot` because the access pattern
+/// is the opposite one — "every notice under THIS opportunity, in order" —
+/// which a (resource_type, external_id) snapshot table cannot answer without
+/// scanning its JSON. Hence real columns for the ordering keys and the compared
+/// facts, plus `snapshot` for the full normalized observation.
+///
+/// Global table — no tenant_id, no RLS. "This solicitation's deadline moved on
+/// 14 July" is a fact about the federal marketplace.
+model TangoOpportunityNotice {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own notice id. The sync's upsert key.
+  tangoNoticeId String @unique @map("tango_notice_id")
+  /// The parent opportunity, when the sync knows it. Nullable: a notice can be
+  /// observed through a solicitation-number query before its parent is walked.
+  tangoOpportunityId String? @map("tango_opportunity_id")
+  /// `sam_opportunity.id` when P27's crosswalk resolved the parent. Soft
+  /// pointer, no FK — the history must outlive either catalog's row lifecycle.
+  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+
+  solicitationNumber String? @map("solicitation_number")
+  title              String?
+
+  /// The notice body, verbatim. Untrusted source text — never an instruction.
+  /// Stored so a later phase has it without re-fetching; nothing on the
+  /// timeline path selects it.
+  description String?
+  /// SHA-256 of the normalized body. The classifier compares THIS, never the
+  /// bodies: a description runs to tens of kilobytes and the timeline query
+  /// fetches up to 500 notices. Null when the provider stated no description —
+  /// and null on every row written before the field was requested at all,
+  /// which is why both columns are nullable rather than backfilled.
+  descriptionSha256 String? @map("description_sha256")
+
+  /// The ordering keys. `providerUpdatedAt` is the tiebreaker, so two notices
+  /// posted the same day still order deterministically.
+  postedDate        DateTime? @map("posted_date") @db.Timestamptz(6)
+  providerUpdatedAt DateTime? @map("provider_updated_at") @db.Timestamptz(6)
+
+  /// The compared facts, as real columns: the change classifier reads every one
+  /// of them on every timeline request.
+  responseDeadline DateTime? @map("response_deadline") @db.Timestamptz(6)
+  active           Boolean?
+  setAside         String?   @map("set_aside")
+  naicsCode        String?   @map("naics_code")
+  pscCode          String?   @map("psc_code")
+  attachmentCount  Int?      @map("attachment_count")
+
+  sourceUrl String? @map("source_url")
+
+  /// Canonical SHA-256 over the normalized observation. A re-sync with
+  /// identical content is a no-op — same hash, no new observation, and
+  /// therefore no material change in the derived timeline.
+  contentHash String @map("content_hash")
+  snapshot    Json   @map("snapshot")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tangoOpportunityId, postedDate], map: "tango_opportunity_notice_parent_idx")
+  @@index([samOpportunityId, postedDate], map: "tango_opportunity_notice_sam_idx")
+  @@map("tango_opportunity_notice")
+}
+
+/// An attachment on a federal solicitation, and — once fetched — where the
+/// archived copy lives (P29).
+///
+/// Metadata and archive are ONE row with an explicit `status`, not two tables:
+/// knowing an attachment exists and holding a copy of it are different facts,
+/// and two tables would let them disagree about the same file. Only
+/// `status = 'archived'` may be cited by a downstream claim (P30/P31), and the
+/// database enforces that an archived row carries its bucket, key, byte count
+/// and hash — a failed fetch cannot mark metadata complete.
+///
+/// `refused` and `failed` are separate: one is Capiro declining to go somewhere
+/// (no retry) and the other is a transient condition (retry later).
+///
+/// `archiveKey` embeds the content hash, so identical bytes re-archive to the
+/// identical key and CHANGED bytes get a different one rather than overwriting.
+/// A requirement extracted from version A must still resolve to version A's
+/// bytes after the agency posts version B.
+///
+/// Global table — no tenant_id, no RLS.
+model OpportunityAttachment {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// At least one parent is required (CHECK). Soft pointers, no FKs.
+  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+  tangoNoticeId    String? @map("tango_notice_id")
+
+  /// Verbatim. The natural key together with its parent.
+  sourceUrl String @map("source_url")
+
+  /// Source-stated. All nullable — SAM.gov's resource links routinely carry a
+  /// URL and nothing else, and deriving a filename from the last path segment
+  /// is a guess that reads like a fact.
+  fileName          String? @map("file_name")
+  declaredMimeType  String? @map("declared_mime_type")
+  declaredSizeBytes BigInt? @map("declared_size_bytes")
+  postedDate        DateTime? @map("posted_date") @db.Timestamptz(6)
+
+  /// Observed on fetch. Null until then.
+  observedMimeType  String? @map("observed_mime_type")
+  observedSizeBytes BigInt? @map("observed_size_bytes")
+  contentSha256     String? @map("content_sha256")
+
+  archiveBucket    String? @map("archive_bucket")
+  archiveKey       String? @map("archive_key")
+  archiveVersionId String? @map("archive_version_id")
+
+  /// 'metadata_only' | 'archived' | 'refused' | 'failed'.
+  status String @default("metadata_only")
+  /// Bounded machine reason, plus a sanitized detail that NEVER contains any
+  /// part of the file body.
+  failureReason String? @map("failure_reason")
+  failureDetail String? @map("failure_detail")
+
+  firstSeenAt   DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastAttemptAt DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  archivedAt    DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([samOpportunityId, status], map: "opportunity_attachment_sam_idx")
+  @@index([status, firstSeenAt], map: "opportunity_attachment_status_idx")
+  @@index([contentSha256], map: "opportunity_attachment_hash_idx")
+  @@map("opportunity_attachment")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program

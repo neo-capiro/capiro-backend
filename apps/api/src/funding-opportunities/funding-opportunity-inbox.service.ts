@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { OPPORTUNITY_SOURCES, type OpportunitySource } from './funding-opportunities.types.js';
+import { OPPORTUNITY_SOURCES } from './funding-opportunities.types.js';
 import { readSourceRecordId } from './funding-opportunity-identity.js';
 
 /**
@@ -46,6 +46,39 @@ export const INBOX_FILTERS = [
 ] as const;
 export type InboxFilter = (typeof INBOX_FILTERS)[number];
 
+/**
+ * The rails the inbox can be NARROWED TO, and the rails an inbox row can
+ * report itself as (P26).
+ *
+ * ── Why this is a third vocabulary, not a widening of an existing one ────────
+ *
+ * `OPPORTUNITY_SOURCES` gates the CATALOG: `GET /opportunities`,
+ * `GET /opportunities/:source/:id`, every write route's `:source` segment, and
+ * every DTO that validates one. Widening THAT list is what makes a source
+ * requestable as a `FundingOpportunity` — a scored record with money, an
+ * eligibility determination and a response deadline. A forecast has none of
+ * those three (see `forecast-opportunity-read.service.ts`), so it must never
+ * be servable as one, and `OPPORTUNITY_SOURCES` stays exactly two entries
+ * wide. `funding-opportunity-identity.spec.ts` pins that.
+ *
+ * The INBOX is a different question. It reads `client_funding_opportunity`,
+ * whose `source` CHECK constraint has admitted `'agency_forecast'` since P13,
+ * and it has ALWAYS returned a forecast-sourced row when one existed — no
+ * source predicate excludes what the caller did not ask about, and P25 added
+ * the forecast title/agency lookup that makes such a row render honestly.
+ * What was missing was (1) a caller's ability to say "show me only the
+ * forecasts" and (2) a row's ability to SAY it is a forecast: `InboxRow.source`
+ * was typed `OpportunitySource` while the service cast a raw column into it,
+ * so a forecast row claimed to be `grants_gov` or `sam_gov` at the type level.
+ * That was a real, if dormant, defect — a UI switching on `row.source` had no
+ * legal value to switch to.
+ */
+export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast'] as const;
+export type InboxSource = (typeof INBOX_SOURCES)[number];
+
+/** The one `INBOX_SOURCES` entry that is not also an `OpportunitySource`. */
+export const FORECAST_INBOX_SOURCE = 'agency_forecast' as const;
+
 export const INBOX_PAGE_SIZE = 50;
 export const INBOX_MAX_PAGE_SIZE = 200;
 
@@ -72,14 +105,62 @@ export const FILTER_SORT: Readonly<
   passed: { column: 'updatedAt', direction: 'desc' },
 });
 
+/**
+ * The source-stated facts an AGENCY FORECAST row carries and a grant/SAM row
+ * does not (P26). Null on every other rail.
+ *
+ * Deliberately holds no `responseDeadline`, no `eligibility` and no
+ * `estimatedValue`: a forecast is an agency's own statement of what it expects
+ * to buy, not a competition anybody can respond to yet. Every field here is
+ * verbatim from `tango_procurement_forecast`, and null means the provider
+ * stated nothing — never zero, and never "no".
+ */
+export interface InboxForecastFacts {
+  /**
+   * The agency's own rough estimate of when it expects to award. A DATE with no
+   * time component, and NEVER a response deadline — there is nothing to respond
+   * to. Null when the provider stated none.
+   */
+  anticipatedAwardDate: string | null;
+  /**
+   * ALWAYS NULL, and a fact about the source rather than a gap here: this
+   * provider resource carries no anticipated-solicitation date at all
+   * (decision-log D-45 enumerates the resource's real fields). Present as an
+   * explicit null so the UI can say "not provided by the source" instead of
+   * silently omitting a field the plan asks for.
+   */
+  anticipatedSolicitationDate: null;
+  /** Free text, e.g. "Q3 FY27". Not a date, and never parsed into one. */
+  estimatedPeriod: string | null;
+  fiscalYear: number | null;
+  /** The agency system the forecast came from, e.g. an APFS instance. */
+  sourceSystem: string | null;
+  /** The provider's own lifecycle word. Never rewritten into "open"/"closed". */
+  status: string | null;
+  /** `false` = the agency withdrew or closed it out. `null` = never stated. */
+  isActive: boolean | null;
+  /** When Capiro last observed this forecast. Freshness, not a source fact. */
+  lastSyncedAt: string | null;
+  /** The provider's own last-touched stamp, when it states one. */
+  providerModifiedAt: string | null;
+}
+
 export interface InboxRow {
   /** The workflow row id — the stable identity of this decision context. */
   id: string;
   client: { id: string; name: string };
-  source: OpportunitySource;
+  /**
+   * The rail this decision context belongs to, INCLUDING `agency_forecast`
+   * (P26). Widened from `OpportunitySource` because the service always could
+   * emit a forecast row and the narrower type made that unrepresentable — see
+   * {@link INBOX_SOURCES}.
+   */
+  source: InboxSource;
   sourceRecordId: string;
   title: string;
   agency: string | null;
+  /** Populated ONLY for `agency_forecast` rows. Null on every other rail. */
+  forecast: InboxForecastFacts | null;
   /** From the snapshot, so the inbox never blocks on a catalog join to sort. */
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
@@ -118,7 +199,7 @@ export interface InboxResponse {
    * "which rail am I reading" instead of "what needs deciding" — and it meant a
    * deadline in three days on the other rail was one click away from invisible.
    */
-  source: OpportunitySource | null;
+  source: InboxSource | null;
   rows: InboxRow[];
   /** Opaque. Pass back verbatim; never construct one client-side. */
   nextCursor: string | null;
@@ -229,6 +310,84 @@ export type InboxSort = {
 column: 'responseDeadlineSnapshot' | 'updatedAt';
 direction: 'asc' | 'desc';
 };
+
+/**
+ * Client ids one user may see, as an ALLOW-LIST (not an exclusion list).
+ *
+ * A walled client is visible only to a user with an explicit
+ * `ClientMemoryAccess` grant. Fail-closed by construction: a walled client with
+ * zero grants is invisible to everyone, admins included.
+ *
+ * A positive allow-list rather than a `NOT IN`, because an exclusion list
+ * silently opens up the moment a new kind of wall appears — the allow-list has
+ * to be widened deliberately to let anything new through.
+ *
+ * Exported (P26) so every Funding Opportunities read that scopes to a client
+ * shares ONE implementation of this rule. `FundingOpportunityInboxService`
+ * calls it for the cross-client list; `ForecastOpportunityReadService` calls it
+ * for a single-record read.
+ */
+export async function readVisibleClientIds(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  actorUserId: string,
+): Promise<string[]> {
+  const [clients, grants] = await Promise.all([
+    tx.client.findMany({
+      where: { tenantId, status: { not: 'archived' }, profileStatus: 'ACTIVE' },
+      select: { id: true, memoryWall: true },
+    }),
+    tx.clientMemoryAccess.findMany({
+      where: { tenantId, userId: actorUserId },
+      select: { clientId: true },
+    }),
+  ]);
+  const granted = new Set(grants.map((g) => g.clientId));
+  return clients.filter((c) => !c.memoryWall || granted.has(c.id)).map((c) => c.id);
+}
+
+/** The `tango_procurement_forecast` columns {@link toInboxForecastFacts} reads. */
+export interface ForecastFactRow {
+  anticipatedAwardDate: Date | null;
+  estimatedPeriod: string | null;
+  fiscalYear: number | null;
+  sourceSystem: string | null;
+  status: string | null;
+  isActive: boolean | null;
+  lastSyncedAt: Date | null;
+  providerModifiedAt: Date | null;
+}
+
+/**
+ * One forecast row's source facts, for an inbox card (P26).
+ *
+ * A pure exported function rather than an inline object literal so the
+ * date-shape decision below is assertable on its own.
+ *
+ * `anticipatedAwardDate` is a Postgres DATE and is serialized as a DATE —
+ * `YYYY-MM-DD`, not a full timestamp. `toISOString()` on a UTC-midnight Date
+ * would render `2027-03-01T00:00:00.000Z`, which a browser in any negative-offset
+ * timezone then displays as 28 February: an agency's stated award month shifted
+ * by a day for every user west of Greenwich. The two genuinely-instant fields
+ * below (`lastSyncedAt`, `providerModifiedAt`) are TIMESTAMPTZ and keep their
+ * full ISO form, because for those the time of day is real information.
+ */
+export function toInboxForecastFacts(row: ForecastFactRow): InboxForecastFacts {
+  return {
+    anticipatedAwardDate: row.anticipatedAwardDate
+      ? row.anticipatedAwardDate.toISOString().slice(0, 10)
+      : null,
+    // Explicit null, never omitted — see the field's own doc.
+    anticipatedSolicitationDate: null,
+    estimatedPeriod: row.estimatedPeriod ?? null,
+    fiscalYear: row.fiscalYear ?? null,
+    sourceSystem: row.sourceSystem ?? null,
+    status: row.status ?? null,
+    isActive: row.isActive ?? null,
+    lastSyncedAt: row.lastSyncedAt ? row.lastSyncedAt.toISOString() : null,
+    providerModifiedAt: row.providerModifiedAt ? row.providerModifiedAt.toISOString() : null,
+  };
+}
 
 /**
  * The compound keyset predicate: `(sort, id) > (cursorSort, cursorId)`.
@@ -373,6 +532,7 @@ export class FundingOpportunityInboxService {
 
       const now = new Date();
       const shaped: InboxRow[] = page.map((row) => {
+        const rowSource = row.source as InboxSource;
         // readSourceRecordId, not a hand-rolled grantOpportunityId ??
         // samOpportunityId fallback (P25 fix) — see titlesFor's own doc for
         // why the fallback alone could never match a generic-identity-only
@@ -387,13 +547,19 @@ export class FundingOpportunityInboxService {
             id: row.clientId,
             name: clientsById.get(row.clientId) ?? 'Unknown client',
           },
-          source: row.source as OpportunitySource,
+          source: rowSource,
           sourceRecordId: readSourceRecordId(row) ?? '',
           // A missing title says so. It never renders as an empty card, and it
           // never silently drops the row — a decision context whose source row is
           // gone is exactly what somebody needs to see.
           title: meta?.title ?? 'Source record no longer in the catalog',
           agency: meta?.agency ?? null,
+          // P26. Present ONLY on a forecast row, and only when the forecast
+          // record itself was found — a workflow row pointing at a forecast
+          // that is no longer in the catalog already says so through `title`,
+          // and fabricating an empty facts block alongside it would read as
+          // "the agency stated nothing" rather than "we no longer hold it".
+          forecast: rowSource === FORECAST_INBOX_SOURCE ? (meta?.forecast ?? null) : null,
           responseDeadline: deadline ? deadline.toISOString() : null,
           daysUntilDeadline: deadline
             ? Math.floor((deadline.getTime() - now.getTime()) / 86_400_000)
@@ -467,11 +633,18 @@ export class FundingOpportunityInboxService {
    * `clientId` — where dropping the value protects the ethical wall — a mistyped
    * source has no privacy dimension, and quietly returning grants to a caller that
    * asked for contracts is worse than saying no.
+   *
+   * Validated against {@link INBOX_SOURCES}, which is DELIBERATELY wider than
+   * `OPPORTUNITY_SOURCES` — see that constant's own doc. Accepting
+   * `agency_forecast` here narrows the query to a rail the table has been able
+   * to hold since P13; it does not make a forecast servable through any catalog
+   * route, and it cannot widen what the inbox returns (a narrowing predicate
+   * only ever removes rows).
    */
-  private parseSource(raw: string | undefined): OpportunitySource | null {
+  private parseSource(raw: string | undefined): InboxSource | null {
     if (raw == null || raw === '') return null;
-    if ((OPPORTUNITY_SOURCES as readonly string[]).includes(raw)) return raw as OpportunitySource;
-    throw new BadRequestException(`source must be one of: ${OPPORTUNITY_SOURCES.join(', ')}`);
+    if ((INBOX_SOURCES as readonly string[]).includes(raw)) return raw as InboxSource;
+    throw new BadRequestException(`source must be one of: ${INBOX_SOURCES.join(', ')}`);
   }
 
   private parsePageSize(raw: number | undefined): number {
@@ -514,27 +687,17 @@ export class FundingOpportunityInboxService {
   /**
    * Client ids this user may see, as an allow-list.
    *
-   * A walled client is visible only to a user with an explicit
-   * `ClientMemoryAccess` grant. Fail-closed by construction: a walled client with
-   * zero grants is invisible to everyone, admins included.
+   * Delegates to {@link readVisibleClientIds} so the inbox and P26's forecast
+   * read cannot drift into two different answers to "may this user see this
+   * client" — an ethical wall enforced by two implementations is an ethical wall
+   * with two chances to be wrong.
    */
   private async visibleClientIds(
     tx: Prisma.TransactionClient,
     tenantId: string,
     actorUserId: string,
   ): Promise<string[]> {
-    const [clients, grants] = await Promise.all([
-      tx.client.findMany({
-        where: { tenantId, status: { not: 'archived' }, profileStatus: 'ACTIVE' },
-        select: { id: true, memoryWall: true },
-      }),
-      tx.clientMemoryAccess.findMany({
-        where: { tenantId, userId: actorUserId },
-        select: { clientId: true },
-      }),
-    ]);
-    const granted = new Set(grants.map((g) => g.clientId));
-    return clients.filter((c) => !c.memoryWall || granted.has(c.id)).map((c) => c.id);
+    return readVisibleClientIds(tx, tenantId, actorUserId);
   }
 
   private async clientsById(
@@ -594,11 +757,11 @@ export class FundingOpportunityInboxService {
       samOpportunityId: string | null;
       sourceRecordKey: string | null;
     }>,
-  ): Promise<Map<string, { title: string; agency: string | null }>> {
+  ): Promise<Map<string, { title: string; agency: string | null; forecast?: InboxForecastFacts }>> {
     const grantIds = rows.map((r) => r.grantOpportunityId).filter((v): v is string => v != null);
     const samIds = rows.map((r) => r.samOpportunityId).filter((v): v is string => v != null);
     const forecastIds = rows
-      .filter((r) => r.source === 'agency_forecast')
+      .filter((r) => r.source === FORECAST_INBOX_SOURCE)
       .map((r) => readSourceRecordId(r))
       .filter((v): v is string => v != null);
     const [grants, sam, forecasts] = await Promise.all([
@@ -617,14 +780,35 @@ export class FundingOpportunityInboxService {
       forecastIds.length
         ? tx.tangoProcurementForecast.findMany({
             where: { tangoForecastId: { in: [...new Set(forecastIds)] } },
-            select: { tangoForecastId: true, title: true, agency: true },
+            // P26 widens this select from title/agency to the source facts a
+            // forecast card must state. Still ONE batched query for the whole
+            // page — the columns grew, the query count did not.
+            select: {
+              tangoForecastId: true,
+              title: true,
+              agency: true,
+              anticipatedAwardDate: true,
+              estimatedPeriod: true,
+              fiscalYear: true,
+              sourceSystem: true,
+              status: true,
+              isActive: true,
+              lastSyncedAt: true,
+              providerModifiedAt: true,
+            },
           })
         : Promise.resolve([]),
     ]);
-    const out = new Map<string, { title: string; agency: string | null }>();
+    const out = new Map<string, { title: string; agency: string | null; forecast?: InboxForecastFacts }>();
     for (const g of grants) out.set(`grants_gov:${g.id}`, { title: g.title, agency: g.agency });
     for (const s of sam) out.set(`sam_gov:${s.id}`, { title: s.title, agency: s.agency });
-    for (const f of forecasts) out.set(`agency_forecast:${f.tangoForecastId}`, { title: f.title, agency: f.agency });
+    for (const f of forecasts) {
+      out.set(`${FORECAST_INBOX_SOURCE}:${f.tangoForecastId}`, {
+        title: f.title,
+        agency: f.agency,
+        forecast: toInboxForecastFacts(f),
+      });
+    }
     return out;
   }
 
@@ -639,7 +823,7 @@ export class FundingOpportunityInboxService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     visibleClientIds: string[],
-    source: OpportunitySource | null = null,
+    source: InboxSource | null = null,
   ): Promise<{ counts: Record<InboxFilter, number>; unavailableReason: string | null }> {
     try {
       const entries = await Promise.all(

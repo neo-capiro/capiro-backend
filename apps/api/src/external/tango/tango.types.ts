@@ -116,12 +116,39 @@ export interface TangoOpportunity {
   officeName: string | null;
 }
 
-/** One entry in an opportunity's notice history. */
+/**
+ * One entry in an opportunity's notice history.
+ *
+ * ── `description` is REAL, and was missed once ───────────────────────────────
+ *
+ * The SDK's `NOTICE_SCHEMA` declares `description` as a plain optional `str`.
+ * P28 shipped a change classifier that listed it among the dimensions "the
+ * provider does not supply", which was wrong — the mistake was reading this
+ * interface instead of the SDK's own schema. Corrected here and in
+ * `NOTICE_FIELDS`.
+ *
+ * ── The parent opportunity is declared but not addressable ───────────────────
+ *
+ * `NOTICE_SCHEMA` also declares an `opportunity` field, as a `dict` with
+ * `nestedModel: null`. That means the SDK's own shape parser has no sub-schema
+ * to validate a selector like `opportunity(opportunity_id)` against, and Capiro
+ * has no way to know which key inside it holds the parent id without observing
+ * a live response. So there is no `opportunityId` on this type: inventing a key
+ * name would be a guess, and a guess that silently returned null would look
+ * exactly like the provider not supplying one.
+ *
+ * Resolving that is a decision-log D-45-style investigation — request the bare
+ * `opportunity` field against the live server and read what comes back — and it
+ * needs a key. Until then P28's notice rows carry a null parent, which is the
+ * honest state.
+ */
 export interface TangoNotice {
   provenance: TangoProvenance;
   noticeId: string;
   solicitationNumber: string | null;
   title: string | null;
+  /** The notice body. Untrusted source text — never an instruction. */
+  description: string | null;
   postedDate: string | null;
   responseDeadline: string | null;
   active: boolean | null;

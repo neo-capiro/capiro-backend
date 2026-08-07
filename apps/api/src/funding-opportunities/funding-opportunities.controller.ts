@@ -27,14 +27,20 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import {
   FundingOpportunitiesFlagGuard,
+  FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
+import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
   FundingOpportunityInboxService,
   INBOX_FILTERS,
   INBOX_MAX_PAGE_SIZE,
+  INBOX_SOURCES,
   type InboxFilter,
+  type InboxSource,
 } from './funding-opportunity-inbox.service.js';
+import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import {
   FundingOpportunitiesService,
   type OpportunityQuery,
@@ -297,10 +303,16 @@ class InboxQueryDto {
   /**
    * Narrow to one rail. A FILTER, never the top-level model — the inbox is
    * organised by what needs deciding, not by which catalog a row came from.
+   *
+   * Validated against `INBOX_SOURCES`, which includes `agency_forecast` (P26)
+   * and is deliberately WIDER than the `OPPORTUNITY_SOURCES` every other DTO in
+   * this file uses — see that constant's own doc. A narrowing filter can only
+   * ever remove rows, so admitting a third value here cannot widen what the
+   * inbox returns.
    */
   @IsOptional()
-  @IsIn(OPPORTUNITY_SOURCES)
-  source?: OpportunitySource;
+  @IsIn(INBOX_SOURCES)
+  source?: InboxSource;
 
   @IsOptional()
   @IsString()
@@ -363,6 +375,8 @@ export class FundingOpportunitiesController {
     private readonly service: FundingOpportunitiesService,
     private readonly actions: FundingOpportunityActionsService,
     private readonly inboxService: FundingOpportunityInboxService,
+    private readonly forecasts: ForecastOpportunityReadService,
+    private readonly timeline: OpportunityTimelineService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -392,6 +406,40 @@ export class FundingOpportunitiesController {
     });
   }
 
+  /**
+   * One agency procurement forecast, optionally scored for a client (P26).
+   *
+   * A SEPARATE route from `opportunities/:source/:id`, not a widening of it — a
+   * forecast has no response deadline, no eligibility determination and no
+   * money, and returning it as a `FundingOpportunity` would mean either
+   * inventing those three or shipping a record whose empty eligibility field
+   * reads as "not eligible". See `forecast-opportunity-read.service.ts`.
+   *
+   * Declared BEFORE `opportunities/:source/:id` so `opportunities/forecasts/:id`
+   * cannot be captured by it — `:source` would happily match the literal
+   * `forecasts` and hand the id to a rail that does not exist.
+   *
+   * THREE guards, and the middle one is the point: the class-level guard proves
+   * the tenant has Funding Opportunities, and this one proves they have agency
+   * forecasts specifically. With `funding_opportunities_forecasts` off — which
+   * is every tenant today — this 404s exactly like a route that was never
+   * deployed.
+   */
+  @Get('opportunities/forecasts/:forecastId')
+  @UseGuards(FundingOpportunitiesForecastFlagGuard)
+  forecast(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('forecastId') forecastId: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.forecasts.getForecast(
+      ctx.tenantId,
+      ctx.userId,
+      forecastId,
+      clientId ?? null,
+    );
+  }
+
   @Get('opportunities')
   list(@CurrentTenant() ctx: TenantContext, @Query() q: OpportunityListQueryDto) {
     return this.service.listOpportunities(ctx.tenantId, q as OpportunityQuery);
@@ -402,6 +450,23 @@ export class FundingOpportunitiesController {
    * because the two catalogs have different key spaces — a bare id could be
    * routed to the wrong rail and 404 for a record that exists.
    */
+  /**
+   * The notice history for one SAM.gov solicitation, as a material-change
+   * timeline (P28).
+   *
+   * Declared BEFORE `opportunities/:source/:id` — a three-segment route cannot
+   * collide with a two-segment one, but keeping the timeline next to the
+   * forecast route reads better than burying it below the writes.
+   *
+   * READ-ONLY, and it emits nothing: no alert, no task, no write. Alerting on a
+   * material change is P48's job, deliberately not this phase's.
+   */
+  @Get('opportunities/:source/:id/timeline')
+  @UseGuards(FundingOpportunitiesNoticeHistoryFlagGuard)
+  timelineFor(@Param() params: SourceParamDto, @Param('id') id: string) {
+    return this.timeline.getTimeline(params.source, id);
+  }
+
   @Get('opportunities/:source/:id')
   getOne(
     @CurrentTenant() ctx: TenantContext,

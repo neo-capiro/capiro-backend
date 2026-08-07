@@ -77,7 +77,18 @@
     "scripts/sync-tango-vehicles.spec.ts",
     // P24: agency forecast incremental sync.
     "scripts/sync-tango-forecasts.ts",
-    "scripts/sync-tango-forecasts.spec.ts"
+    "scripts/sync-tango-forecasts.spec.ts",
+    // P27: Tango<->SAM shadow sync and the read-only parity report.
+    "scripts/sync-tango-opportunity-shadow.ts",
+    "scripts/sync-tango-opportunity-shadow.spec.ts",
+    "scripts/diag-tango-opportunity-parity.ts",
+    "scripts/diag-tango-opportunity-parity.spec.ts",
+    // P28: notice-history sync.
+    "scripts/sync-tango-opportunity-notices.ts",
+    "scripts/sync-tango-opportunity-notices.spec.ts",
+    // P29: attachment discovery and secure archive.
+    "scripts/sync-tango-opportunity-attachments.ts",
+    "scripts/sync-tango-opportunity-attachments.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

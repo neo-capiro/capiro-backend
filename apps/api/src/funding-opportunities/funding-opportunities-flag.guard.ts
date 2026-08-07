@@ -27,6 +27,37 @@ export const FUNDING_OPPORTUNITIES_INBOX_FEATURE = 'funding_opportunities_client
 export const FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE = 'funding_opportunities_vehicle_fit';
 
 /**
+ * P26. Gates the agency-forecast surface: the forecast read route below, and
+ * (web side) the forecast card, the forecast source filter and the forecast
+ * detail sections.
+ *
+ * A ROUTE flag, like the inbox's and unlike P23's — the forecast read is its own
+ * endpoint returning its own record shape, so "off" can mean the honest 404 a
+ * route that was never deployed gives, rather than a `FundingOpportunity` with
+ * forecast-shaped holes in it. A forecast is not a `FundingOpportunity` and is
+ * deliberately never served as one.
+ *
+ * Separate from the master flag and from the inbox flag for the same reason
+ * those two are separate from each other: turning agency forecasts on changes
+ * what a tenant's triage queue CONTAINS, and that has to be a deliberate,
+ * separately reviewable decision — not a side effect of enabling the inbox.
+ */
+export const FUNDING_OPPORTUNITIES_FORECASTS_FEATURE = 'funding_opportunities_forecasts';
+
+/**
+ * P28. Gates the notice-history timeline: the read route below and the
+ * timeline panel on the detail surface.
+ *
+ * A ROUTE flag, like the inbox's and the forecast one. With it off the endpoint
+ * 404s and the detail surface keeps the P12 placeholder it has carried since —
+ * which is honest, because "amendment history is not available here" and "this
+ * solicitation was never amended" are different statements and only the first
+ * is true.
+ */
+export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
+  'funding_opportunities_notice_history';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -152,5 +183,32 @@ export class FundingOpportunitiesFlagGuard implements CanActivate {
 export class FundingOpportunitiesInboxFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_INBOX_FEATURE;
+  }
+}
+
+/**
+ * P26's forecast guard: the SAME fail-closed logic, keyed on the forecast flag.
+ *
+ * Subclassed for the identical reason the inbox guard is — Nest resolves guards
+ * by class, so a parameterized factory could not have `PrismaService` injected
+ * into its instances. Every fail-closed path (no tenant context, no row, a
+ * THROWING read) stays in the base class, so this cannot drift into failing
+ * open.
+ *
+ * Routes carrying this also carry the master guard, so a tenant without
+ * `funding_opportunities` never reaches the forecast check at all.
+ */
+@Injectable()
+export class FundingOpportunitiesForecastFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_FORECASTS_FEATURE;
+  }
+}
+
+/** P28's notice-history guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesNoticeHistoryFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE;
   }
 }

@@ -360,14 +360,72 @@ export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
   passed: 'Opportunities the team declined. Kept, because a decision is a durable fact.',
 };
 
+/**
+ * Mirrors INBOX_SOURCES in apps/api's funding-opportunity-inbox.service.ts.
+ *
+ * DELIBERATELY WIDER than {@link OpportunitySource}, which is the catalog's
+ * vocabulary. `agency_forecast` rows can appear in the inbox and can be filtered
+ * to, but a forecast is never servable as a `FundingOpportunity` — it has no
+ * response deadline, no eligibility determination and no money, and a
+ * `FundingOpportunity` shape with holes where those three go reads as "closed",
+ * "not eligible" and "$0".
+ */
+export const INBOX_SOURCES = ['grants_gov', 'sam_gov', 'agency_forecast'] as const;
+export type InboxSource = (typeof INBOX_SOURCES)[number];
+
+export const FORECAST_SOURCE = 'agency_forecast' as const;
+
+export function isForecastRow(row: { source: string }): boolean {
+  return row.source === FORECAST_SOURCE;
+}
+
+/**
+ * Mirrors InboxForecastFacts in apps/api.
+ *
+ * Every field is verbatim from the provider. Null means the agency stated
+ * nothing — never zero, never "no", and never a closed competition.
+ */
+export interface InboxForecastFacts {
+  /**
+   * `YYYY-MM-DD`. The agency's own rough estimate of when it expects to award,
+   * and NEVER a response deadline — there is nothing to respond to yet.
+   *
+   * A date-only string on purpose (the column is a Postgres DATE): parsing it
+   * with `new Date()` and formatting in local time is what shifts a stated March
+   * award into February for every reader west of Greenwich. Use
+   * {@link formatSourceDate}.
+   */
+  anticipatedAwardDate: string | null;
+  /**
+   * ALWAYS NULL. This provider resource carries no anticipated-solicitation date
+   * at all, so the UI says "not provided by the source" rather than omitting a
+   * field the reader was told to expect.
+   */
+  anticipatedSolicitationDate: null;
+  /** Free text, e.g. "Q3 FY27". Not a date. */
+  estimatedPeriod: string | null;
+  fiscalYear: number | null;
+  /** The agency system the forecast came from, e.g. an APFS instance. */
+  sourceSystem: string | null;
+  /** The provider's own lifecycle word. Never rewritten into "open"/"closed". */
+  status: string | null;
+  /** `false` = the agency withdrew it. `null` = never stated, which is NOT closed. */
+  isActive: boolean | null;
+  lastSyncedAt: string | null;
+  providerModifiedAt: string | null;
+}
+
 /** Mirrors InboxRow in apps/api. One CLIENT-OPPORTUNITY decision context. */
 export interface InboxRow {
   id: string;
   client: { id: string; name: string };
-  source: OpportunitySource;
+  /** Includes `agency_forecast` — see {@link INBOX_SOURCES}. */
+  source: InboxSource;
   sourceRecordId: string;
   title: string;
   agency: string | null;
+  /** Populated ONLY on an `agency_forecast` row. Null on every other rail. */
+  forecast: InboxForecastFacts | null;
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
   workflowStatus: string;
@@ -397,7 +455,7 @@ export interface InboxResponse {
    * The source narrowing the server applied, or null for every rail. Source is a
    * FILTER on this surface, never the top-level model.
    */
-  source: OpportunitySource | null;
+  source: InboxSource | null;
   rows: InboxRow[];
   nextCursor: string | null;
   pageSize: number;
@@ -418,6 +476,274 @@ export function formatInboxCount(n: number | undefined): string {
   return n < 0 ? '?' : String(n);
 }
 
+// ── Agency forecasts (P26) ──────────────────────────────────────────────────
+
+/**
+ * Mirrors FORECAST_RECOMMENDATIONS in apps/api's opportunity-recommendation.ts.
+ *
+ * `shape_now` is the forecast-specific distinction the common
+ * `MachineRecommendation` vocabulary deliberately erases: a forecast worth
+ * acting on is worth SHAPING — briefing the program office, finding a partner,
+ * getting requirements right — never bidding, because there is nothing to bid
+ * on. There is no `pursue` in this list, and the API's own mapping can never
+ * produce one for a forecast.
+ */
+export const FORECAST_RECOMMENDATIONS = ['shape_now', 'monitor', 'pass', 'needs_review'] as const;
+export type ForecastRecommendation = (typeof FORECAST_RECOMMENDATIONS)[number];
+
+export const FORECAST_RECOMMENDATION_LABELS: Record<ForecastRecommendation, string> = {
+  shape_now: 'Shape now',
+  monitor: 'Monitor',
+  pass: 'Pass',
+  needs_review: 'Needs review',
+};
+
+export const FORECAST_RECOMMENDATION_COLORS: Record<ForecastRecommendation, string> = {
+  shape_now: 'geekblue',
+  monitor: 'blue',
+  pass: 'default',
+  needs_review: 'orange',
+};
+
+/**
+ * The four actions a forecast offers. Mirrors FORECAST_ACTIONS in apps/api.
+ *
+ * `Pursue` and `Submit` are ABSENT by construction, not by styling: there is no
+ * solicitation to submit against and no response window to pursue within, so
+ * offering either would invite a team to act on a competition that does not
+ * exist. A human who wants to treat a forecast as a pursuit has to qualify a
+ * real notice first.
+ */
+export const FORECAST_ACTIONS = [
+  'monitor',
+  'assign_research',
+  'plan_capability_briefing',
+  'pass',
+] as const;
+export type ForecastAction = (typeof FORECAST_ACTIONS)[number];
+
+export const FORECAST_ACTION_LABELS: Record<ForecastAction, string> = {
+  monitor: 'Monitor',
+  assign_research: 'Assign research',
+  plan_capability_briefing: 'Plan capability briefing',
+  pass: 'Pass',
+};
+
+/** Mirrors ForecastSignalEvidence in apps/api. */
+export interface ForecastSignalEvidence {
+  exactNaicsMatch: boolean;
+  exactPscMatch: boolean;
+  capabilityMatch: boolean;
+  priorAgencyHistory: boolean;
+  programElementLinkedSourceBacked: boolean;
+  locationMatch: boolean;
+  knownVehicleAccess: boolean;
+  reviewedStrategicPriority: boolean;
+  /**
+   * Signals that could not be evaluated AT ALL, with the reason for each.
+   *
+   * Not a synonym for `false`. "The provider states no product/service code" is
+   * a fact about the source; rendering it as an unticked box would state an
+   * absence of the client's fit instead.
+   */
+  unavailable: Array<{ signal: string; reason: string }>;
+}
+
+/** Mirrors ForecastRecommendationView in apps/api. */
+export interface ForecastRecommendationView {
+  forecastRecommendation: ForecastRecommendation;
+  /** The common vocabulary. NEVER 'pursue' for a forecast. */
+  machineRecommendation: MachineRecommendation;
+  /** EVIDENCE QUALITY. Never a probability of winning, and never a probability
+   * that the forecast becomes a real solicitation. */
+  recommendationConfidence: RecommendationConfidence;
+  primaryReason: string;
+  primaryRisk: string | null;
+  recommendedNextAction: string;
+  reasonCodes: string[];
+  signals: ForecastSignalEvidence;
+}
+
+/**
+ * Mirrors ForecastOpportunityRecord in apps/api.
+ *
+ * Deliberately NOT a {@link FundingOpportunity}: no `responseDeadline`, no
+ * `eligibility`, no money. See the API service's own doc.
+ */
+export interface ForecastOpportunityRecord {
+  source: typeof FORECAST_SOURCE;
+  sourceRecordId: string;
+  externalId: string | null;
+  title: string;
+  description: string | null;
+  agency: string | null;
+  departmentName: string | null;
+  organizationAgencyName: string | null;
+  officeName: string | null;
+  facts: InboxForecastFacts;
+  naicsCode: string | null;
+  /** ALWAYS NULL — confirmed absent from this provider resource. */
+  pscCode: string | null;
+  setAside: string | null;
+  contractVehicle: string | null;
+  placeOfPerformance: string | null;
+  primaryContact: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    title: string | null;
+  } | null;
+  /** ALWAYS NULL — confirmed absent from this provider resource. */
+  sourceUrl: string | null;
+  recommendation: ForecastRecommendationView | null;
+  clientId: string | null;
+  decision: OpportunityDecision | null;
+  workflow: { id: string; status: string } | null;
+  /**
+   * ALWAYS NULL today. "Not yet linked", never "no solicitation followed" — the
+   * only honest way to link a forecast to a later notice is an exact identifier
+   * the provider does not publish, and inferring one from title text is the
+   * fuzzy identity matching this codebase forbids outright.
+   */
+  linkedOpportunity: null;
+  missingProfileFields: MissingProfileField[];
+  generatedAt: string;
+}
+
+/** The forecast surface's own flag. Byte-matches the API guard's constant. */
+export const FUNDING_OPPORTUNITIES_FORECASTS_FEATURE = 'funding_opportunities_forecasts';
+
+/** The forecast read route for one provider forecast id. */
+export function forecastDetailApiPath(forecastId: string, clientId: string | null): string {
+  const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+  return `/api/intelligence/opportunities/forecasts/${encodeURIComponent(forecastId)}${query}`;
+}
+
+/**
+ * A source-stated `YYYY-MM-DD` for display, WITHOUT a timezone round trip.
+ *
+ * `new Date('2027-03-01')` is parsed as UTC midnight and then rendered in local
+ * time, so every reader west of Greenwich sees 28 February — an agency's stated
+ * award month moved by a day. Formatting from the parts avoids the instant
+ * entirely, which is correct because a DATE has no instant.
+ *
+ * Returns the placeholder for null, and the raw string for anything that is not
+ * a plain date — echoing an unexpected source value verbatim beats guessing.
+ */
+export function formatSourceDate(
+  value: string | null,
+  // The default is the SOURCE-absence sentence, not a bare "Not provided": every
+  // caller on this surface is rendering a field the agency did or did not state,
+  // and "Not provided" alone is ambiguous about whose gap it is.
+  placeholder = 'Not provided by the source',
+): string {
+  if (!value) return placeholder;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return value;
+  const [, y, mo, d] = m as unknown as [string, string, string, string];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = MONTHS[Number(mo) - 1] ?? mo;
+  return `${Number(d)} ${month} ${y}`;
+}
+
+/**
+ * The forecast rail's freshness line.
+ *
+ * A forecast's staleness matters MORE than a live notice's, not less: an agency
+ * revises a forecast quietly and often, so "last observed 6 Aug" is the reader's
+ * only cue that a shape-now recommendation might be acting on a withdrawn plan.
+ */
+export function formatForecastFreshness(facts: InboxForecastFacts): string {
+  if (!facts.lastSyncedAt) return 'Never observed by Capiro';
+  const observed = `Last observed ${shortDate(facts.lastSyncedAt)}`;
+  if (!facts.providerModifiedAt) return `${observed} · agency states no revision date`;
+  return `${observed} · agency last revised ${shortDate(facts.providerModifiedAt)}`;
+}
+
+// ── Notice history and the material-change timeline (P28) ───────────────────
+
+/** The notice-history flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
+  'funding_opportunities_notice_history';
+
+/** Mirrors CHANGE_SEVERITIES in apps/api's opportunity-change-classifier.ts. */
+export const CHANGE_SEVERITIES = ['critical', 'significant', 'informational'] as const;
+export type ChangeSeverity = (typeof CHANGE_SEVERITIES)[number];
+
+/**
+ * The band names as a reader sees them.
+ *
+ * The split is about ACTION, not about size: a deadline or a cancellation
+ * changes whether and when a team can respond at all.
+ */
+export const CHANGE_SEVERITY_LABELS: Record<ChangeSeverity, string> = {
+  critical: 'Affects whether you can respond',
+  significant: 'Affects whether you may respond',
+  informational: 'Worth seeing',
+};
+
+export const CHANGE_SEVERITY_COLORS: Record<ChangeSeverity, string> = {
+  critical: 'red',
+  significant: 'orange',
+  informational: 'blue',
+};
+
+/** Mirrors MaterialChange in apps/api. */
+export interface MaterialChange {
+  dimension: string;
+  severity: ChangeSeverity;
+  /** Verbatim previous value. Null means it was absent. */
+  before: string | null;
+  /** Verbatim new value. Null means it became absent. */
+  after: string | null;
+  /**
+   * The composed sentence. NEVER a generic "the notice was updated" — that
+   * label is the thing P28 exists to replace, because it tells a reader nothing
+   * they can act on.
+   */
+  summary: string;
+}
+
+/** Mirrors TimelineEntry in apps/api. */
+export interface TimelineEntry {
+  tangoNoticeId: string;
+  title: string | null;
+  postedDate: string | null;
+  providerUpdatedAt: string | null;
+  sourceUrl: string | null;
+  /** True for the earliest notice: there is nothing before it to compare against. */
+  isFirstObservation: boolean;
+  changes: MaterialChange[];
+}
+
+/** Mirrors OpportunityTimelineResponse in apps/api. */
+export interface OpportunityTimelineResponse {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  entries: TimelineEntry[];
+  changeCount: number;
+  bySeverity: Record<ChangeSeverity, number>;
+  /**
+   * Change dimensions the provider states nothing about on a notice, with the
+   * reason for each. Rendered rather than omitted: a reader who knows the
+   * timeline misses stage transitions can go check the source; a reader who was
+   * never told assumes it covers everything.
+   */
+  unsupported: Array<{ dimension: string; reason: string }>;
+  /**
+   * Why the timeline is the length it is. `no_notices_synced` and
+   * `not_crosswalked` are both "Capiro cannot say", NOT "the solicitation was
+   * never amended".
+   */
+  coverage: 'available' | 'no_notices_synced' | 'not_crosswalked';
+  coverageExplanation: string;
+  generatedAt: string;
+}
+
+export function timelineApiPath(source: string, sourceRecordId: string): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/timeline`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**
@@ -430,10 +756,41 @@ export function formatInboxCount(n: number | undefined): string {
  * dropped the client would silently render the unscored catalog view instead.
  */
 export interface OpportunityRef {
-  source: OpportunitySource;
+  /**
+   * Includes `agency_forecast` (P26). The ref names a RECORD to open, and both
+   * detail bodies are reached the same way — which is what keeps the drawer, the
+   * full page and the `?detail=` deep link from needing three sets of rules.
+   * What the two bodies then render is completely different; see
+   * ForecastOpportunityDetail.
+   */
+  source: InboxSource;
   sourceRecordId: string;
   /** Null on the unscoped catalog read, where there is nothing to score against. */
   clientId: string | null;
+}
+
+/**
+ * A ref that names a CATALOG record specifically.
+ *
+ * `FundingOpportunityDetail` takes this rather than {@link OpportunityRef}, so
+ * "this body cannot render a forecast" is enforced by the compiler instead of by
+ * a comment. The drawer and the route narrow to it after dispatching on source.
+ */
+export interface CatalogOpportunityRef extends OpportunityRef {
+  source: OpportunitySource;
+}
+
+/**
+ * Narrow a ref to the catalog, or null for a forecast.
+ *
+ * A function rather than an inline ternary at each call site because TypeScript
+ * cannot narrow an OBJECT by testing one of its properties — `ref.source === 'x'`
+ * narrows `ref.source`, not `ref` — so every dispatch site would otherwise need
+ * its own cast, and a cast is exactly the thing that stops the compiler noticing
+ * when a third record type arrives.
+ */
+export function asCatalogRef(ref: OpportunityRef): CatalogOpportunityRef | null {
+  return isOpportunitySource(ref.source) ? { ...ref, source: ref.source } : null;
 }
 
 /**
@@ -463,12 +820,24 @@ export function decodeOpportunityRef(raw: string | null): OpportunityRef | null 
     return null;
   }
   const [source, sourceRecordId, clientId] = decoded as [string, string, string];
-  if (!isOpportunitySource(source) || !sourceRecordId) return null;
+  if (!isInboxSource(source) || !sourceRecordId) return null;
   return { source, sourceRecordId, clientId: clientId || null };
 }
 
+/** The CATALOG vocabulary: the two rails a `FundingOpportunity` can come from. */
 export function isOpportunitySource(value: string): value is OpportunitySource {
   return value === 'grants_gov' || value === 'sam_gov';
+}
+
+/**
+ * The INBOX/detail vocabulary: the catalog's two rails plus agency forecasts.
+ *
+ * Kept as a second predicate rather than a widening of the first, because the two
+ * answer different questions: `isOpportunitySource` gates "can this be fetched as
+ * a `FundingOpportunity`", which a forecast never can.
+ */
+export function isInboxSource(value: string): value is InboxSource {
+  return (INBOX_SOURCES as readonly string[]).includes(value);
 }
 
 /** The full-page detail route for a ref. The drawer and this render the same body. */
@@ -508,6 +877,29 @@ export const KIND_LABELS: Record<OpportunityKind, string> = {
 export const SOURCE_LABELS: Record<OpportunitySource, string> = {
   grants_gov: 'Grants.gov',
   sam_gov: 'SAM.gov',
+};
+
+/**
+ * Labels for every rail an inbox row can be on.
+ *
+ * The forecast label is TWO facts, not one: "Agency forecast" says where it came
+ * from, "early signal" says what it is. A reader who sees only the first can
+ * reasonably read a forecast as something to bid on; the plan's own acceptance
+ * line ("No forecast card says open, solicitation, eligible, or deadline unless
+ * source states it") is why the second half is part of the label rather than a
+ * tooltip.
+ */
+export const INBOX_SOURCE_LABELS: Record<InboxSource, string> = {
+  grants_gov: 'Grants.gov',
+  sam_gov: 'SAM.gov',
+  agency_forecast: 'Agency forecast · early signal',
+};
+
+/** The short form, for a tag where the full two-part label will not fit. */
+export const INBOX_SOURCE_SHORT_LABELS: Record<InboxSource, string> = {
+  grants_gov: 'Grants.gov',
+  sam_gov: 'SAM.gov',
+  agency_forecast: 'Agency forecast',
 };
 
 export const ELIGIBILITY_LABELS: Record<EligibilityState, string> = {

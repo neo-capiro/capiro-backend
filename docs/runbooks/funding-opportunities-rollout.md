@@ -581,6 +581,224 @@ cd apps/api
 pnpm exec jest funding-opportunity-identity.spec.ts --silent
 ```
 
+### Forecast early-signal UI (P26) — no migration, one NEW flag, ships dark
+
+Adds `funding_opportunities_forecasts` and the surface behind it: a forecast
+card in the triage inbox, a forecast detail body, and a read-only forecast
+route (`GET /api/intelligence/opportunities/forecasts/:forecastId`) guarded by
+that flag. **No tenant has a row for it**, so the route 404s everywhere and the
+UI renders nothing — exactly like P23's vehicle-fit flag.
+
+This is also the phase that gives P25's `scoreForecastRelevance` its first real
+caller. A forecast is served from its OWN route with its OWN record type and is
+never a `FundingOpportunity`: that shape carries a response deadline, an
+eligibility determination and money, and a forecast carries none of the three.
+
+```sql
+-- READ-ONLY. Expect 0 rows — no tenant has the forecast flag.
+SELECT tenant_id, enabled FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_forecasts';
+```
+
+```sql
+-- MUTATING — Neo approval required. The internal-tenant canary, when wanted.
+-- Requires funding_opportunities AND funding_opportunities_client_inbox to be
+-- on for the same tenant first; the forecast surface lives inside the inbox.
+INSERT INTO intel_feature_flag (tenant_id, feature, enabled)
+VALUES ('<internal-tenant-uuid>', 'funding_opportunities_forecasts', true)
+ON CONFLICT (tenant_id, feature) DO UPDATE SET enabled = true;
+```
+
+**Turning the flag on surfaces nothing on its own.** No producer writes a
+forecast `client_funding_opportunity` row, so the inbox will contain no forecast
+rows however many `tango_procurement_forecast` records exist. What the flag
+enables is (a) the forecast source filter, (b) the forecast detail route for a
+directly-addressed forecast id, and (c) the rendering path for a row if one ever
+exists. Building the producer is a later, separate decision.
+
+With the flag OFF the inbox WITHHOLDS any forecast row rather than rendering it,
+and says how many it withheld — the tab badges count every row the tenant has,
+and a page quietly showing fewer rows than its badge reads as a broken filter.
+
+### Tango↔SAM crosswalk and parity ledger (P27) — a migration, no user surface
+
+`prisma/migrations/20260826010000_tango_opportunity_crosswalk` adds ONE new
+**global** table, `tango_opportunity_parity` (no tenant_id, no RLS, and no
+foreign key — see the migration's own header). Apply it in the normal migration
+step (§4 below); additive, no existing table touched.
+
+**This phase writes nothing to `sam_opportunity`, ever.** Plan §4.2 binds here:
+first-party ingestion stays authoritative for canonical lifecycle fields, a
+Tango observation may verify or identify a conflict, the conflict is RECORDED,
+and no "last write wins" merge is permitted. The shadow sync writes exactly
+three provider-owned things — P15's `tango_resource_snapshot`, P15's
+`tango_resource_link` (basis `exact_identifier`), and the new parity ledger.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the shadow sync has run.
+SELECT count(*) FROM tango_opportunity_parity;
+SELECT agreement, count(*) FROM tango_opportunity_parity GROUP BY agreement;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. --changed-since bounds a first/backfill run; the
+# default is 90 days back, because reaching further would report notices that
+# predate Capiro's own SAM.gov ingestion as coverage gaps, which they are not.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-shadow.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-opportunity-shadow.ts --commit --limit=200
+```
+
+```bash
+# READ-ONLY. No Tango call and no key — reads Capiro's own tables only.
+# Exits 0 unless a threshold YOU set is breached.
+cd apps/api
+pnpm exec tsx scripts/diag-tango-opportunity-parity.ts
+pnpm exec tsx scripts/diag-tango-opportunity-parity.ts --field=response_deadline --sample=25
+```
+
+**Read this before treating `unlinked` as a failure.** A steady population of
+provider notices with no local counterpart is the EXPECTED state of a
+verification rail: the two catalogs sync on different schedules and cover
+slightly different windows. The diagnostic exits nonzero only for an
+operator-set `--max-conflicts` / `--max-ambiguous` / `--stale-hours`, and there
+is deliberately no flag that makes an ordinary unlinked row blocking.
+
+**Read this before treating `ambiguous` as a bug.** One solicitation number
+routinely spans a presolicitation, a solicitation and several amendments, each
+its own `sam_opportunity` row. When more than one local notice carries the
+provider's number, NOTHING is linked — attaching a provider observation
+(including a deadline) to whichever amendment sorted first is how a closed
+presolicitation acquires a live deadline. `ambiguous` has its own count in the
+diagnostic for exactly this reason.
+
+**A conflict is never resolved by a job.** `resolution` starts `unreviewed` and
+moves only through an attributed human review; the database enforces the
+three-way all-or-nothing (a reviewed row carries both actor and timestamp, an
+unreviewed row carries neither). There is no review CLI in this phase — the
+operational default is source precedence, which is already what the code does:
+the local value stays canonical whether or not anybody looks.
+
+### Notice history and material-change timeline (P28) — a migration, one NEW flag
+
+`prisma/migrations/20260827010000_tango_opportunity_notice_history` adds ONE
+new **global** table, `tango_opportunity_notice` (no tenant_id, no RLS, no FK).
+Additive; apply it in the normal migration step below.
+
+Adds `funding_opportunities_notice_history`, which gates the read route
+(`GET /api/intelligence/opportunities/:source/:id/timeline`) and the timeline
+panel on the detail surface. No tenant has a row, so the route 404s everywhere.
+
+**The timeline is DERIVED on read, never stored.** There is no timeline table
+and the CI schema check asserts there is not one — a stored copy alongside its
+own inputs is a second thing that can be wrong about them.
+
+**P28 emits nothing.** No alert, no task, no email. Alerting on a material
+change is P48's, and neither the classifier nor the read service holds a
+dependency through which one could be sent.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the notice sync has run.
+SELECT count(*) AS notices,
+       count(*) FILTER (WHERE sam_opportunity_id IS NOT NULL) AS crosswalked
+  FROM tango_opportunity_notice;
+```
+
+```bash
+# Dry run first — calls Tango for real, writes nothing locally.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-notices.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-opportunity-notices.ts --commit --limit=200
+```
+
+Expect `errored: 0`. A healthy re-run reports a large `unchanged` count and a
+small `written` one — that is the content-hash no-op path working, and it is
+what makes the incremental overlap free.
+
+**Read this before treating a low `crosswalked` count as a bug.** A notice is
+stamped with a local `sam_opportunity.id` only when EXACTLY ONE local notice
+carries its solicitation number, reusing P27's own rule. One number routinely
+spans a presolicitation, a solicitation and several amendments, so an ambiguous
+number stamps nothing — the notice is still stored and becomes reachable the
+moment the ambiguity resolves. The timeline API reports
+`coverage: 'not_crosswalked'` for such a solicitation rather than an empty
+history, because "we cannot prove which one this is" and "it was never amended"
+are different statements.
+
+**Four of the plan's nine change dimensions are not covered**, and the UI says
+so rather than omitting them: the SDK's bundled `NOTICE_SCHEMA` declares no
+notice type, no place of performance, no contact and no description, so a
+change to any of the four cannot be observed from notice history. Whether the
+LIVE server carries more than the SDK declares is a decision-log D-45-style
+investigation — request a deliberately invalid field and read the
+`available_fields` payload the server returns — and it needs a key.
+
+### Attachment metadata and secure archive (P29) — a migration, no flag, no UI
+
+`prisma/migrations/20260829010000_opportunity_attachments` adds ONE new
+**global** table, `opportunity_attachment`. Additive; apply it in the normal
+migration step below. There is no new feature flag: nothing is surfaced yet, and
+the sync is dry-run by default.
+
+**The attachment URLs do not come from the provider.** The installed
+`@makegov/tango-node@1.1.0` exposes no attachment *enumeration* — its only
+attachment-shaped method is `searchOpportunityAttachments`, a semantic search
+that answers "which documents mention X" and cannot answer "what documents does
+this solicitation have". The enumerable source is Capiro's own SAM.gov
+ingestion: `sam_opportunity.raw.resourceLinks`.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run.
+SELECT status, count(*) FROM opportunity_attachment GROUP BY status;
+```
+
+```bash
+# Dry run. Reports what it WOULD discover and transfer; touches nothing.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts
+
+# Metadata only — writes the candidate rows, fetches nothing. Do this before
+# any archiving run: seeing the candidate list is how you sanity-check it.
+pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts --commit --discover-only
+
+# Archiving. Needs a bucket; refuses to start without one rather than fetching
+# megabytes with nowhere to put them.
+OPPORTUNITY_ATTACHMENT_BUCKET=capiro-dev-fo-attachments   pnpm exec tsx scripts/sync-tango-opportunity-attachments.ts --commit --limit=25
+```
+
+**The bucket is not wired into any task definition.** Same posture P16 took for
+the Tango API key: `OPPORTUNITY_ATTACHMENT_BUCKET` is optional config that
+nothing in a serve/web/workspace/migrate task reads, and injecting it into the
+ephemeral sync task is a deliberate out-of-band step. The bucket itself must
+have block-public-access on, default encryption, and versioning; the writer sets
+`ServerSideEncryption`, `ACL: private` and a download-only
+`Content-Disposition` on every object regardless.
+
+**Read this before retrying a `refused` row.** `refused` and `failed` are
+different states on purpose:
+
+- **`refused`** — Capiro declined to go somewhere: a non-HTTPS URL, a
+  private-network host, an off-allow-list host, a disallowed or mismatched MIME
+  type, too many redirects. **Never retried.** Re-attempting an SSRF target on a
+  schedule is the attack working, slowly. Changing the outcome means changing
+  the policy, deliberately.
+- **`failed`** — the fetch was attempted and did not complete: a timeout, an
+  HTTP error, a truncated body, a decompression ratio over the ceiling. Retried
+  by the next run.
+
+**`status = 'archived'` is the only state a downstream claim may cite**, and the
+database enforces it: an archived row must carry its bucket, key, SHA-256, byte
+count and timestamp, and a non-archived row must carry none of the location
+fields. A failed fetch cannot mark metadata complete.
+
+**The archive key is the content hash.** Identical bytes re-archive to the
+identical key (a free no-op); changed bytes get a *different* key rather than
+overwriting. That is what lets a requirement extracted from version A still
+resolve to version A's bytes after the agency posts version B.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

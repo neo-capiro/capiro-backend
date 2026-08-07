@@ -72,6 +72,31 @@ export const ACQUISITION_POSITION_STATES = [
 export type AcquisitionPositionState = (typeof ACQUISITION_POSITION_STATES)[number];
 
 /**
+ * The three states that mean "there is a CURRENT, usable route to compete".
+ *
+ * Named as a constant (P26) rather than restated as a three-way `||` at each
+ * call site, because the three that are excluded are excluded for a reason a
+ * reader has to be able to check:
+ *
+ *   `vehicle_not_identified`     — vehicles are known for this client, but none
+ *                                  matched. Absence of a match.
+ *   `no_direct_access_evidence`  — the sync ran and found nothing for this
+ *                                  client. Absence of evidence, NOT "cannot bid".
+ *   `unknown`                    — never synced, or Tango is not configured. We
+ *                                  do not know.
+ *
+ * None of those three is a negative determination, and treating any of them as
+ * "has access: false" in a scoring input is fine — treating them as "cannot
+ * compete" in COPY is not. `forecast-relevance.ts`'s `knownVehicleAccess` is
+ * documented against exactly this list.
+ */
+export const USABLE_ACQUISITION_POSITION_STATES = [
+  'direct_prime_access',
+  'related_entity_access',
+  'known_teaming_route',
+] as const satisfies readonly AcquisitionPositionState[];
+
+/**
  * 'teaming' is a real, scored relationship with no current producer. P22's
  * `client_relevant_vehicle` table CHECK-constrains its own `relationship`
  * column to 'self' | 'parent' only — no code anywhere writes 'teaming' today.
