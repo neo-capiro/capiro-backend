@@ -50,7 +50,7 @@ node_test() {
 ts_test() {
   local name="$1" file="$2"
   local log="${LOG_DIR}/$(echo "$name" | tr ' /:' '___').log"
-  if (cd infra/cdk && pnpm exec ts-node --prefer-ts-exts "$file") >"$log" 2>&1 &&
+  if (cd infra/cdk && node "C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js" exec ts-node --prefer-ts-exts "$file") >"$log" 2>&1 &&
     grep -qE '^# fail 0$' "$log"; then
     local count
     count="$(grep -oE '^# pass [0-9]+' "$log" | grep -oE '[0-9]+' || echo '?')"
@@ -132,7 +132,7 @@ SYNTH_OUT="${REPO_ROOT}/${LOG_DIR}/cdk.out"
 rm -rf "$SYNTH_OUT"
 if (cd infra/cdk &&
   ENGAGEMENT_API_INFRA_CONFIG="${REPO_ROOT}/infra/cdk/fixtures/engagement-api.test.json" \
-    pnpm exec cdk synth --app "ts-node --prefer-ts-exts bin/engagement-api.ts" \
+    node "C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js" exec cdk synth --app "ts-node --prefer-ts-exts bin/engagement-api.ts" \
     --output "$SYNTH_OUT" --quiet) >"${LOG_DIR}/synth.log" 2>&1; then
   pass "synthetic synth of all three stacks"
 
@@ -223,7 +223,7 @@ gate "shadow local-action, config-minimization and preview-parity regressions" \
   src/engagement/runtime/engagement-api-config-minimization.spec.ts \
   src/engagement/runtime/engagement-phase2-preview-parity.contract.spec.ts
 gate "preview parity runner self-check (no network call)" bash -c \
-  'cd apps/api && pnpm exec tsx scripts/engagement-phase2-preview-parity.ts --self-check'
+  'cd apps/api && node "C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js" exec tsx scripts/engagement-phase2-preview-parity.ts --self-check'
 
 echo ""
 bold "Cross-cutting safety"

@@ -39,9 +39,9 @@ for (const spec of specs) {
   let status = 0;
   try {
     output = execFileSync(
-      'pnpm',
-      ['exec', 'ts-node', '--prefer-ts-exts', relative],
-      { cwd: CDK_ROOT, encoding: 'utf8', shell: process.platform === 'win32' },
+      process.execPath,
+      ['C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js', 'exec', 'ts-node', '--prefer-ts-exts', relative],
+      { cwd: CDK_ROOT, encoding: 'utf8' },
     );
   } catch (error) {
     status = error.status ?? 1;
