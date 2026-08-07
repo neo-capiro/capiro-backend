@@ -568,6 +568,14 @@ case "${1:-serve}" in
   # --stale-hours); an ordinary unlinked row is the expected state of a
   # verification rail, not a failure.
   diag-tango-opportunity-parity) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-opportunity-parity.ts "$@" ;;
+  # Funding Opportunities P28: notice-history sync. Writes ONE table,
+  # tango_opportunity_notice, and emits no alert of any kind — a material
+  # change becomes visible on the read-only timeline and nothing else
+  # (alerting is P48's). Each notice is stamped with a local sam_opportunity
+  # id only when EXACTLY ONE local notice carries its solicitation number,
+  # reusing P27's own crosswalk rule. Dry-run by default; a dispatched task
+  # passes --commit. Optional --limit=<n> --posted-since=<ISO date>.
+  sync-tango-opportunity-notices) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-notices.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

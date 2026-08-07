@@ -7,6 +7,7 @@ import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { FIT_BAND_COLORS, FIT_BAND_LABELS, explainSignals } from './opportunity-explanations.js';
 import { AcquisitionPositionPanel } from './AcquisitionPositionPanel.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
+import { OpportunityTimeline } from './OpportunityTimeline.js';
 import {
   ELIGIBILITY_LABELS,
   FORECAST_SOURCE,
@@ -419,10 +420,15 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           />
         </div>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Amendment and notice history is not yet available. These are the dates the current
-          source record states, not a record of how they changed.
+          These are the dates the current source record states. How they CHANGED is the notice
+          history below.
         </Text>
       </Card>
+
+      {/* 6b ─ Notice history (P28). Its own card, and its own flag: the dates
+             above are the record's current state, and the timeline is the
+             record of how it got there. Two different questions. */}
+      <OpportunityTimeline source={o.source} sourceRecordId={o.sourceRecordId} />
 
       {/* 7 ─ Requirements (P29/P30/P31) */}
       <PendingSection

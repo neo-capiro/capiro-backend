@@ -660,6 +660,90 @@ export function formatForecastFreshness(facts: InboxForecastFacts): string {
   return `${observed} · agency last revised ${shortDate(facts.providerModifiedAt)}`;
 }
 
+// ── Notice history and the material-change timeline (P28) ───────────────────
+
+/** The notice-history flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
+  'funding_opportunities_notice_history';
+
+/** Mirrors CHANGE_SEVERITIES in apps/api's opportunity-change-classifier.ts. */
+export const CHANGE_SEVERITIES = ['critical', 'significant', 'informational'] as const;
+export type ChangeSeverity = (typeof CHANGE_SEVERITIES)[number];
+
+/**
+ * The band names as a reader sees them.
+ *
+ * The split is about ACTION, not about size: a deadline or a cancellation
+ * changes whether and when a team can respond at all.
+ */
+export const CHANGE_SEVERITY_LABELS: Record<ChangeSeverity, string> = {
+  critical: 'Affects whether you can respond',
+  significant: 'Affects whether you may respond',
+  informational: 'Worth seeing',
+};
+
+export const CHANGE_SEVERITY_COLORS: Record<ChangeSeverity, string> = {
+  critical: 'red',
+  significant: 'orange',
+  informational: 'blue',
+};
+
+/** Mirrors MaterialChange in apps/api. */
+export interface MaterialChange {
+  dimension: string;
+  severity: ChangeSeverity;
+  /** Verbatim previous value. Null means it was absent. */
+  before: string | null;
+  /** Verbatim new value. Null means it became absent. */
+  after: string | null;
+  /**
+   * The composed sentence. NEVER a generic "the notice was updated" — that
+   * label is the thing P28 exists to replace, because it tells a reader nothing
+   * they can act on.
+   */
+  summary: string;
+}
+
+/** Mirrors TimelineEntry in apps/api. */
+export interface TimelineEntry {
+  tangoNoticeId: string;
+  title: string | null;
+  postedDate: string | null;
+  providerUpdatedAt: string | null;
+  sourceUrl: string | null;
+  /** True for the earliest notice: there is nothing before it to compare against. */
+  isFirstObservation: boolean;
+  changes: MaterialChange[];
+}
+
+/** Mirrors OpportunityTimelineResponse in apps/api. */
+export interface OpportunityTimelineResponse {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  entries: TimelineEntry[];
+  changeCount: number;
+  bySeverity: Record<ChangeSeverity, number>;
+  /**
+   * Change dimensions the provider states nothing about on a notice, with the
+   * reason for each. Rendered rather than omitted: a reader who knows the
+   * timeline misses stage transitions can go check the source; a reader who was
+   * never told assumes it covers everything.
+   */
+  unsupported: Array<{ dimension: string; reason: string }>;
+  /**
+   * Why the timeline is the length it is. `no_notices_synced` and
+   * `not_crosswalked` are both "Capiro cannot say", NOT "the solicitation was
+   * never amended".
+   */
+  coverage: 'available' | 'no_notices_synced' | 'not_crosswalked';
+  coverageExplanation: string;
+  generatedAt: string;
+}
+
+export function timelineApiPath(source: string, sourceRecordId: string): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/timeline`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**

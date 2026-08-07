@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -399,6 +399,36 @@ jobs:
           check "parity conflict-scan index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_conflict_idx'"             "1"
           check "parity local-side lookup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_sam_idx'"             "1"
 
+          # ── P28 notice history ────────────────────────────────────────────
+          # Global, same category and same reasoning as every other tango_*
+          # table, and no FK for the same reason as P27's ledger: the record
+          # that an amendment happened must outlive either catalog's own row
+          # lifecycle.
+          check "tango_opportunity_notice has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_opportunity_notice' AND column_name='tenant_id'"             "0"
+          check "tango_opportunity_notice RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_opportunity_notice'"             "f"
+          check "tango_opportunity_notice has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_opportunity_notice'"             "0"
+          check "tango_opportunity_notice has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_opportunity_notice'::regclass AND contype='f'"             "0"
+
+          # The content hash is what makes a re-sync free: identical content,
+          # same hash, no new observation, no phantom change on the derived
+          # timeline. A truncated or differently-cased hash silently defeats
+          # that, so the format is a CHECK rather than a convention.
+          check "notice content-hash format CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_notice_hash_chk'"             "1"
+          # A negative count is a mapping bug, not fewer attachments.
+          check "notice attachment-count CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_notice_attachment_count_chk'"             "1"
+          # `sam_opportunity_id` MUST stay nullable: a notice whose parent is
+          # ambiguous is stored unstamped and becomes reachable when the
+          # ambiguity resolves. NOT NULL would mean discarding it instead.
+          check "notice sam_opportunity_id is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_opportunity_notice' AND column_name='sam_opportunity_id'"             "YES"
+
+          check "notice id uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_notice_id_uniq'"             "1"
+          check "notice parent-ordering index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_parent_idx'"             "1"
+          check "notice local-side ordering index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_notice_sam_idx'"             "1"
+
+          # The timeline is DERIVED on read, never stored. A table holding one
+          # would be a second thing that can be wrong about its own inputs.
+          check "no stored timeline table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE '%opportunity_timeline%'"             "0"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -487,6 +517,7 @@ jobs:
           scripts/sync-tango-forecasts.spec.ts
           scripts/sync-tango-opportunity-shadow.spec.ts
           scripts/diag-tango-opportunity-parity.spec.ts
+          scripts/sync-tango-opportunity-notices.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -826,9 +857,53 @@ jobs:
       # (unknown field, unknown agreement, unknown resolution, reviewed-without-
       # actor, reviewed-without-timestamp, unreviewed-WITH-actor, duplicate
       # record/field) and four acceptances.
+      # 55/1692 after P28: two NEW suites and one migration.
+      #
+      # opportunity-change-classifier.spec.ts (45 tests) covers the four
+      # properties this phase's acceptance bar names, each in its own block.
+      # ORDER INDEPENDENCE is the big one: every permutation of three notices
+      # produces a byte-identical timeline, because buildNoticeTimeline sorts on
+      # a TOTAL order (postedDate, providerUpdatedAt, noticeId) before comparing
+      # anything — without the id tiebreaker the same set could produce two
+      # timelines depending on which page the provider handed back first. An
+      # UNDATED notice sorts LAST, not first: placing it at the head would make
+      # it the baseline every later notice is compared against, inventing a
+      # change on the second. DUPLICATES collapse to one entry with the later
+      # providerUpdatedAt winning, which is what makes the incremental
+      # overlap free rather than a source of phantom changes. ABSENCE is
+      # reported in BOTH directions with different sentences — a deadline being
+      # REMOVED is the more alarming direction and gets its own copy — and
+      # `active` going to NULL is deliberately NOT reported as a cancellation
+      # (the provider ceasing to state a flag is not the agency withdrawing the
+      # notice). A seconds-level deadline difference is not a change, same
+      # rounding-artefact reasoning as P27's ledger.
+      #
+      # sync-tango-opportunity-notices.spec.ts (25 tests) covers the walk and
+      # two load-bearing properties. The content hash is computed over the
+      # normalized object with `provenance` REMOVED: `fetchedAt` changes on
+      # every fetch, so hashing it in would make every re-sync look like an
+      # amendment and defeat the whole no-op path. And a notice is stamped with
+      # a local sam_opportunity id only under P27's exact-identifier rule,
+      # reused verbatim rather than reimplemented — an AMBIGUOUS solicitation
+      # number stamps NOTHING and the notice is still stored, because attaching
+      # an amendment's deadline to whichever notice sorted first is the exact
+      # failure that rule exists to prevent.
+      #
+      # Migration 20260827010000_tango_opportunity_notice_history adds ONE
+      # global table (no tenant_id, no RLS, no FK). `sam_opportunity_id` stays
+      # NULLABLE on purpose: an unstamped notice becomes reachable the moment
+      # the ambiguity resolves, and NOT NULL would mean discarding it. The
+      # timeline itself is DERIVED on read and never stored — a stored copy
+      # alongside its own inputs is a second thing that can be wrong about them,
+      # and the schema assertion above proves no such table exists. Rehearsed
+      # against the same fresh pgvector container P27 used, as an ORDERED
+      # UPGRADE onto P27's own schema: clean apply, plus 8 constraint proofs by
+      # actual insert — four refusals (short hash, uppercase hash, negative
+      # attachment count, duplicate notice id) and four acceptances (a legal
+      # row, zero attachments, an uncrosswalked notice, an orphaned local id).
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 53 1622
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 55 1692
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -899,9 +974,26 @@ jobs:
       # forecast body and hits the FORECAST endpoint, and with the flag off it
       # says the CAPABILITY is off rather than that the record is missing — two
       # different facts, and only one of them is about the forecast.
+      # 67/287 after P28: one NEW file, OpportunityTimeline.test.tsx (13 tests
+      # across 3 blocks). Its subject is the sentence on screen. The panel must
+      # never say "the notice was updated" — that label is the reason the phase
+      # exists, because an amendment that moved a deadline two weeks earlier and
+      # one that added a Q&A attachment are not the same event. Every entry
+      # names the DIMENSION and the composed summary, and the test reads the DOM
+      # to prove it.
+      #
+      # The other block covers FOUR different kinds of nothing, only ONE of
+      # which is a fact about the notice: the flag being off, the sync never
+      # having run, the notice not being crosswalked, and the solicitation
+      # genuinely never having been amended. Each gets its own sentence, and
+      # each of the first three explicitly says it means nothing about whether
+      # the solicitation was amended. Collapsing any of them into "no
+      # amendments" is the false claim this program exists to avoid. A grant
+      # never calls the API at all — Grants.gov publishes no notice history, a
+      # fact about the source rather than a Capiro gap.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 63 274
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 67 287
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

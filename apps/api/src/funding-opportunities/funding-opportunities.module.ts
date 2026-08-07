@@ -4,12 +4,14 @@ import { FundingOpportunitiesService } from './funding-opportunities.service.js'
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
+import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -55,6 +57,11 @@ import {
     // FundingOpportunitiesService knows nothing about forecasts, which is what
     // keeps a forecast from ever being served as a `FundingOpportunity`.
     ForecastOpportunityReadService,
+    // P28. Depends only on PrismaService. Reads the global
+    // tango_opportunity_notice table and derives the timeline; it holds no
+    // dependency through which an alert could be sent, which is how "P28 emits
+    // nothing" is enforced rather than remembered.
+    OpportunityTimelineService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -63,6 +70,7 @@ import {
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
+    FundingOpportunitiesNoticeHistoryFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })

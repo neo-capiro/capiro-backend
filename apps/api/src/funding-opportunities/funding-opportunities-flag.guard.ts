@@ -45,6 +45,19 @@ export const FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE = 'funding_opportunities_
 export const FUNDING_OPPORTUNITIES_FORECASTS_FEATURE = 'funding_opportunities_forecasts';
 
 /**
+ * P28. Gates the notice-history timeline: the read route below and the
+ * timeline panel on the detail surface.
+ *
+ * A ROUTE flag, like the inbox's and the forecast one. With it off the endpoint
+ * 404s and the detail surface keeps the P12 placeholder it has carried since —
+ * which is honest, because "amendment history is not available here" and "this
+ * solicitation was never amended" are different statements and only the first
+ * is true.
+ */
+export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
+  'funding_opportunities_notice_history';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -189,5 +202,13 @@ export class FundingOpportunitiesInboxFlagGuard extends FundingOpportunitiesFlag
 export class FundingOpportunitiesForecastFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_FORECASTS_FEATURE;
+  }
+}
+
+/** P28's notice-history guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesNoticeHistoryFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE;
   }
 }
