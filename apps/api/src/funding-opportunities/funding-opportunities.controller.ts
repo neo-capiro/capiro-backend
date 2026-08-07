@@ -33,8 +33,10 @@ import {
   FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
   FundingOpportunitiesPipelineFlagGuard,
+  FundingOpportunitiesMeriFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
+import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
 import {
   FundingOpportunityPipelineService,
   PIPELINE_STAGES,
@@ -390,6 +392,24 @@ class StageTransitionDto {
 }
 
 /**
+ * A request for the governed assessment (P38).
+ *
+ * Both fields are REQUIRED. `clientId` because an assessment is always relative
+ * to a client — one composed for nobody would have nothing to be right about —
+ * and `conversationId` because the artifact and its version chain hang off the
+ * Meri conversation that asked. Optional either way would mean an assessment
+ * that cannot be found again, which for an audit artifact is the same as not
+ * writing one.
+ */
+class OpportunityAssessmentDto {
+  @IsUUID()
+  clientId!: string;
+
+  @IsUUID()
+  conversationId!: string;
+}
+
+/**
  * Funding Opportunities.
  *
  * ── Roles ────────────────────────────────────────────────────────────────────
@@ -430,6 +450,7 @@ export class FundingOpportunitiesController {
     private readonly requirements: OpportunityRequirementService,
     private readonly landscape: GovernmentLandscapeService,
     private readonly pipeline: FundingOpportunityPipelineService,
+    private readonly assessment: MeriOpportunityAssessmentService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -591,6 +612,42 @@ export class FundingOpportunitiesController {
       clientId,
       params.source,
       id,
+    );
+  }
+
+  /**
+   * The governed executive assessment for one client-opportunity pair (P38).
+   *
+   * A POST, not a GET, and that is not REST pedantry: producing one calls a
+   * model, costs tokens, and writes an audit artifact. A GET would run on every
+   * page load and on every prefetch, which is the same mistake P34's action
+   * plan avoided by staying pure — except here the cost is real money and a row
+   * in `clio_artifacts`.
+   *
+   * `conversationId` is required because the artifact is scoped to the Meri
+   * conversation that asked for it, which is also where its version history
+   * lives (see AssessInput's own note on why that beat a migration).
+   *
+   * The route writes NOTHING to the product. Three audit surfaces only —
+   * artifact, claims, one compliance row — and the drafts it returns are
+   * proposals with no side effect until a person acts on them elsewhere.
+   */
+  @Post('opportunities/:source/:id/assessment')
+  @UseGuards(FundingOpportunitiesMeriFlagGuard)
+  assessOpportunity(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+    @Body() body: OpportunityAssessmentDto,
+  ) {
+    return this.assessment.assess(
+      { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+      {
+        clientId: body.clientId,
+        source: params.source,
+        sourceRecordId: id,
+        conversationId: body.conversationId,
+      },
     );
   }
 

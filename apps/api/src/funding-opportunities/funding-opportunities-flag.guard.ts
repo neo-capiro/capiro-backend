@@ -96,6 +96,26 @@ export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
 export const FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE = 'funding_opportunities_pipeline_v2';
 
 /**
+ * P37/P38. Gates Meri's Funding Opportunities surface: the six typed local
+ * tools and the structured assessment built from the same packet.
+ *
+ * ONE flag for both, and unlike P34's reuse of P33's this is not a
+ * "not independently useful" argument — it is a narrower one. P38's assessment
+ * is composed from the same reads P37's tools expose, and a workspace that has
+ * decided Meri may not answer questions about opportunities has not decided
+ * that Meri may still write an executive assessment about one. Two flags would
+ * make that combination configurable, and there is no reason anyone would want
+ * it.
+ *
+ * Read TWO ways, deliberately. As a route guard (P38's assessment endpoint,
+ * 404 when off) and as a plain boolean inside the tools adapter, where "off"
+ * must mean a typed `disabled` RESULT the model can quote rather than a thrown
+ * 404 mid-turn. Both go through `isFundingOpportunitiesFeatureEnabled`, so the
+ * two readings can never disagree about what enabled means.
+ */
+export const FUNDING_OPPORTUNITIES_MERI_V2_FEATURE = 'funding_opportunities_meri_v2';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -272,5 +292,13 @@ export class FundingOpportunitiesLandscapeFlagGuard extends FundingOpportunities
 export class FundingOpportunitiesPipelineFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE;
+  }
+}
+
+/** P38's assessment guard. Same fail-closed base, keyed on the Meri v2 flag. */
+@Injectable()
+export class FundingOpportunitiesMeriFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_MERI_V2_FEATURE;
   }
 }

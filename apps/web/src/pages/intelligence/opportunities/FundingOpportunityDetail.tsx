@@ -11,6 +11,7 @@ import { OpportunityTimeline } from './OpportunityTimeline.js';
 import { OpportunityRequirementsPanel } from './OpportunityRequirementsPanel.js';
 import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
 import { OpportunityActionPlan } from './OpportunityActionPlan.js';
+import { MeriOpportunityAssessment } from './MeriOpportunityAssessment.js';
 import {
   DetailSectionBoundary,
   OpportunityAssessmentPanel,
@@ -304,6 +305,25 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           source={o.source}
           sourceRecordId={o.sourceRecordId}
           workflowStatus={o.workflow?.status ?? null}
+        />
+      </DetailSectionBoundary>
+
+      {/* 5b ─ Meri assessment (P38). Composed from the SAME packet sections 3-5
+              already show, so a reader who disagrees with the assessment can
+              find the disagreement above rather than in a prompt.
+
+              `conversationId` is null from this surface, and the panel renders
+              the honest state for that rather than a broken button: the
+              assessment is an audit artifact scoped to the Meri conversation
+              that asked for it (see AssessInput's note on why that beat
+              relaxing clio_artifacts.conversation_id). Opening this detail body
+              from a Meri conversation is what supplies one. */}
+      <DetailSectionBoundary title="Meri assessment" testId="fo-detail-meri-assessment-section">
+        <MeriOpportunityAssessment
+          clientId={clientId}
+          conversationId={null}
+          source={o.source}
+          sourceRecordId={o.sourceRecordId}
         />
       </DetailSectionBoundary>
 

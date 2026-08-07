@@ -16,6 +16,7 @@ import { MemoryModule } from '../memory/memory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
+import { MeriOpportunityAssessmentService } from '../funding-opportunities/meri-opportunity-assessment.service.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -125,6 +126,92 @@ import {
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
+    // ── P38: hand the assessment service its audit collaborators ───────────
+    //
+    // A side-effecting provider, deliberately, and the only shape that works.
+    // MeriOpportunityAssessmentService lives in FundingOpportunitiesModule
+    // (which imports nothing, by design), but two of its three collaborators —
+    // the claim writer and the compliance auditor — are declared HERE. Taking
+    // them as constructor parameters over there would require importing
+    // MeriModule from FundingOpportunitiesModule, which is the cycle the
+    // adapter's docblock explains at length.
+    //
+    // Nest instantiates providers eagerly, so this runs once at bootstrap. The
+    // service works without any of it — every collaborator is an AUDIT surface
+    // and none can change what an assessment says, so a missing one degrades to
+    // `compilerVersion: null` and no artifact row, never to a wrong answer.
+    // That is also what lets the unit suite exercise the whole path with none
+    // of them present.
+    {
+      provide: 'FUNDING_OPPORTUNITY_ASSESSMENT_WIRING',
+      useFactory: (
+        assessment: MeriOpportunityAssessmentService,
+        contextCompiler: ContextCompilerService,
+        claimWriter: MeriClaimWriterService,
+        auditor: MeriComplianceAuditService,
+        aiCredentials: AiCredentialResolverService,
+        config: ConfigService,
+      ) =>
+        assessment
+          .withCollaborators({
+            contextCompiler: contextCompiler as never,
+            claimWriter,
+            auditor,
+          })
+          // The model transport, injected rather than imported, so the service
+          // holds no credential resolver of its own and the suite can drive it
+          // with a fake.
+          .withCompletion(async (tenantId, system, user) => {
+            // BYOK per tenant, resolved on every call. The resolver falls back
+            // to the platform key when a workspace has none of its own.
+            const resolved = await aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+            if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
+            const controller = new AbortController();
+            const timer = setTimeout(
+              () => controller.abort(),
+              Number(config.get('CLIO_REQUEST_TIMEOUT_MS') ?? 60_000),
+            );
+            try {
+              const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'x-api-key': resolved.apiKey,
+                  'anthropic-version': '2023-06-01',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: config.get('CLIO_RESEARCH_PLAN_MODEL'),
+                  max_tokens: 4000,
+                  system,
+                  messages: [{ role: 'user', content: user }],
+                }),
+                signal: controller.signal,
+              });
+              if (!response.ok) {
+                // The status only. An Anthropic error body can echo request
+                // content, and this string reaches a log.
+                throw new Error(`Anthropic HTTP ${response.status}`);
+              }
+              const json = (await response.json()) as {
+                content?: Array<{ type: string; text?: string }>;
+              };
+              return (json.content ?? [])
+                .filter((b) => b.type === 'text' && typeof b.text === 'string')
+                .map((b) => b.text)
+                .join('');
+            } finally {
+              clearTimeout(timer);
+            }
+          }),
+      inject: [
+        MeriOpportunityAssessmentService,
+        ContextCompilerService,
+        MeriClaimWriterService,
+        MeriComplianceAuditService,
+        AiCredentialResolverService,
+        ConfigService,
+      ],
+    },
   ],
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })

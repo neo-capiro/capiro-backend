@@ -886,6 +886,89 @@ export function landscapeApiPath(
 /** The pipeline flag. Byte-matches the API guard's own constant. */
 export const FUNDING_OPPORTUNITIES_PIPELINE_FEATURE = 'funding_opportunities_pipeline_v2';
 
+// ── Meri assessment (P38) ───────────────────────────────────────────────────
+
+/** The Meri flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_MERI_FEATURE = 'funding_opportunities_meri_v2';
+
+/** Mirrors ASSESSMENT_SECTIONS in apps/api. Declaration order IS render order. */
+export const ASSESSMENT_SECTIONS = [
+  'recommendationRestatement',
+  'fit',
+  'eligibility',
+  'acquisitionPosition',
+  'governmentContext',
+  'risksAndUnknowns',
+  'nextThreeActions',
+  'evidenceMap',
+] as const;
+export type AssessmentSectionKey = (typeof ASSESSMENT_SECTIONS)[number];
+
+export const ASSESSMENT_SECTION_LABELS: Record<AssessmentSectionKey, string> = {
+  recommendationRestatement: 'Capiro’s recommendation',
+  fit: 'Fit',
+  eligibility: 'Eligibility',
+  acquisitionPosition: 'Acquisition position',
+  governmentContext: 'Government context',
+  risksAndUnknowns: 'Risks and unknowns',
+  nextThreeActions: 'Next actions',
+  evidenceMap: 'Evidence map',
+};
+
+export interface AssessedClaimView {
+  section: AssessmentSectionKey;
+  text: string;
+  verdict: 'supported' | 'held' | 'rejected';
+  refs: string[];
+  unresolvedRefs: string[];
+  holdReason: string | null;
+}
+
+export interface MeriAssessmentView {
+  clientId: string;
+  source: string;
+  sourceRecordId: string;
+  recommendation: string | null;
+  modelState: 'applied' | 'unavailable' | 'rejected';
+  modelStateExplanation: string;
+  sections: Record<AssessmentSectionKey, string[]>;
+  claims: AssessedClaimView[];
+  nextThreeActions: string[];
+  disagreement: { proposed: string; rationale: string } | null;
+  proposedDrafts: Array<{ kind: string; title: string; rationale: string }>;
+  incomplete: boolean;
+  incompleteReasons: string[];
+  fingerprint: string;
+}
+
+export interface AssessmentProvenanceView {
+  promptVersion: string;
+  policyVersion: string;
+  compilerVersion: string | null;
+  contextPacketId: string | null;
+  model: string | null;
+  artifactVersion: number;
+  assessedAt: string;
+}
+
+export type AssessmentResultView =
+  | { state: 'available'; assessment: MeriAssessmentView; provenance: AssessmentProvenanceView }
+  | {
+      state: 'disabled' | 'denied' | 'not_found' | 'unsupported_source' | 'invalid_request';
+      explanation: string;
+    };
+
+/**
+ * A POST, not a GET.
+ *
+ * Producing an assessment calls a model and writes an audit artifact. Behind a
+ * GET it would run on every page load and every prefetch — real tokens and a
+ * real row, spent because a user hovered a link.
+ */
+export function assessmentApiPath(source: string, sourceRecordId: string): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/assessment`;
+}
+
 /** Mirrors PIPELINE_STAGES in apps/api. Declaration order IS column order. */
 export const PIPELINE_STAGES = [
   'reviewing',
