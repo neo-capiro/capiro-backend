@@ -13,6 +13,7 @@ import { FederalBusinessProfileService } from './federal-business-profile.servic
 import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js';
 import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
 import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
+import { OpportunityRiskService } from './opportunity-risk.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
@@ -23,6 +24,7 @@ import {
   FundingOpportunitiesPipelineFlagGuard,
   FundingOpportunitiesMeriFlagGuard,
   FundingOpportunitiesBudgetFlagGuard,
+  FundingOpportunitiesRiskFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -109,6 +111,10 @@ import {
     // the client's own uei; it holds no writer for anything, which is how
     // "cannot overwrite Capiro budget values" is enforced rather than promised.
     OpportunityBudgetContextService,
+    // P45. Depends only on PrismaService. Two GLOBAL provider tables and the
+    // client's own uei; no writer, and nothing in it decides anything — an
+    // active exclusion routes to review rather than resolving.
+    OpportunityRiskService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
@@ -118,6 +124,7 @@ import {
     FundingOpportunitiesPipelineFlagGuard,
     FundingOpportunitiesMeriFlagGuard,
     FundingOpportunitiesBudgetFlagGuard,
+    FundingOpportunitiesRiskFlagGuard,
   ],
   exports: [
     FundingOpportunitiesService,
@@ -126,6 +133,7 @@ import {
     MeriOpportunityToolsAdapter,
     MeriOpportunityAssessmentService,
     OpportunityBudgetContextService,
+    OpportunityRiskService,
   ],
 })
 export class FundingOpportunitiesModule {}

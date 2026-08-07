@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -595,6 +595,47 @@ jobs:
           # table whose name could be mistaken for a canonical Program Element
           # one, and adds no column to one.
           check "no PE-shaped tango table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'tango_%program_element%' OR table_name LIKE 'tango_%pe_%'"             "0"
+
+          # -- P45: protest and exclusion risk ---------------------------------
+          # GLOBAL, like every other tango_* catalog table. A GAO docket and a
+          # SAM exclusion are public records about the federal marketplace.
+          for t in tango_procurement_protest tango_entity_exclusion; do
+            check "$t has NO tenant_id column"               "SELECT count(*) FROM information_schema.columns WHERE table_name='$t' AND column_name='tenant_id'"               "0"
+            check "$t RLS is NOT enabled"               "SELECT relrowsecurity FROM pg_class WHERE relname='$t'"               "f"
+            check "$t has NO policies"               "SELECT count(*) FROM pg_policies WHERE tablename='$t'"               "0"
+          done
+
+          # NO FK on the protest, for the same reason P27's and P28's ledgers
+          # have none: the record that a protest happened must outlive the
+          # catalog row it once pointed at.
+          check "protest has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_procurement_protest'::regclass AND contype='f'"             "0"
+          # sam_opportunity_id stays NULLABLE forever: most protests will never
+          # link to a notice Capiro holds, and NOT NULL would mean discarding
+          # them.
+          check "protest sam_opportunity_id is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_procurement_protest' AND column_name='sam_opportunity_id'"             "YES"
+          # NULL outcome means OPEN or unstated. A DEFAULT here would turn every
+          # open case into a decided one.
+          check "protest outcome is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_procurement_protest' AND column_name='outcome'"             "YES"
+          check "protest outcome has NO default"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_procurement_protest' AND column_name='outcome' AND column_default IS NOT NULL"             "0"
+
+          check "protest case id is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_procurement_protest_case_uniq'"             "1"
+          check "a blank protest case id is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_procurement_protest_case_id_chk'"             "1"
+          check "a decision before its filing is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_procurement_protest_date_order_chk'"             "1"
+          # SAME-NAME ENTITIES INHERIT NOTHING, as a constraint: the only key is
+          # a 12-character UEI, and a malformed one cannot become a key that
+          # matches the wrong company.
+          check "protester UEI length CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_procurement_protest_uei_chk'"             "1"
+          check "exclusion UEI length CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_entity_exclusion_uei_chk'"             "1"
+          check "one exclusion observation per entity"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_entity_exclusion_uei_uniq'"             "1"
+
+          # observed_at is NOT NULL because, while the provider states no
+          # exclusion dates, freshness is the ONLY thing separating "excluded"
+          # from "was flagged at some point".
+          check "exclusion observed_at is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_entity_exclusion' AND column_name='observed_at'"             "NO"
+          # TEXT, not boolean: a boolean throws away the difference between "the
+          # provider said no" and "the provider said nothing".
+          check "exclusion flag is TEXT, not boolean"             "SELECT data_type FROM information_schema.columns WHERE table_name='tango_entity_exclusion' AND column_name='exclusion_status_flag'"             "text"
+          check "exclusion date-order CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_entity_exclusion_date_order_chk'"             "1"
 
           exit $fail
 
@@ -1498,9 +1539,53 @@ jobs:
       # the response carries no cross-year or cross-account total, because two
       # fiscal years are two appropriations and one number over them means
       # nothing.
+      #
+      # 70/2180 after P45: one NEW suite, opportunity-risk.spec.ts (31 tests),
+      # and one migration, 20260903010000_tango_procurement_risk.
+      #
+      # SAME-NAME ENTITIES INHERIT NOTHING. The only key is a 12-character UEI,
+      # enforced by a CHECK on both tables and asserted at the query level: a
+      # test reads the actual `where` clauses the service builds and proves
+      # neither mentions a name. A malformed UEI is treated as NO identity
+      # rather than as a key, because a wrong-length value that reached a query
+      # would match nothing - and "no protests found" is the wrong answer about
+      # a client whose UEI was mangled.
+      #
+      # AN EXPIRED EXCLUSION NEVER READS AS ACTIVE, and the CHECK ORDER is the
+      # test: a provider-supplied end date beats the clock, so the date branch
+      # runs before the staleness branch. Reversing them would report a
+      # long-finished exclusion as `unverified` and send a reviewer to re-check
+      # something already resolved.
+      #
+      # THERE IS NO EXCLUSIONS ENDPOINT, and the schema is shaped by that. P17
+      # established it against the real account: the fields ride on the Entity
+      # record (`exclusion_status_flag`, `exclusion_url`), which tango.shapes.ts
+      # has deliberately excluded since P19 with a comment naming this phase.
+      # So there are NO DATES, and freshness carries expiry instead -
+      # `observed_at` is NOT NULL because it is the column that judgement rests
+      # on, and a flag older than 30 days reads `unverified`, never `active`.
+      # The two date columns exist and are always null, kept because the
+      # derivation rule already honours them (P24's `psc_code` posture). The
+      # flag is TEXT and not boolean, because "the provider said no" and "the
+      # provider said nothing" are different facts and only the first is
+      # evidence.
+      #
+      # NOTHING IS A LEGAL CONCLUSION, swept rather than promised: the spec
+      # reads the SERVICE AND MAPPER SOURCE - not one rendered response, so a
+      # branch no test exercised cannot smuggle a sentence through - against a
+      # list of advice-shaped phrasings. An active exclusion contributes a
+      # `needs_review` hint naming legal or compliance as the decider, and there
+      # is no value that field can carry which reads as a clearance or a block.
+      #
+      # THE PROTEST SHAPE IS THE SDK'S OWN `ProtestRecord` DECLARATION, not a
+      # guess - but it was NOT live-verified, because the account's daily rate
+      # limit was exhausted during P44's probe. Stated here rather than implied:
+      # this program has four decision-log entries where the SDK's declared
+      # shape and the live server disagreed, so the mapper reads every field
+      # defensively and drops a record it cannot identify.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 69 2150
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 70 2180
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1674,9 +1759,24 @@ jobs:
       # PROVIDER'S OWN attribution status and confidence render verbatim and are
       # never mapped onto a Capiro confidence vocabulary — two scales sharing
       # labels is how one gets read as the other.
+      #
+      # 101/390 after P45: one NEW file, OpportunityRiskPanel.test.tsx (15
+      # tests). NO ADVICE ON THE PANEL, swept over the rendered text of the
+      # worst case (active exclusion + a sustained protest) for eight
+      # advice-shaped phrases. AN ACTIVE EXCLUSION ROUTES rather than decides -
+      # the hint says "pending legal or compliance review" and its block is
+      # asserted to contain zero buttons, so nothing here resolves it. ALL FOUR
+      # EXCLUSION STATES render their own label and only `active` may carry the
+      # active wording - collapsing `unverified` into either neighbour is the
+      # one that would hurt, because a flag nobody re-checked in a month is
+      # neither a current finding nor a clean record. AN OPEN PROTEST IS NOT A
+      # LOST ONE: a null outcome renders "Open or not stated" and the block is
+      # swept for denied/dismissed/failed. THE ABSENCE CAVEAT renders on every
+      # state including the clean one, where a reader is most tempted to
+      # conclude the opposite.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 95 375
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 101 390
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

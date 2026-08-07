@@ -35,10 +35,12 @@ import {
   FundingOpportunitiesPipelineFlagGuard,
   FundingOpportunitiesMeriFlagGuard,
   FundingOpportunitiesBudgetFlagGuard,
+  FundingOpportunitiesRiskFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
 import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
+import { OpportunityRiskService } from './opportunity-risk.service.js';
 import {
   FundingOpportunityPipelineService,
   PIPELINE_STAGES,
@@ -454,6 +456,7 @@ export class FundingOpportunitiesController {
     private readonly pipeline: FundingOpportunityPipelineService,
     private readonly assessment: MeriOpportunityAssessmentService,
     private readonly budgetContext: OpportunityBudgetContextService,
+    private readonly risk: OpportunityRiskService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -668,6 +671,27 @@ export class FundingOpportunitiesController {
   @UseGuards(FundingOpportunitiesBudgetFlagGuard)
   budgetContextFor(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.budgetContext.getContext(
+      { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+      clientId,
+    );
+  }
+
+  /**
+   * Protest and exclusion risk context for one client (P45).
+   *
+   * Keyed on the CLIENT for the same reason P44's budget route is: the only
+   * exact key between a Capiro client and this evidence is its UEI. A protest
+   * links to a notice only when the provider states an identifier Capiro can
+   * match exactly, and most never will.
+   *
+   * Nothing this returns is a determination. An active exclusion contributes a
+   * `needs_review` hint naming legal or compliance as the decider; there is no
+   * value the response can carry that reads as a clearance or a block.
+   */
+  @Get('clients/:clientId/risk-context')
+  @UseGuards(FundingOpportunitiesRiskFlagGuard)
+  riskContextFor(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.risk.getRiskContext(
       { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
       clientId,
     );
