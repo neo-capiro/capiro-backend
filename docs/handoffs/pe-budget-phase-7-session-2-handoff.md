@@ -58,7 +58,7 @@ All of it lives in `apps/api/src/defense-budget/promotion/`.
 
 | WS  | Files                                                                                                                                                         | Tests             |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| A   | `promotion-eligibility-v1.ts`, `promotion-authorization-v1.ts`, `promotion-eligibility-service-v1.ts`, `promotion-authorization-service-v1.ts`                | 83                |
+| A   | `promotion-eligibility-v1.ts`, `promotion-authorization-v1.ts`, `promotion-eligibility-service-v1.ts`, `promotion-authorization-service-v1.ts`                | 81                |
 | B   | `canonical-mapping-registry-v1.ts`                                                                                                                            | 44                |
 | C   | `promotion-planner-v1.ts`                                                                                                                                     | 37                |
 | D   | `prisma/migrations/20260822010000_pe_budget_phase7_canonical_promotion/`, models in `prisma/schema.prisma`, `scripts/pe-budget-phase7-migration-rehearsal.sh` | 33 + 60 DB checks |
