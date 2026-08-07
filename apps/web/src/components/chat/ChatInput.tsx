@@ -9,10 +9,10 @@ import {
   FileUnknownOutlined,
   FileWordOutlined,
   LoadingOutlined,
-  PaperClipOutlined,
   SendOutlined,
 } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
+import { ManagedComposerPlus } from './ManagedComposerPlus.js';
 
 /** A file staged in the composer: uploading, ready to send, or failed. */
 export interface StagedAttachment {
@@ -204,16 +204,10 @@ export function ChatInput({
         <div className="chat-composer-actions">
           {onAttachFiles ? (
             <>
-              <button
-                type="button"
-                className="chat-attach-btn"
-                onClick={() => fileInputRef.current?.click()}
+              <ManagedComposerPlus
                 disabled={disabled}
-                aria-label="Attach files"
-                title="Attach files (PDF, Word, text, images)"
-              >
-                <PaperClipOutlined />
-              </button>
+                onUpload={() => fileInputRef.current?.click()}
+              />
               <input
                 ref={fileInputRef}
                 type="file"

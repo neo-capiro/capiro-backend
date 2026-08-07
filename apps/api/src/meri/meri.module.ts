@@ -40,6 +40,7 @@ import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
+import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
@@ -114,6 +115,7 @@ import {
     MeriDocgenService,
     MeriMcpService,
     MeriMcpOAuthService,
+    MeriManagedMcpService,
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
     MeriApprovalService,

@@ -21,6 +21,8 @@ import { StewardExtractService } from './steward/steward-extract.service.js';
 import { MeriV3Controller } from './meriv3/meriv3.controller.js';
 import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3/meriv3-assistant.service.js';
+import { MeriV3ManagedMcpAssistantService } from './meriv3/meriv3-managed-mcp-assistant.service.js';
+import { ApiManagedMcpRepo } from './meriv3/api-managed-mcp.repo.js';
 import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
 
 /**
@@ -54,7 +56,11 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     ChatAssistantService,
     MeriV3AccessService,
     OpenAiResponsesClient,
-    MeriV3AssistantService,
+    ApiManagedMcpRepo,
+    {
+      provide: MeriV3AssistantService,
+      useClass: MeriV3ManagedMcpAssistantService,
+    },
     WorkspaceGenClient,
     StrategyAssistantService,
     StrategyContextPackService,

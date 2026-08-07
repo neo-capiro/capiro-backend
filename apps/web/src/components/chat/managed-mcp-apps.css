@@ -1,0 +1,208 @@
+.meri-app-plus {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.meri-app-plus-trigger.is-open {
+  color: var(--meri-v3-rust, #a85f42);
+  background: var(--meri-v3-rust-soft, #f4ebe7);
+}
+
+.meri-app-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 9px);
+  z-index: 80;
+  width: 340px;
+  padding: 7px;
+  border: 1px solid #dfe2e8;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(19, 26, 36, 0.16);
+  color: #131a24;
+}
+
+.meri-app-menu-row {
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 9px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+
+button.meri-app-menu-row {
+  cursor: pointer;
+}
+
+button.meri-app-menu-row:hover,
+.meri-app-row:hover {
+  background: #f5f6f8;
+}
+
+.meri-app-menu-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.meri-app-menu-icon--file {
+  color: #4b5563;
+  background: #f0f1f4;
+}
+
+.meri-app-brand--hubspot {
+  color: #fff;
+  background: #ff7a59;
+}
+
+.meri-app-brand--airtable {
+  color: #fff;
+  background: linear-gradient(135deg, #fcb400 0 52%, #18bfff 52% 100%);
+}
+
+.meri-app-menu-row strong,
+.meri-app-menu-row small {
+  display: block;
+}
+
+.meri-app-menu-row strong {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.meri-app-menu-row small {
+  margin-top: 3px;
+  color: #8792a3;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.meri-app-menu-divider {
+  height: 1px;
+  margin: 5px 7px;
+  background: #eceef1;
+}
+
+.meri-app-menu-heading {
+  padding: 5px 9px 3px;
+  color: #8792a3;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meri-app-row-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.meri-app-connect,
+.meri-app-disconnect {
+  flex: 0 0 auto;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.meri-app-connect {
+  min-width: 64px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: #fff;
+  background: #131a24;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.meri-app-connect:hover:not(:disabled) {
+  background: #2b3440;
+}
+
+.meri-app-connect:disabled {
+  color: #9ca3af;
+  background: #eceef1;
+  cursor: default;
+}
+
+.meri-app-connected-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.meri-app-connected-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #247c53;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.meri-app-disconnect {
+  padding: 0;
+  color: #8792a3;
+  background: transparent;
+  font-size: 9px;
+}
+
+.meri-app-disconnect:hover {
+  color: #9d3f32;
+}
+
+.meri-app-row-action--busy {
+  min-width: 64px;
+  color: #8792a3;
+  text-align: center;
+}
+
+.meri-app-menu-loading,
+.meri-app-menu-error,
+.meri-app-menu-footnote {
+  margin: 4px 7px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.meri-app-menu-loading {
+  padding: 9px 2px;
+  color: #8792a3;
+}
+
+.meri-app-menu-error {
+  padding: 7px 8px;
+  border-radius: 6px;
+  color: #8f3d32;
+  background: #fbefec;
+}
+
+.meri-app-menu-footnote {
+  padding: 6px 2px 2px;
+  color: #98a1ae;
+}
+
+@media (max-width: 720px) {
+  .meri-app-menu {
+    left: -4px;
+    width: min(340px, calc(100vw - 32px));
+  }
+}

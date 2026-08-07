@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { useMe } from '../../lib/me.js';
 import { MeriLegacyDrawer } from './ChatDrawer.js';
+import { ManagedMcpAppsProvider } from './managed-mcp-apps.js';
 import { useMeriChatController, type MeriChatController } from './useMeriChatController.js';
 import { SessionRail } from './SessionRail.js';
 import { MeriWorkspaceWindow } from './MeriWorkspaceWindow.js';
@@ -72,6 +73,7 @@ export function MeriOverlay({ selectedClientName }: MeriOverlayProps) {
   const me = useMe();
   const workspaceWindow = isMeriWorkspaceWindow();
   const meriv3Enabled = Boolean(me.data?.features.meriv3Chat);
+  const { surfaceMode } = useChatStore();
 
   useEffect(() => {
     if (workspaceWindow && meriv3Enabled) setChatOpen(true);
@@ -98,7 +100,17 @@ export function MeriOverlay({ selectedClientName }: MeriOverlayProps) {
     return <MeriWorkspaceWindow controller={controller} />;
   }
 
-  return <MeriOverlaySurface controller={controller} openInBrowserWindow={meriv3Enabled} />;
+  const overlay = <MeriOverlaySurface controller={controller} openInBrowserWindow={meriv3Enabled} />;
+  // Normally MeriV3 opens its own browser window, where MeriWorkspaceWindow
+  // owns the connected-app provider. If that browser popup is blocked, the
+  // launcher intentionally falls back to the large in-page UND0CKED surface.
+  // Mount the same provider only after that fallback opens so the `+` menu is
+  // identical without preloading app status while the launcher is closed.
+  return meriv3Enabled && surfaceMode !== 'closed' ? (
+    <ManagedMcpAppsProvider>{overlay}</ManagedMcpAppsProvider>
+  ) : (
+    overlay
+  );
 }
 
 export function MeriOverlaySurface({

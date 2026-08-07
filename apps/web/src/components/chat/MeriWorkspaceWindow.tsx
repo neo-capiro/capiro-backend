@@ -3,6 +3,7 @@ import { CheckOutlined, CloseOutlined, DownOutlined, RobotOutlined } from '@ant-
 import { useApi } from '../../lib/use-api.js';
 import { MeriLegacyDrawer } from './ChatDrawer.js';
 import { SessionRail } from './SessionRail.js';
+import { ManagedMcpAppsProvider } from './managed-mcp-apps.js';
 import type { MeriChatController } from './useMeriChatController.js';
 import './meri-workspace-window.css';
 import './meri-workspace-window-scope.css';
@@ -218,13 +219,15 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
         ) : null}
 
         <div className="meri-v3-workspace-body">
-          <MeriLegacyDrawer
-            controller={controller}
-            embedded
-            surface="undocked"
-            showSessionRail={false}
-            variant="v3"
-          />
+          <ManagedMcpAppsProvider>
+            <MeriLegacyDrawer
+              controller={controller}
+              embedded
+              surface="undocked"
+              showSessionRail={false}
+              variant="v3"
+            />
+          </ManagedMcpAppsProvider>
         </div>
       </main>
     </section>
