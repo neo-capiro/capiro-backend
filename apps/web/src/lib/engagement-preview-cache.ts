@@ -1,4 +1,4 @@
-import type { Query, QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 
 /**
  * Response-object provenance for Engagement-owned React Query data.
@@ -21,13 +21,18 @@ const FALLBACK_ENGAGEMENT_QUERY_KEYS = new Set([
   'integration-capabilities',
 ]);
 
+type QueryLike = {
+  queryKey: readonly unknown[];
+  state: { data: unknown };
+};
+
 export function markEngagementResponseData(data: unknown): void {
   if ((typeof data === 'object' && data !== null) || typeof data === 'function') {
     engagementResponseData.add(data as object);
   }
 }
 
-export function isEngagementOwnedQuery(query: Query): boolean {
+export function isEngagementOwnedQuery(query: QueryLike): boolean {
   const data = query.state.data;
   if ((typeof data === 'object' && data !== null) || typeof data === 'function') {
     if (engagementResponseData.has(data as object)) return true;
@@ -49,7 +54,7 @@ export function isEngagementOwnedQuery(query: Query): boolean {
  * that do not consume React Query's AbortSignal.
  */
 export async function clearEngagementPreviewQueries(queryClient: QueryClient): Promise<void> {
-  const predicate = (query: Query) => isEngagementOwnedQuery(query);
+  const predicate = (query: QueryLike) => isEngagementOwnedQuery(query);
   await queryClient.cancelQueries({ predicate });
   queryClient.removeQueries({ predicate });
 }
