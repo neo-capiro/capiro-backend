@@ -754,9 +754,15 @@ BEGIN
 END
 $$;
 
--- No CREATEDB, no CREATEROLE, no SUPERUSER, no BYPASSRLS, no replication.
-ALTER ROLE capiro_pe_promoter
-  NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+-- No CREATEDB, no CREATEROLE, no SUPERUSER, no BYPASSRLS, no replication --
+-- all already Postgres's default for a bare `CREATE ROLE ... LOGIN PASSWORD`
+-- (see above), so nothing below needs re-asserting via ALTER ROLE. It is
+-- deliberately NOT re-asserted: naming SUPERUSER/NOSUPERUSER in ALTER ROLE
+-- requires the *calling* role to itself hold real SUPERUSER, and Aurora's
+-- master user only holds the restricted rds_superuser pseudo-role, so this
+-- line used to fail deployment with "permission denied to alter role" on
+-- every real Aurora target while passing silently against a local Postgres
+-- superuser in rehearsal — rolling back this entire migration every time.
 
 GRANT CONNECT ON DATABASE capiro TO capiro_pe_promoter;
 GRANT USAGE ON SCHEMA public TO capiro_pe_promoter;
