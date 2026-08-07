@@ -58,6 +58,44 @@ export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
   'funding_opportunities_notice_history';
 
 /**
+ * P29/P30/P31. Gates the whole document story: attachments, their extracted
+ * text, and the requirements extracted from that text.
+ *
+ * ONE flag for three phases, deliberately. They are not independently useful —
+ * requirements without text is an empty list, text without archived attachments
+ * has nothing to be the text OF — so three flags would mean three ways to
+ * configure a half-working surface. The plan names
+ * `funding_opportunities_documents` for exactly this span.
+ */
+export const FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE = 'funding_opportunities_documents';
+
+/**
+ * P33/P34. Gates the Government Landscape packet and the action plan derived
+ * from it.
+ *
+ * ONE flag for both, because an action plan without the landscape it is derived
+ * from is a list of steps with no evidence behind them — the two are not
+ * independently useful, and two flags would mean a way to configure exactly
+ * that.
+ */
+export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
+  'funding_opportunities_government_landscape';
+
+/**
+ * P35. Gates the pursuit pipeline board and every stage transition.
+ *
+ * Its OWN flag rather than a reuse, unlike P34's: the pipeline is a different
+ * kind of thing from the landscape — it WRITES, it replaces the Saved/Pursuing
+ * tabs a team already uses, and turning it on changes how work is tracked rather
+ * than adding a panel. Folding it into an existing flag would mean no way to
+ * canary the write path on its own.
+ *
+ * Flag OFF is not a degraded pipeline: the existing workflow tabs stay exactly as
+ * they are, because `workflow_status` is still the column both code paths write.
+ */
+export const FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE = 'funding_opportunities_pipeline_v2';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -210,5 +248,29 @@ export class FundingOpportunitiesForecastFlagGuard extends FundingOpportunitiesF
 export class FundingOpportunitiesNoticeHistoryFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE;
+  }
+}
+
+/** P29-P31's documents guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesDocumentsFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE;
+  }
+}
+
+/** P33/P34's landscape guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesLandscapeFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE;
+  }
+}
+
+/** P35's pipeline guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesPipelineFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE;
   }
 }

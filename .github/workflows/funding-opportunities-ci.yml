@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -455,6 +455,95 @@ jobs:
           check "attachment uniqueness COALESCEs both parents"             "SELECT CASE WHEN indexdef LIKE '%COALESCE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='opportunity_attachment_parent_url_uniq'"             "yes"
           check "attachment content-hash dedup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_attachment_hash_idx'"             "1"
 
+          # ── P30 extracted text ────────────────────────────────────────────
+          # THE rule: blank is never "this document has no requirements". An
+          # `available` row REQUIRES text, a method and a count; every other
+          # status must hold NO text, so a not_entitled row cannot carry a
+          # leftover body from a period when the account was entitled.
+          check "text availability CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_document_text_available_chk'"             "1"
+          check "a non-available text row may hold no text"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%text IS NULL%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_document_text_available_chk'"             "yes"
+          for s in available not_entitled not_provided pending failed; do
+            check "text status vocabulary admits $s"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$s''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_document_text_status_chk'"               "yes"
+          done
+          # The binding that makes a citation safe. NOT NULL: text with no
+          # binding is text nothing may cite.
+          check "text binding hash is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='opportunity_document_text' AND column_name='attachment_content_sha256'"             "NO"
+          check "text binding hash is format-checked"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_document_text_hash_chk'"             "1"
+          # Provider and local text coexist as separate rows and never blend.
+          check "text attachment/method uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_document_text_attachment_method_uniq'"             "1"
+          check "opportunity_document_text has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_document_text' AND column_name='tenant_id'"             "0"
+          check "opportunity_document_text RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_document_text'"             "f"
+
+          # -- P31 requirement artifacts --------------------------------------
+          # TWO tables, and the split is the design: the REQUIREMENT is a fact
+          # about a public document (global, no RLS), the REVIEW is one team's
+          # decision (tenant-scoped, RLS ENABLED + FORCED, four policies).
+          check "opportunity_requirement has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='opportunity_requirement' AND column_name='tenant_id'"             "0"
+          check "opportunity_requirement RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_requirement'"             "f"
+          check "opportunity_requirement_review RLS enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='opportunity_requirement_review'"             "t"
+          check "opportunity_requirement_review RLS FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='opportunity_requirement_review'"             "t"
+          check "opportunity_requirement_review has four RLS policies"             "SELECT count(*) FROM pg_policies WHERE tablename='opportunity_requirement_review'"             "4"
+
+          # NO ASSERTION WITHOUT EVIDENCE, as columns: every evidence field is
+          # NOT NULL, so an uncited requirement is unstorable rather than merely
+          # discouraged.
+          for col in attachment_id attachment_content_sha256 source_excerpt excerpt_start excerpt_end extraction_method extraction_model; do
+            check "requirement $col is NOT NULL"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='opportunity_requirement' AND column_name='$col'"               "NO"
+          done
+          # The span must be coherent AND the excerpt length must MATCH it. An
+          # excerpt longer than its claimed range is a paraphrase wearing a
+          # citation.
+          check "requirement span CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_span_chk'"             "1"
+          check "requirement span CHECK ties excerpt length to the range"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%length(source_excerpt)%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='opportunity_requirement_span_chk'"             "yes"
+          check "requirement excerpt is bounded and non-empty"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_excerpt_chk'"             "1"
+          # Re-extracting the SAME bytes is idempotent by construction.
+          check "requirement evidence uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='opportunity_requirement_evidence_uniq'"             "1"
+          # A reviewed row carries its actor AND its moment; a pending one
+          # carries neither. Same shape as P07's decision-actor CHECK.
+          check "requirement review-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_review_actor_chk'"             "1"
+
+          # ── P35: the pursuit pipeline ──────────────────────────────────────
+          #
+          # ROLLING-DEPLOY SAFETY, asserted rather than assumed. `pipeline_stage`
+          # must be NULLABLE with NO default, so an older pod's INSERT that omits
+          # it still succeeds and the row honestly has no stage. The version token
+          # must be the opposite — NOT NULL with a default — so the same INSERT
+          # still produces a usable optimistic-concurrency value.
+          check "pipeline_stage is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage'"             "YES"
+          check "pipeline_stage has NO default"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage' AND column_default IS NOT NULL"             "0"
+          check "pipeline_stage_version is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage_version'"             "NO"
+          check "pipeline_stage_version defaults to 0"             "SELECT column_default FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage_version'"             "0"
+          for col in pipeline_stage_at pipeline_stage_by_user_id; do
+            check "$col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='$col'"               "YES"
+          done
+
+          # The bounded vocabulary, and the two coherence CHECKs. The at/actor one
+          # is deliberately NOT a three-way all-or-nothing like P07's: a stage with
+          # a timestamp and NO actor is the BACKFILL basis, and the read reports it
+          # as derived rather than claiming a person moved it.
+          check "pipeline stage vocabulary CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_stage_chk'"             "1"
+          check "pipeline stage timestamp CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_stage_at_chk'"             "1"
+          check "pipeline version is non-negative"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_version_chk'"             "1"
+
+          # The audit table is TENANT-SCOPED, unlike the provider catalog tables in
+          # this program: "who moved this to lost, when, and why" is a fact about
+          # ONE team.
+          check "stage transition table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name='funding_opportunity_stage_transition'"             "1"
+          check "stage transition RLS enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='funding_opportunity_stage_transition'"             "t"
+          check "stage transition RLS FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='funding_opportunity_stage_transition'"             "t"
+          check "stage transition has four RLS policies"             "SELECT count(*) FROM pg_policies WHERE tablename='funding_opportunity_stage_transition'"             "4"
+
+          # PRODUCERS CANNOT MOVE A STAGE, as a column: there is no way to record a
+          # move nobody performed.
+          check "stage transition actor is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='funding_opportunity_stage_transition' AND column_name='actor_user_id'"             "NO"
+          # An outcome nobody explained is one nobody can learn from. Enforced in
+          # the database as well as the service, so a caller that bypasses the
+          # service still cannot do it.
+          check "outcome stages REQUIRE a reason"             "SELECT count(*) FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_reason_chk'"             "1"
+          check "the reason CHECK rejects whitespace, not just NULL"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%btrim%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_reason_chk'"             "yes"
+          check "a move to where it already was is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_distinct_chk'"             "1"
+          check "stage transition cascades from its subject"             "SELECT confdeltype FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_row_fkey'"             "c"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -545,6 +634,7 @@ jobs:
           scripts/diag-tango-opportunity-parity.spec.ts
           scripts/sync-tango-opportunity-notices.spec.ts
           scripts/sync-tango-opportunity-attachments.spec.ts
+          scripts/sync-tango-opportunity-text.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -970,9 +1060,211 @@ jobs:
       # non-archived-WITH-location, unexplained failure, unknown status,
       # malformed hash, negative size, and two duplicate-key cases including a
       # NULL-parent one the COALESCE index catches) and four acceptances.
+      # 59/1822 after P30: two NEW suites and one migration.
+      #
+      # opportunity-document-text.spec.ts (33 tests) enforces one rule above all
+      # others: BLANK IS NEVER "this document has no requirements". Five
+      # statuses, five distinct sentences, and each names WHOSE gap it is —
+      # `not_entitled` is a BILLING fact about the account, `not_provided` is a
+      # fact about the DOCUMENT (a scanned fax has no text layer), and a test
+      # asserts no sentence ever claims the document is empty. TRUNCATED text
+      # says what is missing is UNREAD, not absent, so P31 cannot conclude a
+      # requirement is missing from a document it only half read.
+      #
+      # Text is bound to BYTES, not to a document: every row carries the SHA-256
+      # of the exact attachment bytes it came from, a mismatch THROWS rather
+      # than storing a citation waiting to be wrong, and an UNARCHIVED
+      # attachment makes its text stale (the safe answer to "may I quote this"
+      # when the source is unknown is no).
+      #
+      # The text is DATA. `asUntrustedEvidence` fences and labels it, and the
+      # test that matters is the one where the document tries to CLOSE the
+      # fence — a fence the content can close is decoration. The markers are
+      # neutralised before the fence is applied, and the hostile sentence
+      # survives verbatim INSIDE it, because rewriting a quoted document is
+      # tampering with evidence. Deliberately no injection DETECTION: that is an
+      # arms race against text nobody controls, and the guarantee here is
+      # structural instead.
+      #
+      # sync-tango-opportunity-text.spec.ts (9 tests) covers the run, whose main
+      # job is being honest about a hard limit. The installed SDK exposes
+      # extracted text through exactly ONE method — `searchOpportunityAttachments`,
+      # a SEMANTIC SEARCH taking a query. There is no `getAttachmentText(id)`,
+      # so "give me the text of THIS document" is not a question this SDK can
+      # ask. Inventing a query to stand in for a document id would bind returned
+      # text to an attachment it merely RESEMBLES, which is the fuzzy-identity
+      # substitution P02 forbids for award history — and the test asserts no
+      # such query exists in the file. What the run does instead is seed the
+      # CORRECT unavailability status per archived attachment, which is this
+      # phase's own acceptance line. Entitlement is P17's probe result passed in
+      # with --entitled, never re-derived from a failed call: that would turn
+      # one rate-limit into "the account lost its entitlement".
+      #
+      # Migration 20260830010000_opportunity_document_text: one global table,
+      # rehearsed as an ordered upgrade with 10 constraint proofs by actual
+      # insert — seven refusals (available-without-text, not_entitled-CARRYING-
+      # text, failed-without-reason, unknown status, malformed binding hash,
+      # unknown extraction method, duplicate method) and three acceptances,
+      # including a provider row and a local_parser row coexisting on one
+      # attachment without blending.
+      # 60/1860 after P31: one NEW suite and one migration adding TWO tables.
+      #
+      # opportunity-requirement.spec.ts (38 tests) enforces one rule - NO
+      # ASSERTION WITHOUT EVIDENCE - and is organised by the three ways a
+      # citation can be wrong. It can be ABSENT (missing excerpt, attachment,
+      # binding hash, extraction model). It can be INCOHERENT (a span shorter
+      # than its excerpt is a paraphrase wearing a citation; an excerpt over the
+      # 2000-character ceiling is a copy of the document rather than a quote).
+      # And it can be FABRICATED - which is the case only a comparison against
+      # the real text catches, because a hallucinated quote produces a perfectly
+      # well-formed artifact with a coherent span and a plausible sentence whose
+      # text simply is not in the document. excerptMatchesText compares EXACTLY,
+      # with no normalization: a quote differing by one space is not a quote, and
+      # normalizing first would let an extractor rewrite punctuation inside
+      # quotation marks. A real quote at the WRONG offsets fails separately,
+      # because a citation nobody can follow to the stated place is not a
+      # citation. WITHOUT the source text those checks are reported as
+      # UNEVALUATED rather than passing - the same posture P26 and P30 take.
+      #
+      # Source content cannot widen the output shape: assertNoSchemaDrift
+      # REFUSES an unexpected field rather than stripping it, because a silent
+      # strip lets an extractor keep emitting it until somebody adds a
+      # permissive spread. And an adversarial instruction inside an excerpt
+      # changes validation by exactly zero - no branch in the module depends on
+      # what the text says.
+      #
+      # Migration 20260831010000_opportunity_requirement_artifacts adds TWO
+      # tables and the split IS the design: "this solicitation requires a
+      # facility clearance at paragraph 3.2" is a fact about a public document,
+      # the same for every tenant, extracted once (GLOBAL); "we reviewed that
+      # and accepted it" is a fact about one team (TENANT-SCOPED, RLS ENABLED +
+      # FORCED, four policies). One table would mean either re-extracting per
+      # tenant or showing every tenant what one team decided. Rehearsed as an
+      # ordered upgrade with 10 constraint proofs by actual insert - eight
+      # refusals (span/excerpt-length mismatch, empty excerpt, backwards span,
+      # null extraction model, unknown type, duplicate evidence,
+      # pending-WITH-actor, accepted-without-actor) and two acceptances.
+      # 61/1889 after P33: one NEW suite, no migration. The Government
+      # Landscape packet is composed from tables that already exist, which is
+      # the plan's own "consume, do not duplicate" line for program-element and
+      # client data.
+      #
+      # government-landscape.spec.ts (29 tests) covers four properties.
+      #
+      # THE ETHICAL WALL. A client the actor cannot see yields a DENIED packet,
+      # not a 403 - a 403 would confirm the client exists. Nothing is read on
+      # that client's behalf, and the denied packet carries the SAME fingerprint
+      # as any empty one, because a distinctive "denied" hash would let a caller
+      # detect a walled client by comparing hashes. The wall reuses the inbox's
+      # own allow-list; an ethical wall with two implementations has two chances
+      # to be wrong.
+      #
+      # VERIFIED AND INFERRED NEVER MERGE. Only an ACCEPTED sam_opportunity_match
+      # is source-backed. A quarantined or candidate row - which is what a NAICS
+      # or keyword coincidence produces - is admitted as INFERRED and excluded
+      # from every high-confidence action, with a label that SAYS so rather than
+      # relying on a badge. Dropping those rows would be the other tempting
+      # choice and is worse: a quarantined PE match is real information for a
+      # human deciding whether to pursue.
+      #
+      # A MISSING SOURCE LOWERS COVERAGE AND MAKES NO CLAIM. Every declared
+      # source is reported with a state, and `not_wired` (Capiro cannot read it
+      # yet) is a different value from `empty` (Capiro read it and found
+      # nothing) - collapsing them turns "we have not built this" into "there is
+      # nothing there". Every not_wired explanation is asserted to contain
+      # "Nothing here says".
+      #
+      # DETERMINISM DOWN TO THE HASH. The ordering is TOTAL - without the id
+      # tiebreaker two facilities in one state would sort by whatever order
+      # Postgres returned them in and the fingerprint would move with no fact
+      # moving. The hash covers the FACTS only: a re-worded label or a re-observed
+      # asOf does NOT move it, a changed basis does. Two composes of the same
+      # facts are byte-identical, and there is no clock in the composition
+      # besides the caller's own `asOf` default.
+      # 62/1953 after P34: one NEW suite, NO migration and NO new flag. The
+      # plan is composed from rows P22, P24, P31 and P33 already write, and the
+      # accept path is P08's existing server action.
+      #
+      # opportunity-action-plan.spec.ts (63 tests) covers five properties.
+      #
+      # PROPOSALS, NOT COMMITMENTS. The builder is a PURE function - the suite
+      # greps its own source for prisma, tx., $queryRaw, fetch and any model
+      # reference, because a plan that could create tasks would create them the
+      # moment a detail page was opened. Accepting an action posts to P08 and
+      # nowhere else, so a plan-accepted task and a hand-made one are the same
+      # kind of row.
+      #
+      # NO TARGET WITHOUT A SOURCE-BACKED REASON. Only P33 items whose basis is
+      # `source_backed` produce a target. A quarantined PE match - which is what
+      # a NAICS or keyword coincidence produces - contributes NOTHING, and the
+      # suite asserts no action's evidence ever cites an inferred item. A target
+      # is also never a PERSON: reviewed_relationship and acquisition_personnel
+      # are both not_wired, so naming an individual would invent the
+      # introduction outright.
+      #
+      # A CLOSED NOTICE AND A FORECAST NEVER PROPOSE A PURSUIT. Enforced
+      # STRUCTURALLY by STAGE_ALLOWED_INTENTS and a thrown error, not by trusting
+      # each branch to remember - a silent downgrade would ship a buggy rule with
+      # a plausible plan on top of it. Forecast is decided by SOURCE and wins
+      # over everything, so a withdrawn forecast still gets shaping advice rather
+      # than "watch for a repost".
+      #
+      # AN UNMET DEPENDENCY IS STATED, NOT ASSUMED. "Build the compliance matrix"
+      # with no requirements extracted is a step somebody starts and stalls on.
+      # There is likewise NO fallback due date: a fabricated deadline on a notice
+      # that states none is the most confidently wrong thing this plan could
+      # emit, and a PAST date is returned rather than clamped to today.
+      #
+      # DETERMINISM. Same packet and same asOf produce a byte-identical plan,
+      # ids and fingerprint included. `asOf` is threaded all the way into the
+      # lifecycle read - a composer that consulted the wall clock there could
+      # return two different plans for the same inputs. The fingerprint covers
+      # facts only, so re-observing does not move it and a resolved prerequisite
+      # does.
+      # 63/2005 after P35: one NEW suite, and a migration
+      # (20260901010000_funding_opportunity_pipeline_v2) rehearsed against a fresh
+      # pgvector:pg16 with a clean replay, a retry-as-no-op, and every constraint
+      # proved BY ACTUAL INSERT.
+      #
+      # funding-opportunity-pipeline.spec.ts (52 tests) covers six properties.
+      #
+      # THE ROLLING DEPLOY IS SURVIVABLE, and that is the load-bearing one. Old
+      # pods keep writing workflow_status and know nothing about pipeline_stage, so
+      # a row can carry a recorded stage its legacy status has moved past. ONE
+      # function reconciles them: the legacy status WINS for anything it can
+      # express, and the stage only adds resolution the legacy column cannot
+      # (qualified and submitted, which both project onto pursuing). Comparing in
+      # the other direction would call every qualified row stale. Every transition
+      # writes BOTH columns in one statement, so a move stays visible to the
+      # lifecycle processor, which decides what to alert on from the legacy column.
+      #
+      # AN UNSTAGED ROW IS UNSTAGED. `suggested` and `expired` map to NO stage, in
+      # the backfill and in the read. Mapping suggested to `reviewing` would put the
+      # producer's entire backlog on a board column named for a human activity
+      # nobody is performing; mapping expired to anything fabricates a capture
+      # history Capiro never recorded. The board reports both counts separately
+      # rather than folding them in.
+      #
+      # INVALID TRANSITIONS FAIL, and the graph is the only authority. won and lost
+      # are reachable ONLY from submitted - a bid cannot be won if it was never
+      # submitted - and the move is validated against the EFFECTIVE stage, so a row
+      # an old pod moved to `won` cannot be moved out of it on the strength of a
+      # stale recorded `pursuing`.
+      #
+      # A CONCURRENT TRANSITION IS DETECTED. The version predicate is in the WHERE
+      # of the UPDATE, so the loser of two simultaneous moves updates 0 rows and
+      # gets a 409 instead of silently discarding the winner's decision.
+      #
+      # BOARD COUNTS COME FROM A GROUPED AGGREGATE over every workflow row, never
+      # from the returned cards - a board that counted its own page would report 2
+      # when the client has 915. `cardsTruncated` says when the card list is a
+      # window; the counts never are.
+      #
+      # PRODUCERS CANNOT MOVE A STAGE: actor_user_id is NOT NULL on the audit row,
+      # and the spec greps all three producer scripts for the column names.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 57 1780
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 63 2005
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1060,9 +1352,59 @@ jobs:
       # amendments" is the false claim this program exists to avoid. A grant
       # never calls the API at all — Grants.gov publishes no notice history, a
       # fact about the source rather than a Capiro gap.
+      # 70/297 after P31: one NEW file, OpportunityRequirementsPanel.test.tsx
+      # (10 tests). Its two blocks are the panel's two rules. NO REQUIREMENT
+      # RENDERS WITHOUT ITS CITATION - every row shows the verbatim excerpt, the
+      # document, the page and the character offsets, and the panel states in as
+      # many words that nothing in it is a summary, because a compliance list
+      # nobody can check against the source invites a team to build a proposal
+      # against Capiro's paraphrase. A model's assertion and a human's
+      # acceptance are DIFFERENT badges, never the same one read two ways, and a
+      # document that changed after extraction is flagged rather than silently
+      # trusted.
+      #
+      # FOUR KINDS OF EMPTY, and only read_none_found is a fact about the
+      # solicitation - and even it is qualified as "of a kind Capiro extracts".
+      # The no_text case carries P30's PER-DOCUMENT reason through verbatim,
+      # because "the account's plan excludes extracted text" and "this file is a
+      # scan with no text layer" are different facts and only P30 knows which.
+      #
+      # FundingOpportunityDetail.test.tsx's P12-era "requirements is still a
+      # PendingSection" assertion was replaced, not deleted: the section is real
+      # now, and with the documents flag off (the default, and every real
+      # tenant) it says the CAPABILITY is off and explicitly that this says
+      # nothing about what the solicitation requires.
+      # 75/314 after P32: one NEW file, OpportunityAssessmentPanel.test.tsx
+      # (17 tests), and no api change at all - the phase is entirely about how
+      # the detail surface behaves when part of it does not.
+      #
+      # ISOLATION. The drawer is now eight sections fed by five endpoints, four
+      # of them secondary. Before this phase a render error in ANY of them took
+      # the whole drawer with it, because React unmounts the nearest boundary
+      # and there was none - leaving a blank panel where an executive
+      # recommendation should be, with no way to tell "the recommendation is
+      # pass" from "the page broke". Every section now has its OWN boundary, and
+      # the test proves a sibling still renders when one throws. A single
+      # boundary around the whole drawer would satisfy React and defeat the
+      # purpose, so a structural test counts them. A PRIMARY failure (the
+      # assessment itself) says no conclusion follows; a SECONDARY one says the
+      # rest of the assessment stands. No stack trace or component stack reaches
+      # the page - it tells a reader nothing and may quote source content the
+      # surrounding phases treat as untrusted.
+      #
+      # PARITY, made structural. The card and the detail used to compose the
+      # recommendation label independently, which is how a card can say "Pursue"
+      # while the drawer says "Needs review" about the same row. The vocabulary
+      # now lives in exactly one table in the api mirror, and two tests enforce
+      # that: one asserts only that file declares the map, the other asserts no
+      # component declares its own.
+      #
+      # And an absent recommendation stays absent: the unscored read and a
+      # scored-but-uncomputed record get DIFFERENT sentences, and the second
+      # explicitly rules out reading it as a pass.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 67 287
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 85 353
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

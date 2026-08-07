@@ -8,6 +8,13 @@ import { FIT_BAND_COLORS, FIT_BAND_LABELS, explainSignals } from './opportunity-
 import { AcquisitionPositionPanel } from './AcquisitionPositionPanel.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
 import { OpportunityTimeline } from './OpportunityTimeline.js';
+import { OpportunityRequirementsPanel } from './OpportunityRequirementsPanel.js';
+import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
+import { OpportunityActionPlan } from './OpportunityActionPlan.js';
+import {
+  DetailSectionBoundary,
+  OpportunityAssessmentPanel,
+} from './OpportunityAssessmentPanel.js';
 import {
   ELIGIBILITY_LABELS,
   FORECAST_SOURCE,
@@ -195,61 +202,12 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         />
       ) : null}
 
-      {/* 1 ─ Executive assessment */}
-      <Card
-        size="small"
-        title="Executive assessment"
-        className="fo-detail__section"
-        data-testid="fo-detail-assessment"
-      >
-        {o.recommendation ? (
-          <Space direction="vertical" size={6} style={{ width: '100%' }}>
-            <Space size={6} wrap>
-              <Tag color={RECOMMENDATION_COLORS[o.recommendation.machineRecommendation]}>
-                {RECOMMENDATION_LABELS[o.recommendation.machineRecommendation]}
-              </Tag>
-              {/*
-                Evidence quality, NOT a probability of winning. A high-confidence
-                `pass` is a confident recommendation not to bid — rendering it as a
-                win rate would be the single most misleading thing here.
-              */}
-              <Tooltip title="How good the evidence is — NOT a probability of winning.">
-                <Tag>Confidence: {o.recommendation.recommendationConfidence}</Tag>
-              </Tooltip>
-            </Space>
-            <div>
-              <Text type="secondary" className="fo-fact__label">
-                Why
-              </Text>
-              <div>
-                <Text>{o.recommendation.primaryReason}</Text>
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" className="fo-fact__label">
-                Main risk
-              </Text>
-              <div>
-                <Text>{o.recommendation.primaryRisk ?? 'No specific risk identified.'}</Text>
-              </div>
-            </div>
-            <div>
-              <Text type="secondary" className="fo-fact__label">
-                Recommended next action
-              </Text>
-              <div>
-                <Text>{o.recommendation.recommendedNextAction}</Text>
-              </div>
-            </div>
-          </Space>
-        ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {unscored
-              ? 'Not calculated without a client. The recommendation is a fact about a client-opportunity pair, not about the notice.'
-              : 'Not yet available for this record.'}
-          </Text>
-        )}
-      </Card>
+      {/* 1 ─ Executive assessment (P32: its own renderer, shared with the card,
+             so the two cannot disagree about the same row). PRIMARY: a reader
+             cannot decide without it, so its failure says so loudly. */}
+      <DetailSectionBoundary title="Executive assessment" testId="fo-detail-assessment" primary>
+        <OpportunityAssessmentPanel opportunity={o} unscored={unscored} />
+      </DetailSectionBoundary>
 
       {/* 2 ─ Fit and eligibility. Two separate concepts, deliberately adjacent so
              the difference is visible rather than merged into one score. */}
@@ -323,17 +281,33 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
       </Card>
 
       {/* 3 ─ Acquisition position (P22/P23) */}
-      <AcquisitionPositionPanel opportunity={o} />
+      <DetailSectionBoundary title="Acquisition position" testId="fo-detail-acquisition">
+        <AcquisitionPositionPanel opportunity={o} />
+      </DetailSectionBoundary>
 
-      {/* 4 ─ Government landscape (P33) */}
-      <PendingSection
-        title="Government landscape"
-        testId="fo-detail-landscape"
-        what="Budget, Program Element, stakeholder and relationship context for this opportunity is not assembled yet."
-        arrivesIn="Nothing here is inferred from the notice text in the meantime."
-      />
+      {/* 4 ─ Government landscape (P33). Real now: a deterministic evidence
+             packet, with verified and inferred kept visibly apart. */}
+      <DetailSectionBoundary title="Government landscape" testId="fo-detail-landscape">
+        <GovernmentLandscapePanel
+          clientId={clientId}
+          source={o.source}
+          sourceRecordId={o.sourceRecordId}
+        />
+      </DetailSectionBoundary>
 
-      {/* 5 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}
+      {/* 5 ─ Action plan (P34). Proposals derived from the same landscape packet
+             the section above shows, so an action can only cite evidence the
+             reader can already see. */}
+      <DetailSectionBoundary title="Action plan" testId="fo-detail-action-plan">
+        <OpportunityActionPlan
+          clientId={clientId}
+          source={o.source}
+          sourceRecordId={o.sourceRecordId}
+          workflowStatus={o.workflow?.status ?? null}
+        />
+      </DetailSectionBoundary>
+
+      {/* 6 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}
       <Card
         size="small"
         title="Pursuit plan"
@@ -375,7 +349,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         ) : null}
       </Card>
 
-      {/* 6 ─ Timeline. Source dates today; the notice history arrives in P28. */}
+      {/* 7 ─ Timeline. Source dates today; the notice history arrives in P28. */}
       <Card
         size="small"
         title="Timeline"
@@ -425,20 +399,20 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         </Text>
       </Card>
 
-      {/* 6b ─ Notice history (P28). Its own card, and its own flag: the dates
+      {/* 7b ─ Notice history (P28). Its own card, and its own flag: the dates
              above are the record's current state, and the timeline is the
              record of how it got there. Two different questions. */}
-      <OpportunityTimeline source={o.source} sourceRecordId={o.sourceRecordId} />
+      <DetailSectionBoundary title="Notice history" testId="fo-timeline">
+        <OpportunityTimeline source={o.source} sourceRecordId={o.sourceRecordId} />
+      </DetailSectionBoundary>
 
-      {/* 7 ─ Requirements (P29/P30/P31) */}
-      <PendingSection
-        title="Requirements"
-        testId="fo-detail-requirements"
-        what="Attachments and evidence-bound requirement extraction are not available yet."
-        arrivesIn="No requirement will ever be shown here without a citation back to the source document it came from."
-      />
+      {/* 8 ─ Requirements (P31). Real now: every row quotes the document it
+             came from, and an empty panel says WHICH kind of empty. */}
+      <DetailSectionBoundary title="Requirements" testId="fo-detail-requirements">
+        <OpportunityRequirementsPanel source={o.source} sourceRecordId={o.sourceRecordId} />
+      </DetailSectionBoundary>
 
-      {/* 8 ─ Source record. Provenance, always, and the link out. */}
+      {/* 9 ─ Source record. Provenance, always, and the link out. */}
       <Card
         size="small"
         title="Source record"
@@ -510,19 +484,6 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
     </div>
   );
 }
-
-const RECOMMENDATION_LABELS: Record<string, string> = {
-  pursue: 'Pursue',
-  monitor: 'Monitor',
-  pass: 'Pass',
-  needs_review: 'Needs review',
-};
-const RECOMMENDATION_COLORS: Record<string, string> = {
-  pursue: 'green',
-  monitor: 'blue',
-  pass: 'default',
-  needs_review: 'orange',
-};
 
 /**
  * The full-page frame: the same body, reached by a deep link.

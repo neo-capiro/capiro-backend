@@ -5,13 +5,19 @@ import { FundingOpportunityActionsService } from './funding-opportunity-actions.
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
+import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
+import { GovernmentLandscapeService } from './government-landscape.service.js';
+import { FundingOpportunityPipelineService } from './funding-opportunity-pipeline.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
+  FundingOpportunitiesDocumentsFlagGuard,
+  FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
+  FundingOpportunitiesPipelineFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
 /**
@@ -62,6 +68,17 @@ import {
     // dependency through which an alert could be sent, which is how "P28 emits
     // nothing" is enforced rather than remembered.
     OpportunityTimelineService,
+    // P31. Reads the GLOBAL requirement table under withSystem and THIS
+    // tenant's review rows under withTenant — the split that keeps one team's
+    // decision off a row every tenant can see.
+    OpportunityRequirementService,
+    // P33. Depends only on PrismaService, and CONSUMES the PE, facility and
+    // notice reads rather than duplicating them — the plan's own "consume, do
+    // not duplicate" line for program-element and client data.
+    GovernmentLandscapeService,
+    // P35. Depends only on PrismaService. Writes BOTH pipeline_stage and the
+    // legacy workflow_status in one statement, so an older reader stays correct.
+    FundingOpportunityPipelineService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -71,6 +88,9 @@ import {
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
     FundingOpportunitiesNoticeHistoryFlagGuard,
+    FundingOpportunitiesDocumentsFlagGuard,
+    FundingOpportunitiesLandscapeFlagGuard,
+    FundingOpportunitiesPipelineFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })

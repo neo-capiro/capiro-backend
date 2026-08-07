@@ -5,6 +5,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { FundingOpportunityInbox } from './FundingOpportunityInbox.js';
 import { FundingOpportunityExplore } from './FundingOpportunityExplore.js';
+import { FundingOpportunityPipeline } from './FundingOpportunityPipeline.js';
 import { readEnum, useUrlState } from './funding-opportunities-url-state.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
@@ -151,6 +152,15 @@ export function FundingOpportunitiesPage() {
           ]}
         />
       ) : null}
+
+      {/*
+        The pursuit pipeline (P35) sits ABOVE the existing views rather than
+        replacing one of them, and renders NOTHING when its flag is off. That is
+        what "the flag off retains the current tabs" means concretely: the
+        Segmented control above and both views below are untouched, because
+        `workflow_status` is still the column every code path writes.
+      */}
+      {view === 'inbox' ? <FundingOpportunityPipeline clientId={clientId ?? null} /> : null}
 
       {view === 'inbox' ? (
         <FundingOpportunityInbox

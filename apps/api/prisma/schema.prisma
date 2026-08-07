@@ -264,6 +264,7 @@ model Tenant {
   clientMemoryAccessGrants     ClientMemoryAccess[]
   clientGrantNexuses           ClientGrantNexus[]
   clientFundingOpportunities   ClientFundingOpportunity[]
+  fundingOpportunityStageTransitions FundingOpportunityStageTransition[]
   outreachDraftArtifacts       OutreachDraftArtifact[]
   outreachDraftVersions        OutreachDraftVersion[]
   outreachSendIntents          OutreachSendIntent[]
@@ -6094,6 +6095,39 @@ model ClientFundingOpportunity {
   /// Free-text won/lost context. Only ever set by an explicit user action.
   outcomeNote     String? @map("outcome_note") @db.Text
 
+  /// The pursuit pipeline stage (P35): reviewing | qualified | pursuing |
+  /// submitted | won | lost | passed. CHECK-constrained in migration
+  /// 20260901010000.
+  ///
+  /// A SECOND field beside `workflowStatus`, never a replacement. That column
+  /// carries two values that are not capture stages at all — `suggested` is the
+  /// producer's own output and `expired` is a mechanical consequence of the
+  /// source closing — and it has no room for `qualified` or `submitted`.
+  ///
+  /// NULLABLE, and the NULL is load-bearing twice over. During a rolling deploy
+  /// an older pod INSERTs without it and must succeed. And a producer-created
+  /// `suggested` row genuinely HAS no stage: mapping it to `reviewing` would put
+  /// the producer's whole backlog on a board column named for a human activity
+  /// nobody is performing. `expired` is unstaged for the same reason in reverse —
+  /// which stage a row was in when the source closed is not recorded, and picking
+  /// one fabricates a capture history.
+  ///
+  /// Reads reconcile this with `workflowStatus` in exactly one place
+  /// (`effectiveStage` in funding-opportunity-pipeline.ts): the legacy status wins
+  /// for anything it can express, and this column only adds resolution the legacy
+  /// one cannot.
+  pipelineStage         String?   @map("pipeline_stage") @db.VarChar(16)
+  /// Optimistic-concurrency token. The transition service puts this in the WHERE,
+  /// so two simultaneous drags cannot both succeed — the loser updates 0 rows and
+  /// gets a conflict rather than silently discarding the other person's decision.
+  /// NOT NULL DEFAULT 0 so an older pod's INSERT still produces a usable token.
+  pipelineStageVersion  Int       @default(0) @map("pipeline_stage_version")
+  pipelineStageAt       DateTime? @map("pipeline_stage_at") @db.Timestamptz(6)
+  /// Who moved it. NULL on a non-NULL stage is MEANINGFUL, not missing: it means
+  /// the migration inferred the stage from the legacy status, so the read reports
+  /// the basis as derived rather than claiming a person moved it.
+  pipelineStageByUserId String?   @map("pipeline_stage_by_user_id") @db.Uuid
+
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -6101,6 +6135,8 @@ model ClientFundingOpportunity {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  stageTransitions FundingOpportunityStageTransition[]
 
   // ONE workflow row per (tenant, client, source opportunity) — a saved
   // opportunity that the producer re-scores must update in place, not accumulate
@@ -6114,6 +6150,7 @@ model ClientFundingOpportunity {
   // for the same reason — the writers do find-then-create-or-update, matching
   // SamOpportunityMatch and generate-grant-opportunity-candidates.ts.
   @@index([tenantId, clientId, workflowStatus], map: "client_funding_opportunity_tenant_client_status_idx")
+  @@index([tenantId, clientId, pipelineStage], map: "client_funding_opportunity_pipeline_stage_idx")
   @@index([tenantId, grantOpportunityId], map: "client_funding_opportunity_tenant_grant_idx")
   @@index([tenantId, samOpportunityId], map: "client_funding_opportunity_tenant_sam_idx")
   @@index([tenantId, ownerUserId], map: "client_funding_opportunity_tenant_owner_idx")
@@ -6790,6 +6827,185 @@ model OpportunityAttachment {
   @@index([status, firstSeenAt], map: "opportunity_attachment_status_idx")
   @@index([contentSha256], map: "opportunity_attachment_hash_idx")
   @@map("opportunity_attachment")
+}
+
+/// The text of an archived attachment, with its own availability story (P30).
+///
+/// Separate from the attachment row because "we hold the document" and "we hold
+/// its text" are different facts with different reasons for being false. Blank
+/// must never read as "this document has no requirements", so the reason is a
+/// column: `not_entitled` is a billing fact, `not_provided` is a fact about the
+/// document (a scanned fax has no text layer), `pending` and `failed` are
+/// operational.
+///
+/// `attachmentContentSha256` is the binding that makes a citation safe. P31
+/// cites this text as evidence; if the agency reposts the document it archives
+/// under a NEW hash (P29's key IS the hash), this row stops matching, and the
+/// citation reads as stale rather than silently pointing at text that does not
+/// contain the quoted claim.
+///
+/// Provider and local-parser text are never mixed: `extractionMethod` is part
+/// of the uniqueness key, so the two coexist as separate labelled rows.
+///
+/// Global table — no tenant_id, no RLS.
+model OpportunityDocumentText {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// `opportunity_attachment.id`. Soft pointer, no FK.
+  attachmentId String @map("attachment_id") @db.Uuid
+  /// The hash of the exact bytes this text came from. NOT NULL: text with no
+  /// binding is text nothing may cite.
+  attachmentContentSha256 String @map("attachment_content_sha256")
+
+  /// 'available' | 'not_entitled' | 'not_provided' | 'pending' | 'failed'.
+  status String
+  /// 'provider' | 'local_parser'. Never mixed within a row.
+  extractionMethod String? @map("extraction_method")
+  /// The plan the extraction was made under, so a later downgrade explains
+  /// itself.
+  providerTier String? @map("provider_tier")
+
+  /// UNTRUSTED SOURCE CONTENT. Never interpreted as an instruction anywhere.
+  text      String?
+  charCount Int?    @map("char_count")
+  /// True when the provider returned a bounded excerpt. A truncated body that
+  /// claimed to be complete would let P31 conclude a requirement is absent from
+  /// a document it only half read.
+  truncated Boolean @default(false)
+
+  failureReason String?   @map("failure_reason")
+  fetchedAt     DateTime? @map("fetched_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([attachmentContentSha256], map: "opportunity_document_text_binding_idx")
+  @@index([status, createdAt], map: "opportunity_document_text_status_idx")
+  @@map("opportunity_document_text")
+}
+
+/// A CANDIDATE requirement extracted from a solicitation document, bound to the
+/// exact bytes and character range it came from (P31).
+///
+/// GLOBAL, because "this solicitation requires a facility clearance at
+/// paragraph 3.2" is a fact about a public document — the same fact for every
+/// tenant, extracted once. The tenant's DECISION about it lives in
+/// `OpportunityRequirementReview`, which is tenant-scoped with RLS.
+///
+/// Every evidence column is NOT NULL. An assertion with no citation is what
+/// this phase exists to make impossible, and a nullable column is a promise the
+/// schema does not keep. The span is checked for coherence and the excerpt's
+/// length must MATCH it — an excerpt longer than its claimed range is a
+/// paraphrase wearing a citation.
+///
+/// `attachmentContentSha256` is the same binding P30's text rows carry: when an
+/// agency reposts a document it archives under a new hash, and every candidate
+/// bound to the old one is stale by construction rather than by a cleanup job.
+///
+/// `extractionMethod` and `extractionModel` are NOT NULL, so "the machine said
+/// so" and "a human confirmed it" can never be conflated on a read.
+model OpportunityRequirement {
+  id String @id @default(uuid()) @db.Uuid
+
+  attachmentId            String  @map("attachment_id") @db.Uuid
+  attachmentContentSha256 String  @map("attachment_content_sha256")
+  /// Denormalized so the detail surface reads a solicitation's requirements
+  /// without joining through attachments.
+  samOpportunityId        String? @map("sam_opportunity_id") @db.Uuid
+
+  /// Bounded by CHECK. See REQUIREMENT_TYPES.
+  requirementType String @map("requirement_type")
+  /// One sentence, in Capiro's words, of what the excerpt requires.
+  statement       String
+
+  /// THE EVIDENCE. All NOT NULL.
+  sourceExcerpt String  @map("source_excerpt")
+  excerptStart  Int     @map("excerpt_start")
+  excerptEnd    Int     @map("excerpt_end")
+  /// Genuinely optional: a plain-text extraction has offsets and no pages.
+  sourcePage    Int?    @map("source_page")
+
+  /// 'model' | 'deterministic_pattern' | 'human', and the model/rule id.
+  extractionMethod String @map("extraction_method")
+  extractionModel  String @map("extraction_model")
+  /// Evidence quality. NEVER a probability that the requirement is real.
+  confidence       String
+
+  /// Set when a later sync observed the document change under this candidate.
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([attachmentContentSha256, requirementType, excerptStart, excerptEnd], map: "opportunity_requirement_evidence_uniq")
+  @@index([samOpportunityId, requirementType], map: "opportunity_requirement_sam_idx")
+  @@index([attachmentContentSha256, supersededAt], map: "opportunity_requirement_binding_idx")
+  @@map("opportunity_requirement")
+}
+
+/// One team's decision about one extracted requirement (P31).
+///
+/// TENANT-SCOPED with RLS ENABLED + FORCED and the standard four policies. The
+/// requirement itself is a global fact about a public document; the review is a
+/// fact about one team, and putting it on the shared row would show every
+/// tenant what one team decided.
+///
+/// `reviewedBy`/`reviewedAt` are all-or-nothing with `status`, the same shape as
+/// P07's decision-actor CHECK: a decision nobody can be attributed to is a
+/// decision nobody can be asked about later.
+model OpportunityRequirementReview {
+  id            String @id @default(uuid()) @db.Uuid
+  tenantId      String @map("tenant_id") @db.Uuid
+  requirementId String @map("requirement_id") @db.Uuid
+
+  /// 'pending' | 'accepted' | 'rejected'.
+  status      String
+  reviewedBy  String?   @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes String?   @map("review_notes")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, requirementId], map: "opportunity_requirement_review_tenant_req_uniq")
+  @@index([tenantId, status], map: "opportunity_requirement_review_status_idx")
+  @@map("opportunity_requirement_review")
+}
+
+/// One recorded stage move on a tracked opportunity (Funding Opportunities P35).
+///
+/// TENANT-SCOPED with RLS ENABLED + FORCED, unlike the provider catalog tables in
+/// this program: "who moved this to lost, when, and why" is a fact about ONE team.
+///
+/// `actorUserId` is NOT NULL. There is no way to record a stage move nobody
+/// performed, which is what "producers cannot alter stage" means at the schema
+/// level rather than as a convention.
+///
+/// The migration CHECKs that `submitted`, `won`, `lost` and `passed` carry a
+/// non-empty `reason` — a recorded loss nobody explained is a loss nobody can
+/// learn from — and that `fromStage <> toStage`, because a move to where it
+/// already was is not a move.
+model FundingOpportunityStageTransition {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  clientFundingOpportunityId String @map("client_funding_opportunity_id") @db.Uuid
+
+  /// NULL means "entered the pipeline". A real and common first entry.
+  fromStage String? @map("from_stage") @db.VarChar(16)
+  toStage   String  @map("to_stage") @db.VarChar(16)
+
+  actorUserId String  @map("actor_user_id") @db.Uuid
+  reason      String? @db.Text
+
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  row    ClientFundingOpportunity @relation(fields: [clientFundingOpportunityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientFundingOpportunityId, occurredAt(sort: Desc)], map: "funding_opportunity_stage_transition_row_idx")
+  @@index([tenantId, actorUserId, occurredAt(sort: Desc)], map: "funding_opportunity_stage_transition_actor_idx")
+  @@map("funding_opportunity_stage_transition")
 }
 
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)

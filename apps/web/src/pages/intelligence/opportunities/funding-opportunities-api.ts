@@ -744,6 +744,322 @@ export function timelineApiPath(source: string, sourceRecordId: string): string 
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/timeline`;
 }
 
+// ── Requirements extracted from documents (P31) ──────────────────────────────
+
+/** The documents flag. Gates attachments (P29), text (P30) and requirements (P31). */
+export const FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE = 'funding_opportunities_documents';
+
+/** Mirrors REQUIREMENT_TYPES in apps/api's opportunity-requirement.schema.ts. */
+export const REQUIREMENT_TYPE_LABELS: Record<string, string> = {
+  technical: 'Technical',
+  deliverable: 'Deliverable',
+  evaluation: 'Evaluation criteria',
+  past_performance: 'Past performance',
+  clearance_security: 'Clearance / security',
+  vehicle: 'Contract vehicle',
+  certification: 'Certification',
+  place_of_performance: 'Place of performance',
+  submission: 'Submission',
+  question_deadline: 'Question deadline',
+  key_date: 'Key date',
+};
+
+/**
+ * One extracted requirement, with the citation that makes it checkable.
+ *
+ * There is no shape here that carries a statement WITHOUT its excerpt, span and
+ * document. A compliance list nobody can check against the source invites a
+ * team to build a proposal against Capiro's paraphrase.
+ */
+export interface OpportunityRequirementView {
+  id: string;
+  requirementType: string;
+  statement: string;
+  /** VERBATIM from the document. Never a paraphrase. */
+  sourceExcerpt: string;
+  excerptStart: number;
+  excerptEnd: number;
+  sourcePage: number | null;
+  fileName: string | null;
+  extractionMethod: string;
+  extractionModel: string;
+  /** Evidence quality. NEVER a probability that the requirement is real. */
+  confidence: string;
+  /** 'pending' | 'accepted' | 'rejected'. A candidate is not a conclusion. */
+  reviewStatus: string;
+  /** Set when the document changed after this was extracted. */
+  supersededAt: string | null;
+}
+
+export interface OpportunityRequirementsResponse {
+  source: OpportunitySource;
+  sourceRecordId: string;
+  requirements: OpportunityRequirementView[];
+  /**
+   * Why the list is the length it is. Only `read_none_found` is a fact about the
+   * solicitation; the other two are facts about Capiro's coverage.
+   */
+  coverage: 'available' | 'no_documents' | 'no_text' | 'read_none_found';
+  coverageExplanation: string;
+  /** P30's per-document text status, carried through verbatim rather than re-summarised. */
+  documentTextStatus: Array<{ fileName: string | null; status: string; explanation: string }>;
+  generatedAt: string;
+}
+
+export function requirementsApiPath(source: string, sourceRecordId: string): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/requirements`;
+}
+
+// ── Government landscape (P33) ───────────────────────────────────────────────
+
+/** The landscape flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
+  'funding_opportunities_government_landscape';
+
+/** Mirrors LANDSCAPE_SOURCES in apps/api's government-landscape.types.ts. */
+export const LANDSCAPE_SOURCE_LABELS: Record<string, string> = {
+  program_element: 'Program Element',
+  budget_movement: 'Budget movement',
+  client_facility: 'Client facility',
+  congressional_district: 'Congressional district',
+  legislation: 'Legislation',
+  hearing: 'Hearing',
+  regulation: 'Regulation',
+  committee: 'Committee',
+  acquisition_personnel: 'Acquisition personnel',
+  reviewed_relationship: 'Reviewed relationship',
+  client_priority: 'Client priority',
+};
+
+/**
+ * One item in the packet.
+ *
+ * `basis` is the load-bearing field: `source_backed` means a source states the
+ * link, `inferred` means two things resemble each other. An inferred item is
+ * never presented as verified and never drives a high-confidence action.
+ */
+export interface LandscapeItemView {
+  source: string;
+  sourceId: string;
+  label: string;
+  basis: 'source_backed' | 'inferred';
+  /** The exact value that connected the two things. Never a paraphrase. */
+  matchedOn: string;
+  evidenceRef: string | null;
+  asOf: string | null;
+}
+
+export interface LandscapeSourceReportView {
+  source: string;
+  /**
+   * `not_wired` means Capiro cannot read this source yet; `empty` means it read
+   * it and found nothing. Only the second is a finding.
+   */
+  state: 'available' | 'empty' | 'not_wired' | 'denied';
+  itemCount: number;
+  explanation: string;
+}
+
+/** Mirrors LandscapePacket in apps/api. */
+export interface LandscapePacketView {
+  clientId: string;
+  source: string;
+  sourceRecordId: string;
+  items: LandscapeItemView[];
+  sources: LandscapeSourceReportView[];
+  /** Coverage, never confidence: a fully-covered packet can be empty. */
+  coverage: { available: number; wired: number; declared: number };
+  fingerprint: string;
+  generatedAt: string;
+}
+
+export function landscapeApiPath(
+  source: string,
+  sourceRecordId: string,
+  clientId: string,
+): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/landscape?clientId=${encodeURIComponent(clientId)}`;
+}
+
+// ── Pursuit pipeline (P35) ──────────────────────────────────────
+
+/** The pipeline flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_PIPELINE_FEATURE = 'funding_opportunities_pipeline_v2';
+
+/** Mirrors PIPELINE_STAGES in apps/api. Declaration order IS column order. */
+export const PIPELINE_STAGES = [
+  'reviewing',
+  'qualified',
+  'pursuing',
+  'submitted',
+  'won',
+  'lost',
+  'passed',
+] as const;
+export type PipelineStageView = (typeof PIPELINE_STAGES)[number];
+
+export const PIPELINE_STAGE_LABELS: Record<PipelineStageView, string> = {
+  reviewing: 'Reviewing',
+  qualified: 'Qualified',
+  pursuing: 'Pursuing',
+  submitted: 'Submitted',
+  won: 'Won',
+  lost: 'Lost',
+  passed: 'Passed',
+};
+
+/**
+ * Stages the server requires a stated reason for.
+ *
+ * Mirrors HUMAN_ONLY_STAGES, and the UI uses it to ASK before posting rather
+ * than letting the server refuse a move the user has already dragged. The server
+ * is still the gate — this only decides whether to open the reason prompt.
+ */
+export const PIPELINE_STAGES_NEEDING_REASON: readonly PipelineStageView[] = [
+  'submitted',
+  'won',
+  'lost',
+  'passed',
+];
+
+export interface PipelineCardView {
+  rowId: string;
+  source: string;
+  sourceRecordId: string | null;
+  title: string | null;
+  stage: PipelineStageView | null;
+  /**
+   * `recorded` means a person moved it. `workflow_status` means the stage was
+   * derived from the legacy column, `legacy_override` means a recorded stage is
+   * out of date, and `unstaged` means neither column places it in the pipeline.
+   */
+  stageBasis: 'recorded' | 'workflow_status' | 'legacy_override' | 'unstaged';
+  stageExplanation: string;
+  /** The optimistic-concurrency token. Sent back on every move. */
+  version: number;
+  /** Computed server-side, so the board cannot offer a move the server refuses. */
+  allowedTransitions: PipelineStageView[];
+  responseDeadline: string | null;
+}
+
+export interface PipelineBoardView {
+  clientId: string;
+  counts: {
+    stages: Array<{ stage: PipelineStageView; count: number }>;
+    /** Rows in NO stage, split by why. Never folded into a stage column. */
+    unstaged: { suggested: number; expired: number; other: number };
+    total: number;
+    derivedFromWorkflowStatus: number;
+  };
+  cards: PipelineCardView[];
+  /** True when `cards` is a window. The COUNTS are never a window. */
+  cardsTruncated: boolean;
+}
+
+export function pipelineBoardApiPath(clientId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/pipeline`;
+}
+
+export function pipelineStageApiPath(clientId: string, rowId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/pipeline/${encodeURIComponent(rowId)}/stage`;
+}
+
+// ── Deterministic action plan (P34) ─────────────────────────────
+
+/** Mirrors ACTION_CATEGORIES in apps/api. Declaration order is display order. */
+export const ACTION_CATEGORY_LABELS: Record<string, string> = {
+  qualify: 'Qualify',
+  shape: 'Shape',
+  respond: 'Respond',
+  research: 'Research',
+  monitor: 'Monitor',
+  reference: 'Reference',
+};
+
+export interface ProposedActionView {
+  id: string;
+  category: string;
+  title: string;
+  rationale: string;
+  /** `review` and `pursuit` are P08 intents; `none` creates nothing. */
+  intent: 'review' | 'pursuit' | 'none';
+  evidence: Array<{ source: string; sourceId: string; matchedOn: string }>;
+  /** Only ever from a source-backed landscape item. Null is the common case. */
+  suggestedTarget: string | null;
+  dueDateBasis: string | null;
+  dueDate: string | null;
+  unresolvedPrerequisites: string[];
+}
+
+export interface ActionPlanView {
+  source: string;
+  sourceRecordId: string;
+  clientId: string;
+  stage: string;
+  actions: ProposedActionView[];
+  fingerprint: string;
+  generatedAt: string;
+}
+
+export interface ActionPlanResultView {
+  state: 'available' | 'denied' | 'unknown_record';
+  explanation: string;
+  /** Null under `denied` and `unknown_record` — there is no stage to name. */
+  plan: ActionPlanView | null;
+  acceptance: { wired: boolean; explanation: string };
+}
+
+export const PLAN_STAGE_LABELS: Record<string, string> = {
+  forecast: 'Forecast',
+  sources_sought: 'Sources sought',
+  presolicitation: 'Presolicitation',
+  solicitation: 'Solicitation',
+  amendment: 'Amendment',
+  grant: 'Grant',
+  closed_or_informational: 'Closed or informational',
+};
+
+/**
+ * Which workflow statuses mean the workflow ALREADY carries this decision.
+ *
+ * Mirrors what P08 writes: `review` -> `saved`, `pursuit` -> `pursuing`. The
+ * terminal statuses are included because a won or lost opportunity was pursued
+ * to get there, so re-proposing the decision would be noise.
+ *
+ * Deliberately labelled "recorded" rather than "committed" in the UI: a `saved`
+ * row may have been saved by hand rather than by accepting this proposal, and
+ * claiming the plan caused it would be a claim the client cannot check.
+ */
+export const RECORDED_STATUSES_BY_INTENT: Record<'review' | 'pursuit', readonly string[]> = {
+  review: ['saved', 'pursuing', 'won', 'lost'],
+  pursuit: ['pursuing', 'won', 'lost'],
+};
+
+export function isActionRecorded(
+  intent: ProposedActionView['intent'],
+  workflowStatus: string | null | undefined,
+): boolean {
+  if (intent === 'none' || workflowStatus == null) return false;
+  return RECORDED_STATUSES_BY_INTENT[intent].includes(workflowStatus);
+}
+
+export function actionPlanApiPath(
+  source: string,
+  sourceRecordId: string,
+  clientId: string,
+): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/action-plan?clientId=${encodeURIComponent(clientId)}`;
+}
+
+/** P08's idempotent server action. The ONLY path that commits an action. */
+export function opportunityActionApiPath(
+  clientId: string,
+  source: string,
+  sourceRecordId: string,
+): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/action`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**
@@ -900,6 +1216,28 @@ export const INBOX_SOURCE_SHORT_LABELS: Record<InboxSource, string> = {
   grants_gov: 'Grants.gov',
   sam_gov: 'SAM.gov',
   agency_forecast: 'Agency forecast',
+};
+
+/**
+ * The common recommendation vocabulary as a reader sees it.
+ *
+ * Exported (P32) rather than declared privately in each renderer. The card and
+ * the detail composed these independently before, which is how a card can say
+ * "Pursue" while the drawer says "Needs review" about the same row — a parity
+ * problem that stops existing when there is one table.
+ */
+export const RECOMMENDATION_LABELS: Record<MachineRecommendation, string> = {
+  pursue: 'Pursue',
+  monitor: 'Monitor',
+  pass: 'Pass',
+  needs_review: 'Needs review',
+};
+
+export const RECOMMENDATION_COLORS: Record<MachineRecommendation, string> = {
+  pursue: 'green',
+  monitor: 'blue',
+  pass: 'default',
+  needs_review: 'orange',
 };
 
 export const ELIGIBILITY_LABELS: Record<EligibilityState, string> = {

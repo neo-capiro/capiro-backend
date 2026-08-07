@@ -799,6 +799,192 @@ identical key (a free no-op); changed bytes get a *different* key rather than
 overwriting. That is what lets a requirement extracted from version A still
 resolve to version A's bytes after the agency posts version B.
 
+### Tier-aware extracted-text ingestion (P30) — a migration, no flag, no UI
+
+`prisma/migrations/20260830010000_opportunity_document_text` adds ONE new
+**global** table. Additive; apply it in the normal migration step below.
+
+**Read this before concluding a solicitation has no requirements.** An empty
+text field has five causes and only one of them is a fact about the document:
+
+| status | what it means | whose gap |
+|---|---|---|
+| `available` | text is held | — |
+| `not_entitled` | the account's plan excludes extracted text | **billing** |
+| `not_provided` | the provider has no text — a scanned or image-only file | **the document** |
+| `pending` | nobody has run an extraction yet | Capiro |
+| `failed` | an extraction was attempted and did not complete | Capiro |
+
+The database refuses a row that could mislead: `available` requires text, a
+method and a count, and every other status must hold **no** text — so a
+`not_entitled` row cannot carry a leftover body from an entitled period.
+
+**A hard provider limit, recorded rather than worked around.** The installed
+`@makegov/tango-node@1.1.0` exposes extracted text through exactly one method,
+`searchOpportunityAttachments({ q, topK, includeExtractedText })` — a *semantic
+search* taking a query. There is no `getAttachmentText(id)`. "Give me the text
+of this document" is not a question this SDK can ask, and inventing a query to
+stand in for a document id would bind returned text to an attachment it merely
+*resembles* — the fuzzy identity substitution P02 forbids for award history.
+
+So the sync seeds the correct unavailability status and stops there. Finishing
+the phase needs either a provider endpoint or a `local_parser` extraction
+against the bytes P29 already archived — `extraction_method` exists so that
+would be a separately labelled row, never a silent substitute for provider text.
+
+```bash
+# Dry run.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts
+
+# Seed. --entitled ONLY if P17's probe reported extracted text as available on
+# this account; the script never asks the provider itself, because re-deriving
+# entitlement from a failed call turns one rate-limit into "we lost the plan".
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts --commit
+pnpm exec tsx scripts/sync-tango-opportunity-text.ts --commit --entitled
+```
+
+```sql
+-- READ-ONLY. Why there is no text, per document.
+SELECT status, extraction_method, count(*)
+  FROM opportunity_document_text GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+**Text is bound to bytes.** Every row carries the SHA-256 of the exact
+attachment bytes it came from. If the agency reposts a document it archives
+under a new hash (P29's key *is* the hash), the old text row stops covering it,
+and the uncovered-attachment query correctly picks it up again — which is how a
+stale extraction gets replaced rather than silently kept.
+
+### Pursuit pipeline stages (P35) — a migration, a NEW flag, and MIGRATION FIRST is not optional here
+
+**Order: migration, then deploy, then flag.** Not a convention this time — the
+column has to exist before any pod that references it starts, or every board read
+throws.
+
+```bash
+# MUTATING — Neo approval required
+aws ecs run-task --profile capiro-dev --region us-east-1   --cluster capiro-dev   --task-definition capiro-dev-api-migrate   --launch-type FARGATE   --network-configuration 'awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19],securityGroups=[sg-01def4e5c0fe44d4a],assignPublicIp=DISABLED}'
+```
+
+**The migration is safe to apply while the OLD code is running**, which is what
+makes the ordering workable rather than a window of downtime:
+
+| Property | Why it matters during the roll |
+|---|---|
+| `pipeline_stage` NULLABLE, no default | an old pod's INSERT omits it and succeeds; the row honestly has no stage |
+| `pipeline_stage_version` NOT NULL DEFAULT 0 | the same INSERT still gets a usable concurrency token |
+| new columns are additive, new table is new | nothing an old pod reads or writes changes shape |
+
+**What the backfill does and does not do.** It maps `saved → reviewing`,
+`pursuing → pursuing`, `dismissed → passed`, `won → won`, `lost → lost`. It leaves
+`suggested` and `expired` rows with **no stage**, deliberately: a machine
+suggestion nobody has opened is not a human "reviewing" it, and which stage a row
+was in when the source closed underneath it was never recorded. It writes no
+transition rows, because a backfill is not a move and inventing an actor would put
+somebody's name against a decision they did not make.
+
+```sql
+-- READ-ONLY. Verify the mapping and, more importantly, the two DELIBERATE gaps.
+SELECT workflow_status, pipeline_stage, count(*)
+  FROM client_funding_opportunity
+ GROUP BY 1, 2 ORDER BY 1;
+-- expect: suggested -> NULL, expired -> NULL, every other status mapped.
+
+-- Every backfilled stage carries a timestamp and NO actor. That NULL is
+-- meaningful, not missing: the read reports the stage as DERIVED rather than
+-- claiming a person moved it.
+SELECT count(*) AS backfilled
+  FROM client_funding_opportunity
+ WHERE pipeline_stage IS NOT NULL AND pipeline_stage_by_user_id IS NULL;
+```
+
+**Then the flag, per tenant, and it is a WRITE surface.**
+
+```sql
+-- READ-ONLY. Expect 0 rows before the canary.
+SELECT tenant_id, enabled, updated_at
+  FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_pipeline_v2';
+```
+
+**Flag OFF changes nothing.** The board component renders nothing and issues no
+request; the Triage inbox and Explore tabs are byte-identical to today, because
+`workflow_status` is still the column every code path writes. That is also the
+rollback: turn the flag off and the old fields stay readable and correct.
+
+**Do NOT roll the migration back.** Four additive nullable-or-defaulted columns,
+one new table, three indexes. The previous code ignores all of them. Dropping
+`pipeline_stage` would destroy every recorded stage move and, worse, the audit
+table cascades from `client_funding_opportunity` — so a rollback that dropped the
+table would take the record of who moved what with it.
+
+**Two behaviours that will be reported as bugs and are not.**
+
+1. *"A row shows a coarser stage than the one somebody set."* During and after the
+   roll, an older pod can move `workflow_status` without moving the stage. The read
+   resolves this by letting the legacy status win and labels the card **Derived**
+   with an explanation. That is the rolling-deploy rule working, not a lost move.
+   Moving the card once records it properly.
+2. *"The board says 900 in Reviewing but shows 4 cards."* The counts come from a
+   `GROUP BY` over every workflow row; the cards are a bounded window. The column
+   says "896 more not shown" rather than implying four is all there is.
+
+**A forecast cannot be pursued or submitted from the board**, matching P26's own
+`FORECAST_FORBIDDEN_ACTIONS`. Its cards offer `reviewing`, `qualified` and
+`passed` only.
+
+---
+
+### Deterministic action plan (P34) — no migration, NO new flag, and the landscape flag now gates two surfaces
+
+**Nothing to apply.** P34 adds no table, no column and no flag. The plan is
+composed from rows P22, P24, P31 and P33 already write, and the accept path is
+P08's existing `POST clients/:clientId/opportunities/:source/:id/action`.
+
+**The operationally important part: the blast radius of one existing flag grew.**
+`funding_opportunities_government_landscape` gated one read-only panel at P33. It
+now also gates `GET opportunities/:source/:id/action-plan` AND the Accept button
+that panel renders. Turning that flag on for a tenant therefore enables a surface
+that can WRITE — a task plus a workflow decision — where before it only read.
+
+One flag for both is deliberate: an action plan without the landscape it derives
+its evidence from is a list of steps nobody can check, so the two are not
+independently useful and two flags would mean a way to configure exactly that.
+But it does mean a tenant enabled at P33 gains the write path on the deploy that
+carries P34, with no second decision. Check who has it before deploying:
+
+```sql
+-- READ-ONLY. Expect 0 rows unless somebody enabled the landscape at P33.
+SELECT tenant_id, enabled, updated_at
+  FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_government_landscape';
+```
+
+If a row exists and you are not ready for the write path, set it to `false`
+BEFORE the deploy rather than after.
+
+**Nothing is written by opening the page.** The plan route is a GET that composes
+and returns; it holds no transaction and creates no row. A task exists only after
+a human presses Accept, and that press goes through P08 — same idempotency key,
+same pursuit guard, same single transaction. A closed notice is refused there
+exactly as it is on the save path, and the plan does not propose pursuing one in
+the first place.
+
+**Accepting twice does not make two tasks.** P08's key is
+`<source>:<sourceRecordId>:<intent>`, so two `review` actions accepted from one
+plan land on ONE task and the second returns it with `reused: true`. This is P08
+working as designed, and the panel says so on screen. If an operator reports
+"three actions, one task", that is the expected behaviour, not a defect.
+
+**Forecasts are read-only here.** P08's route is bounded to `sam_gov` and
+`grants_gov`, so a forecast plan renders its proposals with no Accept control and
+an explanation. Do not widen `SourceParamDto` to fix this — the workflow row has
+no place to put a forecast, and admitting one would let a forecast id reach
+handlers that assume a notice.
+
+---
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
