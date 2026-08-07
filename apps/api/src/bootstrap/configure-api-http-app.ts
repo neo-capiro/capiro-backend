@@ -12,7 +12,7 @@ import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.j
  *
  * Ordering (MUST be preserved):
  *   1. global prefix
- *   2. optional service-header middleware
+ *   2. optional service/release identity middleware
  *   3. CORS
  *   4. raw webhook parsers (Clerk, Recall)
  *   5. special email-signature large body parser
@@ -24,6 +24,8 @@ import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.j
 export interface ConfigureApiHttpAppOptions {
   /** When set, every response gets `X-Capiro-Service: <value>` header. */
   serviceHeader?: string;
+  /** When set, every response gets `X-Capiro-Release-Sha: <value>` header. */
+  releaseShaHeader?: string;
   /** Register the Clerk webhook raw-body parser on /webhooks/clerk. */
   includeClerkRawBody: boolean;
   /** Register the Recall webhook raw-body parser on /webhooks/recall. */
@@ -74,17 +76,22 @@ export function configureApiHttpApp(
     ],
   });
 
-  // 2. Optional service-header middleware — installed before CORS and body
-  //    parsers so every response, including CORS and parser failures, carries
-  //    an unambiguous process identity.
-  if (options.serviceHeader) {
+  // 2. Optional identity middleware — installed before CORS and body parsers
+  //    so every response, including CORS/parser failures and policy denials,
+  //    carries unambiguous process and release provenance.
+  if (options.serviceHeader || options.releaseShaHeader) {
     app.use(
       (
-        req: unknown,
+        _req: unknown,
         res: { setHeader: (name: string, value: string) => void },
         next: (err?: unknown) => void,
       ) => {
-        res.setHeader('X-Capiro-Service', options.serviceHeader!);
+        if (options.serviceHeader) {
+          res.setHeader('X-Capiro-Service', options.serviceHeader);
+        }
+        if (options.releaseShaHeader) {
+          res.setHeader('X-Capiro-Release-Sha', options.releaseShaHeader);
+        }
         next();
       },
     );

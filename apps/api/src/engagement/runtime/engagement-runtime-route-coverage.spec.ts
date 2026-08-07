@@ -48,7 +48,12 @@ const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
   'approveMeetingAttachment',
 ]);
 const LOCAL_SAFE_OAUTH_HANDLERS = new Set(['capabilities']);
-const LOCAL_SAFE_SEND_HANDLERS = new Set(['getSendIntent', 'cancelSendIntent']);
+const LOCAL_SAFE_SEND_HANDLERS = new Set([
+  'getSendIntent',
+  'cancelSendIntent',
+  // Updates local state and returns a mailto: URL; no provider send occurs.
+  'openOutreachEmail',
+]);
 const LOCAL_SAFE_NOTETAKER_HANDLERS = new Set(['meetingNotetaker']);
 
 function externallySensitive(route: RouteEntry): boolean {
@@ -211,6 +216,13 @@ describe('Engagement runtime route coverage', () => {
     expect(validateRegistry(clone)).toContain(
       'missing runtime policy: POST /api/engagement/outreach/generate-batch (EngagementController.generateBatchEmails)',
     );
+  });
+
+  it('keeps mailto local and preserves conditional generation metadata for draft versions', () => {
+    expect(runtimePolicyForHandler('EngagementController', 'openOutreachEmail')).toBeUndefined();
+    expect(
+      runtimePolicyForHandler('EngagementController', 'createDraftVersion'),
+    ).toMatchObject({ action: 'outreach_generate' });
   });
 
   it('keeps Recall outside the Phase 1 application runtime', () => {

@@ -31,7 +31,6 @@ const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> 
   generateMeetingPrep: { action: 'meeting_prep_generate' },
   generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
   sendBatchEmails: { action: 'outreach_send' },
-  openOutreachInConnectedEmail: { action: 'outreach_send' },
   sendCampaign: { action: 'outreach_send' },
   sendCampaignEmails: { action: 'outreach_send' },
   sendCampaignTest: { action: 'outreach_test_send', testMode: true },
@@ -60,6 +59,10 @@ function activeMainRuntimePolicy(): EngagementRuntimePolicyService {
  * service boundary for workers, internal callers, or future controller refactors:
  * it asserts runtime policy before enrichment, database writes, S3 access,
  * transcription, model calls, or provider sends can begin.
+ *
+ * `openOutreachInConnectedEmail` is intentionally absent from the external map:
+ * it updates local workflow state and returns a mailto: URL; it never calls an
+ * email provider. Treating it as a send made the preview reject a safe local action.
  *
  * Nest always injects the validated runtime policy. The explicit active fallback
  * exists only for direct unit construction of this factory and preserves the

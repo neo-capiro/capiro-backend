@@ -6,6 +6,7 @@ import {
   engagementApiNames,
   loadEngagementApiConfig,
 } from '../lib/engagement-api/engagement-api-config';
+import { assertEngagementApiDeploymentDbBudget } from '../lib/engagement-api/engagement-api-db-budget';
 import { EngagementApiNetworkStack } from '../lib/engagement-api/engagement-api-network-stack';
 import { EngagementApiRegistryStack } from '../lib/engagement-api/engagement-api-registry-stack';
 import { EngagementApiServiceStack } from '../lib/engagement-api/engagement-api-service-stack';
@@ -35,6 +36,9 @@ import { EngagementApiServiceStack } from '../lib/engagement-api/engagement-api-
 const app = new cdk.App();
 
 const cfg = loadEngagementApiConfig();
+// Validate rollout surge, not just steady state: maxHealthyPercent=200 can
+// temporarily double a service already autoscaled to maximumCount.
+assertEngagementApiDeploymentDbBudget(cfg);
 const names = engagementApiNames(cfg);
 const env = { account: cfg.accountId, region: cfg.region };
 

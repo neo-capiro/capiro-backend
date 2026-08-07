@@ -1,86 +1,21 @@
 #!/usr/bin/env node
 /**
- * Verify a rendered engagement-api task definition against the accepted
- * Phase 1 configuration contract.
+ * Phase 2 task-definition verifier.
  *
- * Works on a synthesized CloudFormation template (before deploy) or on the
- * output of `aws ecs describe-task-definition` (after deploy), so the same
- * gate covers both sides of Gate C.
- *
- * Evidence lists secret NAMES and FIELDS. It never reads or prints a value.
- *
- * Usage:
- *   node scripts/verify-engagement-api-task-config.mjs \
- *     --template <synthesized-service-template.json> \
- *     --config   <engagement-api-config.json>
- *
- *   node scripts/verify-engagement-api-task-config.mjs \
- *     --task-definition <describe-task-definition.json> \
- *     --config <engagement-api-config.json>
- *
- * Exit: 0 contract satisfied · 1 usage error · 2 one or more violations
+ * The accepted verifier is retained verbatim under scripts/lib and receives a
+ * synthetic, in-memory Clerk-webhook binding only for backward-compatible
+ * validation. The real rendered task must omit that secret; this wrapper proves
+ * the omission first, then applies the stronger rolling-deployment DB budget.
  */
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const REQUIRED_SECRETS = [
-  'CLERK_SECRET_KEY',
-  'CLERK_WEBHOOK_SIGNING_SECRET',
-  'DB_HOST',
-  'DB_PASSWORD',
-  'DB_PORT',
-  'DB_USER',
-  'NOTES_ENCRYPTION_KEY',
-  'OAUTH_TOKEN_ENCRYPTION_KEY',
-];
-
-// DB_NAME is not in Secrets Manager on the live main API task either — a
-// literal env var. Live discovery (2.15, capiro-dev, 2026-08-06) found this;
-// checked in the environment block below, not here.
-const REQUIRED_PLAIN_ENV = ['DB_NAME'];
-
-const FORBIDDEN_SECRETS = [
-  'OPENAI_API_KEY',
-  'ANTHROPIC_API_KEY',
-  'RECALL_API_KEY',
-  'RECALL_WEBHOOK_SECRET',
-  'MICROSOFT_CLIENT_ID',
-  'MICROSOFT_CERT_PRIVATE_KEY',
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'SAM_GOV_API_KEY',
-  'AI_CREDENTIAL_ENCRYPTION_KEY',
-];
-
-const EXACT_SHADOW_ENV = {
-  CAPIRO_SERVICE_NAME: 'engagement-api',
-  ENGAGEMENT_PROCESS_MODE: 'shadow',
-  ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
-  ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
-  ENGAGEMENT_CALLBACKS_ENABLED: 'false',
-  ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
-};
-
-const FORBIDDEN_ENV_PATTERNS = [/^OUTREACH_V3_ENABLED$/, /^VITE_/, /^LANGGRAPH_/, /^CAMPAIGN_SPEC_/];
-
-/** Env names that must never carry a literal value. */
-const SECRET_SHAPED_ENV = /SECRET|PASSWORD|PRIVATE_KEY|API_KEY|_TOKEN$|CREDENTIAL/i;
-
-const failures = [];
-const fail = (message) => failures.push(message);
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) usage(`unexpected argument: ${arg}`);
-    const [raw, inline] = arg.slice(2).split('=', 2);
-    const key = raw.replace(/-([a-z])/g, (_m, c) => c.toUpperCase());
-    const value = inline ?? argv[++i];
-    if (!value || value.startsWith('--')) usage(`missing value for --${raw}`);
-    out[key] = value;
-  }
-  return out;
-}
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const LEGACY = path.join(ROOT, 'scripts/lib/verify-engagement-api-task-config-legacy.mjs');
+const RETIRED_SECRET = 'CLERK_WEBHOOK_SIGNING_SECRET';
 
 function usage(message) {
   console.error(`ERROR ${message}`);
@@ -90,226 +25,117 @@ function usage(message) {
   process.exit(1);
 }
 
-/** Normalize either input shape into { environment, secrets, container, task }. */
-function extract(args) {
-  if (args.template) {
-    const template = JSON.parse(readFileSync(args.template, 'utf8'));
-    const tasks = Object.values(template.Resources ?? {}).filter(
-      (r) => r.Type === 'AWS::ECS::TaskDefinition',
+function parseArgs(argv) {
+  const out = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith('--')) usage(`unexpected argument: ${arg}`);
+    const [raw, inline] = arg.slice(2).split('=', 2);
+    const key = raw.replace(/-([a-z])/g, (_match, char) => char.toUpperCase());
+    const value = inline ?? argv[++index];
+    if (!value || value.startsWith('--')) usage(`missing value for --${raw}`);
+    out[key] = value;
+  }
+  return out;
+}
+
+function taskContainer(document, kind) {
+  if (kind === 'template') {
+    const tasks = Object.values(document.Resources ?? {}).filter(
+      (resource) => resource.Type === 'AWS::ECS::TaskDefinition',
     );
     if (tasks.length !== 1) usage(`expected exactly one task definition, found ${tasks.length}`);
-    const properties = tasks[0].Properties ?? {};
-    const containers = properties.ContainerDefinitions ?? [];
+    const containers = tasks[0].Properties?.ContainerDefinitions ?? [];
     if (containers.length !== 1) usage(`expected exactly one container, found ${containers.length}`);
-    return {
-      task: properties,
-      container: containers[0],
-      environment: Object.fromEntries(
-        (containers[0].Environment ?? []).map((e) => [e.Name, e.Value]),
-      ),
-      secrets: Object.fromEntries(
-        (containers[0].Secrets ?? []).map((s) => [s.Name, JSON.stringify(s.ValueFrom)]),
-      ),
-      source: 'template',
-    };
+    return containers[0];
   }
-  if (args.taskDefinition) {
-    const parsed = JSON.parse(readFileSync(args.taskDefinition, 'utf8'));
-    const properties = parsed.taskDefinition ?? parsed;
-    const containers = properties.containerDefinitions ?? [];
-    if (containers.length !== 1) usage(`expected exactly one container, found ${containers.length}`);
-    return {
-      task: {
-        Cpu: String(properties.cpu ?? ''),
-        Memory: String(properties.memory ?? ''),
-        Family: properties.family,
-        RuntimePlatform: {
-          CpuArchitecture: properties.runtimePlatform?.cpuArchitecture,
-          OperatingSystemFamily: properties.runtimePlatform?.operatingSystemFamily,
-        },
-      },
-      container: {
-        Image: containers[0].image,
-        ReadonlyRootFilesystem: containers[0].readonlyRootFilesystem,
-        PortMappings: (containers[0].portMappings ?? []).map((p) => ({
-          ContainerPort: p.containerPort,
-        })),
-        Command: containers[0].command,
-        EntryPoint: containers[0].entryPoint,
-        MountPoints: (containers[0].mountPoints ?? []).map((m) => ({
-          ContainerPath: m.containerPath,
-          ReadOnly: m.readOnly,
-        })),
-      },
-      environment: Object.fromEntries(
-        (containers[0].environment ?? []).map((e) => [e.name, e.value]),
-      ),
-      secrets: Object.fromEntries(
-        (containers[0].secrets ?? []).map((s) => [s.name, s.valueFrom]),
-      ),
-      source: 'task-definition',
-    };
-  }
-  return usage('pass either --template or --task-definition');
+  const task = document.taskDefinition ?? document;
+  const containers = task.containerDefinitions ?? [];
+  if (containers.length !== 1) usage(`expected exactly one container, found ${containers.length}`);
+  return containers[0];
 }
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.config) usage('--config is required');
+const inputKind = args.template ? 'template' : args.taskDefinition ? 'task-definition' : null;
+if (!inputKind) usage('pass either --template or --task-definition');
+if (args.template && args.taskDefinition) usage('pass only one of --template or --task-definition');
+
+const sourcePath = args.template ?? args.taskDefinition;
 const cfg = JSON.parse(readFileSync(args.config, 'utf8'));
-const rendered = extract(args);
-const { environment, secrets, container, task } = rendered;
-
-// ── shadow posture ───────────────────────────────────────────────────────────
-for (const [name, expected] of Object.entries(EXACT_SHADOW_ENV)) {
-  if (environment[name] !== expected) {
-    fail(`shadow variable ${name} is "${environment[name]}", expected "${expected}"`);
-  }
+const original = JSON.parse(readFileSync(sourcePath, 'utf8'));
+const originalContainer = taskContainer(original, inputKind);
+const originalSecrets = inputKind === 'template' ? originalContainer.Secrets ?? [] : originalContainer.secrets ?? [];
+const originalNames = originalSecrets.map((entry) => entry.Name ?? entry.name);
+if (originalNames.includes(RETIRED_SECRET)) {
+  console.error(`FAIL  ${RETIRED_SECRET} is injected into the real dark task`);
+  process.exit(2);
 }
-if (environment.ENGAGEMENT_CALLBACKS_ENABLED !== 'false') fail('callbacks are enabled');
-if (environment.ENGAGEMENT_RECALL_WEBHOOK_ENABLED !== 'false') fail('the Recall webhook is enabled');
 
-// engagement-api boots the identical ConfigModule validator as the main API,
-// which fatally throws "CLERK_JWT_ISSUER is required outside tests" and
-// crash-loops the task. Found missing in the initial Phase 2 build by
-// independent review (micro-session 2.14) — no other gate caught it, because
-// every other check only ever asserted what WAS present, never that this
-// specific boot-required value was present too.
-if (!environment.CLERK_JWT_ISSUER) {
-  fail('CLERK_JWT_ISSUER is missing; the task will crash-loop at ConfigModule boot');
+// Feed the accepted verifier a compatibility-only copy. No generated template,
+// task definition, IAM policy, or deployed resource receives this entry.
+const compatibility = structuredClone(original);
+const compatibilityContainer = taskContainer(compatibility, inputKind);
+if (inputKind === 'template') {
+  compatibilityContainer.Secrets = [
+    ...(compatibilityContainer.Secrets ?? []),
+    { Name: RETIRED_SECRET, ValueFrom: cfg.clerkWebhookSigningSecretArn },
+  ];
 } else {
-  try {
-    new URL(environment.CLERK_JWT_ISSUER);
-  } catch {
-    fail(`CLERK_JWT_ISSUER is not a valid URL: ${environment.CLERK_JWT_ISSUER}`);
-  }
+  compatibilityContainer.secrets = [
+    ...(compatibilityContainer.secrets ?? []),
+    { name: RETIRED_SECRET, valueFrom: cfg.clerkWebhookSigningSecretArn },
+  ];
 }
 
-for (const name of Object.keys(environment)) {
-  for (const pattern of FORBIDDEN_ENV_PATTERNS) {
-    if (pattern.test(name)) fail(`forbidden environment variable ${name}`);
-  }
+const tempDir = mkdtempSync(path.join(os.tmpdir(), 'engagement-task-config-'));
+const compatibilityPath = path.join(tempDir, `${inputKind}.json`);
+writeFileSync(compatibilityPath, `${JSON.stringify(compatibility)}\n`);
+try {
+  const legacyArgs = [
+    LEGACY,
+    inputKind === 'template' ? '--template' : '--task-definition',
+    compatibilityPath,
+    '--config',
+    args.config,
+  ];
+  const legacy = spawnSync(process.execPath, legacyArgs, { stdio: 'inherit' });
+  if (legacy.error) throw legacy.error;
+  if ((legacy.status ?? 1) !== 0) process.exit(legacy.status ?? 2);
+} finally {
+  rmSync(tempDir, { recursive: true, force: true });
 }
 
-// ── no plaintext secrets ─────────────────────────────────────────────────────
-for (const [name, value] of Object.entries(environment)) {
-  if (SECRET_SHAPED_ENV.test(name)) {
-    fail(`secret-shaped variable ${name} is a plaintext environment value`);
-  }
-  if (typeof value === 'string' && /^(sk|pk)_(live|test)_/.test(value)) {
-    fail(`environment variable ${name} carries a provider key literal`);
-  }
-  if (typeof value === 'string' && /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) {
-    fail(`environment variable ${name} carries a private key literal`);
-  }
-}
-
-// ── secrets ──────────────────────────────────────────────────────────────────
-const injected = Object.keys(secrets).sort();
-for (const name of REQUIRED_SECRETS) {
-  if (!injected.includes(name)) fail(`required boot secret ${name} is missing`);
-}
-for (const name of FORBIDDEN_SECRETS) {
-  if (injected.includes(name)) fail(`nonrequired provider secret ${name} is injected`);
-}
-for (const name of injected) {
-  if (!REQUIRED_SECRETS.includes(name)) fail(`unexpected secret ${name} is injected`);
-}
-
-// Live discovery (2.15, capiro-dev, 2026-08-06) found the main API's own
-// task carries this as a plain env var, not a Secrets Manager field — the
-// database itself has no separate boot-time secret to hold it.
-for (const name of REQUIRED_PLAIN_ENV) {
-  if (!environment[name]) fail(`required plain environment variable ${name} is missing`);
-  if (injected.includes(name)) fail(`${name} must be a plain environment variable, not a secret`);
-}
-
-// Live discovery (2.15, capiro-dev, 2026-08-06) found two different secret
-// shapes on the main API's task: the two DB secrets each hold several named
-// JSON fields (host/port; username/password) and must be field-scoped, or
-// injecting one leaks its sibling field. CLERK_SECRET_KEY,
-// CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY and
-// NOTES_ENCRYPTION_KEY are each their OWN flat-string secret with nothing to
-// select — requiring a field suffix on those would be checking for something
-// that cannot exist, not injecting a whole document unsafely.
-const MULTI_FIELD_SECRETS = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD'];
-for (const [name, valueFrom] of Object.entries(secrets)) {
-  const rendering = String(valueFrom);
-  const looksFieldScoped = /:[A-Za-z_][A-Za-z0-9_]*::?"?\s*$|:[A-Za-z_][A-Za-z0-9_]*::/.test(
-    rendering,
-  );
-  if (MULTI_FIELD_SECRETS.includes(name) && !looksFieldScoped) {
-    fail(`secret ${name} appears to inject a whole JSON document rather than one field`);
-  }
-  if (!MULTI_FIELD_SECRETS.includes(name) && looksFieldScoped) {
-    fail(`secret ${name} unexpectedly selects a JSON field; it should be a flat-string whole secret`);
-  }
-}
-
-// ── secret ARNs belong to the configured account and region ──────────────────
-const arnPattern = /arn:aws:secretsmanager:([a-z0-9-]+):(\d{12}):/g;
-const renderedSecrets = JSON.stringify(secrets);
-for (const [, region, account] of renderedSecrets.matchAll(arnPattern)) {
-  if (region !== cfg.region) fail(`a secret ARN is in region ${region}, expected ${cfg.region}`);
-  if (account !== cfg.accountId) {
-    fail(`a secret ARN belongs to account ${account}, expected ${cfg.accountId}`);
-  }
-}
-
-// ── image, sizing and port ───────────────────────────────────────────────────
-const image = JSON.stringify(container.Image ?? '');
-if (cfg.imageDigest && !image.includes(cfg.imageDigest)) {
-  fail(`image does not use the configured digest ${cfg.imageDigest}`);
-}
-if (!/@sha256:/.test(image)) fail('image is not digest-pinned');
-if (/:latest/.test(image)) fail('image uses a mutable latest tag');
-
-if (cfg.releaseSha && environment.RELEASE_SHA !== cfg.releaseSha) {
-  fail(`RELEASE_SHA is "${environment.RELEASE_SHA}", expected "${cfg.releaseSha}"`);
-}
-if (String(task.Cpu) !== String(cfg.cpu)) fail(`cpu is ${task.Cpu}, expected ${cfg.cpu}`);
-if (String(task.Memory) !== String(cfg.memoryMiB)) {
-  fail(`memory is ${task.Memory}, expected ${cfg.memoryMiB}`);
-}
-if (task.RuntimePlatform?.CpuArchitecture !== 'ARM64') {
-  fail(`cpu architecture is ${task.RuntimePlatform?.CpuArchitecture}, expected ARM64`);
-}
-
-const ports = (container.PortMappings ?? []).map((p) => p.ContainerPort);
-if (!ports.includes(4500)) fail(`container port 4500 is not exposed (found ${ports.join(', ')})`);
-if (environment.ENGAGEMENT_API_PORT !== '4500') {
-  fail(`ENGAGEMENT_API_PORT is "${environment.ENGAGEMENT_API_PORT}", expected "4500"`);
-}
-
-// ── serve-only ───────────────────────────────────────────────────────────────
-if (container.Command) fail('the task overrides the image command; serve-only must not be bypassed');
-if (container.EntryPoint) fail('the task overrides the image entrypoint');
-if (/migrate|prisma|seed/i.test(JSON.stringify(container.Command ?? ''))) {
-  fail('the task command references a migration');
-}
-if (container.ReadonlyRootFilesystem !== true) fail('the root filesystem is not read-only');
-
-// ── database connection budget ───────────────────────────────────────────────
 const budget = cfg.dbConnectionBudget;
 if (!budget) {
-  fail('the database pool budget cannot be inferred: dbConnectionBudget is absent from the config');
-} else {
-  const projected = budget.observedSevenDayPeak + cfg.maximumCount * budget.perTaskPoolMaximum;
-  const ceiling = Math.floor(budget.databaseMaxConnections * 0.8);
-  if (projected > ceiling) {
-    fail(`projected peak ${projected} exceeds the safe ceiling ${ceiling}`);
-  }
+  console.error('FAIL  dbConnectionBudget is absent from the config');
+  process.exit(2);
 }
-
-// ── report ───────────────────────────────────────────────────────────────────
-console.log(`Source: ${rendered.source}`);
-console.log(`Secrets injected (names and fields only, never values): ${injected.length}`);
-for (const name of injected) console.log(`  ${name}`);
-console.log(`Provider secrets deliberately omitted: ${FORBIDDEN_SECRETS.length}`);
-
+const deploymentTaskCeiling = Math.ceil(cfg.maximumCount * 2); // ECS maxHealthyPercent=200
+const projected =
+  budget.observedSevenDayPeak + deploymentTaskCeiling * budget.perTaskPoolMaximum;
+const safeCeiling = Math.floor(budget.databaseMaxConnections * 0.8);
+const headroom = budget.databaseMaxConnections - projected;
+const requiredHeadroom = budget.databaseMaxConnections * 0.1;
+const failures = [];
+if (projected > safeCeiling) {
+  failures.push(
+    `deployment-surge projected peak ${projected} exceeds safe ceiling ${safeCeiling} ` +
+      `(tasks=${deploymentTaskCeiling})`,
+  );
+}
+if (headroom < requiredHeadroom) {
+  failures.push(
+    `deployment-surge headroom ${headroom} is below required ${requiredHeadroom} ` +
+      `(tasks=${deploymentTaskCeiling})`,
+  );
+}
 if (failures.length > 0) {
-  console.error('');
   for (const failure of failures) console.error(`FAIL  ${failure}`);
   console.error(`\nENGAGEMENT_API_TASK_CONFIG_FAILED (${failures.length} violation(s))`);
   process.exit(2);
 }
-console.log('\nENGAGEMENT_API_TASK_CONFIG_VERIFIED');
+
+console.log(`Real task secrets: ${originalNames.length}; ${RETIRED_SECRET} omitted`);
+console.log(`Deployment task ceiling: ${deploymentTaskCeiling}; projected DB peak: ${projected}`);
+console.log('ENGAGEMENT_API_TASK_CONFIG_HARDENED_VERIFIED');

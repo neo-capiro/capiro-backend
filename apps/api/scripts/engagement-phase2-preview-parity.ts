@@ -2,62 +2,30 @@
 /**
  * UI-aware live preview acceptance runner (micro-session 2.12/2.18).
  *
- * Reads the committed preview probe manifest and, for every probe, issues the
- * exact request the manifest describes against a live main API and a live
- * dark preview route, then asserts the manifest's expectation. This is the
- * ONLY place in Phase 2 that actually calls the deployed service.
+ * A safe-read pass requires authenticated 2xx responses from BOTH main and
+ * preview, exact normalized-body equality, exact preview service identity, and
+ * the exact deployed release SHA. Matching 401/404/500 responses can never pass.
  *
- * Lives under apps/api/scripts/, which is excluded from every tsconfig
- * (transpiled by tsx, never typechecked) — the same convention as every other
- * engagement-phase1-*.ts runner. Its logic is a thin loop over the manifest;
- * there is nothing here to typecheck that the manifest generator's own spec
- * does not already cover.
- *
- * IMPORTANT BOUNDARY: this script proves the dark service supports safe reads
- * and denies external actions. It does not render or ship the Outreach V3
- * prototype, and it must never claim full UI parity — Phase 3 owns rendering
- * the exact current Engagement UI through preview.
- *
- * Never logs a bearer token or any response body from a route carrying a
- * sensitive scope.
- *
- * Usage:
- *   tsx apps/api/scripts/engagement-phase2-preview-parity.ts --self-check
- *   tsx apps/api/scripts/engagement-phase2-preview-parity.ts
- *
- * --self-check loads and validates the probe manifest and prints the coverage
- * report WITHOUT making any network call. It is the only mode this repository
- * can run without a deployed environment, and it is what CI and this Phase 2
- * micro-session actually exercise.
- *
- * Full-run required environment:
- *   APP_ORIGIN                the main API origin, e.g. https://app.capiro.ai
- *   PREVIEW_APP_ORIGIN        usually the same origin; the header selects the target
- *   TEST_BEARER_TOKEN         a dedicated internal test user/tenant token
- *   TEST_TENANT_ID
- *   EXPECTED_RELEASE_SHA
- *   EXPECTED_SERVICE_HEADER   defaults to engagement-api
- *   PREVIEW_HEADER_NAME       defaults to X-Capiro-Engagement-Preview
- *   PREVIEW_HEADER_VALUE      defaults to v3
- *
- * Exit: 0 every probe resolved as expected · 1 usage error · 2 a probe failed
+ * Shadow-denial probes additionally require the route-guard boundary header.
+ * That proves the controller/service/provider was not entered, which makes the
+ * manifest's no-queued-work and no-provider-call assertions executable rather
+ * than aspirational booleans.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+  type ProbeContract,
+  type ProbeManifestContract,
+  type ResponseSnapshot,
+  type RouteProbeContract,
+  validateMissingAuthSnapshots,
+  validateProbeManifestContract,
+  validateSafeReadSnapshots,
+  validateShadowDenialSnapshot,
+} from '../src/engagement/runtime/engagement-phase2-preview-parity.contract.js';
 
-interface RouteProbe {
-  method: string;
-  path: string;
-  expectedShadowStatus: number | null;
-  expectedShadowBody: string | null;
-  expectedServiceHeader: 'engagement-api' | null;
-  authParityRequired: boolean;
-  assertNoQueuedWork: boolean;
-  assertNoProviderCall: boolean;
-}
-
-interface Probe {
-  stateId: string;
+interface Probe extends ProbeContract {
   stateLabel: string;
   probeClass:
     | 'safe_read_get_probe'
@@ -66,17 +34,28 @@ interface Probe {
     | 'not_called_assertion'
     | 'future_phase_assertion'
     | 'prototype_only_assertion';
-  routeProbes: RouteProbe[];
+  routeProbes: RouteProbeContract[];
   sensitiveScopes: string[];
 }
 
-interface ProbeManifest {
-  schemaVersion: number;
-  prototypeSha256: string;
+interface ProbeManifest extends ProbeManifestContract {
   capabilityManifestSha256: string;
-  probeClasses: string[];
   probes: Probe[];
   report: Record<string, unknown>;
+}
+
+interface ProbeResult {
+  stateId: string;
+  probeClass: Probe['probeClass'];
+  route?: string;
+  outcome: 'pass' | 'fail' | 'not_probed';
+  status?: number;
+  mainBodyHash?: string;
+  previewBodyHash?: string;
+  tenantAssertionMatched?: boolean;
+  noQueuedWorkProven?: boolean;
+  noProviderCallProven?: boolean;
+  detail?: string;
 }
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
@@ -84,21 +63,26 @@ const PROBE_MANIFEST_PATH = path.join(
   REPO_ROOT,
   'apps/api/src/engagement/__fixtures__/outreach-v3-preview-probe-manifest.v1.json',
 );
-
 const PREVIEW_HEADER_NAME = process.env.PREVIEW_HEADER_NAME ?? 'X-Capiro-Engagement-Preview';
 const PREVIEW_HEADER_VALUE = process.env.PREVIEW_HEADER_VALUE ?? 'v3';
 const EXPECTED_SERVICE_HEADER = process.env.EXPECTED_SERVICE_HEADER ?? 'engagement-api';
 
-interface ProbeResult {
-  stateId: string;
-  probeClass: Probe['probeClass'];
-  route?: string;
-  outcome: 'pass' | 'fail' | 'not_probed';
-  detail?: string;
-}
-
 function loadManifest(): ProbeManifest {
   return JSON.parse(readFileSync(PROBE_MANIFEST_PATH, 'utf8')) as ProbeManifest;
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+function normalizeOrigin(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function tenantIdHash(tenantId: string): string {
+  return createHash('sha256').update(tenantId).digest('hex');
 }
 
 /** Never let a sensitive-scoped body or the bearer token reach a log line. */
@@ -108,128 +92,162 @@ function redact(probe: Probe, value: unknown): string {
 }
 
 function substitutePathParams(routePath: string): string {
-  // Path params are placeholders in the manifest (:id, :clientId, ...). A real
-  // run resolves them from TEST_* fixture IDs; self-check never reaches here.
   return routePath.replace(/:([A-Za-z]+)/g, (_match, name: string) => {
     const value = process.env[`TEST_${name.toUpperCase()}`];
     if (!value) {
       throw new Error(`no TEST_${name.toUpperCase()} fixture ID configured for path ${routePath}`);
     }
-    return value;
+    return encodeURIComponent(value);
   });
 }
 
-async function probeSafeRead(probe: Probe, route: RouteProbe, origin: string, previewOrigin: string, bearer: string): Promise<ProbeResult> {
-  const resolvedPath = substitutePathParams(route.path);
-  const headers = { Authorization: `Bearer ${bearer}` };
+async function snapshot(response: Response): Promise<ResponseSnapshot> {
+  const headers: Record<string, string> = {};
+  response.headers.forEach((value, name) => {
+    headers[name.toLowerCase()] = value;
+  });
+  return { status: response.status, headers, bodyText: await response.text() };
+}
 
-  const mainResponse = await fetch(`${origin}${resolvedPath}`, { method: route.method, headers });
-  const previewResponse = await fetch(`${previewOrigin}${resolvedPath}`, {
-    method: route.method,
-    headers: { ...headers, [PREVIEW_HEADER_NAME]: PREVIEW_HEADER_VALUE },
+async function requestSnapshot(
+  url: string,
+  init: RequestInit,
+): Promise<ResponseSnapshot> {
+  return snapshot(await fetch(url, init));
+}
+
+function failureResult(
+  probe: Probe,
+  route: RouteProbeContract,
+  detail: string,
+  extra: Partial<ProbeResult> = {},
+): ProbeResult {
+  return {
+    stateId: probe.stateId,
+    probeClass: probe.probeClass,
+    route: route.path,
+    outcome: 'fail',
+    detail: redact(probe, detail),
+    ...extra,
+  };
+}
+
+async function probeSafeRead(input: {
+  probe: Probe;
+  route: RouteProbeContract;
+  origin: string;
+  previewOrigin: string;
+  bearer: string;
+  expectedReleaseSha: string;
+  tenantAssertionText: string;
+}): Promise<ProbeResult> {
+  const resolvedPath = substitutePathParams(input.route.path);
+  const authHeaders = { Authorization: `Bearer ${input.bearer}` };
+  const main = await requestSnapshot(`${input.origin}${resolvedPath}`, {
+    method: input.route.method,
+    headers: authHeaders,
+  });
+  const preview = await requestSnapshot(`${input.previewOrigin}${resolvedPath}`, {
+    method: input.route.method,
+    headers: {
+      ...authHeaders,
+      [PREVIEW_HEADER_NAME]: PREVIEW_HEADER_VALUE,
+    },
   });
 
-  if (mainResponse.status !== previewResponse.status) {
-    return {
-      stateId: probe.stateId,
-      probeClass: probe.probeClass,
-      route: route.path,
-      outcome: 'fail',
-      detail: `status mismatch: main=${mainResponse.status} preview=${previewResponse.status}`,
-    };
-  }
-  if (previewResponse.headers.get('x-capiro-service') !== route.expectedServiceHeader) {
-    return {
-      stateId: probe.stateId,
-      probeClass: probe.probeClass,
-      route: route.path,
-      outcome: 'fail',
-      detail: `X-Capiro-Service header is "${previewResponse.headers.get('x-capiro-service')}", expected "${route.expectedServiceHeader}"`,
-    };
+  const validation = validateSafeReadSnapshots({
+    main,
+    preview,
+    expectedServiceHeader: EXPECTED_SERVICE_HEADER,
+    expectedReleaseSha: input.expectedReleaseSha,
+    tenantAssertionText: input.tenantAssertionText,
+  });
+  if (validation.failures.length > 0) {
+    return failureResult(input.probe, input.route, validation.failures.join('; '), {
+      status: preview.status,
+      mainBodyHash: validation.mainBodyHash,
+      previewBodyHash: validation.previewBodyHash,
+      tenantAssertionMatched: validation.tenantAssertionMatched,
+    });
   }
 
-  if (route.authParityRequired) {
-    const noAuth = await fetch(`${previewOrigin}${resolvedPath}`, {
-      method: route.method,
+  if (input.route.authParityRequired) {
+    const mainNoAuth = await requestSnapshot(`${input.origin}${resolvedPath}`, {
+      method: input.route.method,
+    });
+    const previewNoAuth = await requestSnapshot(`${input.previewOrigin}${resolvedPath}`, {
+      method: input.route.method,
       headers: { [PREVIEW_HEADER_NAME]: PREVIEW_HEADER_VALUE },
     });
-    const mainNoAuth = await fetch(`${origin}${resolvedPath}`, { method: route.method });
-    if (noAuth.status !== mainNoAuth.status) {
-      return {
-        stateId: probe.stateId,
-        probeClass: probe.probeClass,
-        route: route.path,
-        outcome: 'fail',
-        detail: `missing-bearer denial differs: main=${mainNoAuth.status} preview=${noAuth.status}`,
-      };
+    const authValidation = validateMissingAuthSnapshots({
+      main: mainNoAuth,
+      preview: previewNoAuth,
+      expectedServiceHeader: EXPECTED_SERVICE_HEADER,
+      expectedReleaseSha: input.expectedReleaseSha,
+    });
+    if (authValidation.failures.length > 0) {
+      return failureResult(input.probe, input.route, authValidation.failures.join('; '), {
+        status: preview.status,
+        mainBodyHash: validation.mainBodyHash,
+        previewBodyHash: validation.previewBodyHash,
+        tenantAssertionMatched: validation.tenantAssertionMatched,
+      });
     }
   }
 
-  return { stateId: probe.stateId, probeClass: probe.probeClass, route: route.path, outcome: 'pass' };
+  return {
+    stateId: input.probe.stateId,
+    probeClass: input.probe.probeClass,
+    route: input.route.path,
+    outcome: 'pass',
+    status: preview.status,
+    mainBodyHash: validation.mainBodyHash,
+    previewBodyHash: validation.previewBodyHash,
+    tenantAssertionMatched: validation.tenantAssertionMatched,
+  };
 }
 
-async function probeShadowDenial(probe: Probe, route: RouteProbe, previewOrigin: string, bearer: string): Promise<ProbeResult> {
-  const resolvedPath = substitutePathParams(route.path);
-  const response = await fetch(`${previewOrigin}${resolvedPath}`, {
-    method: route.method,
-    headers: {
-      Authorization: `Bearer ${bearer}`,
-      [PREVIEW_HEADER_NAME]: PREVIEW_HEADER_VALUE,
-      'Content-Type': 'application/json',
-    },
-    body: route.method === 'POST' ? '{}' : undefined,
+async function probeShadowDenial(input: {
+  probe: Probe;
+  route: RouteProbeContract;
+  previewOrigin: string;
+  bearer: string;
+  expectedReleaseSha: string;
+}): Promise<ProbeResult> {
+  const resolvedPath = substitutePathParams(input.route.path);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${input.bearer}`,
+    [PREVIEW_HEADER_NAME]: PREVIEW_HEADER_VALUE,
+    'Content-Type': 'application/json',
+  };
+  const init: RequestInit = { method: input.route.method, headers };
+  if (!['GET', 'HEAD'].includes(input.route.method)) init.body = '{}';
+
+  const preview = await requestSnapshot(`${input.previewOrigin}${resolvedPath}`, init);
+  const validation = validateShadowDenialSnapshot({
+    preview,
+    route: input.route,
+    expectedServiceHeader: EXPECTED_SERVICE_HEADER,
+    expectedReleaseSha: input.expectedReleaseSha,
   });
-
-  if (response.status !== route.expectedShadowStatus) {
-    return {
-      stateId: probe.stateId,
-      probeClass: probe.probeClass,
-      route: route.path,
-      outcome: 'fail',
-      detail: `status is ${response.status}, expected ${route.expectedShadowStatus}`,
-    };
+  if (validation.failures.length > 0) {
+    return failureResult(input.probe, input.route, validation.failures.join('; '), {
+      status: preview.status,
+      previewBodyHash: validation.previewBodyHash,
+      noQueuedWorkProven: validation.noQueuedWorkProven,
+      noProviderCallProven: validation.noProviderCallProven,
+    });
   }
-  const body = await response.text();
-  if (route.expectedShadowBody && !body.includes(route.expectedShadowBody)) {
-    return {
-      stateId: probe.stateId,
-      probeClass: probe.probeClass,
-      route: route.path,
-      outcome: 'fail',
-      detail: `response body did not contain "${route.expectedShadowBody}": ${redact(probe, body)}`,
-    };
-  }
-  if (response.headers.get('x-capiro-service') !== route.expectedServiceHeader) {
-    return {
-      stateId: probe.stateId,
-      probeClass: probe.probeClass,
-      route: route.path,
-      outcome: 'fail',
-      detail: 'missing or wrong X-Capiro-Service header on shadow denial',
-    };
-  }
-  return { stateId: probe.stateId, probeClass: probe.probeClass, route: route.path, outcome: 'pass' };
-}
-
-/** Structural validation only. Never calls the network. This is what runs in CI. */
-function selfCheck(manifest: ProbeManifest): { failures: string[]; summary: Record<string, number> } {
-  const failures: string[] = [];
-  if (!/^[0-9a-f]{64}$/.test(manifest.prototypeSha256)) failures.push('prototypeSha256 is malformed');
-  if (manifest.probes.length !== 62) failures.push(`expected 62 probes, found ${manifest.probes.length}`);
-
-  const summary: Record<string, number> = {};
-  for (const probe of manifest.probes) {
-    summary[probe.probeClass] = (summary[probe.probeClass] ?? 0) + 1;
-    if (!manifest.probeClasses.includes(probe.probeClass)) {
-      failures.push(`${probe.stateId} has an unknown probe class ${probe.probeClass}`);
-    }
-    for (const route of probe.routeProbes) {
-      if (probe.probeClass === 'shadow_denial_probe' && route.expectedShadowStatus !== 503) {
-        failures.push(`${probe.stateId} shadow route ${route.path} does not expect 503`);
-      }
-    }
-  }
-  return { failures, summary };
+  return {
+    stateId: input.probe.stateId,
+    probeClass: input.probe.probeClass,
+    route: input.route.path,
+    outcome: 'pass',
+    status: preview.status,
+    previewBodyHash: validation.previewBodyHash,
+    noQueuedWorkProven: validation.noQueuedWorkProven,
+    noProviderCallProven: validation.noProviderCallProven,
+  };
 }
 
 async function main(): Promise<void> {
@@ -237,7 +255,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   if (args.includes('--self-check')) {
-    const { failures, summary } = selfCheck(manifest);
+    const { failures, summary } = validateProbeManifestContract(manifest);
     console.log(`Probe manifest: ${manifest.probes.length} states`);
     for (const key of Object.keys(summary).sort()) console.log(`  ${key}: ${summary[key]}`);
     if (failures.length > 0) {
@@ -250,47 +268,103 @@ async function main(): Promise<void> {
     return;
   }
 
-  const origin = requireEnv('APP_ORIGIN');
-  const previewOrigin = process.env.PREVIEW_APP_ORIGIN ?? origin;
+  const origin = normalizeOrigin(requireEnv('APP_ORIGIN'));
+  const previewOrigin = normalizeOrigin(process.env.PREVIEW_APP_ORIGIN?.trim() || origin);
   const bearer = requireEnv('TEST_BEARER_TOKEN');
-  requireEnv('TEST_TENANT_ID');
+  const tenantId = requireEnv('TEST_TENANT_ID');
+  const tenantAssertionText = requireEnv('TEST_TENANT_ASSERTION_TEXT');
+  const expectedReleaseSha = requireEnv('EXPECTED_RELEASE_SHA');
+  if (!/^[0-9a-f]{40}$/i.test(expectedReleaseSha)) {
+    throw new Error('EXPECTED_RELEASE_SHA must be an exact 40-character Git SHA');
+  }
 
   const results: ProbeResult[] = [];
   for (const probe of manifest.probes) {
     if (probe.routeProbes.length === 0) {
-      results.push({ stateId: probe.stateId, probeClass: probe.probeClass, outcome: 'not_probed' });
+      results.push({
+        stateId: probe.stateId,
+        probeClass: probe.probeClass,
+        outcome: 'not_probed',
+      });
       continue;
     }
     for (const route of probe.routeProbes) {
       try {
-        if (probe.probeClass === 'safe_read_get_probe' || probe.probeClass === 'safe_local_write_probe') {
-          results.push(await probeSafeRead(probe, route, origin, previewOrigin, bearer));
+        if (
+          probe.probeClass === 'safe_read_get_probe' ||
+          probe.probeClass === 'safe_local_write_probe'
+        ) {
+          results.push(
+            await probeSafeRead({
+              probe,
+              route,
+              origin,
+              previewOrigin,
+              bearer,
+              expectedReleaseSha,
+              tenantAssertionText,
+            }),
+          );
         } else if (probe.probeClass === 'shadow_denial_probe') {
-          results.push(await probeShadowDenial(probe, route, previewOrigin, bearer));
+          results.push(
+            await probeShadowDenial({
+              probe,
+              route,
+              previewOrigin,
+              bearer,
+              expectedReleaseSha,
+            }),
+          );
         }
       } catch (error) {
-        results.push({
-          stateId: probe.stateId,
-          probeClass: probe.probeClass,
-          route: route.path,
-          outcome: 'fail',
-          detail: (error as Error).message,
-        });
+        results.push(
+          failureResult(probe, route, error instanceof Error ? error.message : String(error)),
+        );
       }
     }
+  }
+
+  const safeResults = results.filter(
+    (result) =>
+      result.probeClass === 'safe_read_get_probe' ||
+      result.probeClass === 'safe_local_write_probe',
+  );
+  if (!safeResults.some((result) => result.tenantAssertionMatched === true)) {
+    results.push({
+      stateId: 'tenant-assertion',
+      probeClass: 'safe_read_get_probe',
+      outcome: 'fail',
+      detail:
+        'No authenticated safe-read response contained TEST_TENANT_ASSERTION_TEXT in both main and preview; tenant fixture binding was not proven.',
+    });
   }
 
   const evidenceDir = path.join(REPO_ROOT, '.artifacts/engagement-phase2/preview-parity');
   mkdirSync(evidenceDir, { recursive: true });
   writeFileSync(
     path.join(evidenceDir, 'preview-parity-results.json'),
-    `${JSON.stringify({ prototypeSha256: manifest.prototypeSha256, results }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        prototypeSha256: manifest.prototypeSha256,
+        capabilityManifestSha256: manifest.capabilityManifestSha256,
+        expectedReleaseSha,
+        tenantIdSha256: tenantIdHash(tenantId),
+        tenantAssertionProven: results.some((result) => result.tenantAssertionMatched === true),
+        results,
+      },
+      null,
+      2,
+    )}\n`,
   );
 
-  const failed = results.filter((r) => r.outcome === 'fail');
-  const notProbed = results.filter((r) => r.outcome === 'not_probed');
-  console.log(`Probed: ${results.length - notProbed.length}  Not probed (documented gap): ${notProbed.length}`);
-  console.log(`Passed: ${results.filter((r) => r.outcome === 'pass').length}  Failed: ${failed.length}`);
+  const failed = results.filter((result) => result.outcome === 'fail');
+  const notProbed = results.filter((result) => result.outcome === 'not_probed');
+  console.log(
+    `Probed: ${results.length - notProbed.length}  Not probed (documented gap): ${notProbed.length}`,
+  );
+  console.log(
+    `Passed: ${results.filter((result) => result.outcome === 'pass').length}  Failed: ${failed.length}`,
+  );
   for (const failure of failed) {
     console.error(`FAIL  ${failure.stateId} ${failure.route ?? ''}: ${failure.detail}`);
   }
@@ -302,13 +376,7 @@ async function main(): Promise<void> {
   console.log('\nENGAGEMENT_PREVIEW_PARITY_PASSED');
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-}
-
-main().catch((error) => {
-  console.error(`ERROR ${(error as Error).message}`);
+void main().catch((error) => {
+  console.error(`ERROR ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });

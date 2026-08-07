@@ -6,6 +6,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
 import type { EngagementApiInfraConfig } from './engagement-api-config';
+import { assertEngagementApiDeploymentDbBudget } from './engagement-api-db-budget';
 
 /**
  * Least-privilege IAM and secret injection for the dark `engagement-api` task.
@@ -13,9 +14,8 @@ import type { EngagementApiInfraConfig } from './engagement-api-config';
  * Two principles, both enforced by tests rather than by review:
  *
  *   1. Only fields the shadow runtime genuinely needs at boot or on a safe read
- *      are injected. Provider keys are omitted entirely — the runtime policy
- *      disables every path that would use them, so shipping them would grant
- *      reach the service is forbidden to exercise.
+ *      are injected. Provider keys and the Clerk webhook signing secret are
+ *      omitted entirely — the runtime imports no Clerk WebhooksModule.
  *   2. The task cannot mutate anything: no S3 write, no send, no ECS or ELB
  *      call, no secret write, no PassRole. It cannot modify its own service or
  *      its own routing.
@@ -26,31 +26,20 @@ import type { EngagementApiInfraConfig } from './engagement-api-config';
  *
  * `DB_*` are composed into DATABASE_URL by the image entrypoint, which is why
  * the parts are mapped individually instead of injecting the whole JSON blob.
- * CLERK_SECRET_KEY and CLERK_WEBHOOK_SIGNING_SECRET are the only two values the
- * API config schema hard-requires. The two encryption keys are needed to READ
- * existing rows — OAuth connection state and meeting notes are stored
- * encrypted, so safe read parity fails without them.
+ * CLERK_SECRET_KEY is required for authentication. The two encryption keys are
+ * needed to READ existing rows — OAuth connection state and meeting notes are
+ * stored encrypted, so safe read parity fails without them.
  *
  * DB_HOST/DB_PORT and DB_USER/DB_PASSWORD come from two DIFFERENT secrets, not
  * one. Live discovery (2.15, capiro-dev, 2026-08-06) against the main API's
  * actual task definition found it splits them the same way: a "master" secret
- * (host/port) and a separate "app" secret (username/password) —
- * /capiro/<env>/aurora/master and /capiro/<env>/aurora/app. DB_NAME is not a
- * secret at all there; it's a literal env var (see engagementApiTaskEnvironment).
- *
- * CLERK_SECRET_KEY, CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY
- * and NOTES_ENCRYPTION_KEY are each their OWN flat-string secret on that same
- * live task — confirmed by the absence of a ":<field>::" suffix on their
- * rendered ValueFrom ARNs, unlike the DB secrets. Injected whole, with no
- * jsonKey, unlike the original single-shared-secret assumption this contract
- * carried.
+ * (host/port) and a separate "app" secret (username/password).
  */
 export const ENGAGEMENT_API_SECRET_FIELDS = {
   fromDatabaseHostSecret: ['DB_HOST', 'DB_PORT'] as const,
   fromDatabaseAppSecret: ['DB_USER', 'DB_PASSWORD'] as const,
   wholeSecret: [
     'CLERK_SECRET_KEY',
-    'CLERK_WEBHOOK_SIGNING_SECRET',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
     'NOTES_ENCRYPTION_KEY',
   ] as const,
@@ -71,19 +60,19 @@ const DATABASE_APP_SECRET_JSON_KEYS: Record<string, string> = {
 /** Each whole-secret field's own config ARN — no shared secret, no jsonKey. */
 const WHOLE_SECRET_CONFIG_KEYS: Record<string, keyof EngagementApiInfraConfig> = {
   CLERK_SECRET_KEY: 'clerkSecretKeySecretArn',
-  CLERK_WEBHOOK_SIGNING_SECRET: 'clerkWebhookSigningSecretArn',
   OAUTH_TOKEN_ENCRYPTION_KEY: 'oauthTokenEncryptionKeySecretArn',
   NOTES_ENCRYPTION_KEY: 'notesEncryptionKeySecretArn',
 };
 
 /**
- * Provider credentials the shadow service must NOT receive.
+ * Credentials the shadow service must NOT receive.
  *
- * Each is unreachable while ENGAGEMENT_EXTERNAL_ACTIONS=disabled, so injecting
- * one would only widen blast radius. Named explicitly so the omission is a
- * decision with a test, not an oversight.
+ * Each is unreachable while ENGAGEMENT_EXTERNAL_ACTIONS=disabled, or belongs
+ * to a module the shadow app does not import. Injecting one would only widen
+ * blast radius.
  */
 export const ENGAGEMENT_API_OMITTED_SECRETS = [
+  'CLERK_WEBHOOK_SIGNING_SECRET',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
   'RECALL_API_KEY',
@@ -105,15 +94,19 @@ export interface EngagementApiRoles {
 /**
  * Build the execution role, the task role, and the exact secret map.
  *
- * The execution role pulls the image, writes logs, and resolves the two
- * secrets. The task role holds only read access to the buckets the Directory
- * and attachment read paths actually use.
+ * The execution role pulls the image, writes logs, and resolves only the
+ * selected secrets. The task role holds read access to the buckets the
+ * Directory and attachment read paths actually use.
  */
 export function buildEngagementApiIam(
   scope: Construct,
   cfg: EngagementApiInfraConfig,
   taskDefinition: ecs.TaskDefinition,
 ): EngagementApiRoles {
+  // Direct ServiceStack construction must enforce the same deployment-surge
+  // budget as the root CDK app; unit tests instantiate this path directly.
+  assertEngagementApiDeploymentDbBudget(cfg);
+
   const databaseHostSecret = secretsmanager.Secret.fromSecretCompleteArn(
     scope,
     'DatabaseHostSecret',
@@ -124,6 +117,16 @@ export function buildEngagementApiIam(
     'DatabaseAppSecret',
     cfg.databaseAppSecretArn,
   );
+
+  // Preserve the reviewed config/provenance binding without granting or
+  // injecting the value. This imported construct creates no CloudFormation
+  // resource and no IAM permission.
+  secretsmanager.Secret.fromSecretCompleteArn(
+    scope,
+    'CLERK_WEBHOOK_SIGNING_SECRETSecret',
+    cfg.clerkWebhookSigningSecretArn,
+  );
+
   const secrets: Record<string, ecs.Secret> = {};
   for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret) {
     const jsonKey = DATABASE_HOST_SECRET_JSON_KEYS[name];
@@ -140,8 +143,6 @@ export function buildEngagementApiIam(
     if (!configKey) throw new Error(`no config key mapped for ${name}`);
     const arn = cfg[configKey] as string;
     const secret = secretsmanager.Secret.fromSecretCompleteArn(scope, `${name}Secret`, arn);
-    // No jsonKey: the whole secret value IS the credential, unlike the DB
-    // secrets above which hold several named JSON fields each.
     secrets[name] = ecs.Secret.fromSecretsManager(secret);
   }
 

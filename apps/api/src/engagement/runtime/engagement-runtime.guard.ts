@@ -15,6 +15,46 @@ import {
   sameRuntimeMetadata,
 } from './engagement-runtime-route-policy.js';
 
+export const ENGAGEMENT_DENIAL_BOUNDARY_HEADER = 'X-Capiro-Engagement-Denial-Boundary';
+export const ENGAGEMENT_DENIAL_BOUNDARY_ROUTE_GUARD = 'route-guard';
+
+interface HttpRequestLike {
+  body?: unknown;
+}
+
+interface HttpResponseLike {
+  setHeader?: (name: string, value: string) => void;
+}
+
+function recordRouteGuardDenial(context: ExecutionContext): void {
+  const response = context.switchToHttp().getResponse<HttpResponseLike>();
+  response?.setHeader?.(
+    ENGAGEMENT_DENIAL_BOUNDARY_HEADER,
+    ENGAGEMENT_DENIAL_BOUNDARY_ROUTE_GUARD,
+  );
+}
+
+/**
+ * `POST .../draft-artifacts/:artifactId/versions` is a dual-mode route:
+ * manual/revert append a local immutable version; Improve is an AI generation.
+ * Missing or malformed `editKind` fails closed as generation.
+ */
+export function conditionalRouteMetadata(
+  controllerName: string,
+  handlerName: string,
+  body: unknown,
+): EngagementRuntimeActionMetadata | undefined {
+  if (controllerName !== 'EngagementController' || handlerName !== 'createDraftVersion') {
+    return undefined;
+  }
+  const editKind =
+    body && typeof body === 'object' && 'editKind' in body
+      ? (body as { editKind?: unknown }).editKind
+      : undefined;
+  if (editKind === 'manual' || editKind === 'revert') return undefined;
+  return { action: 'outreach_generate', requiresCallbacks: false, testMode: false };
+}
+
 /** Global only in EngagementApiAppModule; AppModule behavior is unchanged. */
 @Injectable()
 export class EngagementRuntimeGuard implements CanActivate {
@@ -35,6 +75,7 @@ export class EngagementRuntimeGuard implements CanActivate {
     const registered = runtimePolicyForHandler(controllerName, handlerName);
 
     if (decorated && registered && !sameRuntimeMetadata(decorated, registered)) {
+      recordRouteGuardDenial(context);
       throw new ServiceUnavailableException({
         statusCode: 503,
         code: 'ENGAGEMENT_RUNTIME_POLICY_MISMATCH',
@@ -43,8 +84,27 @@ export class EngagementRuntimeGuard implements CanActivate {
       });
     }
 
-    const metadata = registered ?? decorated;
+    const request = context.switchToHttp().getRequest<HttpRequestLike>();
+    const conditional = conditionalRouteMetadata(controllerName, handlerName, request?.body);
+    const isLocalDraftEdit =
+      controllerName === 'EngagementController' &&
+      handlerName === 'createDraftVersion' &&
+      conditional === undefined;
+    if (isLocalDraftEdit) return true;
+
+    const metadata = registered ?? decorated ?? conditional;
     if (!metadata) return true;
+
+    // Stamp an independently verifiable boundary marker before throwing. The
+    // Phase 2 live harness uses this to prove the controller/service/provider
+    // was never entered, rather than inferring that from a 503 alone.
+    if (
+      !this.policy.externalActionAllowed(metadata.action, {
+        testMode: metadata.testMode,
+      })
+    ) {
+      recordRouteGuardDenial(context);
+    }
 
     // Preserve the stable shadow error contract. When both controls are off,
     // external-action denial wins; callback denial remains effective in a
@@ -53,6 +113,7 @@ export class EngagementRuntimeGuard implements CanActivate {
       testMode: metadata.testMode,
     });
     if (metadata.requiresCallbacks) {
+      if (!this.policy.snapshot().callbacksEnabled) recordRouteGuardDenial(context);
       this.policy.assertCallbacksEnabled(metadata.action);
     }
 

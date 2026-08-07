@@ -21,6 +21,7 @@ async function bootstrap() {
 
   configureApiHttpApp(app, {
     serviceHeader: 'engagement-api',
+    releaseShaHeader: process.env.RELEASE_SHA ?? 'UNVERIFIED',
     includeClerkRawBody: false,
     includeRecallRawBody: true,
     includeEmailSignatureLargeBody: false,

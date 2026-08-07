@@ -25,7 +25,6 @@ const TARGET_GROUP_ARN =
 
 const base = (): EngagementApiInfraConfig => {
   const cfg = JSON.parse(readFileSync(FIXTURE, 'utf8')) as EngagementApiInfraConfig;
-  // The fixture ships an all-zero digest; give it a realistic one.
   cfg.imageDigest = `sha256:${'ab'.repeat(32)}`;
   cfg.releaseSha = 'c'.repeat(40);
   return cfg;
@@ -66,8 +65,6 @@ function envOf(template: Template): Record<string, string> {
   return Object.fromEntries(entries.map((e) => [e.Name, e.Value]));
 }
 
-// ────────────────────────────────────────────────────────── runtime posture
-
 test('the shadow runtime posture is exact', () => {
   const env = envOf(synth());
   assert.equal(env.CAPIRO_SERVICE_NAME, 'engagement-api');
@@ -79,11 +76,6 @@ test('the shadow runtime posture is exact', () => {
 });
 
 test('CLERK_JWT_ISSUER is present and matches the configured value', () => {
-  // engagement-api boots the identical ConfigModule validator as the main
-  // API, which fatally refuses to start outside NODE_ENV=test without this.
-  // Absent from the initial build; caught by independent review (2.14) on
-  // the actual synthesized template, not by any spec — this test closes
-  // that gap.
   const cfg = base();
   cfg.clerkJwtIssuer = 'https://clerk.app.capiro.ai';
   const env = envOf(synth(cfg));
@@ -92,7 +84,6 @@ test('CLERK_JWT_ISSUER is present and matches the configured value', () => {
 
 test('the shadow posture is literal and cannot be armed through config', () => {
   const cfg = base();
-  // Attempt to arm the service by smuggling values through the config object.
   Object.assign(cfg as unknown as Record<string, unknown>, {
     processMode: 'active',
     externalActions: 'enabled',
@@ -141,8 +132,6 @@ test('no plaintext secret appears in the environment', () => {
   }
 });
 
-// ─────────────────────────────────────────────────────── architecture and size
-
 test('the task runs Linux ARM64 at the contracted size', () => {
   synth().hasResourceProperties('AWS::ECS::TaskDefinition', {
     Cpu: '512',
@@ -167,8 +156,6 @@ test('NC-2.6-C x86 would be visible in the template', () => {
   });
 });
 
-// ────────────────────────────────────────────────────────────────── image
-
 test('the image is pinned by digest, never by tag', () => {
   const image = theContainer(synth()).Image;
   const rendered = JSON.stringify(image);
@@ -186,17 +173,13 @@ test('NC-2.6-D a missing digest refuses to synthesize', () => {
   assert.throws(() => buildRaw(noSha), /releaseSha is required/);
 });
 
-// ───────────────────────────────────────────────────────── container hardening
-
 test('the root filesystem is read-only with writable temp mounts', () => {
   const container = theContainer(synth());
   assert.equal(container.ReadonlyRootFilesystem, true);
-
   const mounts = (container.MountPoints ?? []) as Array<Record<string, unknown>>;
   const paths = mounts.map((m) => m.ContainerPath).sort();
   assert.deepEqual(paths, ['/app/tmp', '/tmp']);
   for (const mount of mounts) assert.equal(mount.ReadOnly, false);
-
   const volumes = (theTaskDefinition(synth()).Volumes ?? []) as Array<{ Name: string }>;
   assert.deepEqual(volumes.map((v) => v.Name).sort(), ['AppTmp', 'Tmp']);
 });
@@ -221,14 +204,10 @@ test('the container is not privileged and adds no Linux capabilities', () => {
   assert.equal(container.LinuxParameters, undefined);
 });
 
-// ────────────────────────────────────────────────────────────────── service
-
 test('the service is private with no public IP and no ECS Exec', () => {
   synth().hasResourceProperties('AWS::ECS::Service', {
     ServiceName: 'capiro-dev-engagement-api',
     DesiredCount: 1,
-    // Rendered explicitly as false rather than omitted, which is stronger: a
-    // future default flip cannot silently turn Exec on.
     EnableExecuteCommand: false,
     NetworkConfiguration: {
       AwsvpcConfiguration: {
@@ -279,8 +258,6 @@ test('autoscaling stays between one and two tasks', () => {
   template.resourceCountIs('AWS::ApplicationAutoScaling::ScalingPolicy', 2);
 });
 
-// ───────────────────────────────────────────────────────────────────── logs
-
 test('the log group is KMS encrypted by a stack-owned key and retained', () => {
   synth().hasResource('AWS::Logs::LogGroup', {
     Properties: Match.objectLike({
@@ -294,10 +271,6 @@ test('the log group is KMS encrypted by a stack-owned key and retained', () => {
 });
 
 test('the logs key policy grants CloudWatch Logs access scoped to this log group only', () => {
-  // Live discovery (Gate C, 2026-08-06): the shared alias/capiro-dev CMK's
-  // policy is CloudTrail-only and has no CloudWatch Logs service-principal
-  // grant, so a stack-owned key is used instead. Its policy must scope that
-  // grant to exactly this log group's ARN, not every log group in the account.
   synth().hasResourceProperties('AWS::KMS::Key', {
     KeyPolicy: Match.objectLike({
       Statement: Match.arrayWith([
@@ -315,8 +288,6 @@ test('the logs key policy grants CloudWatch Logs access scoped to this log group
     }),
   });
 });
-
-// ─────────────────────────────────────────────────────────────── isolation
 
 test('the service stack creates no routing, network, registry or data resource', () => {
   const template = synth();
@@ -337,11 +308,6 @@ test('the service stack creates no routing, network, registry or data resource',
   ]) {
     template.resourceCountIs(type, 0);
   }
-  // Exactly one: the log group's own encryption key (see 'the logs key
-  // policy...' above). Every other identifier this stack touches is still
-  // imported, not created — a second AWS::KMS::Key here would mean some
-  // other resource started creating its own key too, which this test exists
-  // to catch.
   template.resourceCountIs('AWS::KMS::Key', 1);
 });
 
@@ -350,14 +316,10 @@ test('the stack references no historical Compute stack export', () => {
 });
 
 test('secrets come from the least-privilege helper, field by field', () => {
-  // The full permission surface is asserted in
-  // test/engagement-api-least-privilege.spec.ts; this only proves the service
-  // stack consumes the helper rather than inlining its own secret map.
   const secrets = (theContainer(synth()).Secrets ?? []) as Array<{ Name: string }>;
   const names = secrets.map((s) => s.Name).sort();
   assert.deepEqual(names, [
     'CLERK_SECRET_KEY',
-    'CLERK_WEBHOOK_SIGNING_SECRET',
     'DB_HOST',
     'DB_PASSWORD',
     'DB_PORT',
@@ -365,11 +327,10 @@ test('secrets come from the least-privilege helper, field by field', () => {
     'NOTES_ENCRYPTION_KEY',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
   ]);
+  assert.ok(!names.includes('CLERK_WEBHOOK_SIGNING_SECRET'));
 });
 
 test('DB_NAME is a literal environment variable, not a secret', () => {
-  // Live discovery (2.15, capiro-dev) found DB_NAME is never in Secrets
-  // Manager on the main API's own task either.
   const cfg = base();
   cfg.databaseName = 'capiro';
   const env = envOf(synth(cfg));
@@ -378,14 +339,11 @@ test('DB_NAME is a literal environment variable, not a secret', () => {
   assert.ok(!secrets.some((s) => s.Name === 'DB_NAME'));
 });
 
-// ────────────────────────────────────────────────────────── negative control
-
 test('NC-2.6-A an armed external-action value never reaches the template', () => {
   const cfg = base();
   (cfg as unknown as Record<string, unknown>).ENGAGEMENT_EXTERNAL_ACTIONS = 'enabled';
   const env = envOf(synth(cfg));
   assert.equal(env.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
-
   const rendered = JSON.stringify(synth(cfg).toJSON());
   assert.doesNotMatch(rendered, /"ENGAGEMENT_EXTERNAL_ACTIONS"[^}]*"enabled"/);
 });
@@ -397,7 +355,6 @@ test('NC-2.6-B a V3 enable flag would be caught by the forbidden pattern list', 
       `${name} should be forbidden`,
     );
   }
-  // and a legitimate provenance variable is not caught
   for (const name of ['OUTREACH_V3_PROTOTYPE_SHA256', 'OUTREACH_V3_UI_CONTRACT_SHA256']) {
     assert.ok(!FORBIDDEN_TASK_ENV_PATTERNS.some((pattern) => pattern.test(name)));
   }

@@ -5,14 +5,20 @@ export type EngagementRuntimeRoutePolicy = Readonly<
 >;
 
 /**
- * Exact controller/handler policy for every Engagement route that can cross an
- * external boundary or expose provider credentials.
+ * Exact controller/handler policy for every Engagement route that always crosses an
+ * external boundary or exposes provider credentials.
  *
  * This registry is authoritative at runtime. Method decorators remain useful
  * colocated documentation, but the shadow service does not depend on a
  * decorator being present or on reflect-metadata storage details. The
  * manifest-driven coverage spec proves every external route is represented and
  * every registry entry resolves to a real route.
+ *
+ * `createDraftVersion` is the one dual-mode entry: the registry keeps its
+ * external-generation classification for Improve/malformed requests, while
+ * EngagementRuntimeGuard explicitly permits only manual/revert bodies.
+ * `openOutreachEmail` is absent because it updates local state and returns a
+ * mailto: URL only.
  */
 export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
   EngagementController: {
@@ -30,7 +36,6 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     createDraftVersion: { action: 'outreach_generate' },
     createSendIntent: { action: 'outreach_send' },
     generateOutreachDraft: { action: 'outreach_generate' },
-    openOutreachEmail: { action: 'outreach_send' },
     sendCampaign: { action: 'outreach_send' },
     createAttachmentUploadUrl: { action: 'attachment_external_write' },
     confirmAttachment: { action: 'attachment_external_write' },

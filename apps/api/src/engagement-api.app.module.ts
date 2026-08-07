@@ -7,7 +7,7 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { validateConfig } from './config/config.schema.js';
+import { validateEngagementApiConfig } from './engagement-api/engagement-api-config.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
@@ -34,7 +34,7 @@ import { EngagementApiHealthController } from './engagement-api/engagement-api-h
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      validate: (raw) => validateConfig(raw as Record<string, unknown>),
+      validate: (raw) => validateEngagementApiConfig(raw as Record<string, unknown>),
     }),
     ThrottlerModule.forRoot([
       { name: 'short', ttl: 1_000, limit: 30 },
