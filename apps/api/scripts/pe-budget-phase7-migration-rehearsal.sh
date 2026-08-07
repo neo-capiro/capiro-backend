@@ -904,6 +904,12 @@ run_sql "ALTER ROLE capiro_pe_promoter PASSWORD 'rehearsal-promoter';"
 run_sql "GRANT USAGE ON SCHEMA public TO capiro_pe_promoter;"
 ok "promoter role given a rehearsal password"
 
+# The Workstream M read rehearsal connects as the general API serve role, because
+# "can the role that serves product traffic read the active snapshot, and is it
+# still unable to write it" is the only question a read cutover has to answer.
+run_sql "ALTER ROLE capiro_app WITH LOGIN PASSWORD 'rehearsal-app';"
+ok "serve role given a rehearsal password"
+
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
@@ -923,6 +929,15 @@ ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" 
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-drain-rehearsal.ts" \
   || fail "the drain rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Workstream M — the snapshot read path as the general serve role"
+# =============================================================================
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-read-rehearsal.ts" \
+  || fail "the read rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
 # =============================================================================

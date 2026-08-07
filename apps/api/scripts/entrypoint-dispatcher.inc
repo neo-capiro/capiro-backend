@@ -51,6 +51,46 @@ export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB
 : "${TMPDIR:=/dev/shm}"
 export TMPDIR
 
+# ---------------------------------------------------------------------------
+# Phase 7 Workstream M.14 — legacy canonical budget writers are contained.
+# ---------------------------------------------------------------------------
+#
+# Twelve verbs below load, rebuild, or repair canonical budget rows directly,
+# with no verification binding, no plan hash, and no independent authorization.
+# Phase 7 makes the promotion workflow the only path for that, so each of them
+# now refuses --commit.
+#
+# Inspect and extract behaviour is deliberately kept: a bare invocation still
+# runs, because when a promotion and a legacy loader disagree the first thing
+# anyone needs is to see what the loader *would* have done.
+#
+# PE_LEGACY_BUDGET_WRITES=allow is the deliberate operator override, and it is
+# the same switch the TypeScript policy in
+# src/defense-budget/promotion/legacy-budget-write-gate-v1.ts describes. A typo
+# fails closed: only the exact string "allow" enables writes.
+#
+# OPERATIONAL NOTE: this defaults to off, so any scheduled task that passes
+# --commit to one of these verbs starts failing the first time this image is
+# deployed. That is the rollout's step-0 freeze arriving early. Workstream N owns
+# setting PE_LEGACY_BUDGET_WRITES=allow on whichever legacy task definitions are
+# still permitted to run, and removing it again at rollout step 15.
+refuse_legacy_budget_commit() {
+  verb="$1"
+  shift
+  if [ "${PE_LEGACY_BUDGET_WRITES:-off}" = "allow" ]; then
+    return 0
+  fi
+  for arg in "$@"; do
+    if [ "$arg" = "--commit" ]; then
+      echo "REFUSED: '$verb --commit' writes canonical budget data directly, and the Phase 7 legacy-write kill switch is off (PE_LEGACY_BUDGET_WRITES)." >&2
+      echo "Canonical budget data now enters through the promotion workflow, which binds every row to a verified projection, a plan hash, and an independent authorization:" >&2
+      echo "  plan-defense-budget-promotion-v1 -> validate -> authorize -> execute" >&2
+      echo "Re-run without --commit to inspect. Set PE_LEGACY_BUDGET_WRITES=allow to override deliberately." >&2
+      exit 64
+    fi
+  done
+}
+
 case "${1:-serve}" in
   migrate)
     # Phase A: this branch previously auto-resolved failed migrations by editing
@@ -410,7 +450,7 @@ case "${1:-serve}" in
   reconcile-personnel-supersede) shift; exec ./node_modules/.bin/tsx scripts/reconcile-personnel-supersede.ts "$@" ;;
   # Soft-retire old-spreadsheet PEs with no live signal (keeps real-but-uncovered).
   # DRY RUN unless --commit. Run AFTER reconcile-personnel-supersede.
-  reconcile-stale-pes) shift; exec ./node_modules/.bin/tsx scripts/reconcile-stale-pes.ts "$@" ;;
+  reconcile-stale-pes) shift; refuse_legacy_budget_commit reconcile-stale-pes "$@"; exec ./node_modules/.bin/tsx scripts/reconcile-stale-pes.ts "$@" ;;
   # Re-validate person->PE links: clear stale/untrusted links to retired/missing PEs
   # (keeps human-confirmed). DRY RUN unless --commit. Run AFTER reconcile-stale-pes,
   # then generate-pe-person-candidates to re-propose cleared links.
@@ -608,7 +648,8 @@ case "${1:-serve}" in
   # Program Element R-2/R-2A descriptive-summary loader. Reads committed extraction
   # artifacts (scripts/__data__/jbook_r2_*.json) and enriches program_element
   # narrative + program_element_project + page citations. No PDF/Python at runtime.
-  sync-jbook-r2) exec ./node_modules/.bin/tsx scripts/sync-jbook-r2.ts --commit ;;
+  # Unconditionally committed by this verb, so the guard is unconditional too.
+  sync-jbook-r2) refuse_legacy_budget_commit sync-jbook-r2 --commit; exec ./node_modules/.bin/tsx scripts/sync-jbook-r2.ts --commit ;;
   # PE -> named prime contractor linkage (Layer 1, highest precision). Loads the R-3
   # "Product Development" performer tables (company, contract method, location, $) from
   # the committed offline artifacts scripts/__data__/jbook_performers_*.json into
@@ -685,14 +726,14 @@ case "${1:-serve}" in
   # Deep P-40 enrichment: attach description / acatLevel / programOfRecord / status +
   # raw.pDocDetail (qty, unit cost, schedule, acquisition strategy, contractors,
   # milestones, risks) to EXISTING program elements. Enrich-only. Pass --artifact.
-  load-pdoc-enrichment) shift; exec ./node_modules/.bin/tsx scripts/load-pdoc-enrichment.ts "$@" ;;
+  load-pdoc-enrichment) shift; refuse_legacy_budget_commit load-pdoc-enrichment "$@"; exec ./node_modules/.bin/tsx scripts/load-pdoc-enrichment.ts "$@" ;;
   # OP-5 O&M narrative loader (batch-10): SAG-code-joined descriptions -> EXISTING
   # O&M program elements only. Enrich-only, presence-based raw.op5Detail merge.
-  load-om-op5) shift; exec ./node_modules/.bin/tsx scripts/load-om-op5.ts "$@" ;;
+  load-om-op5) shift; refuse_legacy_budget_commit load-om-op5 "$@"; exec ./node_modules/.bin/tsx scripts/load-om-op5.ts "$@" ;;
   # â”€â”€ Budget Lines money-graph derivations (BL-0). DAG order: actions ->
   # relationships -> capabilities -> intelligence cache. All dry-run by default;
   # pass --commit. Each deletes + rewrites only its own derived_by cohort.
-  derive-budget-actions) shift; exec ./node_modules/.bin/tsx scripts/derive-budget-actions.ts "$@" ;;
+  derive-budget-actions) shift; refuse_legacy_budget_commit derive-budget-actions "$@"; exec ./node_modules/.bin/tsx scripts/derive-budget-actions.ts "$@" ;;
   # Nightly PE derive chain (PE Watch auto-update plan, Phase 0): runs the whole
   # DAG above sequentially (deltas -> actions -> relationships -> capabilities ->
   # intelligence cache), aborting on first failure. Dry-run default; the
@@ -702,7 +743,7 @@ case "${1:-serve}" in
   # committee-report listings against known detections + the source_document
   # registry; sha-check registry heads for republications. Dry-run default; the
   # EventBridge rule passes --commit. First prod run: --commit --baseline.
-  watch-budget-docs) shift; exec ./node_modules/.bin/tsx scripts/watch-budget-docs.ts "$@" ;;
+  watch-budget-docs) shift; refuse_legacy_budget_commit watch-budget-docs "$@"; exec ./node_modules/.bin/tsx scripts/watch-budget-docs.ts "$@" ;;
   # PE Watch alert emails + client-watchlist stamping (PE Watch plan, Phase 2).
   # Canary-gated by PE_ALERT_EMAIL_TENANTS (unset = dark). Runs as the final
   # step of run-pe-derive-chain; also dispatchable standalone. Dry-run default.
@@ -710,7 +751,7 @@ case "${1:-serve}" in
   # Phase 3 â€” hearing-transcript PE mentions + bill-title candidate links
   # (dry-run default; --commit, --limit N, --since YYYY-MM-DD). Candidates only;
   # nothing fuzzy auto-accepts.
-  match-pe-mentions) shift; exec ./node_modules/.bin/tsx scripts/match-pe-mentions.ts "$@" ;;
+  match-pe-mentions) shift; refuse_legacy_budget_commit match-pe-mentions "$@"; exec ./node_modules/.bin/tsx scripts/match-pe-mentions.ts "$@" ;;
   derive-relationships) shift; exec ./node_modules/.bin/tsx scripts/derive-relationships.ts "$@" ;;
   seed-capabilities) shift; exec ./node_modules/.bin/tsx scripts/seed-capabilities.ts "$@" ;;
   derive-intelligence-cache) shift; exec ./node_modules/.bin/tsx scripts/derive-intelligence-cache.ts "$@" ;;
@@ -727,7 +768,7 @@ case "${1:-serve}" in
   diag-leg-readpaths) shift; exec ./node_modules/.bin/tsx scripts/diag-leg-readpaths.ts "$@" ;;
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
-  load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
+  load-om) shift; refuse_legacy_budget_commit load-om "$@"; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
   # Org graph: import DoW Directory orgs/roles/program-owners into program_office /
   # person_role / program(+links). Dry-run default; pass --commit.
   import-dow-orgs) shift; exec ./node_modules/.bin/tsx scripts/import-dow-orgs.ts "$@" ;;
@@ -740,7 +781,7 @@ case "${1:-serve}" in
   # Read-only network-link coverage matrix by appropriation type (RDT&E/PROC/OM) â€”
   # the before/after yield measurement for the procurement-BLIN matching remediation.
   diag-blin-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-blin-coverage.ts "$@" ;;
-  backfill-appropriation-type) shift; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
+  backfill-appropriation-type) shift; refuse_legacy_budget_commit backfill-appropriation-type "$@"; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.
   sync-dod-orgcharts) shift; exec ./node_modules/.bin/tsx scripts/sync-dod-orgcharts.ts "$@" ;;
@@ -772,7 +813,7 @@ case "${1:-serve}" in
   # PE Watch defense-budget ingestion (LlamaParse PDF + immutable S3 archive).
   # Archives each PDF to the Object-Lock raw bucket BEFORE parsing, records the
   # SourceDocument + DocumentParseJob, and loads independent page-cited assertions.
-  ingest-defense-budget) shift; exec ./node_modules/.bin/tsx scripts/ingest-defense-budget-pdf.ts "$@" ;;
+  ingest-defense-budget) shift; refuse_legacy_budget_commit ingest-defense-budget "$@"; exec ./node_modules/.bin/tsx scripts/ingest-defense-budget-pdf.ts "$@" ;;
   # Phase D transactional PE-change outbox. Dry-run by default; --commit drains.
   drain-pe-change-outbox) shift; exec ./node_modules/.bin/tsx scripts/drain-pe-change-outbox.ts "$@" ;;
   # Phase D audit/backfill for observation keys. Dry-run; --commit requires approved count.
@@ -781,12 +822,12 @@ case "${1:-serve}" in
   triage-pe-reconciliation) shift; exec ./node_modules/.bin/tsx scripts/triage-pe-reconciliation.ts "$@" ;;
   report-pe-attribution-gaps) shift; exec ./node_modules/.bin/tsx scripts/report-pe-attribution-gaps.ts "$@" ;;
   attach-pe-legacy-documents) shift; exec ./node_modules/.bin/tsx scripts/attach-pe-legacy-documents.ts "$@" ;;
-  repair-pe-thousands-as-millions) shift; exec ./node_modules/.bin/tsx scripts/repair-pe-thousands-as-millions.ts "$@" ;;
+  repair-pe-thousands-as-millions) shift; refuse_legacy_budget_commit repair-pe-thousands-as-millions "$@"; exec ./node_modules/.bin/tsx scripts/repair-pe-thousands-as-millions.ts "$@" ;;
   # ONE fully-populated demo client (default tenant: capiro) for product demos:
   # profile + capabilities + people + facilities + strategy + workflow + campaign
   # + engagement activity + intel links + PE 0603270A fixture data + PE watch.
   # DRY RUN unless --commit. Idempotent (re-run refreshes the same named client).
-  seed-demo-client) shift; exec ./node_modules/.bin/tsx scripts/seed-demo-client.ts "$@" ;;
+  seed-demo-client) shift; refuse_legacy_budget_commit seed-demo-client "$@"; exec ./node_modules/.bin/tsx scripts/seed-demo-client.ts "$@" ;;
   backfill-all) shift; exec ./node_modules/.bin/tsx scripts/backfill-all.ts "$@" ;;
   serve)
     echo "Starting Capiro API"
