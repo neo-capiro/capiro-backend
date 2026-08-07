@@ -7,12 +7,13 @@ Phase 3 cannot close until **open P0 = 0, open P1 = 0, blocking P2 = 0**
 Repairs happen in a dedicated 3.R session per coherent finding — never as a
 silent fix inside an unrelated session (master execution prompt, rule 14).
 
-**Status:** 1 open (P1) · 1 closed
+**Status:** 2 open (1 P1, 1 P2 non-blocking) · 1 closed
 
 | ID | Severity | Classification | Surface | Summary | Status |
 |---|---|---|---|---|---|
 | F-001 | P1 | current baseline defect | build tooling | Phase 2 verifier's "no product web change" gate fails on every descendant branch | **closed** |
 | F-002 | P1 | current baseline defect | build tooling | No-preview-header guard forbids the exact string Phase 3 must introduce | open — repair sequenced with 3.3 |
+| F-003 | P2 (non-blocking) | current baseline defect | build tooling | `apps/api` typecheck chain short-circuits on a pre-existing failure, so 14 later tsconfig projects never run | open — input to 3.13 |
 
 ---
 
@@ -149,6 +150,71 @@ Replace the blanket string ban with a scoped assertion:
 
 That is strictly stronger than the current check for everything except the one
 file that has to have it.
+
+---
+
+## F-003 — The `apps/api` typecheck chain short-circuits, so most of it never runs
+
+**Severity:** P2, **not blocking**. Nothing in Phase 3 depends on the chain
+running; the consequence is that a gate added to it is silently inert until the
+first failure is repaired.
+**Classification:** current baseline defect (pre-exists Phase 3 on `main`).
+**Owning boundary:** `apps/api/package.json` `typecheck`, and the four
+`src/defense-budget/**` specs that import from `scripts/`.
+
+### Reproduction
+
+```bash
+cd apps/api && ./node_modules/.bin/tsc --noEmit
+```
+
+Four `TS6059` errors: `validator-cli-regressions.spec.ts`,
+`non-rdte-artifact-map-proof-regressions.spec.ts`, and
+`verification-cycle-report-r83.spec.ts` import files under `scripts/`, which is
+outside the project's `rootDir: "src"`.
+
+### Why it is a defect and not expected behaviour
+
+The `typecheck` script is a single `&&` chain of fifteen `tsc -p …` invocations.
+`tsc --noEmit` is **first**, and it fails, so the fourteen projects after it never
+execute. That is not a "known failing check" — it is fourteen checks that report
+nothing at all, including `tsconfig.pe-scripts.json`,
+`tsconfig.budget-verification-v1.json`, and (as of 3.2)
+`tsconfig.engagement-phase3-fixtures.json`.
+
+Phase 2's handoff records the four errors as pre-existing and not a regression,
+which is accurate. It does not record that they suppress the rest of the chain.
+Discovered in 3.2 while wiring a new project into it.
+
+### Main vs preview
+
+Not applicable — a build gate, not a runtime behaviour.
+
+### Evidence
+
+- `apps/api/package.json:10` — the fifteen-project `&&` chain
+- `tsc --noEmit` output at `f03eed07`, unchanged from Phase 2's handoff
+- 3.2 added `tsconfig.engagement-phase3-fixtures.json` to the chain; it passes
+  when invoked directly and is unreachable through `pnpm typecheck`
+
+### Disposition
+
+**Not repaired in 3.2.** Rule 12 forbids silently fixing a finding outside the
+current session's concern, and the honest fix touches four defense-budget specs
+that have nothing to do with Engagement.
+
+Two obligations follow:
+
+1. **3.13 must invoke `tsconfig.engagement-phase3-fixtures.json` directly** in
+   `verify:engagement-phase-3` rather than relying on `pnpm --filter @capiro/api
+   typecheck` to reach it. Its own step 8 ("web typecheck/build/tests") is
+   unaffected; this is about the API side.
+2. Whoever repairs it should reorder the chain so an early failure cannot mask
+   later projects (or split it into independently-reported steps), not just fix
+   the four errors — otherwise the next early failure hides the chain again.
+
+Until then the Phase 3 command list uses the direct invocation, recorded in
+`docs/contracts/engagement-phase3-fixture-catalog.md` §2.
 
 ---
 

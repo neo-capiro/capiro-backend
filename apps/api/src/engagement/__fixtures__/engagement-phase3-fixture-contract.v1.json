@@ -1,0 +1,2356 @@
+{
+  "schemaVersion": 1,
+  "description": "Engagement Phase 3 parity fixture contract. Generated from apps/api/scripts/engagement-phase3-fixture-plan.ts — never hand-edited. Timestamps are descriptors, not literals, so this file is byte-stable and the report-period fixtures stay in the right calendar cycle in any year.",
+  "marker": "Phase 3 Parity",
+  "idPrefix": "e3000000-0000-4000-8000-",
+  "reservedIdentifiers": [
+    {
+      "value": "capiro-internal",
+      "field": "Tenant.slug",
+      "reason": "The capiro_admin role is granted only when the org slug matches this reserved value — apps/api/scripts/bootstrap-capiro-admin.ts CAPIRO_INTERNAL_SLUG. A marker-prefixed slug would produce a tenant whose admin cannot be a Capiro admin, so the impersonation fixture would test nothing."
+    },
+    {
+      "value": "avery.testwell@example.invalid",
+      "field": "MeetingAttendee.email",
+      "reason": "The one directory contact that exists without the S3 directory snapshot — TEST_DIRECTORY_CONTACT in apps/api/src/directory/directory.service.ts. Reports rows with source=\"directory\" (and therefore every pendingActions count) are reachable only through a directory email match, so this address is what makes that state addressable at all."
+    }
+  ],
+  "counts": {
+    "tenants": 3,
+    "users": 7,
+    "memberships": 7,
+    "impersonations": 2,
+    "clients": 4,
+    "clientMemoryAccess": 2,
+    "contacts": 6,
+    "meetings": 12,
+    "attendees": 10,
+    "botSessions": 5,
+    "preps": 4,
+    "notes": 3,
+    "debriefs": 2,
+    "tasks": 5,
+    "attachments": 3,
+    "outreachRecords": 15,
+    "draftArtifacts": 3,
+    "draftVersions": 4,
+    "sendIntents": 1,
+    "deliveries": 1,
+    "audiences": 2,
+    "audienceMembers": 4,
+    "templates": 1,
+    "aiTemplates": 1,
+    "reportTargets": 5,
+    "connections": 4,
+    "absentIds": 3
+  },
+  "totals": {
+    "rows": 119,
+    "states": 55,
+    "requiredStates": 52,
+    "conditionalStates": 1,
+    "absenceStates": 4
+  },
+  "states": [
+    {
+      "id": "users.admin",
+      "planSection": "users_and_tenants",
+      "requirement": "admin",
+      "coveredBy": [
+        "actor.admin",
+        "membership.actor.admin"
+      ]
+    },
+    {
+      "id": "users.standard",
+      "planSection": "users_and_tenants",
+      "requirement": "standard user",
+      "coveredBy": [
+        "actor.standard",
+        "membership.actor.standard"
+      ]
+    },
+    {
+      "id": "users.belowRole",
+      "planSection": "users_and_tenants",
+      "requirement": "below-required role",
+      "coveredBy": [
+        "actor.belowRole",
+        "membership.actor.belowRole"
+      ]
+    },
+    {
+      "id": "users.samePeer",
+      "planSection": "users_and_tenants",
+      "requirement": "different user in same tenant",
+      "coveredBy": [
+        "actor.peer",
+        "membership.actor.peer"
+      ]
+    },
+    {
+      "id": "users.secondTenant",
+      "planSection": "users_and_tenants",
+      "requirement": "second tenant",
+      "coveredBy": [
+        "tenant.secondary",
+        "actor.crossTenant",
+        "client.secondTenant"
+      ]
+    },
+    {
+      "id": "users.wallDenied",
+      "planSection": "users_and_tenants",
+      "requirement": "ethical-wall denied actor when supported",
+      "coveredBy": [
+        "client.walled",
+        "actor.wallDenied",
+        "wallGrant.actor.admin"
+      ],
+      "note": "Supported: Client.memoryWall plus client_memory_access grants (apps/api/src/memory/memory-wall.helpers.ts). actor.wallDenied holds no grant."
+    },
+    {
+      "id": "users.impersonation",
+      "planSection": "users_and_tenants",
+      "requirement": "Capiro Admin impersonation fixture when supported",
+      "coveredBy": [
+        "tenant.capiroInternal",
+        "actor.capiroAdmin",
+        "membership.actor.capiroAdmin",
+        "impersonation.active",
+        "impersonation.expired"
+      ],
+      "note": "Supported: ImpersonationSession rows started by a capiro_admin in the reserved capiro-internal tenant. The expired row is what 3.10 needs to prove expiry clears."
+    },
+    {
+      "id": "meetings.upcomingClient",
+      "planSection": "meetings",
+      "requirement": "upcoming client meeting",
+      "coveredBy": [
+        "meeting.upcomingWithClient"
+      ]
+    },
+    {
+      "id": "meetings.upcomingNoClient",
+      "planSection": "meetings",
+      "requirement": "upcoming no-client meeting",
+      "coveredBy": [
+        "meeting.upcomingNoClient"
+      ]
+    },
+    {
+      "id": "meetings.past",
+      "planSection": "meetings",
+      "requirement": "past meeting",
+      "coveredBy": [
+        "meeting.past"
+      ]
+    },
+    {
+      "id": "meetings.allDay",
+      "planSection": "meetings",
+      "requirement": "all-day meeting",
+      "coveredBy": [
+        "meeting.allDay"
+      ]
+    },
+    {
+      "id": "meetings.timezoneBoundary",
+      "planSection": "meetings",
+      "requirement": "timezone-boundary meeting",
+      "coveredBy": [
+        "meeting.timezoneBoundary"
+      ]
+    },
+    {
+      "id": "meetings.multipleAttendees",
+      "planSection": "meetings",
+      "requirement": "multiple attendees",
+      "coveredBy": [
+        "meeting.multiAttendee"
+      ]
+    },
+    {
+      "id": "meetings.deepLinkOutsideRange",
+      "planSection": "meetings",
+      "requirement": "deep-linked meeting outside visible range",
+      "coveredBy": [
+        "meeting.deepLinkOutsideRange"
+      ]
+    },
+    {
+      "id": "meetings.inaccessible",
+      "planSection": "meetings",
+      "requirement": "inaccessible meeting",
+      "coveredBy": [
+        "meeting.otherTenant"
+      ],
+      "note": "A real row in the second tenant; must read as not-found to every primary actor."
+    },
+    {
+      "id": "meetings.deleted",
+      "planSection": "meetings",
+      "requirement": "deleted meeting",
+      "coveredBy": [],
+      "absence": "absent.meeting",
+      "note": "A deleted meeting cannot be seeded; the fixture is an id with no row."
+    },
+    {
+      "id": "meetings.prep",
+      "planSection": "meetings",
+      "requirement": "prep",
+      "coveredBy": [
+        "prep.approved.1",
+        "prep.generated.2",
+        "prep.edited.3",
+        "prep.approved.4"
+      ]
+    },
+    {
+      "id": "meetings.notes",
+      "planSection": "meetings",
+      "requirement": "notes",
+      "coveredBy": [
+        "note.adminApproved",
+        "note.adminDraft",
+        "note.peerConfidential"
+      ]
+    },
+    {
+      "id": "meetings.debrief",
+      "planSection": "meetings",
+      "requirement": "debrief",
+      "coveredBy": [
+        "debrief.approved",
+        "debrief.generated"
+      ]
+    },
+    {
+      "id": "meetings.tasks",
+      "planSection": "meetings",
+      "requirement": "tasks",
+      "coveredBy": [
+        "task.todo.1",
+        "task.in_progress.2",
+        "task.blocked.3",
+        "task.done.4",
+        "task.todo.5"
+      ]
+    },
+    {
+      "id": "meetings.attachmentMetadata",
+      "planSection": "meetings",
+      "requirement": "attachment metadata",
+      "coveredBy": [
+        "attachment.meetingReady",
+        "attachment.meetingBlocked"
+      ],
+      "note": "Metadata rows only — no S3 object backs any fixture s3Key."
+    },
+    {
+      "id": "meetings.notetakerStatuses",
+      "planSection": "meetings",
+      "requirement": "relevant notetaker statuses",
+      "coveredBy": [
+        "botSession.done",
+        "botSession.failed",
+        "botSession.no_show",
+        "botSession.requested",
+        "botSession.in_call"
+      ]
+    },
+    {
+      "id": "meetings.confidentialAccessible",
+      "planSection": "meetings",
+      "requirement": "accessible confidential content",
+      "coveredBy": [
+        "meeting.confidentialAccessible",
+        "note.adminApproved"
+      ]
+    },
+    {
+      "id": "meetings.confidentialDenied",
+      "planSection": "meetings",
+      "requirement": "denied confidential content",
+      "coveredBy": [
+        "meeting.confidentialDenied",
+        "note.peerConfidential"
+      ]
+    },
+    {
+      "id": "outreach.emptyList",
+      "planSection": "outreach_v2",
+      "requirement": "empty list",
+      "coveredBy": [],
+      "absence": "tenant.secondary",
+      "note": "The second tenant holds zero outreach records, so its list renders the empty state."
+    },
+    {
+      "id": "outreach.draft",
+      "planSection": "outreach_v2",
+      "requirement": "draft",
+      "coveredBy": [
+        "outreach.draft"
+      ]
+    },
+    {
+      "id": "outreach.partialWizard",
+      "planSection": "outreach_v2",
+      "requirement": "partially completed wizard",
+      "coveredBy": [
+        "outreach.partialWizard"
+      ]
+    },
+    {
+      "id": "outreach.followUp",
+      "planSection": "outreach_v2",
+      "requirement": "follow-up",
+      "coveredBy": [
+        "outreach.followUp"
+      ]
+    },
+    {
+      "id": "outreach.prepDistribution",
+      "planSection": "outreach_v2",
+      "requirement": "prep distribution",
+      "coveredBy": [
+        "outreach.prepDistribution"
+      ]
+    },
+    {
+      "id": "outreach.outboundCampaign",
+      "planSection": "outreach_v2",
+      "requirement": "outbound campaign",
+      "coveredBy": [
+        "outreach.outboundCampaign"
+      ]
+    },
+    {
+      "id": "outreach.sent",
+      "planSection": "outreach_v2",
+      "requirement": "sent",
+      "coveredBy": [
+        "outreach.sent"
+      ]
+    },
+    {
+      "id": "outreach.failed",
+      "planSection": "outreach_v2",
+      "requirement": "failed",
+      "coveredBy": [
+        "outreach.failed"
+      ]
+    },
+    {
+      "id": "outreach.openedInEmail",
+      "planSection": "outreach_v2",
+      "requirement": "opened-in-email",
+      "coveredBy": [
+        "outreach.openedInEmail"
+      ]
+    },
+    {
+      "id": "outreach.deliveryUnknown",
+      "planSection": "outreach_v2",
+      "requirement": "delivery unknown",
+      "coveredBy": [
+        "outreach.deliveryUnknown",
+        "sendIntent.deliveryUnknown",
+        "delivery.unknown"
+      ],
+      "note": "The ONLY pre-existing send intent and delivery in the fixture set. 3.7 must therefore assert its external-denial invariants as a DELTA against these declared rows, not as an absolute \"zero send intents\" count."
+    },
+    {
+      "id": "outreach.clientDirected",
+      "planSection": "outreach_v2",
+      "requirement": "client-directed",
+      "coveredBy": [
+        "outreach.clientDirected"
+      ]
+    },
+    {
+      "id": "outreach.externalOnBehalf",
+      "planSection": "outreach_v2",
+      "requirement": "external/on-behalf",
+      "coveredBy": [
+        "outreach.externalOnBehalf"
+      ]
+    },
+    {
+      "id": "outreach.groupRecipient",
+      "planSection": "outreach_v2",
+      "requirement": "group recipient",
+      "coveredBy": [
+        "outreach.groupRecipient"
+      ]
+    },
+    {
+      "id": "outreach.missingEmail",
+      "planSection": "outreach_v2",
+      "requirement": "missing email",
+      "coveredBy": [
+        "outreach.missingEmail",
+        "contact.noEmail"
+      ]
+    },
+    {
+      "id": "outreach.attachmentMetadata",
+      "planSection": "outreach_v2",
+      "requirement": "attachment metadata",
+      "coveredBy": [
+        "outreach.withAttachment",
+        "attachment.outreach"
+      ]
+    },
+    {
+      "id": "outreach.nullableClient",
+      "planSection": "outreach_v2",
+      "requirement": "truthful nullable-client record",
+      "coveredBy": [
+        "outreach.nullableClient"
+      ],
+      "note": "clientId stays null; 3.7 asserts no code path fabricates one."
+    },
+    {
+      "id": "outreach.draftLifecycle",
+      "planSection": "outreach_v2",
+      "requirement": "immutable artifact/version and draft audit reads",
+      "coveredBy": [
+        "artifact.sent",
+        "version.sentV1",
+        "version.sentV2",
+        "artifact.held",
+        "version.held",
+        "artifact.deliveryUnknown",
+        "version.deliveryUnknown"
+      ]
+    },
+    {
+      "id": "outreach.recipientSources",
+      "planSection": "outreach_v2",
+      "requirement": "recipients from current sources",
+      "coveredBy": [
+        "audience.list",
+        "audience.group",
+        "audienceMember.1",
+        "audienceMember.3",
+        "template.outbound",
+        "aiTemplate.general"
+      ]
+    },
+    {
+      "id": "reports.currentPeriod",
+      "planSection": "reports",
+      "requirement": "current period",
+      "coveredBy": [
+        "meeting.reportCurrentCycle",
+        "reportTarget.autoAlpha"
+      ]
+    },
+    {
+      "id": "reports.previousPeriod",
+      "planSection": "reports",
+      "requirement": "previous period",
+      "coveredBy": [
+        "meeting.reportPreviousCycle"
+      ]
+    },
+    {
+      "id": "reports.emptyPeriod",
+      "planSection": "reports",
+      "requirement": "empty period",
+      "coveredBy": [],
+      "absence": "client.beta",
+      "note": "client.beta has no meetings in any cycle, so its report renders the empty result."
+    },
+    {
+      "id": "reports.everyStatus",
+      "planSection": "reports",
+      "requirement": "every status",
+      "coveredBy": [
+        "reportTarget.autoAlpha",
+        "reportTarget.notStartedAlpha",
+        "reportTarget.beta",
+        "reportTarget.manualOverrideAlpha"
+      ]
+    },
+    {
+      "id": "reports.manualOverride",
+      "planSection": "reports",
+      "requirement": "manual override",
+      "coveredBy": [
+        "reportTarget.manualOverrideAlpha"
+      ]
+    },
+    {
+      "id": "reports.meetingsAndPendingActions",
+      "planSection": "reports",
+      "requirement": "meetings and pending actions",
+      "coveredBy": [
+        "meeting.reportCurrentCycle",
+        "task.todo.1",
+        "task.in_progress.2"
+      ],
+      "requires": "directory_snapshot",
+      "note": "reportOverview attaches meetings and pendingActions only inside its directory-match loop (engagement.service.ts ~5513), and directory data comes from the S3 snapshot, not the database. The fixture seats the one snapshot-independent directory address on these meetings; without directory access the state is unreachable by ANY database fixture and 3.8 must record it as a coverage limitation rather than a parity failure."
+    },
+    {
+      "id": "reports.crossClientIsolation",
+      "planSection": "reports",
+      "requirement": "cross-client isolation",
+      "coveredBy": [
+        "reportTarget.autoAlpha",
+        "reportTarget.beta",
+        "reportTarget.scopeAll"
+      ]
+    },
+    {
+      "id": "integrations.microsoftConnected",
+      "planSection": "integrations",
+      "requirement": "Microsoft connected",
+      "coveredBy": [
+        "connection.microsoftConnected"
+      ]
+    },
+    {
+      "id": "integrations.googleConnected",
+      "planSection": "integrations",
+      "requirement": "Google connected",
+      "coveredBy": [
+        "connection.googleConnected"
+      ]
+    },
+    {
+      "id": "integrations.disconnected",
+      "planSection": "integrations",
+      "requirement": "disconnected",
+      "coveredBy": [
+        "connection.disconnected"
+      ]
+    },
+    {
+      "id": "integrations.expiredError",
+      "planSection": "integrations",
+      "requirement": "expired/error",
+      "coveredBy": [
+        "connection.expiredError"
+      ]
+    },
+    {
+      "id": "integrations.noConnections",
+      "planSection": "integrations",
+      "requirement": "no connections",
+      "coveredBy": [],
+      "absence": "tenant.secondary",
+      "note": "The second tenant holds zero connections, so its Integrations page renders empty."
+    },
+    {
+      "id": "integrations.subscriptionMetadata",
+      "planSection": "integrations",
+      "requirement": "subscription metadata without provider calls",
+      "coveredBy": [
+        "connection.microsoftConnected"
+      ],
+      "note": "Stored in syncState as data. Zero IntegrationConnectionToken rows exist, which is the checkable invariant behind \"no provider credential\"."
+    }
+  ],
+  "cleanupOrder": [
+    "outreach_deliveries",
+    "outreach_send_intents",
+    "outreach_draft_versions",
+    "outreach_draft_artifacts",
+    "outreach_records",
+    "outreach_audience_members",
+    "outreach_audiences",
+    "outreach_templates",
+    "outreach_ai_template",
+    "engagement_report_target_offices",
+    "engagement_tasks",
+    "engagement_attachments",
+    "meeting_notes",
+    "meeting_debriefs",
+    "meeting_preps",
+    "meeting_bot_sessions",
+    "meeting_attendees",
+    "meetings",
+    "engagement_contacts",
+    "engagement_connection_tokens",
+    "engagement_connections",
+    "client_memory_access",
+    "clients",
+    "impersonation_sessions",
+    "tenant_memberships",
+    "users",
+    "tenants"
+  ],
+  "plan": {
+    "tenants": [
+      {
+        "key": "tenant.primary",
+        "id": "e3000000-0000-4000-8000-000000010001",
+        "slug": "phase3-parity-primary",
+        "name": "Phase 3 Parity — Primary Tenant",
+        "clerkOrgId": "org_phase3_parity_primary"
+      },
+      {
+        "key": "tenant.secondary",
+        "id": "e3000000-0000-4000-8000-000000010002",
+        "slug": "phase3-parity-secondary",
+        "name": "Phase 3 Parity — Second Tenant",
+        "clerkOrgId": "org_phase3_parity_secondary"
+      },
+      {
+        "key": "tenant.capiroInternal",
+        "id": "e3000000-0000-4000-8000-000000010003",
+        "slug": "capiro-internal",
+        "name": "Phase 3 Parity — Capiro Internal",
+        "clerkOrgId": "org_phase3_parity_capiro_internal"
+      }
+    ],
+    "users": [
+      {
+        "key": "actor.admin",
+        "id": "e3000000-0000-4000-8000-000000020001",
+        "email": "phase3-admin@example.invalid",
+        "clerkUserId": "user_phase3_parity_admin",
+        "firstName": "Ada Phase 3 Parity",
+        "lastName": "Adminson"
+      },
+      {
+        "key": "actor.standard",
+        "id": "e3000000-0000-4000-8000-000000020002",
+        "email": "phase3-standard@example.invalid",
+        "clerkUserId": "user_phase3_parity_standard",
+        "firstName": "Sam Phase 3 Parity",
+        "lastName": "Standard"
+      },
+      {
+        "key": "actor.belowRole",
+        "id": "e3000000-0000-4000-8000-000000020003",
+        "email": "phase3-belowrole@example.invalid",
+        "clerkUserId": "user_phase3_parity_belowRole",
+        "firstName": "Bo Phase 3 Parity",
+        "lastName": "Portalson"
+      },
+      {
+        "key": "actor.peer",
+        "id": "e3000000-0000-4000-8000-000000020004",
+        "email": "phase3-peer@example.invalid",
+        "clerkUserId": "user_phase3_parity_peer",
+        "firstName": "Pia Phase 3 Parity",
+        "lastName": "Peerson"
+      },
+      {
+        "key": "actor.wallDenied",
+        "id": "e3000000-0000-4000-8000-000000020005",
+        "email": "phase3-walldenied@example.invalid",
+        "clerkUserId": "user_phase3_parity_wallDenied",
+        "firstName": "Wes Phase 3 Parity",
+        "lastName": "Walled"
+      },
+      {
+        "key": "actor.crossTenant",
+        "id": "e3000000-0000-4000-8000-000000020006",
+        "email": "phase3-crosstenant@example.invalid",
+        "clerkUserId": "user_phase3_parity_crossTenant",
+        "firstName": "Cleo Phase 3 Parity",
+        "lastName": "Crosstenant"
+      },
+      {
+        "key": "actor.capiroAdmin",
+        "id": "e3000000-0000-4000-8000-000000020007",
+        "email": "phase3-capiroadmin@example.invalid",
+        "clerkUserId": "user_phase3_parity_capiroAdmin",
+        "firstName": "Cap Phase 3 Parity",
+        "lastName": "Adminstaff"
+      }
+    ],
+    "memberships": [
+      {
+        "key": "membership.actor.admin",
+        "id": "e3000000-0000-4000-8000-000000030001",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.admin",
+        "role": "user_admin",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.standard",
+        "id": "e3000000-0000-4000-8000-000000030002",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.standard",
+        "role": "standard_user",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.belowRole",
+        "id": "e3000000-0000-4000-8000-000000030003",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.belowRole",
+        "role": "client_portal_user",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.peer",
+        "id": "e3000000-0000-4000-8000-000000030004",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.peer",
+        "role": "standard_user",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.wallDenied",
+        "id": "e3000000-0000-4000-8000-000000030005",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.wallDenied",
+        "role": "standard_user",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.crossTenant",
+        "id": "e3000000-0000-4000-8000-000000030006",
+        "tenantKey": "tenant.secondary",
+        "userKey": "actor.crossTenant",
+        "role": "user_admin",
+        "status": "active"
+      },
+      {
+        "key": "membership.actor.capiroAdmin",
+        "id": "e3000000-0000-4000-8000-000000030007",
+        "tenantKey": "tenant.capiroInternal",
+        "userKey": "actor.capiroAdmin",
+        "role": "capiro_admin",
+        "status": "active"
+      }
+    ],
+    "impersonations": [
+      {
+        "key": "impersonation.active",
+        "id": "e3000000-0000-4000-8000-000000040001",
+        "tenantKey": "tenant.primary",
+        "actorUserKey": "actor.capiroAdmin",
+        "reason": "Phase 3 Parity — active impersonation for parity acceptance",
+        "startedAt": {
+          "kind": "anchorOffset",
+          "minutes": -15
+        },
+        "expiresAt": {
+          "kind": "anchorOffset",
+          "minutes": 480
+        },
+        "endedAt": null
+      },
+      {
+        "key": "impersonation.expired",
+        "id": "e3000000-0000-4000-8000-000000040002",
+        "tenantKey": "tenant.primary",
+        "actorUserKey": "actor.capiroAdmin",
+        "reason": "Phase 3 Parity — expired impersonation for parity acceptance",
+        "startedAt": {
+          "kind": "anchorOffset",
+          "minutes": -5760
+        },
+        "expiresAt": {
+          "kind": "anchorOffset",
+          "minutes": -5700
+        },
+        "endedAt": {
+          "kind": "anchorOffset",
+          "minutes": -5700
+        }
+      }
+    ],
+    "clients": [
+      {
+        "key": "client.alpha",
+        "id": "e3000000-0000-4000-8000-000000050001",
+        "tenantKey": "tenant.primary",
+        "name": "Phase 3 Parity — Alpha Systems",
+        "memoryWall": false
+      },
+      {
+        "key": "client.beta",
+        "id": "e3000000-0000-4000-8000-000000050002",
+        "tenantKey": "tenant.primary",
+        "name": "Phase 3 Parity — Beta Industries",
+        "memoryWall": false
+      },
+      {
+        "key": "client.walled",
+        "id": "e3000000-0000-4000-8000-000000050003",
+        "tenantKey": "tenant.primary",
+        "name": "Phase 3 Parity — Walled Holdings",
+        "memoryWall": true
+      },
+      {
+        "key": "client.secondTenant",
+        "id": "e3000000-0000-4000-8000-000000050004",
+        "tenantKey": "tenant.secondary",
+        "name": "Phase 3 Parity — Second Tenant Client",
+        "memoryWall": false
+      }
+    ],
+    "clientMemoryAccess": [
+      {
+        "key": "wallGrant.actor.admin",
+        "id": "e3000000-0000-4000-8000-000000060001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.walled",
+        "userKey": "actor.admin"
+      },
+      {
+        "key": "wallGrant.actor.standard",
+        "id": "e3000000-0000-4000-8000-000000060002",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.walled",
+        "userKey": "actor.standard"
+      }
+    ],
+    "contacts": [
+      {
+        "key": "contact.staffer",
+        "id": "e3000000-0000-4000-8000-000000070001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "fullName": "Phase 3 Parity — Jordan Staffer",
+        "email": "jordan.staffer@example.gov",
+        "organization": "Phase 3 Parity — House Committee Office",
+        "title": "Legislative Director"
+      },
+      {
+        "key": "contact.member",
+        "id": "e3000000-0000-4000-8000-000000070002",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "fullName": "Phase 3 Parity — Robin Member",
+        "email": "robin.member@example.gov",
+        "organization": "Phase 3 Parity — Member Office",
+        "title": "Member of Congress"
+      },
+      {
+        "key": "contact.noEmail",
+        "id": "e3000000-0000-4000-8000-000000070003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "fullName": "Phase 3 Parity — Quinn Noaddress",
+        "email": null,
+        "organization": "Phase 3 Parity — Agency Program Office",
+        "title": "Program Analyst"
+      },
+      {
+        "key": "contact.groupA",
+        "id": "e3000000-0000-4000-8000-000000070004",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "fullName": "Phase 3 Parity — Group Member A",
+        "email": "group.a@example.gov",
+        "organization": "Phase 3 Parity — Appropriations Staff",
+        "title": "Professional Staff"
+      },
+      {
+        "key": "contact.groupB",
+        "id": "e3000000-0000-4000-8000-000000070005",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "fullName": "Phase 3 Parity — Group Member B",
+        "email": "group.b@example.gov",
+        "organization": "Phase 3 Parity — Appropriations Staff",
+        "title": "Professional Staff"
+      },
+      {
+        "key": "contact.clientContact",
+        "id": "e3000000-0000-4000-8000-000000070006",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.beta",
+        "fullName": "Phase 3 Parity — Casey Clientside",
+        "email": "casey.clientside@example.com",
+        "organization": "Phase 3 Parity — Beta Industries",
+        "title": "VP Government Affairs"
+      }
+    ],
+    "meetings": [
+      {
+        "key": "meeting.upcomingWithClient",
+        "id": "e3000000-0000-4000-8000-000000080001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Upcoming client briefing",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": 2880
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": 2940
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": "Rayburn 2118"
+      },
+      {
+        "key": "meeting.upcomingNoClient",
+        "id": "e3000000-0000-4000-8000-000000080002",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "subject": "Phase 3 Parity — Upcoming internal sync, no client",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": 4320
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": 4350
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "private",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.past",
+        "id": "e3000000-0000-4000-8000-000000080003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Past appropriations meeting",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": -8640
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": -8580
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": "Dirksen 192"
+      },
+      {
+        "key": "meeting.allDay",
+        "id": "e3000000-0000-4000-8000-000000080004",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.beta",
+        "subject": "Phase 3 Parity — All-day markup",
+        "startsAt": {
+          "kind": "anchorDay",
+          "dayOffset": 4,
+          "hourUtc": 0,
+          "minuteUtc": 0
+        },
+        "endsAt": {
+          "kind": "anchorDay",
+          "dayOffset": 5,
+          "hourUtc": 0,
+          "minuteUtc": 0
+        },
+        "timeZone": null,
+        "allDay": true,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.timezoneBoundary",
+        "id": "e3000000-0000-4000-8000-000000080005",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Timezone boundary call",
+        "startsAt": {
+          "kind": "anchorDay",
+          "dayOffset": 7,
+          "hourUtc": 3,
+          "minuteUtc": 30
+        },
+        "endsAt": {
+          "kind": "anchorDay",
+          "dayOffset": 7,
+          "hourUtc": 4,
+          "minuteUtc": 30
+        },
+        "timeZone": "America/Los_Angeles",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.multiAttendee",
+        "id": "e3000000-0000-4000-8000-000000080006",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Coalition roundtable, many attendees",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": 1440
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": 1530
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": "Capitol Visitor Center"
+      },
+      {
+        "key": "meeting.deepLinkOutsideRange",
+        "id": "e3000000-0000-4000-8000-000000080007",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Deep-linked meeting outside visible range",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": 576000
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": 576060
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.confidentialAccessible",
+        "id": "e3000000-0000-4000-8000-000000080008",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Meeting with confidential note the admin may read",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": -2880
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": -2820
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "private",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.confidentialDenied",
+        "id": "e3000000-0000-4000-8000-000000080009",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.walled",
+        "subject": "Phase 3 Parity — Meeting with another user's confidential note",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": -4320
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": -4260
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "private",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": null
+      },
+      {
+        "key": "meeting.reportCurrentCycle",
+        "id": "e3000000-0000-4000-8000-00000008000a",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Directory-matched meeting, current cycle",
+        "startsAt": {
+          "kind": "cycleDate",
+          "cycleYearOffset": 0,
+          "monthIndex": 2,
+          "day": 12,
+          "hourUtc": 15,
+          "minuteUtc": 0
+        },
+        "endsAt": {
+          "kind": "cycleDate",
+          "cycleYearOffset": 0,
+          "monthIndex": 2,
+          "day": 12,
+          "hourUtc": 16,
+          "minuteUtc": 0
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": "Longworth 1100"
+      },
+      {
+        "key": "meeting.reportPreviousCycle",
+        "id": "e3000000-0000-4000-8000-00000008000b",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "subject": "Phase 3 Parity — Directory-matched meeting, previous cycle",
+        "startsAt": {
+          "kind": "cycleDate",
+          "cycleYearOffset": -1,
+          "monthIndex": 2,
+          "day": 12,
+          "hourUtc": 15,
+          "minuteUtc": 0
+        },
+        "endsAt": {
+          "kind": "cycleDate",
+          "cycleYearOffset": -1,
+          "monthIndex": 2,
+          "day": 12,
+          "hourUtc": 16,
+          "minuteUtc": 0
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.admin",
+        "organizerEmail": "phase3-admin@example.invalid",
+        "location": "Longworth 1100"
+      },
+      {
+        "key": "meeting.otherTenant",
+        "id": "e3000000-0000-4000-8000-00000008005a",
+        "tenantKey": "tenant.secondary",
+        "clientKey": "client.secondTenant",
+        "subject": "Phase 3 Parity — Second-tenant meeting, inaccessible from primary",
+        "startsAt": {
+          "kind": "anchorOffset",
+          "minutes": 1440
+        },
+        "endsAt": {
+          "kind": "anchorOffset",
+          "minutes": 1500
+        },
+        "timeZone": "America/New_York",
+        "allDay": false,
+        "status": "scheduled",
+        "visibility": "shared",
+        "createdByUserKey": "actor.crossTenant",
+        "organizerEmail": "phase3-crosstenant@example.invalid",
+        "location": null
+      }
+    ],
+    "attendees": [
+      {
+        "key": "attendee.upcomingWithClient.1",
+        "id": "e3000000-0000-4000-8000-000000090001",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.upcomingWithClient",
+        "contactKey": "contact.staffer",
+        "email": "jordan.staffer@example.gov",
+        "name": "Phase 3 Parity — Jordan Staffer",
+        "role": "required"
+      },
+      {
+        "key": "attendee.upcomingNoClient.2",
+        "id": "e3000000-0000-4000-8000-000000090002",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.upcomingNoClient",
+        "contactKey": null,
+        "email": "phase3-peer@example.invalid",
+        "name": "Phase 3 Parity — Pia Peerson",
+        "role": "required"
+      },
+      {
+        "key": "attendee.past.3",
+        "id": "e3000000-0000-4000-8000-000000090003",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.past",
+        "contactKey": "contact.member",
+        "email": "robin.member@example.gov",
+        "name": "Phase 3 Parity — Robin Member",
+        "role": "required"
+      },
+      {
+        "key": "attendee.multiAttendee.4",
+        "id": "e3000000-0000-4000-8000-000000090004",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "contactKey": "contact.staffer",
+        "email": "jordan.staffer@example.gov",
+        "name": "Phase 3 Parity — Jordan Staffer",
+        "role": "required"
+      },
+      {
+        "key": "attendee.multiAttendee.5",
+        "id": "e3000000-0000-4000-8000-000000090005",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "contactKey": "contact.groupA",
+        "email": "group.a@example.gov",
+        "name": "Phase 3 Parity — Group Member A",
+        "role": "optional"
+      },
+      {
+        "key": "attendee.multiAttendee.6",
+        "id": "e3000000-0000-4000-8000-000000090006",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "contactKey": "contact.groupB",
+        "email": "group.b@example.gov",
+        "name": "Phase 3 Parity — Group Member B",
+        "role": "optional"
+      },
+      {
+        "key": "attendee.multiAttendee.7",
+        "id": "e3000000-0000-4000-8000-000000090007",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "contactKey": "contact.noEmail",
+        "email": null,
+        "name": "Phase 3 Parity — Quinn Noaddress",
+        "role": "optional"
+      },
+      {
+        "key": "attendee.reportCurrentCycle.8",
+        "id": "e3000000-0000-4000-8000-000000090008",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.reportCurrentCycle",
+        "contactKey": null,
+        "email": "avery.testwell@example.invalid",
+        "name": "Phase 3 Parity — Rep. Avery Testwell",
+        "role": "required"
+      },
+      {
+        "key": "attendee.reportPreviousCycle.9",
+        "id": "e3000000-0000-4000-8000-000000090009",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.reportPreviousCycle",
+        "contactKey": null,
+        "email": "avery.testwell@example.invalid",
+        "name": "Phase 3 Parity — Rep. Avery Testwell",
+        "role": "required"
+      },
+      {
+        "key": "attendee.otherTenant.10",
+        "id": "e3000000-0000-4000-8000-00000009000a",
+        "tenantKey": "tenant.secondary",
+        "meetingKey": "meeting.otherTenant",
+        "contactKey": null,
+        "email": "second.tenant.attendee@example.gov",
+        "name": "Phase 3 Parity — Second Tenant Attendee",
+        "role": "required"
+      }
+    ],
+    "botSessions": [
+      {
+        "key": "botSession.done",
+        "id": "e3000000-0000-4000-8000-0000000a0001",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.past",
+        "requestedByUserKey": "actor.admin",
+        "status": "done",
+        "joinUrl": "https://meet.example.invalid/phase3-parity/done",
+        "recordingPolicy": "transcript_only",
+        "error": null
+      },
+      {
+        "key": "botSession.failed",
+        "id": "e3000000-0000-4000-8000-0000000a0002",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.confidentialAccessible",
+        "requestedByUserKey": "actor.admin",
+        "status": "failed",
+        "joinUrl": "https://meet.example.invalid/phase3-parity/failed",
+        "recordingPolicy": "transcript_only",
+        "error": "fixture: join failed"
+      },
+      {
+        "key": "botSession.no_show",
+        "id": "e3000000-0000-4000-8000-0000000a0003",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.confidentialDenied",
+        "requestedByUserKey": "actor.admin",
+        "status": "no_show",
+        "joinUrl": "https://meet.example.invalid/phase3-parity/no_show",
+        "recordingPolicy": "transcript_only",
+        "error": null
+      },
+      {
+        "key": "botSession.requested",
+        "id": "e3000000-0000-4000-8000-0000000a0004",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.upcomingWithClient",
+        "requestedByUserKey": "actor.admin",
+        "status": "requested",
+        "joinUrl": "https://meet.example.invalid/phase3-parity/requested",
+        "recordingPolicy": "transcript_only",
+        "error": null
+      },
+      {
+        "key": "botSession.in_call",
+        "id": "e3000000-0000-4000-8000-0000000a0005",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "requestedByUserKey": "actor.admin",
+        "status": "in_call",
+        "joinUrl": "https://meet.example.invalid/phase3-parity/in_call",
+        "recordingPolicy": "transcript_only",
+        "error": null
+      }
+    ],
+    "preps": [
+      {
+        "key": "prep.approved.1",
+        "id": "e3000000-0000-4000-8000-0000000b0001",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.past",
+        "clientKey": "client.alpha",
+        "status": "approved",
+        "summary": "Phase 3 Parity — approved prep summary",
+        "agenda": [
+          "Phase 3 Parity — agenda item one",
+          "Phase 3 Parity — agenda item two"
+        ]
+      },
+      {
+        "key": "prep.generated.2",
+        "id": "e3000000-0000-4000-8000-0000000b0002",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.upcomingWithClient",
+        "clientKey": "client.alpha",
+        "status": "generated",
+        "summary": "Phase 3 Parity — generated prep summary",
+        "agenda": [
+          "Phase 3 Parity — agenda item one",
+          "Phase 3 Parity — agenda item two"
+        ]
+      },
+      {
+        "key": "prep.edited.3",
+        "id": "e3000000-0000-4000-8000-0000000b0003",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.multiAttendee",
+        "clientKey": "client.alpha",
+        "status": "edited",
+        "summary": "Phase 3 Parity — manually edited prep summary",
+        "agenda": [
+          "Phase 3 Parity — agenda item one",
+          "Phase 3 Parity — agenda item two"
+        ]
+      },
+      {
+        "key": "prep.approved.4",
+        "id": "e3000000-0000-4000-8000-0000000b0004",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.reportCurrentCycle",
+        "clientKey": "client.alpha",
+        "status": "approved",
+        "summary": "Phase 3 Parity — approved prep for the report cycle meeting",
+        "agenda": [
+          "Phase 3 Parity — agenda item one",
+          "Phase 3 Parity — agenda item two"
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "key": "note.adminApproved",
+        "id": "e3000000-0000-4000-8000-0000000c0001",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.confidentialAccessible",
+        "clientKey": "client.alpha",
+        "authorUserKey": "actor.admin",
+        "bodyPlaintext": "Phase 3 Parity — approved confidential note authored by the tenant admin.",
+        "confidential": true,
+        "accessLevel": "tenant_admins_and_author",
+        "status": "approved"
+      },
+      {
+        "key": "note.adminDraft",
+        "id": "e3000000-0000-4000-8000-0000000c0002",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.past",
+        "clientKey": "client.alpha",
+        "authorUserKey": "actor.admin",
+        "bodyPlaintext": "Phase 3 Parity — draft note that has never been approved.",
+        "confidential": true,
+        "accessLevel": "tenant_admins_and_author",
+        "status": "draft"
+      },
+      {
+        "key": "note.peerConfidential",
+        "id": "e3000000-0000-4000-8000-0000000c0003",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.confidentialDenied",
+        "clientKey": "client.walled",
+        "authorUserKey": "actor.peer",
+        "bodyPlaintext": "Phase 3 Parity — another user's confidential note; a standard user must not read it.",
+        "confidential": true,
+        "accessLevel": "tenant_admins_and_author",
+        "status": "approved"
+      }
+    ],
+    "debriefs": [
+      {
+        "key": "debrief.approved",
+        "id": "e3000000-0000-4000-8000-0000000d0001",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.past",
+        "clientKey": "client.alpha",
+        "authorUserKey": "actor.admin",
+        "bodyPlaintext": "Phase 3 Parity — approved debrief for the past meeting.",
+        "confidential": true,
+        "accessLevel": "tenant_members",
+        "status": "approved"
+      },
+      {
+        "key": "debrief.generated",
+        "id": "e3000000-0000-4000-8000-0000000d0002",
+        "tenantKey": "tenant.primary",
+        "meetingKey": "meeting.confidentialAccessible",
+        "clientKey": "client.alpha",
+        "authorUserKey": "actor.admin",
+        "bodyPlaintext": "Phase 3 Parity — generated debrief awaiting approval.",
+        "confidential": true,
+        "accessLevel": "tenant_members",
+        "status": "generated"
+      }
+    ],
+    "tasks": [
+      {
+        "key": "task.todo.1",
+        "id": "e3000000-0000-4000-8000-0000000e0001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.reportCurrentCycle",
+        "title": "Phase 3 Parity — open follow-up on the directory-matched meeting",
+        "status": "todo",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "task.in_progress.2",
+        "id": "e3000000-0000-4000-8000-0000000e0002",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.reportCurrentCycle",
+        "title": "Phase 3 Parity — in-progress follow-up on the directory-matched meeting",
+        "status": "in_progress",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "task.blocked.3",
+        "id": "e3000000-0000-4000-8000-0000000e0003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.past",
+        "title": "Phase 3 Parity — blocked follow-up on the past meeting",
+        "status": "blocked",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "task.done.4",
+        "id": "e3000000-0000-4000-8000-0000000e0004",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.past",
+        "title": "Phase 3 Parity — completed follow-up, excluded from pending actions",
+        "status": "done",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "task.todo.5",
+        "id": "e3000000-0000-4000-8000-0000000e0005",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "title": "Phase 3 Parity — standalone task with no meeting",
+        "status": "todo",
+        "createdByUserKey": "actor.admin"
+      }
+    ],
+    "attachments": [
+      {
+        "key": "attachment.meetingReady",
+        "id": "e3000000-0000-4000-8000-0000000f0001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.past",
+        "fileName": "Phase 3 Parity briefing memo.pdf",
+        "contentType": "application/pdf",
+        "byteSize": 1024,
+        "bucket": "phase3-parity-fixture-bucket-no-object",
+        "s3Key": "phase3-parity/attachment.meetingReady.pdf",
+        "lifecycleStatus": "legacy_ready",
+        "scanStatus": null,
+        "uploadedByUserKey": "actor.admin"
+      },
+      {
+        "key": "attachment.meetingBlocked",
+        "id": "e3000000-0000-4000-8000-0000000f0002",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.past",
+        "fileName": "Phase 3 Parity blocked upload.pdf",
+        "contentType": "application/pdf",
+        "byteSize": 2048,
+        "bucket": "phase3-parity-fixture-bucket-no-object",
+        "s3Key": "phase3-parity/attachment.meetingBlocked.pdf",
+        "lifecycleStatus": "blocked",
+        "scanStatus": "threat",
+        "uploadedByUserKey": "actor.admin"
+      },
+      {
+        "key": "attachment.outreach",
+        "id": "e3000000-0000-4000-8000-0000000f0003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "fileName": "Phase 3 Parity outreach attachment.pdf",
+        "contentType": "application/pdf",
+        "byteSize": 3072,
+        "bucket": "phase3-parity-fixture-bucket-no-object",
+        "s3Key": "phase3-parity/attachment.outreach.pdf",
+        "lifecycleStatus": "ready",
+        "scanStatus": "clean",
+        "uploadedByUserKey": "actor.admin"
+      }
+    ],
+    "outreachRecords": [
+      {
+        "key": "outreach.draft",
+        "id": "e3000000-0000-4000-8000-000000100001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Draft campaign at step 1",
+        "subject": null,
+        "body": null,
+        "recipients": [],
+        "lastStep": 1,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.partialWizard",
+        "id": "e3000000-0000-4000-8000-000000100002",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Partially completed wizard at step 4",
+        "subject": "Phase 3 Parity — partially drafted subject",
+        "body": null,
+        "recipients": [
+          {
+            "id": "jordan.staffer@example.gov",
+            "name": "Phase 3 Parity — Jordan Staffer",
+            "email": "jordan.staffer@example.gov",
+            "office": "Phase 3 Parity — House Committee Office",
+            "title": "Legislative Director",
+            "generationKey": "individual:jordan.staffer@example.gov"
+          }
+        ],
+        "lastStep": 4,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.followUp",
+        "id": "e3000000-0000-4000-8000-000000100003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.past",
+        "createdByUserKey": "actor.admin",
+        "type": "follow_up",
+        "status": "draft",
+        "title": "Phase 3 Parity — Follow-up linked to a past meeting",
+        "subject": "Phase 3 Parity — following up on our meeting",
+        "body": "Phase 3 Parity — follow-up body text.",
+        "recipients": [
+          {
+            "id": "robin.member@example.gov",
+            "name": "Phase 3 Parity — Robin Member",
+            "email": "robin.member@example.gov",
+            "generationKey": "individual:robin.member@example.gov"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.prepDistribution",
+        "id": "e3000000-0000-4000-8000-000000100004",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": "meeting.upcomingWithClient",
+        "createdByUserKey": "actor.admin",
+        "type": "prep",
+        "status": "draft",
+        "title": "Phase 3 Parity — Prep distribution for an upcoming meeting",
+        "subject": "Phase 3 Parity — prep materials",
+        "body": "Phase 3 Parity — prep distribution body text.",
+        "recipients": [
+          {
+            "id": "phase3-peer@example.invalid",
+            "name": "Phase 3 Parity — Pia Peerson",
+            "email": "phase3-peer@example.invalid",
+            "generationKey": "individual:phase3-peer@example.invalid"
+          }
+        ],
+        "lastStep": 3,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.outboundCampaign",
+        "id": "e3000000-0000-4000-8000-000000100005",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "outbound_campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Outbound campaign",
+        "subject": "Phase 3 Parity — outbound campaign subject",
+        "body": "Phase 3 Parity — outbound campaign body text.",
+        "recipients": [
+          {
+            "id": "robin.member@example.gov",
+            "name": "Phase 3 Parity — Robin Member",
+            "email": "robin.member@example.gov",
+            "cc": [
+              "group.a@example.gov"
+            ],
+            "bcc": [
+              "group.b@example.gov"
+            ],
+            "generationKey": "individual:robin.member@example.gov"
+          }
+        ],
+        "lastStep": 6,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.sent",
+        "id": "e3000000-0000-4000-8000-000000100006",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "sent",
+        "title": "Phase 3 Parity — Sent campaign",
+        "subject": "Phase 3 Parity — sent campaign subject",
+        "body": "Phase 3 Parity — sent campaign body text.",
+        "recipients": [
+          {
+            "id": "jordan.staffer@example.gov",
+            "name": "Phase 3 Parity — Jordan Staffer",
+            "email": "jordan.staffer@example.gov",
+            "generationKey": "individual:jordan.staffer@example.gov"
+          }
+        ],
+        "lastStep": 7,
+        "sentAt": {
+          "kind": "anchorOffset",
+          "minutes": -2880
+        },
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.failed",
+        "id": "e3000000-0000-4000-8000-000000100007",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "failed",
+        "title": "Phase 3 Parity — Failed campaign",
+        "subject": "Phase 3 Parity — failed campaign subject",
+        "body": "Phase 3 Parity — failed campaign body text.",
+        "recipients": [
+          {
+            "id": "robin.member@example.gov",
+            "name": "Phase 3 Parity — Robin Member",
+            "email": "robin.member@example.gov",
+            "generationKey": "individual:robin.member@example.gov"
+          }
+        ],
+        "lastStep": 7,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.openedInEmail",
+        "id": "e3000000-0000-4000-8000-000000100008",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "opened_in_email",
+        "title": "Phase 3 Parity — Opened in the connected mail client",
+        "subject": "Phase 3 Parity — opened in email subject",
+        "body": "Phase 3 Parity — opened in email body text.",
+        "recipients": [
+          {
+            "id": "jordan.staffer@example.gov",
+            "name": "Phase 3 Parity — Jordan Staffer",
+            "email": "jordan.staffer@example.gov",
+            "generationKey": "individual:jordan.staffer@example.gov"
+          }
+        ],
+        "lastStep": 7,
+        "sentAt": null,
+        "openedInEmailAt": {
+          "kind": "anchorOffset",
+          "minutes": -1440
+        },
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.deliveryUnknown",
+        "id": "e3000000-0000-4000-8000-000000100009",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "sent",
+        "title": "Phase 3 Parity — Campaign with an unknown delivery outcome",
+        "subject": "Phase 3 Parity — unknown delivery subject",
+        "body": "Phase 3 Parity — unknown delivery body text.",
+        "recipients": [
+          {
+            "id": "group.a@example.gov",
+            "name": "Phase 3 Parity — Group Member A",
+            "email": "group.a@example.gov",
+            "generationKey": "individual:group.a@example.gov"
+          }
+        ],
+        "lastStep": 7,
+        "sentAt": {
+          "kind": "anchorOffset",
+          "minutes": -4320
+        },
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.clientDirected",
+        "id": "e3000000-0000-4000-8000-00000010000a",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.beta",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Client-directed campaign",
+        "subject": "Phase 3 Parity — client-directed subject",
+        "body": "Phase 3 Parity — client-directed body text.",
+        "recipients": [
+          {
+            "id": "casey.clientside@example.com",
+            "name": "Phase 3 Parity — Casey Clientside",
+            "email": "casey.clientside@example.com",
+            "direction": "to-clients",
+            "generationKey": "individual:casey.clientside@example.com"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.externalOnBehalf",
+        "id": "e3000000-0000-4000-8000-00000010000b",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.beta",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "outbound_campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — External campaign on behalf of a client",
+        "subject": "Phase 3 Parity — on-behalf subject",
+        "body": "Phase 3 Parity — on-behalf body text.",
+        "recipients": [
+          {
+            "id": "robin.member@example.gov",
+            "name": "Phase 3 Parity — Robin Member",
+            "email": "robin.member@example.gov",
+            "direction": "on-behalf",
+            "generationKey": "individual:robin.member@example.gov"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.groupRecipient",
+        "id": "e3000000-0000-4000-8000-00000010000c",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Group recipient, one shared email",
+        "subject": "Phase 3 Parity — group recipient subject",
+        "body": "Phase 3 Parity — group recipient body text.",
+        "recipients": [
+          {
+            "id": "group.a@example.gov",
+            "name": "Phase 3 Parity — Appropriations Group",
+            "email": "group.a@example.gov",
+            "groupMembers": [
+              {
+                "email": "group.a@example.gov",
+                "name": "Phase 3 Parity — Group Member A"
+              },
+              {
+                "email": "group.b@example.gov",
+                "name": "Phase 3 Parity — Group Member B"
+              }
+            ],
+            "generationKey": "group:e3000000-0000-4000-8000-000000150002"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.missingEmail",
+        "id": "e3000000-0000-4000-8000-00000010000d",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Recipient with no usable address",
+        "subject": "Phase 3 Parity — missing email subject",
+        "body": "Phase 3 Parity — missing email body text.",
+        "recipients": [
+          {
+            "id": "e3000000-0000-4000-8000-000000070003",
+            "name": "Phase 3 Parity — Quinn Noaddress",
+            "office": "Phase 3 Parity — Agency Program Office",
+            "generationKey": "individual:e3000000-0000-4000-8000-000000070003"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      },
+      {
+        "key": "outreach.withAttachment",
+        "id": "e3000000-0000-4000-8000-00000010000e",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Campaign carrying existing attachment metadata",
+        "subject": "Phase 3 Parity — attachment metadata subject",
+        "body": "Phase 3 Parity — attachment metadata body text.",
+        "recipients": [
+          {
+            "id": "jordan.staffer@example.gov",
+            "name": "Phase 3 Parity — Jordan Staffer",
+            "email": "jordan.staffer@example.gov",
+            "generationKey": "individual:jordan.staffer@example.gov"
+          }
+        ],
+        "lastStep": 6,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": [
+          "attachment.outreach"
+        ]
+      },
+      {
+        "key": "outreach.nullableClient",
+        "id": "e3000000-0000-4000-8000-00000010000f",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "meetingKey": null,
+        "createdByUserKey": "actor.admin",
+        "type": "outbound_campaign",
+        "status": "draft",
+        "title": "Phase 3 Parity — Firm campaign with no client association",
+        "subject": "Phase 3 Parity — no client association subject",
+        "body": "Phase 3 Parity — no client association body text.",
+        "recipients": [
+          {
+            "id": "robin.member@example.gov",
+            "name": "Phase 3 Parity — Robin Member",
+            "email": "robin.member@example.gov",
+            "generationKey": "individual:robin.member@example.gov"
+          }
+        ],
+        "lastStep": 5,
+        "sentAt": null,
+        "openedInEmailAt": null,
+        "attachmentKeys": []
+      }
+    ],
+    "draftArtifacts": [
+      {
+        "key": "artifact.sent",
+        "id": "e3000000-0000-4000-8000-000000110001",
+        "tenantKey": "tenant.primary",
+        "outreachRecordKey": "outreach.sent",
+        "generationKey": "individual:jordan.staffer@example.gov",
+        "recipientKey": "jordan.staffer@example.gov",
+        "audienceKind": "individual",
+        "createdByUserKey": "actor.admin",
+        "currentVersion": 2
+      },
+      {
+        "key": "artifact.held",
+        "id": "e3000000-0000-4000-8000-000000110002",
+        "tenantKey": "tenant.primary",
+        "outreachRecordKey": "outreach.failed",
+        "generationKey": "individual:robin.member@example.gov",
+        "recipientKey": "robin.member@example.gov",
+        "audienceKind": "individual",
+        "createdByUserKey": "actor.admin",
+        "currentVersion": 1
+      },
+      {
+        "key": "artifact.deliveryUnknown",
+        "id": "e3000000-0000-4000-8000-000000110003",
+        "tenantKey": "tenant.primary",
+        "outreachRecordKey": "outreach.deliveryUnknown",
+        "generationKey": "individual:group.a@example.gov",
+        "recipientKey": "group.a@example.gov",
+        "audienceKind": "individual",
+        "createdByUserKey": "actor.admin",
+        "currentVersion": 1
+      }
+    ],
+    "draftVersions": [
+      {
+        "key": "version.sentV1",
+        "id": "e3000000-0000-4000-8000-000000120001",
+        "tenantKey": "tenant.primary",
+        "artifactKey": "artifact.sent",
+        "version": 1,
+        "subject": "Phase 3 Parity — sent draft v1 subject",
+        "body": "Phase 3 Parity — sent draft v1 body.",
+        "generationStatus": "generated",
+        "auditStatus": "passed",
+        "approvalStatus": "approved",
+        "auditDecision": "allow",
+        "provider": "fixture-no-provider",
+        "model": "fixture-no-model",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "version.sentV2",
+        "id": "e3000000-0000-4000-8000-000000120002",
+        "tenantKey": "tenant.primary",
+        "artifactKey": "artifact.sent",
+        "version": 2,
+        "subject": "Phase 3 Parity — sent draft v2 subject",
+        "body": "Phase 3 Parity — sent draft v2 body.",
+        "generationStatus": "manually_authored",
+        "auditStatus": "warning",
+        "approvalStatus": "approved",
+        "auditDecision": "allow_with_warning",
+        "provider": "fixture-no-provider",
+        "model": "fixture-no-model",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "version.held",
+        "id": "e3000000-0000-4000-8000-000000120003",
+        "tenantKey": "tenant.primary",
+        "artifactKey": "artifact.held",
+        "version": 1,
+        "subject": "Phase 3 Parity — held draft subject",
+        "body": "Phase 3 Parity — held draft body with an unsupported claim.",
+        "generationStatus": "generated",
+        "auditStatus": "held",
+        "approvalStatus": "pending",
+        "auditDecision": "block",
+        "provider": "fixture-no-provider",
+        "model": "fixture-no-model",
+        "createdByUserKey": "actor.admin"
+      },
+      {
+        "key": "version.deliveryUnknown",
+        "id": "e3000000-0000-4000-8000-000000120004",
+        "tenantKey": "tenant.primary",
+        "artifactKey": "artifact.deliveryUnknown",
+        "version": 1,
+        "subject": "Phase 3 Parity — unknown delivery draft subject",
+        "body": "Phase 3 Parity — unknown delivery draft body.",
+        "generationStatus": "generated",
+        "auditStatus": "passed",
+        "approvalStatus": "approved",
+        "auditDecision": "allow",
+        "provider": "fixture-no-provider",
+        "model": "fixture-no-model",
+        "createdByUserKey": "actor.admin"
+      }
+    ],
+    "sendIntents": [
+      {
+        "key": "sendIntent.deliveryUnknown",
+        "id": "e3000000-0000-4000-8000-000000130001",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.admin",
+        "outreachRecordKey": "outreach.deliveryUnknown",
+        "senderConnectionKey": "connection.microsoftConnected",
+        "requestKey": "phase3-parity-unknown-delivery",
+        "status": "partial",
+        "totals": {
+          "total": 1,
+          "pending": 0,
+          "sending": 0,
+          "sent": 0,
+          "failed": 0,
+          "unknown": 1,
+          "skipped": 0,
+          "held": 0
+        }
+      }
+    ],
+    "deliveries": [
+      {
+        "key": "delivery.unknown",
+        "id": "e3000000-0000-4000-8000-000000140001",
+        "tenantKey": "tenant.primary",
+        "sendIntentKey": "sendIntent.deliveryUnknown",
+        "draftVersionKey": "version.deliveryUnknown",
+        "generationKey": "individual:group.a@example.gov",
+        "recipientKey": "group.a@example.gov",
+        "toEmail": "group.a@example.gov",
+        "toName": "Phase 3 Parity — Group Member A",
+        "renderedSubject": "Phase 3 Parity — unknown delivery draft subject",
+        "renderedBody": "Phase 3 Parity — unknown delivery draft body.",
+        "provider": "microsoft_graph",
+        "status": "unknown",
+        "providerMessageId": null
+      }
+    ],
+    "audiences": [
+      {
+        "key": "audience.list",
+        "id": "e3000000-0000-4000-8000-000000150001",
+        "tenantKey": "tenant.primary",
+        "createdByUserKey": "actor.admin",
+        "kind": "list",
+        "name": "Phase 3 Parity — Saved list audience",
+        "status": "active"
+      },
+      {
+        "key": "audience.group",
+        "id": "e3000000-0000-4000-8000-000000150002",
+        "tenantKey": "tenant.primary",
+        "createdByUserKey": "actor.admin",
+        "kind": "group",
+        "name": "Phase 3 Parity — Saved group audience",
+        "status": "active"
+      }
+    ],
+    "audienceMembers": [
+      {
+        "key": "audienceMember.1",
+        "id": "e3000000-0000-4000-8000-000000160001",
+        "tenantKey": "tenant.primary",
+        "audienceKey": "audience.list",
+        "source": "manual",
+        "name": "Phase 3 Parity — Jordan Staffer",
+        "email": "jordan.staffer@example.gov",
+        "office": "Phase 3 Parity — Fixture office"
+      },
+      {
+        "key": "audienceMember.2",
+        "id": "e3000000-0000-4000-8000-000000160002",
+        "tenantKey": "tenant.primary",
+        "audienceKey": "audience.list",
+        "source": "manual",
+        "name": "Phase 3 Parity — Robin Member",
+        "email": "robin.member@example.gov",
+        "office": "Phase 3 Parity — Fixture office"
+      },
+      {
+        "key": "audienceMember.3",
+        "id": "e3000000-0000-4000-8000-000000160003",
+        "tenantKey": "tenant.primary",
+        "audienceKey": "audience.group",
+        "source": "manual",
+        "name": "Phase 3 Parity — Group Member A",
+        "email": "group.a@example.gov",
+        "office": "Phase 3 Parity — Fixture office"
+      },
+      {
+        "key": "audienceMember.4",
+        "id": "e3000000-0000-4000-8000-000000160004",
+        "tenantKey": "tenant.primary",
+        "audienceKey": "audience.group",
+        "source": "manual",
+        "name": "Phase 3 Parity — Group Member B",
+        "email": "group.b@example.gov",
+        "office": "Phase 3 Parity — Fixture office"
+      }
+    ],
+    "templates": [
+      {
+        "key": "template.outbound",
+        "id": "e3000000-0000-4000-8000-000000170001",
+        "tenantKey": "tenant.primary",
+        "createdByUserKey": "actor.admin",
+        "type": "outbound_campaign",
+        "name": "Phase 3 Parity — Saved outbound template",
+        "subject": "Phase 3 Parity — template subject",
+        "body": "Phase 3 Parity — template body text."
+      }
+    ],
+    "aiTemplates": [
+      {
+        "key": "aiTemplate.general",
+        "id": "e3000000-0000-4000-8000-000000180001",
+        "tenantKey": "tenant.primary",
+        "userKey": "actor.admin",
+        "name": "Phase 3 Parity — Saved AI template",
+        "category": "general",
+        "prompt": "Phase 3 Parity — fixture prompt text; never sent to a provider in Phase 3."
+      }
+    ],
+    "reportTargets": [
+      {
+        "key": "reportTarget.autoAlpha",
+        "id": "e3000000-0000-4000-8000-000000190001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "scopeKeyFrom": "clientId",
+        "officeKey": "phase3-hasc-majority",
+        "memberPrincipal": "Phase 3 Parity — Member principal 1",
+        "committee": "Phase 3 Parity — Committee 1",
+        "staffer": "Phase 3 Parity — Staffer 1",
+        "building": "Phase 3 Parity — Building 1",
+        "leadOwner": "Phase 3 Parity — Lead owner 1",
+        "prepStatus": "auto",
+        "outreachStatus": "auto",
+        "submissionStatus": "auto",
+        "source": "manual"
+      },
+      {
+        "key": "reportTarget.manualOverrideAlpha",
+        "id": "e3000000-0000-4000-8000-000000190002",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "scopeKeyFrom": "clientId",
+        "officeKey": "phase3-hasc-minority",
+        "memberPrincipal": "Phase 3 Parity — Member principal 2",
+        "committee": "Phase 3 Parity — Committee 2",
+        "staffer": "Phase 3 Parity — Staffer 2",
+        "building": "Phase 3 Parity — Building 2",
+        "leadOwner": "Phase 3 Parity — Lead owner 2",
+        "prepStatus": "complete",
+        "outreachStatus": "in_progress",
+        "submissionStatus": "complete",
+        "source": "manual"
+      },
+      {
+        "key": "reportTarget.notStartedAlpha",
+        "id": "e3000000-0000-4000-8000-000000190003",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "scopeKeyFrom": "clientId",
+        "officeKey": "phase3-sac-d",
+        "memberPrincipal": "Phase 3 Parity — Member principal 3",
+        "committee": "Phase 3 Parity — Committee 3",
+        "staffer": "Phase 3 Parity — Staffer 3",
+        "building": "Phase 3 Parity — Building 3",
+        "leadOwner": "Phase 3 Parity — Lead owner 3",
+        "prepStatus": "not_started",
+        "outreachStatus": "not_started",
+        "submissionStatus": "not_started",
+        "source": "manual"
+      },
+      {
+        "key": "reportTarget.beta",
+        "id": "e3000000-0000-4000-8000-000000190004",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.beta",
+        "scopeKeyFrom": "clientId",
+        "officeKey": "phase3-hac-d",
+        "memberPrincipal": "Phase 3 Parity — Member principal 4",
+        "committee": "Phase 3 Parity — Committee 4",
+        "staffer": "Phase 3 Parity — Staffer 4",
+        "building": "Phase 3 Parity — Building 4",
+        "leadOwner": "Phase 3 Parity — Lead owner 4",
+        "prepStatus": "in_progress",
+        "outreachStatus": "complete",
+        "submissionStatus": "not_started",
+        "source": "manual"
+      },
+      {
+        "key": "reportTarget.scopeAll",
+        "id": "e3000000-0000-4000-8000-000000190005",
+        "tenantKey": "tenant.primary",
+        "clientKey": null,
+        "scopeKeyFrom": "all",
+        "officeKey": "phase3-firm-wide",
+        "memberPrincipal": "Phase 3 Parity — Member principal 5",
+        "committee": "Phase 3 Parity — Committee 5",
+        "staffer": "Phase 3 Parity — Staffer 5",
+        "building": "Phase 3 Parity — Building 5",
+        "leadOwner": "Phase 3 Parity — Lead owner 5",
+        "prepStatus": "auto",
+        "outreachStatus": "auto",
+        "submissionStatus": "auto",
+        "source": "manual"
+      }
+    ],
+    "connections": [
+      {
+        "key": "connection.microsoftConnected",
+        "tenantKey": "tenant.primary",
+        "provider": "microsoft_365",
+        "accountEmail": "phase3-mailbox@example.invalid",
+        "displayName": "Phase 3 Parity — Microsoft mailbox, connected",
+        "status": "connected",
+        "scopes": [
+          "Mail.Read",
+          "Calendars.Read"
+        ],
+        "lastSyncAt": {
+          "kind": "anchorOffset",
+          "minutes": -90
+        },
+        "lastError": null,
+        "syncState": {
+          "phase3Fixture": true,
+          "subscription": {
+            "id": "phase3-parity-subscription-not-real",
+            "resource": "users/phase3-mailbox@example.invalid/mailFolders('Inbox')/messages",
+            "expirationOffsetMinutes": 4320,
+            "providerCallMade": false
+          },
+          "calendarWindowDays": 30
+        },
+        "id": "e3000000-0000-4000-8000-0000001a0001"
+      },
+      {
+        "key": "connection.googleConnected",
+        "tenantKey": "tenant.primary",
+        "provider": "google_workspace",
+        "accountEmail": "phase3-google@example.invalid",
+        "displayName": "Phase 3 Parity — Google mailbox, connected",
+        "status": "connected",
+        "scopes": [
+          "gmail.readonly",
+          "calendar.readonly"
+        ],
+        "lastSyncAt": {
+          "kind": "anchorOffset",
+          "minutes": -120
+        },
+        "lastError": null,
+        "syncState": {
+          "phase3Fixture": true,
+          "historyId": "phase3-parity-history-not-real"
+        },
+        "id": "e3000000-0000-4000-8000-0000001a0002"
+      },
+      {
+        "key": "connection.disconnected",
+        "tenantKey": "tenant.primary",
+        "provider": "microsoft_365",
+        "accountEmail": "phase3-disconnected@example.invalid",
+        "displayName": "Phase 3 Parity — Microsoft mailbox, disconnected",
+        "status": "disabled",
+        "scopes": [],
+        "lastSyncAt": null,
+        "lastError": null,
+        "syncState": {
+          "phase3Fixture": true
+        },
+        "id": "e3000000-0000-4000-8000-0000001a0003"
+      },
+      {
+        "key": "connection.expiredError",
+        "tenantKey": "tenant.primary",
+        "provider": "google_workspace",
+        "accountEmail": "phase3-expired@example.invalid",
+        "displayName": "Phase 3 Parity — Google mailbox, expired credential",
+        "status": "error",
+        "scopes": [
+          "gmail.readonly"
+        ],
+        "lastSyncAt": {
+          "kind": "anchorOffset",
+          "minutes": -43200
+        },
+        "lastError": "fixture: refresh token expired; reconnect required",
+        "syncState": {
+          "phase3Fixture": true
+        },
+        "id": "e3000000-0000-4000-8000-0000001a0004"
+      }
+    ],
+    "absentIds": [
+      {
+        "key": "absent.meeting",
+        "id": "e3000000-0000-4000-8000-0000001f0001",
+        "expectation": "A well-formed meeting id that no row uses. Deep-linking it must render the current not-found state identically in both modes — the \"deleted meeting\" half of the plan's inaccessible/deleted requirement, which cannot be produced by inserting a row."
+      },
+      {
+        "key": "absent.outreachRecord",
+        "id": "e3000000-0000-4000-8000-0000001f0002",
+        "expectation": "A well-formed outreach record id that no row uses; must 404 in both modes."
+      },
+      {
+        "key": "absent.connection",
+        "id": "e3000000-0000-4000-8000-0000001f0003",
+        "expectation": "A well-formed integration connection id that no row uses; every action against it must deny without revealing whether it exists."
+      }
+    ]
+  }
+}
