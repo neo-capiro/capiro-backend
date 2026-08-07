@@ -117,7 +117,9 @@ export const SURFACES = [
     id: 'client-profile',
     title: 'Client profile attachments and engagement widgets',
     owner: 'cross-surface',
-    spaRoutes: ['/clients/:clientId'],
+    // ClientWorkspacePage owns one /clients route. A selected profile is a
+    // query-driven deep link, not a nonexistent /clients/:clientId path.
+    spaRoutes: ['/clients?clientId=:clientId'],
     files: [
       'apps/web/src/pages/clients/ClientProfilePage.tsx',
       'apps/web/src/pages/clients/CapabilityDrawer.tsx',
