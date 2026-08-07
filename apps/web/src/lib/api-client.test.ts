@@ -6,7 +6,10 @@ import {
   clearEngagementPreview,
   ENGAGEMENT_PREVIEW_STORAGE_KEY,
 } from './engagement-api-preview.js';
-import { ENGAGEMENT_PREVIEW_ROUTE_MISS } from './engagement-preview-errors.js';
+import {
+  ENGAGEMENT_PREVIEW_ROUTE_MISS,
+  ENGAGEMENT_PREVIEW_STALE_RESPONSE,
+} from './engagement-preview-errors.js';
 
 /**
  * Drive the real request interceptor by swapping in an adapter that captures
@@ -82,9 +85,10 @@ describe('isGenerationUrl', () => {
 });
 
 /**
- * Phase 3 (3.3+3.4): the preview header is attached in the SAME interceptor
- * that owns the generation timeout, Clerk bearer and impersonation header, and
- * every marked preview response must prove `engagement-api` service identity.
+ * Phase 3 (3.3+3.4+3.9): the preview header is attached in the SAME interceptor
+ * that owns the generation timeout, Clerk bearer and impersonation header,
+ * every marked preview response must prove `engagement-api` service identity,
+ * and a response whose dispatch mode is no longer current is discarded.
  */
 describe('engagement API preview header', () => {
   beforeEach(() => {
@@ -181,7 +185,7 @@ describe('engagement API preview header', () => {
     });
   });
 
-  test('uses the dispatch-time marker when preview is toggled off in flight', async () => {
+  test('rejects a preview response when preview is toggled off in flight', async () => {
     activateEngagementPreview();
     const client = buildApiClient(async () => 'test-token');
     client.defaults.adapter = async (config) => {
@@ -196,8 +200,8 @@ describe('engagement API preview header', () => {
       };
     };
 
-    await expect(client.get('/api/engagement/meetings')).resolves.toMatchObject({
-      data: { ok: true },
+    await expect(client.get('/api/engagement/meetings')).rejects.toMatchObject({
+      code: ENGAGEMENT_PREVIEW_STALE_RESPONSE,
     });
   });
 });
