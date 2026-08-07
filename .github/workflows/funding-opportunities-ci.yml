@@ -1214,9 +1214,37 @@ jobs:
       # now, and with the documents flag off (the default, and every real
       # tenant) it says the CAPABILITY is off and explicitly that this says
       # nothing about what the solicitation requires.
+      # 75/314 after P32: one NEW file, OpportunityAssessmentPanel.test.tsx
+      # (17 tests), and no api change at all - the phase is entirely about how
+      # the detail surface behaves when part of it does not.
+      #
+      # ISOLATION. The drawer is now eight sections fed by five endpoints, four
+      # of them secondary. Before this phase a render error in ANY of them took
+      # the whole drawer with it, because React unmounts the nearest boundary
+      # and there was none - leaving a blank panel where an executive
+      # recommendation should be, with no way to tell "the recommendation is
+      # pass" from "the page broke". Every section now has its OWN boundary, and
+      # the test proves a sibling still renders when one throws. A single
+      # boundary around the whole drawer would satisfy React and defeat the
+      # purpose, so a structural test counts them. A PRIMARY failure (the
+      # assessment itself) says no conclusion follows; a SECONDARY one says the
+      # rest of the assessment stands. No stack trace or component stack reaches
+      # the page - it tells a reader nothing and may quote source content the
+      # surrounding phases treat as untrusted.
+      #
+      # PARITY, made structural. The card and the detail used to compose the
+      # recommendation label independently, which is how a card can say "Pursue"
+      # while the drawer says "Needs review" about the same row. The vocabulary
+      # now lives in exactly one table in the api mirror, and two tests enforce
+      # that: one asserts only that file declares the map, the other asserts no
+      # component declares its own.
+      #
+      # And an absent recommendation stays absent: the unscored read and a
+      # scored-but-uncomputed record get DIFFERENT sentences, and the second
+      # explicitly rules out reading it as a pass.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 70 297
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 75 314
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

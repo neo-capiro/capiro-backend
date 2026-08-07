@@ -968,6 +968,28 @@ export const INBOX_SOURCE_SHORT_LABELS: Record<InboxSource, string> = {
   agency_forecast: 'Agency forecast',
 };
 
+/**
+ * The common recommendation vocabulary as a reader sees it.
+ *
+ * Exported (P32) rather than declared privately in each renderer. The card and
+ * the detail composed these independently before, which is how a card can say
+ * "Pursue" while the drawer says "Needs review" about the same row — a parity
+ * problem that stops existing when there is one table.
+ */
+export const RECOMMENDATION_LABELS: Record<MachineRecommendation, string> = {
+  pursue: 'Pursue',
+  monitor: 'Monitor',
+  pass: 'Pass',
+  needs_review: 'Needs review',
+};
+
+export const RECOMMENDATION_COLORS: Record<MachineRecommendation, string> = {
+  pursue: 'green',
+  monitor: 'blue',
+  pass: 'default',
+  needs_review: 'orange',
+};
+
 export const ELIGIBILITY_LABELS: Record<EligibilityState, string> = {
   eligible: 'Eligible',
   ineligible: 'Not eligible',
