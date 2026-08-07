@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   db-free:
@@ -30,6 +31,20 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Publish pending commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d "$(jq -nc --arg target_url "$TARGET_URL" '{state:"pending",context:"engagement-phase3/db-free",description:"Phase 3 DB-free verifier is running",target_url:$target_url}')"
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
@@ -43,10 +58,37 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @capiro/api exec prisma generate
 
-      - name: Phase 3 permanent DB-free verifier
-        run: pnpm verify:engagement-phase-3
-
-      - name: Diff hygiene
+      - name: Phase 3 permanent DB-free verifier and diff hygiene
+        id: phase3_gate
+        continue-on-error: true
         run: |
+          set -o pipefail
+          pnpm verify:engagement-phase-3
           git diff --check
-          git status --short
+          test -z "$(git status --short)"
+
+      - name: Publish final commit status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PHASE3_OUTCOME: ${{ steps.phase3_gate.outcome }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$PHASE3_OUTCOME" = "success" ]; then
+            STATE=success
+            DESCRIPTION="Phase 3 DB-free verifier passed"
+          else
+            STATE=failure
+            DESCRIPTION="Phase 3 DB-free verifier failed"
+          fi
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -d "$(jq -nc --arg state "$STATE" --arg description "$DESCRIPTION" --arg target_url "$TARGET_URL" '{state:$state,context:"engagement-phase3/db-free",description:$description,target_url:$target_url}')"
+
+      - name: Fail workflow when Phase 3 gate failed
+        if: steps.phase3_gate.outcome != 'success'
+        run: exit 1
