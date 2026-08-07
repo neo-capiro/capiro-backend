@@ -3,7 +3,7 @@
   //
   // The base tsconfig excludes `scripts/`, so these acceptance scripts would
   // otherwise be unchecked. Keep the fixture seed, runtime auth binder,
-  // fixture-aware full read sweep, external-action DB-invariant verifier,
+  // fixture-aware full read sweep, complete external-action containment scope,
   // safe-write interoperability proof, and auth/tenant/wall parity verifier in
   // one narrow project so schema drift is caught even while F-003 short-circuits
   // the broad apps/api typecheck.
@@ -19,6 +19,8 @@
     "scripts/seed-engagement-phase3-parity-fixtures.spec.ts",
     "scripts/engagement-phase3-read-materialization.ts",
     "scripts/engagement-phase3-read-materialization.spec.ts",
+    "scripts/engagement-phase3-containment-tables.ts",
+    "scripts/engagement-phase3-containment-tables.spec.ts",
     "scripts/bind-engagement-phase3-auth-fixtures.ts",
     "scripts/engagement-phase3-full-read-parity.ts",
     "scripts/engagement-phase3-external-denial.ts",
