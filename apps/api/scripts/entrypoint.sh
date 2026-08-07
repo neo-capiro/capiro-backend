@@ -46,6 +46,34 @@ case "${1:-serve}" in
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"
     exec node ./node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma
     ;;
+  migrate-resolve-rolled-back)
+    shift
+    if [ -z "${1:-}" ]; then
+      echo "Usage: migrate-resolve-rolled-back <migration_name>" >&2
+      exit 1
+    fi
+    compose_database_url
+    # Controlled recovery only -- docs/runbooks/prisma-failed-migration-recovery.md
+    # requires a ticket, an operator, and a separate approver before this runs
+    # against a real environment. Never invoked by any automated path; the failed
+    # migration's DDL/DML must already be verified absent (this command records
+    # that fact in Prisma's own ledger, it does not itself reverse anything).
+    echo "Running prisma migrate resolve --rolled-back $1 (controlled recovery, see runbook)"
+    exec node ./node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --rolled-back "$1"
+    ;;
+  migrate-resolve-applied)
+    shift
+    if [ -z "${1:-}" ]; then
+      echo "Usage: migrate-resolve-applied <migration_name>" >&2
+      exit 1
+    fi
+    compose_database_url
+    # Same controlled-recovery gate as migrate-resolve-rolled-back above, for the
+    # case where every statement and postcondition was independently verified
+    # present rather than absent.
+    echo "Running prisma migrate resolve --applied $1 (controlled recovery, see runbook)"
+    exec node ./node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --applied "$1"
+    ;;
   migrate)
     compose_database_url
     echo "Running prisma migrate deploy (failed migration history is never auto-resolved)"
