@@ -353,6 +353,70 @@ time `sync-tango-entities` observes a real content change for that client's
 UEI (P15's versioned-head policy: an unchanged re-observation writes
 nothing new).
 
+### Relevant vehicles and past-performance sync (P22) — a migration, and a pagination fix that reaches every prior list sync
+
+`prisma/migrations/20260824010000_client_relevant_vehicle` adds a NEW
+tenant-scoped, RLS-enabled table — a MATERIALIZED current summary (self or
+parent relationship, order count, IDV obligations/value), not a versioned
+history; P15's `tango_resource_snapshot` still carries the full versioned
+raw record for both the vehicle and the matching awardee. Apply it in the
+normal migration step (§4/§86 below) — additive, no existing table touched.
+
+`scripts/sync-tango-vehicles.ts` is declared `enabled: false` in
+`ingestion-schedule.ts` (id `SyncTangoVehicles`) pending canary, same
+posture as every other job in that file. It walks EVERY vehicle and every
+awardee on it — there is no UEI filter on the provider's list endpoints —
+but only writes a row for an awardee matching a UEI Capiro already knows;
+the overwhelming majority are read, checked, and discarded.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the sync has run at least once.
+SELECT relationship, count(*) FROM client_relevant_vehicle GROUP BY 1;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Add --commit only after reviewing the summary.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-vehicles.ts --limit=10
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-vehicles.ts --commit --limit=50
+```
+
+Expect `errored: 0` on a healthy run and `completeness: 'complete'` only
+once `cursor`/`ceilingReached` genuinely say no vehicles remain — a
+`--limit` short of the full ~20k-vehicle catalog correctly reports
+`'in_progress'` instead (decision-log D-43 fixed a real bug where hitting
+the limit mid-page used to under-report this). `vehiclesRelevant: 0` on a
+low-`--limit` run against real data is normal, not a failure signal — most
+vehicles belong to no Capiro client, and a small page of the ~20,709 total
+is unlikely to contain one by chance.
+
+**Read this before touching pagination anywhere else in the Tango
+integration.** This phase's live-key run found that EVERY list endpoint
+this gateway calls (`listEntities`, `listOpportunities`, `listNotices`,
+`listForecasts`, `listVehicles`, `listVehicleAwardees`) is page-number
+pagination server-side, never cursor-based — the SDK's own `.cursor` field
+is unconditionally `null` for all six, by its own documented behavior
+(decision-log D-42). The fix lives entirely in `tango.client.ts`'s shared
+`page()` helper, so it silently repairs pagination for every sync that
+walks a list endpoint, past and future — no other file needed to change.
+Confirmed NOT to have affected already-merged work: P17's probe never reads
+`nextCursor`, and P19's entity sync paginates over Capiro's own `clients`
+table via a real Prisma keyset cursor, never calling `listEntities` at all.
+P24's forecast sync (`listForecasts`) would have hit the identical wall had
+this shipped first.
+
+Also fixed this phase (decision-log D-41): the vehicle-awardee `recipient`
+expansion has no parent/owner UEI field on the live server under any
+name — confirmed by reading its own `available_fields` payload, not a
+naming guess. `recipientParentUei` is therefore always `null` today; the
+`relationship = 'parent'` code path is real and tested but not currently
+reachable with live data. A future SDK release reaching per-awardee owner
+data (or the provider adding the field) is the only thing that changes
+that — re-adding `parent_uei` to the shape without re-confirming server
+support first will reproduce the original `unknown_field` failure.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

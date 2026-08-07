@@ -411,7 +411,11 @@ export function mapVehicleAwardee(
     // identifier, and matching on one is the fuzzy identity P02 removed from the
     // award-history rail.
     recipientUei: str(recipient.uei),
-    recipientParentUei: str(recipient.parent_uei),
+    // Always null: this endpoint's `recipient` expansion has no parent/owner
+    // UEI field at all (confirmed live, P22, decision-log D-41) — not an
+    // absent value to recover with a fallback. See VEHICLE_AWARDEE_FIELDS's
+    // own doc before assuming a different field name fixes this.
+    recipientParentUei: null,
     recipientName: str(recipient.display_name ?? recipient.legal_business_name),
   };
 }

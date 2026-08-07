@@ -572,6 +572,21 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: propose client profile enrichment candidates from Tango snapshots (daily 12:25 UTC)',
     enabled: false,
   },
+  // Funding Opportunities P22: relevant vehicles and past-performance sync.
+  // Walks every Tango vehicle/awardee, persisting only a match against a
+  // UEI Capiro already knows (self or parent) — see the migration's own
+  // header for why this is the right scope for "relevant". Declared
+  // disabled pending the real-key live run's canary, same posture as every
+  // other Funding Opportunities job in this block.
+  {
+    id: 'SyncTangoVehicles',
+    command: ['sync-tango-vehicles', '--commit'],
+    cron: { minute: '40', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: relevant vehicles and past-performance sync into client_relevant_vehicle (daily 12:40 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

@@ -323,6 +323,42 @@ export class TangoGatewayService implements TangoGateway {
     }
   }
 
+  /**
+   * Decode Capiro's own opaque list cursor into a 1-based page number.
+   *
+   * `TangoListOptions.cursor` is documented, everywhere it is used, as
+   * OPAQUE — pass it back verbatim, never construct or parse one. This
+   * function is the one deliberate exception, because `page()` below is also
+   * the one place that gets to know what is actually inside it. Nothing
+   * outside this file ever parses a cursor value.
+   *
+   * ── Why a page number, and not the SDK's own `.cursor` ──────────────────
+   *
+   * Every list endpoint this gateway calls — `/api/entities/`,
+   * `/api/opportunities/`, `/api/notices/`, `/api/forecasts/`,
+   * `/api/vehicles/`, `/api/vehicles/{uuid}/awardees/` — turned out, on
+   * reading a live `next` URL directly, to be Django REST Framework
+   * PAGE-NUMBER pagination server-side (`.../api/vehicles/?limit=3&page=2`),
+   * never `?cursor=...` (P22 finding, decision-log D-42; same family as
+   * D-35/D-41). The SDK's own bundled `PaginatedResponse.cursor` — by its
+   * OWN doc comment in `types.d.ts` — is "extracted from `next`" and
+   * "`null` when the endpoint is page-based". Every one of the six methods
+   * above is exactly that page-based case, so trusting `.cursor` would mean
+   * `nextCursor` silently claims "last page" after page one FOREVER, no
+   * matter how much data remains (confirmed live: `/api/vehicles/` reported
+   * `count: 20709` with `cursor: null` on every page). None of the six
+   * methods even forward Capiro's cursor as `page` today — the SDK's own
+   * `listVehicles` et al. destructure a `page` option, default it to `1`
+   * when absent, and silently fold an unrecognized `cursor` key into a
+   * useless stray query parameter — so without this, every run re-fetches
+   * page one, endlessly.
+   */
+  private parsePageCursor(cursor: string | null | undefined): number {
+    if (!cursor) return 1;
+    const n = Number(cursor);
+    return Number.isFinite(n) && n >= 1 ? Math.trunc(n) : 1;
+  }
+
   /** One page of a list endpoint, mapped and normalized. */
   private async page<TDomain>(
     operation: string,
@@ -330,14 +366,15 @@ export class TangoGatewayService implements TangoGateway {
     map: (raw: Record<string, unknown>, fetchedAt: string) => TDomain | null,
     run: (
       c: SdkClient,
-      base: { limit: number; cursor?: string | null },
-    ) => Promise<{ results: Array<Record<string, unknown>>; count: number; cursor: string | null }>,
+      base: { limit: number; page: number },
+    ) => Promise<{ results: Array<Record<string, unknown>>; count: number; next?: string | null }>,
     options: TangoListOptions,
   ): Promise<TangoPage<TDomain>> {
     const fetchedAt = new Date().toISOString();
+    const pageNumber = this.parsePageCursor(options.cursor);
     const base = {
       limit: this.clampLimit(options.limit),
-      ...(options.cursor ? { cursor: options.cursor } : {}),
+      page: pageNumber,
     };
     const response = await this.call(operation, (c) => run(c, base));
     const items: TDomain[] = [];
@@ -357,7 +394,12 @@ export class TangoGatewayService implements TangoGateway {
     return {
       items,
       totalCount: typeof response.count === 'number' ? response.count : null,
-      nextCursor: response.cursor ?? null,
+      // A non-null `next` URL is the only reliable "more data" signal for a
+      // page-based endpoint — see parsePageCursor's doc for why `.cursor`
+      // itself cannot be trusted here. The VALUE of `next` is never read;
+      // its presence/absence is the whole signal, encoded back into
+      // Capiro's own opaque page-number cursor.
+      nextCursor: response.next ? String(pageNumber + 1) : null,
       rate: this.rate,
     };
   }

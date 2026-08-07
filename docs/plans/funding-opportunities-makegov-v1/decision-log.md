@@ -1115,3 +1115,157 @@ backed unit suite is suited to prove.
 `.find((v) => v.active)`. The two happen to agree today; they are not the
 same question, and only one of them is the one this phase's name
 ("Versioned") is actually about.
+
+---
+
+## D-41 · 2026-08-07 · Vehicle-awardee parent UEI: a real provider data gap, not a naming mismatch
+
+P22's live-key run failed `listVehicleAwardees` for all 5 vehicles tested,
+identically: `{"path":"recipient.parent_uei","reason":"unknown_field"}`. This
+looked, at first glance, like the same shape of problem D-35 already solved
+(a naming mismatch between the SDK's bundled schema and the live server) —
+it is not, and confirming that required going further than a rename.
+
+A direct debug script forced the same error deliberately, to read the
+server's own `available_fields` payload for this endpoint's `recipient`
+expansion in full, rather than guessing at an alternate name. It lists
+EXACTLY five fields: `cage`, `cage_code`, `display_name`,
+`legal_business_name`, `uei`. No parent or owner UEI exists under any name
+on this expansion. This is a genuine DATA limitation, not a naming one — no
+string this adapter could request would produce it, because the server does
+not carry it here.
+
+Parent/owner data is not absent from Tango's model entirely — D-35's own
+investigation already found `immediate_owner`/`highest_owner` on `getEntity`
+— but reaching it for every awardee found on a vehicle would mean one EXTRA
+`getEntity` call per unique awardee UEI: a materially more expensive design
+than "list this vehicle's awardees", and a scope decision this phase
+deliberately does not make under time pressure.
+
+**Fix:** `parent_uei` removed from `VEHICLE_AWARDEE_FIELDS`.
+`mapVehicleAwardee` hardcodes `recipientParentUei: null`.
+`TangoVehicleAwardee.recipientParentUei`'s doc comment records that it is
+always null as of this SDK/live-API version and why. The `relationship ===
+'parent'` branch in `sync-tango-vehicles.ts` stays — tested, not deleted —
+because the LOGIC is correct and the gap is the provider's current data
+model, not this sync's design; deleting it would silently lose "you are on
+this vehicle" vs. "your parent is" the moment the provider (or a future SDK
+reaching `getEntity`'s owner expansions per-awardee) adds the data back.
+Re-running the live sync after the fix confirmed `errored: 0` across all 10
+vehicles tested, proving the fix — not just the theory — resolved the actual
+integration.
+
+**What this forbids:** re-adding `parent_uei` (or any other name) to
+`VEHICLE_AWARDEE_FIELDS` without first re-confirming, live, that the
+server's `available_fields` list for this specific expansion has changed.
+Reaching parent/owner data for awardees via a per-UEI `getEntity` call is a
+real, available design — but a deliberate, separately-scoped one, not a
+silent addition to this sync's request-per-vehicle cost.
+
+---
+
+## D-42 · 2026-08-07 · Every list endpoint is page-number pagination; the SDK's own `.cursor` is unconditionally null for all of them
+
+Re-verifying P22's D-41 fix live (`--limit=10`, dry run) surfaced a second,
+larger problem: the summary reported `completeness: 'complete'` despite the
+server's own `count` field reading 20,709 vehicles. Only 10 had been seen.
+
+A raw debug script (bypassing `materializeList`, reading `client.http.get`'s
+response directly) showed why: `/api/vehicles/`'s `next` field is
+`"https://tango.makegov.com/api/vehicles/?limit=3&page=2"` — Django REST
+Framework PAGE-NUMBER pagination, never `?cursor=...`. Calling `page=1` and
+`page=2` explicitly confirmed the parameter genuinely works — the two calls
+returned different vehicles. The SDK's own bundled
+`buildPaginatedResponse`, read directly in `client.js`, computes its
+`.cursor` field by parsing a `cursor` QUERY PARAMETER out of `next`
+(`extractCursorFromUrl`) — which this `next` URL never has. Confirmed a
+third way, independent of both the live call and the JS source: the SDK's
+own `types.d.ts` documents `PaginatedResponse.cursor` as "`null` when the
+endpoint is page-based" — its authors already knew this distinction exists.
+Every one of the six list methods this gateway calls (`listEntities`,
+`listOpportunities`, `listNotices`, `listForecasts`, `listVehicles`,
+`listVehicleAwardees`) extends `ListOptionsBase` (`page?: number`, no
+`cursor` field at all) — all six are the page-based case, unconditionally.
+Only `/api/contracts/` (a method this gateway does not call) is documented
+by the SDK as the cursor-based exception.
+
+Net: `tango.client.ts`'s `page()` helper had been reading
+`response.cursor ?? null` since P14 and getting `null` back from every one
+of these six endpoints on every call, independent of whether more data
+remained. `TangoPage.nextCursor`'s own doc — "OPAQUE... null means this is
+the last page" — was therefore false every time it returned null after page
+one. Checked whether this reached already-merged phases: P17's capability
+probe never reads `nextCursor` (confirmed by grep — a one-shot-per-resource
+probe has no reason to). P19's entity sync paginates over Capiro's OWN
+`client` table via a genuine Prisma keyset cursor (`cursor: { id }, skip:
+1`) and calls single-record `getEntity` per row — it never calls
+`listEntities` at all, so it never touched this path. Only P22 (its own
+`listVehicles`/`listVehicleAwardees` walks) is actually affected among
+current work; P24's forecast sync would have hit the identical wall.
+
+**Fix, entirely inside `tango.client.ts`'s shared `page()` helper — no
+changes needed to any of the six call sites, or to any consumer.**
+Capiro's own cursor stays exactly as opaque to every caller as its doc
+already promised; `page()` is now the one place allowed to know what's
+inside it. `parsePageCursor` decodes it back into a 1-based page number
+(garbage or absent both mean page 1), sent to the SDK as `{ page, limit }`
+instead of a stray, silently-ignored `{ cursor }`. `nextCursor` is derived
+from the raw `next` field's presence — non-null means another page exists,
+regardless of what the SDK's own `.cursor` says — encoded back out as
+`String(page + 1)`. `entity-page.json`'s fixture (previously hand-authored
+with an invented `?cursor=...` URL that no live response actually produces)
+now carries a realistic `?page=2` `next` URL and a `cursor: null` matching
+what the real SDK computes for it. `tango.client.spec.ts` gained tests
+proving the page number round-trips through the query string, that a
+missing/blank/garbage cursor all mean page 1, and that `nextCursor` is null
+exactly when the provider's `next` is null — not when the SDK's `.cursor`
+happens to be.
+
+**What this forbids:** trusting the SDK's `PaginatedResponse.cursor` field
+anywhere in this codebase without first checking, for that SPECIFIC
+endpoint, whether its own doc comment's "page-based" carve-out applies —
+and re-adding any direct `cursor` pass-through to a `c.list*()` call without
+routing it through `parsePageCursor` first.
+
+---
+
+## D-43 · 2026-08-07 · A page fetched larger than what --limit leaves room for hid a resumability bug
+
+While first building P22's vehicle walk, `--limit=2` against a single staged
+page of 3 vehicles left `vehiclesProcessed` correct (2) but `completeness`
+wrong (`'complete'`, when a 3rd vehicle plainly still existed). The cause:
+`listVehicles` was requested with a flat `vehicleBatchSize` (default 25)
+regardless of how much of `options.limit` remained. When the limit landed
+mid-page, the inner loop's `break outer` — needed to stop enumerating a page
+that came back bigger than what this run should consume — jumped past
+`cursor = page.nextCursor` and the checkpoint write immediately below it.
+`cursor` was left at its pre-page value (`null`, on a first-page stop), so
+the final `ceilingReached || cursor != null ? 'in_progress' : 'complete'`
+computed the wrong half of that ternary. A resumed run would have restarted
+from scratch, silently re-walking vehicles already seen rather than
+continuing — the entire point of a checkpoint, defeated by the one case
+that most needs it (a run deliberately capped short of the full walk).
+
+The existing test that exercised this exact scenario
+(`vehiclesProcessed respects the limit, even mid-page`) had not caught it
+because its fake `listVehicles` ignored the `limit` argument entirely and
+always returned the full staged page — a fidelity gap in the fake, since a
+real gateway (confirmed by D-42's own investigation into `clampLimit`/
+`ListOptionsBase.limit`) never returns more than asked.
+
+**Fix:** the outer loop now requests `Math.min(vehicleBatchSize, remaining)`
+— never more than what this run could still consume — exactly the
+discipline `sync-tango-entities.ts` already established in P19
+(`Math.min(batchSize, remaining)`). With the page itself capped, the inner
+loop can no longer need a mid-page `break outer` for the limit case at all;
+that branch now exists only for `TangoRequestCeilingExceededError`, a
+genuinely different, provider-forced early exit. The test fake was
+corrected to truncate-and-synthesize-a-cursor when asked for fewer items
+than staged — matching a real gateway's behavior — and the regression test
+now asserts `completeness`, the actual persisted checkpoint's cursor, and
+the exact `limit` sent to the gateway, not just the processed count.
+
+**What this forbids:** any paginated walk in this codebase requesting a
+"full" page size independent of how much of an overall `--limit` remains,
+and any test fake for a paginated gateway method that silently ignores the
+`limit` it was called with.

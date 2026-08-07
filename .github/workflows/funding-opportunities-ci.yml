@@ -430,6 +430,7 @@ jobs:
           scripts/generate-tango-enrichment-candidates.spec.ts
           scripts/review-tango-enrichment-candidate.spec.ts
           scripts/diag-federal-business-profile.spec.ts
+          scripts/sync-tango-vehicles.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -551,9 +552,40 @@ jobs:
       # diag-federal-business-profile.spec.ts (2 tests) covers its CLI flag
       # parsing. This is P15's getSnapshotHistory's first real caller.
       #
+      # 45/1381 after P22: one NEW suite, sync-tango-vehicles.spec.ts (14
+      # tests) — pagination (multi-page vehicles AND multi-page awardees
+      # within one vehicle), self vs. parent relationship matching, the same
+      # awardee matching multiple known clients across tenants, dry-run still
+      # walking Tango but writing nothing, a generic per-vehicle error
+      # counted-and-continued vs. a request-ceiling error stopping the WHOLE
+      # sync uncounted, and a regression test for a real bug this phase found
+      # in itself: hitting --limit mid-page used to skip the cursor/checkpoint
+      # update entirely and wrongly report `completeness: 'complete'` with
+      # more data left unfetched (fixed by capping the requested page size to
+      # what's actually left, matching sync-tango-entities.ts's P19
+      # discipline). tango.client.spec.ts grew by TWO (+2, from 89 to 91) from
+      # a second, larger real finding the same live run surfaced (decision-
+      # log D-42): every list endpoint this gateway calls — entities,
+      # opportunities, notices, forecasts, vehicles, vehicle-awardees — turned
+      # out to be Django REST Framework PAGE-NUMBER pagination server-side
+      # (`next` carries `?page=N`), never cursor-based, confirmed by reading a
+      # live `next` URL directly. The SDK's own `.cursor` field — by its OWN
+      # doc comment — is "null when the endpoint is page-based", which is
+      # every endpoint this gateway uses; trusting it meant `nextCursor`
+      # silently claimed "last page" after page one FOREVER, no matter how
+      # much data remained (live-confirmed: /api/vehicles/ reported `count:
+      # 20709` with the SDK's cursor already null on page one). tango.client
+      # .ts's page() now decodes Capiro's own opaque cursor as a 1-based page
+      # number and derives "more data" from `next`'s presence instead — a
+      # fix entirely inside that one shared helper, so every current and
+      # future list-based sync benefits without its own code changing. P19's
+      # entity sync was checked and is NOT affected: it paginates over
+      # Capiro's own `client` table via a real Prisma keyset cursor and calls
+      # single-record `getEntity` per row, never `listEntities`.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 44 1365
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 45 1381
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
