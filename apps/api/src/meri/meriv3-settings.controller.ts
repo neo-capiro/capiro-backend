@@ -1,4 +1,13 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IsIn } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -7,6 +16,8 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
+import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import {
   MERIV3_REASONING_MODES,
   reasoningModeFromConversationMetadata,
@@ -26,6 +37,7 @@ export class MeriV3SettingsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly flags: MeriFeatureFlagsService,
+    private readonly managedMcp: MeriManagedMcpService,
   ) {}
 
   @Get('capabilities')
@@ -43,7 +55,54 @@ export class MeriV3SettingsController {
       rawReasoningVisible: false,
       providerStateStored: false,
       defaultPresentation: 'browser_window' as const,
+      managedApps: ['hubspot', 'airtable'] as const,
     };
+  }
+
+  /** Simple end-user app list for the MeriV3 composer. */
+  @Get('apps')
+  async apps(@CurrentTenant() ctx: TenantContext) {
+    await this.assertEnabled(ctx);
+    return { apps: await this.managedMcp.listApps(ctx) };
+  }
+
+  /**
+   * Creates a PERSONAL connector and returns only the provider authorization
+   * URL. HubSpot client credentials and every MCP endpoint stay server-side.
+   */
+  @Post('apps/:appId/connect')
+  async connectApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
+    await this.assertEnabled(ctx);
+    return this.managedMcp.connect(ctx, appId);
+  }
+
+  @Post('apps/:appId/disconnect')
+  async disconnectApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
+    await this.assertEnabled(ctx);
+    return this.managedMcp.disconnect(ctx, appId);
+  }
+
+  /**
+   * V3-only tool schemas. Keeping these off `/clio/tool-schemas` prevents a
+   * connected chat app from silently appearing in Workspace, Strategy,
+   * in-editor, or MeriV2.
+   */
+  @Get('mcp-tool-schemas')
+  async managedMcpSchemas(@CurrentTenant() ctx: TenantContext) {
+    await this.assertEnabled(ctx);
+    return { schemas: await this.managedMcp.schemasForMeriV3(ctx) };
+  }
+
+  /** Isolated orchestrator execution bridge; reads only, service identity required. */
+  @Post('mcp-tools/:toolName')
+  @UseGuards(ToolServiceSecretGuard)
+  async executeManagedMcpRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('toolName') toolName: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    await this.assertEnabled(ctx);
+    return this.managedMcp.executeRead(ctx, toolName, body ?? {});
   }
 
   @Get('conversations/:conversationId/reasoning-mode')

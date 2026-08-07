@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/meriv3-openai-responses-canary
+      - agent/meriv3-managed-connectors-hubspot-airtable
     paths:
       - 'apps/api/src/meri/**'
       - 'apps/api/src/common/meriv3-*'
@@ -66,10 +67,19 @@ jobs:
           "apps/meriv2-orchestrator/src/meri/meriv3/**/*.ts"
           "apps/meriv2-orchestrator/src/meri/meri.module.ts"
           "apps/api/src/meri/meriv3*.ts"
+          "apps/api/src/meri/meri-managed-mcp*.ts"
+          "apps/api/src/meri/meri-mcp-oauth.controller.ts"
+          "apps/api/src/meri/meri.module.ts"
           "apps/api/src/common/meriv3*.ts"
           "apps/api/src/capiro-admin/meriv3*.ts"
           "apps/api/src/capiro-admin/capiro-admin.module.ts"
           "apps/api/src/users/users.controller.ts"
+          "apps/web/src/components/chat/ChatInput.tsx"
+          "apps/web/src/components/chat/ManagedComposerPlus.tsx"
+          "apps/web/src/components/chat/ManagedComposerPlus.test.tsx"
+          "apps/web/src/components/chat/managed-mcp-apps.tsx"
+          "apps/web/src/components/chat/managed-mcp-apps.test.tsx"
+          "apps/web/src/components/chat/managed-mcp-apps.css"
           "apps/web/src/components/chat/MeriOverlay.tsx"
           "apps/web/src/components/chat/MeriOverlay.test.tsx"
           "apps/web/src/components/chat/MeriWorkspaceWindow.tsx"
@@ -80,6 +90,7 @@ jobs:
           "apps/web/src/components/chat/meri-workspace-window-scope.css"
           "apps/web/src/lib/me.ts"
           "docs/plans/meriv3-thin-agent-architecture.md"
+          "docs/plans/meriv3-managed-mcp-apps.md"
           "docs/runbooks/meriv3-capiro-internal-canary.md"
           ".github/workflows/meriv3-canary-ci.yml"
 
@@ -104,21 +115,25 @@ jobs:
           --runInBand --forceExit
           src/meri/meriv3
 
-      - name: Test API routing, flags and transport
+      - name: Test API routing, flags, transport and managed apps
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
           src/meri/meriv3-chat.client.spec.ts
           src/meri/meriv3-runtime.proxy.spec.ts
           src/meri/meriv3-conversation.helpers.spec.ts
+          src/meri/meri-managed-mcp.helpers.spec.ts
+          src/meri/meri-managed-mcp.service.spec.ts
           src/common/meriv3-flags.spec.ts
 
-      - name: Test popup workspace and launcher
+      - name: Test popup workspace, launcher and connected apps
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/components/chat/MeriOverlay.test.tsx
           src/components/chat/MeriWorkspaceWindow.test.tsx
           src/components/chat/meri-window.test.ts
+          src/components/chat/ManagedComposerPlus.test.tsx
+          src/components/chat/managed-mcp-apps.test.tsx
           --testTimeout=20000 --hookTimeout=20000
 
       - name: Boundary guard — adjacent runtimes remain independent
@@ -135,7 +150,15 @@ jobs:
             echo "MeriV3 must not expose raw reasoning/thinking SSE events."
             exit 1
           fi
-          echo "MeriV3 isolation and reasoning-redaction guards passed."
+          if grep -Rin "sharepoint" \
+            apps/api/src/meri/meri-managed-mcp* \
+            apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts \
+            apps/web/src/components/chat/ManagedComposerPlus.tsx \
+            apps/web/src/components/chat/managed-mcp-apps.tsx; then
+            echo "This managed-app release must not surface SharePoint."
+            exit 1
+          fi
+          echo "MeriV3 isolation, reasoning-redaction, and managed-app scope guards passed."
 
       - name: Build MeriV3 deployables
         run: |
