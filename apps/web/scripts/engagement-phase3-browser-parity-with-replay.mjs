@@ -2,11 +2,11 @@
 /**
  * Run representative browser parity, the non-skippable interaction/URL/a11y
  * matrix, refresh the short-lived acceptance bearer, replay observed Engagement
- * GETs, sweep every unique UI read against both runtimes, prove one shared safe
- * database-local write round trip, verify auth/tenant/role/ownership/wall
- * denials, then exercise every UI-classified external action while the same
- * disposable DB/auth context is alive. The local runner removes bearer material
- * immediately afterward.
+ * GETs, sweep every unique UI read against both runtimes, prove all approved
+ * database-local write classes, inject transport/database faults and clean the
+ * retry row, verify auth/tenant/role/ownership/wall denials, then exercise every
+ * UI-classified external action while the same disposable DB/auth context is
+ * alive. The local runner removes bearer material immediately afterward.
  */
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -43,6 +43,7 @@ await run('pnpm', [
   'tsx',
   'scripts/engagement-phase3-local-write-interoperability.ts',
 ]);
+await run('node', ['scripts/run-engagement-phase3-resilience.mjs']);
 await run('pnpm', [
   '-C',
   'apps/api',
@@ -58,5 +59,5 @@ await run('pnpm', [
   'scripts/engagement-phase3-external-denial.ts',
 ]);
 console.log(
-  'ENGAGEMENT_PHASE3_BROWSER_INTERACTIONS_FULL_READ_WRITE_SECURITY_AND_CONTAINMENT_COMPLETE',
+  'ENGAGEMENT_PHASE3_BROWSER_INTERACTIONS_FULL_READ_WRITE_RESILIENCE_SECURITY_AND_CONTAINMENT_COMPLETE',
 );
