@@ -55,8 +55,12 @@ export function extractResponsesOutputText(output: OpenAiResponsesOutputItem[]):
       item.type === 'message',
     )
     .flatMap((item) => item.content ?? [])
-    .filter((part) => part.type === 'output_text' && typeof part.text === 'string')
-    .map((part) => String(part.text))
+    .map((part) => {
+      if (part.type === 'output_text' && typeof part.text === 'string') return part.text;
+      if (part.type === 'refusal' && typeof part.refusal === 'string') return part.refusal;
+      return '';
+    })
+    .filter(Boolean)
     .join('')
     .trim();
 }
@@ -114,16 +118,21 @@ export class OpenAiResponsesClient {
 
   async complete(params: CompleteParams): Promise<OpenAiResponsesResult> {
     const requestCredential = RequestCredentialsStore.get()?.aiProvider;
-    const tenantOpenAi = requestCredential?.provider === 'openai' ? requestCredential : undefined;
-    const apiKey = tenantOpenAi?.apiKey ?? process.env.OPENAI_API_KEY;
+    const requestOpenAi = requestCredential?.provider === 'openai' ? requestCredential : undefined;
+    // apps/api forwards either the tenant's OpenAI key OR Capiro's global key on
+    // every canary request. The isolated service may also hold a global key, but
+    // does not require one when the authenticated request already supplied it.
+    const apiKey = requestOpenAi?.apiKey ?? process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error(
         'MeriV3 is not configured: no request-scoped OpenAI credential and no OPENAI_API_KEY',
       );
     }
-    const usedTenantKey = Boolean(tenantOpenAi?.usedTenantKey && tenantOpenAi.apiKey);
+    const usedTenantKey = Boolean(requestOpenAi?.usedTenantKey && requestOpenAi.apiKey);
     const model =
-      usedTenantKey && tenantOpenAi?.modelOverridden ? tenantOpenAi.model : params.profile.model;
+      usedTenantKey && requestOpenAi?.modelOverridden
+        ? requestOpenAi.model
+        : params.profile.model;
 
     let lastError: unknown;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -135,6 +144,13 @@ export class OpenAiResponsesClient {
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
       try {
+        const toolFields = params.tools.length
+          ? {
+              tools: params.tools,
+              tool_choice: params.toolChoice ?? 'auto',
+              parallel_tool_calls: true,
+            }
+          : {};
         const response = await fetch(RESPONSES_URL, {
           method: 'POST',
           headers: {
@@ -146,13 +162,11 @@ export class OpenAiResponsesClient {
             model,
             instructions: params.instructions,
             input: params.input,
-            tools: params.tools,
-            tool_choice: params.toolChoice ?? 'auto',
-            parallel_tool_calls: true,
+            ...toolFields,
             reasoning: {
               effort: params.profile.effort,
-              // Request a provider-authored bounded summary for internal
-              // continuity, but never expose or persist raw reasoning items.
+              // Request a provider-authored bounded summary for continuity in
+              // the current turn, but never emit or persist reasoning items.
               summary: 'auto',
             },
             max_output_tokens: params.profile.maxOutputTokens,
