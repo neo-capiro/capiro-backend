@@ -44,6 +44,11 @@ export interface AnthropicToolSchema {
 export interface ToolLoopResponse {
   content: AnthropicContentBlock[];
   stopReason: string | null;
+  /** Populated by Anthropic ONLY when `stopReason === 'refusal'` — the policy
+   *  category (e.g. 'cyber', 'bio') plus an explanation. Null/absent for every
+   *  other stop reason, and never set on the OpenAI path. Callers must guard
+   *  before reading it. */
+  stopDetails?: { category: string | null; explanation: string | null } | null;
   /** Token usage for THIS round — Phase 1 M5.0 (H-1): the caller meters one `ai_usage_events` row per round. */
   usage: ProviderUsage;
   model: string;
@@ -472,11 +477,18 @@ export class RequestScopedLlmClient implements LlmClient {
       const data = (await res.json()) as {
         content?: AnthropicContentBlock[];
         stop_reason?: string | null;
+        stop_details?: { category?: string | null; explanation?: string | null } | null;
         usage?: unknown;
       };
       return {
         content: Array.isArray(data.content) ? data.content : [],
         stopReason: data.stop_reason ?? null,
+        stopDetails: data.stop_details
+          ? {
+              category: data.stop_details.category ?? null,
+              explanation: data.stop_details.explanation ?? null,
+            }
+          : null,
         usage: parseProviderUsage(data),
         model,
         usedTenantKey,
@@ -512,7 +524,12 @@ function messagesContainImage(messages: Array<{ content: unknown }>): boolean {
 export async function parseAnthropicToolStream(
   res: Response,
   onTextDelta: (delta: string) => void,
-): Promise<{ content: AnthropicContentBlock[]; stopReason: string | null; usage: ProviderUsage }> {
+): Promise<{
+  content: AnthropicContentBlock[];
+  stopReason: string | null;
+  stopDetails: { category: string | null; explanation: string | null } | null;
+  usage: ProviderUsage;
+}> {
   const body = res.body;
   if (!body) throw new Error('Anthropic stream response had no body');
   const blocks = new Map<
@@ -520,6 +537,7 @@ export async function parseAnthropicToolStream(
     { type: string; text: string; id?: string; name?: string; json: string }
   >();
   let stopReason: string | null = null;
+  let stopDetails: { category: string | null; explanation: string | null } | null = null;
   const usage: ProviderUsage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -578,6 +596,14 @@ export async function parseAnthropicToolStream(
       case 'message_delta': {
         const d = (evt.delta ?? {}) as Record<string, unknown>;
         if (typeof d.stop_reason === 'string') stopReason = d.stop_reason;
+        // Only present on a refusal; carries the policy category the caller logs.
+        const sd = d.stop_details as Record<string, unknown> | null | undefined;
+        if (sd && typeof sd === 'object') {
+          stopDetails = {
+            category: typeof sd.category === 'string' ? sd.category : null,
+            explanation: typeof sd.explanation === 'string' ? sd.explanation : null,
+          };
+        }
         const u = (evt.usage ?? {}) as Record<string, unknown>;
         if (u.output_tokens !== undefined) usage.outputTokens = sseNumber(u.output_tokens);
         break;
@@ -619,5 +645,5 @@ export async function parseAnthropicToolStream(
       return { type: 'text', text: b.text };
     });
 
-  return { content, stopReason, usage };
+  return { content, stopReason, stopDetails, usage };
 }

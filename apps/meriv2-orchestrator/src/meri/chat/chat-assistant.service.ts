@@ -64,7 +64,10 @@ export function isUuid(value: unknown): value is string {
 }
 
 const MAX_ROUNDS = 14;
-const MAX_TOKENS = 8192;
+// 8192 truncated long replies (memos, enriched client profiles) mid-sentence.
+// 16384 is the safe ceiling here: the buffered (non-streaming) path still has to
+// return inside the HTTP timeout.
+const MAX_TOKENS = 16384;
 const TOOL_RESULT_CHARS = 12_000;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
 
@@ -389,6 +392,7 @@ export class ChatAssistantService {
       if (opts.signal?.aborted) return finalize('');
       let content: ContentBlock[];
       let stopReason: string | null;
+      let stopDetails: { category: string | null; explanation: string | null } | null = null;
       let streamed = false;
       try {
         const resp = await this.llm.completeWithTools({
@@ -409,6 +413,7 @@ export class ChatAssistantService {
         usageAcc.cacheCreationTokens += resp.usage.cacheCreationTokens ?? 0;
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
+        stopDetails = resp.stopDetails ?? null;
         streamed = bufferBeforeRelease ? false : (resp.streamed ?? false);
       } catch (e) {
         if (opts.signal?.aborted) return finalize('');
@@ -425,6 +430,48 @@ export class ChatAssistantService {
         (b): b is ContentBlock & { id: string; name: string; input?: Record<string, unknown> } =>
           b.type === 'tool_use' && typeof b.name === 'string' && typeof b.id === 'string',
       );
+
+      // Anthropic returns a refusal as HTTP 200 with empty (or partial) content
+      // and a stop_details category. Previously this fell through to the
+      // no-prose branch below, which spent ANOTHER model call in
+      // synthesizeFinalAnswer() re-deriving the same refusal and logged nothing
+      // — the user got a blank or generic reply with no reason, and the refusal
+      // was invisible in the logs.
+      if (stopReason === 'refusal') {
+        this.logger.warn(
+          `chat: model refused` +
+            (stopDetails?.category ? ` (category=${stopDetails.category})` : '') +
+            (stopDetails?.explanation ? `: ${stopDetails.explanation.slice(0, 200)}` : ''),
+        );
+        const msg =
+          textOut ||
+          'I can’t help with that request. Try rephrasing it — or flag it to the Capiro team if you think it was blocked in error.';
+        // Re-emit only when the deltas did NOT already carry this text.
+        if (!streamed || !textOut) emit({ type: 'text', text: msg });
+        return finalize(msg);
+      }
+
+      // Hit the output cap mid-sentence. The partial text has already streamed,
+      // so returning it through finalize() presented a fragment as a finished
+      // answer — this is the "Meri cuts off" report. Say so instead.
+      if (stopReason === 'max_tokens') {
+        this.logger.warn(
+          `chat: hit max_tokens cap (${MAX_TOKENS}) in round ${round + 1}; reply truncated`,
+        );
+        const notice =
+          '\n\n_(I hit my length limit here — ask me to continue, or narrow the request.)_';
+        emit({ type: 'text', text: streamed ? notice : `${textOut}${notice}` });
+        return finalize(`${textOut}${notice}`);
+      }
+
+      // Server-side tool loop paused mid-turn. Push the assistant turn so the
+      // next round resumes it; this is NOT a finished answer.
+      if (stopReason === 'pause_turn') {
+        this.logger.log(`chat: pause_turn in round ${round + 1}; resuming`);
+        if (textOut && !streamed) emit({ type: 'text', text: textOut });
+        messages.push({ role: 'assistant', content });
+        continue;
+      }
 
       if (!toolUses.length || stopReason !== 'tool_use') {
         if (textOut) {
@@ -455,7 +502,11 @@ export class ChatAssistantService {
           result: await this.invokeTool(
             ctx,
             tu.name,
-            this.augmentToolInput(dto, tu.input ?? {}),
+            this.augmentToolInput(
+              dto,
+              tu.input ?? {},
+              toolSchemas.find((schema) => schema.name === tu.name),
+            ),
             dto.conversationId,
             steps,
             pendingApprovals,
@@ -619,10 +670,22 @@ export class ChatAssistantService {
   private augmentToolInput(
     dto: ChatInput,
     input: Record<string, unknown>,
+    toolSchema: AnthropicToolSchema | undefined,
   ): Record<string, unknown> {
     const out = { ...input };
     if (dto.clientId && !isUuid(out.clientId)) out.clientId = dto.clientId;
-    if (dto.conversationId && out.conversationId === undefined) {
+    // Only inject conversationId if the TOOL'S OWN schema declares it as a
+    // property. Side-effecting tools are re-validated server-side against that
+    // same schema with additionalProperties disallowed by default
+    // (meri-write-tool-input.ts); most write tools don't declare
+    // conversationId, so unconditionally injecting it here made every such
+    // write 400 with "input.conversationId: is not an allowed property" the
+    // moment a chat session had a real (persisted) conversationId — i.e.
+    // always, outside of throwaway unsaved turns.
+    const properties = toolSchema?.input_schema?.properties as
+      | Record<string, unknown>
+      | undefined;
+    if (dto.conversationId && out.conversationId === undefined && properties?.conversationId) {
       out.conversationId = dto.conversationId;
     }
     return out;

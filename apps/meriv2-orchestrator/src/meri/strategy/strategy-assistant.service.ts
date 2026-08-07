@@ -53,7 +53,7 @@ const MAX_ROUNDS = 8;
 // A7.4b: 12288 (was 8192) — Sonnet 5's heavier tokenizer + dependsOn/sources on a
 // 60-node plan can exceed 8192 output tokens (silent truncation). Stays < the ~16K
 // non-streaming safety line.
-const MAX_TOKENS = 12288;
+const MAX_TOKENS = 16384;
 // A5: how many times to re-prompt the model to fix hard verifier violations.
 const MAX_REPAIRS = 2;
 
@@ -482,6 +482,33 @@ export class StrategyAssistantService {
         .map((b) => b.text as string)
         .join('\n')
         .trim();
+      // This loop never inspected stopReason, so a refusal burned all MAX_ROUNDS
+      // plus the forced-tool fallback before returning the generic failure text.
+      // Bail on the first one and log why.
+      if (resp.stopReason === 'refusal') {
+        this.logger.warn(
+          `strategy ${workflow} refused` +
+            (resp.stopDetails?.category ? ` (category=${resp.stopDetails.category})` : '') +
+            (resp.stopDetails?.explanation
+              ? `: ${resp.stopDetails.explanation.slice(0, 200)}`
+              : ''),
+        );
+        return {
+          input: null,
+          text:
+            lastText ||
+            'I can’t produce that. Try rephrasing the request — or flag it to the Capiro team if you think it was blocked in error.',
+        };
+      }
+      // Logged, not acted on: a truncated terminal payload is caught downstream
+      // by strategy-assurance, and short-circuiting here would forfeit the
+      // nudge + forced-tool retries that usually recover the round.
+      if (resp.stopReason === 'max_tokens') {
+        this.logger.warn(
+          `strategy ${workflow} hit max_tokens cap (${MAX_TOKENS}) in round ${round + 1}; terminal payload may be truncated`,
+        );
+      }
+
       const terminal = content.find(
         (b): b is ContentBlock & { name: string; input?: Record<string, unknown> } =>
           b.type === 'tool_use' && b.name === tool.name,

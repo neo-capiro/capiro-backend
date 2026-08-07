@@ -56,7 +56,9 @@ const VERIFIER_SYSTEM_PROMPT =
   'supported=false with sourceIds [].';
 
 const MAX_ROUNDS = 8;
-const MAX_TOKENS = 8192;
+// Raised from 8192: a truncated turn now discards its edits (see the max_tokens
+// branch in the loop), so too low a cap costs the user the whole edit.
+const MAX_TOKENS = 16384;
 const TOOL_RESULT_CHARS = 12_000;
 
 interface ContentBlock {
@@ -124,6 +126,7 @@ export class InEditorAssistantService {
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       let content: ContentBlock[];
       let stopReason: string | null;
+      let stopDetails: { category: string | null; explanation: string | null } | null = null;
       try {
         const resp = await this.llm.completeWithTools({
           system: systemParts,
@@ -135,6 +138,7 @@ export class InEditorAssistantService {
         void this.meterRound(ctx, resp);
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
+        stopDetails = resp.stopDetails ?? null;
       } catch (e) {
         this.logger.warn(`in-editor model call failed: ${(e as Error).message}`);
         return {
@@ -153,6 +157,43 @@ export class InEditorAssistantService {
           b.type === 'tool_use' && typeof b.name === 'string' && typeof b.id === 'string',
       );
 
+      // These three must be handled BEFORE the terminal propose check below: a
+      // `max_tokens` stop means the final block was cut off mid-emit, so a
+      // propose_document_edits payload from that round can be partial — never
+      // apply document edits from a truncated turn. A refusal previously fell
+      // through to `textOut || 'Done.'` and shipped a bare "Done." with no edits
+      // and no logged reason.
+      if (stopReason === 'refusal') {
+        this.logger.warn(
+          `in-editor: model refused` +
+            (stopDetails?.category ? ` (category=${stopDetails.category})` : '') +
+            (stopDetails?.explanation ? `: ${stopDetails.explanation.slice(0, 200)}` : ''),
+        );
+        return {
+          reply:
+            textOut ||
+            'I can’t help with that request. Try rephrasing it — or flag it to the Capiro team if you think it was blocked in error.',
+          edits: [],
+          steps,
+        };
+      }
+      if (stopReason === 'max_tokens') {
+        this.logger.warn(
+          `in-editor: hit max_tokens cap (${MAX_TOKENS}) in round ${round + 1}; edits discarded as possibly truncated`,
+        );
+        return {
+          reply: `${textOut}\n\nI hit my length limit before finishing this edit, so I haven’t applied anything — narrow the request and I’ll retry.`.trim(),
+          edits: [],
+          steps,
+        };
+      }
+      if (stopReason === 'pause_turn') {
+        this.logger.log(`in-editor: pause_turn in round ${round + 1}; resuming`);
+        messages.push({ role: 'assistant', content });
+        continue;
+      }
+
+      // Terminal: the model proposed its answer (+ optional edits).
       const propose = toolUses.find((t) => t.name === 'propose_document_edits');
       if (propose) {
         const input = propose.input ?? {};
