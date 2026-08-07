@@ -18,11 +18,15 @@ import {
   PlusOutlined,
   SelectOutlined,
 } from '@ant-design/icons';
+import { useMe } from '../../lib/me.js';
 import { MeriLegacyDrawer } from './ChatDrawer.js';
 import { useMeriChatController, type MeriChatController } from './useMeriChatController.js';
 import { SessionRail } from './SessionRail.js';
+import { MeriWorkspaceWindow } from './MeriWorkspaceWindow.js';
+import { isMeriWorkspaceWindow, openMeriWorkspaceWindow } from './meri-window.js';
 import {
   raiseMeriSurface,
+  setChatOpen,
   setMeriMaximized,
   setMeriPointerState,
   setMeriSideCollapsed,
@@ -65,17 +69,53 @@ function currentViewport(): MeriViewport {
 
 export function MeriOverlay({ selectedClientName }: MeriOverlayProps) {
   const controller = useMeriChatController({ selectedClientName });
-  return <MeriOverlaySurface controller={controller} />;
+  const me = useMe();
+  const workspaceWindow = isMeriWorkspaceWindow();
+  const meriv3Enabled = Boolean(me.data?.features.meriv3Chat);
+
+  useEffect(() => {
+    if (workspaceWindow && meriv3Enabled) setChatOpen(true);
+  }, [meriv3Enabled, workspaceWindow]);
+
+  if (workspaceWindow) {
+    if (me.isLoading) {
+      return (
+        <div className="meri-v3-workspace-loading" role="status">
+          Opening Meri…
+        </div>
+      );
+    }
+    if (!meriv3Enabled) {
+      return (
+        <div className="meri-v3-workspace-loading" role="alert">
+          <strong>MeriV3 is not enabled for this tenant.</strong>
+          <button type="button" onClick={() => window.close()}>
+            Close window
+          </button>
+        </div>
+      );
+    }
+    return <MeriWorkspaceWindow controller={controller} />;
+  }
+
+  return (
+    <MeriOverlaySurface
+      controller={controller}
+      openInBrowserWindow={meriv3Enabled}
+    />
+  );
 }
 
 export function MeriOverlaySurface({
   controller,
   historySidebar,
   showEmbeddedSessionRail = true,
+  openInBrowserWindow = false,
 }: {
   controller: MeriChatController;
   historySidebar?: ReactNode;
   showEmbeddedSessionRail?: boolean;
+  openInBrowserWindow?: boolean;
 }) {
   const {
     surfaceMode,
@@ -196,6 +236,19 @@ export function MeriOverlaySurface({
     setMeriSurfaceMode('undocked');
     raiseMeriSurface();
   };
+  const openPrimarySurface = () => {
+    if (openInBrowserWindow) {
+      const popup = openMeriWorkspaceWindow();
+      if (popup) {
+        setMeriSurfaceMode('closed');
+        return;
+      }
+      // A popup blocker must not force the canary back into the skinny drawer.
+      undock();
+      return;
+    }
+    openDocked();
+  };
   const redock = () => setMeriSurfaceMode('docked');
   const close = () => controller.handleClose();
   const toggleMaximized = () => setMeriMaximized(!maximized);
@@ -206,9 +259,11 @@ export function MeriOverlaySurface({
       <button
         type="button"
         className="meri-launcher"
-        onClick={openDocked}
-        aria-label={`Open Meri${alertsBadge > 0 ? `, ${alertsBadge} pending briefings` : ''}`}
-        title="Meri"
+        onClick={openPrimarySurface}
+        aria-label={`${openInBrowserWindow ? 'Open Meri workspace window' : 'Open Meri'}${
+          alertsBadge > 0 ? `, ${alertsBadge} pending briefings` : ''
+        }`}
+        title={openInBrowserWindow ? 'Open Meri workspace' : 'Meri'}
         data-tour="Meri"
       >
         <img src={meriBubbleImage} alt="" className="meri-launcher-logo" />
