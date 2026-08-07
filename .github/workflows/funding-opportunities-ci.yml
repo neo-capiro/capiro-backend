@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -346,6 +346,59 @@ jobs:
           check "checkpoint walk uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_sync_checkpoint_walk_uniq'"             "1"
           check "usage status vocabulary has no room for a header or key column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_api_usage' AND (column_name LIKE '%header%' OR column_name LIKE '%key%' OR column_name LIKE '%token%')"             "0"
 
+          # ── P27 Tango↔SAM parity ledger ───────────────────────────────────
+          # GLOBAL, like every other tango_* table: "SAM.gov and the provider
+          # disagree about this notice's deadline" is a fact about the federal
+          # marketplace, not about any one tenant. Asserting the ABSENCE of RLS
+          # is as load-bearing here as asserting its presence is on
+          # client_funding_opportunity — a false "no tenant RLS claimed" would
+          # mean the table silently started acting tenant-scoped with no policy
+          # to actually scope it.
+          check "tango_opportunity_parity has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_opportunity_parity' AND column_name='tenant_id'"             "0"
+          check "tango_opportunity_parity RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_opportunity_parity'"             "f"
+          check "tango_opportunity_parity has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_opportunity_parity'"             "0"
+
+          # NO foreign key, deliberately. The ledger is an observation about two
+          # INDEPENDENTLY-synced catalogs; a cascade from either side would
+          # delete the evidence that they ever disagreed, which is the one thing
+          # the table exists to keep.
+          check "tango_opportunity_parity has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_opportunity_parity'::regclass AND contype='f'"             "0"
+
+          # The three bounded vocabularies. `field` admits only lifecycle facts
+          # BOTH catalogs carry — a provider-exclusive field would report as a
+          # conflict on every row and belongs in the snapshot instead.
+          for f in title solicitation_number response_deadline active set_aside naics_code psc_code agency; do
+            check "parity field vocabulary admits $f"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$f''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_field_chk'"               "yes"
+          done
+          check "parity field vocabulary does NOT admit a provider-exclusive field"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%estimated_value%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_field_chk'"             "no"
+
+          # FIVE agreement values, not two. "They disagree" and "only one of
+          # them said anything" are different findings and only the first is a
+          # conflict a human needs to look at.
+          for a in agree conflict local_only provider_only both_absent; do
+            check "parity agreement vocabulary admits $a"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$a''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_agreement_chk'"               "yes"
+          done
+
+          # A resolution that OVERWRITES the local value must not be expressible
+          # as a vocabulary entry — plan §4.2 forbids the merge, so the column
+          # can record "we accepted the provider's value as the better one" but
+          # there is no value meaning "we wrote it over ours".
+          for r in unreviewed local_canonical accepted_provider dismissed; do
+            check "parity resolution vocabulary admits $r"               "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%''$r''%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_resolution_chk'"               "yes"
+          done
+
+          # The three-way all-or-nothing: a reviewed row carries its actor AND
+          # its moment, and an unreviewed row carries NEITHER. Same shape, and
+          # same reason, as client_funding_opportunity_decision_actor_chk (P07).
+          check "parity review-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_opportunity_parity_review_actor_chk'"             "1"
+          check "parity review-actor CHECK guards BOTH directions"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%IS NULL%' AND pg_get_constraintdef(oid) LIKE '%IS NOT NULL%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='tango_opportunity_parity_review_actor_chk'"             "yes"
+
+          # One row per (provider record, local record, field) — what makes a
+          # re-run an UPDATE of the same comparison rather than a second opinion.
+          check "parity record/field uniqueness exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_record_field_uniq'"             "1"
+          check "parity conflict-scan index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_conflict_idx'"             "1"
+          check "parity local-side lookup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_opportunity_parity_sam_idx'"             "1"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -432,6 +485,8 @@ jobs:
           scripts/diag-federal-business-profile.spec.ts
           scripts/sync-tango-vehicles.spec.ts
           scripts/sync-tango-forecasts.spec.ts
+          scripts/sync-tango-opportunity-shadow.spec.ts
+          scripts/diag-tango-opportunity-parity.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -716,9 +771,64 @@ jobs:
       # no forecast is servable through the `FundingOpportunity` shape.
       # funding-opportunity-inbox.spec.ts grew by 8 in place (63 -> 71) and
       # funding-opportunity-identity.spec.ts by 3.
+      # 53/1622 after P27: three NEW suites, one migration, no web change.
+      #
+      # tango-opportunity.mapper.spec.ts (35 tests) keeps IDENTITY and CONTENT
+      # apart, because comparing fields across two records that might not be
+      # the same record produces confident-looking nonsense. Identity: exactly
+      # one local notice carrying the same solicitation number LINKS; more than
+      # one is `ambiguous` and links NOTHING (a presolicitation, a solicitation
+      # and its amendments are separate sam_opportunity rows under one number,
+      # and picking whichever sorted first is how a closed notice acquires a
+      # live deadline); none is `unlinked`; there is no title match and no
+      # scoring. Solicitation numbers are NORMALIZED, not fuzzy-matched — the
+      # test proves no character is added, removed or transposed, so two
+      # genuinely different numbers cannot collide. Content: five outcomes, not
+      # two ('local_only'/'provider_only'/'both_absent' are coverage facts, only
+      # 'conflict' is a data-quality finding worth somebody's attention), a
+      # SECONDS-level deadline difference is NOT a conflict (the two catalogs
+      # round the same SAM.gov value differently and a rounding artefact would
+      # bury the real ones) while a MINUTE-level one is, and `false` is never
+      # read as absent.
+      #
+      # sync-tango-opportunity-shadow.spec.ts (31 tests) covers the walk and,
+      # more importantly, what the script must NOT write. Plan §4.2 is the whole
+      # point of the phase: first-party ingestion stays authoritative, a Tango
+      # observation may verify or identify a conflict, and no "last write wins"
+      # merge is permitted. That is proven behaviourally (the fakes expose no
+      # dependency through which a write could reach sam_opportunity) AND
+      # structurally (a grep over the source), because a future edit could add a
+      # write the fakes were never given a chance to see. Also: an UNLINKED
+      # provider record still writes its snapshot — "the provider has a notice
+      # Capiro's own rail does not" is exactly what a verification rail exists
+      # to surface — and a re-run keeps `first_observed_at` unless the OUTCOME
+      # changed, so a conflict can be reported as having stood for three weeks
+      # rather than as "seen five minutes ago", which is true of all of them.
+      #
+      # diag-tango-opportunity-parity.spec.ts (26 tests) is almost entirely
+      # about the EXIT CODE. An ordinary unlinked row is the expected state of a
+      # verification rail and is never blocking, whatever the count; only an
+      # OPERATOR-SET threshold (--max-conflicts / --max-ambiguous /
+      # --stale-hours) exits nonzero, and a conflict a human has reviewed and
+      # kept the local value for stops counting toward it — otherwise doing the
+      # correct thing under source precedence would leave the check red forever.
+      # A never-run sync BREACHES --stale-hours rather than reporting as fresh.
+      #
+      # Migration 20260826010000_tango_opportunity_crosswalk adds ONE global
+      # table (no tenant_id, no RLS, and deliberately no FK — a cascade from
+      # either catalog would delete the evidence that they ever disagreed).
+      # There is no second link table: P15's tango_resource_link already links a
+      # `sam_opportunity` to a Tango `opportunity` with a basis restricted to
+      # exact_identifier | reviewed_manual, and a parallel table would mean two
+      # answers to "is this linked". Rehearsed against a fresh
+      # pgvector/pgvector:pg16: clean replay, retry-as-no-op, idempotent
+      # re-deploy, and 10 constraint proofs BY ACTUAL INSERT — six refusals
+      # (unknown field, unknown agreement, unknown resolution, reviewed-without-
+      # actor, reviewed-without-timestamp, unreviewed-WITH-actor, duplicate
+      # record/field) and four acceptances.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 50 1530
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 53 1622
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

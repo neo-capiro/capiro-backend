@@ -581,6 +581,106 @@ cd apps/api
 pnpm exec jest funding-opportunity-identity.spec.ts --silent
 ```
 
+### Forecast early-signal UI (P26) — no migration, one NEW flag, ships dark
+
+Adds `funding_opportunities_forecasts` and the surface behind it: a forecast
+card in the triage inbox, a forecast detail body, and a read-only forecast
+route (`GET /api/intelligence/opportunities/forecasts/:forecastId`) guarded by
+that flag. **No tenant has a row for it**, so the route 404s everywhere and the
+UI renders nothing — exactly like P23's vehicle-fit flag.
+
+This is also the phase that gives P25's `scoreForecastRelevance` its first real
+caller. A forecast is served from its OWN route with its OWN record type and is
+never a `FundingOpportunity`: that shape carries a response deadline, an
+eligibility determination and money, and a forecast carries none of the three.
+
+```sql
+-- READ-ONLY. Expect 0 rows — no tenant has the forecast flag.
+SELECT tenant_id, enabled FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_forecasts';
+```
+
+```sql
+-- MUTATING — Neo approval required. The internal-tenant canary, when wanted.
+-- Requires funding_opportunities AND funding_opportunities_client_inbox to be
+-- on for the same tenant first; the forecast surface lives inside the inbox.
+INSERT INTO intel_feature_flag (tenant_id, feature, enabled)
+VALUES ('<internal-tenant-uuid>', 'funding_opportunities_forecasts', true)
+ON CONFLICT (tenant_id, feature) DO UPDATE SET enabled = true;
+```
+
+**Turning the flag on surfaces nothing on its own.** No producer writes a
+forecast `client_funding_opportunity` row, so the inbox will contain no forecast
+rows however many `tango_procurement_forecast` records exist. What the flag
+enables is (a) the forecast source filter, (b) the forecast detail route for a
+directly-addressed forecast id, and (c) the rendering path for a row if one ever
+exists. Building the producer is a later, separate decision.
+
+With the flag OFF the inbox WITHHOLDS any forecast row rather than rendering it,
+and says how many it withheld — the tab badges count every row the tenant has,
+and a page quietly showing fewer rows than its badge reads as a broken filter.
+
+### Tango↔SAM crosswalk and parity ledger (P27) — a migration, no user surface
+
+`prisma/migrations/20260826010000_tango_opportunity_crosswalk` adds ONE new
+**global** table, `tango_opportunity_parity` (no tenant_id, no RLS, and no
+foreign key — see the migration's own header). Apply it in the normal migration
+step (§4 below); additive, no existing table touched.
+
+**This phase writes nothing to `sam_opportunity`, ever.** Plan §4.2 binds here:
+first-party ingestion stays authoritative for canonical lifecycle fields, a
+Tango observation may verify or identify a conflict, the conflict is RECORDED,
+and no "last write wins" merge is permitted. The shadow sync writes exactly
+three provider-owned things — P15's `tango_resource_snapshot`, P15's
+`tango_resource_link` (basis `exact_identifier`), and the new parity ledger.
+
+```sql
+-- READ-ONLY, post-migration. Expect 0 rows until the shadow sync has run.
+SELECT count(*) FROM tango_opportunity_parity;
+SELECT agreement, count(*) FROM tango_opportunity_parity GROUP BY agreement;
+```
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. --changed-since bounds a first/backfill run; the
+# default is 90 days back, because reaching further would report notices that
+# predate Capiro's own SAM.gov ingestion as coverage gaps, which they are not.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-opportunity-shadow.ts --limit=50
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-opportunity-shadow.ts --commit --limit=200
+```
+
+```bash
+# READ-ONLY. No Tango call and no key — reads Capiro's own tables only.
+# Exits 0 unless a threshold YOU set is breached.
+cd apps/api
+pnpm exec tsx scripts/diag-tango-opportunity-parity.ts
+pnpm exec tsx scripts/diag-tango-opportunity-parity.ts --field=response_deadline --sample=25
+```
+
+**Read this before treating `unlinked` as a failure.** A steady population of
+provider notices with no local counterpart is the EXPECTED state of a
+verification rail: the two catalogs sync on different schedules and cover
+slightly different windows. The diagnostic exits nonzero only for an
+operator-set `--max-conflicts` / `--max-ambiguous` / `--stale-hours`, and there
+is deliberately no flag that makes an ordinary unlinked row blocking.
+
+**Read this before treating `ambiguous` as a bug.** One solicitation number
+routinely spans a presolicitation, a solicitation and several amendments, each
+its own `sam_opportunity` row. When more than one local notice carries the
+provider's number, NOTHING is linked — attaching a provider observation
+(including a deadline) to whichever amendment sorted first is how a closed
+presolicitation acquires a live deadline. `ambiguous` has its own count in the
+diagnostic for exactly this reason.
+
+**A conflict is never resolved by a job.** `resolution` starts `unreviewed` and
+moves only through an attributed human review; the database enforces the
+three-way all-or-nothing (a reviewed row carries both actor and timestamp, an
+unreviewed row carries neither). There is no review CLI in this phase — the
+operational default is source precedence, which is already what the code does:
+the local value stays canonical whether or not anybody looks.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash
