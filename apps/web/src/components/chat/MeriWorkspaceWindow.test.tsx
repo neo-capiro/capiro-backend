@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   patch: vi.fn(),
   newSession: vi.fn(),
   saveMeta: vi.fn(),
+  changeScope: vi.fn(),
 }));
 
 vi.mock('../../lib/use-api.js', () => ({
@@ -28,7 +29,13 @@ function controller() {
     setSessionTitle: vi.fn(),
     saveConversationMeta: mocks.saveMeta,
     selectedClientValue: 'client-1',
-    clients: [{ id: 'client-1', name: 'C2 Strategies' }],
+    clients: [
+      { id: 'client-1', name: 'C2 Strategies' },
+      { id: 'client-2', name: 'Maven Advocacy Partners' },
+    ],
+    changeSessionClient: mocks.changeScope,
+    isSavingMeta: false,
+    metaError: null,
     handleNewSession: mocks.newSession,
   } as never;
 }
@@ -39,8 +46,10 @@ describe('MeriWorkspaceWindow', () => {
     mocks.patch.mockReset();
     mocks.newSession.mockReset();
     mocks.saveMeta.mockReset();
+    mocks.changeScope.mockReset();
     mocks.get.mockResolvedValue({ data: { reasoningMode: 'standard' } });
     mocks.patch.mockResolvedValue({ data: { reasoningMode: 'deep' } });
+    mocks.changeScope.mockResolvedValue(undefined);
   });
 
   test('renders the prototype shell around the production chat and thread rail', async () => {
@@ -50,7 +59,7 @@ describe('MeriWorkspaceWindow', () => {
     expect(screen.getByTestId('thread-rail')).toBeTruthy();
     expect(screen.getByTestId('production-chat')).toBeTruthy();
     expect(screen.getByDisplayValue('C2 weekly brief')).toBeTruthy();
-    expect(screen.getByText('C2 Strategies')).toBeTruthy();
+    expect(screen.getByLabelText('Conversation client scope')).toHaveValue('client-1');
     await waitFor(() =>
       expect(mocks.get).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode'),
     );
@@ -68,6 +77,14 @@ describe('MeriWorkspaceWindow', () => {
       ),
     );
     expect(screen.getByRole('button', { name: 'Reasoning mode: Deep' })).toBeTruthy();
+  });
+
+  test('persists the displayed client scope immediately', () => {
+    render(<MeriWorkspaceWindow controller={controller()} />);
+    fireEvent.change(screen.getByLabelText('Conversation client scope'), {
+      target: { value: 'client-2' },
+    });
+    expect(mocks.changeScope).toHaveBeenCalledWith('client-2');
   });
 
   test('starts a new production conversation from the sidebar', () => {
