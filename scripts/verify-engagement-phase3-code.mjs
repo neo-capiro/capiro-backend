@@ -55,6 +55,7 @@ const steps = [
     [
       '--test',
       'apps/web/scripts/engagement-phase3-browser-parity.spec.mjs',
+      'apps/web/scripts/engagement-phase3-browser-scenarios.spec.mjs',
       'scripts/engagement-phase3-local-proxy.spec.mjs',
       'scripts/verify-engagement-phase3-prototype-boundary.spec.mjs',
       'scripts/verify-engagement-phase3-scope.spec.mjs',
@@ -65,6 +66,8 @@ const steps = [
   ['Phase 3 local runner syntax', 'node', ['--check', 'scripts/run-engagement-phase3-local.mjs']],
   ['Phase 3 local proxy syntax', 'node', ['--check', 'scripts/engagement-phase3-local-proxy.mjs']],
   ['Phase 3 browser harness syntax', 'node', ['--check', 'apps/web/scripts/engagement-phase3-browser-parity.mjs']],
+  ['Phase 3 interaction harness syntax', 'node', ['--check', 'apps/web/scripts/engagement-phase3-browser-interactions.mjs']],
+  ['Phase 3 scenario catalog syntax', 'node', ['--check', 'apps/web/scripts/engagement-phase3-browser-scenarios.mjs']],
   ['Phase 3 browser+replay wrapper syntax', 'node', ['--check', 'apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs']],
   ['Phase 3 read replay syntax', 'node', ['--check', 'scripts/engagement-phase3-api-replay.mjs']],
   ['Web production typecheck', 'pnpm', ['--filter', '@capiro/web', 'exec', 'tsc', '-p', 'tsconfig.json', '--noEmit']],
