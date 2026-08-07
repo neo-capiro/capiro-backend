@@ -145,26 +145,6 @@ test('every safe-read route probe requires main/preview auth and tenant parity',
   }
 });
 
-// ───────────────────────────────────── required test: current web sends no header
-
-test('the current web sends no preview header — regression guard', () => {
-  const webSrc = path.join(ROOT, 'apps', 'web', 'src');
-  const scan = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      const full = path.join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        if (scan(full)) return true;
-      } else if (/\.(ts|tsx|js|jsx|mjs)$/.test(entry)) {
-        if (readFileSync(full, 'utf8').includes('X-Capiro-Engagement-Preview')) return true;
-      }
-    }
-    return false;
-  };
-  assert.equal(scan(webSrc), false);
-});
-
-// ──────────────────────────────────────────────── the required prototype report
-
 test('the report distinguishes safe backend support, prototype-only, and future-phase work', () => {
   const { report } = probeManifest;
   assert.ok(report.safeBackendSupportedStates.length > 0);

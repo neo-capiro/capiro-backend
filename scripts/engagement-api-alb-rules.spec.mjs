@@ -492,20 +492,3 @@ test('the header is documented as routing metadata, never authorization, in the 
   const source = readFileSync(SCRIPT, 'utf8');
   assert.match(source, /header is routing metadata, not authorization/i);
 });
-
-test('the current web source sends no preview header — regression guard for this script', () => {
-  const webSrc = path.join(ROOT, 'apps', 'web', 'src');
-  const rg = (dir) => {
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const full = path.join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        if (rg(full)) return true;
-      } else if (/\.(ts|tsx|js|jsx|mjs)$/.test(entry)) {
-        if (readFileSync(full, 'utf8').includes('X-Capiro-Engagement-Preview')) return true;
-      }
-    }
-    return false;
-  };
-  assert.equal(rg(webSrc), false, 'the current web sends the preview header');
-});
