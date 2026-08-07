@@ -1,5 +1,5 @@
-/**
- * Phase 7 Workstream E — staging is invisible and resumable, activation is one
+﻿/**
+ * Phase 7 Workstream E â€” staging is invisible and resumable, activation is one
  * exactly-once transaction, and nothing downstream runs inside it.
  */
 import { readFileSync } from 'node:fs';
@@ -123,6 +123,7 @@ interface FakeOptions {
   authorizationOverrides?: Partial<StoredExecutionAuthorizationV1>;
   activeSnapshotId?: string | null;
   requiredScopes?: string[];
+  rollbackTargetStatus?: { id: string; status: string };
   /** Extra rows already staged, to simulate a corrupted or drifted resume. */
   preStaged?: Map<string, string>;
 }
@@ -179,7 +180,15 @@ class FakeRepository implements PromotionExecutionRepositoryV1 {
   async loadSnapshot(snapshotId: string): Promise<StoredSnapshotV1 | null> {
     return {
       snapshotId,
-      status: 'STAGING',
+      // A rollback target is a previously activated snapshot; the proposed
+      // snapshot is still staging. The fake distinguishes them so the
+      // eligibility check has something real to read.
+      status:
+        snapshotId === this.opts.rollbackTargetStatus?.id
+          ? this.opts.rollbackTargetStatus.status
+          : snapshotId === SNAP_NEW
+            ? 'STAGING'
+            : 'SUPERSEDED',
       requiredScopes: this.opts.requiredScopes ?? ['om'],
       completedScopes: [],
       snapshotHash: null,
@@ -230,6 +239,19 @@ class FakeRepository implements PromotionExecutionRepositoryV1 {
 
   async loadStagedRowHashes() {
     return new Map(this.staged);
+  }
+
+  pausedDrains: string[] = [];
+  rollbackRecords: { toSnapshotId: string; reason: string }[] = [];
+
+  async pauseSideEffectDrain(domain: string, environment: string) {
+    this.pausedDrains.push(`${domain}:${environment}`);
+  }
+
+  async resumeSideEffectDrain() {}
+
+  async recordRollback(input: { toSnapshotId: string; reason: string }) {
+    this.rollbackRecords.push({ toSnapshotId: input.toSnapshotId, reason: input.reason });
   }
 
   async stageRows(rows: CanonicalRowInputV1[]) {
@@ -316,7 +338,7 @@ function build(
   };
 }
 
-describe('Phase 7 WS E — complete staging and activation', () => {
+describe('Phase 7 WS E â€” complete staging and activation', () => {
   it('stages every authorized row and activates once', async () => {
     const { service, repository, request } = build();
     const result = await service.execute(request);
@@ -372,7 +394,7 @@ describe('Phase 7 WS E — complete staging and activation', () => {
   });
 });
 
-describe('Phase 7 WS E — resume and idempotency', () => {
+describe('Phase 7 WS E â€” resume and idempotency', () => {
   it('resumes a partially staged run without restaging what is already there', async () => {
     const { service, repository, request, plan } = build();
     // Stage the identity row up front, as an interrupted run would have.
@@ -416,7 +438,7 @@ describe('Phase 7 WS E — resume and idempotency', () => {
   });
 });
 
-describe('Phase 7 WS E — pre-activation proof', () => {
+describe('Phase 7 WS E â€” pre-activation proof', () => {
   it('refuses when a plan item has no reloaded projection', async () => {
     // The plan authorizes two rows; only one projection comes back.
     const plan = makePlan([sagIdentity(), sagYear()]);
@@ -494,7 +516,7 @@ describe('Phase 7 WS E — pre-activation proof', () => {
   });
 });
 
-describe('Phase 7 WS E — bindings are reloaded and compared', () => {
+describe('Phase 7 WS E â€” bindings are reloaded and compared', () => {
   it('refuses a plan hash the caller got wrong', async () => {
     const { service, request } = build();
     const result = await service.execute({ ...request, expectedPlanHash: SHA('0') });
@@ -554,7 +576,7 @@ describe('Phase 7 WS E — bindings are reloaded and compared', () => {
   });
 });
 
-describe('Phase 7 WS E — exactly-once activation', () => {
+describe('Phase 7 WS E â€” exactly-once activation', () => {
   it('uses a deterministic activation key', () => {
     const key = DefenseBudgetCanonicalPromotionServiceV1.activationKeyFor('run:abc', 'PROMOTION');
     expect(key).toBe(
@@ -641,7 +663,7 @@ describe('Phase 7 WS E — exactly-once activation', () => {
   });
 });
 
-describe('Phase 7 WS E — no side effects inside activation', () => {
+describe('Phase 7 WS E â€” no side effects inside activation', () => {
   const source = readFileSync(join(__dirname, 'canonical-promotion-service-v1.ts'), 'utf8');
 
   it('leaves the run in SIDE_EFFECTS_PENDING rather than COMPLETED', async () => {
@@ -677,7 +699,7 @@ describe('Phase 7 WS E — no side effects inside activation', () => {
   });
 });
 
-describe('Phase 7 WS E — outbox classification', () => {
+describe('Phase 7 WS E â€” outbox classification', () => {
   const item = (o: Partial<PromotionPlanItemV1> = {}): PromotionPlanItemV1 => ({
     sourceProjectionId: 'p',
     sourceProjectionHash: SHA('1'),
@@ -734,7 +756,7 @@ describe('Phase 7 WS E — outbox classification', () => {
     for (const key of keys) expect(key).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('emits no outbox row for an UNCHANGED item', async () => {
+  it('carries UNCHANGED rows into the new snapshot but emits no outbox row for them', async () => {
     // Second run against the same active data: everything is UNCHANGED.
     const projections = [sagIdentity(), sagYear()];
     const first = makePlan(projections);
@@ -782,12 +804,17 @@ describe('Phase 7 WS E — outbox classification', () => {
     );
 
     expect(result.committed).toBe(true);
+    // No notifications: carrying a row forward is not a change.
     expect(result.outboxRowCount).toBe(0);
-    expect(result.stagedRowCount).toBe(0);
+    // But the rows ARE staged. A snapshot is a complete annual picture, not a
+    // changeset: staging only the deltas would make every unchanged row vanish
+    // from the active snapshot, because canonical rows are snapshot-scoped and
+    // a read never falls back to a prior snapshot to find them.
+    expect(result.stagedRowCount).toBe(2);
   });
 });
 
-describe('Phase 7 WS E — rollback', () => {
+describe('Phase 7 WS E â€” rollback', () => {
   it('reactivates a prior snapshot as a forward pointer transition', async () => {
     const { service, repository } = build([sagIdentity(), sagYear()], {
       activeSnapshotId: 'snap-live',
@@ -795,7 +822,6 @@ describe('Phase 7 WS E — rollback', () => {
     const result = await service.rollback({
       toSnapshotId: 'snap-prior',
       authorizationId: 'auth-rollback',
-      runId: 'run-1',
       executorIdentity: 'fargate:promoter',
       environment: 'rehearsal',
       reason: 'bad cycle',
@@ -814,7 +840,6 @@ describe('Phase 7 WS E — rollback', () => {
     await service.rollback({
       toSnapshotId: 'snap-prior',
       authorizationId: 'auth-rollback',
-      runId: 'run-1',
       executorIdentity: 'fargate:promoter',
       environment: 'rehearsal',
       reason: 'bad cycle',
@@ -834,7 +859,6 @@ describe('Phase 7 WS E — rollback', () => {
     const result = await service.rollback({
       toSnapshotId: 'snap-prior',
       authorizationId: 'auth-rollback',
-      runId: 'run-1',
       executorIdentity: 'fargate:promoter',
       environment: 'rehearsal',
       reason: 'bad cycle',
@@ -856,7 +880,6 @@ describe('Phase 7 WS E — rollback', () => {
     const result = await service.rollback({
       toSnapshotId: 'snap-prior',
       authorizationId: 'auth-rollback',
-      runId: 'run-1',
       executorIdentity: 'fargate:promoter',
       environment: 'rehearsal',
       reason: 'bad cycle',
@@ -864,7 +887,118 @@ describe('Phase 7 WS E — rollback', () => {
     expect(result.refusals.map((r) => r.reason)).toContain('authorization_expired');
   });
 
-  it('never deletes anything — rollback only ever calls activate', () => {
+  it('refuses a rollback to a snapshot that was never activated', async () => {
+    // A STAGING snapshot never became truth. The activation trigger admits only
+    // READY or ACTIVE, so without this check the rollback would abort with
+    // 0A000 deep inside the transaction instead of refusing cleanly.
+    const { service, repository } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+      rollbackTargetStatus: { id: 'snap-never-live', status: 'STAGING' },
+    });
+    const result = await service.rollback({
+      toSnapshotId: 'snap-never-live',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'should refuse',
+    });
+
+    expect(result.committed).toBe(false);
+    expect(result.refusals.map((r) => r.reason)).toContain('rollback_target_not_eligible');
+    expect(repository.activationCalls).toHaveLength(0);
+  });
+
+  it('refuses a rollback whose authorization was already consumed', async () => {
+    const { service, repository } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+      authorizationOverrides: {
+        expectedActiveSnapshotId: 'snap-live',
+        consumedAt: '2027-09-30T00:00:00.000Z',
+        consumedByRunId: 'some-run',
+      },
+    });
+    const result = await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'reused',
+    });
+
+    expect(result.committed).toBe(false);
+    expect(result.refusals.map((r) => r.reason)).toContain('authorization_already_used');
+    expect(repository.activationCalls).toHaveLength(0);
+  });
+
+  it('pauses the side-effect drain before moving the pointer', async () => {
+    const { service, repository } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+    });
+    await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'bad cycle',
+    });
+    expect(repository.pausedDrains).toContain('defense_budget:rehearsal');
+  });
+
+  it('writes an append-only rollback record', async () => {
+    const { service, repository } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+    });
+    await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'bad cycle',
+    });
+    expect(repository.rollbackRecords).toEqual([
+      { toSnapshotId: 'snap-prior', reason: 'bad cycle' },
+    ]);
+  });
+
+  it('audits a successful rollback', async () => {
+    const { service, audit } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+    });
+    await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'bad cycle',
+    });
+    const entry = audit.entries[audit.entries.length - 1];
+    expect(entry?.outcome).toBe('ALLOWED');
+    expect((entry?.scope as Record<string, unknown>)?.kind).toBe('ROLLBACK');
+  });
+
+  it('recovers an existing rollback activation instead of activating twice', async () => {
+    const { service, repository } = build([sagIdentity(), sagYear()], {
+      activeSnapshotId: 'snap-live',
+    });
+    const first = await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'bad cycle',
+    });
+    const second = await service.rollback({
+      toSnapshotId: 'snap-prior',
+      authorizationId: 'auth-rollback',
+      executorIdentity: 'fargate:promoter',
+      environment: 'rehearsal',
+      reason: 'bad cycle',
+    });
+    expect(second.recoveredExistingActivation).toBe(true);
+    expect(second.activationId).toBe(first.activationId);
+    expect(repository.activationCalls).toHaveLength(1);
+  });
+  it('never deletes anything â€” rollback only ever calls activate', () => {
     const source = readFileSync(join(__dirname, 'canonical-promotion-service-v1.ts'), 'utf8');
     const rollbackBody = source.slice(
       source.indexOf('  async rollback('),
@@ -876,7 +1010,7 @@ describe('Phase 7 WS E — rollback', () => {
   });
 });
 
-describe('Phase 7 WS E — cancellation', () => {
+describe('Phase 7 WS E â€” cancellation', () => {
   it('cancels a run that has not activated', async () => {
     const { service, repository, request } = build();
     await service.execute({ ...request, executionMode: 'dry_run' });
@@ -909,7 +1043,7 @@ describe('Phase 7 WS E — cancellation', () => {
   });
 });
 
-describe('Phase 7 WS E — audit', () => {
+describe('Phase 7 WS E â€” audit', () => {
   it('audits a committed redemption', async () => {
     const { service, audit, request } = build();
     await service.execute(request);

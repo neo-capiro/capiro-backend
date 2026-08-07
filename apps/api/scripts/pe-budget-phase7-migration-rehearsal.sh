@@ -671,6 +671,26 @@ UPDATE defense_budget_canonical_row SET text_value='too late'
  WHERE snapshot_id='$STAGE_SNAP';"
 
 # =============================================================================
+log "Workstream E: drive a full promotion through the engine"
+# =============================================================================
+# Everything above exercises the schema with hand-written SQL. This runs the
+# real promotion engine and its Prisma adapter, connected as the promoter role,
+# so a missing grant or a wrong query fails here rather than in production.
+
+# Give the promoter a password so the engine can authenticate as it. The role
+# was created by the migration with an unusable placeholder, exactly as it is in
+# a real deployment before bootstrap-roles runs.
+run_sql "ALTER ROLE capiro_pe_promoter PASSWORD 'rehearsal-promoter';"
+run_sql "GRANT USAGE ON SCHEMA public TO capiro_pe_promoter;"
+ok "promoter role given a rehearsal password"
+
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
+  || fail "the engine rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
 log "Prisma validate/generate against the final schema"
 # =============================================================================
 (cd "$API_ROOT" && npx prisma validate --schema prisma/schema.prisma >/dev/null) \

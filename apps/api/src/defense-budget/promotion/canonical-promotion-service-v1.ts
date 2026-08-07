@@ -1,5 +1,5 @@
-/**
- * Phase 7 Workstream E — `DefenseBudgetCanonicalPromotionServiceV1`.
+﻿/**
+ * Phase 7 Workstream E â€” `DefenseBudgetCanonicalPromotionServiceV1`.
  *
  * The only service allowed to stage and activate a canonical snapshot.
  *
@@ -7,23 +7,23 @@
  * preconditions, one-use authorization, plan-hash matching, blocked-plan
  * refusal, row immutability, and the writer-role boundary into constraints and
  * triggers. This service's job is to drive those correctly and fail cleanly
- * when they fire — never to re-implement them in TypeScript and never to work
+ * when they fire â€” never to re-implement them in TypeScript and never to work
  * around them.
  *
  * The shape of the work:
  *
  * ```text
  *   reload everything from persistence
- *          ↓
+ *          â†“
  *   refuse on any mismatch (plan hash, authorization, drift, blocked items)
- *          ↓
- *   stage in deterministic, idempotent, hash-verified chunks   ← invisible
- *          ↓
- *   pre-activation proof                                        ← still invisible
- *          ↓
- *   ONE small activation transaction                            ← becomes visible
- *          ↓
- *   side effects drain afterwards, separately                   ← WS L
+ *          â†“
+ *   stage in deterministic, idempotent, hash-verified chunks   â† invisible
+ *          â†“
+ *   pre-activation proof                                        â† still invisible
+ *          â†“
+ *   ONE small activation transaction                            â† becomes visible
+ *          â†“
+ *   side effects drain afterwards, separately                   â† WS L
  * ```
  *
  * Three properties are worth stating explicitly because they are easy to lose:
@@ -47,7 +47,6 @@
  * tests can drive it with in-memory fakes.
  */
 import {
-  buildExecutionExpectationsV1,
   proposedRowHashV1,
   type DefenseBudgetPromotionPlanV1,
   type PromotionModeV1,
@@ -223,7 +222,7 @@ export interface ActivationOutcomeV1 {
 
 /**
  * Thrown by a repository when an activation transaction's outcome could not be
- * determined — a connection drop after COMMIT was sent, for example. The
+ * determined â€” a connection drop after COMMIT was sent, for example. The
  * service responds by reading the activation ledger, never by retrying.
  */
 export class AmbiguousActivationError extends Error {
@@ -268,8 +267,18 @@ export interface PromotionExecutionRepositoryV1 {
     patch?: { failureReason?: string; stagedRowCount?: number },
   ): Promise<void>;
 
-  /** Canonical natural key -> row hash, for rows already staged by this run. */
-  loadStagedRowHashes(runId: string): Promise<Map<string, string>>;
+  /**
+   * Canonical natural key -> row hash for rows already staged into this
+   * SNAPSHOT, by any run.
+   *
+   * Scoped by snapshot rather than by run on purpose. Staging is idempotent
+   * through `ON CONFLICT DO NOTHING` on a snapshot-scoped unique index, so rows
+   * left behind by an earlier abandoned run are silently skipped on re-insert.
+   * If this were scoped by run they would also be invisible to the pre-activation
+   * proof, which would then refuse every one of them as `unaccounted_plan_item`
+   * â€” and since no role holds DELETE, the snapshot would be permanently stuck.
+   */
+  loadStagedRowHashes(snapshotId: string): Promise<Map<string, string>>;
   /** Idempotent: inserting an already-present identity must not duplicate. */
   stageRows(rows: CanonicalRowInputV1[]): Promise<void>;
   recordPlanItemsStaged(runId: string, keys: string[]): Promise<void>;
@@ -280,6 +289,31 @@ export interface PromotionExecutionRepositoryV1 {
   /** The single small activation transaction. */
   activate(input: ActivationInputV1): Promise<ActivationOutcomeV1>;
   findActivationByKey(activationKey: string): Promise<StoredExecutionActivationV1 | null>;
+
+  /**
+   * Pause the Workstream L side-effect drainer before a rollback (plan E.10,
+   * first bullet).
+   *
+   * Without this, a drainer mid-flight keeps publishing the rolled-back
+   * snapshot's material_change rows AFTER the pointer has moved back, so
+   * downstream consumers receive alerts for data that is no longer active —
+   * arriving after the rollback's own suppressed marker row. The drainer does
+   * not exist yet; this port is what makes the ordering explicit so L cannot be
+   * built without honouring it.
+   */
+  pauseSideEffectDrain(domain: string, environment: string): Promise<void>;
+  resumeSideEffectDrain(domain: string, environment: string): Promise<void>;
+
+  /** Append-only rollback ledger entry. */
+  recordRollback(input: {
+    rollbackKey: string;
+    fromSnapshotId: string;
+    toSnapshotId: string;
+    authorizationId: string;
+    activationId: string;
+    reason: string;
+    createdBy: string;
+  }): Promise<void>;
 }
 
 export interface PromotionMetricsSinkV1 {
@@ -317,6 +351,7 @@ export const PROMOTION_EXECUTION_REFUSAL_V1_VALUES = [
   'missing_dependency_row',
   'run_already_committed',
   'run_cancelled',
+  'rollback_target_not_eligible',
 ] as const;
 export type PromotionExecutionRefusalV1 = (typeof PROMOTION_EXECUTION_REFUSAL_V1_VALUES)[number];
 
@@ -333,6 +368,12 @@ export interface PromotionExecutionResultV1 {
 }
 
 const DEFAULT_CHUNK_SIZE = 500;
+
+/**
+ * Statuses a rollback target may hold. A snapshot that was never activated
+ * never became truth, and must not become truth by being rolled back to.
+ */
+const ROLLBACK_ELIGIBLE_TARGET_STATUSES = new Set(['SUPERSEDED', 'ROLLED_BACK', 'ACTIVE']);
 
 const rowKey = (entity: CanonicalEntityV1 | string, naturalKey: string): string =>
   `${entity} ${naturalKey}`;
@@ -361,7 +402,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     return `run:${sha256Hex(`${planId} ${authorizationId} ${proposedSnapshotId}`)}`;
   }
 
-  /** Deterministic activation key — the database's exactly-once guarantee. */
+  /** Deterministic activation key â€” the database's exactly-once guarantee. */
   static activationKeyFor(runKey: string, kind: 'PROMOTION' | 'ROLLBACK'): string {
     return `act:${kind.toLowerCase()}:${runKey}`;
   }
@@ -446,6 +487,42 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
       }
     }
 
+    if (refusals.length > 0) return this.refuse(request, refusals);
+
+    const runKey = DefenseBudgetCanonicalPromotionServiceV1.runKeyFor(
+      plan.planId,
+      request.authorizationId,
+      plan.proposedSnapshotId,
+    );
+    const activationKey = DefenseBudgetCanonicalPromotionServiceV1.activationKeyFor(
+      runKey,
+      'PROMOTION',
+    );
+
+    /* ---- Ambiguous-commit recovery, BEFORE the drift check (E.9) ---- */
+    // Order matters here. Once this promotion has activated, the live pointer
+    // legitimately no longer equals what the request expected — that is the
+    // promotion having succeeded, not drift. Evaluating drift first would
+    // refuse every re-execution of an already-committed promotion as
+    // active_snapshot_drift, which is exactly the blind-retry loop E.9 exists
+    // to prevent: the operator sees a refusal, assumes nothing happened, and
+    // tries again. The ledger is consulted first so a completed promotion
+    // reports itself as completed.
+    const priorActivation = await this.repository.findActivationByKey(activationKey);
+    if (priorActivation != null) {
+      return {
+        committed: true,
+        runId: (await this.repository.findRunByKey(runKey))?.runId ?? null,
+        snapshotId: priorActivation.newSnapshotId,
+        activationId: priorActivation.activationId,
+        stagedRowCount: 0,
+        outboxRowCount: 0,
+        recoveredExistingActivation: true,
+        refusals: [],
+      };
+    }
+
+    /* ---- Drift: only meaningful once we know this run has not committed ---- */
     const actualActive = await this.repository.loadActiveSnapshotId(domain, request.environment);
     if (actualActive !== request.expectedActiveSnapshotId) {
       refusals.push({
@@ -461,35 +538,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
         detail: 'the plan was built against a different expected active snapshot',
       });
     }
-
     if (refusals.length > 0) return this.refuse(request, refusals);
-
-    const runKey = DefenseBudgetCanonicalPromotionServiceV1.runKeyFor(
-      plan.planId,
-      request.authorizationId,
-      plan.proposedSnapshotId,
-    );
-    const activationKey = DefenseBudgetCanonicalPromotionServiceV1.activationKeyFor(
-      runKey,
-      'PROMOTION',
-    );
-
-    /* ---- Ambiguous-commit recovery before doing anything (E.9) ---- */
-    // If this run already activated, the correct response is to report that,
-    // not to stage again. This is the read that replaces a blind retry.
-    const priorActivation = await this.repository.findActivationByKey(activationKey);
-    if (priorActivation != null) {
-      return {
-        committed: true,
-        runId: (await this.repository.findRunByKey(runKey))?.runId ?? null,
-        snapshotId: priorActivation.newSnapshotId,
-        activationId: priorActivation.activationId,
-        stagedRowCount: 0,
-        outboxRowCount: 0,
-        recoveredExistingActivation: true,
-        refusals: [],
-      };
-    }
 
     // A one-use authorization consumed by a *different* run cannot be reused.
     if (
@@ -540,7 +589,33 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
       projectionByKey.set(rowKey(lookup.entry.canonicalEntity, projection.naturalKey), projection);
     }
 
-    const expectations = buildExecutionExpectationsV1(plan.plan);
+    /* A snapshot is a COMPLETE annual picture, not a changeset.
+     *
+     * `buildExecutionExpectationsV1` deliberately returns only the rows that
+     * change â€” it answers "what is this promotion doing". Staging only those
+     * would leave the new snapshot holding just the deltas, and because
+     * `defense_budget_canonical_row_identity_unique` is scoped by snapshot and
+     * there is no lineage column, activating it would make every UNCHANGED row
+     * disappear from the active snapshot. Invariant 22 ("one response never
+     * mixes snapshots") means a read cannot fall back to the prior snapshot to
+     * find them.
+     *
+     * So the staged set is every non-blocked item, and UNCHANGED rows are
+     * carried forward verbatim. They cost a row each and they are what makes
+     * the snapshot self-contained. The outbox, by contrast, still excludes them
+     * â€” carrying a row forward is not a change and must not notify. */
+    const expectations = plan.plan.items
+      .filter(
+        (item) =>
+          item.operation !== 'BLOCKED' &&
+          item.canonicalEntity != null &&
+          item.proposedRowHash != null,
+      )
+      .map((item) => ({
+        canonicalEntity: item.canonicalEntity as CanonicalEntityV1,
+        naturalKey: item.canonicalNaturalKey,
+        rowHash: item.proposedRowHash as string,
+      }));
     const rows: CanonicalRowInputV1[] = [];
 
     for (const expectation of expectations) {
@@ -591,7 +666,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
 
     /* ---- Stage in deterministic, idempotent, hash-verified chunks (E.5) ---- */
 
-    const alreadyStaged = await this.repository.loadStagedRowHashes(run.runId);
+    const alreadyStaged = await this.repository.loadStagedRowHashes(plan.proposedSnapshotId);
     for (const row of rows) {
       const existing = alreadyStaged.get(rowKey(row.canonicalEntity, row.canonicalNaturalKey));
       if (existing != null && existing !== row.canonicalRowHash) {
@@ -614,7 +689,8 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     // Deterministic chunk boundaries: the same plan always chunks the same way,
     // so a resumed run picks up exactly where it stopped.
     pending.sort((a, b) =>
-      rowKey(a.canonicalEntity, a.canonicalNaturalKey).localeCompare(
+      compareBytewiseV1(
+        rowKey(a.canonicalEntity, a.canonicalNaturalKey),
         rowKey(b.canonicalEntity, b.canonicalNaturalKey),
       ),
     );
@@ -633,7 +709,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
 
     /* ---- Pre-activation proof (E.6) ---- */
 
-    const staged = await this.repository.loadStagedRowHashes(run.runId);
+    const staged = await this.repository.loadStagedRowHashes(plan.proposedSnapshotId);
     const authorizedKeys = new Set(
       rows.map((row) => rowKey(row.canonicalEntity, row.canonicalNaturalKey)),
     );
@@ -733,7 +809,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
         outbox,
       });
     } catch (error) {
-      // Whatever went wrong, the activation ledger — not the exception — is the
+      // Whatever went wrong, the activation ledger â€” not the exception â€” is the
       // authority on whether the activation happened. Read it before deciding
       // anything. This covers both an ambiguous commit (the transaction
       // succeeded but the caller never learned) and a lost race against a
@@ -809,32 +885,39 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
   async rollback(request: {
     toSnapshotId: string;
     authorizationId: string;
-    runId: string;
     executorIdentity: string;
     environment: string;
     domain?: string;
     reason: string;
   }): Promise<PromotionExecutionResultV1> {
     const domain = request.domain ?? 'defense_budget';
+    return this.repository.withDomainCycleLock(`${domain}:${request.environment}:rollback`, () =>
+      this.rollbackLocked(request, domain),
+    );
+  }
+
+  private async rollbackLocked(
+    request: {
+      toSnapshotId: string;
+      authorizationId: string;
+      executorIdentity: string;
+      environment: string;
+      domain?: string;
+      reason: string;
+    },
+    domain: string,
+  ): Promise<PromotionExecutionResultV1> {
     const refusals: PromotionExecutionResultV1['refusals'] = [];
+    const currentActive = await this.repository.loadActiveSnapshotId(domain, request.environment);
 
     const authorization = await this.repository.loadAuthorization(request.authorizationId);
     if (authorization == null) {
-      return {
-        committed: false,
-        runId: request.runId,
-        snapshotId: null,
-        activationId: null,
-        stagedRowCount: 0,
-        outboxRowCount: 0,
-        recoveredExistingActivation: false,
-        refusals: [
-          {
-            reason: 'authorization_not_found',
-            detail: `rollback authorization ${request.authorizationId} does not exist`,
-          },
-        ],
-      };
+      return this.refuseRollback(request, domain, currentActive, [
+        {
+          reason: 'authorization_not_found',
+          detail: `rollback authorization ${request.authorizationId} does not exist`,
+        },
+      ]);
     }
     if (Date.parse(authorization.expiresAt) <= this.options.now().getTime()) {
       refusals.push({
@@ -842,8 +925,14 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
         detail: `rollback authorization expired at ${authorization.expiresAt}`,
       });
     }
-
-    const currentActive = await this.repository.loadActiveSnapshotId(domain, request.environment);
+    // One-use applies to rollback too. Without this the only enforcement is the
+    // database's partial unique index, which fires far later and less clearly.
+    if (authorization.consumedAt != null) {
+      refusals.push({
+        reason: 'authorization_already_used',
+        detail: `rollback authorization was consumed at ${authorization.consumedAt}`,
+      });
+    }
     if (authorization.expectedActiveSnapshotId !== currentActive) {
       refusals.push({
         reason: 'active_snapshot_drift',
@@ -859,41 +948,36 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
         reason: 'plan_not_found',
         detail: `rollback target snapshot ${request.toSnapshotId} does not exist`,
       });
+    } else if (!ROLLBACK_ELIGIBLE_TARGET_STATUSES.has(target.status)) {
+      // A prior snapshot is SUPERSEDED — that is exactly what activation set it
+      // to. Only a snapshot that was once real may be reactivated; a STAGING or
+      // FAILED one never became truth and must not become truth by rollback.
+      refusals.push({
+        reason: 'rollback_target_not_eligible',
+        detail: `snapshot ${request.toSnapshotId} is ${target.status}; only a previously activated snapshot may be rolled back to`,
+      });
+    }
+    if (request.toSnapshotId === currentActive) {
+      refusals.push({
+        reason: 'rollback_target_not_eligible',
+        detail: 'the rollback target is already the active snapshot',
+      });
     }
 
     if (refusals.length > 0) {
-      await this.audit.record({
-        attemptKind: 'REDEMPTION',
-        outcome: 'REFUSED',
-        actorId: request.executorIdentity,
-        cycleId: null,
-        scope: { environment: request.environment, domain, kind: 'ROLLBACK' },
-        eligibilityHash: null,
-        planId: null,
-        planHash: null,
-        authorizationId: request.authorizationId,
-        expectedActiveSnapshotId: currentActive,
-        reasons: refusals.map((r) => r.reason),
-        detail: refusals.map((r) => r.detail).join('; '),
-      });
-      return {
-        committed: false,
-        runId: request.runId,
-        snapshotId: null,
-        activationId: null,
-        stagedRowCount: 0,
-        outboxRowCount: 0,
-        recoveredExistingActivation: false,
-        refusals,
-      };
+      return this.refuseRollback(request, domain, currentActive, refusals);
     }
 
-    const activationKey = `act:rollback:${request.runId}:${request.toSnapshotId}`;
+    const rollbackKey = `rb:${sha256Hex(
+      `${domain} ${request.environment} ${request.authorizationId} ${request.toSnapshotId}`,
+    )}`;
+    const activationKey = `act:rollback:${rollbackKey}`;
+
     const existing = await this.repository.findActivationByKey(activationKey);
     if (existing != null) {
       return {
         committed: true,
-        runId: request.runId,
+        runId: null,
         snapshotId: existing.newSnapshotId,
         activationId: existing.activationId,
         stagedRowCount: 0,
@@ -903,10 +987,28 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
       };
     }
 
-    // Rollback always suppresses external alerts.
+    // E.10, first bullet. Pause BEFORE the pointer moves, so the drainer cannot
+    // publish the outgoing snapshot's changes after it stops being active.
+    await this.repository.pauseSideEffectDrain(domain, request.environment);
+
+    // A rollback needs its own run: the activation ledger has a foreign key to
+    // a run, and reusing the original promotion run would consume a second
+    // authorization under a run id that already consumed one, which the
+    // one-use partial unique index refuses.
+    const run = await this.repository.createRun({
+      runKey: `run:${rollbackKey}`,
+      planId: authorization.planId,
+      planHash: authorization.planHash,
+      authorizationId: request.authorizationId,
+      snapshotId: request.toSnapshotId,
+      expectedActiveSnapshotId: currentActive,
+      executorIdentity: request.executorIdentity,
+      executionMode: 'execute',
+    });
+
     const outbox: PromotionOutboxRowInputV1[] = [
       {
-        dedupeKey: sha256Hex(`${activationKey} rollback-marker`),
+        dedupeKey: sha256Hex(`${activationKey} rollback-marker`),
         oldSnapshotId: currentActive,
         newSnapshotId: request.toSnapshotId,
         canonicalEntity: 'canonical_budget_line_source_observation',
@@ -923,26 +1025,70 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
         suppressAlert: true,
         isCorrection: false,
         isRollback: true,
-        sourceLineage: { reason: request.reason },
+        sourceLineage: { reason: request.reason, rolledBackFrom: currentActive },
       },
     ];
 
-    const outcome = await this.repository.activate({
-      activationKey,
-      runId: request.runId,
-      domain,
-      environment: request.environment,
-      previousSnapshotId: currentActive,
-      newSnapshotId: request.toSnapshotId,
+    let outcome: ActivationOutcomeV1;
+    try {
+      outcome = await this.repository.activate({
+        activationKey,
+        runId: run.runId,
+        domain,
+        environment: request.environment,
+        previousSnapshotId: currentActive,
+        newSnapshotId: request.toSnapshotId,
+        authorizationId: request.authorizationId,
+        activationKind: 'ROLLBACK',
+        activatedBy: request.executorIdentity,
+        outbox,
+      });
+    } catch (error) {
+      // Same rule as promotion: the ledger, not the exception, is the authority.
+      const recovered = await this.repository.findActivationByKey(activationKey).catch(() => null);
+      if (recovered == null) {
+        await this.repository.updateRunStatus(run.runId, 'FAILED_PRECOMMIT', {
+          failureReason: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+      outcome = {
+        activationId: recovered.activationId,
+        previousSnapshotId: recovered.previousSnapshotId,
+        newSnapshotId: recovered.newSnapshotId,
+      };
+    }
+
+    await this.repository.recordRollback({
+      rollbackKey,
+      fromSnapshotId: currentActive ?? request.toSnapshotId,
+      toSnapshotId: request.toSnapshotId,
       authorizationId: request.authorizationId,
-      activationKind: 'ROLLBACK',
-      activatedBy: request.executorIdentity,
-      outbox,
+      activationId: outcome.activationId,
+      reason: request.reason,
+      createdBy: request.executorIdentity,
+    });
+
+    await this.repository.updateRunStatus(run.runId, 'SIDE_EFFECTS_PENDING');
+
+    await this.audit.record({
+      attemptKind: 'REDEMPTION',
+      outcome: 'ALLOWED',
+      actorId: request.executorIdentity,
+      cycleId: null,
+      scope: { environment: request.environment, domain, kind: 'ROLLBACK' },
+      eligibilityHash: null,
+      planId: authorization.planId,
+      planHash: authorization.planHash,
+      authorizationId: request.authorizationId,
+      expectedActiveSnapshotId: currentActive,
+      reasons: [],
+      detail: request.reason,
     });
 
     return {
       committed: true,
-      runId: request.runId,
+      runId: run.runId,
       snapshotId: outcome.newSnapshotId,
       activationId: outcome.activationId,
       stagedRowCount: 0,
@@ -952,8 +1098,40 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     };
   }
 
+  private async refuseRollback(
+    request: { authorizationId: string; environment: string; executorIdentity: string },
+    domain: string,
+    currentActive: string | null,
+    refusals: PromotionExecutionResultV1['refusals'],
+  ): Promise<PromotionExecutionResultV1> {
+    await this.audit.record({
+      attemptKind: 'REDEMPTION',
+      outcome: 'REFUSED',
+      actorId: request.executorIdentity,
+      cycleId: null,
+      scope: { environment: request.environment, domain, kind: 'ROLLBACK' },
+      eligibilityHash: null,
+      planId: null,
+      planHash: null,
+      authorizationId: request.authorizationId,
+      expectedActiveSnapshotId: currentActive,
+      reasons: refusals.map((refusal) => refusal.reason),
+      detail: refusals.map((refusal) => refusal.detail).join('; '),
+    });
+    return {
+      committed: false,
+      runId: null,
+      snapshotId: null,
+      activationId: null,
+      stagedRowCount: 0,
+      outboxRowCount: 0,
+      recoveredExistingActivation: false,
+      refusals,
+    };
+  }
+
   /* ---------------------------------------------------------------- */
-  /* E8. Cancellation — only before activation (E.11)                  */
+  /* E8. Cancellation â€” only before activation (E.11)                  */
   /* ---------------------------------------------------------------- */
 
   async cancel(runKey: string, reason: string): Promise<{ cancelled: boolean; detail: string }> {
@@ -1036,7 +1214,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
    * Outbox payloads, built from the plan and written inside the activation
    * transaction. Classification follows the plan's alert disposition, so the
    * suppression decision made at planning time is the one that reaches the
-   * database — where a CHECK constraint refuses an un-suppressed hydration,
+   * database â€” where a CHECK constraint refuses an un-suppressed hydration,
    * correction, or rollback row regardless.
    */
   private buildOutbox(
@@ -1132,6 +1310,12 @@ export function classifyOutboxV1(
   return 'material_change';
 }
 
+/** Byte-wise, locale-independent ordering. Feeds an immutable hash, so it
+ * must not depend on ICU data that can differ between promoter hosts. */
+export function compareBytewiseV1(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /**
  * Deterministic snapshot hash: the content of the snapshot is exactly the set
  * of canonical row hashes it contains, in sorted order, bound to the plan.
@@ -1142,6 +1326,6 @@ export function snapshotHashFor(
 ): string {
   const ordered = [...rows]
     .map((row) => `${row.canonicalEntity} ${row.canonicalNaturalKey} ${row.canonicalRowHash}`)
-    .sort((a, b) => a.localeCompare(b));
+    .sort(compareBytewiseV1);
   return sha256Hex([plan.planHash, plan.proposedSnapshotId, ...ordered].join(''));
 }
