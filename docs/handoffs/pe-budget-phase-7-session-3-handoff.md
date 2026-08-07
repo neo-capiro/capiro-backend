@@ -1,18 +1,20 @@
-# Phase 7 handoff — Session 3 → Session 4
+﻿# Phase 7 handoff â€” Session 3 â†’ Session 4
 
 **Mission for the next session: implement Phase 7 Workstreams I, J, K, and L.**
 
 Workstreams **A through H are complete and demonstrated**. What remains is
 MILCON and the congressional lifecycle (I, J), corrections and overrides (K),
-and the outbox/delta/alert layer (L) — then M, N, O.
+and the outbox/delta/alert layer (L) â€” then M, N, O.
 
 Authoritative spec: `phase-7-verified-canonical-promotion-production-cutover-v1.md`.
 
-> **Read this first.** Workstream E is written but has **no Prisma-backed
-> repository adapter**. Every port it depends on is defined and unit-tested
-> against in-memory fakes, and every database guarantee it relies on is proven
-> by the disposable-PostgreSQL rehearsal — but the two are not yet wired
-> together. See §6. Nothing can actually promote until that adapter exists.
+> **Read this first.** Workstream E has been independently reviewed, and the
+> review found three P0 defects that 48 passing unit tests did not — most
+> seriously, rollback could not execute at all against the real schema. All
+> three are fixed. E now has a Prisma adapter and an end-to-end rehearsal that
+> drives a real promotion as `capiro_pe_promoter`. **§6 lists the review
+> findings that were deliberately NOT fixed** — they are real, and they are
+> yours.
 
 ---
 
@@ -21,7 +23,7 @@ Authoritative spec: `phase-7-verified-canonical-promotion-production-cutover-v1.
 | Item                     | Value                                                     |
 | ------------------------ | --------------------------------------------------------- |
 | Branch                   | `agent/pe-budget-canonical-promotion-cutover-v1` (pushed) |
-| Draft PR                 | #784 — running record, not to be merged                   |
+| Draft PR                 | #784 â€” running record, not to be merged                 |
 | `origin/main` at handoff | `a234e4e53`                                               |
 | Behind main              | 0 (merged this session at `2c4bf0f93`)                    |
 | Working tree             | clean                                                     |
@@ -29,8 +31,8 @@ Authoritative spec: `phase-7-verified-canonical-promotion-production-cutover-v1.
 ### Commits added this session
 
 ```text
-5cafad73b  feat(pe): Phase 7 WS F, G, H — RDT&E, procurement, and O&M canonical projectors
-083dd3d33  feat(pe): Phase 7 WS E — transactional staging, activation, retry, and rollback
+5cafad73b  feat(pe): Phase 7 WS F, G, H â€” RDT&E, procurement, and O&M canonical projectors
+083dd3d33  feat(pe): Phase 7 WS E â€” transactional staging, activation, retry, and rollback
 2c4bf0f93  Merge remote-tracking branch 'origin/main'
 ```
 
@@ -45,7 +47,7 @@ pnpm --filter @capiro/api exec prisma generate   # and the three projection sche
 
 ---
 
-## 2. What A–H delivered
+## 2. What Aâ€“H delivered
 
 Everything lives in `apps/api/src/defense-budget/promotion/`.
 
@@ -61,9 +63,9 @@ Everything lives in `apps/api/src/defense-budget/promotion/`.
 **280 jest tests across 8 suites**, plus a **66-check disposable-PostgreSQL
 rehearsal**.
 
-### Properties I–L must not break
+### Properties Iâ€“L must not break
 
-Everything in the Session 2 handoff §2 still holds, plus:
+Everything in the Session 2 handoff Â§2 still holds, plus:
 
 8. **Nothing trusts the caller.** The engine reloads the plan, authorization,
    and projections, and re-derives every row hash. A projection that changed
@@ -83,13 +85,13 @@ Everything in the Session 2 handoff §2 still holds, plus:
 
 ---
 
-## 3. Workstream briefs — I through L
+## 3. Workstream briefs â€” I through L
 
-### I — MILCON projector
+### I â€” MILCON projector
 
 The registry already maps `non_rdte:MilconProject`, `MilconProjectYear`, and
 `MilconDetailFact`, and the natural key is
-`component + account + projectCode + location` — **never title**, which is the
+`component + account + projectCode + location` â€” **never title**, which is the
 Workstream I acceptance criterion, already enforced by a WS B test asserting no
 natural key admits a title or name field.
 
@@ -101,11 +103,11 @@ facts; the `dateValue` axis carries schedule and the attribute bag carries the
 rest. Add project-location collision tests (same project number, two
 components) and a revised-DD1391 supersession test.
 
-### J — Congressional lifecycle projector
+### J â€” Congressional lifecycle projector
 
 The larger one. Phase 6 projections are a different shape from Phase 4/5
-candidates — `Phase6NativeProjectionV1` in
-`defense-budget/phase6/phase6-native-projection-v1.ts` — so this needs its own
+candidates â€” `Phase6NativeProjectionV1` in
+`defense-budget/phase6/phase6-native-projection-v1.ts` â€” so this needs its own
 adapter rather than reusing `ProjectionCandidateInputV1`.
 
 Most of the safety is already structural:
@@ -125,10 +127,10 @@ Most of the safety is already structural:
 So J is mostly mapping `Phase6NativeProjectionV1` onto
 `PromotionProjectionInputV1`, populating the new optional `stage` field that
 WS E added for the CHECK constraint, and refusing candidate/conflicting
-bindings. Prevent CR from populating full-year enacted — Phase 6 already
+bindings. Prevent CR from populating full-year enacted â€” Phase 6 already
 requires `payload.explicitLineAuthority` for that, so carry it forward.
 
-### K — Corrections, overrides, conflicts
+### K â€” Corrections, overrides, conflicts
 
 The planner already models this: `ManualOverlayV1` with active/expired/revoked,
 and `manual_override_collision` fires only when an official value **changes**
@@ -139,10 +141,10 @@ K's remaining work is the persistence and governance side: an immutable override
 overlay table with author/approver/effective/expiry/version/prior-link, the
 migration of the existing admin reconciliation route onto it, legal-hold and
 retention, and explicit supersession lineage. The `defense_budget_canonical_row`
-attribute bag is not the place for overrides — they are a separate governed
+attribute bag is not the place for overrides â€” they are a separate governed
 overlay applied at read time with a visible provenance label.
 
-### L — Outbox, deltas, caches, alert fan-out
+### L â€” Outbox, deltas, caches, alert fan-out
 
 WS E already writes outbox rows inside the activation transaction with
 classification and suppression decided at planning time, and the database
@@ -155,7 +157,7 @@ Note that WS E deliberately leaves a committed run in `SIDE_EFFECTS_PENDING`,
 never `COMPLETED`. Advancing it to `COMPLETED` is L's job, after the drain.
 
 `old_original_value` / `old_value_millions` / `new_*` on the outbox row are
-currently written as null by WS E — it has the plan's row hashes but not the
+currently written as null by WS E â€” it has the plan's row hashes but not the
 prior row's values. L should populate them, either by reading the prior
 snapshot's rows during the drain or by having the planner carry them.
 
@@ -163,21 +165,21 @@ snapshot's rows during the drain or by having the planner carry them.
 
 ## 4. Baselines
 
-| Check                                 | Baseline on this branch                                         |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `pnpm --filter @capiro/api typecheck` | **6 errors**, all pre-existing: 4× TS6059, 1× TS1470, 1× TS2493 |
-| `verify:pe-budget-phase-1`…`-6`       | all green — see §7                                              |
-| GitHub Actions                        | dead repo-wide; every green claim is locally reproduced         |
+| Check                                 | Baseline on this branch                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `pnpm --filter @capiro/api typecheck` | **6 errors**, all pre-existing: 4Ã— TS6059, 1Ã— TS1470, 1Ã— TS2493 |
+| `verify:pe-budget-phase-1`â€¦`-6`     | all green â€” see Â§7                                              |
+| GitHub Actions                        | dead repo-wide; every green claim is locally reproduced            |
 
 ---
 
 ## 5. Traps found this session
 
-Carried forward from Session 2 §9, plus:
+Carried forward from Session 2 Â§9, plus:
 
 7. **A typed axis can silently swallow its siblings.** The projector marked
    every date key consumed, so once `plannedDate` claimed the single date axis,
-   `actualDate` disappeared from the row — exactly the milestone semantics the
+   `actualDate` disappeared from the row â€” exactly the milestone semantics the
    plan requires preserving. Extraction now reports _which_ key it consumed and
    only that one is removed from the attribute bag. Any future typed axis needs
    the same treatment.
@@ -197,37 +199,88 @@ Carried forward from Session 2 §9, plus:
 
 ---
 
-## 6. Known gap — WS E has no Prisma adapter
+## 6. Open findings from the independent review of E
 
-`PromotionExecutionRepositoryV1` defines eighteen methods and is fully
-unit-tested against an in-memory fake. There is no implementation backed by
-Prisma, so **the engine cannot run against a real database yet**.
+A fresh-context reviewer audited Workstream E against the plan and tried to
+break it. Three P0s and several P1s were fixed (see commit `b1371406a`). These
+were triaged out and remain open. They do not block I–L, but they are real.
 
-Writing it is the next session's first job if promotion is to be exercised
-end to end. It is mechanical but not trivial:
+**P1-2 — `mapping_registry_drift` is declared but never emitted.** The service
+does not compare `canonicalMappingRegistryHashV1()` against
+`plan.mappingRegistryHash`, and never compares the authorization's
+`eligibilityHash` against the plan's. If the registry is edited between
+planning and execution, rows are stamped with the stale hash while being routed
+through the current registry — lineage claiming a version the row was not built
+under. `StoredExecutionAuthorizationV1.eligibilityHash` and
+`StoredSnapshotV1.completedScopes` are declared and never read.
 
-- `withDomainCycleLock` → `pg_advisory_xact_lock` over a hash of the domain and
-  cycle.
-- `activate` → a single transaction doing the seven steps in WS E's documented
-  order, throwing `AmbiguousActivationError` on an indeterminate commit.
-- `stageRows` → idempotent insert; the unique index
-  `defense_budget_canonical_row_identity_unique` makes `ON CONFLICT DO NOTHING`
-  correct, and the canonical-row trigger requires the connection to be
-  `capiro_pe_promoter`.
-- Everything else is straightforward reads and status updates.
+**P1-8 — the architecture gates are name-list regexes over one file's text.**
+The reviewer constructed 13 realistic violations (`fetch()` to a webhook,
+`redis.del`, `performance.now()`, `require('@prisma/client')`, dynamic
+`import()`) and all 13 passed the gates. The purity claim is currently true —
+the transitive closure pulls only `zod` and `node:crypto` — but the tests do
+nothing to defend it. Resolve the module graph and assert the external
+specifier set against an allowlist.
 
-Once it exists, extend the rehearsal to drive a full promotion through the
-engine rather than through hand-written SQL.
+**P1-9 — the Prisma adapter has no unit spec.** It is covered end-to-end by the
+engine rehearsal, which is the stronger proof, but there is no fast test for
+`isAmbiguousActivationFailureV1` or `advisoryLockKeyV1` in isolation.
 
-Also outstanding: the promoter role's Secrets Manager secret and
-`PROMOTER_USER`/`PROMOTER_PASSWORD` on `ApiBootstrapRolesTaskDef` — Workstream
-N, **OPERATOR ACTION, REQUIRES SEPARATE AUTHORIZATION**. Until then
-`capiro_pe_promoter` cannot authenticate, which is the intended fail-closed
-state.
+**P1-10 — five refusal branches have no test:**
+`authorization_plan_hash_mismatch`, `authorization_plan_mismatch`,
+`unaccounted_plan_item`, `missing_dependency_row`, `run_already_committed`.
+The first is the check enforcing "a changed plan requires a new authorization".
+Note also that `parentIsLive` never queries the database despite its name: it
+scans the plan for an UNCHANGED item, so a parent that is genuinely live but
+absent from the plan produces a false refusal.
+
+**P2 cluster, roughly in priority order:**
+
+- `findActivationByKey` throwing inside the catch swallows the original error
+  and strands the run in `ACTIVATING` — and that is the _likely_ case, since
+  the reason activation failed is usually that the connection is gone.
+- An ambiguous commit with an empty ledger read is recorded as
+  `FAILED_PRECOMMIT`, which asserts "no canonical changes" — possibly false.
+  Needs a distinct indeterminate status that blocks resume.
+- `isAmbiguousActivationFailureV1` does not match real Prisma error shapes
+  (`P1001`/`P1017`), so the classifier is largely inert. Impact is limited to
+  the `failureReason` label, because the ledger is read on every error anyway.
+- The lock connection has no `error` handler, no keepalive, and no acquisition
+  timeout. An RDS failover mid-run emits `error` on an EventEmitter with no
+  listener and crashes the process.
+- The lock key omits `environment` and is scoped per cycle, but the pointer it
+  protects is per (domain, environment). The test's fake lock ignores its key
+  entirely, so it proves "a global mutex exists", not "the right scope".
+- `execute()` never compares `authorization.expectedActiveSnapshotId`;
+  `rollback()` does. The asymmetry is an oversight.
+- "Required scopes complete" is self-fulfilling: the check compares against the
+  plan's families and then writes exactly that set into `completed_scopes`.
+- `cancel()` has a TOCTOU with `execute()` and takes no lock, so it can
+  overwrite a `COMMITTED` status.
+- `recordPlanItemsStaged` updates `defense_budget_promotion_item`, which
+  nothing in Phase 7 ever inserts into. It is likely a silent no-op today.
+- Recovered activations are never audited.
+
+**P3s:** `classifyOutboxV1` has no `mode === 'correction'` case for a fresh
+INSERT; `'resume'` execution mode is accepted but never distinguished from
+`'execute'`; the rollback marker outbox row hard-codes a real entity name for a
+non-entity; `'ROLLED_BACK'` is missing from the snapshot ready-needs-hash
+CHECK; the "never deletes anything" test is a source-text slice between two
+literal markers and degrades silently if either moves.
 
 ---
 
-## 7. Boundaries — unchanged
+## 6a. Operator action — still outstanding
+
+The promoter role's Secrets Manager secret and
+`PROMOTER_USER`/`PROMOTER_PASSWORD` on `ApiBootstrapRolesTaskDef` — Workstream
+N, **OPERATOR ACTION, REQUIRES SEPARATE AUTHORIZATION**. Until then
+`capiro_pe_promoter` cannot authenticate outside a disposable rehearsal, which
+is the intended fail-closed state.
+
+---
+
+## 7. Boundaries â€” unchanged
 
 Neo has authorized merging to `main` and shipping from AWS MCP. That does **not**
 extend to: production baseline snapshot creation, production canonical
