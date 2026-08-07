@@ -112,13 +112,13 @@ Run both requests; the second must NOT reach engagement-api.
 
 ```bash
 # Ordinary request, no preview header — must NOT carry X-Capiro-Service: engagement-api
-curl -sS -D - -o /dev/null https://api.capiro.ai/api/health
+curl -sS -D - -o /dev/null https://app.capiro.ai/api/health
 
 # Preview request — must carry X-Capiro-Service: engagement-api and 401
 # (401 is correct: auth is still enforced, this only proves routing, not a bypass)
 curl -sS -D - -o /dev/null \
   -H "X-Capiro-Engagement-Preview: v3" \
-  https://api.capiro.ai/api/engagement/capabilities
+  https://app.capiro.ai/api/engagement/capabilities
 ```
 
 Cross-check the rule itself, independent of any doc's claim about it:
@@ -271,3 +271,44 @@ Approval requires every check in sections 1–7 to pass as specified — not "cl
 enough" on the shadow-mode env vars, not "probably fine" on the ALB rule
 matching both conditions. This is exactly the kind of review Phase 3's own
 3.16 will need for itself; treat it as the template.
+
+---
+
+## Approval record
+
+**Verdict: `PHASE2_LIVE_INDEPENDENTLY_APPROVED`** — 2026-08-07, by an
+independent agent (not the agent that implemented or deployed Phase 2).
+Every check in sections 1–7 passed as specified. Key evidence:
+
+- Service `ACTIVE`, 1/1, target healthy, all 8 alarms `OK`.
+- All five shadow-mode env vars exact match; `RELEASE_SHA` present and
+  matches the deployed image tag/digest.
+- Priority 6 confirmed to require **both** the header and the path (AND, not
+  OR) — verified live against traffic, not just the rule's JSON: an ordinary
+  `GET /api/health` got no `X-Capiro-Service` header, and the same path with
+  the preview header got `X-Capiro-Service: engagement-api` plus a `401`
+  (auth still enforced). Priority 10 unchanged.
+- Image digest `sha256:a2ab6d01…` is a single manifest
+  (`application/vnd.oci.image.manifest.v1+json`), not an index — the OCI-index
+  scan-blindness fix held. 8 Critical/High findings, all exact-ID matches in
+  `ACCEPTED_FINDINGS`, no new package or CVE ID.
+- Aurora master/app secrets both keyed by the dedicated `efe8a18d-…` CMK, not
+  the general-purpose key. Log group keyed by its own dedicated
+  `a03eb9a4-…` key, not `kmsKeyArns.logs` (removed from the config contract)
+  and not the general-purpose key either.
+- `DatabaseConnections` alarm threshold is `85`, not the pre-fix `90`.
+- Zero diff on the frozen Compute stack / root CDK app / config, zero web
+  diff, zero migration diff, all within Phase 2's own `47902517..3841a5ee`
+  range. Confirmed **not** merged to `main` — correct, merge is Phase 10.
+
+**One non-blocking runbook defect found and fixed as a result of this
+review:** §3 originally instructed `https://api.capiro.ai`, which does not
+resolve (`NXDOMAIN` locally and against `8.8.8.8`, confirmed independently).
+The correct front door on the same ALB is `app.capiro.ai`. Corrected above.
+This was a runbook-authoring error, not a finding about the deployment
+itself — the reviewer used the working hostname and the deployment behaved
+correctly.
+
+This closes the gap named in `docs/plans/engagement-api/phase-3-input-lock.md`
+§1: Phase 2's live deploy now has an independent live-validation result, not
+only 2.14's pre-AWS code-complete validation.

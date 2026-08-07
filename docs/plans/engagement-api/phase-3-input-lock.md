@@ -94,13 +94,22 @@ with a fix and a regression test, not just a live workaround:
    Clerk secrets are each encrypted with their own distinct dedicated keys.
    See commit `3841a5ee`.
 
-**What has NOT happened**, matching Phase 2's own carry-forward rules:
+**Update, 2026-08-07 — the gap below is now closed.** An independent agent (not
+the one that implemented or deployed Phase 2) ran
+`docs/runbooks/phase-2-independent-live-validation.md` against live
+`capiro-dev` and returned `PHASE2_LIVE_INDEPENDENTLY_APPROVED` — every check in
+its sections 1–7 passed as specified, re-verified against live AWS state, not
+against this document's transcription of it. Full evidence and one
+non-blocking runbook correction (a dead hostname in §3) are recorded in that
+runbook's "Approval record" section.
 
-- No independent reviewer has validated the *live* deploy — 2.14's
+**What had NOT happened before that**, matching Phase 2's own carry-forward
+rules:
+
+- No independent reviewer had validated the *live* deploy — 2.14's
   independent validation covered code-complete only, before any AWS
-  credential existed. There is no Phase-2 equivalent of Phase 3's own 3.16
-  ("independent live validation") yet. Flagging this rather than treating
-  Phase 2 as fully closed out on paper.
+  credential existed. There was no Phase-2 equivalent of Phase 3's own 3.16
+  ("independent live validation") until the update above.
 - No merge. No canonical `/api/engagement/*` cutover. No Recall cutover. No
   database migration. No web/UI change. `engagement-api` remains in shadow
   mode, dark behind the preview header only.

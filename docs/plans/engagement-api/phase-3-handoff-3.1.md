@@ -25,7 +25,12 @@ through `AWS_PROFILE=capiro-dev` (account `967807252336`); there is no
 **3.16 still needs someone who is not the implementing agent.** The plan
 requires an independent operator/model, and definition-of-done #19 depends on
 it. An agent validating its own Phase 3 satisfies the letter and defeats the
-purpose.
+purpose. `docs/runbooks/phase-2-independent-live-validation.md` is the
+template to reuse for it — an independent agent ran that runbook against
+Phase 2's live `capiro-dev` deploy on 2026-08-07 and returned
+`PHASE2_LIVE_INDEPENDENTLY_APPROVED`, so the equivalent Phase 2 gap Neo asked
+about is now closed. Phase 3's own live deploy will need the same treatment at
+3.16 once it exists.
 
 ---
 
