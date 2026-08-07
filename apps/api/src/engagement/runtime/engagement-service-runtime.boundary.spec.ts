@@ -29,7 +29,6 @@ describe('EngagementService runtime boundary', () => {
       generateMeetingPrep: { action: 'meeting_prep_generate' },
       generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
       sendBatchEmails: { action: 'outreach_send' },
-      openOutreachInConnectedEmail: { action: 'outreach_send' },
       sendCampaign: { action: 'outreach_send' },
       sendCampaignEmails: { action: 'outreach_send' },
       sendCampaignTest: { action: 'outreach_test_send', testMode: true },
