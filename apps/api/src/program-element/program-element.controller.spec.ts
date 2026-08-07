@@ -1,9 +1,13 @@
-import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { TenantContext } from '@capiro/shared';
 import { ProgramElementController } from './program-element.controller.js';
 import { RolesGuard } from '../auth/roles.guard.js';
-import { MANUAL_OVERRIDE_SOURCE } from './types.js';
 
 describe('ProgramElementController', () => {
   const ctx: TenantContext = {
@@ -35,6 +39,7 @@ describe('ProgramElementController', () => {
       setWatching: jest.fn(),
       listReconciliationQueue: jest.fn(),
       resolveReconciliation: jest.fn(),
+      approveReconciliation: jest.fn(),
     };
     const writer = { upsertProgramElementYear: jest.fn().mockResolvedValue({ inserted: false, changed: true }) };
     const dataIssues = {
@@ -43,9 +48,21 @@ describe('ProgramElementController', () => {
       listAdmin: jest.fn(),
       resolve: jest.fn(),
     };
+    // Phase 7 WS K: the governed override port the controller now proposes into.
+    const overrides = {
+      findLatestForTarget: jest.fn().mockResolvedValue(null),
+      findById: jest.fn(),
+      insert: jest.fn().mockResolvedValue(undefined),
+      markApproved: jest.fn().mockResolvedValue(undefined),
+    };
 
-    const controller = new ProgramElementController(service as never, writer as never, dataIssues as never);
-    return { controller, service, writer, dataIssues };
+    const controller = new ProgramElementController(
+      service as never,
+      writer as never,
+      dataIssues as never,
+      overrides as never,
+    );
+    return { controller, service, writer, dataIssues, overrides };
   };
 
   test('GET /api/program-elements applies defaults and pagination shape', async () => {
@@ -369,7 +386,7 @@ describe('ProgramElementController', () => {
     await expect(controller.watch(ctx, 'BAD', { watching: false })).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  test('POST resolve delegates to the service with the normalized body + an apply callback', async () => {
+  test('POST resolve delegates to the service with the normalized body + a propose callback', async () => {
     const { controller, service, writer } = makeController();
     service.resolveReconciliation.mockResolvedValue({ resolved: true, id: 'r1', decision: 'keep_current' });
 
@@ -381,27 +398,139 @@ describe('ProgramElementController', () => {
       adminCtx,
       expect.any(Function),
     );
-    // keep_current never invokes the apply callback (the service decides), so no writer call.
     expect(writer.upsertProgramElementYear).not.toHaveBeenCalled();
     expect(res.resolved).toBe(true);
   });
 
-  test('resolve apply-callback writes the accepted value through the manual_override source', async () => {
-    const { controller, service, writer } = makeController();
-    // Drive the callback the controller passes, as the real service would for accept/manual.
+  /*
+   * Phase 7 Workstream K. The callback used to write straight into
+   * program_element_year through the writer's manual_override source, which made
+   * one admin's decision look like a parsed J-book line and flipped a winner
+   * flag. It now records a governed proposal and touches nothing canonical.
+   */
+  test('resolve propose-callback records a governed proposal and never calls the writer', async () => {
+    const { controller, service, writer, overrides } = makeController();
     service.resolveReconciliation.mockImplementation(
-      async (_id: string, _input: unknown, _ctx: unknown, applyAccepted: (p: string, f: number, n: string, v: number) => Promise<void>) => {
-        await applyAccepted('0601102A', 2027, 'hascMark', 250.5);
-        return { resolved: true };
+      async (
+        _id: string,
+        _input: unknown,
+        _ctx: unknown,
+        propose: (e: { peCode: string; fy: number; fieldName: string }, v: string) => Promise<string>,
+      ) => {
+        const overrideId = await propose({ peCode: '0601102A', fy: 2027, fieldName: 'hascMark' }, '250.5');
+        return { resolved: false, pendingApproval: true, proposedOverrideId: overrideId };
       },
     );
 
     await controller.resolveReconciliation(adminCtx, 'r1', { decision: 'accept_conflicting' } as never);
 
-    expect(writer.upsertProgramElementYear).toHaveBeenCalledWith(
-      { peCode: '0601102A', fy: 2027, hascMark: 250.5 },
-      MANUAL_OVERRIDE_SOURCE,
+    expect(writer.upsertProgramElementYear).not.toHaveBeenCalled();
+    expect(overrides.insert).toHaveBeenCalledTimes(1);
+
+    const [record] = overrides.insert.mock.calls[0] as [
+      {
+        value: { originalValue: string; originalUnit: string; valueMillions: string };
+        governance: { authorActorId: string; approverActorId?: string };
+      },
+    ];
+    expect(record).toMatchObject({
+      canonicalEntity: 'canonical_rdte_program_element_year',
+      naturalKey: '0601102A|2027',
+      fiscalYear: 2027,
+      fundingField: 'hascMark',
+      status: 'proposed',
+      version: 1,
+    });
+    // Exact decimal string, in millions, with no approver — it is a proposal.
+    expect(record).toMatchObject({
+      value: { originalValue: '250.5', originalUnit: 'millions', valueMillions: '250.5' },
+    });
+    expect(record.governance).toMatchObject({ authorActorId: adminCtx.userId });
+    expect(record.governance.approverActorId).toBeUndefined();
+  });
+
+  test('a fractional JSON manualValue is a 400 rather than a rounded override', () => {
+    const { controller, service } = makeController();
+    // Thrown synchronously, before the service is ever reached — the value is
+    // rejected at the boundary rather than rounded on the way in.
+    expect(() =>
+      controller.resolveReconciliation(adminCtx, 'r1', {
+        decision: 'manual_value',
+        manualValue: 250.5,
+      } as never),
+    ).toThrow(BadRequestException);
+    expect(service.resolveReconciliation).not.toHaveBeenCalled();
+  });
+
+  test('an integer JSON manualValue is accepted, because its string form is exact', async () => {
+    const { controller, service } = makeController();
+    service.resolveReconciliation.mockResolvedValue({ resolved: false, pendingApproval: true });
+
+    await controller.resolveReconciliation(adminCtx, 'r1', {
+      decision: 'manual_value',
+      manualValue: 199,
+    } as never);
+
+    expect(service.resolveReconciliation).toHaveBeenCalledWith(
+      'r1',
+      { decision: 'manual_value', manualValue: '199', notes: undefined },
+      adminCtx,
+      expect.any(Function),
     );
+  });
+
+  /** A complete proposed override, as the repository would return one. */
+  const proposedOverride = (authorActorId: string) => ({
+    schemaVersion: 'defense_budget_manual_override_v1',
+    overrideId: 'ovr-1',
+    canonicalEntity: 'canonical_rdte_program_element_year',
+    naturalKey: '0601102A|2027',
+    fiscalYear: 2027,
+    fundingField: 'hascMark',
+    value: { originalValue: '250.5', originalUnit: 'millions', valueMillions: '250.5' },
+    governance: {
+      authorActorId,
+      reason: 'transposed in the published PDF',
+      evidenceIds: ['reconciliation_review_queue:r1'],
+    },
+    status: 'proposed',
+    version: 1,
+    effectiveFrom: '2026-08-01T00:00:00.000Z',
+    proposedAt: '2026-07-31T00:00:00.000Z',
+  });
+
+  test('POST approve puts the proposal in force through the governed path', async () => {
+    const { controller, service, overrides } = makeController();
+    overrides.findById.mockResolvedValue(proposedOverride('someone-else'));
+    service.approveReconciliation.mockImplementation(
+      async (_id: string, _ctx: unknown, approve: (o: string) => Promise<void>) => {
+        await approve('ovr-1');
+        return { approved: true, overrideId: 'ovr-1' };
+      },
+    );
+
+    const res = await controller.approveReconciliation(adminCtx, 'r1');
+
+    expect(overrides.markApproved).toHaveBeenCalledWith(
+      expect.objectContaining({ overrideId: 'ovr-1', approverActorId: adminCtx.userId }),
+    );
+    expect(res.approved).toBe(true);
+  });
+
+  test('approving your own proposal is a 400, not a silent self-approval', async () => {
+    const { controller, service, overrides } = makeController();
+    overrides.findById.mockResolvedValue(proposedOverride(adminCtx.userId));
+    service.approveReconciliation.mockImplementation(
+      async (_id: string, _ctx: unknown, approve: (o: string) => Promise<void>) => {
+        await approve('ovr-1');
+        return { approved: true };
+      },
+    );
+
+    await expect(controller.approveReconciliation(adminCtx, 'r1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(overrides.markApproved).not.toHaveBeenCalled();
   });
 
   test('admin reconciliation endpoints require capiro_admin → standard_user gets 403 (RolesGuard)', () => {

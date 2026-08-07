@@ -54,6 +54,10 @@ function createHarness() {
   };
 
   const tx: any = {
+    // The writer takes a pg advisory lock via $executeRaw before touching a
+    // PE-year row. Absent from this fake, every test here throws
+    // "tx.$executeRaw is not a function" before reaching its assertion.
+    $executeRaw: jest.fn(async () => 0),
     $queryRaw: jest.fn(async () => {
       const pending = [...outboxes.values()].find((row) => ['pending', 'failed'].includes(String(row.status)));
       return pending

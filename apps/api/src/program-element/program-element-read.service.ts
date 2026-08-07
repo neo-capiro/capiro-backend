@@ -2030,18 +2030,32 @@ export class ProgramElementReadService {
 
   /**
    * Resolve a reconciliation review-queue entry (Step 0.2, capiro_admin only — gated at the
-   * controller). `keep_current` only marks the entry resolved. `accept_conflicting` /
-   * `manual_value` write the chosen value (in $ millions) through `applyAccepted`, which must
-   * route through the writer's `upsertProgramElementYear(..., 'manual_override')` so the
-   * canonical program_element_year row updates and is_winner flips consistently (never bypass
-   * the writer). The queue-status update + AuditLog run inside withTenant so the RLS-protected
-   * AuditLog insert passes; the queue table itself is a global (RLS-exempt) table.
+   * controller).
+   *
+   * Phase 7 Workstream K changed what "resolve" means. It used to write the chosen value
+   * straight into `program_element_year` through the writer's `manual_override` source, which
+   * made one admin's decision indistinguishable from a parsed J-book line and flipped a winner
+   * flag on the strength of it. It now *proposes* a governed override, and the entry parks at
+   * `pending_approval` until a second capiro_admin approves it via `approveReconciliation`.
+   * Nothing lands in canonical storage on this call.
+   *
+   * `keep_current` is unchanged: there is no correction to govern, so the entry resolves here.
+   *
+   * The value is passed to `proposeOverride` as the exact decimal STRING the queue stored.
+   * The old path ran it through `Number()` even though `conflicting_value` is TEXT, discarding
+   * exactness that was still there to keep.
+   *
+   * The queue-status update + AuditLog run inside withTenant so the RLS-protected AuditLog
+   * insert passes; the queue table itself is a global (RLS-exempt) table.
    */
   async resolveReconciliation(
     id: string,
     input: ResolveReconciliationInput,
     ctx: TenantContext,
-    applyAccepted: (peCode: string, fy: number, fieldName: string, value: number) => Promise<void>,
+    proposeOverride: (
+      entry: { peCode: string; fy: number; fieldName: string },
+      exactValue: string,
+    ) => Promise<string>,
   ) {
     const entry = await this.prisma.reconciliationReviewQueue.findUnique({ where: { id } });
     if (!entry) throw new NotFoundException(`Reconciliation entry ${id} not found`);
@@ -2049,41 +2063,49 @@ export class ProgramElementReadService {
       throw new BadRequestException(`Reconciliation entry ${id} is already ${entry.status}`);
     }
 
-    let appliedValue: number | null = null;
+    let proposedValue: string | null = null;
+    let proposedOverrideId: string | null = null;
     if (input.decision === 'accept_conflicting' || input.decision === 'manual_value') {
-      // Validate the RAW value before coercing — Number(null) is 0, which would otherwise
-      // slip past the guard and silently write $0 as the canonical value.
+      // Validate the RAW value. A blank or absent value must not become "0" — the old guard
+      // used Number(), where Number(null) is 0 and would have written $0 as canonical truth.
       const rawSource: string | number | null | undefined =
         input.decision === 'accept_conflicting' ? entry.conflictingValue : input.manualValue;
-      if (
-        rawSource === null ||
-        rawSource === undefined ||
-        rawSource === '' ||
-        !Number.isFinite(Number(rawSource))
-      ) {
+      if (rawSource === null || rawSource === undefined || String(rawSource).trim() === '') {
         throw new BadRequestException(
           input.decision === 'manual_value'
-            ? 'manualValue (number, in $ millions) is required for decision=manual_value'
-            : `Conflicting value for entry ${id} is not numeric and cannot be accepted`,
+            ? 'manualValue (exact decimal string, in $ millions) is required for decision=manual_value'
+            : `Conflicting value for entry ${id} is absent and cannot be accepted`,
         );
       }
-      appliedValue = Number(rawSource);
-      // Apply through the writer path (manual_override source) BEFORE marking the entry
-      // resolved. This ordering is deliberately fail-safe + NOT atomic with the status/audit
-      // write below: if the resolve-and-audit transaction fails after the value is applied,
-      // the entry stays OPEN (visible + retryable) rather than resolved-without-applying, and
-      // a retry is idempotent (the writer no-ops on an identical canonical value).
-      await applyAccepted(entry.peCode, entry.fy, entry.fieldName, appliedValue);
+      // String(), not Number(): the stored value is already text and stays text. The override
+      // contract refuses anything that is not a canonical decimal, so a malformed figure is
+      // rejected there rather than silently rounded here.
+      proposedValue = String(rawSource).trim();
+
+      // Propose BEFORE parking the entry. Ordering is deliberately fail-safe and NOT atomic
+      // with the status write below: if the status/audit transaction fails after the proposal
+      // is recorded, the entry stays OPEN and visible, and re-proposing is refused by the
+      // one-open-proposal-per-target rule rather than forking the override chain.
+      proposedOverrideId = await proposeOverride(
+        { peCode: entry.peCode, fy: entry.fy, fieldName: entry.fieldName },
+        proposedValue,
+      );
     }
+
+    // A correction awaits a second admin; `keep_current` is finished here.
+    const nextStatus = proposedOverrideId == null ? 'resolved' : 'pending_approval';
 
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.reconciliationReviewQueue.update({
         where: { id },
         data: {
-          status: 'resolved',
-          resolvedByUserId: ctx.userId,
-          resolvedAt: new Date(),
+          status: nextStatus,
+          // Only a genuinely finished entry records who resolved it. An entry
+          // awaiting approval has been acted on, not resolved.
+          resolvedByUserId: nextStatus === 'resolved' ? ctx.userId : null,
+          resolvedAt: nextStatus === 'resolved' ? new Date() : null,
           resolutionNotes: input.notes?.trim() || null,
+          proposedOverrideId,
         },
       });
       await tx.auditLog.create({
@@ -2091,7 +2113,10 @@ export class ProgramElementReadService {
           tenantId: ctx.tenantId,
           actorUserId: ctx.userId,
           actorRole: ctx.role,
-          action: 'program_element.reconciliation.resolve',
+          action:
+            nextStatus === 'resolved'
+              ? 'program_element.reconciliation.resolve'
+              : 'program_element.reconciliation.propose_override',
           entityType: 'reconciliation_review_queue',
           entityId: id,
           before: {
@@ -2101,7 +2126,10 @@ export class ProgramElementReadService {
           },
           after: {
             decision: input.decision,
-            appliedValue,
+            // The exact decimal string, not a float. Nothing here rounds.
+            proposedValue,
+            proposedOverrideId,
+            status: nextStatus,
             peCode: entry.peCode,
             fy: entry.fy,
             fieldName: entry.fieldName,
@@ -2111,13 +2139,78 @@ export class ProgramElementReadService {
     });
 
     return {
-      resolved: true as const,
+      resolved: nextStatus === 'resolved',
+      pendingApproval: nextStatus === 'pending_approval',
       id,
       decision: input.decision,
       peCode: entry.peCode,
       fy: entry.fy,
       fieldName: entry.fieldName,
-      appliedValue,
+      proposedValue,
+      proposedOverrideId,
+    };
+  }
+
+  /**
+   * Phase 7 Workstream K — the second step. A capiro_admin who is not the proposer approves
+   * the governed override raised from this entry, which is what puts the correction in force
+   * and finally resolves the entry.
+   *
+   * The author-is-not-approver check lives in `approveOverride` (and again in a CHECK
+   * constraint and a lifecycle trigger). This method deliberately does not repeat it: one
+   * place decides who may approve, and it is the one that owns the override record.
+   */
+  async approveReconciliation(
+    id: string,
+    ctx: TenantContext,
+    approveOverride: (overrideId: string) => Promise<void>,
+  ) {
+    const entry = await this.prisma.reconciliationReviewQueue.findUnique({ where: { id } });
+    if (!entry) throw new NotFoundException(`Reconciliation entry ${id} not found`);
+    if (entry.status !== 'pending_approval' || entry.proposedOverrideId == null) {
+      throw new BadRequestException(
+        `Reconciliation entry ${id} is ${entry.status} and has no correction awaiting approval`,
+      );
+    }
+
+    // Approve first. If the status/audit write below fails, the entry stays at
+    // pending_approval with an already-approved override behind it, which a retry
+    // reconciles — the override's own lifecycle refuses a second approval, so a
+    // retry cannot produce two approvers.
+    await approveOverride(entry.proposedOverrideId);
+
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.reconciliationReviewQueue.update({
+        where: { id },
+        data: { status: 'resolved', resolvedByUserId: ctx.userId, resolvedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'program_element.reconciliation.approve_override',
+          entityType: 'reconciliation_review_queue',
+          entityId: id,
+          before: { status: entry.status, proposedOverrideId: entry.proposedOverrideId },
+          after: {
+            status: 'resolved',
+            approvedOverrideId: entry.proposedOverrideId,
+            peCode: entry.peCode,
+            fy: entry.fy,
+            fieldName: entry.fieldName,
+          },
+        },
+      });
+    });
+
+    return {
+      approved: true as const,
+      id,
+      overrideId: entry.proposedOverrideId,
+      peCode: entry.peCode,
+      fy: entry.fy,
+      fieldName: entry.fieldName,
     };
   }
 
@@ -2447,7 +2540,14 @@ export type ReconciliationDecision = 'keep_current' | 'accept_conflicting' | 'ma
 
 export interface ResolveReconciliationInput {
   decision: ReconciliationDecision;
-  /** Numeric value in $ millions; required for decision=manual_value. */
-  manualValue?: number | null;
+  /**
+   * Exact decimal string in $ millions; required for decision=manual_value.
+   *
+   * Widened from `number` in Phase 7 Workstream K: this value becomes a governed
+   * override, and money in the promotion path is never a JavaScript float. The
+   * controller converts an integer number to its string form (exact) and refuses
+   * a fractional one.
+   */
+  manualValue?: string | null;
   notes?: string | null;
 }

@@ -14,6 +14,9 @@ import { PeProgramMatcherService } from './matching/pe-program-matcher.service.j
 import { DeltaEngineService } from './deltas/delta-engine.service.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ProgramElementDataIssueService } from './program-element-data-issue.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { MANUAL_OVERRIDE_REPOSITORY_V1 } from '../defense-budget/promotion/manual-override.tokens.js';
+import { createManualOverrideRepositoryPrismaV1 } from '../defense-budget/promotion/manual-override-repository-prisma-v1.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -34,6 +37,16 @@ import { ProgramElementDataIssueService } from './program-element-data-issue.ser
     PeProgramMatcherService,
     DeltaEngineService,
     ProgramElementDataIssueService,
+    // Phase 7 Workstream K. A factory rather than an @Injectable so the
+    // override service and its port stay Nest-free — the Phase 8 handoff moves
+    // them into their own service, and a port that imports @nestjs/common would
+    // have to be rewritten to go.
+    {
+      provide: MANUAL_OVERRIDE_REPOSITORY_V1,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) =>
+        createManualOverrideRepositoryPrismaV1(prisma.defenseBudgetManualOverride),
+    },
   ],
   exports: [
     ProgramElementWriterService,
