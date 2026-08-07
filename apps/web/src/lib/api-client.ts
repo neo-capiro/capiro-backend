@@ -1,10 +1,16 @@
 import axios, { type AxiosInstance } from 'axios';
 import { config } from '../env.js';
 import { clearImpersonationSlug } from '../state/impersonation.js';
-import { engagementPreviewHeader } from './engagement-api-preview.js';
+import {
+  engagementPreviewHeader,
+  isEngagementApiRequest,
+} from './engagement-api-preview.js';
+import { markEngagementResponseData } from './engagement-preview-cache.js';
 import {
   assertEngagementPreviewResponseIdentity,
-  markEngagementPreviewRequest,
+  assertEngagementRequestModeCurrent,
+  engagementRequestMode,
+  markEngagementRequest,
   normalizeEngagementPreviewError,
 } from './engagement-preview-errors.js';
 
@@ -90,14 +96,17 @@ export function buildApiClient(
     // are in the manifest, so no per-owner allowlist is needed here and none
     // can drift out of date. Attached last so it can never displace the
     // Authorization or impersonation headers set above.
+    const engagementRequest = isEngagementApiRequest(req.url, config.apiBaseUrl);
     const preview = engagementPreviewHeader(req.url, config.apiBaseUrl);
     if (preview) {
       req.headers = req.headers ?? {};
       req.headers[preview.name] = preview.value;
-      // Persist what was ACTUALLY sent on the config. Response handling must
-      // never re-read sessionStorage: the mode can change while this request is
-      // in flight, but its routing decision cannot.
-      markEngagementPreviewRequest(req);
+    }
+    if (engagementRequest) {
+      // Persist what was ACTUALLY sent. A mode toggle cannot rewrite an
+      // in-flight routing decision, so response/cache handling uses this marker
+      // instead of guessing from the current sessionStorage value.
+      markEngagementRequest(req, preview ? 'preview' : 'main');
     }
     return req;
   });
@@ -107,6 +116,8 @@ export function buildApiClient(
   instance.interceptors.response.use(
     (res) => {
       assertEngagementPreviewResponseIdentity(res);
+      assertEngagementRequestModeCurrent(res);
+      if (engagementRequestMode(res.config)) markEngagementResponseData(res.data);
       return res;
     },
     (error) => {
@@ -118,7 +129,8 @@ export function buildApiClient(
       }
       // Keep the existing impersonation recovery above first and untouched.
       // Only after that path has seen the original error do we enforce preview
-      // service identity / translate the exact intentional shadow denial.
+      // service identity, dispatch-mode freshness, and the exact intentional
+      // shadow-denial translation.
       return Promise.reject(normalizeEngagementPreviewError(error));
     },
   );
