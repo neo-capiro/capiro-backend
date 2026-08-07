@@ -38,6 +38,32 @@ const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
 const MAIN_URL = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:4000';
 const SHADOW_URL = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
 
+const SEGMENT_FIXTURES: Record<string, string[]> = {
+  meetings: ['meeting.past', 'meeting'],
+  tasks: ['task.todo', 'task'],
+  outreach: ['outreach.draft', 'outreach'],
+  attachments: ['attachment.meetingReady', 'attachment'],
+  audiences: ['audience', 'outreachAudience'],
+  microsoft: ['integration.microsoft', 'connection.microsoft', 'integration'],
+  google: ['integration.google', 'connection.google', 'integration'],
+  context: ['client.alpha', 'client'],
+  clients: ['client.alpha', 'client'],
+  notes: ['note.adminApproved', 'note'],
+  debriefs: ['debrief.approved', 'debrief'],
+  preps: ['prep.approved', 'prep'],
+  artifacts: ['draftArtifact', 'outreachArtifact', 'artifact'],
+  versions: ['draftVersion', 'outreachVersion', 'version'],
+  'send-intents': ['sendIntent', 'outreachSendIntent'],
+  deliveries: ['delivery', 'outreachDelivery'],
+  'mail-threads': ['mailThread', 'mail.thread'],
+  'mail-messages': ['mailMessage', 'mail.message'],
+  templates: ['template', 'outreachTemplate'],
+  contacts: ['contact', 'engagementContact'],
+  outcomes: ['outcome'],
+  campaigns: ['campaign'],
+  recipients: ['recipient', 'outreachRecipient'],
+};
+
 function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
@@ -52,46 +78,26 @@ function firstFixture(ids: Record<string, string>, prefixes: string[]): string {
   throw new Error(`Fixture index has no id matching ${prefixes.join(' | ')}`);
 }
 
-/** Pick a semantically matching fixture id from the segment before :param. */
-function parameterId(pathname: string, ids: Record<string, string>): string {
-  const before = pathname.slice(0, pathname.indexOf('/:param'));
-  const segment = before.split('/').filter(Boolean).at(-1) ?? '';
-  const map: Record<string, string[]> = {
-    meetings: ['meeting.past', 'meeting'],
-    tasks: ['task.todo', 'task'],
-    outreach: ['outreach.draft', 'outreach'],
-    attachments: ['attachment.meetingReady', 'attachment'],
-    audiences: ['audience', 'outreachAudience'],
-    microsoft: ['integration.microsoft', 'connection.microsoft', 'integration'],
-    google: ['integration.google', 'connection.google', 'integration'],
-    context: ['client.alpha', 'client'],
-    clients: ['client.alpha', 'client'],
-    notes: ['note.adminApproved', 'note'],
-    debriefs: ['debrief.approved', 'debrief'],
-    preps: ['prep.approved', 'prep'],
-    artifacts: ['draftArtifact', 'outreachArtifact', 'artifact'],
-    versions: ['draftVersion', 'outreachVersion', 'version'],
-    'send-intents': ['sendIntent', 'outreachSendIntent'],
-    deliveries: ['delivery', 'outreachDelivery'],
-    'mail-threads': ['mailThread', 'mail.thread'],
-    'mail-messages': ['mailMessage', 'mail.message'],
-    templates: ['template', 'outreachTemplate'],
-    contacts: ['contact', 'engagementContact'],
-    outcomes: ['outcome'],
-    campaigns: ['campaign'],
-  };
-  return firstFixture(ids, map[segment] ?? ['meeting.past', 'client.alpha', 'outreach.draft']);
-}
-
+/**
+ * Materialize each `:param` from the segment immediately before it. Doing this
+ * segment-by-segment matters for nested routes such as
+ * `/campaigns/:param/recipients/:param`; a one-at-a-time string replacement can
+ * accidentally reuse the first entity class for the second parameter and turn
+ * the parity sweep into matching 404s.
+ */
 function materializePath(pathname: string, ids: Record<string, string>): string {
-  let output = pathname;
-  let guard = 0;
-  while (output.includes('/:param')) {
-    if (++guard > 8) throw new Error(`Too many route parameters in ${pathname}`);
-    const id = parameterId(output, ids);
-    output = output.replace('/:param', `/${encodeURIComponent(id)}`);
-  }
-  return output;
+  const segments = pathname.split('/');
+  return segments
+    .map((segment, index) => {
+      if (segment !== ':param') return segment;
+      const ownerSegment = segments[index - 1] ?? '';
+      const prefixes = SEGMENT_FIXTURES[ownerSegment];
+      if (!prefixes) {
+        throw new Error(`No deterministic fixture mapping for ${ownerSegment} in ${pathname}`);
+      }
+      return encodeURIComponent(firstFixture(ids, prefixes));
+    })
+    .join('/');
 }
 
 const DROP_KEYS = new Set(['time', 'timestamp', 'requestId', 'traceId']);
@@ -118,7 +124,7 @@ function normalize(value: unknown, key = ''): unknown {
   return value;
 }
 
-async function request(base: string, relative: string, token: string, shadow: boolean) {
+async function requestOne(base: string, relative: string, token: string, shadow: boolean) {
   const response = await fetch(`${base}${relative}`, {
     headers: { Authorization: `Bearer ${token}` },
     redirect: 'manual',
@@ -172,7 +178,12 @@ async function main(): Promise<void> {
       status: mainResult.status,
       equal,
     });
-    if (mainResult.status < 200 || mainResult.status >= 300 || shadowResult.status < 200 || shadowResult.status >= 300) {
+    if (
+      mainResult.status < 200 ||
+      mainResult.status >= 300 ||
+      shadowResult.status < 200 ||
+      shadowResult.status >= 300
+    ) {
       throw new Error(
         `${request.routeManifestKey}: UI read must exercise real data, got main=${mainResult.status} shadow=${shadowResult.status}`,
       );
@@ -194,12 +205,6 @@ async function main(): Promise<void> {
     )}\n`,
   );
   console.log(`ENGAGEMENT_PHASE3_FULL_READ_PARITY_COMPLETE uniqueReads=${results.length}`);
-}
-
-// Kept as a named wrapper so accidental shadowing by the loop variable cannot
-// turn a request descriptor into a callable and survive TypeScript review.
-async function requestOne(base: string, relative: string, token: string, shadow: boolean) {
-  return request(base, relative, token, shadow);
 }
 
 if (require.main === module) {
