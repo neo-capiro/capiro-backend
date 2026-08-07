@@ -429,6 +429,7 @@ jobs:
           scripts/sync-tango-entities.spec.ts
           scripts/generate-tango-enrichment-candidates.spec.ts
           scripts/review-tango-enrichment-candidate.spec.ts
+          scripts/diag-federal-business-profile.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -541,9 +542,18 @@ jobs:
       # __fixtures__/baseline-contract-v1.json, which asserts this line is at or
       # above them, so lowering a floor takes two edits and both show up in the diff.
       # That is the point.
+      # 44/1365 after P21: two NEW suites, no migration. federal-business-
+      # profile.service.spec.ts (9 tests) covers the versioned aggregation —
+      # verified is read from the `active` FLAG in history, never assumed to
+      # be the last array element; firstParty and verified stay visibly
+      # separate even when they disagree (never merged); a resource with no
+      # active row in its history leaves verified null without throwing.
+      # diag-federal-business-profile.spec.ts (2 tests) covers its CLI flag
+      # parsing. This is P15's getSnapshotHistory's first real caller.
+      #
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 42 1354
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 44 1365
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

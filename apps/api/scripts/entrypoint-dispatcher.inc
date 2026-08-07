@@ -540,6 +540,9 @@ case "${1:-serve}" in
   # (--list | --candidate=<id> --accept|--reject --reviewed-by=<userId>
   # [--reason=...]). No bulk flag exists anywhere in this verb, by design.
   review-tango-enrichment-candidate) shift; exec ./node_modules/.bin/tsx scripts/review-tango-enrichment-candidate.ts "$@" ;;
+  # Funding Opportunities P21: READ-ONLY versioned Federal Business Profile
+  # dump for one client (--tenant=<uuid> --client=<uuid>).
+  diag-federal-business-profile) shift; exec ./node_modules/.bin/tsx scripts/diag-federal-business-profile.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;

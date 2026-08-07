@@ -68,7 +68,10 @@
     "scripts/generate-tango-enrichment-candidates.ts",
     "scripts/generate-tango-enrichment-candidates.spec.ts",
     "scripts/review-tango-enrichment-candidate.ts",
-    "scripts/review-tango-enrichment-candidate.spec.ts"
+    "scripts/review-tango-enrichment-candidate.spec.ts",
+    // P21: read-only Federal Business Profile dump.
+    "scripts/diag-federal-business-profile.ts",
+    "scripts/diag-federal-business-profile.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

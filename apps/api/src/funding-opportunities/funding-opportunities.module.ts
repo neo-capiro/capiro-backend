@@ -4,6 +4,7 @@ import { FundingOpportunitiesService } from './funding-opportunities.service.js'
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
+import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
@@ -47,9 +48,13 @@ import {
     FundingOpportunityActionsService,
     FundingOpportunityInboxService,
     ClientProfileEnrichmentService,
+    // P21. Depends on PrismaService, TangoStoreService (both already
+    // resolvable here — see the note above) and ClientProfileEnrichmentService
+    // (a sibling provider in this SAME module) — no new import needed.
+    FederalBusinessProfileService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
   ],
-  exports: [FundingOpportunitiesService, ClientProfileEnrichmentService],
+  exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })
 export class FundingOpportunitiesModule {}

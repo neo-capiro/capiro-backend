@@ -1070,3 +1070,48 @@ suite as proof that tenant isolation holds for a NEW service using them for
 the first time. A fake that unconditionally calls through proves the
 business logic; it actively cannot prove the isolation, because the fake's
 whole job is to skip the part that would.
+
+---
+
+## D-40 · 2026-08-07 · A pure read aggregation, and why "versioned" means the FLAG, not array position
+
+P21 needed no migration and no new persistence — it assembles three things
+that already exist (first-party `clients` fields, P19's active Tango
+snapshot, P15's full snapshot version history, P20's open review
+candidates) into one view. This is `TangoStoreService.getSnapshotHistory`'s
+FIRST real caller — written at P15, unused until now, exactly as that
+phase's own doc predicted.
+
+One detail worth recording because it is easy to get wrong invisibly:
+`verified` (the currently-authoritative Tango observation) is derived by
+finding the row in `history` whose `active` flag is true — NOT by assuming
+it is the last element of the array. `getSnapshotHistory` orders by
+`version ASC`, so in the overwhelmingly common case the active row IS the
+last one, which means a version-position shortcut would pass every casual
+manual check and still be wrong the one time a supersession is written out
+of the version order an implementation assumes. `federal-business-profile
+.service.spec.ts` proves this with a deliberately out-of-order fixture
+(version 1 active, version 2 superseded) specifically so the test would
+fail if a future edit ever "simplified" this to `history.at(-1)`.
+
+`firstParty` and `verified` are returned as separate top-level sections,
+never merged into one flattened object — restating, for a READ view this
+time, the same "first-party authoritative, Tango verifies/enriches, never
+silently overwrites" precedence P20 already enforces on the WRITE side. A
+test asserts the two can disagree in the response without one clobbering
+the other.
+
+**No migration rehearsal for this phase** — there is nothing new to
+rehearse. `PrismaService.withTenant`'s real tenant-scoping mechanism was
+already proven end-to-end against real RLS in P20 (D-39); this service
+uses the identical, already-proven code path for a read instead of a write,
+so re-proving the mechanism itself here would be repeating evidence rather
+than adding new coverage. The NEW thing this phase adds — the aggregation
+and the active-flag-not-array-position rule — is exactly what the fake-
+backed unit suite is suited to prove.
+
+**What this forbids:** any future change to `getProfile` that computes
+`verified` via `history[history.length - 1]` or `.at(-1)` instead of
+`.find((v) => v.active)`. The two happen to agree today; they are not the
+same question, and only one of them is the one this phase's name
+("Versioned") is actually about.
