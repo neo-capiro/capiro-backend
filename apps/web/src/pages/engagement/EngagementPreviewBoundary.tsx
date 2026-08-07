@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { consumePreviewActivation } from '../../lib/engagement-api-preview.js';
+import { EngagementApiPreviewIndicator } from './EngagementApiPreviewIndicator.js';
 
 /**
  * Consumes the `?engagement-api-preview=` activation parameter (Phase 3, 3.3).
  *
- * Renders nothing. It is mounted once beside the route table rather than inside
- * the Engagement route because the mode is session-wide, not page-wide: 3.8
- * requires the preview to apply while the SPA route is `/settings/integrations`,
- * and an operator may activate from any deep link. Mounting it here also avoids
- * a second EngagementPage registration — the existing `/engagement/*` route is
+ * It is mounted once beside the route table rather than inside the Engagement
+ * route because the mode is session-wide, not page-wide: 3.8 requires the
+ * preview to apply while the SPA route is `/settings/integrations`, and an
+ * operator may activate from any deep link. Mounting it here also avoids a
+ * second EngagementPage registration — the existing `/engagement/*` route is
  * untouched.
  *
  * The parameter is consumed and removed; every other query parameter survives
@@ -33,10 +34,11 @@ export function EngagementPreviewBoundary() {
     const result = consumePreviewActivation(search);
     if (!result.changed) return;
 
-    navigate({ pathname: location.pathname, search: result.nextSearch, hash: location.hash }, {
-      replace: true,
-    });
+    navigate(
+      { pathname: location.pathname, search: result.nextSearch, hash: location.hash },
+      { replace: true },
+    );
   }, [location.search, location.pathname, location.hash, navigate]);
 
-  return null;
+  return <EngagementApiPreviewIndicator />;
 }
