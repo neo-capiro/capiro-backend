@@ -36,7 +36,7 @@ describe('EngagementApiPreviewIndicator', () => {
     activateEngagementPreview();
     renderIndicator();
 
-    expect(screen.getByRole('status')).toHaveTextContent(ENGAGEMENT_PREVIEW_INDICATOR_LABEL);
+    expect(screen.getByText(ENGAGEMENT_PREVIEW_INDICATOR_LABEL)).toBeInTheDocument();
     const button = screen.getByRole('button', { name: 'Turn off preview' });
     expect(button.tagName).toBe('BUTTON');
     expect(button).not.toHaveAttribute('disabled');

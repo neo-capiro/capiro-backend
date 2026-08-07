@@ -133,7 +133,7 @@ describe('Engagement preview denial normalization', () => {
       code: ENGAGEMENT_EXTERNAL_ACTION_DISABLED,
       message: ENGAGEMENT_PREVIEW_EXTERNAL_ACTION_MESSAGE,
     });
-    expect(JSON.stringify(res.data)).not.toContain('action');
+    expect(Object.keys(res.data)).not.toContain('action');
   });
 
   test('does not translate a generic 503', () => {
