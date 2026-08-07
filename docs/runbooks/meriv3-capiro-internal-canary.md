@@ -52,14 +52,15 @@ MERIV2_ORCHESTRATOR_URL=<current isolated orchestrator URL>
 
 ### `apps/meriv2-orchestrator`
 
-Set:
+The defaults follow OpenAI's current GPT-5.6 family:
 
 ```text
 MERIV3_ENABLED=true
 MERIV3_CANARY_TENANT_SLUGS=capiro-internal
-MERIV3_MODEL=gpt-5.1
-MERIV3_FAST_MODEL=gpt-5.1
-MERIV3_MAX_MODEL=gpt-5-pro
+MERIV3_FAST_MODEL=gpt-5.6-luna
+MERIV3_MODEL=gpt-5.6-terra
+MERIV3_DEEP_MODEL=gpt-5.6
+MERIV3_MAX_MODEL=gpt-5.6
 ```
 
 Recommended initial efforts:
@@ -68,7 +69,7 @@ Recommended initial efforts:
 MERIV3_FAST_REASONING_EFFORT=low
 MERIV3_STANDARD_REASONING_EFFORT=medium
 MERIV3_DEEP_REASONING_EFFORT=high
-MERIV3_MAX_REASONING_EFFORT=high
+MERIV3_MAX_REASONING_EFFORT=max
 ```
 
 Optional limits are documented in `meriv3-reasoning.ts`. Do not increase them during the first acceptance pass.
@@ -172,7 +173,7 @@ Refresh the web session. `GET /api/me` must now report:
 
 Create one conversation for each mode.
 
-### Fast
+### Fast — GPT-5.6 Luna / low
 
 Prompt:
 
@@ -185,7 +186,7 @@ Expected:
 - materially lower latency/tool count than Deep;
 - mode persists after refresh.
 
-### Standard
+### Standard — GPT-5.6 Terra / medium
 
 Prompt:
 
@@ -197,7 +198,7 @@ Expected:
 - evidence-backed distinctions between fact and recommendation;
 - useful answer without unnecessary exhaustive research.
 
-### Deep
+### Deep — GPT-5.6 Sol / high
 
 Prompt:
 
@@ -210,7 +211,7 @@ Expected:
 - no false assertion that every requested source had data;
 - materially broader investigation than Standard.
 
-### Max
+### Max — GPT-5.6 Sol / max
 
 Prompt:
 
@@ -218,7 +219,7 @@ Prompt:
 
 Expected:
 
-- configured Max model/effort appears in `meriv3.turn` telemetry;
+- `gpt-5.6` and effort `max` appear in `meriv3.turn` telemetry unless deliberately overridden;
 - if the account/model does not support the configured tier, an honest error appears—never a silent downgrade;
 - no unbounded tool loop.
 
@@ -332,6 +333,16 @@ For every V3 turn, the orchestrator logs one structured `meriv3.turn` event cont
 - hold and abort status.
 
 Provider usage is also written through `recordAiUsageEvent` with workflow `meriv3_chat` and provider `openai`.
+
+The current GPT-5.6 list-price estimates are registered in the isolated runtime:
+
+| Model | Input / 1M | Cached input / 1M | Output / 1M |
+|---|---:|---:|---:|
+| Luna | $1.00 | $0.10 | $6.00 |
+| Terra | $2.50 | $0.25 | $15.00 |
+| Sol | $5.00 | $0.50 | $30.00 |
+
+`ai_usage_events.cost_usd` is conservative when cache hits occur because the existing shared helper prices every input token at the base rate. Use `cache_read_tokens` to calculate the exact discounted comparison during canary analysis.
 
 Compare MeriV2 and MeriV3 on identical prompts for:
 
