@@ -30,6 +30,9 @@ P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
 # both — replaying it alone would fail on a missing relation rather than
 # reproducing the real upgrade path.
 P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
+# Workstream L's drain migration is the third. It adds a column to the outbox
+# the first one creates, so the same exclusion applies for the same reason.
+P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -82,6 +85,7 @@ defense_budget_promotion_plan defense_budget_promotion_authorization \
 defense_budget_promotion_run defense_budget_promotion_item \
 defense_budget_promotion_activation defense_budget_promotion_outbox \
 defense_budget_compatibility_projection_run defense_budget_rollback_record \
+defense_budget_side_effect_drain_pause defense_budget_canonical_delta \
 defense_budget_canonical_row defense_budget_promotion_audit"
 
 assert_tables() {
@@ -126,6 +130,7 @@ for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
   [ "$migration" = "$P7_MIGRATION" ] && continue
   [ "$migration" = "$P7_MIGRATION_K" ] && continue
+  [ "$migration" = "$P7_MIGRATION_L" ] && continue
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
@@ -141,6 +146,8 @@ SQL
   || fail "Phase 7 migration failed on the upgrade path"
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_K/migration.sql" >/dev/null \
   || fail "Workstream K queue-link migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_L/migration.sql" >/dev/null \
+  || fail "Workstream L drain migration failed on the upgrade path"
 assert_tables
 ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
 
@@ -901,6 +908,21 @@ ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" 
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Workstream L — the outbox drainer against a real database"
+# =============================================================================
+#
+# Runs after the engine rehearsal and depends on the state it leaves: a
+# committed activation with a suppressed hydration outbox, and a scope paused by
+# the rollback. A unit test cannot prove SKIP LOCKED, so this is where the
+# claim's concurrency, its agreement with the drain policy, poison quarantine,
+# and lease recovery are actually demonstrated.
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-drain-rehearsal.ts" \
+  || fail "the drain rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
 # =============================================================================

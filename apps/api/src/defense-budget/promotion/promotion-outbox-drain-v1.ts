@@ -110,6 +110,62 @@ export function isDrainEligibleV1(input: {
   return input.now.getTime() - input.lastAttemptedAt.getTime() >= drainBackoffMsV1(input.attempts);
 }
 
+/**
+ * How long a claimed row may stay `PROCESSING` before another drainer may take
+ * it.
+ *
+ * A claim commits `PROCESSING` immediately, which is what stops two drainers
+ * publishing the same row. The cost is that a drainer killed mid-batch — a
+ * Fargate task reaped, a deploy, a crashed handler — leaves its rows claimed by
+ * a process that no longer exists, and `isDrainEligibleV1` refuses `PROCESSING`
+ * forever. Without a lease those rows are lost, and the port's own promise that
+ * "a drainer that dies mid-batch leaves rows recoverable rather than locked
+ * forever" would not be true.
+ *
+ * Ten minutes is longer than any healthy batch and short enough that recovery
+ * happens on the next drain cycle rather than at the next person's convenience.
+ * It must stay comfortably above the slowest expected batch: too short and a
+ * live drainer's rows get stolen and published twice, which the downstream
+ * dedupe key absorbs but which would still double the work.
+ */
+export const OUTBOX_PROCESSING_LEASE_MS_V1 = 10 * 60 * 1_000;
+
+/** A `PROCESSING` row whose claiming drainer has plainly gone away. */
+export function isStalledProcessingV1(input: {
+  status: OutboxRowStatusV1;
+  lastAttemptedAt: Date | null;
+  now: Date;
+  leaseMs?: number;
+}): boolean {
+  if (input.status !== 'PROCESSING') return false;
+  // A PROCESSING row with no attempt instant cannot be aged. It is not
+  // reclaimed here rather than being reclaimed immediately: guessing that such
+  // a row is abandoned would let a batch in flight be stolen from under a
+  // healthy drainer.
+  if (input.lastAttemptedAt == null) return false;
+  const lease = input.leaseMs ?? OUTBOX_PROCESSING_LEASE_MS_V1;
+  return input.now.getTime() - input.lastAttemptedAt.getTime() >= lease;
+}
+
+/**
+ * The complete claim rule: a fresh or backed-off row, or one abandoned by a
+ * dead drainer.
+ *
+ * This is the single statement of what a drainer may take. The Prisma adapter's
+ * SQL predicate is generated from the same constants and is checked against
+ * this function row-for-row in the database rehearsal, because a claim query
+ * that disagrees with the policy is a divergence no unit test would see.
+ */
+export function isClaimableV1(input: {
+  status: OutboxRowStatusV1;
+  attempts: number;
+  lastAttemptedAt: Date | null;
+  now: Date;
+  leaseMs?: number;
+}): boolean {
+  return isDrainEligibleV1(input) || isStalledProcessingV1(input);
+}
+
 /* ------------------------------------------------------------------ */
 /* L2. Run status after a drain                                        */
 /* ------------------------------------------------------------------ */

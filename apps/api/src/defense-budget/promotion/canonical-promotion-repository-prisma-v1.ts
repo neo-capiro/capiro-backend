@@ -69,6 +69,11 @@ import type {
   PromotionProjectionInputV1,
 } from './promotion-planner-v1.js';
 import { sha256Hex } from '../contracts/canonical-json.js';
+import {
+  pauseDrainV1,
+  resumeDrainV1,
+  type DrainPauseDelegateV1,
+} from './side-effect-drain-pause-prisma-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Collaborators                                                       */
@@ -96,6 +101,7 @@ export interface PromotionPrismaLikeV1 {
   defenseBudgetPromotionOutbox: PrismaDelegateV1;
   defenseBudgetCanonicalRow: PrismaDelegateV1;
   defenseBudgetRollbackRecord: PrismaDelegateV1;
+  defenseBudgetSideEffectDrainPause: DrainPauseDelegateV1;
 }
 
 export interface PrismaDelegateV1 {
@@ -437,17 +443,40 @@ export class PrismaPromotionExecutionRepositoryV1 implements PromotionExecutionR
   /**
    * Pause and resume the Workstream L drainer.
    *
-   * L does not exist yet, so there is nothing to signal. These are honest
-   * no-ops rather than absent methods: the port exists and `rollback()` calls
-   * it in the correct place, so when the drainer is built it has a defined
-   * contract to honour instead of a rollback path that never considered it.
+   * These were no-ops until L existed. They now write the pause state the
+   * drainer actually reads, through the module that owns that table — the
+   * drainer's claim statement checks the same row, and the two must not grow
+   * separate ideas of what a pause is.
+   *
+   * Note the ordering this participates in: `rollback()` pauses *before* the
+   * activation transaction, so a batch cannot publish the outgoing snapshot's
+   * numbers after the pointer has moved. Resuming is deliberately not automatic
+   * — an operator decides when the side effects of a rolled-back promotion may
+   * start flowing again.
    */
-  async pauseSideEffectDrain(): Promise<void> {
-    /* Workstream L owns the drainer; nothing to pause yet. */
+  async pauseSideEffectDrain(
+    domain: string,
+    environment: string,
+    context: { reason: string; actor: string },
+  ): Promise<void> {
+    await pauseDrainV1(this.prisma.defenseBudgetSideEffectDrainPause, {
+      domain,
+      environment,
+      reason: context.reason,
+      pausedBy: context.actor,
+    });
   }
 
-  async resumeSideEffectDrain(): Promise<void> {
-    /* Workstream L owns the drainer; nothing to resume yet. */
+  async resumeSideEffectDrain(
+    domain: string,
+    environment: string,
+    context: { actor: string },
+  ): Promise<void> {
+    await resumeDrainV1(this.prisma.defenseBudgetSideEffectDrainPause, {
+      domain,
+      environment,
+      resumedBy: context.actor,
+    });
   }
 
   async recordRollback(input: {

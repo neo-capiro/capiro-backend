@@ -10,10 +10,13 @@
 import {
   OUTBOX_BACKOFF_CAP_MS_V1,
   OUTBOX_MAX_ATTEMPTS_V1,
+  OUTBOX_PROCESSING_LEASE_MS_V1,
   drainBackoffMsV1,
   drainFailureDispositionV1,
   drainPromotionOutboxBatchV1,
+  isClaimableV1,
   isDrainEligibleV1,
+  isStalledProcessingV1,
   nextRunStatusAfterDrainV1,
   type OutboxDrainRepositoryV1,
   type OutboxHandlerV1,
@@ -165,6 +168,68 @@ describe('Phase 7 WS L — backoff', () => {
         false,
       );
     }
+  });
+});
+
+describe('Phase 7 WS L — recovering a row from a drainer that died', () => {
+  const aged = (ms: number): Date => new Date(NOW.getTime() - ms);
+
+  it('leaves a live drainer alone inside the lease', () => {
+    expect(
+      isStalledProcessingV1({
+        status: 'PROCESSING',
+        lastAttemptedAt: aged(OUTBOX_PROCESSING_LEASE_MS_V1 - 1),
+        now: NOW,
+      }),
+    ).toBe(false);
+  });
+
+  it('releases a row once the lease has elapsed', () => {
+    expect(
+      isStalledProcessingV1({
+        status: 'PROCESSING',
+        lastAttemptedAt: aged(OUTBOX_PROCESSING_LEASE_MS_V1),
+        now: NOW,
+      }),
+    ).toBe(true);
+  });
+
+  it('applies only to PROCESSING', () => {
+    for (const status of ['PENDING', 'FAILED', 'DONE', 'POISON'] as const) {
+      expect(isStalledProcessingV1({ status, lastAttemptedAt: aged(86_400_000), now: NOW })).toBe(
+        false,
+      );
+    }
+  });
+
+  it('will not age a row it cannot date', () => {
+    // Guessing that an unstamped PROCESSING row is abandoned would let a batch
+    // in flight be stolen from a healthy drainer.
+    expect(isStalledProcessingV1({ status: 'PROCESSING', lastAttemptedAt: null, now: NOW })).toBe(
+      false,
+    );
+  });
+
+  it('is the union of eligible and stalled, and nothing more', () => {
+    const fresh = { status: 'PENDING' as const, attempts: 0, lastAttemptedAt: null, now: NOW };
+    const inFlight = {
+      status: 'PROCESSING' as const,
+      attempts: 1,
+      lastAttemptedAt: aged(1_000),
+      now: NOW,
+    };
+    const abandoned = {
+      status: 'PROCESSING' as const,
+      attempts: 1,
+      lastAttemptedAt: aged(OUTBOX_PROCESSING_LEASE_MS_V1 + 1),
+      now: NOW,
+    };
+    const finished = { status: 'DONE' as const, attempts: 1, lastAttemptedAt: null, now: NOW };
+
+    expect(isClaimableV1(fresh)).toBe(true);
+    expect(isClaimableV1(inFlight)).toBe(false);
+    expect(isClaimableV1(abandoned)).toBe(true);
+    expect(isClaimableV1(finished)).toBe(false);
   });
 });
 

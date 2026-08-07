@@ -8831,6 +8831,8 @@ model DefenseBudgetCanonicalSnapshot {
   compatibilityRuns     DefenseBudgetCompatibilityProjectionRun[]
   rollbacksFrom         DefenseBudgetRollbackRecord[]      @relation("RollbackFromSnapshot")
   rollbacksTo           DefenseBudgetRollbackRecord[]      @relation("RollbackToSnapshot")
+  deltasAsOld           DefenseBudgetCanonicalDelta[]      @relation("CanonicalDeltaOldSnapshot")
+  deltasAsNew           DefenseBudgetCanonicalDelta[]      @relation("CanonicalDeltaNewSnapshot")
 
   @@index([domain, environment, status], map: "defense_budget_canonical_snapshot_status_idx")
   @@index([cycleId, fiscalYear], map: "defense_budget_canonical_snapshot_cycle_idx")
@@ -9016,6 +9018,7 @@ model DefenseBudgetPromotionActivation {
   previousSnapshot DefenseBudgetCanonicalSnapshot? @relation("ActivationPreviousSnapshot", fields: [previousSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   outbox           DefenseBudgetPromotionOutbox[]
   rollbackRecords  DefenseBudgetRollbackRecord[]
+  canonicalDeltas  DefenseBudgetCanonicalDelta[]
 
   @@index([newSnapshotId], map: "defense_budget_promotion_activation_new_snapshot_idx")
   @@map("defense_budget_promotion_activation")
@@ -9065,12 +9068,81 @@ model DefenseBudgetPromotionOutbox {
   lastError            String?   @map("last_error")
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   processedAt          DateTime? @map("processed_at") @db.Timestamptz(6)
+  lastAttemptedAt      DateTime? @map("last_attempted_at") @db.Timestamptz(6)
 
   activation DefenseBudgetPromotionActivation @relation(fields: [activationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  delta      DefenseBudgetCanonicalDelta?
 
   @@index([status, createdAt], map: "defense_budget_promotion_outbox_drain_idx")
   @@index([activationId], map: "defense_budget_promotion_outbox_activation_idx")
+  // defense_budget_promotion_outbox_eligibility_idx is partial (PENDING/FAILED
+  // only) and therefore has no Prisma representation, same as the one-use
+  // authorization index.
   @@map("defense_budget_promotion_outbox")
+}
+
+/// Phase 7 Workstream L. Whether the promotion-outbox drainer may claim work
+/// for a domain and environment. Rollback pauses it before moving the pointer.
+model DefenseBudgetSideEffectDrainPause {
+  id          String    @id @default(uuid()) @db.Uuid
+  domain      String    @default("defense_budget") @db.VarChar(40)
+  environment String    @db.VarChar(24)
+  paused      Boolean   @default(true)
+  reason      String
+  pausedBy    String    @map("paused_by")
+  pausedAt    DateTime  @default(now()) @map("paused_at") @db.Timestamptz(6)
+  resumedBy   String?   @map("resumed_by")
+  resumedAt   DateTime? @map("resumed_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([domain, environment], map: "defense_budget_side_effect_drain_pause_scope_unique")
+  @@map("defense_budget_side_effect_drain_pause")
+}
+
+/// Phase 7 Workstream L. The primary record of what changed between two
+/// canonical snapshots, generic across every native line kind. Append-only.
+model DefenseBudgetCanonicalDelta {
+  id                    String   @id @default(uuid()) @db.Uuid
+  deltaKey              String   @unique(map: "defense_budget_canonical_delta_key_unique") @map("delta_key")
+  activationId          String   @map("activation_id") @db.Uuid
+  outboxId              String   @unique(map: "defense_budget_canonical_delta_outbox_unique") @map("outbox_id") @db.Uuid
+  oldSnapshotId         String?  @map("old_snapshot_id") @db.Uuid
+  newSnapshotId         String   @map("new_snapshot_id") @db.Uuid
+  canonicalEntity       String   @map("canonical_entity") @db.VarChar(80)
+  canonicalNaturalKey   String   @map("canonical_natural_key")
+  family                String   @db.VarChar(24)
+  fiscalYear            Int?     @map("fiscal_year")
+  fundingField          String?  @map("funding_field") @db.VarChar(32)
+  stage                 String?  @db.VarChar(40)
+  deltaKind             String   @map("delta_kind") @db.VarChar(32)
+  changedAxes           Json     @map("changed_axes")
+  oldMoneyOriginalValue String?  @map("old_money_original_value")
+  oldMoneyValueMillions Decimal? @map("old_money_value_millions") @db.Decimal(24, 9)
+  newMoneyOriginalValue String?  @map("new_money_original_value")
+  newMoneyValueMillions Decimal? @map("new_money_value_millions") @db.Decimal(24, 9)
+  moneyDeltaMillions    Decimal? @map("money_delta_millions") @db.Decimal(24, 9)
+  oldQuantity           Decimal? @map("old_quantity") @db.Decimal(24, 9)
+  newQuantity           Decimal? @map("new_quantity") @db.Decimal(24, 9)
+  oldUnitCostDollars    Decimal? @map("old_unit_cost_dollars") @db.Decimal(24, 9)
+  newUnitCostDollars    Decimal? @map("new_unit_cost_dollars") @db.Decimal(24, 9)
+  changeClassification  String   @map("change_classification") @db.VarChar(40)
+  suppressAlert         Boolean  @map("suppress_alert")
+  alertEligible         Boolean  @default(false) @map("alert_eligible")
+  materialityScore      Decimal  @default(0) @map("materiality_score") @db.Decimal(6, 5)
+  materialityFactors    Json     @default("{}") @map("materiality_factors")
+  severity              String   @default("info") @db.VarChar(12)
+  sourceLineage         Json     @default("{}") @map("source_lineage")
+  computedAt            DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  activation  DefenseBudgetPromotionActivation @relation(fields: [activationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  outboxRow   DefenseBudgetPromotionOutbox     @relation(fields: [outboxId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  oldSnapshot DefenseBudgetCanonicalSnapshot?  @relation("CanonicalDeltaOldSnapshot", fields: [oldSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  newSnapshot DefenseBudgetCanonicalSnapshot   @relation("CanonicalDeltaNewSnapshot", fields: [newSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([newSnapshotId, family, fiscalYear], map: "defense_budget_canonical_delta_snapshot_idx")
+  @@index([canonicalEntity, canonicalNaturalKey], map: "defense_budget_canonical_delta_identity_idx")
+  @@index([activationId], map: "defense_budget_canonical_delta_activation_idx")
+  @@map("defense_budget_canonical_delta")
 }
 
 model DefenseBudgetCompatibilityProjectionRun {

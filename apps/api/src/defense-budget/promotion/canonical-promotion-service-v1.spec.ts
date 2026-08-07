@@ -242,10 +242,16 @@ class FakeRepository implements PromotionExecutionRepositoryV1 {
   }
 
   pausedDrains: string[] = [];
+  pauseContexts: { reason: string; actor: string }[] = [];
   rollbackRecords: { toSnapshotId: string; reason: string }[] = [];
 
-  async pauseSideEffectDrain(domain: string, environment: string) {
+  async pauseSideEffectDrain(
+    domain: string,
+    environment: string,
+    context: { reason: string; actor: string },
+  ) {
     this.pausedDrains.push(`${domain}:${environment}`);
+    this.pauseContexts.push(context);
   }
 
   async resumeSideEffectDrain() {}
