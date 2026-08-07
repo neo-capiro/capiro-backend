@@ -124,8 +124,8 @@ export class OpportunityTimelineService {
       // tenant-scope-exempt: `tango_opportunity_notice` is a GLOBAL provider
       // table with no tenant_id and no RLS (P28), the same category as
       // sam_opportunity and tango_resource_snapshot.
-      readNoticesForSamOpportunity: (samOpportunityId) =>
-        this.prisma.withSystem((tx) =>
+      readNoticesForSamOpportunity: async (samOpportunityId) => {
+        const rows = await this.prisma.withSystem((tx) =>
           tx.tangoOpportunityNotice.findMany({
             where: { samOpportunityId },
             // Ordered here too, even though buildNoticeTimeline sorts: a
@@ -139,6 +139,10 @@ export class OpportunityTimelineService {
             select: {
               tangoNoticeId: true,
               title: true,
+              // The HASH, never the body. Selecting `description` here would
+              // make a detail page read megabytes across 500 notices to answer
+              // "did the text change".
+              descriptionSha256: true,
               postedDate: true,
               providerUpdatedAt: true,
               responseDeadline: true,
@@ -151,7 +155,16 @@ export class OpportunityTimelineService {
               contentHash: true,
             },
           }),
-        ),
+        );
+        // Prisma returns `descriptionSha256`; the classifier's own field is
+        // `descriptionHash`. Renamed here rather than in the model, because the
+        // column name mirrors the SQL and the classifier's name says what the
+        // value MEANS to a comparison.
+        return rows.map(({ descriptionSha256, ...rest }) => ({
+          ...rest,
+          descriptionHash: descriptionSha256,
+        }));
+      },
       countAllNotices: () => this.prisma.withSystem((tx) => tx.tangoOpportunityNotice.count()),
     };
   }

@@ -36,6 +36,7 @@ function notice(over: Partial<TangoNotice> = {}): TangoNotice {
     noticeId: 'N-1',
     solicitationNumber: 'W911QY-26-R-0012',
     title: 'Turbofan Engine Sustainment',
+    description: 'The Government intends to award a firm-fixed-price contract.',
     postedDate: '2026-06-01T00:00:00.000Z',
     responseDeadline: '2026-09-01T17:00:00.000Z',
     active: true,
@@ -164,6 +165,43 @@ describe('the content hash tracks CONTENT, not the fetch', () => {
       samOpportunityId: null,
     });
     expect(row.attachmentCount).toBe(0);
+  });
+
+  test('the description is stored VERBATIM and hashed on its NORMALIZED form', () => {
+    // The body is stored as the provider sent it; only the comparison form is
+    // whitespace-normalized, so an agency reflowing its own paragraphs is not
+    // reported as a rewrite.
+    const reflowed = toNoticeRow(
+      notice({ description: 'The  Government\n intends   to award a firm-fixed-price contract.' }),
+      { tangoOpportunityId: null, samOpportunityId: null },
+    );
+    const original = toNoticeRow(notice(), { tangoOpportunityId: null, samOpportunityId: null });
+    expect(original.description).toBe('The Government intends to award a firm-fixed-price contract.');
+    expect(reflowed.description).toContain('\n');
+    expect(reflowed.descriptionSha256).toBe(original.descriptionSha256);
+  });
+
+  test('a real body rewrite moves the description hash', () => {
+    const a = toNoticeRow(notice(), { tangoOpportunityId: null, samOpportunityId: null });
+    const b = toNoticeRow(notice({ description: 'The Government intends to award an IDIQ.' }), {
+      tangoOpportunityId: null,
+      samOpportunityId: null,
+    });
+    expect(a.descriptionSha256).not.toBe(b.descriptionSha256);
+  });
+
+  test('no description means BOTH columns null — never a hash of the empty string', () => {
+    // A hash with no body is a half-written row, and the column CHECK refuses
+    // one. An empty-string hash would also compare unequal to null and report a
+    // phantom change the first time a description appeared.
+    for (const empty of [null, '', '   ']) {
+      const row = toNoticeRow(notice({ description: empty }), {
+        tangoOpportunityId: null,
+        samOpportunityId: null,
+      });
+      expect(row.description).toBeNull();
+      expect(row.descriptionSha256).toBeNull();
+    }
   });
 
   test('the provider updated stamp comes from provenance, not from the body', () => {

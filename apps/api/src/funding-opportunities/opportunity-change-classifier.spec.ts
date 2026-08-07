@@ -40,6 +40,7 @@ function notice(over: Partial<NoticeObservation> = {}): NoticeObservation {
   return {
     tangoNoticeId: 'N-1',
     title: 'Turbofan Engine Sustainment',
+    descriptionHash: 'd'.repeat(64),
     postedDate: new Date('2026-06-01T00:00:00.000Z'),
     providerUpdatedAt: new Date('2026-06-01T00:00:00.000Z'),
     responseDeadline: new Date('2026-09-01T17:00:00.000Z'),
@@ -74,23 +75,27 @@ describe('every dimension the plan names is declared, supported or not', () => {
     }
   });
 
-  test('the four with no provider counterpart are UNSUPPORTED, not silently absent', () => {
+  test('the THREE with no provider counterpart are UNSUPPORTED, not silently absent', () => {
     // "The set-aside did not change" and "we cannot see the set-aside" are
     // different statements, and only one is a fact about the notice.
+    //
+    // THREE, not four. `description` was in this list when P28 shipped and
+    // should not have been: NOTICE_SCHEMA declares it as a plain optional
+    // `str`, and the mistake was reading TangoNotice's own field list instead
+    // of the schema. See the classifier's own doc.
     expect(Object.keys(UNSUPPORTED_DIMENSIONS).sort()).toEqual([
       'contact',
-      'description',
       'place_of_performance',
       'stage',
     ]);
-    for (const dimension of ['stage', 'contact', 'description', 'place_of_performance'] as const) {
+    for (const dimension of ['stage', 'contact', 'place_of_performance'] as const) {
       expect(isSupportedDimension(dimension)).toBe(false);
       // Each reason names the PROVIDER, never Capiro's own coverage.
-      expect(UNSUPPORTED_DIMENSIONS[dimension]).toMatch(/provider states no|provider states no/i);
+      expect(UNSUPPORTED_DIMENSIONS[dimension]).toMatch(/provider states no/i);
     }
   });
 
-  test('the six comparable dimensions are supported', () => {
+  test('the seven comparable dimensions are supported, INCLUDING description', () => {
     for (const dimension of [
       'deadline',
       'set_aside',
@@ -99,9 +104,42 @@ describe('every dimension the plan names is declared, supported or not', () => {
       'attachments',
       'cancellation',
       'title',
+      'description',
     ] as const) {
       expect(isSupportedDimension(dimension)).toBe(true);
     }
+  });
+
+  test('a description rewrite IS reported, and WITHOUT quoting either body', () => {
+    // The regression this fix exists for: before it, a solicitation whose body
+    // was rewritten between two notices produced an entry with no changes,
+    // while the panel said description changes could not be observed at all.
+    // Both statements were false.
+    const changes = classifyNoticeChange(
+      notice({ descriptionHash: 'd'.repeat(64) }),
+      notice({ descriptionHash: 'e'.repeat(64) }),
+    );
+    const description = changes.find((c) => c.dimension === 'description')!;
+    expect(description.summary).toMatch(/description text changed/i);
+    // The before/after carry the two HASHES. A reader cannot act on a hash, and
+    // that is deliberate: the actionable fact is "go read it", and an excerpt
+    // would quote whichever paragraph came first rather than whichever mattered.
+    expect(description.before).toBe('d'.repeat(64));
+    expect(description.after).toBe('e'.repeat(64));
+    expect(description.summary).toMatch(/not summarised here/i);
+  });
+
+  test('a description added and removed are two different sentences', () => {
+    expect(
+      classifyNoticeChange(notice({ descriptionHash: null }), notice())[0]!.summary,
+    ).toMatch(/description was added/i);
+    expect(
+      classifyNoticeChange(notice(), notice({ descriptionHash: null }))[0]!.summary,
+    ).toMatch(/description was removed/i);
+  });
+
+  test('an unchanged description is not a change', () => {
+    expect(classifyNoticeChange(notice(), notice())).toEqual([]);
   });
 
   test('every supported dimension has a severity from the declared band', () => {
@@ -334,7 +372,6 @@ describe('THE ACCEPTANCE BAR: out-of-order ingestion produces the same timeline'
     const timeline = buildNoticeTimeline([first]);
     expect(timeline.unsupported.map((u) => u.dimension).sort()).toEqual([
       'contact',
-      'description',
       'place_of_performance',
       'stage',
     ]);
@@ -532,6 +569,35 @@ describe('the migration and the model agree', () => {
 
   test('the content hash is format-checked, so a truncated one cannot defeat the no-op path', () => {
     expect(sql).toMatch(/content_hash" ~ '\^\[0-9a-f\]\{64\}\$'/);
+  });
+
+  test('the description columns are an all-or-nothing PAIR, added additively', () => {
+    // A hash with no body, or a body with no hash, is a half-written row.
+    const fix = readFileSync(
+      join(
+        __dirname,
+        '..',
+        '..',
+        'prisma',
+        'migrations',
+        '20260828010000_tango_notice_description_hash',
+        'migration.sql',
+      ),
+      'utf8',
+    );
+    expect(fix).toMatch(/ADD COLUMN IF NOT EXISTS "description" TEXT/);
+    expect(fix).toMatch(/ADD COLUMN IF NOT EXISTS "description_sha256" TEXT/);
+    expect(fix).toMatch(/description_sha256" IS NULL OR "description_sha256" ~ '\^\[0-9a-f\]\{64\}\$'/);
+    expect(fix).toMatch(/description_pair_chk/);
+    // Additive and nullable: every pre-existing row has neither, and "we did
+    // not request this field when we observed this notice" is a different fact
+    // from "the provider stated none".
+    // The DDL forms specifically — the pair CHECK legitimately contains
+    // `IS NOT NULL`, so a bare `NOT NULL` search matches the constraint that
+    // makes this safe rather than a column that would make it unsafe.
+    expect(fix).not.toMatch(/ADD COLUMN[^;]*\bNOT NULL\b/);
+    expect(fix).not.toMatch(/SET NOT NULL/);
+    expect(fix).not.toMatch(/DROP COLUMN/);
   });
 
   test('a negative attachment count is refused', () => {

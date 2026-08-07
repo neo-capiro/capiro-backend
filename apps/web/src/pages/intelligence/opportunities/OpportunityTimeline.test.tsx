@@ -75,8 +75,11 @@ function timeline(partial: Partial<OpportunityTimelineResponse> = {}): Opportuni
     ],
     changeCount: 2,
     bySeverity: { critical: 1, significant: 0, informational: 1 },
+    // THREE, not four: `description` was corrected out of this list once the
+    // SDK's own NOTICE_SCHEMA was read rather than TangoNotice's field list.
     unsupported: [
       { dimension: 'stage', reason: 'The provider states no notice type on a notice.' },
+      { dimension: 'place_of_performance', reason: 'The provider states no place of performance on a notice.' },
       { dimension: 'contact', reason: 'The provider states no point of contact on a notice.' },
     ],
     coverage: 'available',
