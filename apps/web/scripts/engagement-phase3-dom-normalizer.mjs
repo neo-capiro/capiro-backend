@@ -2,7 +2,6 @@
 /** Pure DOM/text normalization for main-vs-preview browser comparisons. */
 
 const ISO_INSTANT = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\b/g;
-const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
 const REQUEST_ID = /\b(?:request|trace)[-_ ]?id[:= ]+[a-z0-9._:-]+\b/gi;
 const SIGNED_URL = /https?:\/\/[^\s"'<>]+(?:X-Amz-|Signature=|sig=)[^\s"'<>]*/gi;
 const SERVICE_META = /\b(?:release|service)[-_ ]?(?:sha|id|name)?[:= ]+[a-z0-9._:-]+\b/gi;
@@ -10,7 +9,6 @@ const SERVICE_META = /\b(?:release|service)[-_ ]?(?:sha|id|name)?[:= ]+[a-z0-9._
 export function normalizeVisibleText(value) {
   return String(value ?? '')
     .replace(ISO_INSTANT, '<ISO_INSTANT>')
-    .replace(UUID, '<UUID>')
     .replace(REQUEST_ID, '<REQUEST_ID>')
     .replace(SIGNED_URL, '<SIGNED_URL>')
     .replace(SERVICE_META, '<SERVICE_META>')
@@ -23,7 +21,9 @@ export function normalizeVisibleText(value) {
 /**
  * Normalize a serialized DOM snapshot. Only the Phase 3 indicator and fields
  * explicitly permitted by the plan are removed. Labels, controls, counts,
- * statuses, selected-tab text, and ordinary content remain comparable.
+ * statuses, selected-tab text, layout, hrefs and business record identifiers
+ * remain comparable. In particular, deterministic fixture UUIDs are NOT masked:
+ * a main/preview record-identity mismatch is a parity failure, not dynamic noise.
  */
 export function normalizeDomSnapshot(value) {
   return normalizeVisibleText(
