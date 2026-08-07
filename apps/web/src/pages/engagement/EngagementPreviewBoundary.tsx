@@ -1,29 +1,29 @@
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { consumePreviewActivation } from '../../lib/engagement-api-preview.js';
+import {
+  consumePreviewActivation,
+  readEngagementPreviewMode,
+} from '../../lib/engagement-api-preview.js';
+import { clearEngagementPreviewQueries } from '../../lib/engagement-preview-cache.js';
 import { EngagementApiPreviewIndicator } from './EngagementApiPreviewIndicator.js';
 
 /**
- * Consumes the `?engagement-api-preview=` activation parameter (Phase 3, 3.3).
+ * Consumes the `?engagement-api-preview=` activation parameter.
  *
  * It is mounted once beside the route table rather than inside the Engagement
- * route because the mode is session-wide, not page-wide: 3.8 requires the
- * preview to apply while the SPA route is `/settings/integrations`, and an
- * operator may activate from any deep link. Mounting it here also avoids a
- * second EngagementPage registration — the existing `/engagement/*` route is
- * untouched.
+ * route because the mode is session-wide: `/settings/integrations` and several
+ * mixed pages are Engagement consumers too.
  *
- * The parameter is consumed and removed; every other query parameter survives
- * unchanged, so activating on a meeting deep link keeps the meeting ID, detail
- * tab, date range and client filter. The rewrite is a `replace`, so activation
- * does not add a back-button step.
+ * A real mode transition cancels and removes only proven Engagement-owned
+ * React Query entries before the URL is rewritten. This prevents a cached main
+ * response from becoming preview evidence (or vice versa) while preserving
+ * Directory, Workspace, Strategy, and other owner caches on mixed pages.
  */
 export function EngagementPreviewBoundary() {
   const location = useLocation();
   const navigate = useNavigate();
-  // Guards against re-consuming during the render pass that follows our own
-  // navigate(): the effect re-runs on the new search, which no longer has the
-  // parameter, so this is belt-and-braces against a double-apply loop.
+  const queryClient = useQueryClient();
   const lastHandled = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,14 +31,25 @@ export function EngagementPreviewBoundary() {
     if (lastHandled.current === search) return;
     lastHandled.current = search;
 
+    const before = readEngagementPreviewMode();
     const result = consumePreviewActivation(search);
     if (!result.changed) return;
 
-    navigate(
-      { pathname: location.pathname, search: result.nextSearch, hash: location.hash },
-      { replace: true },
-    );
-  }, [location.search, location.pathname, location.hash, navigate]);
+    const finish = () =>
+      navigate(
+        { pathname: location.pathname, search: result.nextSearch, hash: location.hash },
+        { replace: true },
+      );
+
+    if (result.mode !== before) {
+      void clearEngagementPreviewQueries(queryClient).then(finish);
+      return;
+    }
+    // Unknown activation values and idempotent `v3`/`off` requests still have
+    // their control parameter consumed, but do not evict a cache for a mode
+    // that never changed.
+    finish();
+  }, [location.search, location.pathname, location.hash, navigate, queryClient]);
 
   return <EngagementApiPreviewIndicator />;
 }
