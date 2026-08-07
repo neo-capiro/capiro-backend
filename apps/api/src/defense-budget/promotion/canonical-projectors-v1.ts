@@ -32,8 +32,12 @@
 import {
   lookupCanonicalMappingV1,
   parentEntityOfV1,
+  validateFundingFieldForMappingV1,
   type CanonicalEntityV1,
 } from './canonical-mapping-registry-v1.js';
+import type { Phase6NativeProjectionV1 } from '../phase6/phase6-native-projection-v1.js';
+import type { StageAuthorityV1, StageV1 } from '../stages/stage-vocabulary-v1.js';
+import type { FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
 import type {
   CanonicalLineageV1,
   CanonicalMoneyV1,
@@ -82,6 +86,12 @@ export const PROJECTOR_REFUSAL_V1_VALUES = [
   'parent_key_absent',
   'fiscal_year_absent',
   'funding_field_absent',
+  /* Workstream J — congressional lifecycle */
+  'projection_not_verified',
+  'binding_not_accepted',
+  'stage_authority_violation',
+  'continuing_resolution_without_line_authority',
+  'enactment_proof_absent',
 ] as const;
 export type ProjectorRefusalV1 = (typeof PROJECTOR_REFUSAL_V1_VALUES)[number];
 
@@ -575,6 +585,249 @@ export function projectOmCandidatesV1(candidates: ProjectionCandidateInputV1[]):
           ? 'request'
           : null,
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* I. MILCON projector                                                 */
+/* ------------------------------------------------------------------ */
+
+export const MILCON_PROJECTOR_TARGETS_V1 = [
+  'MilconProject',
+  'MilconProjectYear',
+  'MilconDetailFact',
+] as const;
+
+/**
+ * Workstream I. MILCON identity is keyed on component, account, project code,
+ * and location — **never title**. Two projects legitimately share a title, and
+ * the same project number under a different component is a different project;
+ * both facts are encoded in the natural key the registry declares, and a
+ * Workstream B test asserts no natural key anywhere admits a title or name.
+ *
+ * DD1391 cost categories, scope, and schedule arrive as detail facts: the date
+ * axis carries schedule and the attribute bag carries the categories, so a
+ * revised DD1391 supersedes by producing a new snapshot rather than editing
+ * anything in place.
+ */
+export function projectMilconCandidatesV1(
+  candidates: ProjectionCandidateInputV1[],
+): ProjectorResultV1 {
+  return runProjector(candidates, {
+    namespace: 'non_rdte',
+    allowedTargets: MILCON_PROJECTOR_TARGETS_V1,
+    parentNaturalKey: (candidate) =>
+      typeof candidate.values.identityNaturalKey === 'string'
+        ? candidate.values.identityNaturalKey
+        : null,
+    fundingField: (candidate) =>
+      typeof candidate.values.fundingField === 'string'
+        ? candidate.values.fundingField
+        : candidate.target === 'MilconProjectYear'
+          ? 'request'
+          : null,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* J. Congressional lifecycle projector                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The authority that publishes each stage. Exactly one per stage, by the Phase
+ * 6 vocabulary — `satisfies` makes a new stage a compile error here rather than
+ * a silently unmapped authority.
+ *
+ * This table is why an NDAA conference position cannot land in the
+ * appropriations conference field: the funding field is re-derived from the
+ * authority at promotion, not taken from the projection.
+ */
+export const STAGE_TO_AUTHORITY_V1 = {
+  hasc: 'hasc_authorization',
+  sasc: 'sasc_authorization',
+  ndaa_conference: 'ndaa_conference_authorization',
+  hac_d: 'hacd_appropriations',
+  sac_d: 'sacd_appropriations',
+  appropriations_conference: 'appropriations_conference',
+  public_law: 'enacted_public_law',
+  continuing_resolution: 'continuing_resolution',
+  reprogramming: 'reprogramming',
+  execution: 'execution',
+} satisfies Record<StageV1, StageAuthorityV1>;
+
+/** Binding states that may become canonical. Everything else is review data. */
+const CANONICAL_BINDING_STATES = new Set(['accepted', 'not_applicable']);
+
+/**
+ * Workstream J. Promotes Phase 6 stage positions, actions, provisions,
+ * enactment proofs, execution metrics, vehicle proofs, and native line
+ * bindings.
+ *
+ * Phase 6 projections are a different shape from the Phase 4/5 candidate — they
+ * carry a stage, a track, a typed money value, and a payload rather than a flat
+ * values record — so this is its own adapter rather than a fourth
+ * `runProjector` configuration.
+ *
+ * Four rules are enforced here, each of which the database also enforces
+ * independently:
+ *
+ * 1. **The funding field is re-derived from the stage authority.** A projection
+ *    claiming a field its authority does not own is refused, so authorization
+ *    and appropriations tracks cannot cross and NDAA conference cannot populate
+ *    the appropriations conference field.
+ * 2. **An action carries no funding field at all.** `stage_action` maps to an
+ *    entity with `fieldAuthority: not_applicable`, so an action amount is
+ *    structurally incapable of being promoted as an absolute position.
+ * 3. **An enacted position requires its enactment proof.**
+ * 4. **A continuing resolution cannot become a full-year enacted line** unless
+ *    the source granted explicit line authority. Phase 6 records that as
+ *    `payload.explicitLineAuthority`; carrying it forward is what stops a CR
+ *    from silently becoming the enacted position for the year.
+ */
+export function projectPhase6ProjectionsV1(
+  projections: Phase6NativeProjectionV1[],
+): ProjectorResultV1 {
+  const out: PromotionProjectionInputV1[] = [];
+  const refusals: ProjectorRefusalRecordV1[] = [];
+
+  for (const projection of projections) {
+    const refuse = (reason: ProjectorRefusalV1, detail: string): void => {
+      refusals.push({
+        candidateId: projection.projectionId,
+        target: projection.projectionKind,
+        naturalKey: projection.naturalKey,
+        reason,
+        detail,
+      });
+    };
+
+    // Only a verified projection is promotable. `candidate` and `blocked` are
+    // review data; `superseded` has been replaced by a later projection.
+    if (projection.projectionStatus !== 'verified') {
+      refuse(
+        'projection_not_verified',
+        `projection status is "${projection.projectionStatus}", not verified`,
+      );
+      continue;
+    }
+
+    if (!CANONICAL_BINDING_STATES.has(projection.bindingStatus)) {
+      refuse(
+        'binding_not_accepted',
+        `binding status "${projection.bindingStatus}" is review data, not canonical truth`,
+      );
+      continue;
+    }
+
+    const projectionKind = `phase6:${projection.projectionKind}`;
+    const lookup = lookupCanonicalMappingV1(projectionKind);
+    if (!lookup.supported) {
+      refuse('unsupported_target', lookup.detail);
+      continue;
+    }
+    const entry = lookup.entry;
+
+    const fundingField = (projection.fundingField ?? null) as FundingFieldV1 | null;
+    const authority = STAGE_TO_AUTHORITY_V1[projection.stage];
+    const fieldCheck = validateFundingFieldForMappingV1(entry, fundingField, authority);
+    if (!fieldCheck.supported) {
+      refuse('stage_authority_violation', fieldCheck.detail);
+      continue;
+    }
+
+    if (
+      projection.stage === 'continuing_resolution' &&
+      projection.payload.explicitLineAuthority !== true
+    ) {
+      refuse(
+        'continuing_resolution_without_line_authority',
+        'a continuing resolution may not become a line-level enacted position without explicit line authority',
+      );
+      continue;
+    }
+
+    if (
+      entry.requiresEnactmentProof &&
+      fundingField === 'enacted' &&
+      (projection.enactmentProofId == null || projection.enactmentProofId === '')
+    ) {
+      refuse('enactment_proof_absent', 'an enacted position requires its enactment proof');
+      continue;
+    }
+
+    const money = projection.money ?? null;
+    if (money != null && !entry.valueAxes.includes('money')) {
+      refuse(
+        'money_required_but_absent',
+        `${entry.canonicalEntity} carries no money axis but the projection supplied a money value`,
+      );
+      continue;
+    }
+    if (entry.canonicalEntity === 'canonical_stage_position' && money == null) {
+      refuse('money_required_but_absent', 'a stage position must carry money');
+      continue;
+    }
+
+    const payload = projection.payload;
+    const fiscalYear = typeof payload.fiscalYear === 'number' ? payload.fiscalYear : null;
+
+    // The payload minus the keys already promoted to typed axes.
+    const attributes: Record<string, string | boolean | null> = {};
+    for (const key of Object.keys(payload).sort(compareBytes)) {
+      if (PHASE6_CONSUMED_PAYLOAD_KEYS.has(key)) continue;
+      const value = payload[key];
+      if (value === undefined) continue;
+      attributes[key] = typeof value === 'number' ? String(value) : value;
+    }
+    // Track and stage are canonical facts about the row, not incidental payload.
+    attributes.track = projection.track;
+    attributes.stage = projection.stage;
+    attributes.stageAuthority = authority;
+
+    out.push({
+      projectionId: projection.projectionId,
+      projectionHash: projection.artifactContentSha256,
+      projectionKind,
+      naturalKey: projection.naturalKey,
+      parentNaturalKey: null,
+      fiscalYear,
+      fundingField,
+      stageAuthority: authority,
+      stage: projection.stage,
+      bindingStatus: 'accepted',
+      enactmentProofId: projection.enactmentProofId ?? null,
+      directOrDerived: projection.directOrDerived,
+      values: {
+        money,
+        quantity: null,
+        unitCostDollars: null,
+        textValue: typeof payload.narrative === 'string' ? payload.narrative : null,
+        dateValue: typeof payload.asOfDate === 'string' ? payload.asOfDate : null,
+        attributes,
+      },
+      lineage: {
+        sourceAssertionId: projection.projectionId,
+        evidenceIds: [...projection.evidenceIds].sort(compareBytes),
+        artifactId: projection.artifactId,
+        artifactContentSha256: projection.artifactContentSha256,
+        verificationCandidateId: projection.verificationCandidateId,
+        verificationRunId: projection.verificationRunId,
+        sourceDocumentId: projection.sourceDocumentId,
+        sourcePdfSha256: projection.sourcePdfSha256,
+      },
+    });
+  }
+
+  out.sort((a, b) => compareBytes(a.naturalKey, b.naturalKey));
+  refusals.sort((a, b) => compareBytes(a.naturalKey, b.naturalKey));
+  return { projections: out, refusals };
+}
+
+/** Payload keys already carried on a typed axis; not repeated as attributes. */
+const PHASE6_CONSUMED_PAYLOAD_KEYS = new Set(['fiscalYear', 'narrative', 'asOfDate']);
+
+/** Byte-wise ordering, so output order cannot depend on ICU data. */
+function compareBytes(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /* ------------------------------------------------------------------ */

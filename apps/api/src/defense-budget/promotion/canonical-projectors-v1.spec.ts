@@ -1,5 +1,5 @@
-/**
- * Phase 7 Workstreams F, G, H — the family projectors preserve native identity
+﻿/**
+ * Phase 7 Workstreams F, G, H â€” the family projectors preserve native identity
  * and refuse rather than default.
  */
 import { readFileSync } from 'node:fs';
@@ -13,7 +13,22 @@ import {
   projectRdteCandidatesV1,
   sumPositionMillionsV1,
   type ProjectionCandidateInputV1,
+  MILCON_PROJECTOR_TARGETS_V1,
+  STAGE_TO_AUTHORITY_V1,
+  projectMilconCandidatesV1,
+  projectPhase6ProjectionsV1,
 } from './canonical-projectors-v1.js';
+import type { Phase6NativeProjectionV1 } from '../phase6/phase6-native-projection-v1.js';
+
+/** Track each stage belongs to, for building valid Phase 6 fixtures. */
+const STAGE_TRACK_FOR_TEST = {
+  hasc: 'authorization',
+  sasc: 'authorization',
+  ndaa_conference: 'authorization',
+  hac_d: 'appropriations',
+  sac_d: 'appropriations',
+  appropriations_conference: 'appropriations',
+} as const;
 import { lookupCanonicalMappingV1 } from './canonical-mapping-registry-v1.js';
 
 const SHA = (c: string) => c.repeat(64);
@@ -42,10 +57,10 @@ function candidate(o: Partial<ProjectionCandidateInputV1> = {}): ProjectionCandi
 const MONEY = { originalValue: '1250', originalUnit: 'thousands', valueMillions: '1.25' };
 
 /* ------------------------------------------------------------------ */
-/* F — RDT&E                                                           */
+/* F â€” RDT&E                                                           */
 /* ------------------------------------------------------------------ */
 
-describe('Phase 7 WS F — RDT&E projector', () => {
+describe('Phase 7 WS F â€” RDT&E projector', () => {
   it('projects PE identity to the RDT&E canonical entity', () => {
     const { projections, refusals } = projectRdteCandidatesV1([candidate()]);
     expect(refusals).toEqual([]);
@@ -148,10 +163,10 @@ describe('Phase 7 WS F — RDT&E projector', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* G — Procurement                                                     */
+/* G â€” Procurement                                                     */
 /* ------------------------------------------------------------------ */
 
-describe('Phase 7 WS G — procurement projector', () => {
+describe('Phase 7 WS G â€” procurement projector', () => {
   const blin = (o: Partial<ProjectionCandidateInputV1> = {}) =>
     candidate({
       candidateId: 'c-blin',
@@ -278,10 +293,10 @@ describe('Phase 7 WS G — procurement projector', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* H — O&M                                                             */
+/* H â€” O&M                                                             */
 /* ------------------------------------------------------------------ */
 
-describe('Phase 7 WS H — O&M projector', () => {
+describe('Phase 7 WS H â€” O&M projector', () => {
   const sag = (o: Partial<ProjectionCandidateInputV1> = {}) =>
     candidate({
       candidateId: 'c-sag',
@@ -423,7 +438,422 @@ describe('Phase 7 WS H — O&M projector', () => {
 /* Shared refusal behaviour                                            */
 /* ------------------------------------------------------------------ */
 
-describe('Phase 7 WS F/G/H — refuse rather than default', () => {
+/* ------------------------------------------------------------------ */
+/* I â€” MILCON                                                          */
+/* ------------------------------------------------------------------ */
+
+describe('Phase 7 WS I â€” MILCON projector', () => {
+  const project = (o: Partial<ProjectionCandidateInputV1> = {}) =>
+    candidate({
+      candidateId: 'c-milcon',
+      target: 'MilconProject',
+      naturalKey: 'MILCON_PROJECT:ARMY:MCA:ABC-1:FORT LIBERTY',
+      values: {
+        naturalKey: 'MILCON_PROJECT:ARMY:MCA:ABC-1:FORT LIBERTY',
+        component: 'ARMY',
+        account: 'MCA',
+        projectCode: 'ABC-1',
+        location: 'FORT LIBERTY',
+        title: 'Child Development Center',
+      },
+      ...o,
+    });
+
+  it('projects a MILCON project to the MILCON canonical entity', () => {
+    const { projections, refusals } = projectMilconCandidatesV1([project()]);
+    expect(refusals).toEqual([]);
+    const lookup = lookupCanonicalMappingV1(projections[0]!.projectionKind);
+    expect(lookup.supported && lookup.entry.canonicalEntity).toBe('canonical_milcon_project');
+  });
+
+  it('keeps two projects that share a title distinct', () => {
+    const { projections } = projectMilconCandidatesV1([
+      project(),
+      project({
+        candidateId: 'c-milcon-2',
+        naturalKey: 'MILCON_PROJECT:NAVY:MCN:XYZ-9:NAS OCEANA',
+        values: {
+          naturalKey: 'MILCON_PROJECT:NAVY:MCN:XYZ-9:NAS OCEANA',
+          component: 'NAVY',
+          account: 'MCN',
+          projectCode: 'XYZ-9',
+          location: 'NAS OCEANA',
+          // Same printed title as the Army project above.
+          title: 'Child Development Center',
+        },
+      }),
+    ]);
+    expect(new Set(projections.map((p) => p.naturalKey)).size).toBe(2);
+  });
+
+  it('keeps the same project number under two components distinct', () => {
+    const { projections } = projectMilconCandidatesV1([
+      project(),
+      project({
+        candidateId: 'c-milcon-af',
+        naturalKey: 'MILCON_PROJECT:AF:MCAF:ABC-1:FORT LIBERTY',
+        values: {
+          naturalKey: 'MILCON_PROJECT:AF:MCAF:ABC-1:FORT LIBERTY',
+          component: 'AF',
+          account: 'MCAF',
+          projectCode: 'ABC-1',
+          location: 'FORT LIBERTY',
+        },
+      }),
+    ]);
+    expect(new Set(projections.map((p) => p.naturalKey)).size).toBe(2);
+  });
+
+  it('never keys MILCON identity on title', () => {
+    const lookup = lookupCanonicalMappingV1('non_rdte:MilconProject');
+    expect(lookup.supported && lookup.entry.naturalKeyFields).toEqual([
+      'component',
+      'account',
+      'projectCode',
+      'location',
+    ]);
+  });
+
+  it('carries DD1391 schedule on the date axis and cost categories as attributes', () => {
+    const { projections, refusals } = projectMilconCandidatesV1([
+      candidate({
+        candidateId: 'c-dd1391',
+        target: 'MilconDetailFact',
+        naturalKey: 'MILCON_PROJECT:ARMY:MCA:ABC-1:FORT LIBERTY|2027|cost_category|primary',
+        values: {
+          identityNaturalKey: 'MILCON_PROJECT:ARMY:MCA:ABC-1:FORT LIBERTY',
+          fy: 2027,
+          factKind: 'cost_category',
+          factKey: 'primary_facility',
+          plannedDate: '2027-06-01',
+          scopeUnit: 'SM',
+          originalValue: '4200',
+          originalUnit: 'thousands',
+          valueMillions: '4.2',
+        },
+      }),
+    ]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.values.dateValue).toBe('2027-06-01');
+    expect(projections[0]?.values.attributes?.factKind).toBe('cost_category');
+    expect(projections[0]?.values.attributes?.scopeUnit).toBe('SM');
+    expect(projections[0]?.values.money?.valueMillions).toBe('4.2');
+  });
+
+  it('refuses a MILCON target handed to the O&M projector', () => {
+    const { refusals } = projectOmCandidatesV1([project()]);
+    expect(refusals[0]?.reason).toBe('unsupported_target');
+  });
+
+  it('never routes a MILCON candidate to an RDT&E entity', () => {
+    for (const target of MILCON_PROJECTOR_TARGETS_V1) {
+      const lookup = lookupCanonicalMappingV1(`non_rdte:${target}`);
+      expect(lookup.supported && lookup.entry.canonicalEntity.startsWith('canonical_rdte_')).toBe(
+        false,
+      );
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* J â€” Congressional lifecycle                                         */
+/* ------------------------------------------------------------------ */
+
+describe('Phase 7 WS J â€” congressional lifecycle projector', () => {
+  const MONEY6 = { originalValue: '10', originalUnit: 'millions' as const, valueMillions: '10' };
+
+  const position = (o: Record<string, unknown> = {}): Phase6NativeProjectionV1 =>
+    ({
+      schemaVersion: 'phase6_native_projection_v1',
+      projectionId: 'p6-1',
+      naturalKey: 'native-hash|2027|hasc|hascMark',
+      idempotencyKey: 'idem-1',
+      projectionKind: 'stage_position',
+      verificationCandidateId: 'vc-1',
+      verificationRunId: 'vr-1',
+      artifactId: 'artifact-1',
+      artifactContentSha256: SHA('a'),
+      sourceDocumentId: 'doc-1',
+      sourcePdfSha256: SHA('b'),
+      sourceProfileHash: SHA('c'),
+      nativeIdentityHash: SHA('d'),
+      track: 'authorization',
+      stage: 'hasc',
+      fundingField: 'hascMark',
+      money: MONEY6,
+      directOrDerived: 'direct',
+      evidenceIds: ['ev-2', 'ev-1'],
+      bindingStatus: 'accepted',
+      projectionStatus: 'verified',
+      payload: { fiscalYear: 2027 },
+      canonicalWriteAllowed: false,
+      ...o,
+    }) as Phase6NativeProjectionV1;
+
+  it('projects a verified stage position', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([position()]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.projectionKind).toBe('phase6:stage_position');
+    expect(projections[0]?.stage).toBe('hasc');
+    expect(projections[0]?.fundingField).toBe('hascMark');
+    expect(projections[0]?.fiscalYear).toBe(2027);
+    expect(projections[0]?.values.money?.valueMillions).toBe('10');
+  });
+
+  it('records the derived stage authority on the row', () => {
+    const { projections } = projectPhase6ProjectionsV1([position()]);
+    expect(projections[0]?.stageAuthority).toBe('hasc_authorization');
+    expect(projections[0]?.values.attributes?.stageAuthority).toBe('hasc_authorization');
+  });
+
+  it('accepts each stage against exactly the field its authority owns', () => {
+    const pairs = [
+      ['hasc', 'hascMark'],
+      ['sasc', 'sascMark'],
+      ['ndaa_conference', 'ndaaConference'],
+      ['hac_d', 'hacDMark'],
+      ['sac_d', 'sacDMark'],
+      ['appropriations_conference', 'conference'],
+    ] as const;
+    for (const [stage, field] of pairs) {
+      const { projections, refusals } = projectPhase6ProjectionsV1([
+        position({ stage, fundingField: field, track: STAGE_TRACK_FOR_TEST[stage] }),
+      ]);
+      expect(refusals).toEqual([]);
+      expect(projections[0]?.fundingField).toBe(field);
+    }
+  });
+
+  it('refuses NDAA conference writing the appropriations conference field', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({ stage: 'ndaa_conference', fundingField: 'conference', track: 'authorization' }),
+    ]);
+    expect(projections).toEqual([]);
+    expect(refusals[0]?.reason).toBe('stage_authority_violation');
+  });
+
+  it('refuses an authorization stage writing an appropriations field', () => {
+    const { refusals } = projectPhase6ProjectionsV1([
+      position({ stage: 'hasc', fundingField: 'hacDMark' }),
+    ]);
+    expect(refusals[0]?.reason).toBe('stage_authority_violation');
+  });
+
+  it('refuses an enacted position with no enactment proof', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({
+        stage: 'public_law',
+        track: 'appropriations',
+        fundingField: 'enacted',
+      }),
+    ]);
+    expect(projections).toEqual([]);
+    expect(refusals[0]?.reason).toBe('enactment_proof_absent');
+  });
+
+  it('accepts an enacted position that carries its proof', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({
+        stage: 'public_law',
+        track: 'appropriations',
+        fundingField: 'enacted',
+        enactmentProofId: 'proof-1',
+      }),
+    ]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.enactmentProofId).toBe('proof-1');
+  });
+
+  it('refuses a continuing resolution without explicit line authority', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({
+        stage: 'continuing_resolution',
+        track: 'appropriations',
+        fundingField: 'enacted',
+        enactmentProofId: 'proof-cr',
+        payload: { fiscalYear: 2027 },
+      }),
+    ]);
+    expect(projections).toEqual([]);
+    expect(refusals[0]?.reason).toBe('continuing_resolution_without_line_authority');
+  });
+
+  it('accepts a continuing resolution that granted explicit line authority', () => {
+    const { refusals } = projectPhase6ProjectionsV1([
+      position({
+        stage: 'continuing_resolution',
+        track: 'appropriations',
+        fundingField: 'enacted',
+        enactmentProofId: 'proof-cr',
+        payload: { fiscalYear: 2027, explicitLineAuthority: true },
+      }),
+    ]);
+    expect(refusals).toEqual([]);
+  });
+
+  it('gives a stage action no funding field, so it cannot become a position', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({
+        projectionKind: 'stage_action',
+        naturalKey: 'native-hash|2027|hasc|transfer|t-1',
+        fundingField: undefined,
+        money: undefined,
+        payload: { fiscalYear: 2027, actionType: 'transfer', actionKey: 't-1' },
+      }),
+    ]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.fundingField).toBeNull();
+    const lookup = lookupCanonicalMappingV1('phase6:stage_action');
+    expect(lookup.supported && lookup.entry.fieldAuthority.mode).toBe('not_applicable');
+  });
+
+  it('refuses an action that claims an absolute funding field', () => {
+    const { refusals } = projectPhase6ProjectionsV1([
+      position({
+        projectionKind: 'stage_action',
+        naturalKey: 'native-hash|2027|hasc|transfer|t-2',
+        fundingField: 'hascMark',
+      }),
+    ]);
+    expect(refusals[0]?.reason).toBe('stage_authority_violation');
+  });
+
+  it('refuses a candidate identity binding', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({ bindingStatus: 'candidate' }),
+    ]);
+    expect(projections).toEqual([]);
+    expect(refusals[0]?.reason).toBe('binding_not_accepted');
+  });
+
+  it('refuses a conflicting identity binding', () => {
+    const { refusals } = projectPhase6ProjectionsV1([position({ bindingStatus: 'conflicting' })]);
+    expect(refusals[0]?.reason).toBe('binding_not_accepted');
+  });
+
+  it('refuses a projection that is not verified', () => {
+    for (const status of ['candidate', 'blocked', 'superseded'] as const) {
+      const { projections, refusals } = projectPhase6ProjectionsV1([
+        position({ projectionStatus: status }),
+      ]);
+      expect(projections).toEqual([]);
+      expect(refusals[0]?.reason).toBe('projection_not_verified');
+    }
+  });
+
+  it('keeps authorization and appropriations conference as distinct rows', () => {
+    const { projections } = projectPhase6ProjectionsV1([
+      position({
+        projectionId: 'p6-ndaa',
+        naturalKey: 'native-hash|2027|ndaa_conference|ndaaConference',
+        stage: 'ndaa_conference',
+        track: 'authorization',
+        fundingField: 'ndaaConference',
+      }),
+      position({
+        projectionId: 'p6-approps',
+        naturalKey: 'native-hash|2027|appropriations_conference|conference',
+        stage: 'appropriations_conference',
+        track: 'appropriations',
+        fundingField: 'conference',
+      }),
+    ]);
+    expect(projections).toHaveLength(2);
+    expect(new Set(projections.map((p) => p.fundingField))).toEqual(
+      new Set(['ndaaConference', 'conference']),
+    );
+  });
+
+  it('preserves execution metric and as-of semantics', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position({
+        projectionKind: 'post_enactment_metric',
+        naturalKey: 'native-hash|2027|obligations|2027-06-30',
+        stage: 'execution',
+        track: 'post_enactment',
+        fundingField: 'executed',
+        payload: {
+          fiscalYear: 2027,
+          executionMetric: 'obligations',
+          asOfDate: '2027-06-30',
+          cumulative: true,
+        },
+      }),
+    ]);
+    expect(refusals).toEqual([]);
+    expect(projections[0]?.values.dateValue).toBe('2027-06-30');
+    expect(projections[0]?.values.attributes?.executionMetric).toBe('obligations');
+    expect(projections[0]?.values.attributes?.cumulative).toBe(true);
+  });
+
+  it('does not conflate obligations with outlays', () => {
+    const { projections } = projectPhase6ProjectionsV1([
+      position({
+        projectionId: 'p6-obl',
+        projectionKind: 'post_enactment_metric',
+        naturalKey: 'native-hash|2027|obligations|2027-06-30',
+        stage: 'execution',
+        track: 'post_enactment',
+        fundingField: 'executed',
+        payload: { fiscalYear: 2027, executionMetric: 'obligations', asOfDate: '2027-06-30' },
+      }),
+      position({
+        projectionId: 'p6-out',
+        projectionKind: 'post_enactment_metric',
+        naturalKey: 'native-hash|2027|outlays|2027-06-30',
+        stage: 'execution',
+        track: 'post_enactment',
+        fundingField: 'executed',
+        payload: { fiscalYear: 2027, executionMetric: 'outlays', asOfDate: '2027-06-30' },
+      }),
+    ]);
+    expect(projections).toHaveLength(2);
+    expect(projections.map((p) => p.values.attributes?.executionMetric).sort()).toEqual([
+      'obligations',
+      'outlays',
+    ]);
+  });
+
+  it('maps every stage to exactly one authority', () => {
+    expect(Object.keys(STAGE_TO_AUTHORITY_V1).sort()).toEqual(
+      [
+        'appropriations_conference',
+        'continuing_resolution',
+        'execution',
+        'hac_d',
+        'hasc',
+        'ndaa_conference',
+        'public_law',
+        'reprogramming',
+        'sac_d',
+        'sasc',
+      ].sort(),
+    );
+  });
+
+  it('is deterministic and sorts evidence order-independently', () => {
+    const input = [
+      position({ projectionId: 'b', naturalKey: 'zzz' }),
+      position({ projectionId: 'a', naturalKey: 'aaa' }),
+    ];
+    const forward = projectPhase6ProjectionsV1(input);
+    const reversed = projectPhase6ProjectionsV1([...input].reverse());
+    expect(reversed.projections.map((p) => p.naturalKey)).toEqual(
+      forward.projections.map((p) => p.naturalKey),
+    );
+    expect(forward.projections[0]?.lineage.evidenceIds).toEqual(['ev-1', 'ev-2']);
+  });
+
+  it('returns refusals rather than dropping projections', () => {
+    const { projections, refusals } = projectPhase6ProjectionsV1([
+      position(),
+      position({ projectionId: 'bad', naturalKey: 'bad', bindingStatus: 'candidate' }),
+    ]);
+    expect(projections.length + refusals.length).toBe(2);
+  });
+});
+
+describe('Phase 7 WS F/G/H â€” refuse rather than default', () => {
   it('refuses an upstream-excluded candidate', () => {
     const { projections, refusals } = projectRdteCandidatesV1([
       candidate({ exclusionReason: 'artifact_rejected' }),
@@ -537,13 +967,13 @@ describe('Phase 7 WS F/G/H — refuse rather than default', () => {
   });
 });
 
-describe('Phase 7 WS F/G/H — no legacy writer is reachable', () => {
+describe('Phase 7 WS F/G/H â€” no legacy writer is reachable', () => {
   const raw = readFileSync(join(__dirname, 'canonical-projectors-v1.ts'), 'utf8');
 
   /**
    * Comments are stripped before scanning. A gate that matches its own prose is
    * a false positive, and the Phase 6 lesson is to sharpen the gate rather than
-   * weaken the assertion — the module documents that it never calls
+   * weaken the assertion â€” the module documents that it never calls
    * `ProgramElementWriterService`, and saying so must not trip the check that
    * it doesn't.
    */
@@ -568,7 +998,7 @@ describe('Phase 7 WS F/G/H — no legacy writer is reachable', () => {
     expect(dml.test(source)).toBe(false);
   });
 
-  it('names no canonical entity literal — the registry is the only router', () => {
+  it('names no canonical entity literal â€” the registry is the only router', () => {
     // isPositionEntity necessarily names position entities; everything else must
     // go through lookupCanonicalMappingV1. Assert no projector function body
     // hard-codes a destination.
