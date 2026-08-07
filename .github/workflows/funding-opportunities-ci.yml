@@ -427,6 +427,8 @@ jobs:
           scripts/diag-tango-capabilities.spec.ts
           scripts/diag-tango-health.spec.ts
           scripts/sync-tango-entities.spec.ts
+          scripts/generate-tango-enrichment-candidates.spec.ts
+          scripts/review-tango-enrichment-candidate.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -513,6 +515,26 @@ jobs:
       # trips through @makegov/tango-node@1.1.0, so ENTITY_FIELDS drops both
       # and mapEntity returns them as an explicit, commented null.
       #
+      # 42/1354 after P20: three NEW suites. client-profile-enrichment.service
+      # .spec.ts (24 tests) covers: no fetch/no candidate without a UEI; array
+      # fields propose the full ADDITIVE union (never a removal — Tango
+      # omitting something is not evidence the client lacks it); certifications
+      # matched ONLY via the curated, exact TANGO_BUSINESS_TYPE_TO_CERTIFICATION
+      # map (an unrecognized business-type string proposes nothing, never
+      # guessed at); cageCode fill-if-empty and flag-if-different; THE
+      # ACCEPTANCE BAR itself — proposing twice is idempotent, and a REJECTED
+      # candidate is never re-proposed by a later sync of the identical data,
+      # while a genuinely different value still gets its own new candidate;
+      # reviewCandidate applies on accept and never touches the client on
+      # reject; re-reviewing an already-reviewed candidate is refused; and a
+      # structural test asserting no bulk/all/batch-shaped method exists on
+      # the service at all. generate-tango-enrichment-candidates.spec.ts (6
+      # tests) covers the cross-tenant pagination wrapper, including a
+      # defensive per-item limit check independent of what a batch reader
+      # returns. review-tango-enrichment-candidate.spec.ts (9 tests) covers
+      # the CLI's flag parsing, including that no flag combination can target
+      # more than one candidate.
+      #
       # The suite floor MUST move with the file
       # count — otherwise the frozen-contract, profile-parity or identity suite could
       # be deleted and the gate would stay green. These numbers are also mirrored in
@@ -521,7 +543,7 @@ jobs:
       # That is the point.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 39 1315
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 42 1354
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
