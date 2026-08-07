@@ -27,8 +27,8 @@
         "zip": "79901",
         "country": "USA"
       },
-      "entity_structure_desc": "Limited Liability Company",
-      "state_of_incorporation_code": "DE",
+      "entity_structure": { "code": "2L", "description": "Limited Liability Company" },
+      "state_of_incorporation": { "code": "DE", "description": "Delaware" },
       "last_update_date": "2026-08-01T12:00:00Z",
       "federal_obligations": { "total": "18500000.00" },
       "exclusion_status_flag": "N"
@@ -46,8 +46,8 @@
       "registration_status": "Expired",
       "sam_expiration_date": "not a date",
       "physical_address": {},
-      "entity_structure_desc": null,
-      "state_of_incorporation_code": null,
+      "entity_structure": null,
+      "state_of_incorporation": null,
       "last_update_date": null
     }
   ]

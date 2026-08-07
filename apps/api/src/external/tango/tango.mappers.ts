@@ -265,8 +265,13 @@ export function mapEntity(raw: Record<string, unknown>, fetchedAt: string): Tang
     // not for what a later phase might want it to mean.
     samExpirationDate: iso(picked.sam_expiration_date),
     physicalAddress: address(picked.physical_address),
-    entityStructure: str(picked.entity_structure_desc),
-    stateOfIncorporation: str(picked.state_of_incorporation_code),
+    // Always null: neither this SDK's own field name nor the live server's
+    // current one round-trips end-to-end through @makegov/tango-node@1.1.0 —
+    // a genuine SDK-vs-server incompatibility, not an absent value to
+    // recover with a fallback. See ENTITY_FIELDS's doc (P19, decision-log
+    // D-35) before assuming this is fixable with a different field name.
+    entityStructure: null,
+    stateOfIncorporation: null,
   };
 }
 

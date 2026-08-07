@@ -539,6 +539,23 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: expire machine suggestions and emit amendment/deadline/closure alerts (hourly at :20 UTC)',
     enabled: false,
   },
+  // Funding Opportunities P19: MakeGov/Tango reviewed-UEI entity shadow sync.
+  // Declared disabled until the real-key live run (decision-log, P19) is
+  // followed by an internal canary — same posture as every other Funding
+  // Opportunities job in this block. Enable out-of-band only; never deploy
+  // the drifted Compute stack. Daily, not hourly: a client's own UEI changes
+  // rarely, so there is no freshness reason to poll more often, and every
+  // run only ever touches clients WHERE uei IS NOT NULL (a name-only client
+  // never triggers a Tango call — this phase's own acceptance bar).
+  {
+    id: 'SyncTangoEntities',
+    command: ['sync-tango-entities', '--commit'],
+    cron: { minute: '5', hour: '12' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: reviewed-UEI entity shadow sync into tango_resource_snapshot (daily 12:05 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

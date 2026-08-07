@@ -256,6 +256,45 @@ breaker's own thresholds are `TANGO_CIRCUIT_BREAKER_THRESHOLD` /
 `_COOLDOWN_MS` (P16, both optional with documented defaults; see
 `config.schema.ts`).
 
+### Reviewed-UEI entity shadow sync (P19) — a migration, and the first real Tango sync job
+
+`prisma/migrations/20260822010000_client_tango_entity_sync_status` adds
+three additive nullable columns to `clients`
+(`tango_entity_last_synced_at`/`_last_attempt_at`/`_last_error`). Apply it in
+the normal migration step (§4/§86 below) whenever this merge is deployed —
+additive, no backfill, no RLS policy touched.
+
+`scripts/sync-tango-entities.ts` ships but is declared `enabled: false` in
+`infra/cdk/lib/ingestion-schedule.ts` (id `SyncTangoEntities`) pending an
+internal canary — same posture as every other Funding Opportunities job in
+that file. Nothing runs automatically from this deploy.
+
+```sql
+-- READ-ONLY, post-migration. Expect all NULL until the sync is run at least once.
+SELECT count(*) FILTER (WHERE tango_entity_last_synced_at IS NOT NULL) AS synced,
+       count(*) FILTER (WHERE uei IS NOT NULL) AS has_uei,
+       count(*) AS total
+  FROM clients;
+```
+
+To run it by hand once the canary is ready:
+
+```bash
+# Dry run first — calls Tango for real (so the reported counts are real) but
+# writes nothing locally. Add --commit only after reviewing the summary.
+cd apps/api
+pnpm exec tsx scripts/sync-tango-entities.ts
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/sync-tango-entities.ts --commit --limit=50
+```
+
+Expect `errored: 0` on a healthy run. Any non-zero `errored` count is worth
+reading `tango_entity_last_error` for on the affected clients before
+re-running — see decision-log D-35 for the one already-known, already-fixed
+SDK-vs-server incompatibility (`entity_structure`/`state_of_incorporation`,
+now permanently excluded from the request) so a future finding isn't
+mistaken for a repeat of that one.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

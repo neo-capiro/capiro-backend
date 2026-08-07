@@ -464,12 +464,34 @@ describe('the boundary normalizes, and refuses to invent', () => {
     // from its own USAspending rail, and a second differently-derived total
     // invites somebody to treat the difference as a finding. exclusion_status_flag
     // is excluded because P45 owns exclusion risk with its own review semantics.
+    // entity_structure/state_of_incorporation are excluded because NEITHER this
+    // SDK's field name for them nor the live server's round-trips end-to-end
+    // through @makegov/tango-node@1.1.0 — a real SDK-vs-server incompatibility
+    // found on the real account (P19, decision-log D-35), not a Capiro omission.
     expect(JSON.stringify(page.items[0])).not.toContain('federal_obligations');
     expect(JSON.stringify(page.items[0])).not.toContain('exclusion');
     expect(unexpectedFields(ENTITY_PAGE.results[0], 'entity').sort()).toEqual([
+      'entity_structure',
       'exclusion_status_flag',
       'federal_obligations',
+      'state_of_incorporation',
     ]);
+  });
+
+  test('entityStructure/stateOfIncorporation are always null — a real SDK-vs-server incompatibility, not a fallback', async () => {
+    // P19 finding (decision-log D-35): the live server rejects this SDK's
+    // bundled entity_structure_desc/state_of_incorporation_code field names
+    // ("Invalid shape... unknown_field"), and the SDK's own client-side
+    // materializeOne rejects the live server's bare entity_structure/
+    // state_of_incorporation names right back (ShapeValidationError) on
+    // EVERY successful getEntity call, not just listEntities. Neither name
+    // round-trips through @makegov/tango-node@1.1.0, so neither is requested
+    // — even though the fixture carries plausible values for both (as
+    // "noise the shape never asked for"), they must never leak through.
+    const { service } = gateway([{ body: ENTITY_PAGE }]);
+    const page = await service.listEntities();
+    expect(page.items[0]!.entityStructure).toBeNull();
+    expect(page.items[0]!.stateOfIncorporation).toBeNull();
   });
 
   test('a record with no usable identifier is DROPPED, never half-mapped', async () => {

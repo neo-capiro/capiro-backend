@@ -521,6 +521,27 @@ model Client {
   cageCode               String?   @map("cage_code") @db.VarChar(5)
   naicsCodes             String[]  @default([]) @map("naics_codes")
   pscCodes               String[]  @default([]) @map("psc_codes")
+  /// Funding Opportunities P19 — MakeGov/Tango entity shadow sync status.
+  /// This is the client's OWN sync bookkeeping; the fetched entity DATA lives
+  /// in the GLOBAL `tango_resource_snapshot` table (P15), keyed by this same
+  /// `uei` — no separate link row. A UEI is already a global, exact 1:1 key,
+  /// and `TangoResourceLink` is reserved for linking INTO Capiro's own global
+  /// reference tables (federal_contractor et al.), never to a tenant-owned
+  /// row like Client — `tango-store.service.ts`'s `assertKnownLocalType`
+  /// refuses that on purpose (decision-log D-34).
+  ///
+  /// `tangoEntityLastSyncedAt` is the last SUCCESSFUL sync — "successful"
+  /// meaning a definitive provider answer, found OR not_found; both are
+  /// evidence, not a failure (tango.errors.ts's own framing for `not_found`).
+  /// `tangoEntityLastAttemptAt` is the latest attempt regardless of outcome,
+  /// reported independently so a rail failing repeatedly cannot read as
+  /// healthy — same distinction this program already draws for source
+  /// freshness generally (baseline-contract-v1.json's
+  /// `sourceFreshnessSemantics`). `tangoEntityLastError` is redacted, and
+  /// cleared (set null) on the next successful attempt.
+  tangoEntityLastSyncedAt  DateTime? @map("tango_entity_last_synced_at") @db.Timestamptz(6)
+  tangoEntityLastAttemptAt DateTime? @map("tango_entity_last_attempt_at") @db.Timestamptz(6)
+  tangoEntityLastError     String?   @map("tango_entity_last_error")
   /// Grants.gov "Eligible Applicants" values this client qualifies as, e.g.
   /// "Small businesses" or "State governments".
   ///
