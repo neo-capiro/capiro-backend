@@ -75,7 +75,36 @@ module.exports = {
   setupFiles: ['<rootDir>/jest.setup.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json', diagnostics: { ignoreCodes: [151002] } }],
+    /**
+     * ESM-only dependencies, down-compiled to CommonJS for jest.
+     *
+     * `@makegov/tango-node` declares `"type": "module"` and ships no CJS build.
+     * apps/api compiles to CommonJS, and while Node 22 can `require()` an ESM
+     * package, JEST's own module registry cannot — a static import dies at
+     * collection with "Unexpected token 'export'".
+     *
+     * Neither escape hatch works here either: a `new Function('return import(s)')`
+     * is still intercepted by jest's VM and demands
+     * `--experimental-vm-modules`, and `createRequire(__filename)` still lands in
+     * jest's patched compiler.
+     *
+     * So the package is transformed like source. Scoped by
+     * `transformIgnorePatterns` below to the ONE package that needs it — every
+     * other node_modules file keeps the default "do not transform", which is what
+     * keeps this from slowing the whole suite down.
+     */
+    '^.+\\.m?js$': [
+      'ts-jest',
+      {
+        diagnostics: false,
+        isolatedModules: true,
+        tsconfig: { allowJs: true, module: 'commonjs', target: 'ES2022', esModuleInterop: true },
+      },
+    ],
   },
+  // Default is to transform nothing in node_modules. This negative lookahead
+  // carves out exactly one package; adding to it is a deliberate act.
+  transformIgnorePatterns: ['/node_modules/(?!(?:\\.pnpm/)?@makegov[+/])'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     // Jest cannot resolve package-`imports` subpaths; map @clerk/backend's

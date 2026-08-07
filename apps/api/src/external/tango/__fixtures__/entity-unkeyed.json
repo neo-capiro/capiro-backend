@@ -1,0 +1,11 @@
+{
+  "_comment": "SYNTHETIC. A page in which one record has no UEI at all. Tango has never been observed doing this; the fixture exists because 'what does the adapter do with a record it cannot key' must have an answer that is not 'half-map it'.",
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "cursor": null,
+  "results": [
+    { "legal_business_name": "Nameless Co", "cage_code": "1ZZ11" },
+    { "uei": "ZZTESTUEI003", "legal_business_name": "Synthetic Optics Ltd" }
+  ]
+}

@@ -66,6 +66,78 @@ describe('configSchema — LegiStorm directory refresh', () => {
   });
 });
 
+describe('configSchema — MakeGov/Tango (P16)', () => {
+  test('the key is optional at boot, matching every other provider key in this schema', () => {
+    expect(configSchema.shape.TANGO_API_KEY.parse(undefined)).toBeUndefined();
+    expect(configSchema.shape.TANGO_API_KEY.parse('sk_live_test')).toBe('sk_live_test');
+  });
+
+  test('an empty-string key is refused rather than silently accepted', () => {
+    // `.min(1)`, not a bare `.optional()`: apps/external/tango/tango.client.ts
+    // treats "" and undefined identically (both mean unconfigured), but a value
+    // that PASSES validation and then gets silently treated as absent is worse
+    // than a value that fails validation and says why.
+    expect(() => configSchema.shape.TANGO_API_KEY.parse('')).toThrow();
+  });
+
+  test('the base URL defaults to the SDK’s own public endpoint', () => {
+    expect(configSchema.shape.TANGO_API_BASE_URL.parse(undefined)).toBe('https://tango.makegov.com');
+  });
+
+  test('the base URL rejects HTTP, same enforcement as every other provider URL here', () => {
+    expect(() => configSchema.shape.TANGO_API_BASE_URL.parse('http://tango.example.test')).toThrow();
+    expect(configSchema.shape.TANGO_API_BASE_URL.parse('https://tango.example.test')).toBe(
+      'https://tango.example.test',
+    );
+  });
+
+  test('the base URL rejects a non-URL string outright', () => {
+    expect(() => configSchema.shape.TANGO_API_BASE_URL.parse('not-a-url')).toThrow();
+  });
+
+  test('timeout defaults match the adapter’s own fallback (tango.client.ts)', () => {
+    expect(configSchema.shape.TANGO_TIMEOUT_MS.parse(undefined)).toBe(30_000);
+    expect(() => configSchema.shape.TANGO_TIMEOUT_MS.parse('0')).toThrow();
+  });
+
+  test('page size is capped at 100 — the SDK’s own hard limit, not a Capiro choice', () => {
+    expect(configSchema.shape.TANGO_PAGE_SIZE.parse(undefined)).toBe(100);
+    expect(configSchema.shape.TANGO_PAGE_SIZE.parse('50')).toBe(50);
+    expect(() => configSchema.shape.TANGO_PAGE_SIZE.parse('101')).toThrow();
+    expect(() => configSchema.shape.TANGO_PAGE_SIZE.parse('0')).toThrow();
+  });
+
+  test('P18’s request-ceiling and circuit-breaker values are declared, validated, and positive', () => {
+    // Nothing reads these yet (P18 does); this only proves they exist as real,
+    // bounded config rather than an unvalidated `process.env` access waiting to
+    // happen in P18.
+    expect(configSchema.shape.TANGO_REQUEST_CEILING_PER_RUN.parse(undefined)).toBe(5_000);
+    expect(configSchema.shape.TANGO_CIRCUIT_BREAKER_THRESHOLD.parse(undefined)).toBe(5);
+    expect(configSchema.shape.TANGO_CIRCUIT_BREAKER_COOLDOWN_MS.parse(undefined)).toBe(60_000);
+    expect(() => configSchema.shape.TANGO_REQUEST_CEILING_PER_RUN.parse('0')).toThrow();
+    expect(() => configSchema.shape.TANGO_CIRCUIT_BREAKER_THRESHOLD.parse('-1')).toThrow();
+    expect(() => configSchema.shape.TANGO_CIRCUIT_BREAKER_COOLDOWN_MS.parse('0')).toThrow();
+  });
+
+  test('every Tango field parses cleanly through the FULL schema with no key set', () => {
+    // The regression this guards: a required field added anywhere in this large
+    // schema breaks app boot for every environment that hasn't set it.
+    // TANGO_* must all be optional-or-defaulted, proven by parsing the whole
+    // object with the other genuinely-required fields present and none of the
+    // Tango keys set at all.
+    const result = configSchema.safeParse({
+      DATABASE_URL: 'postgresql://localhost:5432/capiro',
+      CLERK_SECRET_KEY: 'sk_test',
+      CLERK_WEBHOOK_SIGNING_SECRET: 'whsec_test',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.TANGO_API_KEY).toBeUndefined();
+      expect(result.data.TANGO_API_BASE_URL).toBe('https://tango.makegov.com');
+    }
+  });
+});
+
 describe('configSchema — LegiStorm Legislative Districts (WS-B)', () => {
   test('defaults to the Districts API base URL, NOT the Congressional API one', () => {
     const districts = configSchema.shape.LEGISTORM_DISTRICTS_BASE_URL.parse(undefined);

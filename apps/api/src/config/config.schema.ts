@@ -701,6 +701,43 @@ export const configSchema = z.object({
   DEMO_REQUEST_EMAIL_FROM: z.string().email().default('sales@capiro.ai'),
   DEMO_REQUEST_EMAIL_TO: z.string().email().default('sales@capiro.ai'),
 
+  // MakeGov/Tango (Funding Opportunities P16). Key is optional at every task's
+  // boot — TangoModule (apps/api/src/external/tango) registers unconditionally
+  // and every gateway call fails closed with a typed "not configured" error
+  // when it is absent, so no serve/web/workspace/migrate/Meri task requires it.
+  // It is injected ONLY into the ephemeral sync-job task definition, and only
+  // once infra/cdk/lib/config.ts's externalSecretArns.tangoApiKey is set — see
+  // compute-stack.ts. Do not read this key outside apps/api/src/external/tango;
+  // that module is the only reviewed boundary to the provider.
+  TANGO_API_KEY: z.string().min(1).optional(),
+  // HTTPS-only, enforced the same way as every other provider base URL in this
+  // schema (LEGISTORM_BASE_URL, LLAMA_CLOUD_BASE_URL). Defaults to the SDK's
+  // own DEFAULT_BASE_URL (@makegov/tango-node config.ts) so an unset value
+  // reaches the real public endpoint rather than nothing.
+  TANGO_API_BASE_URL: z
+    .string()
+    .url()
+    .refine((v) => new URL(v).protocol === 'https:', 'TANGO_API_BASE_URL must use HTTPS')
+    .default('https://tango.makegov.com'),
+  // Per-request timeout. Matches the adapter's own fallback
+  // (tango.client.ts's `timeoutMs ?? 30_000`) so setting this explicitly and
+  // leaving it unset produce identical behavior.
+  TANGO_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  // Provider page size for list calls. CAPPED AT 100 — not a Capiro choice: the
+  // SDK's own list helpers hard-clamp to `Math.min(limit, 100)`, and asking for
+  // more here would silently be truncated to 100 by the SDK while every
+  // caller's own accounting assumed the larger number it configured.
+  TANGO_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(100),
+  // P18's per-run request ceiling. Read only by P18's rate-limit/health
+  // controls; declared here now so the value exists and is validated before
+  // any code depends on it. A run that reaches this many calls stops rather
+  // than continuing to spend the account's quota unsupervised.
+  TANGO_REQUEST_CEILING_PER_RUN: z.coerce.number().int().positive().default(5_000),
+  // P18's circuit breaker. Consecutive transient/rate-limit failures before the
+  // breaker opens, and how long it stays open before allowing a probe request.
+  TANGO_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(5),
+  TANGO_CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(60_000),
+
   // GovInfo (api.data.gov) — congressional bills, committee reports, public laws.
   // Key is an api.data.gov key sourced from Secrets Manager (injected as env by CDK).
   // Endpoints fail closed (the service throws) when the key is unset.

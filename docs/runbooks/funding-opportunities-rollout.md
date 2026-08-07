@@ -140,6 +140,95 @@ pre-P13 code during the deploy window; re-running the two `UPDATE` statements fr
 the migration file is safe and fixes it. A non-zero second count is a real defect —
 stop and investigate, do not "repair" it.
 
+### The Tango adapter (P14) — nothing to deploy differently
+
+`src/external/tango/` and the `@makegov/tango-node` dependency ship in this
+merge. There is no live call path: `TangoModule` registers unconditionally and
+every gateway method throws `TangoNotConfiguredError` until `TANGO_API_KEY`
+exists (P16 wires the config; P17 is the first phase that reads a real key).
+Nothing here changes the deploy sequence below — verify the API still boots with
+no `TANGO_API_KEY` set, which is the same as verifying nothing at all changed.
+
+### The Tango substrate (P15) — a migration, still nothing that writes
+
+`tango_resource_snapshot`, `tango_resource_link`, `tango_sync_checkpoint` and
+`tango_api_usage` ship in migration `20260821010000_tango_source_substrate`.
+Apply it in the normal migration step (§4/§86 below) whenever this merge is
+deployed — it is additive, and none of the four tables carry a `tenant_id` or RLS,
+so applying it changes nothing any tenant can observe.
+
+`TangoStoreService` (the code that reads and writes these tables) is registered
+in `TangoModule` but **nothing calls it yet** — that starts at P19. There is no
+data to inspect and no schedule to check after this migration lands.
+
+```sql
+-- READ-ONLY, post-migration. Expect all 4 rows, all with rls_enabled = f.
+SELECT relname, relrowsecurity AS rls_enabled
+  FROM pg_class
+ WHERE relname IN ('tango_resource_snapshot','tango_resource_link','tango_sync_checkpoint','tango_api_usage');
+```
+
+### Config and secret wiring (P16) — code merged, nothing live changes
+
+`apps/api/src/config/config.schema.ts` gained `TANGO_API_KEY` (optional),
+`TANGO_API_BASE_URL` (HTTPS-enforced), and the timeout/page-size/ceiling/
+circuit-breaker values P18 will read. `infra/cdk/lib/config.ts`'s dev
+`externalSecretArns.tangoApiKey` now holds the real ARN for the `tango` secret
+(created out-of-band, provenance in decision-log D-26).
+
+**None of this takes effect until the next `cdk deploy`,** and per the plan's
+own instruction this phase does not run one — live task-definition wiring
+waits until P17 is ready to actually use the key. If a deploy DOES happen for
+an unrelated reason after this merges, `TANGO_API_KEY` will be injected onto
+the `capiro-<env>-api-sync-jobs` task only; verify with:
+
+```bash
+# READ-ONLY. Confirms placement without needing a real ecs run-task.
+aws ecs describe-task-definition --profile capiro-dev --region us-east-1   --task-definition capiro-dev-api-sync-jobs   --query "taskDefinition.containerDefinitions[0].secrets[?name=='TANGO_API_KEY']"
+# Expect ONE entry. The same query against capiro-dev-api (serve) and
+# capiro-dev-api-migrate must return an EMPTY array.
+```
+
+This is also proven at synth time, unconditionally, by
+`pnpm --filter @capiro/infra-cdk test` (wired into `ci-pr.yml`) — see
+decision-log D-25.
+
+### The Tango capability probe (P17) — read-only, run once, evidence attached
+
+`apps/api/src/external/tango/tango-capability-probe.service.ts` and
+`apps/api/scripts/diag-tango-capabilities.ts` ship in this merge. Nothing
+schedules this automatically — it is a deliberate operator tool, invoked by
+hand via `pnpm diag:tango-capabilities` (or `diag-tango-capabilities` through
+`entrypoint-dispatcher.inc` on a running task) when a human wants a fresh
+read of what the account can currently do. Deploying this merge changes
+nothing observable on its own.
+
+It was already run once against the real account as part of this phase's own
+acceptance evidence — see decision-log D-29 and
+`docs/plans/funding-opportunities-makegov-v1/p17-tango-capability-report.json`.
+Re-running it is safe (GET / `limit: 1` calls only, never a create/update/
+delete — see the service's class doc for the full "what this must never do"
+list) and cheap; do so whenever a later phase (P19–P47) needs to confirm a
+capability finding is still current, or after a MakeGov SDK upgrade:
+
+```bash
+# READ-ONLY against the real account. Never echoes the key: fetch and inject
+# in one command, same pattern as this doc uses everywhere else the real
+# secret is needed.
+cd apps/api
+TANGO_API_KEY="$(aws secretsmanager get-secret-value --secret-id tango --region us-east-1 --profile capiro-dev --query SecretString --output text)" \
+  pnpm exec tsx scripts/diag-tango-capabilities.ts --request-ceiling=30
+# Add --uei=<a real UEI> --vehicle-uuid=<a real vehicle uuid> to also exercise
+# the identifier-gated probes (entities, vehicle_awardees, vehicle_orders,
+# budget_flows_by_entity), which the committed evidence report left
+# not_attempted — no invented identifier was substituted for them.
+```
+
+Expect `authenticationFailed: false` and the same shape of result the
+committed report shows. A NEW `unsupported`/`not_found`/`tier_gated` finding
+relative to that report is real signal — the account's tier or the SDK's
+surface changed — not a flake to retry past.
+
 ## 3. Confirm the code is where you think it is
 
 ```bash

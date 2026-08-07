@@ -16,6 +16,6 @@
     "strictNullChecks": true,
     "incremental": true
   },
-  "include": ["bin/**/*", "lib/**/*"],
+  "include": ["bin/**/*", "lib/**/*", "test/**/*"],
   "exclude": ["node_modules", "cdk.out", "dist"]
 }

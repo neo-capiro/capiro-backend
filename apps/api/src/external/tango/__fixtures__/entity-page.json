@@ -1,0 +1,54 @@
+{
+  "_comment": "SYNTHETIC. Hand-authored against the SDK's ENTITY_SCHEMA field names, plus deliberate noise the shape never asked for. No live Tango response, no real UEI and no real company contributed to this file. The UEIs are structurally plausible and belong to nobody.",
+  "count": 2,
+  "next": "https://tango.example.test/api/entities/?cursor=cD0yMDI2LTA4LTA2",
+  "previous": null,
+  "cursor": "cD0yMDI2LTA4LTA2",
+  "results": [
+    {
+      "uei": "ZZTESTUEI001",
+      "cage_code": "9ZZ99",
+      "legal_business_name": "Synthetic Turbine Works LLC",
+      "dba_name": "  ",
+      "business_types": [
+        { "code": "2X", "description": "For Profit Organization" },
+        { "code": "LJ", "description": "Limited Liability Company" }
+      ],
+      "sba_business_types": [{ "code": "27", "description": "Small Disadvantaged Business" }],
+      "naics_codes": ["336412", "541330"],
+      "psc_codes": [{ "code": "1560" }, { "code": "J015" }],
+      "primary_naics": "336412",
+      "registration_status": "Active",
+      "sam_expiration_date": "2027-03-14",
+      "physical_address": {
+        "address_line_1": "1 Synthetic Way",
+        "city": "El Paso",
+        "state": "TX",
+        "zip": "79901",
+        "country": "USA"
+      },
+      "entity_structure_desc": "Limited Liability Company",
+      "state_of_incorporation_code": "DE",
+      "last_update_date": "2026-08-01T12:00:00Z",
+      "federal_obligations": { "total": "18500000.00" },
+      "exclusion_status_flag": "N"
+    },
+    {
+      "uei": "ZZTESTUEI002",
+      "cage_code": null,
+      "legal_business_name": "Synthetic Avionics Inc",
+      "dba_name": null,
+      "business_types": [],
+      "sba_business_types": null,
+      "naics_codes": null,
+      "psc_codes": null,
+      "primary_naics": null,
+      "registration_status": "Expired",
+      "sam_expiration_date": "not a date",
+      "physical_address": {},
+      "entity_structure_desc": null,
+      "state_of_incorporation_code": null,
+      "last_update_date": null
+    }
+  ]
+}
