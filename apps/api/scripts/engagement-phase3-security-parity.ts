@@ -33,6 +33,7 @@ const MAIN_URL = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:400
 const SHADOW_URL = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
 const REAL_ADMIN_CLERK_ID = required('ENGAGEMENT_PHASE3_ADMIN_CLERK_USER_ID');
 const IMPERSONATION_HEADER = 'x-capiro-impersonate-tenant';
+const SUCCESS_STATUSES = Array.from({ length: 100 }, (_, index) => 200 + index);
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -52,8 +53,8 @@ function errorClass(result: ProbeResult): string {
   return `http_${result.status}`;
 }
 
-function normalized(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(normalized);
+function normalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalize);
   if (!value || typeof value !== 'object') return value;
   const output: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
@@ -62,7 +63,7 @@ function normalized(value: unknown): unknown {
       output[key] = '<normalized>';
       continue;
     }
-    output[key] = normalized(child);
+    output[key] = normalize(child);
   }
   return output;
 }
@@ -87,7 +88,7 @@ async function probe(
   try {
     body = text ? JSON.parse(text) : null;
   } catch {
-    // retain text
+    // Retain the text so malformed-response parity remains diagnosable.
   }
   return {
     status: response.status,
@@ -98,7 +99,7 @@ async function probe(
         ? ((body as Record<string, unknown>).code as string)
         : null,
     service: response.headers.get('x-capiro-service'),
-    body: normalized(body),
+    body: normalize(body),
   };
 }
 
@@ -125,7 +126,7 @@ function requireParity(
 }
 
 function requireSuccessParity(label: string, main: ProbeResult, shadow: ProbeResult): void {
-  requireParity(label, main, shadow, Array.from({ length: 100 }, (_, index) => 200 + index));
+  requireParity(label, main, shadow, SUCCESS_STATUSES);
   if (JSON.stringify(main.body) !== JSON.stringify(shadow.body)) {
     throw new Error(`${label}: successful response body mismatch`);
   }
@@ -170,18 +171,20 @@ function fakeExpiredJwt(): string {
 async function main(): Promise<void> {
   const token = (await readFile(TOKEN_FILE, 'utf8')).trim();
   if (token.length < 20) throw new Error('Phase 3 bearer token file is empty or invalid');
+
   const plan = buildFixturePlan();
   const users = new Map(plan.users.map((row) => [row.key, row.id]));
   const meetings = new Map(plan.meetings.map((row) => [row.key, row.id]));
   const clients = new Map(plan.clients.map((row) => [row.key, row]));
   const notes = new Map(plan.notes.map((row) => [row.key, row]));
   const impersonations = new Map(plan.impersonations.map((row) => [row.key, row.id]));
-  const user = (key: string) => {
+
+  const user = (key: string): string => {
     const value = users.get(key);
     if (!value) throw new Error(`Fixture plan missing ${key}`);
     return value;
   };
-  const meeting = (key: string) => {
+  const meeting = (key: string): string => {
     const value = meetings.get(key);
     if (!value) throw new Error(`Fixture plan missing ${key}`);
     return value;
@@ -191,12 +194,14 @@ async function main(): Promise<void> {
     if (!value) throw new Error(`Fixture plan missing ${key}`);
     return value;
   };
-  const impersonation = (key: string) => {
+  const impersonation = (key: string): string => {
     const value = impersonations.get(key);
     if (!value) throw new Error(`Fixture plan missing ${key}`);
     return value;
   };
 
+  const primaryTenant = plan.tenants.find((row) => row.key === 'tenant.primary');
+  if (!primaryTenant) throw new Error('Fixture plan missing tenant.primary');
   const alpha = client('client.alpha');
   const meetingPast = meeting('meeting.past');
   const surfacePaths = [
@@ -218,9 +223,10 @@ async function main(): Promise<void> {
   await prisma.$connect();
   const results: Array<Record<string, unknown>> = [];
   let impersonationTaskId = '';
+
   try {
     // Missing, malformed, expired, and wrong-tenant auth must deny consistently
-    // on every primary current surface—not only one convenient endpoint.
+    // on every current primary surface—not only one convenient endpoint.
     for (const authCase of [
       { label: 'missing_bearer', token: null, headers: {}, allowed: [401] },
       { label: 'invalid_bearer', token: 'invalid-token', headers: {}, allowed: [401] },
@@ -233,12 +239,10 @@ async function main(): Promise<void> {
       },
     ]) {
       for (const surface of surfacePaths) {
-        const mainResult = await probe(MAIN_URL, surface.path, authCase.token, {
-          headers: authCase.headers,
-        });
-        const shadowResult = await probe(SHADOW_URL, surface.path, authCase.token, {
-          headers: authCase.headers,
-        });
+        const [mainResult, shadowResult] = await Promise.all([
+          probe(MAIN_URL, surface.path, authCase.token, { headers: authCase.headers }),
+          probe(SHADOW_URL, surface.path, authCase.token, { headers: authCase.headers }),
+        ]);
         requireParity(
           `${authCase.label}:${surface.id}`,
           mainResult,
@@ -266,8 +270,7 @@ async function main(): Promise<void> {
       results.push({ label: 'admin_allowed', surface: surface.id, status: mainResult.status });
     }
 
-    // Standard user can reach ordinary tenant data, while a below-role actor is
-    // denied on every surface guarded by @Roles('standard_user').
+    // A normal standard user can reach ordinary tenant data.
     await asFixtureActor(prisma, adminUserId, user('actor.standard'), async () => {
       for (const surface of surfacePaths) {
         const [mainResult, shadowResult] = await Promise.all([
@@ -279,6 +282,7 @@ async function main(): Promise<void> {
       }
     });
 
+    // The client-portal actor is below the controller's standard_user floor.
     await asFixtureActor(prisma, adminUserId, user('actor.belowRole'), async () => {
       for (const surface of surfacePaths) {
         const [mainResult, shadowResult] = await Promise.all([
@@ -295,8 +299,8 @@ async function main(): Promise<void> {
       }
     });
 
-    // Unknown role values are rejected by the database enum, so they cannot be
-    // coerced into a privileged or default role by either runtime.
+    // Unknown role values are rejected by the database enum; neither runtime can
+    // coerce one into a privileged/default role.
     let unknownRoleRejected = false;
     try {
       await prisma.$executeRawUnsafe(
@@ -312,6 +316,7 @@ async function main(): Promise<void> {
     }
     results.push({ label: 'unrecognized_role', result: 'database_rejected_unknown_role' });
 
+    // Cross-tenant records must resolve to the same nonleaking denial.
     const crossTenantPath = `/api/engagement/meetings/${meeting('meeting.otherTenant')}`;
     {
       const [mainResult, shadowResult] = await Promise.all([
@@ -331,8 +336,8 @@ async function main(): Promise<void> {
     }
 
     // The standard user DOES have a wall grant for this client, so the meeting
-    // is visible. The peer-authored admin/author-only note must be returned only
-    // as a restricted shell with no body. This separates ownership from walling.
+    // itself remains visible. Only the peer-authored admin/author-only note is a
+    // restricted shell with no body. This separates ownership from walling.
     await asFixtureActor(prisma, adminUserId, user('actor.standard'), async () => {
       const notesPath = `/api/engagement/meetings/${meeting(
         'meeting.confidentialDenied',
@@ -342,19 +347,27 @@ async function main(): Promise<void> {
         probe(SHADOW_URL, notesPath, token),
       ]);
       requireSuccessParity('cross_user_confidential_note', mainResult, shadowResult);
-      const noteId = notes.get('note.peerConfidential')?.id;
-      const noteMarker = notes.get('note.peerConfidential')?.bodyPlaintext ?? 'another user';
-      const noteRows = Array.isArray(mainResult.body) ? (mainResult.body as Record<string, unknown>[]) : [];
-      const peer = noteRows.find((row) => row.id === noteId);
+      const noteFixture = notes.get('note.peerConfidential');
+      if (!noteFixture) throw new Error('Fixture plan missing note.peerConfidential');
+      const noteRows = Array.isArray(mainResult.body)
+        ? (mainResult.body as Record<string, unknown>[])
+        : [];
+      const peer = noteRows.find((row) => row.id === noteFixture.id);
       if (!peer || peer.restricted !== true || peer.body != null) {
         throw new Error('Peer confidential note was not returned as a restricted shell');
       }
-      if (JSON.stringify([mainResult.body, shadowResult.body]).includes(noteMarker)) {
+      if (JSON.stringify([mainResult.body, shadowResult.body]).includes(noteFixture.bodyPlaintext)) {
         throw new Error('cross_user_confidential_note leaked the encrypted note body');
       }
-      results.push({ label: 'cross_user_confidential_note', status: mainResult.status, restricted: true });
+      results.push({
+        label: 'cross_user_confidential_note',
+        status: mainResult.status,
+        restricted: true,
+      });
     });
 
+    // The wall-denied actor has no grant at all. Use client context so private
+    // record ownership cannot be an alternative explanation for the denial.
     await asFixtureActor(prisma, adminUserId, user('actor.wallDenied'), async () => {
       const walled = client('client.walled');
       const wallPath = `/api/engagement/context/${walled.id}`;
@@ -374,16 +387,11 @@ async function main(): Promise<void> {
       });
     });
 
-    // Real Capiro Admin impersonation with the orgless token. The actor's sole
-    // membership resolves to capiro-internal, then the active session/header
-    // swaps tenant context to the primary fixture tenant. A temporary task proves
-    // write attribution remains the real actor, not the impersonated tenant.
+    // Real Capiro Admin impersonation. The orgless token resolves the actor's
+    // sole internal membership, then the active fixture session and header swap
+    // tenant context to the primary fixture tenant.
     await asFixtureActor(prisma, adminUserId, user('actor.capiroAdmin'), async () => {
-      const impersonationHeaders = {
-        [IMPERSONATION_HEADER]: client('client.alpha').tenantKey === 'tenant.primary'
-          ? 'phase3-parity-primary'
-          : 'phase3-parity-primary',
-      };
+      const impersonationHeaders = { [IMPERSONATION_HEADER]: primaryTenant.slug };
       const [activeMain, activeShadow] = await Promise.all([
         probe(MAIN_URL, '/api/engagement/meetings', token, { headers: impersonationHeaders }),
         probe(SHADOW_URL, '/api/engagement/meetings', token, { headers: impersonationHeaders }),
@@ -391,13 +399,15 @@ async function main(): Promise<void> {
       requireSuccessParity('impersonation_active', activeMain, activeShadow);
       results.push({ label: 'impersonation_active', status: activeMain.status });
 
+      // A temporary write proves target tenant and real actor attribution. Read
+      // it through shadow under the same impersonation context before cleanup.
       const taskTitle = '[PHASE3_PARITY_FIXTURE] impersonation attribution';
       const createdTask = await probe(MAIN_URL, '/api/engagement/tasks', token, {
         method: 'POST',
         headers: impersonationHeaders,
         body: { clientId: alpha.id, title: taskTitle },
       });
-      if (createdTask.status < 200 || createdTask.status >= 300) {
+      if (!SUCCESS_STATUSES.includes(createdTask.status)) {
         throw new Error(`Impersonated task create failed with ${createdTask.status}`);
       }
       impersonationTaskId =
@@ -407,24 +417,43 @@ async function main(): Promise<void> {
           ? ((createdTask.body as Record<string, unknown>).id as string)
           : '';
       if (!impersonationTaskId) throw new Error('Impersonated task create returned no id');
+
       const attribution = await prisma.withSystem((tx) =>
         tx.engagementTask.findUnique({
           where: { id: impersonationTaskId },
           select: { tenantId: true, createdByUserId: true, title: true },
         }),
       );
-      if (
-        attribution?.tenantId !== alpha.tenantKey.replace('tenant.primary', alpha.id) &&
-        attribution?.tenantId !== alpha.id
-      ) {
-        // Client id and tenant id are different; resolve the real target below.
-        const primaryTenant = plan.tenants.find((row) => row.key === 'tenant.primary')?.id;
-        if (attribution?.tenantId !== primaryTenant) {
-          throw new Error('Impersonated task was not written in the target tenant');
-        }
+      if (attribution?.tenantId !== primaryTenant.id) {
+        throw new Error('Impersonated task was not written in the target tenant');
       }
-      if (attribution?.createdByUserId !== user('actor.capiroAdmin')) {
+      if (attribution.createdByUserId !== user('actor.capiroAdmin')) {
         throw new Error('Impersonated task was not attributed to the Capiro Admin actor');
+      }
+      if (attribution.title !== taskTitle) {
+        throw new Error('Impersonated task attribution probe read the wrong row');
+      }
+
+      const [taskMain, taskShadow] = await Promise.all([
+        probe(
+          MAIN_URL,
+          `/api/engagement/tasks?clientId=${encodeURIComponent(alpha.id)}`,
+          token,
+          { headers: impersonationHeaders },
+        ),
+        probe(
+          SHADOW_URL,
+          `/api/engagement/tasks?clientId=${encodeURIComponent(alpha.id)}`,
+          token,
+          { headers: impersonationHeaders },
+        ),
+      ]);
+      requireSuccessParity('impersonation_write_read', taskMain, taskShadow);
+      const taskRows = Array.isArray(taskMain.body)
+        ? (taskMain.body as Record<string, unknown>[])
+        : [];
+      if (!taskRows.some((row) => row.id === impersonationTaskId && row.title === taskTitle)) {
+        throw new Error('Impersonated task was not readable consistently through both runtimes');
       }
       results.push({
         label: 'impersonation_write_attribution',
@@ -432,6 +461,8 @@ async function main(): Promise<void> {
         actorUserId: attribution.createdByUserId,
       });
 
+      // Expire the same session, require the same 403 and nonleaking class from
+      // both runtimes, then restore the exact fixture state.
       const sessionId = impersonation('impersonation.active');
       const sessionBefore = await prisma.withSystem((tx) =>
         tx.impersonationSession.findUnique({
@@ -489,6 +520,7 @@ async function main(): Promise<void> {
         tx.engagementTask.count({ where: { id: impersonationTaskId } }),
       );
       if (residual !== 0) throw new Error('Impersonation attribution task cleanup failed');
+      impersonationTaskId = '';
     }
 
     await writeFile(
