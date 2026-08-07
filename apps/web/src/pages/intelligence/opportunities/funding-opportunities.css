@@ -258,3 +258,33 @@
   padding: 2px 0 2px 10px;
   border-left: 2px solid var(--ant-color-border, rgba(5, 5, 5, 0.15));
 }
+
+/* ── Pursuit pipeline board (P35) ─────────────────────────────────────────── */
+
+/*
+  Columns scroll HORIZONTALLY rather than wrapping. Seven wrapped columns
+  reorder themselves at every width, and a Kanban whose column order changes
+  with the viewport is a Kanban nobody can scan.
+*/
+.fo-pipeline__columns {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.fo-pipeline__column {
+  flex: 0 0 180px;
+  min-width: 180px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.fo-pipeline__card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  padding: 6px;
+  margin-top: 6px;
+  background: rgba(0, 0, 0, 0.015);
+}

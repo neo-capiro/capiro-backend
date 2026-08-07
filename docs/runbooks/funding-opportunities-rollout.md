@@ -856,6 +856,86 @@ under a new hash (P29's key *is* the hash), the old text row stops covering it,
 and the uncovered-attachment query correctly picks it up again — which is how a
 stale extraction gets replaced rather than silently kept.
 
+### Pursuit pipeline stages (P35) — a migration, a NEW flag, and MIGRATION FIRST is not optional here
+
+**Order: migration, then deploy, then flag.** Not a convention this time — the
+column has to exist before any pod that references it starts, or every board read
+throws.
+
+```bash
+# MUTATING — Neo approval required
+aws ecs run-task --profile capiro-dev --region us-east-1   --cluster capiro-dev   --task-definition capiro-dev-api-migrate   --launch-type FARGATE   --network-configuration 'awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19],securityGroups=[sg-01def4e5c0fe44d4a],assignPublicIp=DISABLED}'
+```
+
+**The migration is safe to apply while the OLD code is running**, which is what
+makes the ordering workable rather than a window of downtime:
+
+| Property | Why it matters during the roll |
+|---|---|
+| `pipeline_stage` NULLABLE, no default | an old pod's INSERT omits it and succeeds; the row honestly has no stage |
+| `pipeline_stage_version` NOT NULL DEFAULT 0 | the same INSERT still gets a usable concurrency token |
+| new columns are additive, new table is new | nothing an old pod reads or writes changes shape |
+
+**What the backfill does and does not do.** It maps `saved → reviewing`,
+`pursuing → pursuing`, `dismissed → passed`, `won → won`, `lost → lost`. It leaves
+`suggested` and `expired` rows with **no stage**, deliberately: a machine
+suggestion nobody has opened is not a human "reviewing" it, and which stage a row
+was in when the source closed underneath it was never recorded. It writes no
+transition rows, because a backfill is not a move and inventing an actor would put
+somebody's name against a decision they did not make.
+
+```sql
+-- READ-ONLY. Verify the mapping and, more importantly, the two DELIBERATE gaps.
+SELECT workflow_status, pipeline_stage, count(*)
+  FROM client_funding_opportunity
+ GROUP BY 1, 2 ORDER BY 1;
+-- expect: suggested -> NULL, expired -> NULL, every other status mapped.
+
+-- Every backfilled stage carries a timestamp and NO actor. That NULL is
+-- meaningful, not missing: the read reports the stage as DERIVED rather than
+-- claiming a person moved it.
+SELECT count(*) AS backfilled
+  FROM client_funding_opportunity
+ WHERE pipeline_stage IS NOT NULL AND pipeline_stage_by_user_id IS NULL;
+```
+
+**Then the flag, per tenant, and it is a WRITE surface.**
+
+```sql
+-- READ-ONLY. Expect 0 rows before the canary.
+SELECT tenant_id, enabled, updated_at
+  FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities_pipeline_v2';
+```
+
+**Flag OFF changes nothing.** The board component renders nothing and issues no
+request; the Triage inbox and Explore tabs are byte-identical to today, because
+`workflow_status` is still the column every code path writes. That is also the
+rollback: turn the flag off and the old fields stay readable and correct.
+
+**Do NOT roll the migration back.** Four additive nullable-or-defaulted columns,
+one new table, three indexes. The previous code ignores all of them. Dropping
+`pipeline_stage` would destroy every recorded stage move and, worse, the audit
+table cascades from `client_funding_opportunity` — so a rollback that dropped the
+table would take the record of who moved what with it.
+
+**Two behaviours that will be reported as bugs and are not.**
+
+1. *"A row shows a coarser stage than the one somebody set."* During and after the
+   roll, an older pod can move `workflow_status` without moving the stage. The read
+   resolves this by letting the legacy status win and labels the card **Derived**
+   with an explanation. That is the rolling-deploy rule working, not a lost move.
+   Moving the card once records it properly.
+2. *"The board says 900 in Reviewing but shows 4 cards."* The counts come from a
+   `GROUP BY` over every workflow row; the cards are a bounded window. The column
+   says "896 more not shown" rather than implying four is all there is.
+
+**A forecast cannot be pursued or submitted from the board**, matching P26's own
+`FORECAST_FORBIDDEN_ACTIONS`. Its cards offer `reviewing`, `qualified` and
+`passed` only.
+
+---
+
 ### Deterministic action plan (P34) — no migration, NO new flag, and the landscape flag now gates two surfaces
 
 **Nothing to apply.** P34 adds no table, no column and no flag. The plan is

@@ -881,6 +881,89 @@ export function landscapeApiPath(
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/landscape?clientId=${encodeURIComponent(clientId)}`;
 }
 
+// ── Pursuit pipeline (P35) ──────────────────────────────────────
+
+/** The pipeline flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_PIPELINE_FEATURE = 'funding_opportunities_pipeline_v2';
+
+/** Mirrors PIPELINE_STAGES in apps/api. Declaration order IS column order. */
+export const PIPELINE_STAGES = [
+  'reviewing',
+  'qualified',
+  'pursuing',
+  'submitted',
+  'won',
+  'lost',
+  'passed',
+] as const;
+export type PipelineStageView = (typeof PIPELINE_STAGES)[number];
+
+export const PIPELINE_STAGE_LABELS: Record<PipelineStageView, string> = {
+  reviewing: 'Reviewing',
+  qualified: 'Qualified',
+  pursuing: 'Pursuing',
+  submitted: 'Submitted',
+  won: 'Won',
+  lost: 'Lost',
+  passed: 'Passed',
+};
+
+/**
+ * Stages the server requires a stated reason for.
+ *
+ * Mirrors HUMAN_ONLY_STAGES, and the UI uses it to ASK before posting rather
+ * than letting the server refuse a move the user has already dragged. The server
+ * is still the gate — this only decides whether to open the reason prompt.
+ */
+export const PIPELINE_STAGES_NEEDING_REASON: readonly PipelineStageView[] = [
+  'submitted',
+  'won',
+  'lost',
+  'passed',
+];
+
+export interface PipelineCardView {
+  rowId: string;
+  source: string;
+  sourceRecordId: string | null;
+  title: string | null;
+  stage: PipelineStageView | null;
+  /**
+   * `recorded` means a person moved it. `workflow_status` means the stage was
+   * derived from the legacy column, `legacy_override` means a recorded stage is
+   * out of date, and `unstaged` means neither column places it in the pipeline.
+   */
+  stageBasis: 'recorded' | 'workflow_status' | 'legacy_override' | 'unstaged';
+  stageExplanation: string;
+  /** The optimistic-concurrency token. Sent back on every move. */
+  version: number;
+  /** Computed server-side, so the board cannot offer a move the server refuses. */
+  allowedTransitions: PipelineStageView[];
+  responseDeadline: string | null;
+}
+
+export interface PipelineBoardView {
+  clientId: string;
+  counts: {
+    stages: Array<{ stage: PipelineStageView; count: number }>;
+    /** Rows in NO stage, split by why. Never folded into a stage column. */
+    unstaged: { suggested: number; expired: number; other: number };
+    total: number;
+    derivedFromWorkflowStatus: number;
+  };
+  cards: PipelineCardView[];
+  /** True when `cards` is a window. The COUNTS are never a window. */
+  cardsTruncated: boolean;
+}
+
+export function pipelineBoardApiPath(clientId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/pipeline`;
+}
+
+export function pipelineStageApiPath(clientId: string, rowId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/pipeline/${encodeURIComponent(rowId)}/stage`;
+}
+
 // ── Deterministic action plan (P34) ─────────────────────────────
 
 /** Mirrors ACTION_CATEGORIES in apps/api. Declaration order is display order. */

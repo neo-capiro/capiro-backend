@@ -82,6 +82,20 @@ export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
   'funding_opportunities_government_landscape';
 
 /**
+ * P35. Gates the pursuit pipeline board and every stage transition.
+ *
+ * Its OWN flag rather than a reuse, unlike P34's: the pipeline is a different
+ * kind of thing from the landscape — it WRITES, it replaces the Saved/Pursuing
+ * tabs a team already uses, and turning it on changes how work is tracked rather
+ * than adding a panel. Folding it into an existing flag would mean no way to
+ * canary the write path on its own.
+ *
+ * Flag OFF is not a degraded pipeline: the existing workflow tabs stay exactly as
+ * they are, because `workflow_status` is still the column both code paths write.
+ */
+export const FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE = 'funding_opportunities_pipeline_v2';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -250,5 +264,13 @@ export class FundingOpportunitiesDocumentsFlagGuard extends FundingOpportunities
 export class FundingOpportunitiesLandscapeFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE;
+  }
+}
+
+/** P35's pipeline guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesPipelineFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE;
   }
 }

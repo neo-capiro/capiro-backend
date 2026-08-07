@@ -32,8 +32,14 @@ import {
   FundingOpportunitiesDocumentsFlagGuard,
   FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
+  FundingOpportunitiesPipelineFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
+import {
+  FundingOpportunityPipelineService,
+  PIPELINE_STAGES,
+  type PipelineStage,
+} from './funding-opportunity-pipeline.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
@@ -357,6 +363,33 @@ class InboxSourceParamDto {
 }
 
 /**
+ * A stage move (P35).
+ *
+ * `expectedVersion` is REQUIRED, not optional. A caller that could omit it would
+ * be a caller whose drag silently discarded somebody else's decision — the exact
+ * concurrent-transition conflict this phase has to detect rather than lose.
+ */
+class StageTransitionDto {
+  @IsIn(PIPELINE_STAGES)
+  toStage!: PipelineStage;
+
+  @IsInt()
+  @Min(0)
+  expectedVersion!: number;
+
+  /**
+   * Required by the SERVICE for `submitted`, `won`, `lost` and `passed`, and by a
+   * CHECK on the audit row as well. Optional here so the refusal comes back as
+   * one sentence explaining which stages need it, rather than a field error on a
+   * form that did not know to ask.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string | null;
+}
+
+/**
  * Funding Opportunities.
  *
  * ── Roles ────────────────────────────────────────────────────────────────────
@@ -396,6 +429,7 @@ export class FundingOpportunitiesController {
     private readonly timeline: OpportunityTimelineService,
     private readonly requirements: OpportunityRequirementService,
     private readonly landscape: GovernmentLandscapeService,
+    private readonly pipeline: FundingOpportunityPipelineService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -558,6 +592,48 @@ export class FundingOpportunitiesController {
       params.source,
       id,
     );
+  }
+
+  /**
+   * The pursuit pipeline board for one client (P35).
+   *
+   * The COUNTS come from a grouped aggregate over every workflow row this client
+   * has, never from the returned cards — a board that counted its own page would
+   * silently under-report the moment a client passed one page of saved
+   * opportunities. `cardsTruncated` says when the card list is a window; the
+   * counts never are.
+   */
+  @Get('clients/:clientId/pipeline')
+  @UseGuards(FundingOpportunitiesPipelineFlagGuard)
+  pipelineBoard(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.pipeline.board(ctx.tenantId, ctx.userId, clientId);
+  }
+
+  /**
+   * Move one tracked opportunity to a stage (P35).
+   *
+   * A DRAG IS A PROPOSAL UNTIL THIS RETURNS. The allowed moves, the forecast ban
+   * and the reason requirement are all enforced here; the board ships
+   * `allowedTransitions` per card so the UI can grey out what the server would
+   * refuse, but the UI's copy of the rules is a courtesy and this is the gate.
+   *
+   * Writes `pipeline_stage` AND the legacy `workflow_status` in one statement, so
+   * a move stays visible to every older reader — including the lifecycle
+   * processor, which decides what to alert on from the legacy column.
+   */
+  @Post('clients/:clientId/pipeline/:rowId/stage')
+  @UseGuards(FundingOpportunitiesPipelineFlagGuard)
+  moveStage(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('rowId') rowId: string,
+    @Body() body: StageTransitionDto,
+  ) {
+    return this.pipeline.transition(ctx.tenantId, ctx.userId, clientId, rowId, {
+      toStage: body.toStage,
+      expectedVersion: body.expectedVersion,
+      reason: body.reason ?? null,
+    });
   }
 
   @Get('opportunities/:source/:id')

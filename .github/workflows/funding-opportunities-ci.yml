@@ -179,7 +179,7 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -501,6 +501,48 @@ jobs:
           # A reviewed row carries its actor AND its moment; a pending one
           # carries neither. Same shape as P07's decision-actor CHECK.
           check "requirement review-actor CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='opportunity_requirement_review_actor_chk'"             "1"
+
+          # ── P35: the pursuit pipeline ──────────────────────────────────────
+          #
+          # ROLLING-DEPLOY SAFETY, asserted rather than assumed. `pipeline_stage`
+          # must be NULLABLE with NO default, so an older pod's INSERT that omits
+          # it still succeeds and the row honestly has no stage. The version token
+          # must be the opposite — NOT NULL with a default — so the same INSERT
+          # still produces a usable optimistic-concurrency value.
+          check "pipeline_stage is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage'"             "YES"
+          check "pipeline_stage has NO default"             "SELECT count(*) FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage' AND column_default IS NOT NULL"             "0"
+          check "pipeline_stage_version is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage_version'"             "NO"
+          check "pipeline_stage_version defaults to 0"             "SELECT column_default FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='pipeline_stage_version'"             "0"
+          for col in pipeline_stage_at pipeline_stage_by_user_id; do
+            check "$col is nullable"               "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='$col'"               "YES"
+          done
+
+          # The bounded vocabulary, and the two coherence CHECKs. The at/actor one
+          # is deliberately NOT a three-way all-or-nothing like P07's: a stage with
+          # a timestamp and NO actor is the BACKFILL basis, and the read reports it
+          # as derived rather than claiming a person moved it.
+          check "pipeline stage vocabulary CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_stage_chk'"             "1"
+          check "pipeline stage timestamp CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_stage_at_chk'"             "1"
+          check "pipeline version is non-negative"             "SELECT count(*) FROM pg_constraint WHERE conname='client_funding_opportunity_pipeline_version_chk'"             "1"
+
+          # The audit table is TENANT-SCOPED, unlike the provider catalog tables in
+          # this program: "who moved this to lost, when, and why" is a fact about
+          # ONE team.
+          check "stage transition table exists"             "SELECT count(*) FROM information_schema.tables WHERE table_name='funding_opportunity_stage_transition'"             "1"
+          check "stage transition RLS enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='funding_opportunity_stage_transition'"             "t"
+          check "stage transition RLS FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='funding_opportunity_stage_transition'"             "t"
+          check "stage transition has four RLS policies"             "SELECT count(*) FROM pg_policies WHERE tablename='funding_opportunity_stage_transition'"             "4"
+
+          # PRODUCERS CANNOT MOVE A STAGE, as a column: there is no way to record a
+          # move nobody performed.
+          check "stage transition actor is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='funding_opportunity_stage_transition' AND column_name='actor_user_id'"             "NO"
+          # An outcome nobody explained is one nobody can learn from. Enforced in
+          # the database as well as the service, so a caller that bypasses the
+          # service still cannot do it.
+          check "outcome stages REQUIRE a reason"             "SELECT count(*) FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_reason_chk'"             "1"
+          check "the reason CHECK rejects whitespace, not just NULL"             "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%btrim%' THEN 'yes' ELSE 'no' END FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_reason_chk'"             "yes"
+          check "a move to where it already was is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_distinct_chk'"             "1"
+          check "stage transition cascades from its subject"             "SELECT confdeltype FROM pg_constraint WHERE conname='funding_opportunity_stage_transition_row_fkey'"             "c"
 
           exit $fail
 
@@ -1179,9 +1221,50 @@ jobs:
       # return two different plans for the same inputs. The fingerprint covers
       # facts only, so re-observing does not move it and a resolved prerequisite
       # does.
+      # 63/2005 after P35: one NEW suite, and a migration
+      # (20260901010000_funding_opportunity_pipeline_v2) rehearsed against a fresh
+      # pgvector:pg16 with a clean replay, a retry-as-no-op, and every constraint
+      # proved BY ACTUAL INSERT.
+      #
+      # funding-opportunity-pipeline.spec.ts (52 tests) covers six properties.
+      #
+      # THE ROLLING DEPLOY IS SURVIVABLE, and that is the load-bearing one. Old
+      # pods keep writing workflow_status and know nothing about pipeline_stage, so
+      # a row can carry a recorded stage its legacy status has moved past. ONE
+      # function reconciles them: the legacy status WINS for anything it can
+      # express, and the stage only adds resolution the legacy column cannot
+      # (qualified and submitted, which both project onto pursuing). Comparing in
+      # the other direction would call every qualified row stale. Every transition
+      # writes BOTH columns in one statement, so a move stays visible to the
+      # lifecycle processor, which decides what to alert on from the legacy column.
+      #
+      # AN UNSTAGED ROW IS UNSTAGED. `suggested` and `expired` map to NO stage, in
+      # the backfill and in the read. Mapping suggested to `reviewing` would put the
+      # producer's entire backlog on a board column named for a human activity
+      # nobody is performing; mapping expired to anything fabricates a capture
+      # history Capiro never recorded. The board reports both counts separately
+      # rather than folding them in.
+      #
+      # INVALID TRANSITIONS FAIL, and the graph is the only authority. won and lost
+      # are reachable ONLY from submitted - a bid cannot be won if it was never
+      # submitted - and the move is validated against the EFFECTIVE stage, so a row
+      # an old pod moved to `won` cannot be moved out of it on the strength of a
+      # stale recorded `pursuing`.
+      #
+      # A CONCURRENT TRANSITION IS DETECTED. The version predicate is in the WHERE
+      # of the UPDATE, so the loser of two simultaneous moves updates 0 rows and
+      # gets a 409 instead of silently discarding the winner's decision.
+      #
+      # BOARD COUNTS COME FROM A GROUPED AGGREGATE over every workflow row, never
+      # from the returned cards - a board that counted its own page would report 2
+      # when the client has 915. `cardsTruncated` says when the card list is a
+      # window; the counts never are.
+      #
+      # PRODUCERS CANNOT MOVE A STAGE: actor_user_id is NOT NULL on the audit row,
+      # and the spec greps all three producer scripts for the column names.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 62 1953
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 63 2005
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1321,7 +1404,7 @@ jobs:
       # explicitly rules out reading it as a pass.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 80 333
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 85 353
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
