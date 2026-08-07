@@ -1,3 +1,4 @@
+import './meriv3-pricing.js';
 import {
   MERIV3_REASONING_MODES,
   type MeriV3ReasoningEffort,
