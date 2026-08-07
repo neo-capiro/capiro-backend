@@ -62,14 +62,56 @@
       "status": "FIXED",
       "fixDecision": "Bearer material lives only in the OS temp directory and is force-deleted in runner cleanup; evidence files contain sanitized headers only.",
       "evidence": "scripts/run-engagement-phase3-local.mjs; apps/web/scripts/engagement-phase3-network-recorder.mjs"
+    },
+    {
+      "id": "F-007",
+      "severity": "P3",
+      "classification": "environment_blocked",
+      "surface": "github_actions",
+      "summary": "GitHub Actions runs fail at startup with zero jobs before any repository command executes.",
+      "status": "ENV_BLOCKED",
+      "evidence": "Phase 3 PR #781 runs 31150863654 and 31150864053; accepted Phase 1 head 47902517 reproduces the same startup_failure condition in runs 31098629427 and 31098547728."
+    },
+    {
+      "id": "F-008",
+      "severity": "P2",
+      "blocking": true,
+      "classification": "fixture_harness_defect",
+      "surface": "web_regression_tests",
+      "summary": "The older 3.4 api-client test still expected an in-flight preview response to resolve after preview was toggled off, contradicting F-004's stale-response safety contract.",
+      "status": "FIXED",
+      "fixDecision": "The real interceptor test now requires ENGAGEMENT_PREVIEW_STALE_RESPONSE for a preview response that completes after mode-off.",
+      "evidence": "apps/web/src/lib/api-client.test.ts"
+    },
+    {
+      "id": "F-009",
+      "severity": "P2",
+      "blocking": true,
+      "classification": "fixture_harness_defect",
+      "surface": "external_action_containment",
+      "summary": "The first external-action digest projection guessed OutreachJob.type, but the Prisma model uses kind; an unchecked verifier could have failed before testing containment.",
+      "status": "FIXED",
+      "fixDecision": "The verifier now hashes complete protected Prisma rows rather than a brittle hand-picked projection, which also protects future mutable columns.",
+      "evidence": "apps/api/scripts/engagement-phase3-external-denial.ts"
+    },
+    {
+      "id": "F-010",
+      "severity": "P1",
+      "classification": "security_harness_defect",
+      "surface": "ethical_wall_parity",
+      "summary": "The initial ethical-wall probe used a private meeting, so a denial could have been caused by record ownership before the wall/grant boundary and falsely counted as wall proof.",
+      "status": "FIXED",
+      "fixDecision": "The wall-denied actor now probes GET /api/engagement/context/:clientId for client.walled, eliminating private-record ownership as an alternate denial cause.",
+      "evidence": "apps/api/scripts/engagement-phase3-security-parity.ts"
     }
   ],
   "counts": {
     "openP0": 0,
     "openP1": 0,
     "blockingP2": 0,
-    "fixedP1": 4,
-    "fixedP2": 1,
-    "baselineAcceptedP2": 1
+    "fixedP1": 5,
+    "fixedP2": 3,
+    "baselineAcceptedP2": 1,
+    "environmentBlocked": 1
   }
 }
