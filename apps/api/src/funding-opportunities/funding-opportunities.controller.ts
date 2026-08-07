@@ -30,8 +30,10 @@ import {
   FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
   FundingOpportunitiesDocumentsFlagGuard,
+  FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
 } from './funding-opportunities-flag.guard.js';
+import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
@@ -380,6 +382,7 @@ export class FundingOpportunitiesController {
     private readonly forecasts: ForecastOpportunityReadService,
     private readonly timeline: OpportunityTimelineService,
     private readonly requirements: OpportunityRequirementService,
+    private readonly landscape: GovernmentLandscapeService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -489,6 +492,31 @@ export class FundingOpportunitiesController {
     @Param('id') id: string,
   ) {
     return this.requirements.getRequirements(ctx.tenantId, params.source, id);
+  }
+
+  /**
+   * Capiro's own government-affairs context for one client-opportunity pair
+   * (P33).
+   *
+   * READ-ONLY and DETERMINISTIC: same facts in, byte-identical packet out,
+   * fingerprint included. No LLM and no generic web research — every item is a
+   * pointer to something Capiro already holds, with the identifier needed to go
+   * look at it.
+   *
+   * `clientId` is REQUIRED: the landscape is a fact about a pair, and a packet
+   * with no client would have nothing to connect the opportunity to. A client
+   * the actor cannot see yields a DENIED packet rather than a 403, because a 403
+   * would confirm the client exists.
+   */
+  @Get('opportunities/:source/:id/landscape')
+  @UseGuards(FundingOpportunitiesLandscapeFlagGuard)
+  landscapeFor(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+    @Query('clientId') clientId: string,
+  ) {
+    return this.landscape.compose(ctx.tenantId, ctx.userId, clientId, params.source, id);
   }
 
   @Get('opportunities/:source/:id')

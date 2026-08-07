@@ -70,6 +70,18 @@ export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
 export const FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE = 'funding_opportunities_documents';
 
 /**
+ * P33/P34. Gates the Government Landscape packet and the action plan derived
+ * from it.
+ *
+ * ONE flag for both, because an action plan without the landscape it is derived
+ * from is a list of steps with no evidence behind them — the two are not
+ * independently useful, and two flags would mean a way to configure exactly
+ * that.
+ */
+export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
+  'funding_opportunities_government_landscape';
+
+/**
  * The same `intel_feature_flag` READ every guard below uses (`withSystem`, no
  * ::uuid cast — see the guard's own docblock for why both details matter),
  * factored out so a route guard and a data-shape check can never drift into
@@ -230,5 +242,13 @@ export class FundingOpportunitiesNoticeHistoryFlagGuard extends FundingOpportuni
 export class FundingOpportunitiesDocumentsFlagGuard extends FundingOpportunitiesFlagGuard {
   protected override feature(): string {
     return FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE;
+  }
+}
+
+/** P33/P34's landscape guard. Same fail-closed base, keyed on its own flag. */
+@Injectable()
+export class FundingOpportunitiesLandscapeFlagGuard extends FundingOpportunitiesFlagGuard {
+  protected override feature(): string {
+    return FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE;
   }
 }

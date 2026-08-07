@@ -9,6 +9,7 @@ import { AcquisitionPositionPanel } from './AcquisitionPositionPanel.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
 import { OpportunityTimeline } from './OpportunityTimeline.js';
 import { OpportunityRequirementsPanel } from './OpportunityRequirementsPanel.js';
+import { GovernmentLandscapePanel } from './GovernmentLandscapePanel.js';
 import {
   DetailSectionBoundary,
   OpportunityAssessmentPanel,
@@ -283,13 +284,15 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
         <AcquisitionPositionPanel opportunity={o} />
       </DetailSectionBoundary>
 
-      {/* 4 ─ Government landscape (P33) */}
-      <PendingSection
-        title="Government landscape"
-        testId="fo-detail-landscape"
-        what="Budget, Program Element, stakeholder and relationship context for this opportunity is not assembled yet."
-        arrivesIn="Nothing here is inferred from the notice text in the meantime."
-      />
+      {/* 4 ─ Government landscape (P33). Real now: a deterministic evidence
+             packet, with verified and inferred kept visibly apart. */}
+      <DetailSectionBoundary title="Government landscape" testId="fo-detail-landscape">
+        <GovernmentLandscapePanel
+          clientId={clientId}
+          source={o.source}
+          sourceRecordId={o.sourceRecordId}
+        />
+      </DetailSectionBoundary>
 
       {/* 5 ─ Pursuit plan. Real data today: P07's decision and P08's owner/next action. */}
       <Card

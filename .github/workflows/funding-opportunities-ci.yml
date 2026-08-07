@@ -1102,9 +1102,46 @@ jobs:
       # refusals (span/excerpt-length mismatch, empty excerpt, backwards span,
       # null extraction model, unknown type, duplicate evidence,
       # pending-WITH-actor, accepted-without-actor) and two acceptances.
+      # 61/1889 after P33: one NEW suite, no migration. The Government
+      # Landscape packet is composed from tables that already exist, which is
+      # the plan's own "consume, do not duplicate" line for program-element and
+      # client data.
+      #
+      # government-landscape.spec.ts (29 tests) covers four properties.
+      #
+      # THE ETHICAL WALL. A client the actor cannot see yields a DENIED packet,
+      # not a 403 - a 403 would confirm the client exists. Nothing is read on
+      # that client's behalf, and the denied packet carries the SAME fingerprint
+      # as any empty one, because a distinctive "denied" hash would let a caller
+      # detect a walled client by comparing hashes. The wall reuses the inbox's
+      # own allow-list; an ethical wall with two implementations has two chances
+      # to be wrong.
+      #
+      # VERIFIED AND INFERRED NEVER MERGE. Only an ACCEPTED sam_opportunity_match
+      # is source-backed. A quarantined or candidate row - which is what a NAICS
+      # or keyword coincidence produces - is admitted as INFERRED and excluded
+      # from every high-confidence action, with a label that SAYS so rather than
+      # relying on a badge. Dropping those rows would be the other tempting
+      # choice and is worse: a quarantined PE match is real information for a
+      # human deciding whether to pursue.
+      #
+      # A MISSING SOURCE LOWERS COVERAGE AND MAKES NO CLAIM. Every declared
+      # source is reported with a state, and `not_wired` (Capiro cannot read it
+      # yet) is a different value from `empty` (Capiro read it and found
+      # nothing) - collapsing them turns "we have not built this" into "there is
+      # nothing there". Every not_wired explanation is asserted to contain
+      # "Nothing here says".
+      #
+      # DETERMINISM DOWN TO THE HASH. The ordering is TOTAL - without the id
+      # tiebreaker two facilities in one state would sort by whatever order
+      # Postgres returned them in and the fingerprint would move with no fact
+      # moving. The hash covers the FACTS only: a re-worded label or a re-observed
+      # asOf does NOT move it, a changed basis does. Two composes of the same
+      # facts are byte-identical, and there is no clock in the composition
+      # besides the caller's own `asOf` default.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 60 1860
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 61 1889
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

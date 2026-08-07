@@ -810,6 +810,77 @@ export function requirementsApiPath(source: string, sourceRecordId: string): str
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/requirements`;
 }
 
+// ── Government landscape (P33) ───────────────────────────────────────────────
+
+/** The landscape flag. Byte-matches the API guard's own constant. */
+export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
+  'funding_opportunities_government_landscape';
+
+/** Mirrors LANDSCAPE_SOURCES in apps/api's government-landscape.types.ts. */
+export const LANDSCAPE_SOURCE_LABELS: Record<string, string> = {
+  program_element: 'Program Element',
+  budget_movement: 'Budget movement',
+  client_facility: 'Client facility',
+  congressional_district: 'Congressional district',
+  legislation: 'Legislation',
+  hearing: 'Hearing',
+  regulation: 'Regulation',
+  committee: 'Committee',
+  acquisition_personnel: 'Acquisition personnel',
+  reviewed_relationship: 'Reviewed relationship',
+  client_priority: 'Client priority',
+};
+
+/**
+ * One item in the packet.
+ *
+ * `basis` is the load-bearing field: `source_backed` means a source states the
+ * link, `inferred` means two things resemble each other. An inferred item is
+ * never presented as verified and never drives a high-confidence action.
+ */
+export interface LandscapeItemView {
+  source: string;
+  sourceId: string;
+  label: string;
+  basis: 'source_backed' | 'inferred';
+  /** The exact value that connected the two things. Never a paraphrase. */
+  matchedOn: string;
+  evidenceRef: string | null;
+  asOf: string | null;
+}
+
+export interface LandscapeSourceReportView {
+  source: string;
+  /**
+   * `not_wired` means Capiro cannot read this source yet; `empty` means it read
+   * it and found nothing. Only the second is a finding.
+   */
+  state: 'available' | 'empty' | 'not_wired' | 'denied';
+  itemCount: number;
+  explanation: string;
+}
+
+/** Mirrors LandscapePacket in apps/api. */
+export interface LandscapePacketView {
+  clientId: string;
+  source: string;
+  sourceRecordId: string;
+  items: LandscapeItemView[];
+  sources: LandscapeSourceReportView[];
+  /** Coverage, never confidence: a fully-covered packet can be empty. */
+  coverage: { available: number; wired: number; declared: number };
+  fingerprint: string;
+  generatedAt: string;
+}
+
+export function landscapeApiPath(
+  source: string,
+  sourceRecordId: string,
+  clientId: string,
+): string {
+  return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/landscape?clientId=${encodeURIComponent(clientId)}`;
+}
+
 // ── Opportunity identity, in one place ──────────────────────────────────────
 
 /**
