@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Run browser parity, replay observed Engagement GETs, prove one shared safe
- * database-local write round trip, then exercise every UI-classified external
+ * database-local write round trip, verify auth/tenant/role/ownership/wall
+ * denials across both runtimes, then exercise every UI-classified external
  * action while the same disposable DB/auth context is alive. The local runner
  * removes bearer material immediately afterward.
  */
@@ -40,6 +41,13 @@ await run('pnpm', [
   'apps/api',
   'exec',
   'tsx',
+  'scripts/engagement-phase3-security-parity.ts',
+]);
+await run('pnpm', [
+  '-C',
+  'apps/api',
+  'exec',
+  'tsx',
   'scripts/engagement-phase3-external-denial.ts',
 ]);
-console.log('ENGAGEMENT_PHASE3_BROWSER_READ_WRITE_AND_CONTAINMENT_COMPLETE');
+console.log('ENGAGEMENT_PHASE3_BROWSER_READ_WRITE_SECURITY_AND_CONTAINMENT_COMPLETE');
