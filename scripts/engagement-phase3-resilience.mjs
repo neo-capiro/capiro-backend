@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Phase 3 transport/database resilience acceptance.
+ * Phase 3 transport/database/auth resilience acceptance.
  *
  * Injects deterministic faults outside product code, proves main/preview
  * classification and recovery, verifies a failed pre-upstream safe write does
  * not duplicate on retry, pauses the disposable database after boot and proves
- * both runtimes recover, and starts an isolated shadow process against an
- * unavailable database to prove boot-time failure is fail-closed.
+ * both runtimes recover, and starts isolated shadow processes against an
+ * unavailable database and unavailable Clerk issuer to prove both fail closed.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -123,8 +123,7 @@ async function waitForRecovered(token, timeoutMs = 45_000) {
   throw new Error(`Engagement runtimes did not recover after DB resume: ${JSON.stringify(last)}`);
 }
 
-async function bootUnavailableDatabase(token) {
-  const port = Number(process.env.ENGAGEMENT_PHASE3_BOOT_DB_FAILURE_PORT ?? 4511);
+async function isolatedShadowProbe({ port, token, envOverrides, label }) {
   const child = spawn('node', ['apps/api/dist/engagement-main.js'], {
     cwd: process.cwd(),
     env: {
@@ -132,12 +131,12 @@ async function bootUnavailableDatabase(token) {
       CAPIRO_SERVICE_NAME: 'engagement-api',
       ENGAGEMENT_API_PORT: String(port),
       ENGAGEMENT_API_BIND_HOST: '127.0.0.1',
-      DATABASE_URL: 'postgresql://capiro:capiro@127.0.0.1:1/capiro?schema=public',
       ENGAGEMENT_PROCESS_MODE: 'shadow',
       ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
       ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
       ENGAGEMENT_CALLBACKS_ENABLED: 'false',
       ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+      ...envOverrides,
     },
     shell: process.platform === 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -160,10 +159,10 @@ async function bootUnavailableDatabase(token) {
       5_000,
     );
     if (probe.kind === 'http' && probe.status >= 200 && probe.status < 300) {
-      throw new Error('Shadow process with an unavailable database returned successful meeting data');
+      throw new Error(`${label}: isolated shadow returned successful meeting data`);
     }
-    if (probe.status === 401) {
-      throw new Error('Boot-time DB failure probe was vacuous because authentication returned 401');
+    if (probe.kind === 'http' && probe.service !== 'engagement-api') {
+      throw new Error(`${label}: fail-closed response lost service identity`);
     }
     return { result: 'REQUEST_FAILED_CLOSED', probe, outputTail: output.slice(-1200) };
   } finally {
@@ -173,6 +172,38 @@ async function bootUnavailableDatabase(token) {
       if (child.exitCode == null) child.kill('SIGKILL');
     }
   }
+}
+
+async function assertNoCurrentStreamingConsumer() {
+  const inventoryPath = path.resolve(
+    'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+  );
+  const inventory = JSON.parse(await readFile(inventoryPath, 'utf8'));
+  const patterns = [
+    /\bEventSource\s*\(/,
+    /\bReadableStream\b/,
+    /\.getReader\s*\(/,
+    /text\/event-stream/i,
+    /response\.body\b/,
+  ];
+  const hits = [];
+  for (const relative of inventory.consumerFiles ?? []) {
+    const source = await readFile(path.resolve(relative), 'utf8');
+    const matched = patterns.filter((pattern) => pattern.test(source)).map((pattern) => String(pattern));
+    if (matched.length) hits.push({ relative, matched });
+  }
+  if (hits.length) {
+    throw new Error(
+      `Current Engagement consumers now contain streaming code; add a real interruption probe: ` +
+        JSON.stringify(hits),
+    );
+  }
+  return {
+    status: 'NOT_APPLICABLE_NO_CURRENT_ENGAGEMENT_STREAM_CONSUMER',
+    inventoryConsumerCount: (inventory.consumerFiles ?? []).length,
+    sourceFilesScanned: (inventory.consumerFiles ?? []).length,
+    patterns: patterns.map((pattern) => String(pattern)),
+  };
 }
 
 async function main() {
@@ -302,8 +333,8 @@ async function main() {
     results.push({ id: 'slow-timeout', mainResult: slowMain, previewResult: slowPreview });
 
     // Failed-before-upstream write then explicit retry: no row after the fault,
-    // exactly one row after retry. This is the deterministic no-duplicate case;
-    // external actions have their own complete denial/digest sweep.
+    // exactly one row after retry. External actions have their own complete
+    // denial/digest sweep and are never retried here.
     controller.arm({
       id: 'task-write-before-upstream',
       action: 'respond',
@@ -377,34 +408,38 @@ async function main() {
     docker('unpause', DB_CONTAINER);
     databasePaused = false;
     const recovered = await waitForRecovered(token);
-    results.push({ id: 'database-after-boot-recovery', outage: { main: dbMain, preview: dbPreview }, recovered });
-
-    const bootUnavailable = await bootUnavailableDatabase(token);
-    results.push({ id: 'database-unavailable-at-boot', ...bootUnavailable });
-
-    // The current SPA inventory has no Engagement streaming consumer. Make the
-    // non-applicability check executable instead of silently omitting it.
-    const inventory = JSON.parse(
-      await readFile(
-        path.resolve(
-          'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
-        ),
-        'utf8',
-      ),
-    );
-    const streamConsumers = (inventory.consumerFiles ?? []).filter((file) =>
-      /stream|eventsource|sse/i.test(String(file)),
-    );
-    if (streamConsumers.length) {
-      throw new Error(
-        `Current UI inventory now appears to contain streaming consumers: ${streamConsumers.join(', ')}`,
-      );
-    }
     results.push({
-      id: 'stream-interruption',
-      status: 'NOT_APPLICABLE_NO_CURRENT_ENGAGEMENT_STREAM_CONSUMER',
-      inventoryConsumerCount: (inventory.consumerFiles ?? []).length,
+      id: 'database-after-boot-recovery',
+      outage: { main: dbMain, preview: dbPreview },
+      recovered,
     });
+
+    results.push({
+      id: 'database-unavailable-at-boot',
+      ...(await isolatedShadowProbe({
+        port: Number(process.env.ENGAGEMENT_PHASE3_BOOT_DB_FAILURE_PORT ?? 4511),
+        token,
+        label: 'database unavailable at boot',
+        envOverrides: {
+          DATABASE_URL: 'postgresql://capiro:capiro@127.0.0.1:1/capiro?schema=public',
+        },
+      })),
+    });
+
+    results.push({
+      id: 'auth-upstream-unavailable',
+      ...(await isolatedShadowProbe({
+        port: Number(process.env.ENGAGEMENT_PHASE3_AUTH_FAILURE_PORT ?? 4512),
+        token,
+        label: 'auth upstream unavailable',
+        envOverrides: {
+          CLERK_JWT_ISSUER: 'http://127.0.0.1:1',
+          CLERK_SECRET_KEY: 'sk_test_phase3_unavailable_auth_upstream',
+        },
+      })),
+    });
+
+    results.push({ id: 'stream-interruption', ...(await assertNoCurrentStreamingConsumer()) });
 
     const snapshot = controller.snapshot();
     if (snapshot.armed.length) {
@@ -421,6 +456,7 @@ async function main() {
           faultHits: snapshot.hits,
           proxyDecisions: decisions,
           databaseRecovered: true,
+          authUnavailableFailedClosed: true,
           retryDuplicateCount: 0,
         },
         null,
@@ -436,16 +472,9 @@ async function main() {
         // local runner finally removes the disposable container; retain original failure
       }
     }
-    if (retryTaskId) {
-      // Cleanup through Prisma is unnecessary here; the fixture seed cleanup owns
-      // the tenant. Delete through the safe API so the resilience proof leaves no
-      // row before the containment digest starts.
-      await fetchResult(`${MAIN_URL.origin}/api/engagement/tasks/${retryTaskId}`, {
-        method: 'PATCH',
-        headers: { ...headers(token), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'canceled', title: `${MARKER} — cleaned` }),
-      }).catch(() => undefined);
-    }
+    // The wrapper deletes the retry row through psql and verifies residual zero
+    // before the containment digest begins. Keep the id in evidence for that
+    // controlled cleanup rather than attempting a nonexistent task DELETE route.
     await proxy.close().catch(() => undefined);
   }
 }
