@@ -119,6 +119,8 @@ function inboxRow(partial: Partial<InboxRow> = {}): InboxRow {
     sourceRecordId: '11111111-1111-1111-1111-111111111111',
     title: 'Turbofan Engine Sustainment',
     agency: 'Department of the Army',
+    // P26. Null on every catalog rail; a forecast row overrides it.
+    forecast: null,
     responseDeadline: new Date(Date.now() + 9 * 86_400_000).toISOString(),
     daysUntilDeadline: 9,
     workflowStatus: 'suggested',
@@ -242,6 +244,10 @@ beforeEach(() => {
   setSearchParamsMock.mockClear();
   flags.funding_opportunities = true;
   flags.funding_opportunities_client_inbox = true;
+  // P26. Off by default in every test, matching every real tenant today — a
+  // forecast test has to turn it on explicitly, so no existing assertion can
+  // start depending on it silently.
+  flags.funding_opportunities_forecasts = false;
   inboxData = inboxResponse();
   catalogData = catalogForFreshness();
   inboxUrls = [];
@@ -653,5 +659,165 @@ describe('an inbox row opens the detail drawer, from the URL', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /close/i }));
     await waitFor(() => expect(urlStore.get()).not.toContain('detail='));
+  });
+});
+
+// ── P26: agency forecasts in the queue ──────────────────────────────────────
+
+/**
+ * A forecast row as the inbox API sends one: identity carried entirely by P13's
+ * generic key, no response-deadline snapshot, and its own source-facts block.
+ */
+function forecastInboxRow(partial: Partial<InboxRow> = {}): InboxRow {
+  return inboxRow({
+    id: 'wf-f001',
+    source: 'agency_forecast',
+    sourceRecordId: 'FCST-1',
+    title: 'Depot-level turbofan sustainment',
+    agency: 'Department of the Navy',
+    responseDeadline: null,
+    daysUntilDeadline: null,
+    relevanceScore: null,
+    eligibility: { state: null, reason: null },
+    forecast: {
+      anticipatedAwardDate: '2027-03-01',
+      anticipatedSolicitationDate: null,
+      estimatedPeriod: 'Q2 FY27',
+      fiscalYear: 2027,
+      sourceSystem: 'APFS',
+      status: 'Forecasted',
+      isActive: true,
+      lastSyncedAt: '2026-08-06T02:00:00.000Z',
+      providerModifiedAt: null,
+    },
+    ...partial,
+  });
+}
+
+describe('agency forecasts appear as forecasts, and only when the capability is on', () => {
+  test('with the flag ON a forecast row renders the FORECAST card, not the opportunity card', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [forecastInboxRow()] });
+    renderPage();
+    expect(await screen.findByTestId('fo-forecast-row-wf-f001')).toBeInTheDocument();
+    // The opportunity card would have rendered under the other test id, with a
+    // deadline slot and an eligibility slot the forecast has no answer for.
+    expect(screen.queryByTestId('fo-inbox-row-wf-f001')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Open the source Select.
+   *
+   * By CSS rather than by label: AntD v5 puts the `aria-label` on both the
+   * wrapper and the inner input, so `getByLabelText` finds two nodes, and only
+   * mousedown on the selector actually opens the list.
+   */
+  async function openSourceFilter() {
+    await screen.findByTestId('fo-inbox');
+    const selector = document.querySelector('.fo-inbox__controls .ant-select-selector');
+    expect(selector).not.toBeNull();
+    fireEvent.mouseDown(selector!);
+  }
+
+  test('with the flag ON the source filter offers the forecast rail', async () => {
+    flags.funding_opportunities_forecasts = true;
+    renderPage();
+    await openSourceFilter();
+    expect(await screen.findByTitle('Agency forecast')).toBeInTheDocument();
+  });
+
+  test('with the flag OFF the source filter does NOT offer a rail that would return nothing', async () => {
+    // An empty result from a filter the capability cannot serve reads as "this
+    // client has no forecasts", which is a claim about the client.
+    flags.funding_opportunities_forecasts = false;
+    renderPage();
+    await openSourceFilter();
+    await screen.findByTitle('SAM.gov');
+    expect(screen.queryByTitle('Agency forecast')).not.toBeInTheDocument();
+  });
+
+  test('with the flag OFF a forecast row is withheld, and the page SAYS how many', async () => {
+    flags.funding_opportunities_forecasts = false;
+    inboxData = inboxResponse({
+      rows: [inboxRow(), forecastInboxRow()],
+      counts: { ...ZERO_COUNTS, needs_review: 2 },
+    });
+    renderPage();
+    // The catalog row still renders; only the forecast is withheld.
+    expect(await screen.findByTestId('fo-inbox-row-wf-0001')).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-forecast-row-wf-f001')).not.toBeInTheDocument();
+    const notice = screen.getByTestId('fo-inbox-forecasts-withheld');
+    expect(notice).toHaveTextContent('1 agency forecast row not shown');
+    // And it does not pretend the counts changed.
+    expect(notice).toHaveTextContent('The queue counts above still include them');
+  });
+
+  test('with the flag OFF and ONLY forecast rows, the withheld notice appears beside the empty state', async () => {
+    flags.funding_opportunities_forecasts = false;
+    inboxData = inboxResponse({
+      rows: [forecastInboxRow()],
+      counts: { ...ZERO_COUNTS, needs_review: 1 },
+    });
+    renderPage();
+    expect(await screen.findByTestId('fo-inbox-forecasts-withheld')).toBeInTheDocument();
+    expect(screen.getByTestId('fo-inbox-empty')).toBeInTheDocument();
+  });
+
+  test('with the flag ON, no withheld notice appears at all', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [forecastInboxRow()] });
+    renderPage();
+    await screen.findByTestId('fo-forecast-row-wf-f001');
+    expect(screen.queryByTestId('fo-inbox-forecasts-withheld')).not.toBeInTheDocument();
+  });
+
+  test('a stale `?source=agency_forecast` deep link degrades to ALL sources when the flag is off', async () => {
+    // Falling back to the wider view is the safe degradation: falling back to an
+    // empty list would look like "there is nothing here".
+    flags.funding_opportunities_forecasts = false;
+    urlStore.set('?source=agency_forecast');
+    renderPage();
+    await waitFor(() => expect(inboxUrls.length).toBeGreaterThan(0));
+    expect(inboxUrls[0]).not.toContain('source=');
+  });
+
+  test('with the flag ON a `?source=agency_forecast` deep link is honoured', async () => {
+    flags.funding_opportunities_forecasts = true;
+    urlStore.set('?source=agency_forecast');
+    inboxData = inboxResponse({ rows: [forecastInboxRow()], source: 'agency_forecast' });
+    renderPage();
+    await waitFor(() => expect(inboxUrls.length).toBeGreaterThan(0));
+    expect(inboxUrls[0]).toContain('source=agency_forecast');
+  });
+
+  test('opening a forecast row writes a forecast ref and opens the FORECAST drawer body', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [forecastInboxRow()] });
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Open agency forecast detail for Depot-level/ }),
+    );
+    await waitFor(() => expect(urlStore.get()).toContain('detail=agency_forecast%3A'));
+  });
+
+  test('a forecast ref in the URL opens the drawer titled as a forecast', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [forecastInboxRow()] });
+    urlStore.set(
+      `?detail=${encodeURIComponent('agency_forecast')}:${encodeURIComponent('FCST-1')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Agency forecast detail');
+  });
+
+  test('a forecast card in the queue states no deadline and no eligibility', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [forecastInboxRow()] });
+    renderPage();
+    const card = await screen.findByTestId('fo-forecast-row-wf-f001');
+    expect(card.textContent ?? '').not.toMatch(/deadline/i);
+    expect(card.textContent ?? '').not.toMatch(/eligib/i);
+    expect(card).toHaveTextContent('Anticipated award');
   });
 });

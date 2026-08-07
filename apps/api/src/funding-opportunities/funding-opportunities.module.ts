@@ -3,10 +3,12 @@ import { FundingOpportunitiesController } from './funding-opportunities.controll
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
+import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { ClientProfileEnrichmentService } from './client-profile-enrichment.service.js';
 import { FederalBusinessProfileService } from './federal-business-profile.service.js';
 import {
   FundingOpportunitiesFlagGuard,
+  FundingOpportunitiesForecastFlagGuard,
   FundingOpportunitiesInboxFlagGuard,
 } from './funding-opportunities-flag.guard.js';
 
@@ -47,6 +49,12 @@ import {
     // its own transaction and the whole point of P08 is one transaction.
     FundingOpportunityActionsService,
     FundingOpportunityInboxService,
+    // P26. Depends on PrismaService and FundingOpportunitiesService — both
+    // already resolvable here, the second a SIBLING provider in this module, so
+    // no new import and no cycle. The dependency runs one way only:
+    // FundingOpportunitiesService knows nothing about forecasts, which is what
+    // keeps a forecast from ever being served as a `FundingOpportunity`.
+    ForecastOpportunityReadService,
     ClientProfileEnrichmentService,
     // P21. Depends on PrismaService, TangoStoreService (both already
     // resolvable here — see the note above) and ClientProfileEnrichmentService
@@ -54,6 +62,7 @@ import {
     FederalBusinessProfileService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
+    FundingOpportunitiesForecastFlagGuard,
   ],
   exports: [FundingOpportunitiesService, ClientProfileEnrichmentService, FederalBusinessProfileService],
 })

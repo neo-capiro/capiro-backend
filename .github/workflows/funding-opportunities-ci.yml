@@ -673,9 +673,52 @@ jobs:
       # model, no producer, no DI-registered caller — ships logic dark,
       # per this phase's own instruction and its own unchanged file list.
       #
+      # 50/1530 after P26: one NEW suite,
+      # forecast-opportunity-read.spec.ts (56 tests), picked up by the existing
+      # src/funding-opportunities/ glob above — no new path needed in the jest
+      # invocation, same as forecast-relevance.spec.ts at P25. What it proves:
+      # every forecast signal is established by EXACT comparison or not at all
+      # (a NAICS industry-group near miss is NOT a match — sam-opportunity-
+      # relevance.ts deliberately bands one as MODERATE for live notices, and
+      # `ForecastRelevanceInput.exactNaicsMatch` is a different contract); a
+      # capability keyword matches only as a WHOLE TOKEN and never as a
+      # substring, with keywords of two characters or fewer refused outright
+      # ("IT"/"AI" appear in almost every federal description, and a signal that
+      # fires on almost everything reads as evidence); a PE link needs the
+      # client's own code VERBATIM in the record's text, the same bar
+      # sam-opportunity-matcher.ts enforces before it will auto-accept one; the
+      # THREE-WAY distinction between an established signal, an evaluated
+      # non-match, and a signal that could not be evaluated AT ALL (PSC is
+      # confirmed absent from this provider resource — D-45 — and no strategic-
+      # priority review workflow exists, so both are reported as `unavailable`
+      # with a reason naming the SOURCE, never as a claim about the client); a
+      # Postgres DATE serialized as YYYY-MM-DD rather than an instant (a
+      # UTC-midnight `toISOString()` renders an agency's stated March award as
+      # 28 February for every reader west of Greenwich); a decision reported
+      # only when it carries its actor AND its moment, matching the P07
+      # migration's own three-way CHECK; a walled clientId DROPPED and reported
+      # as null rather than 403'd; a failing vehicle-access read degrading to
+      # "unavailable with a reason" instead of a confident false; and the
+      # structural guarantees — the forecast read never writes, never calls
+      # Tango, and never sets a responseDeadline or an eligibility field.
+      #
+      # This is also the phase that finally gives P25's `scoreForecastRelevance`
+      # a real caller (its handoff said it had none by design), and the phase
+      # that fixes a real type-level defect: `InboxRow.source` was declared
+      # `OpportunitySource` while the service cast a raw column into it, so a
+      # forecast row claimed to be grants_gov or sam_gov and a UI switching on
+      # it had no legal value to switch to. `INBOX_SOURCES` is a THIRD
+      # vocabulary, deliberately not a widening of `OPPORTUNITY_SOURCES` —
+      # funding-opportunity-identity.spec.ts pins both sides of that line, and
+      # its P25-era guard block was rewritten (not deleted) to assert the
+      # narrower things that stayed true: the catalog vocabulary is still
+      # exactly two entries, `SourceParamDto` still validates against it, and
+      # no forecast is servable through the `FundingOpportunity` shape.
+      # funding-opportunity-inbox.spec.ts grew by 8 in place (63 -> 71) and
+      # funding-opportunity-identity.spec.ts by 3.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 49 1463
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 50 1530
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -715,9 +758,40 @@ jobs:
       # one. FundingOpportunityDetail.test.tsx's "eight sections" sweep
       # shrank from three still-pending sections to two — acquisition
       # position is real now.
+      # 63/274 after P26: one NEW file, ForecastOpportunityCard.test.tsx (33
+      # tests across 6 blocks) — the card, the detail body, and the two pure
+      # formatters. Its central block is named after the phase's own acceptance
+      # line and asserts on RENDERED TEXT rather than on props: none of "open",
+      # "eligible" or "deadline" appears anywhere in a forecast card, and the
+      # ONE permitted use of "solicitation" is the field label whose value is
+      # "Not provided by the source". A component can be perfectly wired and
+      # still say "Deadline: none stated", which is the exact false claim the
+      # phase exists to prevent — so the test reads the DOM.
+      #
+      # It also pins: Pursue and Submit are ABSENT from a forecast, not disabled
+      # (a disabled button that never enables is a promise the surface does not
+      # keep); with no action handler the whole action row is absent rather than
+      # inert; a signal that could not be EVALUATED renders differently from one
+      # evaluated and unmatched; and `formatSourceDate` formats a YYYY-MM-DD from
+      # its PARTS, because `new Date('2027-03-01')` parsed as UTC midnight and
+      # formatted locally shows 28 February to every reader west of Greenwich.
+      #
+      # FundingOpportunityInbox.test.tsx grew by 11 (38 -> 49): the flag-ON path
+      # (forecast card rendered, forecast rail offered in the source filter, a
+      # forecast ref written to the URL, the drawer titled as a forecast) and the
+      # flag-OFF path (rail NOT offered, because an empty result from a filter
+      # the capability cannot serve reads as "this client has no forecasts";
+      # forecast rows WITHHELD with the count stated, because the tab badges
+      # still include them and a silent discrepancy reads as a broken filter; and
+      # a stale ?source=agency_forecast deep link degrading to ALL sources rather
+      # than to an empty list). FundingOpportunityDetail.test.tsx grew by 4
+      # (47 -> 51) for the shared route: a forecast deep link renders the
+      # forecast body and hits the FORECAST endpoint, and with the flag off it
+      # says the CAPABILITY is off rather than that the record is missing — two
+      # different facts, and only one of them is about the forecast.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 54 226
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 63 274
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

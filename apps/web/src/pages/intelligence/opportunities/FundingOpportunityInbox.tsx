@@ -14,36 +14,60 @@ import {
   Typography,
 } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
 import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
+import { ForecastOpportunityCard } from './ForecastOpportunityCard.js';
 import { readEnum, useUrlState } from './funding-opportunities-url-state.js';
 import {
   ELIGIBILITY_LABELS,
+  FORECAST_SOURCE,
+  FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
   decodeOpportunityRef,
   encodeOpportunityRef,
   INBOX_FILTERS,
   INBOX_FILTER_DESCRIPTIONS,
   INBOX_FILTER_LABELS,
+  INBOX_SOURCE_SHORT_LABELS,
   SOURCE_LABELS,
   WORKFLOW_LABELS,
   formatDeadline,
   formatInboxCount,
+  isForecastRow,
   type EligibilityState,
   type FundingOpportunityListResponse,
   type InboxFilter,
   type InboxResponse,
   type InboxRow,
-  type OpportunitySource,
+  type InboxSource,
 } from './funding-opportunities-api.js';
 
 const { Text } = Typography;
 
-const SOURCE_OPTIONS = [
+/**
+ * The catalog rails, always offered.
+ *
+ * The forecast option is appended only when the tenant has the forecast flag —
+ * see {@link forecastSourceOptions}. Offering a filter that returns nothing
+ * because the capability is off is worse than not offering it: an empty result
+ * reads as "this client has no forecasts", which is a claim about the client.
+ */
+const BASE_SOURCE_OPTIONS = [
   { label: 'All sources', value: '' },
   { label: SOURCE_LABELS.grants_gov, value: 'grants_gov' },
   { label: SOURCE_LABELS.sam_gov, value: 'sam_gov' },
 ];
-const SOURCES: OpportunitySource[] = ['grants_gov', 'sam_gov'];
+
+function forecastSourceOptions(forecastsEnabled: boolean) {
+  return forecastsEnabled
+    ? [
+        ...BASE_SOURCE_OPTIONS,
+        { label: INBOX_SOURCE_SHORT_LABELS.agency_forecast, value: FORECAST_SOURCE },
+      ]
+    : BASE_SOURCE_OPTIONS;
+}
+
+const CATALOG_SOURCES: InboxSource[] = ['grants_gov', 'sam_gov'];
 
 const DECISION_LABELS: Record<string, string> = {
   pursue: 'Decided: pursue',
@@ -93,9 +117,29 @@ export function FundingOpportunityInbox({
 }) {
   const api = useApi();
   const url = useUrlState();
+  /**
+   * The forecast capability, per tenant.
+   *
+   * With it off, the forecast source filter is not offered and any forecast row
+   * the API returns is WITHHELD rather than rendered — and the fact that rows
+   * were withheld is stated, because silently showing fewer rows than the tab
+   * badge counts is the kind of discrepancy that reads as a broken filter.
+   */
+  const forecasts = useIntelFeature(FUNDING_OPPORTUNITIES_FORECASTS_FEATURE);
+  const forecastsEnabled = forecasts.ready && forecasts.enabled;
 
   const filter = readEnum<InboxFilter>(url.get('filter'), INBOX_FILTERS, 'needs_review');
-  const source = readEnum<OpportunitySource | ''>(url.get('source'), [...SOURCES, ''], '');
+  /**
+   * A `source=agency_forecast` in the URL is honoured only when the flag is on.
+   * With it off the value is not in the accepted set, so `readEnum` falls back to
+   * "all sources" — a stale deep link degrades to the wider view rather than to
+   * an empty one.
+   */
+  const source = readEnum<InboxSource | ''>(
+    url.get('source'),
+    forecastsEnabled ? [...CATALOG_SOURCES, FORECAST_SOURCE, ''] : [...CATALOG_SOURCES, ''],
+    '',
+  );
   const cursor = url.get('cursor');
   /**
    * Which row's detail drawer is open, from the URL rather than component state, so
@@ -173,6 +217,19 @@ export function FundingOpportunityInbox({
   const data = inbox.data;
   const counts = data?.counts;
 
+  /**
+   * The rows to render, and how many were withheld because the forecast
+   * capability is off.
+   *
+   * Withholding rather than rendering is what "flag off removes forecast UI"
+   * means; SAYING how many were withheld is what stops that from becoming a
+   * silent discrepancy against the tab badge, which counts every row the tenant
+   * has regardless of what this page can display.
+   */
+  const allRows = data?.rows ?? [];
+  const visibleRows = forecastsEnabled ? allRows : allRows.filter((r) => !isForecastRow(r));
+  const withheldForecasts = allRows.length - visibleRows.length;
+
   return (
     <div className="fo-inbox" data-testid="fo-inbox">
       <OpportunityFreshnessStrip freshness={freshness.data?.freshness} />
@@ -200,10 +257,10 @@ export function FundingOpportunityInbox({
 
       <div className="fo-inbox__controls">
         <Select
-          style={{ width: 200 }}
+          style={{ width: 220 }}
           value={source}
           onChange={goToSource}
-          options={SOURCE_OPTIONS}
+          options={forecastSourceOptions(forecastsEnabled)}
           aria-label="Source rail"
         />
         {data?.clientId ? (
@@ -249,37 +306,57 @@ export function FundingOpportunityInbox({
         <div data-testid="fo-inbox-loading">
           <Skeleton active paragraph={{ rows: 8 }} />
         </div>
-      ) : data!.rows.length === 0 ? (
-        <InboxEmptyState
-          data={data!}
-          filter={filter}
-          source={source}
-          clientName={clientName}
-          onClearClient={() => onSelectClient(undefined)}
-          onClearSource={() => goToSource('')}
-          onGoToFilter={goToFilter}
-        />
+      ) : visibleRows.length === 0 ? (
+        <>
+          {withheldForecasts > 0 ? <WithheldForecastNotice count={withheldForecasts} /> : null}
+          <InboxEmptyState
+            data={data!}
+            filter={filter}
+            source={source}
+            clientName={clientName}
+            onClearClient={() => onSelectClient(undefined)}
+            onClearSource={() => goToSource('')}
+            onGoToFilter={goToFilter}
+          />
+        </>
       ) : (
         <>
+          {withheldForecasts > 0 ? <WithheldForecastNotice count={withheldForecasts} /> : null}
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            {data!.rows.map((row) => (
-              <InboxRowCard
-                key={row.id}
-                row={row}
-                onSelectClient={onSelectClient}
-                onOpenDetail={() =>
-                  url.set({
-                    detail: encodeOpportunityRef({
-                      source: row.source,
-                      sourceRecordId: row.sourceRecordId,
-                      // The ROW's client, not the page filter: the inbox is
-                      // cross-client, and the detail is a fact about the pair.
-                      clientId: row.client.id,
-                    }),
-                  })
-                }
-              />
-            ))}
+            {visibleRows.map((row) => {
+              const openDetail = () =>
+                url.set({
+                  detail: encodeOpportunityRef({
+                    source: row.source,
+                    sourceRecordId: row.sourceRecordId,
+                    // The ROW's client, not the page filter: the inbox is
+                    // cross-client, and the detail is a fact about the pair.
+                    clientId: row.client.id,
+                  }),
+                });
+              /*
+                A forecast gets its OWN card, not the opportunity card with a
+                different tag. The opportunity card leads with a deadline and an
+                eligibility state, and a forecast has neither — reusing it would
+                mean rendering "No deadline stated" and "Not evaluated" against
+                two questions that do not apply to an agency's buying plan.
+              */
+              return isForecastRow(row) ? (
+                <ForecastOpportunityCard
+                  key={row.id}
+                  row={row}
+                  onSelectClient={onSelectClient}
+                  onOpenDetail={openDetail}
+                />
+              ) : (
+                <InboxRowCard
+                  key={row.id}
+                  row={row}
+                  onSelectClient={onSelectClient}
+                  onOpenDetail={openDetail}
+                />
+              );
+            })}
           </Space>
           <div className="fo-pager">
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -289,7 +366,7 @@ export function FundingOpportunityInbox({
                 never computes one. Saying how many are in the queue and how many
                 are on screen is the true version of that sentence.
               */}
-              Showing {data!.rows.length} of {formatInboxCount(counts?.[filter])} in{' '}
+              Showing {visibleRows.length} of {formatInboxCount(counts?.[filter])} in{' '}
               {INBOX_FILTER_LABELS[filter].toLowerCase()}
             </Text>
             <Space>
@@ -330,6 +407,28 @@ export function FundingOpportunityInbox({
 }
 
 /**
+ * Rows this page is not showing because the forecast capability is off.
+ *
+ * The tab badges count every row the tenant has; this page renders only the ones
+ * it can render honestly. Stating the difference is the point — a page showing
+ * three rows under a badge that says four reads as a bug in the filter, and the
+ * reader has no way to tell that the missing one is a capability question rather
+ * than a data question.
+ */
+function WithheldForecastNotice({ count }: { count: number }) {
+  return (
+    <Alert
+      type="info"
+      showIcon
+      style={{ marginBottom: 12 }}
+      data-testid="fo-inbox-forecasts-withheld"
+      message={`${count} agency forecast row${count === 1 ? '' : 's'} not shown`}
+      description="Agency forecasts are a separate capability and are not enabled for this workspace, so those rows are not displayed here. The queue counts above still include them."
+    />
+  );
+}
+
+/**
  * One decision context.
  *
  * Leads with the CLIENT, then the recommendation-relevant facts, then the state.
@@ -362,8 +461,14 @@ function InboxRowCard({
           >
             {row.client.name}
           </Button>
+          {/*
+            INBOX_SOURCE_SHORT_LABELS, not SOURCE_LABELS: this card only ever
+            receives a catalog row, but the row TYPE admits three rails now, and
+            a lookup that can return undefined for a legal value would render an
+            empty tag rather than fail.
+          */}
           <Tag color={row.source === 'grants_gov' ? 'purple' : 'cyan'}>
-            {SOURCE_LABELS[row.source]}
+            {INBOX_SOURCE_SHORT_LABELS[row.source]}
           </Tag>
           {row.humanDecision ? (
             <Tag color={DECISION_COLORS[row.humanDecision] ?? 'default'}>
