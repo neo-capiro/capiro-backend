@@ -1,0 +1,696 @@
+.meri-v3-window-document {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden !important;
+  background: #ffffff;
+}
+
+.meri-v3-workspace {
+  --meri-v3-bg: #f0f1f4;
+  --meri-v3-white: #ffffff;
+  --meri-v3-border: #dfe2e8;
+  --meri-v3-border-soft: #e9ebef;
+  --meri-v3-ink: #131a24;
+  --meri-v3-secondary: #48525f;
+  --meri-v3-muted: #8792a3;
+  --meri-v3-rust: #a85f42;
+  --meri-v3-rust-soft: #f4ebe7;
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  min-width: 760px;
+  min-height: 580px;
+  color: var(--meri-v3-ink);
+  background: var(--meri-v3-white);
+  font-family: "Hanken Grotesk", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+.meri-v3-workspace *,
+.meri-v3-workspace *::before,
+.meri-v3-workspace *::after {
+  box-sizing: border-box;
+}
+
+.meri-v3-workspace-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--meri-v3-bg);
+  border-right: 1px solid var(--meri-v3-border);
+}
+
+.meri-v3-workspace-brand {
+  height: 58px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.meri-v3-workspace-brand strong,
+.meri-v3-workspace-brand small {
+  display: block;
+}
+
+.meri-v3-workspace-brand strong {
+  color: var(--meri-v3-ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.meri-v3-workspace-brand small {
+  margin-top: 2px;
+  color: var(--meri-v3-muted);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meri-v3-workspace-avatar {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(19, 26, 36, 0.08);
+}
+
+.meri-v3-workspace-avatar img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.meri-v3-workspace-avatar > span {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--meri-v3-bg);
+  border-radius: 999px;
+  background: #2fa36b;
+}
+
+.meri-v3-new-thread {
+  height: 36px;
+  margin: 4px 12px 12px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 7px;
+  color: var(--meri-v3-ink);
+  background: var(--meri-v3-white);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 1px 1px rgba(19, 26, 36, 0.03);
+}
+
+.meri-v3-new-thread:hover {
+  border-color: #c9cdd5;
+  background: #fafafa;
+}
+
+.meri-v3-thread-rail {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.meri-v3-sidebar-footer {
+  min-height: 42px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--meri-v3-border);
+  color: var(--meri-v3-muted);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.meri-v3-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #2fa36b;
+  box-shadow: 0 0 0 3px rgba(47, 163, 107, 0.11);
+}
+
+.meri-v3-workspace-main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--meri-v3-white);
+}
+
+.meri-v3-workspace-header {
+  height: 52px;
+  padding: 0 18px 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex: 0 0 52px;
+  border-bottom: 1px solid var(--meri-v3-border);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.meri-v3-conversation-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.meri-v3-conversation-identity input {
+  width: min(420px, 40vw);
+  min-width: 120px;
+  padding: 3px 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  color: var(--meri-v3-ink);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+}
+
+.meri-v3-conversation-identity input:focus {
+  box-shadow: inset 0 -1px 0 var(--meri-v3-rust);
+}
+
+.meri-v3-conversation-identity > span {
+  max-width: 220px;
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 5px;
+  color: var(--meri-v3-secondary);
+  background: #f8f9fa;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meri-v3-header-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meri-v3-runtime-badge {
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #e5d6cf;
+  border-radius: 6px;
+  color: #8e4f37;
+  background: var(--meri-v3-rust-soft);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.meri-v3-close-window {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: var(--meri-v3-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.meri-v3-close-window:hover {
+  color: var(--meri-v3-ink);
+  background: var(--meri-v3-bg);
+}
+
+.meri-v3-workspace-body {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.meri-v3-reasoning-picker {
+  position: relative;
+}
+
+.meri-v3-reasoning-trigger {
+  height: 28px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 6px;
+  color: var(--meri-v3-secondary);
+  background: var(--meri-v3-white);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.meri-v3-reasoning-trigger:hover:not(:disabled),
+.meri-v3-reasoning-trigger[aria-expanded="true"] {
+  border-color: #cab9b1;
+  color: var(--meri-v3-rust);
+  background: #fcf8f6;
+}
+
+.meri-v3-reasoning-trigger:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.meri-v3-reasoning-trigger .anticon-down {
+  font-size: 8px;
+}
+
+.meri-v3-reasoning-spark {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--meri-v3-rust);
+  transform: rotate(45deg);
+}
+
+.meri-v3-reasoning-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 40;
+  width: 286px;
+  padding: 5px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 8px;
+  background: var(--meri-v3-white);
+  box-shadow: 0 14px 36px rgba(19, 26, 36, 0.14);
+}
+
+.meri-v3-reasoning-menu button {
+  width: 100%;
+  min-height: 51px;
+  padding: 8px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--meri-v3-secondary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meri-v3-reasoning-menu button:hover,
+.meri-v3-reasoning-menu button[aria-selected="true"] {
+  color: var(--meri-v3-ink);
+  background: var(--meri-v3-bg);
+}
+
+.meri-v3-reasoning-menu strong,
+.meri-v3-reasoning-menu small {
+  display: block;
+}
+
+.meri-v3-reasoning-menu strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.meri-v3-reasoning-menu small {
+  margin-top: 3px;
+  color: var(--meri-v3-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.meri-v3-reasoning-menu .anticon-check {
+  color: var(--meri-v3-rust);
+}
+
+.meri-v3-mode-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 250px;
+  color: #9d3f32;
+  font-size: 10px;
+  text-align: right;
+}
+
+/* Prototype-aligned conversation history. */
+.meri-v3-workspace .meri-session-rail {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+}
+
+.meri-v3-workspace .meri-rail-search {
+  padding: 0 12px 10px;
+}
+
+.meri-v3-workspace .meri-rail-search .ant-input-affix-wrapper {
+  height: 32px;
+  border: 1px solid var(--meri-v3-border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.meri-v3-workspace .meri-rail-search .ant-input {
+  color: var(--meri-v3-ink);
+  background: transparent;
+  font-size: 11px;
+}
+
+.meri-v3-workspace .meri-rail-search-icon {
+  color: var(--meri-v3-muted);
+}
+
+.meri-v3-workspace .meri-rail-group,
+.meri-v3-workspace .meri-rail-search-results {
+  margin: 0;
+}
+
+.meri-v3-workspace .meri-rail-group-header {
+  min-height: 28px;
+  padding: 4px 14px;
+  color: var(--meri-v3-muted);
+  background: transparent;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.meri-v3-workspace .meri-rail-group-header:hover {
+  color: var(--meri-v3-secondary);
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.meri-v3-workspace .meri-rail-group-count {
+  color: var(--meri-v3-muted);
+  background: transparent;
+}
+
+.meri-v3-workspace .meri-rail-group-items {
+  padding: 0 8px 5px;
+}
+
+.meri-v3-workspace .meri-rail-item,
+.meri-v3-workspace .meri-rail-search-result {
+  min-height: 46px;
+  margin: 1px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.meri-v3-workspace .meri-rail-item:hover,
+.meri-v3-workspace .meri-rail-search-result:hover {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.meri-v3-workspace .meri-rail-item--active,
+.meri-v3-workspace .meri-rail-search-result--active {
+  background: var(--meri-v3-white);
+  box-shadow: 0 1px 2px rgba(19, 26, 36, 0.05);
+}
+
+.meri-v3-workspace .meri-rail-item-main,
+.meri-v3-workspace .meri-rail-search-result {
+  padding: 7px 8px;
+}
+
+.meri-v3-workspace .meri-rail-item-icon {
+  display: none;
+}
+
+.meri-v3-workspace .meri-rail-item-title,
+.meri-v3-workspace .meri-rail-search-result-title {
+  color: var(--meri-v3-ink);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.meri-v3-workspace .meri-rail-item-snippet,
+.meri-v3-workspace .meri-rail-search-result-snippet,
+.meri-v3-workspace .meri-rail-item-time {
+  color: var(--meri-v3-muted);
+  font-size: 9px;
+}
+
+.meri-v3-workspace .meri-rail-item-archive {
+  color: var(--meri-v3-muted);
+}
+
+.meri-v3-workspace .meri-rail-loading,
+.meri-v3-workspace .meri-rail-empty {
+  padding: 14px;
+  color: var(--meri-v3-muted);
+  font-size: 10px;
+}
+
+/* Re-skin the existing, fully functional chat body rather than duplicating it. */
+.meri-v3-workspace .meri-overlay-content {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--meri-v3-white);
+  box-shadow: none;
+}
+
+.meri-v3-workspace .chat-context-bar,
+.meri-v3-workspace .chat-session-meta-row,
+.meri-v3-workspace .meri-memory-panel {
+  display: none !important;
+}
+
+.meri-v3-workspace .chat-session-meta {
+  width: min(860px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+}
+
+.meri-v3-workspace .chat-session-error,
+.meri-v3-workspace .chat-orchestrator-conflict,
+.meri-v3-workspace .chat-orchestrator-template,
+.meri-v3-workspace .meri-action-proposal-list {
+  margin-top: 10px;
+}
+
+.meri-v3-workspace .chat-messages {
+  width: 100%;
+  min-height: 0;
+  padding: 34px max(24px, calc((100% - 720px) / 2)) 28px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  background: var(--meri-v3-white);
+  scrollbar-gutter: stable;
+}
+
+.meri-v3-workspace .meri-turn {
+  width: 100%;
+  margin: 0 auto 24px;
+}
+
+.meri-v3-workspace .meri-turn--user {
+  max-width: 720px;
+}
+
+.meri-v3-workspace .meri-turn--assistant {
+  max-width: 720px;
+}
+
+.meri-v3-workspace .chat-message--user,
+.meri-v3-workspace .chat-message-user {
+  border-radius: 12px 12px 3px 12px;
+  background: #f2f3f5;
+}
+
+.meri-v3-workspace .chat-message--assistant,
+.meri-v3-workspace .chat-message-assistant {
+  color: var(--meri-v3-ink);
+  background: transparent;
+}
+
+.meri-v3-workspace .chat-message,
+.meri-v3-workspace .chat-message-content {
+  font-size: 13px;
+  line-height: 1.68;
+}
+
+.meri-v3-workspace .chat-suggestion-chip,
+.meri-v3-workspace .chat-research-action {
+  border-color: var(--meri-v3-border);
+  color: var(--meri-v3-secondary);
+  background: var(--meri-v3-white);
+}
+
+.meri-v3-workspace .chat-input-area {
+  width: 100%;
+  padding: 12px max(24px, calc((100% - 720px) / 2)) 18px;
+  flex: 0 0 auto;
+  border-top: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.76), #ffffff 24%);
+}
+
+.meri-v3-workspace .chat-input-row {
+  width: 100%;
+}
+
+.meri-v3-workspace .chat-composer {
+  border: 1px solid #d5d8de;
+  border-radius: 11px;
+  background: var(--meri-v3-white);
+  box-shadow: 0 7px 25px rgba(19, 26, 36, 0.075);
+}
+
+.meri-v3-workspace .chat-composer:focus-within {
+  border-color: #b9a097;
+  box-shadow: 0 7px 25px rgba(19, 26, 36, 0.075), 0 0 0 2px rgba(168, 95, 66, 0.08);
+}
+
+.meri-v3-workspace .chat-input-textarea {
+  min-height: 54px;
+  padding: 14px 15px 5px;
+  color: var(--meri-v3-ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.meri-v3-workspace .chat-input-textarea::placeholder {
+  color: #98a1ae;
+}
+
+.meri-v3-workspace .chat-composer-actions {
+  min-height: 38px;
+  padding: 3px 7px 7px;
+}
+
+.meri-v3-workspace .chat-input-send.ant-btn-primary {
+  background: var(--meri-v3-rust);
+  border-color: var(--meri-v3-rust);
+  box-shadow: none;
+}
+
+.meri-v3-workspace .chat-mode-toggle.is-active,
+.meri-v3-workspace .chat-research-toggle.is-active,
+.meri-v3-workspace .chat-write-toggle.is-active {
+  color: var(--meri-v3-rust);
+  background: var(--meri-v3-rust-soft);
+  border-color: #e6d3ca;
+}
+
+.meri-v3-workspace .chat-typing span {
+  background: var(--meri-v3-rust);
+}
+
+.meri-v3-workspace .meri-empty-state {
+  max-width: 720px;
+  margin: 10vh auto 0;
+}
+
+@media (max-width: 960px) {
+  .meri-v3-workspace {
+    grid-template-columns: 224px minmax(0, 1fr);
+  }
+
+  .meri-v3-runtime-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .meri-v3-workspace {
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .meri-v3-workspace-sidebar {
+    display: none;
+  }
+
+  .meri-v3-workspace-header {
+    padding-inline: 12px;
+  }
+
+  .meri-v3-conversation-identity > span {
+    display: none;
+  }
+
+  .meri-v3-conversation-identity input {
+    width: min(48vw, 280px);
+  }
+
+  .meri-v3-workspace .chat-messages {
+    padding: 22px 14px;
+  }
+
+  .meri-v3-workspace .chat-input-area {
+    padding: 10px 12px 12px;
+  }
+}
