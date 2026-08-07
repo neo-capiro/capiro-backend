@@ -18,6 +18,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { parseMcpToolsList, type McpClient, type McpToolDescriptor } from './meri-mcp.helpers.js';
+import { isAllowedTokenHeader, type McpTokenHeader } from './meri-mcp.catalog.js';
 
 export interface McpServerConnection {
   transport: 'http' | 'stdio';
@@ -26,6 +27,16 @@ export interface McpServerConnection {
   args?: string[];
   env?: Record<string, string>;
   authToken?: string | null;
+  /**
+   * Which header the static token goes in (P39).
+   *
+   * Supplied by the caller from the CATALOG entry, never from a tenant-editable
+   * server row — see MCP_ALLOWED_TOKEN_HEADERS. Re-validated here anyway:
+   * `tokenHeaderFor` refuses anything outside the allowlist and falls back to
+   * the bearer default, so a future caller that forgets the rule sends the
+   * token somewhere safe rather than somewhere arbitrary.
+   */
+  tokenHeader?: McpTokenHeader | string | null;
   /** OAuth 2.1 provider (auth_type='oauth'); the transport sends + refreshes
    *  tokens through it. Takes precedence over a static bearer `authToken`. */
   authProvider?: OAuthClientProvider;
@@ -33,6 +44,31 @@ export interface McpServerConnection {
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * The auth header for a static token, as a header object or undefined.
+ *
+ * Two shapes, and the difference matters: `Authorization` carries the `Bearer `
+ * scheme prefix, an API-key header carries the RAW key. Sending
+ * `X-Tango-API-Key: Bearer abc` fails auth in a way that looks like a bad key,
+ * which is a long afternoon.
+ *
+ * Exported for the spec, which asserts that no header outside the allowlist can
+ * ever be produced from any input.
+ */
+export function tokenHeaderFor(
+  token: string | null | undefined,
+  requested: string | null | undefined,
+): Record<string, string> | undefined {
+  if (!token) return undefined;
+  if (isAllowedTokenHeader(requested) && requested !== 'Authorization') {
+    return { [requested]: token };
+  }
+  // The default, and the fallback for anything unrecognized. Falling back to
+  // the SAFE header rather than to no auth: a connector that silently stopped
+  // authenticating would read as a provider outage.
+  return { Authorization: `Bearer ${token}` };
+}
 
 /** Allowlisted stdio commands (exact match) from the ops env var. */
 export function stdioCommandAllowed(command: string, allowlistCsv: string | undefined): boolean {
@@ -57,10 +93,12 @@ async function withClient<T>(
       // OAuth provider wins when present (it manages + refreshes tokens). Fall
       // back to a static bearer header only when there is no provider.
       authProvider: conn.authProvider,
-      requestInit:
-        !conn.authProvider && conn.authToken
-          ? { headers: { Authorization: `Bearer ${conn.authToken}` } }
-          : undefined,
+      requestInit: conn.authProvider
+        ? undefined
+        : (() => {
+            const headers = tokenHeaderFor(conn.authToken, conn.tokenHeader);
+            return headers ? { headers } : undefined;
+          })(),
     });
   } else {
     if (!conn.command) throw new Error('MCP stdio server has no command configured');

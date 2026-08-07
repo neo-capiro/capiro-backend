@@ -16,7 +16,13 @@ import { decryptSecret, encryptSecret, parseAesKey } from '../common/secret-cryp
 import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js';
 import { createMcpClient, type McpServerConnection } from './meri-mcp-transport.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
-import { getCatalogEntry, MCP_CATALOG, type McpCatalogEntry } from './meri-mcp.catalog.js';
+import {
+  catalogTokenHeader,
+  getCatalogEntry,
+  MCP_CATALOG,
+  type McpCatalogEntry,
+} from './meri-mcp.catalog.js';
+import { isFundingOpportunitiesFeatureEnabled } from '../funding-opportunities/funding-opportunities-flag.guard.js';
 import {
   bridgeMcpTool,
   filterAllowedMcpTools,
@@ -123,12 +129,62 @@ export class MeriMcpService {
   async catalog(ctx: TenantContext) {
     const rows = await this.visibleServers(ctx);
     const connected = new Set(rows.map((r) => r.catalogId).filter(Boolean) as string[]);
+    const visible = await this.visibleCatalogEntries(ctx.tenantId, connected);
     return {
       oauthConfigured: this.oauth.isConfigured(),
       // Shown to admins setting up a manual (pre-registered) OAuth client.
       oauthRedirectUri: this.oauth.getRedirectUri() ?? null,
-      connectors: MCP_CATALOG.map((entry) => ({ ...entry, connected: connected.has(entry.id) })),
+      connectors: visible.map((entry) => ({ ...entry, connected: connected.has(entry.id) })),
     };
+  }
+
+  /**
+   * The catalog this tenant may see (P39).
+   *
+   * A flagged entry is HIDDEN rather than shown-and-disabled: a greyed-out card
+   * advertises a capability, and the whole point of a per-tenant flag on a
+   * connector is that a workspace which has not enabled provider research
+   * should not be told the option exists.
+   *
+   * An ALREADY-CONNECTED entry stays visible whatever the flag says. Hiding a
+   * live connector would leave a tenant with a server they can use and cannot
+   * find to disconnect — the flag governs OFFERING one, not orphaning one.
+   */
+  private async visibleCatalogEntries(
+    tenantId: string,
+    connected: ReadonlySet<string>,
+  ): Promise<McpCatalogEntry[]> {
+    const out: McpCatalogEntry[] = [];
+    for (const entry of MCP_CATALOG) {
+      if (!entry.requiresFeature || connected.has(entry.id)) {
+        out.push(entry);
+        continue;
+      }
+      if (await this.featureEnabled(tenantId, entry.requiresFeature)) out.push(entry);
+    }
+    return out;
+  }
+
+  /**
+   * One `intel_feature_flag` read, shared with Funding Opportunities.
+   *
+   * Reuses `isFundingOpportunitiesFeatureEnabled` — a plain function, not a
+   * service, so importing it adds no module edge — rather than writing a second
+   * copy of the same query. That helper deliberately does not catch (see its
+   * own doc); a broken read here must fail CLOSED and quietly, because the
+   * consequence is one connector missing from a library rather than a whole
+   * endpoint disappearing.
+   */
+  private async featureEnabled(tenantId: string, feature: string): Promise<boolean> {
+    try {
+      return await isFundingOpportunitiesFeatureEnabled(this.prisma, tenantId, feature);
+    } catch (error) {
+      this.logger.error(
+        `MCP catalog feature read failed for tenant ${tenantId} (${feature}); failing closed`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      return false;
+    }
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
@@ -187,6 +243,14 @@ export class MeriMcpService {
     const catalogId = String(input.catalogId ?? '').trim();
     const entry = getCatalogEntry(catalogId);
     if (!entry) throw new BadRequestException('Unknown catalog connector');
+
+    // P39. A flagged entry is refused with the SAME sentence an unknown id gets
+    // — a distinguishable refusal would advertise a capability the workspace
+    // has not been given, which is the reasoning behind every 404-not-403 flag
+    // guard in this repo.
+    if (entry.requiresFeature && !(await this.featureEnabled(ctx.tenantId, entry.requiresFeature))) {
+      throw new BadRequestException('Unknown catalog connector');
+    }
 
     const scope = input.scope === undefined ? entry.defaultScope : this.parseScope(input.scope);
     this.assertCanManage(ctx, scope, scope === 'user' ? ctx.userId : null);
@@ -576,6 +640,12 @@ export class MeriMcpService {
       args: asStringArray(server.args),
       env: asStringRecord(server.envJson),
       authToken,
+      // P39. Read from the CATALOG by the row's catalogId — never from a field
+      // on the row. A tenant-editable header name would let anyone who can add
+      // a connector aim a decrypted secret at an arbitrary header on an
+      // arbitrary endpoint. A custom (catalog-less) connector gets null here
+      // and keeps the bearer default.
+      tokenHeader: catalogTokenHeader(server.catalogId),
       authProvider,
     };
     return createMcpClient(
