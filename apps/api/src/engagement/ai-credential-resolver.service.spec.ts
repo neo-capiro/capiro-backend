@@ -210,9 +210,6 @@ describe('AiCredentialResolverService.resolveProvider (Meri single-provider path
     const { svc } = makeService({ anthropicKey: 'sk-global-a', encryptionKey: AES_KEY_B64 });
     const cred = await svc.resolveProvider(ctx, 'anthropic');
     expect(cred).toMatchObject({ apiKey: 'sk-global-a', usedTenantKey: false });
-    // Global model default is ANTHROPIC_MODEL (Haiku) — Meri overrides this to
-    // CLIO_MODEL itself, so the resolver returning the default is the signal
-    // that no tenant override was set.
     expect(cred?.model).toBe('claude-haiku-4-5-20251001');
   });
 
@@ -233,23 +230,35 @@ describe('AiCredentialResolverService.validateKey', () => {
     await expect(svc.validateKey('openai', 'sk-test')).resolves.toEqual({ ok: true });
   });
 
-  it('returns the provider error message on a non-200', async () => {
+  it('returns a bounded status without exposing the provider error body', async () => {
     const { svc } = makeService({ encryptionKey: AES_KEY_B64 });
     jest.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: false,
       status: 401,
-      json: async () => ({ error: { message: 'Incorrect API key provided' } }),
+      json: async () => ({
+        error: { message: 'Incorrect API key provided: sk-provider-echo' },
+      }),
     } as never);
     const result = await svc.validateKey('anthropic', 'sk-bad');
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain('Incorrect API key');
+    expect(result).toEqual({
+      ok: false,
+      error: 'Provider rejected the credential (HTTP 401)',
+    });
+    expect(JSON.stringify(result)).not.toContain('sk-provider-echo');
+    expect(JSON.stringify(result)).not.toContain('Incorrect API key');
   });
 
-  it('returns ok=false when the provider request itself fails', async () => {
+  it('returns a bounded unavailable error when the provider request fails', async () => {
     const { svc } = makeService({ encryptionKey: AES_KEY_B64 });
-    jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNRESET'));
+    jest.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new Error('ECONNRESET request included sk-transport-echo'),
+    );
     const result = await svc.validateKey('openai', 'sk-test');
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain('ECONNRESET');
+    expect(result).toEqual({
+      ok: false,
+      error: 'Provider credential validation was unavailable',
+    });
+    expect(JSON.stringify(result)).not.toContain('ECONNRESET');
+    expect(JSON.stringify(result)).not.toContain('sk-transport-echo');
   });
 });
