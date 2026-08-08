@@ -978,6 +978,19 @@ APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME
 PASS_COUNT=$((PASS_COUNT + 1))
 
 # =============================================================================
+log "Workstream N — the plan and validate operator verbs as the serve role"
+# =============================================================================
+# Spawns the real CLIs rather than importing them, so what is demonstrated is
+# the command an operator types. Runs as capiro_app because that is the
+# credential Workstream N assigns the planner/validator — a missing SELECT
+# grant fails here instead of in production.
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-plan-rehearsal.ts" \
+  || fail "the plan/validate rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
 log "Prisma validate/generate against the final schema"
 # =============================================================================
 (cd "$API_ROOT" && npx prisma validate --schema prisma/schema.prisma >/dev/null) \

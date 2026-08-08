@@ -100,8 +100,16 @@ case "${1:-serve}" in
   # two of the plan's eight promotion verbs are wired as of session 7 —
   # plan/validate/authorize/execute/compare/rollback are not yet built; see the
   # session-7 handoff for the exact construction pattern to follow. As of
-  # session 8, plan/validate are wired too — authorize/execute/compare/rollback
-  # remain unbuilt.
+  # session 8, seven of the plan's eight promotion verbs are wired. Only
+  # authorize-defense-budget-promotion-v1 is missing, and it is blocked rather
+  # than skipped: the authorization service derives segregation-of-duties
+  # evidence from the eligibility record, and no table stores one — see
+  # docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md.
+  #
+  # execute and rollback deliberately read PROMOTER_DATABASE_URL and never fall
+  # back to the composed DATABASE_URL, so compose_database_url is not called for
+  # them; promoting as the serve role is the boundary Workstream D exists to
+  # enforce.
   plan-defense-budget-promotion-v1)
     shift
     compose_database_url
@@ -119,6 +127,22 @@ case "${1:-serve}" in
     compose_database_url
     echo "Running status-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
     exec ./node_modules/.bin/tsx scripts/status-defense-budget-promotion-v1.ts "$@"
+    ;;
+  compare-defense-budget-canonical-reads-v1)
+    shift
+    compose_database_url
+    echo "Running compare-defense-budget-canonical-reads-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/compare-defense-budget-canonical-reads-v1.ts "$@"
+    ;;
+  execute-defense-budget-promotion-v1)
+    shift
+    echo "Running execute-defense-budget-promotion-v1 (promoter role; dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/execute-defense-budget-promotion-v1.ts "$@"
+    ;;
+  rollback-defense-budget-snapshot-v1)
+    shift
+    echo "Running rollback-defense-budget-snapshot-v1 (promoter role; dry run unless --commit --confirm <env>; deletes nothing)"
+    exec ./node_modules/.bin/tsx scripts/rollback-defense-budget-snapshot-v1.ts "$@"
     ;;
   resume-defense-budget-promotion-side-effects-v1)
     shift

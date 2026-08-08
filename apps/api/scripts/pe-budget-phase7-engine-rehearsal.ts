@@ -316,23 +316,23 @@ async function main(): Promise<void> {
     check(result.outboxRowCount === 2, `wrote ${result.outboxRowCount} outbox rows`);
 
     /* ---- Verify the committed state ---- */
-    const [{ count: rowCount }] = await admin.$queryRawUnsafe<{ count: bigint }[]>(
+    const [{ count: rowCount }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'`,
     );
     check(Number(rowCount) === 2, `canonical rows persisted (${rowCount})`);
 
-    const [{ snapshot_id: activeId }] = await admin.$queryRawUnsafe<{ snapshot_id: string }[]>(
+    const [{ snapshot_id: activeId }] = await admin.$queryRawUnsafe<[{ snapshot_id: string }]>(
       `SELECT snapshot_id FROM defense_budget_active_snapshot WHERE environment = '${ENVIRONMENT}'`,
     );
     check(activeId === SNAPSHOT_ID, 'activation pointer moved to the new snapshot');
 
-    const [{ status }] = await admin.$queryRawUnsafe<{ status: string }[]>(
+    const [{ status }] = await admin.$queryRawUnsafe<[{ status: string }]>(
       `SELECT status FROM defense_budget_canonical_snapshot WHERE id = '${SNAPSHOT_ID}'`,
     );
     check(status === 'ACTIVE', `snapshot is ${status}`);
 
     const [{ consumed_at: consumedAt }] = await admin.$queryRawUnsafe<
-      { consumed_at: Date | null }[]
+      [{ consumed_at: Date | null }]
     >(
       `SELECT consumed_at FROM defense_budget_promotion_authorization WHERE authorization_id = 'auth-engine-1'`,
     );
@@ -341,14 +341,14 @@ async function main(): Promise<void> {
     // Scoped to THIS activation. Earlier SQL-level sections of the rehearsal
     // deliberately insert a material_change row with suppress_alert = false, so
     // an unscoped count would fail for the wrong reason.
-    const [{ count: suppressed }] = await admin.$queryRawUnsafe<{ count: bigint }[]>(
+    const [{ count: suppressed }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_promotion_outbox o
          JOIN defense_budget_promotion_activation a ON a.id = o.activation_id
         WHERE a.environment = '${ENVIRONMENT}' AND o.suppress_alert = false`,
     );
     check(Number(suppressed) === 0, 'baseline hydration produced no un-suppressed alert');
 
-    const [{ money }] = await admin.$queryRawUnsafe<{ money: string | null }[]>(
+    const [{ money }] = await admin.$queryRawUnsafe<[{ money: string | null }]>(
       `SELECT money_value_millions::text AS money FROM defense_budget_canonical_row
         WHERE canonical_entity = 'canonical_om_sag_year' AND snapshot_id = '${SNAPSHOT_ID}'`,
     );
@@ -361,7 +361,7 @@ async function main(): Promise<void> {
 
     // Scoped to this environment: the SQL-level sections above create their own
     // activations, and an unscoped count would fail for the wrong reason.
-    const [{ count: activations }] = await admin.$queryRawUnsafe<{ count: bigint }[]>(
+    const [{ count: activations }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_promotion_activation
         WHERE activation_kind = 'PROMOTION' AND environment = '${ENVIRONMENT}'`,
     );
@@ -400,17 +400,17 @@ async function main(): Promise<void> {
     }
     ok('rollback reactivated the prior snapshot');
 
-    const [{ snapshot_id: afterRollback }] = await admin.$queryRawUnsafe<{ snapshot_id: string }[]>(
+    const [{ snapshot_id: afterRollback }] = await admin.$queryRawUnsafe<[{ snapshot_id: string }]>(
       `SELECT snapshot_id FROM defense_budget_active_snapshot WHERE environment = '${ENVIRONMENT}'`,
     );
     check(afterRollback === PRIOR_SNAPSHOT_ID, 'pointer now names the prior snapshot');
 
-    const [{ count: survivingRows }] = await admin.$queryRawUnsafe<{ count: bigint }[]>(
+    const [{ count: survivingRows }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'`,
     );
     check(Number(survivingRows) === 2, 'rolled-back snapshot kept all of its rows');
 
-    const [{ count: snapshots }] = await admin.$queryRawUnsafe<{ count: bigint }[]>(
+    const [{ count: snapshots }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_snapshot WHERE environment = '${ENVIRONMENT}'`,
     );
     check(Number(snapshots) === 2, 'no snapshot was deleted by the rollback');

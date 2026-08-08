@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "."
+  },
+  "include": [
+    "src/defense-budget/promotion/**/*.ts",
+    "src/program-element/snapshot/**/*.ts",
+    "scripts/plan-defense-budget-promotion-v1.ts",
+    "scripts/validate-defense-budget-promotion-v1.ts",
+    "scripts/execute-defense-budget-promotion-v1.ts",
+    "scripts/rollback-defense-budget-snapshot-v1.ts",
+    "scripts/compare-defense-budget-canonical-reads-v1.ts",
+    "scripts/status-defense-budget-promotion-v1.ts",
+    "scripts/resume-defense-budget-promotion-side-effects-v1.ts",
+    "scripts/pe-budget-phase7-plan-rehearsal.ts",
+    "scripts/pe-budget-phase7-engine-rehearsal.ts",
+    "scripts/pe-budget-phase7-read-rehearsal.ts",
+    "scripts/pe-budget-phase7-drain-rehearsal.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
