@@ -138,7 +138,7 @@ export class OutreachCommandEngineService {
       workingSpec = reduced.nextSpec;
       commandAudit.push({
         type: command.type,
-        changed: reduced.changed,
+        changed: command.type === 'RESTORE_STATE_VERSION' ? true : reduced.changed,
         restoreFromVersion:
           command.type === 'RESTORE_STATE_VERSION'
             ? (command.payload as { version: number }).version
@@ -148,7 +148,10 @@ export class OutreachCommandEngineService {
 
     const finalSpec = parseCampaignSpecV1(workingSpec);
     const finalHash = hashCampaignSpecV1(finalSpec);
-    const changed = finalHash !== currentRow.specHash;
+    const restoreRequested = authorizedCommands.some(
+      (command) => command.type === 'RESTORE_STATE_VERSION',
+    );
+    const changed = restoreRequested || finalHash !== currentRow.specHash;
     const nextVersion = changed ? session.currentStateVersion + 1 : session.currentStateVersion;
 
     if (changed) {
