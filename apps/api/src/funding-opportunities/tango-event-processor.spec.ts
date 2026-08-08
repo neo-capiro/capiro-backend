@@ -228,8 +228,25 @@ describe('changeFingerprint', () => {
   });
 
   it('distinguishes null from the string "null"', () => {
-    expect(changeFingerprint('opp-1', change({ before: null }))).not.toBe(
-      changeFingerprint('opp-1', change({ before: 'null' })),
+    expect(changeFingerprint('opp-1', change({ after: null }))).not.toBe(
+      changeFingerprint('opp-1', change({ after: 'null' })),
+    );
+  });
+
+  it('is STABLE when only `before` differs — the back-fill case (review F4)', () => {
+    // `buildNoticeTimeline` computes `before` from the immediately preceding
+    // notice, so a notice back-filled BETWEEN two syncs rewrites it for the very
+    // same current state. Hashing `before` therefore produced two fingerprints
+    // for one deadline and alerted twice — a unique index cannot collapse what
+    // does not collide.
+    expect(changeFingerprint('opp-1', change({ before: '2026-03-01' }))).toBe(
+      changeFingerprint('opp-1', change({ before: '2026-04-01' })),
+    );
+  });
+
+  it('still separates two DIFFERENT resulting values', () => {
+    expect(changeFingerprint('opp-1', change({ after: '2026-08-15' }))).not.toBe(
+      changeFingerprint('opp-1', change({ after: '2026-08-20' })),
     );
   });
 });
@@ -429,6 +446,56 @@ describe('TangoEventProcessorService.processBatch', () => {
     expect(forward.alerts).toHaveLength(1);
     expect(reversed.alerts).toHaveLength(1);
     expect(reversed.alerts[0]?.changeFingerprint).toBe(forward.alerts[0]?.changeFingerprint);
+  });
+
+  it('alerts on EVERY entry with changes, not just the last (review F5)', async () => {
+    // The notice sync and this drain are separately scheduled, so a cycle that
+    // lands two notices used to drop the earlier one's changes permanently —
+    // the event was marked done and nothing revisited it.
+    const port = new PortDouble();
+    port.rows = [outbox()];
+    port.notices = [
+      notice({ tangoNoticeId: 'n-1', contentHash: 'c-1' }),
+      notice({
+        tangoNoticeId: 'n-2',
+        contentHash: 'c-2',
+        postedDate: new Date('2026-07-05T00:00:00Z'),
+        providerUpdatedAt: new Date('2026-07-05T00:00:00Z'),
+        responseDeadline: new Date('2026-08-20T00:00:00Z'),
+      }),
+      notice({
+        tangoNoticeId: 'n-3',
+        contentHash: 'c-3',
+        postedDate: new Date('2026-07-10T00:00:00Z'),
+        providerUpdatedAt: new Date('2026-07-10T00:00:00Z'),
+        responseDeadline: new Date('2026-08-15T00:00:00Z'),
+      }),
+    ];
+    port.clients = [client()];
+
+    await new TangoEventProcessorService(port).processBatch();
+
+    // Two distinct deadline values moved through; both are told, once each.
+    const afters = port.alerts.map((a) => a.afterValue).sort();
+    expect(port.alerts).toHaveLength(2);
+    expect(new Set(afters).size).toBe(2);
+  });
+
+  it('re-processing that same history writes nothing new', async () => {
+    // Widening to every entry is only safe because the fingerprint is stable
+    // and the dedupe is a unique index.
+    const port = new PortDouble();
+    port.rows = [outbox()];
+    port.notices = deadlineMovedNotices();
+    port.clients = [client()];
+    const svc = new TangoEventProcessorService(port);
+
+    await svc.processBatch();
+    const first = port.alerts.length;
+    const second = await svc.processBatch();
+
+    expect(port.alerts).toHaveLength(first);
+    expect(second.alertsWritten).toBe(0);
   });
 
   it('an UNCHANGED source creates no alert', async () => {
