@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   canonicalJsonStringify,
   OUTREACH_V3_LIMITS,
-  type TargetCriteriaV1,
+  targetCriteriaV1Schema,
 } from './outreach-campaign-spec.v1.js';
 import { OutreachCommandError } from './outreach-command-errors.js';
 
@@ -53,24 +52,6 @@ const futureRefsPayload = z
   .object({ refs: z.array(z.string().min(1).max(256)).min(1).max(500) })
   .strict();
 
-const targetCriteriaPayloadSchema: z.ZodType<TargetCriteriaV1> = z
-  .object({
-    notes: nullableBoundedText(OUTREACH_V3_LIMITS.targetCriteriaNotes),
-    governmentLevels: z
-      .array(z.enum(['federal', 'state', 'local', 'agency', 'mixed']))
-      .max(20),
-    chambers: z
-      .array(z.enum(['house', 'senate', 'state_house', 'state_senate']))
-      .max(20),
-    committees: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
-    agencies: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
-    states: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
-    relationshipPreference: z.enum(['any', 'existing', 'new', 'mixed']),
-    includeStaff: z.boolean(),
-    includePrincipals: z.boolean(),
-  })
-  .strict();
-
 export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
   SET_GOAL: z.object({ value: nullableBoundedText(OUTREACH_V3_LIMITS.goal) }).strict(),
   SET_OBJECTIVE: z.object({ value: nullableBoundedText(OUTREACH_V3_LIMITS.objective) }).strict(),
@@ -86,10 +67,18 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
     .strict()
     .superRefine((value, ctx) => {
       if (value.mode === 'explicit' && !value.text?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['text'], message: 'Explicit ask needs text.' });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['text'],
+          message: 'Explicit ask needs text.',
+        });
       }
       if (value.mode === 'none' && value.text !== null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['text'], message: 'No-ask mode requires null text.' });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['text'],
+          message: 'No-ask mode requires null text.',
+        });
       }
     }),
   CLEAR_ASK: emptyPayload,
@@ -111,7 +100,7 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
         .max(OUTREACH_V3_LIMITS.sponsorClientRefs),
     })
     .strict(),
-  SET_TARGET_CRITERIA: z.object({ value: targetCriteriaPayloadSchema.nullable() }).strict(),
+  SET_TARGET_CRITERIA: z.object({ value: targetCriteriaV1Schema.nullable() }).strict(),
   SET_DELIVERY_PATTERN: z
     .object({
       value: z.enum(['undecided', 'personalized_separate', 'uniform_separate', 'shared_thread']),
@@ -149,7 +138,9 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),
   ADD_TARGET_REFS: futureRefsPayload,
   REMOVE_TARGET_REFS: futureRefsPayload,
-  REJECT_TARGET_RECOMMENDATION: z.object({ recommendationRef: z.string().min(1).max(256) }).strict(),
+  REJECT_TARGET_RECOMMENDATION: z
+    .object({ recommendationRef: z.string().min(1).max(256) })
+    .strict(),
   ACCEPT_CONTEXT_REFS: futureRefsPayload,
   EXCLUDE_CONTEXT_REFS: futureRefsPayload,
   SET_SENDER_REF: z.object({ senderRef: z.string().min(1).max(256) }).strict(),
@@ -213,10 +204,6 @@ export function parseOutreachCommandBatch(input: unknown): ApplyOutreachCommandB
     expectedStateVersion: shell.expectedStateVersion,
     commands: shell.commands.map(parseOutreachCommandEnvelope),
   };
-}
-
-export function hashOutreachCommandBatch(batch: ApplyOutreachCommandBatchInput): string {
-  return createHash('sha256').update(canonicalJsonStringify(batch), 'utf8').digest('hex');
 }
 
 export function isFutureOutreachCommand(type: OutreachCommandType): type is OutreachFutureCommandType {
