@@ -294,6 +294,23 @@ export class ComputeStack extends cdk.Stack {
           cfg.externalSecretArns.tangoApiKey,
         )
       : undefined;
+    // MakeGov/Tango WEBHOOK signing secret (Funding Opportunities P46). GATED
+    // on its ARN for the same reason as the two above.
+    //
+    // WHERE THIS GOES IS ALSO THE WHOLE POINT, and it is the MIRROR IMAGE of
+    // tangoApiKey: added ONLY to apiServeSecrets below, never to
+    // apiSyncSecrets or apiMigrateSecrets. Serve is the only task that hosts an
+    // HTTP listener, so it is the only task that could ever need to verify an
+    // inbound signature — and a sync or migrate task holding an inbound
+    // credential it cannot use is pure blast radius.
+    const tangoWebhookSecret = cfg.externalSecretArns?.tangoWebhookSecret
+      ? importExternalSecret(
+          this,
+          'ImportedTangoWebhookSecret',
+          `capiro/${cfg.envName}/tango-webhook-secret`,
+          cfg.externalSecretArns.tangoWebhookSecret,
+        )
+      : undefined;
 
     // Google Workspace OAuth (engagement Gmail/Calendar integration + the
     // onboarding IT-admin test-connect). Both live out-of-band today; see
@@ -515,6 +532,11 @@ export class ComputeStack extends cdk.Stack {
       RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
       ...(recallWebhookSecret
         ? { RECALL_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(recallWebhookSecret) }
+        : {}),
+      // Tango webhook receiver (P46) — SERVE ONLY, by design. Absent until the
+      // provider endpoint exists (P50), and the receiver runs dark without it.
+      ...(tangoWebhookSecret
+        ? { TANGO_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(tangoWebhookSecret) }
         : {}),
     };
     const apiMigrateSecrets = {

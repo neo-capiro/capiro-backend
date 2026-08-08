@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -180,7 +180,8 @@ jobs:
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
             20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk \
-            20260904010000_outcome_event_funding_opportunity
+            20260904010000_outcome_event_funding_opportunity \
+            20260905010000_tango_webhook_deliveries
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -638,6 +639,48 @@ jobs:
           check "exclusion flag is TEXT, not boolean"             "SELECT data_type FROM information_schema.columns WHERE table_name='tango_entity_exclusion' AND column_name='exclusion_status_flag'"             "text"
           check "exclusion date-order CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_entity_exclusion_date_order_chk'"             "1"
 
+          # -- P46: verified webhook delivery ledger ----------------------------
+          # GLOBAL, and this one is load-bearing rather than incidental: a webhook
+          # arrives with NO session and NO tenant, and the receiver is mounted
+          # outside TenantContext middleware. If a tenant_id column ever appears
+          # here it means something inferred a tenant from provider-controlled
+          # data, which is the failure this assertion exists to catch.
+          check "delivery has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_webhook_delivery' AND column_name='tenant_id'"             "0"
+          check "delivery RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_webhook_delivery'"             "f"
+          check "delivery has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_webhook_delivery'"             "0"
+
+          # THE idempotency guarantee. Without this unique index two concurrent
+          # provider retries both insert, and P48 later fans out two alerts for
+          # one event. This is the single most important assertion in the block.
+          check "delivery_id is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_webhook_delivery_delivery_id_uniq'"             "1"
+          check "a blank delivery id is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_delivery_id_chk'"             "1"
+          check "a blank event type is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_event_type_chk'"             "1"
+
+          # The payload digest must be a real lowercase hex SHA-256. A truncated
+          # or upper-cased hash would silently never match on comparison, making
+          # "same content twice" undetectable.
+          check "payload_sha256 shape CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_sha256_chk'"             "1"
+          check "payload_bytes non-negative CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_bytes_chk'"             "1"
+
+          # Lifecycle vocabulary is closed, and a drained row must carry its
+          # drain time — otherwise a half-written P47 drain looks complete.
+          check "delivery status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_status_chk'"             "1"
+          check "processed_at agrees with status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_processed_chk'"             "1"
+
+          # payload_sha256 is deliberately NON-unique: identical content
+          # legitimately arrives under two delivery ids. A unique index here
+          # would silently drop the second, real delivery.
+          check "payload_sha256 index is NOT unique"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_webhook_delivery_payload_sha_idx' AND indexdef LIKE '%UNIQUE%'"             "0"
+
+          # provider_event_at stays nullable forever: a payload carrying no
+          # timestamp is missing evidence, not stale evidence, and a NOT NULL
+          # here would force the receiver to invent one.
+          check "provider_event_at is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_webhook_delivery' AND column_name='provider_event_at'"             "YES"
+
+          # No FK, same reason as P45's ledgers: the record that a delivery
+          # arrived must outlive whatever row it later resolves to.
+          check "delivery has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_webhook_delivery'::regclass AND contype='f'"             "0"
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -703,6 +746,7 @@ jobs:
           src/funding-opportunities/
           src/external/tango/
           src/config/config.schema.spec.ts
+          src/webhooks/tango-webhook.spec.ts
           src/intelligence/intelligence.manual-mapping.spec.ts
           src/intelligence/intelligence.mapping-governance.spec.ts
           src/meri/meri-tools.registration.spec.ts
@@ -1591,9 +1635,27 @@ jobs:
       # reopening a lost/passed pursuit is a second INSERT, never an UPDATE, and
       # a memory-candidate proposal failure never costs the outcome record
       # already committed. Same flag guard `funding_opportunities_pipeline_v2`.
+      # 71/2202 -> 72/2256 after P46 (verified webhook receiver): one NEW suite,
+      # tango-webhook.spec.ts (54 tests). Measured, not estimated: 72 suites /
+      # 2256 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The 54 split roughly: HMAC verification over raw bytes (tamper, wrong
+      # secret, single flipped byte, 8 malformed-header shapes, empty body,
+      # unconfigured), the replay window in BOTH directions including forward
+      # clock skew, envelope extraction (header-over-body precedence, unknown
+      # event types accepted rather than refused), the service's branching
+      # (dark-without-secret, duplicate-via-unique-index, rethrow-on-persistence-
+      # failure), and the controller's status mapping — where the two 503 cases
+      # matter most, since answering 2xx after a failed write would silently drop
+      # a real event forever.
+      #
+      # One test is load-bearing for §4.6 and worth naming: "VERIFIES BEFORE
+      # PARSING" sends a bad signature over malformed JSON and requires the
+      # answer to be invalid_signature, not malformed_json. If that ever flips,
+      # the JSON parser is being handed unauthenticated input.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 71 2202
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 72 2256
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

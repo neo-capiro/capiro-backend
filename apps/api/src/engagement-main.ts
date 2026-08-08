@@ -9,9 +9,7 @@ import {
 import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
 
 async function bootstrap() {
-  const posture = assertEngagementRuntimeEnvironment(
-    process.env as Record<string, unknown>,
-  );
+  const posture = assertEngagementRuntimeEnvironment(process.env as Record<string, unknown>);
   if (posture.serviceName !== 'engagement-api') {
     throw new Error('engagement-main requires CAPIRO_SERVICE_NAME=engagement-api');
   }
@@ -24,6 +22,10 @@ async function bootstrap() {
     releaseShaHeader: process.env.RELEASE_SHA ?? 'UNVERIFIED',
     includeClerkRawBody: false,
     includeRecallRawBody: true,
+    // The Tango receiver is hosted by the main API only. The engagement service
+    // does not mount WebhooksModule, so a raw parser here would guard a route
+    // that does not exist.
+    includeTangoRawBody: false,
     includeEmailSignatureLargeBody: false,
     defaultJsonLimit: '1mb',
   });
