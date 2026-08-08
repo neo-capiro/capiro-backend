@@ -250,3 +250,29 @@ any other way.**
 - **No independent review.** Every phase in this program is marked
   *self-verified only*. §6.2's independent-tester gate has not run for any of
   P46–P51.
+
+
+### Correction (2026-08-08): the web gate blocker was OURS, not Engagement's
+
+Three handoffs recorded the two `App.funding-opportunities-nav.test.tsx`
+failures as "`EngagementPreviewBoundary` calling `useQueryClient()` outside a
+provider — a React Query context leak across tests, traced to PR #813, not this
+program's code, owned by whoever owns Engagement."
+
+**Half right about the mechanism, wrong about the owner.** `EngagementPreviewBoundary`
+is correct: it calls `useQueryClient()` unconditionally, which is fine for a
+component App mounts beside the route table. What changed in #813 is that **`App`
+itself began requiring a `QueryClientProvider`.**
+
+This test file already had a `renderAppWithRouter` helper that supplies one — but
+**two of its own tests still rendered `<App />` bare**, and those are the two that
+failed. It was never a cross-test context leak, and nothing about Engagement
+needed fixing.
+
+Fixed by routing both through the existing helper. **The FO web scope is now
+18 files / 412 tests, 0 failures** — green for the first time since #813 merged.
+
+The lesson worth keeping: "reproduced with only pre-existing files" established
+that *our* changes did not cause it, and that was true. It did not establish that
+the fix belonged to somebody else, and the handoff treated the two as the same
+finding.
