@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "implemented": [
+    "SET_GOAL",
+    "SET_OBJECTIVE",
+    "SET_TOPIC",
+    "SET_DESIRED_OUTCOME",
+    "SET_ASK",
+    "CLEAR_ASK",
+    "SET_WHY_NOW",
+    "SET_SPONSOR_SCOPE",
+    "SET_TARGET_CRITERIA",
+    "SET_DELIVERY_PATTERN",
+    "SET_PERSONALIZATION",
+    "SET_CAMPAIGN_ANGLE",
+    "SET_TONE",
+    "SET_LENGTH",
+    "RESTORE_STATE_VERSION"
+  ],
+  "future": [
+    { "type": "ADD_TARGET_REFS", "futureOwner": "target_context" },
+    { "type": "REMOVE_TARGET_REFS", "futureOwner": "target_context" },
+    { "type": "REJECT_TARGET_RECOMMENDATION", "futureOwner": "target_context" },
+    { "type": "ACCEPT_CONTEXT_REFS", "futureOwner": "target_context" },
+    { "type": "EXCLUDE_CONTEXT_REFS", "futureOwner": "target_context" },
+    { "type": "SET_SENDER_REF", "futureOwner": "generation_send" },
+    { "type": "SET_ATTACHMENT_REFS", "futureOwner": "generation_send" },
+    { "type": "REQUEST_SAMPLE_GENERATION", "futureOwner": "generation_send" },
+    { "type": "REQUEST_FULL_GENERATION", "futureOwner": "generation_send" },
+    { "type": "REQUEST_SEND_REVIEW", "futureOwner": "generation_send" }
+  ],
+  "prohibited": ["SEND_EMAIL_NOW"],
+  "resultStatuses": ["applied", "no_change", "unsupported", "blocked", "conflict", "failed_safely"]
+}
