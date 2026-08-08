@@ -16,6 +16,7 @@ import { BillingPage } from './pages/admin/BillingPage.js';
 import { CustomersPage } from './pages/admin/CustomersPage.js';
 import { SubscribePage } from './pages/onboarding/SubscribePage.js';
 import { useBillingState } from './lib/billing.js';
+import { useMe } from './lib/me.js';
 import { LockoutScreen } from './components/onboarding/LockoutScreen.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
@@ -73,6 +74,18 @@ const ProgramElementFinderPage = lazy(async () =>
 const PersonCandidatesPage = lazy(async () =>
   import('./pages/program-element/PersonCandidatesPage.js').then((m) => ({
     default: m.PersonCandidatesPage,
+  })),
+);
+
+// Program Elements v2 (capiro-internal only — see ProgramElementV2Gate).
+const ProgramElementsV2Page = lazy(async () =>
+  import('./pages/program-element/ProgramElementsV2Page.js').then((m) => ({
+    default: m.ProgramElementsV2Page,
+  })),
+);
+const ProgramElementV2ProfilePage = lazy(async () =>
+  import('./pages/program-element/ProgramElementV2ProfilePage.js').then((m) => ({
+    default: m.ProgramElementV2ProfilePage,
   })),
 );
 
@@ -217,7 +230,7 @@ export function App() {
                 <PlaceholderPage title="Loading program elements" description="Please wait..." />
               }
             >
-              <ProgramElementFinderPage />
+              <ProgramElementFinderGate />
             </Suspense>
           }
         />
@@ -252,7 +265,7 @@ export function App() {
                 <PlaceholderPage title="Loading program element" description="Please wait..." />
               }
             >
-              <ProgramElementWatchPage />
+              <ProgramElementWatchGate />
             </Suspense>
           }
         />
@@ -429,6 +442,23 @@ export function App() {
  * any state error renders the app normally — only a definitive non-entitled
  * status from the server gates. comped/active/trialing pass through.
  */
+/**
+ * Program Elements v2 — capiro-internal visual refinement (branch
+ * ui/pe-v2-refinement). The mockup workspace replaces the finder/profile only
+ * for the internal tenant; every other tenant keeps the legacy pages untouched.
+ */
+function ProgramElementFinderGate() {
+  const me = useMe();
+  if (me.data?.tenant.slug === 'capiro-internal') return <ProgramElementsV2Page />;
+  return <ProgramElementFinderPage />;
+}
+
+function ProgramElementWatchGate() {
+  const me = useMe();
+  if (me.data?.tenant.slug === 'capiro-internal') return <ProgramElementV2ProfilePage />;
+  return <ProgramElementWatchPage />;
+}
+
 function BillingGate() {
   const billing = useBillingState();
   if (billing.isLoading) {
