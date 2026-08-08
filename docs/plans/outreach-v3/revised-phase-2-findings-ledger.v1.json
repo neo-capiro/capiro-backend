@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "phase": "Revised Outreach Phase 2",
+  "branch": "agent/outreach-v3-p2-campaign-state-command-engine",
+  "status": "IMPLEMENTATION_IN_PROGRESS",
+  "counts": {
+    "openP0": 0,
+    "openP1": 0,
+    "blockingP2": 0,
+    "fixedP1": 2,
+    "fixedP2": 5,
+    "fixedTestDefects": 1
+  },
+  "findings": [
+    {
+      "id": "P2-INT-001",
+      "severity": "P1",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "Proposal Apply reused the public proposal UUID as the command-batch idempotency key, allowing a direct caller to pre-consume that UUID and interfere with Apply semantics.",
+      "repair": "Proposal Apply now creates a server-owned UUID inside the same transaction and records it only as safe audit metadata; the proposal remains the terminal Apply identity.",
+      "regression": "outreach-command-proposal.service.spec.ts"
+    },
+    {
+      "id": "P2-DB-001",
+      "severity": "P1",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "Child rows had independent tenant_id and session_id foreign keys, so the database did not structurally prove that a child tenant matched its session tenant; broad default table privileges also required explicit narrowing.",
+      "repair": "Sessions now expose UNIQUE(id, tenant_id); versions/events/proposals use composite session+tenant foreign keys; runtime DELETE/immutable UPDATE privileges are explicitly revoked; proposal content and terminal transitions are DB-enforced.",
+      "regression": "outreach-v3-phase2-architecture.spec.ts + verify-outreach-v3-phase2-db.mjs"
+    },
+    {
+      "id": "P2-DET-001",
+      "severity": "P2",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "Canonical set/key ordering used localeCompare, which can depend on ICU/locale and is not an appropriate content-addressing primitive.",
+      "repair": "Canonical ordering now uses locale-independent lexical code-unit comparison for object keys, sponsor refs and every set-like state/command array.",
+      "regression": "outreach-command-contract.spec.ts"
+    },
+    {
+      "id": "P2-CMD-001",
+      "severity": "P2",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "SET_SPONSOR_SCOPE command parsing validated shape but not sponsor cardinality/coalition semantics, so a proposal that could never Apply could be persisted.",
+      "repair": "Semantic sponsor invariants now live in the strict command schema before normalization/persistence while duplicate identical client refs remain normalizable.",
+      "regression": "outreach-command-contract.spec.ts + outreach-command-proposal.service.spec.ts"
+    },
+    {
+      "id": "P2-CMD-002",
+      "severity": "P2",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "Criteria/ref command strings were bounded but did not uniformly reject disallowed control characters.",
+      "repair": "Controlled text/ref schemas now share the control-character rejection contract used by Campaign Spec text.",
+      "regression": "outreach-command-contract.spec.ts"
+    },
+    {
+      "id": "P2-PROP-001",
+      "severity": "P2",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "A proposal proactively superseded by a successful state mutation later returned OUTREACH_PROPOSAL_ALREADY_DECIDED on Apply rather than the deterministic stale-proposal conflict.",
+      "repair": "Apply maps terminal superseded proposals to OUTREACH_PROPOSAL_STALE with the current state version while retaining eager supersession.",
+      "regression": "outreach-command-proposal.service.spec.ts"
+    },
+    {
+      "id": "P2-REG-001",
+      "severity": "P2",
+      "classification": "phase_2_defect",
+      "status": "FIXED",
+      "summary": "The command registry labelled implemented/future commands but did not mechanically enforce implemented=>reducer and future=>no reducer authority.",
+      "repair": "Registry entries now carry parser/reducer authority and boot validation rejects implemented commands without a reducer or future commands with one.",
+      "regression": "outreach-campaign-state.spec.ts"
+    },
+    {
+      "id": "P2-TEST-001",
+      "severity": "P2",
+      "classification": "test_defect",
+      "status": "FIXED",
+      "summary": "The ordered-upgrade DB rehearsal seeded identity rows once for the legacy sentinel and again for database invariants, causing the harness to fail on its own duplicate fixture.",
+      "repair": "Disposable identity fixture creation is idempotent by primary key.",
+      "regression": "verify-outreach-v3-phase2-db.mjs"
+    }
+  ],
+  "executionGates": {
+    "dbFree": "NOT_RUN_IN_GITHUB_CONNECTOR_SESSION",
+    "disposableDatabase": "NOT_RUN_IN_GITHUB_CONNECTOR_SESSION",
+    "stateFlow": "NOT_RUN_IN_GITHUB_CONNECTOR_SESSION",
+    "phase3Regression": "NOT_RUN_IN_GITHUB_CONNECTOR_SESSION",
+    "independentValidation": "PENDING"
+  },
+  "notes": [
+    "No finding was closed by weakening an acceptance assertion.",
+    "No shared database migration, deployment, feature-flag enablement, canonical cutover, or external action has been performed.",
+    "The focused Prisma projection exists because Phase 2 state locking uses explicit SQL; DB-only invariants are pinned by static and disposable-Postgres gates.",
+    "Browser acceptance remains deployed-app based per owner direction; no localhost Clerk/browser result will be relabelled as passing."
+  ]
+}
