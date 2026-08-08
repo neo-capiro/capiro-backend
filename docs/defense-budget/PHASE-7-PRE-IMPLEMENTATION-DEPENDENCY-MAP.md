@@ -193,6 +193,79 @@ None of these prevent Workstream A–D implementation; items 2–4 block Workstr
 
 ---
 
+## 8a. Phase 8 dependency inventory — settled rules carried forward
+
+Two architectural rules were decided by Neo on 2026-08-08. Both are **settled,
+not open questions**, and both are enforced by tests rather than convention.
+Phase 8 inherits them as constraints, not as topics to revisit.
+
+### R1 — snapshot data and live enrichment are never aggregated
+
+> One response may contain canonical snapshot data and live enrichment, but they
+> must remain separately typed, separately attributed, separately dated, and
+> never be silently aggregated.
+
+This is the general model for **any** external enrichment in Phase 8, not a
+contractor-specific patch. Contract lives in `@capiro/shared/funding-claim`
+(`AttributedMeasure`, `MeasureProvenance`, `sumAttributedMeasures`,
+`MeasureConflationError`); enforced by
+`apps/api/src/program-element/measure-provenance.spec.ts`.
+
+Rules a Phase 8 endpoint must satisfy:
+
+- every live/external bucket carries an explicit `asOf` (required, not optional)
+  and its window if it is a windowed total;
+- every snapshot bucket carries its `snapshotId` and activation `asOf`;
+- crossing the provenance boundary in one sum throws rather than returning a
+  number;
+- live external data is **not** forced into the canonical snapshot merely to
+  make an endpoint reproducible — enrichment may be live, it just has to say so.
+
+`assertOneSnapshotV1` is a *different* rule and remains valid: it forbids two
+canonical snapshots in one response, and is silent on snapshot-plus-external.
+
+### R2 — `native identity ≠ crosswalk`
+
+No snapshot-backed method may resolve a procurement BLIN from a `peCode` alone.
+The native identities are different canonical entities:
+
+```text
+RDT&E        peCode
+Procurement  component + account + lineCode + advanceProcurement
+```
+
+A PE→BLIN relationship exists **only** when a reviewed relationship record
+supports it. It is never inferred from matching titles, legacy foreign keys,
+`program_element_procurement_line`, shared program names, proximity in a budget
+book, performer overlap, or award overlap. That legacy tables make the lookup
+possible is not authorization to preserve it — that table *is* the conflation
+Workstreams G and H exist to remove.
+
+Contract and readiness check: `promotion/cross-family-crosswalk-v1.ts`;
+enforced by `cross-family-crosswalk-v1.spec.ts`.
+
+**Current state: no governed crosswalk exists.** `canonical_budget_line_relationship`
+(physical model `NonRdteBudgetLineRelationship`) is the correct substrate to
+reuse and already carries both native identities, `relationshipType`,
+`evidenceIds`, `explicitInSource`, and full verification lineage — but it has
+**no `status`, `reviewedBy`, or `reviewedAt`** (verified 2026-08-08, zero such
+columns). Every link in it is therefore a candidate.
+
+Consequences Phase 8 inherits:
+
+| Item | State |
+| --- | --- |
+| Read methods needing PE→procurement traversal | **stay on the legacy path**, labelled as candidates |
+| Building + reviewing the crosswalk | **separate data-curation work item**, not a coding task |
+| UI: "Related procurement line" | reserved for `status: 'accepted'` |
+| UI: "Possible related procurement line" | `status: 'candidate'` |
+| UI: a BLIN rendered as a child PE record | **forbidden** — it is a peer identity in another family |
+
+Do not solve the missing governed relationship by recreating identity
+conflation in cleaner code.
+
+---
+
 ## 9. Safety statement
 
 Producing this map involved read-only inspection only. No merge, deployment, AWS mutation, shared-database migration, production-data access, canonical promotion, snapshot activation, rollback, alert fan-out, or paid-parser call occurred.

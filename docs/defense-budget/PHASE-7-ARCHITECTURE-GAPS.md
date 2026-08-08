@@ -1103,3 +1103,107 @@ external award data. Someone has to decide whether that is a legitimate partial
 cutover or whether those surfaces stay on the legacy path until their inputs
 have canonical homes. Until that is answered, migrating them is guesswork with a
 correctness label on it.
+
+---
+
+## Mixed provenance and cross-family identity — DECIDED 2026-08-08 by Neo
+
+Both questions above are now answered. **Settled architecture. Do not reopen.**
+Recorded verbatim in intent; the enforcing code is named after each rule.
+
+### R1 — snapshot + live enrichment: allowed, but never aggregated
+
+> One response may contain canonical snapshot data and live enrichment, but they
+> must remain separately typed, separately attributed, separately dated, and
+> never be silently aggregated.
+
+So the answer to "is a partial cutover legitimate?" is **yes** — mixing snapshot
+and external data in one response is allowed *when the fields are semantically
+separated and independently attributed*. What is forbidden is the arithmetic.
+
+The concrete defect this closes: `getContractors` computed
+
+```ts
+acceptedDirectAmountM = directAwardM + namedPrimeM;
+```
+
+adding a government-stated R-3 exhibit value to a rolling 24-month USAspending
+obligation total and rendering the sum as one dollar figure. Those two numbers
+differ in source, temporal semantics, financial meaning, reproducibility, and
+update cadence. A canonical R-3 amount is part of an immutable snapshot; a
+trailing-24-month obligation total is a live external observation that changes
+daily. The sum was not reproducible and could not be decomposed by a reader.
+
+The response now carries two independently attributed buckets — an exhibit
+measure with `snapshotId` + activation `asOf`, and an award measure with
+`source: 'USAspending'`, `asOf`, and `windowMonths` — and **emits no combined
+total.** One would require defining and governing a real metric meaning
+something across both concepts, and no such metric exists.
+
+Additional rules, applying to all of Phase 8's external enrichment:
+
+- every external/live bucket needs an explicit freshness timestamp;
+- every snapshot bucket needs its snapshot/provenance reference;
+- live external data is **not** forced into the canonical snapshot merely to
+  make an endpoint reproducible;
+- `assertOneSnapshotV1` remains valid and unchanged — it prevents mixed
+  canonical *snapshots*, which is a different failure, so the conflation rule is
+  a separate contract rather than an extension of it.
+
+Contract: `@capiro/shared/funding-claim` — `AttributedMeasure`,
+`MeasureProvenance`, `sumAttributedMeasures`, `MeasureConflationError`.
+Test: `apps/api/src/program-element/measure-provenance.spec.ts` (7 assertions,
+including that summing *within* one provenance kind stays legal).
+
+### R2 — `native identity ≠ crosswalk`
+
+No `peCode → BLIN` resolver. Procurement retains its native identity:
+
+```text
+RDT&E        peCode
+Procurement  component + account + lineCode + advanceProcurement
+```
+
+These are different canonical entities. The fact that legacy tables happen to
+make a PE→procurement lookup possible **is not authorization to preserve that
+relationship** — `program_element_procurement_line` is precisely the conflation
+Workstreams G and H exist to remove, and rebuilding it on snapshot-backed reads
+would reproduce the defect in cleaner code. The failure mode is attributing
+procurement money to the wrong program.
+
+A PE→BLIN relationship exists only when supported by a reviewed relationship
+record carrying `rdtePeIdentity`, `procurementBlinIdentity`, `relationshipType`,
+`status` (`candidate`/`accepted`/`rejected`), `evidenceIds`, `source`,
+`reviewedBy`, and `reviewedAt`. It is never inferred from matching titles,
+legacy foreign keys, `program_element_procurement_line`, shared program names,
+proximity in a budget book, performer overlap, or award overlap.
+
+**Substrate status: exists, but not yet governed.**
+`canonical_budget_line_relationship` (physical model
+`NonRdteBudgetLineRelationship`) is the right thing to reuse — it already
+carries both native identities, `relationshipType`, `evidenceIds`,
+`explicitInSource`, and the full verification lineage, and its registry entry
+already says a relationship "is a link, never a funding position, so it can
+never contribute to a total." What it lacks is the review triple: **no `status`,
+`reviewedBy`, or `reviewedAt` columns exist** (verified 2026-08-08). Every link
+in it is therefore a candidate.
+
+Consequently the affected read methods **stay on the legacy path**, labelled in
+the Phase 8 dependency inventory (§8a of
+`PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md`), and building + reviewing the
+crosswalk is a **separate data-curation work item**, not a coding task.
+
+UI honesty rules that follow:
+
+| Label | Means |
+| --- | --- |
+| "Related procurement line" | reviewed, `status: 'accepted'` |
+| "Possible related procurement line" | `status: 'candidate'` |
+| A BLIN shown as a child PE record | **never** — it is a peer identity in another family |
+
+Contract: `promotion/cross-family-crosswalk-v1.ts` —
+`GovernedCrosswalkRecordV1`, `GOVERNED_CROSSWALK_REQUIRED_FIELDS_V1`,
+`crosswalkSubstrateReadinessV1` (returns `ready: false` today, and names exactly
+the three missing fields), `crossFamilyLinkLabelV1`.
+Test: `cross-family-crosswalk-v1.spec.ts` (10 assertions, including that no
+procurement entity is keyed by `peCode` and no RDT&E entity by a BLIN component).

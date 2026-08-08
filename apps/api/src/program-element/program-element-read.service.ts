@@ -148,6 +148,16 @@ export interface OpportunityItem {
  */
 const MAX_RELEVANCE_PROBES = 50;
 
+/**
+ * Trailing window for USAspending obligation totals on `getContractors`.
+ *
+ * Named rather than inlined because it is now part of the response contract:
+ * the federal-award measure reports `windowMonths` alongside its `asOf`, so a
+ * reader can tell a 24-month total from a 12-month one. Keep this and the SQL
+ * interval in the query below in step.
+ */
+const AWARD_WINDOW_MONTHS = 24;
+
 const LEGACY_PE_WATCH_CONSTRAINT = 'program_element_watch_user_pe_code_key';
 
 /**
@@ -1412,6 +1422,20 @@ export class ProgramElementReadService {
     });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
+    // Snapshot provenance for the exhibit-derived measure below. Resolved once
+    // here rather than per-read, per the one-snapshot invariant's own rule. Null
+    // in legacy mode and when no gate is injected, which is honest: the exhibit
+    // value is then coming from the mutable compatibility tables, and the bucket
+    // says so by carrying a null snapshotId rather than inventing one.
+    const snapshotProvenance = this.peSnapshotGate
+      ? await this.peSnapshotGate
+          .resolve(null)
+          .then((gate) => gate.activeSnapshot)
+          .catch(() => null)
+      : null;
+    // A live external observation dates itself at the moment it is taken.
+    const awardsAsOf = new Date().toISOString();
+
     const tableExists = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(Prisma.sql`
       SELECT EXISTS (
         SELECT 1
@@ -1561,22 +1585,67 @@ export class ProgramElementReadService {
       .filter((r) => r.source === 'program')
       .reduce((s, r) => s + (r.awards ?? 0), 0);
     const namedPrimeM = namedPrimes.reduce((s, r) => s + (r.totalCostM ?? 0), 0);
+    // Neo's decision, 2026-08-08, settled architecture — do not reopen.
+    //
+    // These two measures are never added. A government-stated R-3 exhibit value
+    // and a rolling 24-month USAspending obligation total differ in source,
+    // temporal semantics, financial meaning, reproducibility, and update
+    // cadence; the previous `acceptedDirectAmountM: directAwardM + namedPrimeM`
+    // rendered them as one dollar figure a reader could not decompose, and that
+    // figure changed daily while claiming to describe an immutable exhibit.
+    //
+    // Each bucket carries its own attribution and its own "as of". The award
+    // side keeps the Phase G evidence-class partition, which is meaningful
+    // *within* one provenance kind — direct pe_code match vs MDAP-program link
+    // — and is no longer contaminated by exhibit dollars.
+    //
+    // No combined total is emitted. One would require defining and governing a
+    // real metric that means something across both, and no such metric exists.
+    const activeSnapshotId = snapshotProvenance?.snapshotId ?? null;
+    const evidence = {
+      governmentExhibit: {
+        amountM: namedPrimeM,
+        count: namedPrimes.length,
+        unit: 'USD millions' as const,
+        label: 'Government-named performer value (R-3 exhibit)',
+        provenance: {
+          kind: 'canonical_snapshot' as const,
+          source: 'R-3',
+          snapshotId: activeSnapshotId,
+          asOf: snapshotProvenance?.activatedAt ?? null,
+        },
+      },
+      federalAwards: {
+        amountM: directAwardM + candidateAwardM,
+        count: directAwardN + candidateAwardN,
+        unit: 'USD millions' as const,
+        label: 'Recent federal award obligations (USAspending)',
+        provenance: {
+          kind: 'live_external' as const,
+          source: 'USAspending',
+          asOf: awardsAsOf,
+          windowMonths: AWARD_WINDOW_MONTHS,
+        },
+        // Evidence classes within the award side only.
+        buckets: partitionContractorEvidence({
+          acceptedDirectAmountM: directAwardM,
+          acceptedDirectCount: directAwardN,
+          candidateAmountM: candidateAwardM,
+          candidateCount: candidateAwardN,
+          // Unmatched PE-universe dollars are not inventoried on this endpoint.
+          unmatchedAmountM: 0,
+          unmatchedCount: 0,
+        }),
+      },
+    };
+
     return {
       // Named primes from the budget exhibit (Layer 1) — the primary, precise answer.
       namedPrimes,
       // Award dollar-flow over the last 24 months (Layer 2/3 — direct pe_code,
       // MDAP-program link, or UEI-confirmed R-3 prime via enrich-award-pe-tas).
       data,
-      // Phase G — contractor/performer evidence never collides across classes.
-      evidenceBuckets: partitionContractorEvidence({
-        acceptedDirectAmountM: directAwardM + namedPrimeM,
-        acceptedDirectCount: directAwardN + namedPrimes.length,
-        candidateAmountM: candidateAwardM,
-        candidateCount: candidateAwardN,
-        // Unmatched PE-universe dollars are not inventoried on this endpoint.
-        unmatchedAmountM: 0,
-        unmatchedCount: 0,
-      }),
+      evidence,
       evidenceNote:
         'accepted_direct = PE-coded awards + R-3 named primes; candidate = MDAP-program-linked awards; unmatched_dollars not inventoried here (fail closed / listed as 0).',
       todo: null,

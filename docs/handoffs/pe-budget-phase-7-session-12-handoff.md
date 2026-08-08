@@ -138,6 +138,50 @@ throwaway container: empty backlog returns `0` and not `NULL`, `DONE` and
 correctly reported the 2h `PENDING`), and the `environment` scoping holds. If
 that verb grows more SQL, this gap in the rehearsal is worth closing properly.
 
+## Two architectural rules Neo settled on 2026-08-08 — do not reopen
+
+Both were open questions this handoff originally listed as needing a decision.
+They are now decided, and enforced by tests rather than by convention. Full
+statements in [PHASE-7-ARCHITECTURE-GAPS.md](../defense-budget/PHASE-7-ARCHITECTURE-GAPS.md);
+Phase 8 inherits them via §8a of the dependency map.
+
+### R1 — snapshot + live enrichment may coexist, but are never aggregated
+
+> One response may contain canonical snapshot data and live enrichment, but they
+> must remain separately typed, separately attributed, separately dated, and
+> never be silently aggregated.
+
+`getContractors` was computing `acceptedDirectAmountM = directAwardM + namedPrimeM`
+— a government-stated R-3 exhibit value plus a rolling 24-month USAspending
+obligation total, rendered as one dollar figure that changed daily while
+claiming to describe an immutable exhibit. It now returns two independently
+attributed buckets (`evidence.governmentExhibit` with `snapshotId` + activation
+`asOf`; `evidence.federalAwards` with `source`, `asOf`, `windowMonths`) and
+**no combined total**.
+
+`sumAttributedMeasures` throws `MeasureConflationError` if anything tries to
+cross the provenance boundary — the guard is a function rather than a convention
+because a convention cannot fail a build. Summing *within* one provenance kind
+stays legal.
+
+`assertOneSnapshotV1` is unchanged and still correct; it forbids two canonical
+*snapshots*, which is a different failure, so this is a separate rule.
+
+### R2 — `native identity ≠ crosswalk`
+
+No `peCode → BLIN` resolver, ever. The substrate to reuse is
+`canonical_budget_line_relationship`, which already has both native identities,
+`relationshipType`, `evidenceIds`, and verification lineage — but **no `status`,
+`reviewedBy`, or `reviewedAt`** (verified: zero such columns). So every link in
+it is a candidate, no governed crosswalk exists yet, and the affected read
+methods **stay on the legacy path**. Building and reviewing the crosswalk is a
+separate data-curation work item.
+
+`crosswalkSubstrateReadinessV1()` returns `ready: false` and names exactly the
+three missing fields; if a migration later adds them, the spec fails and forces
+someone to update the readiness list deliberately rather than letting the flag
+drift silently true.
+
 ## Things worth not rediscovering
 
 Session 11's five still stand and are not repeated here. Three new ones:
