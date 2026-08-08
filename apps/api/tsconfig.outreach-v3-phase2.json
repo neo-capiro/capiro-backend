@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/outreach-v3/**/*.ts",
+    "src/capabilities/capability-authorization.service.ts",
+    "src/capabilities/capabilities.module.ts",
+    "src/engagement-api.app.module.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
