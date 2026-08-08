@@ -36,8 +36,12 @@ const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> 
   sendCampaignTest: { action: 'outreach_test_send', testMode: true },
   createAttachmentUploadUrl: { action: 'attachment_external_write' },
   confirmAttachment: { action: 'attachment_external_write' },
-  extractAttachmentText: { action: 'attachment_external_read' },
+  createAttachmentFromBuffer: { action: 'attachment_external_write' },
+  supersedeAttachment: { action: 'attachment_external_write' },
   deleteAttachment: { action: 'attachment_external_write' },
+  reconcileFailedAttachmentDeletes: { action: 'attachment_external_write' },
+  extractAttachmentText: { action: 'attachment_external_read' },
+  readAttachmentBytes: { action: 'attachment_external_read' },
 };
 
 function activeMainRuntimePolicy(): EngagementRuntimePolicyService {
