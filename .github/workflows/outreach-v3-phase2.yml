@@ -1,0 +1,105 @@
+name: outreach-v3-phase2
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p2-campaign-state-command-engine
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/outreach-v3/**'
+      - 'apps/api/src/capabilities/**'
+      - 'apps/api/src/engagement-api.app.module.ts'
+      - 'apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/**'
+      - 'apps/api/prisma/outreach-v3-phase2/**'
+      - 'apps/api/tsconfig.outreach-v3-phase2.json'
+      - 'scripts/*outreach-v3-phase2*'
+      - 'package.json'
+      - '.github/workflows/outreach-v3-phase2.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outreach-v3-phase2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-free:
+    name: Revised Phase 2 DB-free + Phase 3 regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Revised Phase 2 DB-free gate
+        run: pnpm verify:outreach-v3-phase-2
+
+      - name: Engagement Phase 3 DB-free regression
+        run: pnpm verify:engagement-phase-3
+
+  disposable-postgres:
+    name: Revised Phase 2 disposable PostgreSQL acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate canonical Prisma client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
+        run: pnpm -C apps/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Fresh + ordered-upgrade DB invariant rehearsal
+        run: pnpm verify:outreach-v3-phase-2:db
+
+      - name: Real state-flow rehearsal
+        run: node scripts/run-outreach-v3-phase2-flow-db.mjs
