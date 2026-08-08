@@ -9,7 +9,7 @@ INDEPENDENT_VALIDATION: PENDING_SEPARATE_VALIDATOR
 PRODUCTION_CHANGE: NONE
 ```
 
-The implementation is structurally present and the static closeout audit found no known open code P0, code P1, or blocking code P2. Phase 1 is **not accepted** because its Phase 3 prerequisite remains unaccepted and the final Phase 1 executable/local/independent gates have not run.
+The implementation is structurally present. The final static closeout found and repaired two P1 security defects and one P2 test-gate omission; after those repairs there are no known open code P0, code P1, or blocking code P2. Phase 1 is **not accepted** because its Phase 3 prerequisite remains unaccepted and the final Phase 1 executable/local/independent gates have not run.
 
 ## Git state
 
@@ -17,11 +17,12 @@ The implementation is structurally present and the static closeout audit found n
 Repository: neo-capiro/capirov2
 Branch: agent/outreach-v3-p1-shared-foundations-gpt56-complete
 Base: 46e029dad5c27bf44c7920cd5a4000716621671f
-Last implementation head before closeout records: ae938249d35476a1a7a4eada9949ac3b3aedd20e
+Initial implementation head: ae938249d35476a1a7a4eada9949ac3b3aedd20e
+Audited implementation head before this final documentation: 317eb3168d5598347e858c74236c6013ad4cda30
 PR: #822 (open, draft)
 ```
 
-The final head is the commit containing this handoff or a descendant limited to closeout evidence/repairs.
+The final head is the commit containing this handoff or a descendant limited to closeout evidence or defect repair.
 
 ## Phase 3 prerequisite
 
@@ -47,15 +48,18 @@ Therefore this Phase 1 implementation remains provisional under the source plan'
 - Neutral module: `AiCredentialsModule`.
 - Consumers: Engagement and Meri; internal service route retained.
 - Tenant key remains first, with platform fallback and model override.
-- Raw-key resolution remains protected by `InternalServiceGuard`.
-- Provider error bodies and credential material are not logged.
+- Raw-key resolution remains protected by `InternalServiceGuard` and the runtime policy.
+- Missing/wrong internal secret fails closed; an ordinary browser bearer does not satisfy the route guard.
+- Provider error bodies, transport errors, and credential material are not logged or returned.
 
 ## Client Documents
 
 - Neutral port: `ClientDocumentsModule` / `ClientDocumentWriterService`.
 - Operations: create buffer attachment, supersede, delete.
 - Existing storage, lifecycle, scan/indexing, provenance, and cleanup implementation remains authoritative.
-- Runtime policy denies external document mutation in shadow before provider storage work.
+- P1-SEC-001 fixed: the narrow writer now asserts runtime policy before delegation, and the direct Engagement proxy covers every externally sensitive document read/write method.
+- Shadow denial happens before S3 or document-state mutation.
+- The focused negative-control spec is explicitly executed by the permanent Phase 1 gate.
 
 ## Outreach review
 
@@ -71,8 +75,9 @@ Therefore this Phase 1 implementation remains provisional under the source plan'
 - Request/core Notetaker lifecycle hooks are neutralized by the runtime proxy.
 - `NotetakerReconcileWorkerService` is the explicit timer owner.
 - Recall registration lives in `RecallWebhookModule`.
-- Raw request bytes and signature verification remain on the existing receiver/provider path.
-- Runtime policy independently gates callback/Recall and external provider actions.
+- Raw request bytes are mounted by the shared HTTP bootstrap in both API entry points before signature verification.
+- P1-SEC-002 fixed: receiveWebhook and handleBotEvent require the separate Recall owner flag in addition to external-action and generic callback permission.
+- Recall denial uses stable code `ENGAGEMENT_RECALL_WEBHOOK_DISABLED` before event processing.
 
 ## OAuth callbacks and integrations
 
@@ -108,15 +113,18 @@ pnpm verify:outreach-v3-phase-1
 pnpm verify:outreach-v3-phase-1:local -- --sha "$(git rev-parse HEAD)"
 ```
 
-The DB-free workflow now invokes the actual Phase 1 verifier rather than only the Phase 3 prerequisite.
+The DB-free workflow invokes the actual Phase 1 verifier, including the security regression tests, rather than only the Phase 3 prerequisite.
 
 ## Evidence actually available in this closeout session
 
 - full PR/source diff inspection;
 - module/provider ownership inspection;
 - exact-review transaction inspection;
+- raw credential guard/resolver inspection;
+- client-document and Recall boundary defect repair;
 - capability authorization and proof-test inspection;
 - runtime ownership fixtures and verifier inspection;
+- shared raw Recall parser inspection in both entry points;
 - no Phase 1 migration or UI path in the PR file list;
 - GitHub Actions result: `startup_failure`, zero jobs.
 
@@ -156,6 +164,8 @@ Current static counts:
 Open code P0: 0
 Open code P1: 0
 Blocking code P2: 0
+Fixed P1: 2
+Fixed P2: 1
 Acceptance blockers: 5
 ```
 

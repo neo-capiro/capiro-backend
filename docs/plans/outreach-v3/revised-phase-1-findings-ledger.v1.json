@@ -4,12 +4,38 @@
   "status": "PROVISIONAL_CODE_COMPLETE_BLOCKED",
   "repository": "neo-capiro/capirov2",
   "branch": "agent/outreach-v3-p1-shared-foundations-gpt56-complete",
-  "lastStaticAuditHead": "ae938249d35476a1a7a4eada9949ac3b3aedd20e",
+  "lastStaticAuditHead": "317eb3168d5598347e858c74236c6013ad4cda30",
   "counts": {
     "openP0": 0,
     "openP1": 0,
     "blockingP2": 0
   },
+  "fixedFindings": [
+    {
+      "id": "P1-SEC-001",
+      "severity": "P1",
+      "status": "FIXED",
+      "fixedBy": "3fe4d1672ee444756f7b672ec5b607e19ef49cd9",
+      "summary": "The neutral client-document writer delegated in-memory create and supersede operations without its own runtime-policy assertion, while the direct Engagement proxy map omitted several externally sensitive document methods.",
+      "repair": "ClientDocumentWriterService now asserts attachment_external_write before delegation; the direct Engagement map now covers createAttachmentFromBuffer, supersedeAttachment, reconcileFailedAttachmentDeletes, and readAttachmentBytes; shadow and active regression tests were added."
+    },
+    {
+      "id": "P1-SEC-002",
+      "severity": "P1",
+      "status": "FIXED",
+      "fixedBy": "1c27761b9e38893870b8558df17e10854a90c582",
+      "summary": "Recall event processing required external-action and generic callback permission but did not enforce the independently movable recallWebhookEnabled owner flag.",
+      "repair": "The runtime policy now exposes assertRecallWebhookEnabled, and receiveWebhook/handleBotEvent require the Recall-specific owner in addition to callback and external-action permission."
+    },
+    {
+      "id": "P1-TEST-001",
+      "severity": "P2",
+      "status": "FIXED",
+      "fixedBy": "317eb3168d5598347e858c74236c6013ad4cda30",
+      "summary": "The new client-document denial regression was included in the Phase 1 TypeScript project but not executed by the focused Jest gate.",
+      "repair": "The permanent Phase 1 verifier now invokes client-document-writer.service.spec.ts explicitly."
+    }
+  ],
   "acceptanceBlockers": [
     {
       "id": "P1-ENV-001",
@@ -59,8 +85,12 @@
     "notes": [
       "Static inspection found the request/core timers neutralized and explicit worker shells as sole timer registrars.",
       "Callback ownership is checked at controller and provider boundaries.",
+      "Recall processing now requires the independently movable Recall owner flag.",
+      "External client-document operations now fail closed at both the narrow writer and direct Engagement service boundary.",
       "Exact-version review identity, authorization, version decision, and review stamping are rechecked in one transaction.",
+      "Raw AI credential resolution requires InternalServiceGuard and runtime policy; provider error bodies and transport errors are bounded.",
       "Capability client scope and ethical-wall authorization fail closed.",
+      "Raw Recall body parsing is shared by main and engagement-api before signature verification.",
       "Static inspection is not executable acceptance evidence."
     ]
   },

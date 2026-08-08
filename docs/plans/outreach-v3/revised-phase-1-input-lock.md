@@ -18,14 +18,23 @@ This record resolves the exact source and repository state used for Revised Outr
 | Repository | `neo-capiro/capirov2` |
 | Phase 1 branch | `agent/outreach-v3-p1-shared-foundations-gpt56-complete` |
 | Phase 1 base on `main` | `46e029dad5c27bf44c7920cd5a4000716621671f` |
-| Last implementation head before this closeout record | `ae938249d35476a1a7a4eada9949ac3b3aedd20e` |
+| Initial implementation head before closeout | `ae938249d35476a1a7a4eada9949ac3b3aedd20e` |
+| Audited implementation head before final closeout record | `317eb3168d5598347e858c74236c6013ad4cda30` |
 | Draft PR | `#822` |
 | Migrations in Phase 1 | none |
 | UI changes in Phase 1 | none |
 | Canonical cutover | not performed |
 | Worker/callback/Recall production transfer | not performed |
 
-The final Phase 1 head is the commit containing this document or a descendant that changes only closeout evidence.
+Security repairs completed during closeout:
+
+```text
+3fe4d1672ee444756f7b672ec5b607e19ef49cd9  fail closed on client-document mutations
+1c27761b9e38893870b8558df17e10854a90c582  enforce separate Recall-webhook ownership
+317eb3168d5598347e858c74236c6013ad4cda30  execute the client-document denial spec in the permanent gate
+```
+
+The final Phase 1 head is the commit containing this document or a descendant limited to closeout evidence or defect repair.
 
 ## Phase 3 prerequisite truth
 
@@ -70,7 +79,7 @@ Git blob SHAs identify the exact committed manifest bytes on the Phase 1 branch.
 | Client document mutation | main API | alert memo, district brief, hearing recap, Reviews | `ClientDocumentsModule` / `ClientDocumentWriterService` | S3 mutation before runtime denial; provenance drift | 1.3–1.4 |
 | Exact Outreach draft review | main API | Reviews, future Outreach | `OutreachReviewModule` / `OutreachReviewTransactionsService` | review A releasing version B; split transaction | 1.5–1.6 |
 | Notetaker persistence | main API | `NotetakerService` | `MeetingCapturePersistenceService` | broad service coupling; transcript lifecycle drift | 1.7 |
-| Recall webhook | main API | Recall provider | `RecallWebhookModule` | duplicate receiver, raw-body/signature drift | 1.8 |
+| Recall webhook | main API | Recall provider | `RecallWebhookModule` | duplicate receiver, raw-body/signature drift, generic callback flag masking separate ownership | 1.8 |
 | OAuth callbacks and notifications | main API | Microsoft/Google | `EngagementCallbacksModule` | two callback owners; unauthenticated callback execution | 1.9 |
 | Mail/calendar integration actions | main API | authenticated Engagement routes | `EngagementIntegrationActionsModule` | route drift; external action bypass | 1.9 |
 | Background timers | main API | sync, generation, send-intent, notetaker | `EngagementWorkersModule` | duplicate timers and double effects | 1.10–1.11 |
