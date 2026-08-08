@@ -22,6 +22,8 @@ import { FirmOnboardingService } from './firm-onboarding.service.js';
 import { FirmOnboardingController } from './firm-onboarding.controller.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from './sam-entity.service.js';
+import { NewsDashboardController } from './news/news-dashboard.controller.js';
+import { NewsCatcherDashboardService } from './news/news-catcher-dashboard.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
@@ -45,6 +47,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     TrustMetricsController,
     CoverageController,
     FirmOnboardingController,
+    NewsDashboardController,
   ],
   providers: [
     IntelligenceService,
@@ -62,6 +65,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ProductMetricsService,
     TrustMetricsService,
     CoverageGapService,
+    NewsCatcherDashboardService,
   ],
   // ClientPeRelevanceService is EXPORTED so the program-element delta writer (Agent B)
   // and other modules can inject the cross-tenant relevance path without a DI cycle.
