@@ -1852,14 +1852,29 @@ jobs:
       # 113ms, 20000 events 477ms, mid-statement failure leaves zero rows, two
       # concurrent drains converge with no duplicates.
       #
-      # FOUR reviews in a row have each found something the previous round
-      # missed, and three of those findings were defects introduced BY the
-      # preceding fix. Before a fifth automated pass, get a HUMAN to read
+      # 78/2484 -> 78/2485 after a FIFTH review, scoped to the D-59 rewrite
+      # alone. It PASSED — the first pass in five rounds — after driving the
+      # real function against real Postgres: null refs mid-batch keep every
+      # column aligned, int[] arrives as true integers, ON CONFLICT resolves
+      # each row independently, and the "no ceiling" claim holds to 5,000,000
+      # rows in one statement (the 1MB body limit caps a real delivery near
+      # 19,400 events). It also confirmed the spec's no-transaction guard
+      # genuinely fails when tripped, rather than being theater.
+      #
+      # It did find that the dry-run and commit paths returned DIFFERENT UNITS
+      # — deliveries vs events — which agreed only until the per-event outbox
+      # widening, after which a dry run stopped predicting what --commit
+      # writes. Fixed here, with a test pinning the two to the same number.
+      #
+      # FIVE reviews, four of which found something the previous round missed,
+      # three of those defects introduced BY the preceding fix. The fifth found
+      # nothing wrong with the mechanism itself. Still get a HUMAN to read
       # tango-event-processor.service.ts and process-tango-events.ts in one
-      # sitting — see the P46-P51 handoff's revised recommendation.
+      # sitting before treating this feature as done — no phase in P00-P51 has
+      # ever had one.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2484
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2485
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

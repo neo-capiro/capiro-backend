@@ -496,11 +496,56 @@ describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1, D-59)', () =>
     expect(fake.statementCount).toBe(0);
   });
 
+  it('a dry run predicts the EVENT count the commit would write, not the delivery count', async () => {
+    // These two returned different units: dry run counted DELIVERIES, commit
+    // counted EVENTS, and both surfaced as the same `enqueued` field. They
+    // agreed only while the outbox held one row per delivery — the per-event
+    // widening broke the correspondence silently, so an operator's dry run
+    // stopped predicting what `--commit` writes.
+    const deliveries = [
+      threeEventBatch('DLV-A'), // 3 events
+      {
+        delivery_id: 'DLV-B',
+        event_type: 'opportunity.updated',
+        payload: {
+          events: [
+            { event_type: 'opportunity.updated', id: 'B1' },
+            { event_type: 'opportunity.updated', id: 'B2' },
+          ],
+        },
+      },
+    ];
+
+    const predicted = await enqueuePendingDeliveries(
+      makeFakePrisma(deliveries) as unknown as PrismaClient,
+      false,
+      50,
+    );
+    const committed = await enqueuePendingDeliveries(
+      makeFakePrisma(deliveries) as unknown as PrismaClient,
+      true,
+      50,
+    );
+
+    expect(predicted).toBe(5); // 3 + 2 events, NOT 2 deliveries
+    expect(predicted).toBe(committed);
+  });
+
   it('a REPLAY of an already-fully-enqueued delivery commits nothing new', async () => {
     // Same fake, same delivery, presented a second time — as if the enqueue
     // SELECT's own "already has a row" filter had somehow not excluded it.
     // `ON CONFLICT DO NOTHING` means every insert is still attempted, but none
     // of them land, because `seen` already holds all three keys.
+    //
+    // HONEST NOTE ON WHAT THIS DOES AND DOESN'T COVER: production cannot
+    // actually reach this path — the pending query's LEFT JOIN excludes any
+    // delivery that already has an outbox row, verified against real Postgres.
+    // The clause this test exercises IS load-bearing, but for a different
+    // case the fake cannot model: two drains racing, both seeing `o.id IS
+    // NULL`, both inserting. That race was verified for real against Postgres
+    // 16 (two concurrent drains, 40 events, exactly 40 rows, no deadlock).
+    // Kept because it pins the conflict behaviour cheaply, not because it
+    // proves the race is safe.
     const fake = makeFakePrisma([threeEventBatch('DLV-REPLAY')]);
     await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
     expect(fake.rows).toHaveLength(3);

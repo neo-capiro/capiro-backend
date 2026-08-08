@@ -1859,3 +1859,47 @@ enqueue filter's "any row exists means already enqueued" test sound rather than 
 mechanism by which the original D-56 bug lost events permanently; it is safe now only because partial sets
 cannot occur. If anything ever starts deleting outbox rows, that reasoning breaks and this filter has to
 be revisited.
+
+## D-60 · 2026-08-08 · A dry run must report the same unit the commit reports
+
+Review 5 — scoped to the D-59 rewrite alone, and the first PASS in five rounds — found that
+`enqueuePendingDeliveries` returned a count of **deliveries** on the dry-run path and a count of
+**events** on the commit path, both surfacing as the same `enqueued` field. Two deliveries carrying 3 and
+2 events produced a dry run promising `2` and a commit writing `5`.
+
+This was not introduced by the D-59 rewrite; it dates from the per-event outbox widening earlier in the
+same session. Before that change the outbox held one row per delivery and the two units genuinely
+coincided, so the correspondence broke silently rather than visibly — nothing failed, the number just
+quietly stopped meaning what the flag promises.
+
+It understates rather than overstates, so it was never a safety problem. It is a **credibility** problem,
+and specifically for the one feature this whole CLI is built around: dry-run-first. A dry run whose
+number does not predict the commit is not a preview, and every mutating command in this program advertises
+that it is one. Fixed by computing the same per-event sum on both paths, with a test asserting the two
+return the identical number rather than merely asserting each in isolation — the latter is what let them
+drift apart.
+
+Two further findings from the same review were left alone deliberately. Concurrent drains each report the
+full count when they race (the ROWS are correct and verified — exactly 2000 with no duplicates — only the
+aggregate log line double-counts). And one replay test exercises a path the pending query's `LEFT JOIN`
+makes unreachable in production; its comment now says so, and points at the concurrent-drain race, which
+is where `ON CONFLICT` actually earns its keep and which was verified against real Postgres.
+
+## D-61 · 2026-08-08 · Five agent reviews are not the human review the plan asks for
+
+Recorded because the count is now large enough to be misread as a substitute.
+
+Five independent review rounds have run against the P46–P51 event-drain code. Four found real defects the
+previous round missed, and three of those four found a defect **introduced by the immediately preceding
+fix** — including, twice, a test written to make a claim pass rather than to check whether it was true.
+The fifth found the mechanism sound.
+
+The honest reading is both halves at once. The technique works: each round found something real, the
+defects got smaller and more specific, and the last round's finding was a unit mismatch in a return value
+rather than a data-loss path. And it is not the gate §6.2 specifies. Every one of those reviewers was an
+autonomous agent briefed by the same author as the code, and the recurring failure — a test shaped to
+pass — is exactly the failure an author-adjacent reviewer is worst positioned to catch, which is presumably
+why the plan asks for a human.
+
+No phase in P00–P51 has been read by a human other than its author. That remains true, and five agent
+rounds on one feature does not change it for that feature, let alone the other 46 phases.

@@ -11,9 +11,11 @@
  *   1. ENQUEUE — copy `received` deliveries (P46) into `tango_event_outbox`,
  *      one row PER EVENT. Idempotent by the outbox's unique key on
  *      (delivery_id, event_index), so re-running is free and a delivery's
- *      events can never be queued twice. Each delivery's rows are inserted in
- *      one transaction, so a crash mid-batch can never leave a delivery
- *      partially enqueued — see `enqueuePendingDeliveries`'s own doc.
+ *      events can never be queued twice. Each delivery's rows go in as ONE
+ *      statement — deliberately NOT a transaction, which is what makes a
+ *      crash mid-batch unable to leave a delivery partially enqueued without
+ *      inheriting a transaction timeout. See `enqueuePendingDeliveries`'s own
+ *      doc for why that distinction is the whole point (D-59).
  *   2. DRAIN — claim a leased batch, classify, fan out, alert once.
  *
  * ── Dry run is the default and writes nothing ────────────────────────────────
@@ -141,7 +143,20 @@ export async function enqueuePendingDeliveries(
     LIMIT ${limit}
   `;
 
-  if (!commit || pending.length === 0) return pending.length;
+  if (pending.length === 0) return 0;
+
+  // A dry run must report the SAME UNIT the commit path reports, or it does not
+  // predict anything. This returned `pending.length` — a count of DELIVERIES —
+  // while the commit path below returns a count of EVENTS. That agreed only
+  // while the outbox held one row per delivery; the per-event widening broke
+  // the correspondence silently, so two deliveries carrying 3 and 2 events had
+  // a dry run promising 2 and a commit writing 5.
+  if (!commit) {
+    return pending.reduce(
+      (total, row) => total + readResourceRefs(row.payload, row.event_type).length,
+      0,
+    );
+  }
 
   let enqueued = 0;
   for (const row of pending) {
