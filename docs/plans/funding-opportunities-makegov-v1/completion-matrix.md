@@ -218,7 +218,7 @@ any other way.**
 | Phase range | State |
 |---|---|
 | P00–P39, P44, P45 | merged; P26–P35 deployed |
-| **P40–P43** | **blocked on the provider.** `@makegov/tango-node@1.1.0` has no DIBBS and no SBIR/STTR method anywhere in its client surface. Re-verified 2026-08-08: 1.1.0 is still the latest published version, and a full-text scan of the installed package finds **zero** occurrences of dibbs/sbir/sttr. Not a scheduling choice. |
+| **P40–P43** | **NOT blocked — this row previously said otherwise and was wrong (D-62).** The SDK finding is real: `@makegov/tango-node@1.1.0` has no DIBBS or SBIR method, re-verified 2026-08-08 by full-text scan. But a documented REST API exists for both (`/api/dibbs/{rfqs,rfps,awards}/`, `/api/sbir/{topics,solicitations}/`) — see `dibbs-sbir-rest-contract.md`. "Not in the SDK" was recorded as "does not exist"; those are different claims. Status is **buildable, unverified**: schema/mappers/sync/tests can be written now; the entitlement probe and any live sync still need a key. |
 | P46, P47, P48 | **merged** (#825 / #826 / #827). The P46 and P48 migrations are **applied to `capiro-dev`**; P47 has none. One later migration remains unapplied — see below. |
 | P49, P50, P51 | **code and docs merged; every operator step still blocked.** Instrumentation, runbooks and the product doc exist. Nothing that requires a live key, a console, or a human judgement has run. |
 
@@ -238,7 +238,7 @@ three handoffs cite this table.
 | Running the canary (P49) | Neo — live key, flag enablement, browser walk |
 | Enabling any schedule (P50) | Neo — out-of-band, and the Compute stack is drifted |
 | GA (P51) | P49 and P50 actually running |
-| DIBBS / SBIR (P40–P43) | MakeGov shipping an API surface |
+| DIBBS / SBIR (P40–P43) | **NOT blocked on MakeGov (D-62).** Buildable now; only the entitlement probe and live sync need a key. |
 
 ### Two things a reader should not have to rediscover
 
@@ -307,7 +307,7 @@ files / 412 tests**, zero failures in each.
 | Canary run (P49) | Neo | live key, per-flag enablement, human browser/accessibility walk |
 | Schedule enablement (P50) | Neo | out-of-band; the Compute stack is drifted |
 | GA (P51) | P49 + P50 having run | acceptance is a judgement, not a test |
-| DIBBS / SBIR (P40–P43) | MakeGov | the SDK has no method for either dataset |
+| DIBBS / SBIR (P40–P43) | nobody — buildable now | the SDK has no method, but a documented REST API does exist (D-62) |
 
 Nothing above is waiting on code. The instrumentation, runbooks, and product
 documentation for each are merged and ready to run.
