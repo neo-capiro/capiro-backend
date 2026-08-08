@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Projection schema for the isolated Phase 2 state substrate. The application
+// uses explicit tenant/owner-scoped SQL for row locking and atomic command
+// execution; these models keep the table contract Prisma-validated without
+// coupling V3 state to legacy OutreachRecord relations.
+model OutreachSession {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  createdByUserId     String   @map("created_by_user_id") @db.Uuid
+  status              String   @default("active") @db.VarChar(16)
+  currentStateVersion Int      @default(1) @map("current_state_version")
+  title               String?  @db.VarChar(240)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt          DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  @@index([tenantId, createdByUserId, status, updatedAt], map: "outreach_sessions_owner_status_updated_idx")
+  @@map("outreach_sessions")
+}
+
+model OutreachStateVersion {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  sessionId         String   @map("session_id") @db.Uuid
+  version           Int
+  schemaVersion     String   @map("schema_version") @db.VarChar(64)
+  specJsonb         Json     @map("spec_jsonb")
+  specHash          String   @map("spec_hash") @db.Char(64)
+  mutationBatchId   String?  @map("mutation_batch_id") @db.Uuid
+  createdByUserId   String   @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([sessionId, version], map: "outreach_state_versions_session_version_unique")
+  @@index([tenantId, sessionId, createdAt], map: "outreach_state_versions_tenant_session_created_idx")
+  @@map("outreach_state_versions")
+}
+
+model OutreachEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  sessionId          String   @map("session_id") @db.Uuid
+  sequence           BigInt
+  eventType          String   @map("event_type") @db.VarChar(64)
+  actorUserId        String   @map("actor_user_id") @db.Uuid
+  source             String   @db.VarChar(32)
+  stateVersionBefore Int?     @map("state_version_before")
+  stateVersionAfter  Int?     @map("state_version_after")
+  commandBatchId     String?  @map("command_batch_id") @db.Uuid
+  commandType        String?  @map("command_type") @db.VarChar(64)
+  payloadJsonb       Json?    @map("payload_jsonb")
+  payloadHash        String?  @map("payload_hash") @db.Char(64)
+  safeMetadataJsonb  Json?    @map("safe_metadata_jsonb")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([sessionId, sequence], map: "outreach_events_session_sequence_unique")
+  @@index([tenantId, sessionId, createdAt], map: "outreach_events_tenant_session_created_idx")
+  @@map("outreach_events")
+}
+
+model OutreachCommandProposal {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  sessionId           String    @map("session_id") @db.Uuid
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  source              String    @db.VarChar(32)
+  expectedStateVersion Int      @map("expected_state_version")
+  commandsJsonb       Json      @map("commands_jsonb")
+  commandsHash        String    @map("commands_hash") @db.Char(64)
+  status              String    @default("pending") @db.VarChar(16)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  decidedAt           DateTime? @map("decided_at") @db.Timestamptz(6)
+  decidedByUserId     String?   @map("decided_by_user_id") @db.Uuid
+  appliedStateVersion Int?      @map("applied_state_version")
+  rejectionCode       String?   @map("rejection_code") @db.VarChar(64)
+
+  @@index([sessionId, status, createdAt], map: "outreach_command_proposals_session_status_created_idx")
+  @@index([tenantId, createdByUserId, createdAt], map: "outreach_command_proposals_tenant_owner_created_idx")
+  @@map("outreach_command_proposals")
+}
