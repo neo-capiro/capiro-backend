@@ -1,4 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+
+/**
+ * Pages of webhook endpoints/alerts this adapter will read before refusing.
+ * At 100 per page that is 10,000 subscriptions — far beyond anything this
+ * program creates, so reaching it means something is wrong, not merely large.
+ */
+const WEBHOOK_PAGE_CEILING = 100;
 import {
   TangoError,
   TangoNotConfiguredError,
@@ -333,18 +340,64 @@ export class TangoGatewayService implements TangoGateway {
   // typo here — passing `limit` to the alerts call compiles (excess-property
   // checks do not fire through a variable) and is silently ignored at runtime,
   // which is exactly the kind of quiet truncation this program refuses to ship.
+  //
+  // BOTH ARE PAGINATED, and this walks them to exhaustion. The first version
+  // read page 1 only and justified it as "an account with enough alerts to need
+  // pagination would already have violated the one-alert-per-dataset rule".
+  // That reasoning was wrong in one direction that matters: the account also
+  // holds alerts a HUMAN made in the MakeGov dashboard, and this program does
+  // not control how many. A Capiro-managed alert sitting on page 2 would be
+  // diffed as absent and re-created, colliding on its own name.
+  //
+  // Completion is algorithmic, per this program's own rule for the producers
+  // (P03/P04): walk until a page comes back short. The ceiling exists only to
+  // bound a pathological account, and reaching it THROWS rather than returning
+  // a partial list quietly — a reconciler acting on half the picture is exactly
+  // the failure the rule is about.
   async listWebhookEndpoints(options: TangoListOptions = {}): Promise<TangoWebhookEndpoint[]> {
-    const raw = await this.call('listWebhookEndpoints', (c) =>
-      c.listWebhookEndpoints({ limit: options.limit ?? 100 }),
+    return this.walkPages(
+      'listWebhookEndpoints',
+      (page, size) => (c) => c.listWebhookEndpoints({ page, limit: size }),
+      mapWebhookEndpoint,
+      options,
     );
-    return asArray(raw).map(mapWebhookEndpoint);
   }
 
   async listWebhookAlerts(options: TangoListOptions = {}): Promise<TangoWebhookAlert[]> {
-    const raw = await this.call('listWebhookAlerts', (c) =>
-      c.listWebhookAlerts({ pageSize: options.limit ?? 100 }),
+    return this.walkPages(
+      'listWebhookAlerts',
+      (page, size) => (c) => c.listWebhookAlerts({ page, pageSize: size }),
+      mapWebhookAlert,
+      options,
     );
-    return asArray(raw).map(mapWebhookAlert);
+  }
+
+  /**
+   * Read every page of a webhook list endpoint.
+   *
+   * Stops when a page comes back shorter than the page size, which is the
+   * standard end-of-results signal and needs no `count` to be trustworthy.
+   * A page that comes back EMPTY also stops, so a provider returning an exact
+   * multiple of the page size terminates too.
+   */
+  private async walkPages<TRaw, TOut>(
+    operation: string,
+    call: (page: number, size: number) => (c: SdkClient) => Promise<TRaw>,
+    map: (raw: Record<string, unknown>) => TOut,
+    options: TangoListOptions,
+  ): Promise<TOut[]> {
+    const size = options.limit ?? 100;
+    const out: TOut[] = [];
+    for (let page = 1; page <= WEBHOOK_PAGE_CEILING; page += 1) {
+      const raw = await this.call(operation, call(page, size));
+      const rows = asArray(raw);
+      out.push(...rows.map(map));
+      if (rows.length < size) return out;
+    }
+    // Never return a partial list as if it were complete.
+    throw new Error(
+      `${operation}: exceeded ${WEBHOOK_PAGE_CEILING} pages of ${size}. Refusing to return a partial list — a reconciler acting on half the picture would propose creating subscriptions that already exist.`,
+    );
   }
 
   /**
