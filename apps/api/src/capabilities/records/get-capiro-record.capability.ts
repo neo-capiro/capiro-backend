@@ -73,6 +73,14 @@ export class GetCapiroRecordCapability {
     input: GetCapiroRecordInput,
   ): Promise<CapabilityResult<CapiroRecordData>> {
     const { record, clientId, verifiedAt } = await this.readRecord(ctx, input);
+    if (ctx.clientScope && clientId !== ctx.clientScope.clientId) {
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested record does not belong to the authorized client scope.',
+        false,
+        true,
+      );
+    }
     if (clientId) await this.authorization.authorizeClient(ctx, clientId);
     const now = new Date().toISOString();
     return {
