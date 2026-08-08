@@ -28,7 +28,7 @@
  * rehearsal container, to confirm the activation's `environment` column
  * actually matches what this resolves to.
  */
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import {
@@ -42,6 +42,11 @@ import { resolveSnapshotReadModeV1 } from '../../defense-budget/promotion/snapsh
 import type { SnapshotReadDecisionV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import { SNAPSHOT_READ_PORT_V1 } from '../../defense-budget/promotion/snapshot-read-port.tokens.js';
 import { resolveCanaryRollbackV1 } from '../../defense-budget/promotion/canary-controls-v1.js';
+import { SLO_METRIC_RECORDER_V1 } from '../../defense-budget/promotion/slo-metrics.tokens.js';
+import {
+  NOOP_SLO_METRIC_RECORDER_V1,
+  type SloMetricRecorderV1,
+} from '../../defense-budget/promotion/slo-metrics-v1.js';
 
 const DEFENSE_BUDGET_DOMAIN = 'defense_budget';
 
@@ -55,6 +60,9 @@ export class PeSnapshotGateService {
   constructor(
     @Inject(SNAPSHOT_READ_PORT_V1) private readonly port: SnapshotReadPortV1,
     private readonly config: ConfigService<AppConfig, true>,
+    @Optional()
+    @Inject(SLO_METRIC_RECORDER_V1)
+    private readonly sloMetrics: SloMetricRecorderV1 = NOOP_SLO_METRIC_RECORDER_V1,
   ) {}
 
   private environment(): string {
@@ -104,8 +112,51 @@ export class PeSnapshotGateService {
     return { decision, activeSnapshot };
   }
 
-  /** Thin passthrough so call sites don't need their own port injection. */
+  /**
+   * The recorder plus the dimensions a *detached* emission needs.
+   *
+   * `schedulePeShadowComparisonV1` runs its comparison after the request that
+   * scheduled it has already been answered, so by the time it emits there is no
+   * ambient request to read a domain or environment off. Resolving them here
+   * keeps one definition of both — the same `environment()` the pointer lookup
+   * and the activation row use — instead of a second copy in the read service
+   * that could drift from it.
+   */
+  sloDescriptor(): { recorder: SloMetricRecorderV1; domain: string; environment: string } {
+    return {
+      recorder: this.sloMetrics,
+      domain: DEFENSE_BUDGET_DOMAIN,
+      environment: this.environment(),
+    };
+  }
+
+  /**
+   * Thin passthrough so call sites don't need their own port injection.
+   *
+   * Phase 7 Gap 5 decision C: this is where `snapshot_read_latency_ms` is
+   * measured. Every canonical row read on the PE surface goes through here, and
+   * `resolve()`'s pointer lookup deliberately does not — a pointer lookup and a
+   * row read have different shapes and different costs, and folding both into
+   * one metric with no dimension to separate them would make the number
+   * unreadable exactly when someone is using it to decide whether to widen the
+   * canary.
+   *
+   * `mode` is the *configured* read mode, not the per-call resolved decision:
+   * the resolved decision varies by tenant within `snapshot_canary`, and the
+   * question this metric answers is "how does the snapshot read path perform at
+   * this stage of the rollout". Timed in a finally, so a read that throws still
+   * reports the latency it burned before failing.
+   */
   async loadRows(query: SnapshotRowQueryV1): Promise<SnapshotCanonicalRowV1[]> {
-    return this.port.loadRows(query);
+    const startedAtMs = Date.now();
+    try {
+      return await this.port.loadRows(query);
+    } finally {
+      this.sloMetrics.record('snapshot_read_latency_ms', Date.now() - startedAtMs, {
+        domain: DEFENSE_BUDGET_DOMAIN,
+        environment: this.environment(),
+        mode: this.config.get('PE_SNAPSHOT_READ_MODE', { infer: true }),
+      });
+    }
   }
 }

@@ -15,10 +15,8 @@
  * ---------------------------------------------------------------------------
  *
  * All nine metrics Neo named are declared in `SLO_METRIC_V1_VALUES` below, so
- * the taxonomy — name, unit, dimensions — exists for every one of them and a
- * future emitter has a contract to fill in rather than a blank page. Emission
- * calls are wired into the two modules this pass already owns end-to-end and
- * can safely modify without touching anything AWS-side:
+ * the taxonomy — name, unit, dimensions — exists for every one of them. Eight
+ * are wired to a real emission call site:
  *
  *   - `eligibility_evaluation_latency_ms`, in
  *     `DefenseBudgetPromotionEligibilityServiceV1.evaluate()`
@@ -26,16 +24,44 @@
  *   - `projection_plan_load_latency_ms`, in
  *     `PrismaProjectionPlanRepositoryV1.loadVerified` / `.loadForScope`
  *     (`projection-plan-repository-prisma-v1.ts`).
+ *   - `snapshot_staging_duration_ms`, `snapshot_activation_duration_ms` and
+ *     `rollback_duration_ms`, in `canonical-promotion-service-v1.ts` —
+ *     respectively around the whole chunked staging phase, around the
+ *     activation attempt including its ledger-recovery path, and around
+ *     `rollback()` from the caller's entry so the lock wait is inside the
+ *     number.
+ *   - `snapshot_read_latency_ms`, in `PeSnapshotGateService.loadRows`
+ *     (`program-element/snapshot/pe-snapshot-gate.service.ts`), which every
+ *     canonical row read on the PE surface passes through.
+ *   - `shadow_read_mismatch_count`, in `recordPeShadowComparisonV1`
+ *     (`program-element/snapshot/pe-shadow-compare.helper.ts`), fed by both
+ *     `schedulePeShadowComparisonV1` call sites in
+ *     `program-element-read.service.ts`.
+ *   - `promotion_outbox_backlog_age_ms`, in
+ *     `scripts/status-defense-budget-promotion-v1.ts`, the read-only operator
+ *     verb that already reports the backlog it ages.
  *
- * The other seven — staging duration, activation duration, snapshot-read
- * latency, shadow mismatch, outbox backlog/age, rollback duration, DB
- * connection/load behavior — are declared here but NOT yet wired into their
- * respective services (`canonical-promotion-service-v1.ts`, snapshot
- * activation, `shadow-read-comparison-v1.ts`, the outbox drain, rollback).
- * Reported honestly as MEASUREMENT SPECIFIED, EMISSION NOT YET WIRED, in the
- * gap tracker rather than claimed alongside the two that are — wiring nine
- * emission call sites across modules outside this pass's scope in one sitting
- * risks getting several of them wrong in code nobody asked to have touched.
+ * The ninth, `promotion_db_connection_saturation_ratio`, is still
+ * MEASUREMENT SPECIFIED, EMISSION NOT YET WIRED, and reported that way in the
+ * gap tracker rather than quietly claimed alongside the eight that are. It is
+ * not blocked on effort. A saturation *ratio* needs a numerator and a
+ * denominator that do not exist anywhere in this repository: Prisma does not
+ * expose pool statistics without the `metrics` preview feature (a schema and
+ * client-generation change), and the alternative — polling `pg_stat_activity`
+ * against `max_connections` — is a new recurring query against a live database,
+ * on a schedule nobody has set, attributing connections to a `role` dimension
+ * whose values are a deployment fact rather than a code fact. Every plausible
+ * implementation would also be unfalsifiable here: there is no Phase 7
+ * deployment whose pool could be observed to check the number means anything.
+ * Wiring it is a rollout task with an operator in the loop, not a coding task,
+ * and a plausible-looking ratio computed from invented inputs would be worse
+ * than an honest gap.
+ *
+ * Emission remains inert by default. On the Nest surface the sink is chosen
+ * from `PE_SNAPSHOT_READ_MODE` (see `program-element.module.ts`): `legacy` —
+ * the default, and what every environment runs today — gets
+ * `NoopSloMetricSinkV1`, so nothing is emitted until an operator moves the
+ * rollout flag.
  *
  * ---------------------------------------------------------------------------
  * Why a sink interface, not a concrete emitter
@@ -111,12 +137,15 @@ export type SloWiringStatusV1 = (typeof SLO_WIRING_STATUS_V1_VALUES)[number];
 export const SLO_METRIC_WIRING_STATUS_V1: Record<SloMetricV1, SloWiringStatusV1> = {
   eligibility_evaluation_latency_ms: 'MEASUREMENT_IMPLEMENTED',
   projection_plan_load_latency_ms: 'MEASUREMENT_IMPLEMENTED',
-  snapshot_staging_duration_ms: 'SPECIFIED_NOT_WIRED',
-  snapshot_activation_duration_ms: 'SPECIFIED_NOT_WIRED',
-  snapshot_read_latency_ms: 'SPECIFIED_NOT_WIRED',
-  shadow_read_mismatch_count: 'SPECIFIED_NOT_WIRED',
-  promotion_outbox_backlog_age_ms: 'SPECIFIED_NOT_WIRED',
-  rollback_duration_ms: 'SPECIFIED_NOT_WIRED',
+  snapshot_staging_duration_ms: 'MEASUREMENT_IMPLEMENTED',
+  snapshot_activation_duration_ms: 'MEASUREMENT_IMPLEMENTED',
+  snapshot_read_latency_ms: 'MEASUREMENT_IMPLEMENTED',
+  shadow_read_mismatch_count: 'MEASUREMENT_IMPLEMENTED',
+  promotion_outbox_backlog_age_ms: 'MEASUREMENT_IMPLEMENTED',
+  rollback_duration_ms: 'MEASUREMENT_IMPLEMENTED',
+  // The one that is not code. See the header: there is no connection-pool
+  // statistic anywhere in this repository to divide, and inventing one would be
+  // answering an infrastructure question nobody has asked.
   promotion_db_connection_saturation_ratio: 'SPECIFIED_NOT_WIRED',
 };
 

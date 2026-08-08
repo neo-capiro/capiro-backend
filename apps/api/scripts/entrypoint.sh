@@ -196,6 +196,18 @@ case "${1:-serve}" in
     echo "Running resume-defense-budget-promotion-side-effects-v1 (writes only this scope's drain-pause row; dry run unless --commit)"
     exec ./node_modules/.bin/tsx scripts/resume-defense-budget-promotion-side-effects-v1.ts "$@"
     ;;
+  # Phase 7 Gap 5 decision 3 — not one of the promotion chain's nine verbs
+  # above (it belongs to the Phase 4/5/6 producer boundary, not to promotion
+  # itself), but the same shape: serve role, dry run unless --commit, writes
+  # only one immutable plan row. Was runnable only via a raw `tsx` invocation
+  # from a shell with repo access; every sibling verb in this file has its own
+  # case, so this one gets one too rather than staying the sole exception.
+  persist-defense-budget-projection-plan-v1)
+    shift
+    compose_database_url
+    echo "Running persist-defense-budget-projection-plan-v1 (dry run unless --commit; writes only this one plan row)"
+    exec ./node_modules/.bin/tsx scripts/persist-defense-budget-projection-plan-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

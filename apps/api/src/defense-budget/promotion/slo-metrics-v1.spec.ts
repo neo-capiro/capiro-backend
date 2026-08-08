@@ -33,22 +33,47 @@ describe('SLO metric taxonomy', () => {
     );
   });
 
-  it('records eligibility and plan-load latency as measurement-implemented, matching what this pass wired', () => {
-    expect(SLO_METRIC_WIRING_STATUS_V1.eligibility_evaluation_latency_ms).toBe(
-      'MEASUREMENT_IMPLEMENTED',
-    );
-    expect(SLO_METRIC_WIRING_STATUS_V1.projection_plan_load_latency_ms).toBe(
-      'MEASUREMENT_IMPLEMENTED',
+  /**
+   * The eight with a real emission call site. Listed explicitly rather than
+   * derived as "everything except the unwired one", so that adding a tenth
+   * metric fails this test until someone states which side it belongs on —
+   * a derived list would silently absorb it and report a lie.
+   */
+  const WIRED = [
+    'eligibility_evaluation_latency_ms',
+    'projection_plan_load_latency_ms',
+    'snapshot_staging_duration_ms',
+    'snapshot_activation_duration_ms',
+    'snapshot_read_latency_ms',
+    'shadow_read_mismatch_count',
+    'promotion_outbox_backlog_age_ms',
+    'rollback_duration_ms',
+  ] as const;
+
+  it('records every wired metric as measurement-implemented', () => {
+    for (const metric of WIRED) {
+      expect(SLO_METRIC_WIRING_STATUS_V1[metric]).toBe('MEASUREMENT_IMPLEMENTED');
+    }
+  });
+
+  /**
+   * `promotion_db_connection_saturation_ratio` is the only one left, and it is
+   * not an oversight — there is no pool statistic in this repository to build a
+   * ratio from, and every plausible source (Prisma's `metrics` preview feature,
+   * polling `pg_stat_activity`) is a deployment decision with an operator in
+   * the loop. Asserted rather than left as prose so that wiring it without
+   * updating the status map fails here.
+   */
+  it('records db connection saturation as specified-not-wired, honestly, not as complete', () => {
+    expect(SLO_METRIC_WIRING_STATUS_V1.promotion_db_connection_saturation_ratio).toBe(
+      'SPECIFIED_NOT_WIRED',
     );
   });
 
-  it('records every other metric as specified-not-wired, honestly, not as complete', () => {
-    const notWired = SLO_METRIC_V1_VALUES.filter(
-      (m) => m !== 'eligibility_evaluation_latency_ms' && m !== 'projection_plan_load_latency_ms',
+  it('the wired list plus the unwired one accounts for every declared metric', () => {
+    expect([...WIRED, 'promotion_db_connection_saturation_ratio'].sort()).toEqual(
+      [...SLO_METRIC_V1_VALUES].sort(),
     );
-    for (const metric of notWired) {
-      expect(SLO_METRIC_WIRING_STATUS_V1[metric]).toBe('SPECIFIED_NOT_WIRED');
-    }
   });
 });
 

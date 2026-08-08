@@ -29,6 +29,7 @@ import {
   type ShadowCompareOptionsV1,
   type ShadowComparisonV1,
 } from '../../defense-budget/promotion/shadow-read-comparison-v1.js';
+import type { SloMetricRecorderV1 } from '../../defense-budget/promotion/slo-metrics-v1.js';
 
 const NAMESPACE = 'Capiro/PeSnapshotShadow';
 const logger = new Logger('PeSnapshotShadowCompare');
@@ -39,6 +40,23 @@ export interface PeShadowComparisonInputV1 {
   snapshot: unknown;
   timing?: { legacyMs: number; snapshotMs: number };
   options?: ShadowCompareOptionsV1;
+  /**
+   * Phase 7 Gap 5 decision C. Optional: omitting it leaves the EMF metric and
+   * the structured logs exactly as they were, which is what every existing
+   * caller and every spec gets.
+   *
+   * Passed in rather than injected because this module is deliberately a pair
+   * of free functions, not an `@Injectable` — `schedulePeShadowComparisonV1`
+   * runs detached from the request that scheduled it, and a service holding
+   * request-scoped state would be the wrong shape for that. The dimensions
+   * travel with the recorder because a detached comparison has no ambient
+   * request to read a domain or environment off.
+   */
+  slo?: {
+    recorder: SloMetricRecorderV1;
+    domain: string;
+    environment: string;
+  };
 }
 
 /**
@@ -75,6 +93,18 @@ export function recordPeShadowComparisonV1(
         Timestamp: new Date().toISOString(),
       }),
     );
+
+    // One per comparison, 1 or 0 — not the number of differing fields. Plan
+    // §M.10's gate is "zero unexplained P0/P1 mismatch", which counts reads
+    // that disagreed, not fields; and a field count would be silently capped by
+    // the comparator's MAX_DETAILS bound, so a catastrophically wrong response
+    // would report the same 50 as a merely bad one. Summing this over a window
+    // gives the mismatching-read count the gate is actually written against.
+    input.slo?.recorder.record('shadow_read_mismatch_count', comparison.matched ? 0 : 1, {
+      domain: input.slo.domain,
+      environment: input.slo.environment,
+      method: input.method,
+    });
 
     if (!comparison.matched) {
       // Paths and classes, never values — `comparison` has nowhere to put a
@@ -114,6 +144,7 @@ export function schedulePeShadowComparisonV1(input: {
     timing: { legacyMs: number; snapshotMs: number };
   }>;
   options?: ShadowCompareOptionsV1;
+  slo?: PeShadowComparisonInputV1['slo'];
 }): void {
   void input
     .compute()
@@ -124,6 +155,7 @@ export function schedulePeShadowComparisonV1(input: {
         snapshot,
         timing,
         options: input.options,
+        slo: input.slo,
       });
     })
     .catch((error) => {

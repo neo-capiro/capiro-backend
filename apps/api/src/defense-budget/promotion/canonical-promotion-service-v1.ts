@@ -62,6 +62,7 @@ import { sha256Hex } from '../contracts/canonical-json.js';
 import type { PromotionAuditSinkV1 } from './promotion-eligibility-service-v1.js';
 import type { BudgetFamilyV1, FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
 import type { StageV1 } from '../stages/stage-vocabulary-v1.js';
+import { NOOP_SLO_METRIC_RECORDER_V1, type SloMetricRecorderV1 } from './slo-metrics-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* E1. Request                                                         */
@@ -336,6 +337,15 @@ export interface PromotionServiceOptionsV1 {
   /** Rows per staging chunk. Bounded so a transaction never grows unbounded. */
   chunkSize?: number;
   metrics?: PromotionMetricsSinkV1;
+  /**
+   * Phase 7 Gap 5 decision C. Optional and defaulted to a no-op, so every
+   * existing caller keeps compiling unchanged. Distinct from `metrics`, which
+   * is this service's own free-form observation sink: `sloMetrics` emits the
+   * declared Phase 7 SLO taxonomy (`slo-metrics-v1.ts`), whose metric names,
+   * units and dimensions are fixed and asserted by tests. Threshold is always
+   * `THRESHOLD_PENDING_ROLLOUT_BASELINE`, never a number.
+   */
+  sloMetrics?: SloMetricRecorderV1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -395,6 +405,7 @@ const rowKey = (entity: CanonicalEntityV1 | string, naturalKey: string): string 
 
 export class DefenseBudgetCanonicalPromotionServiceV1 {
   private readonly chunkSize: number;
+  private readonly sloMetrics: SloMetricRecorderV1;
 
   constructor(
     private readonly repository: PromotionExecutionRepositoryV1,
@@ -402,6 +413,7 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     private readonly options: PromotionServiceOptionsV1,
   ) {
     this.chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
+    this.sloMetrics = options.sloMetrics ?? NOOP_SLO_METRIC_RECORDER_V1;
   }
 
   /**
@@ -706,17 +718,31 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
       ),
     );
 
-    for (let index = 0; index < pending.length; index += this.chunkSize) {
-      const chunk = pending.slice(index, index + this.chunkSize);
-      await this.repository.stageRows(chunk);
-      await this.repository.recordPlanItemsStaged(
-        run.runId,
-        chunk.map((row) => rowKey(row.canonicalEntity, row.canonicalNaturalKey)),
-      );
-      this.options.metrics?.observe('promotion.staged_rows', chunk.length);
-    }
+    // Measured across the whole staging phase, not per chunk: the SLO question
+    // is "how long does it take to stage a snapshot", and a run that stages in
+    // many small chunks must not look faster than one that stages in few. The
+    // finally also covers a mid-loop throw, since a staging attempt that died
+    // after 90 seconds is still 90 seconds of staging.
+    const stagingStartedAtMs = this.options.now().getTime();
+    try {
+      for (let index = 0; index < pending.length; index += this.chunkSize) {
+        const chunk = pending.slice(index, index + this.chunkSize);
+        await this.repository.stageRows(chunk);
+        await this.repository.recordPlanItemsStaged(
+          run.runId,
+          chunk.map((row) => rowKey(row.canonicalEntity, row.canonicalNaturalKey)),
+        );
+        this.options.metrics?.observe('promotion.staged_rows', chunk.length);
+      }
 
-    await this.repository.updateRunStatus(run.runId, 'STAGED', { stagedRowCount: rows.length });
+      await this.repository.updateRunStatus(run.runId, 'STAGED', { stagedRowCount: rows.length });
+    } finally {
+      this.sloMetrics.record(
+        'snapshot_staging_duration_ms',
+        this.options.now().getTime() - stagingStartedAtMs,
+        { domain, environment: request.environment },
+      );
+    }
 
     /* ---- Pre-activation proof (E.6) ---- */
 
@@ -806,6 +832,11 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     const outbox = this.buildOutbox(plan, activationKey, request.expectedActiveSnapshotId);
 
     let outcome: ActivationOutcomeV1;
+    // Measured around the activation attempt including its recovery path: an
+    // activation that committed ambiguously and was resolved by reading the
+    // ledger still cost the caller that whole wall-clock, and that is the
+    // number an activation SLO has to be built on.
+    const activationStartedAtMs = this.options.now().getTime();
     try {
       outcome = await this.repository.activate({
         activationKey,
@@ -849,6 +880,12 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
               : String(error),
       });
       throw error;
+    } finally {
+      this.sloMetrics.record(
+        'snapshot_activation_duration_ms',
+        this.options.now().getTime() - activationStartedAtMs,
+        { domain, environment: request.environment },
+      );
     }
 
     // Side effects are deliberately NOT run here. The run is left in
@@ -902,9 +939,24 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
     reason: string;
   }): Promise<PromotionExecutionResultV1> {
     const domain = request.domain ?? 'defense_budget';
-    return this.repository.withDomainCycleLock(`${domain}:${request.environment}:rollback`, () =>
-      this.rollbackLocked(request, domain),
-    );
+    // Measured from the caller's entry, so the lock wait is inside the number.
+    // Time spent queued behind another promoter is time the environment was
+    // still on the bad snapshot, which is precisely what a rollback SLO is
+    // about. `return await` rather than `return`, so the finally observes the
+    // settled promise instead of firing the moment the promise is handed back.
+    const rollbackStartedAtMs = this.options.now().getTime();
+    try {
+      return await this.repository.withDomainCycleLock(
+        `${domain}:${request.environment}:rollback`,
+        () => this.rollbackLocked(request, domain),
+      );
+    } finally {
+      this.sloMetrics.record(
+        'rollback_duration_ms',
+        this.options.now().getTime() - rollbackStartedAtMs,
+        { domain, environment: request.environment },
+      );
+    }
   }
 
   private async rollbackLocked(

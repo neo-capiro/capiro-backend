@@ -814,12 +814,35 @@ outcome for a BLOCKED plan and is accepted as such.
 1. Existing Phase 4/5/6 outputs have not been rebuilt and persisted. Per
    decision 3 they should be, through their existing deterministic planners,
    before Phase 7 can proceed against real data.
-2. No producing pipeline calls the persist verb yet, so filing a projection plan
-   is currently a separate operator step (documented in the runbook).
-3. `composeEnactedStageV1` still produces `EnactedLineCandidateV1` rows from
+2. `composeEnactedStageV1` still produces `EnactedLineCandidateV1` rows from
    real extraction upstream of B1's builder — B1 closes "given a real candidate
    and a real proof, build the projection correctly," not "discover the
    candidate."
+
+**Item 2 from session 11/12's list — "no producing pipeline calls the persist
+verb" — is now addressed, deliberately short of automation.** Two things were
+actually true at once and needed to be separated: `persist-defense-budget-projection-plan-v1`
+had no `entrypoint.sh` case at all — unlike every one of its promotion-chain
+siblings, it could only be run via a raw `tsx` invocation from a shell with
+repo access, not as a deployed one-off task. That was a plain wiring gap with
+no design content, closed the same way Workstream N wired the other nine: a
+case in `entrypoint.sh` mirroring `file-defense-budget-promotion-plan-v1`'s
+shape exactly (serve role, dry run unless `--commit`).
+
+What was *not* closed, on purpose: an automated pipeline that calls the persist
+verb without an operator in between. The runbook now documents the concrete
+two-command chain for all four families (`rdte`, `procurement`/`om`/`milcon`,
+`committee`) — previously only `committee`'s was written down — but each chain
+is still two commands an operator runs, not one. `plan → file → validate →
+authorize → execute` on the promotion side is the same shape: a documented
+sequence of individually-invoked verbs, not a fused script, and Gap 4's own
+history (§ above) is Neo/session-9 choosing to keep `plan` and `file` as two
+separate steps specifically so filing stays a distinct authorized action.
+Automating the family chains would mean deciding a trigger and a cadence for
+each of `build-rdte-cycle`, `plan-rdte-canonical-projection`,
+`plan-defense-budget-non-rdte-projection`, and
+`build-defense-budget-phase6-projection-plan-v1` — none of which are wired
+into any scheduled task today, and none of which this pass invented one for.
 
 ---
 
@@ -922,21 +945,47 @@ backlog/age, rollback duration, DB connection/load — each with a unit and its
 own dimension list. Every emission carries the literal
 `THRESHOLD_PENDING_ROLLOUT_BASELINE`, never a number.
 
-**Wired and emitting today (2 of 9):** `eligibility_evaluation_latency_ms` in
-`DefenseBudgetPromotionEligibilityServiceV1.evaluate()` (measured around the
-whole evaluation including refusals — a slow refusal is still a latency fact),
-and `projection_plan_load_latency_ms` in `PrismaProjectionPlanRepositoryV1`'s
-`loadVerified`/`loadForScope`. Both are optional constructor dependencies
-defaulting to a no-op, so every existing caller compiles unchanged.
+**Wired and emitting today (8 of 9)** — session 12 wired the six that session 11
+had left specified-only:
 
-**Specified but not yet wired (7 of 9):** the rest are declared with a contract
-for a future emitter but have no emission call site in their services. Recorded
-as data in `SLO_METRIC_WIRING_STATUS_V1`, not prose, with a test asserting the
-map cannot drift from the taxonomy — an emission added without updating it is a
-documentation lie the next reader could not otherwise catch. Reported honestly
-here rather than claimed alongside the two that are real: wiring seven call
-sites across modules outside this pass's scope in one sitting risks getting
-several wrong in code nobody asked to have touched.
+| Metric | Emission call site |
+| --- | --- |
+| `eligibility_evaluation_latency_ms` | `DefenseBudgetPromotionEligibilityServiceV1.evaluate()` — around the whole evaluation including refusals; a slow refusal is still a latency fact |
+| `projection_plan_load_latency_ms` | `PrismaProjectionPlanRepositoryV1.loadVerified` / `.loadForScope` |
+| `snapshot_staging_duration_ms` | `canonical-promotion-service-v1.ts` — the whole chunked staging phase, not per chunk, so a run that stages in many small chunks cannot look faster than one that stages in few |
+| `snapshot_activation_duration_ms` | same module, around the activation attempt **including its ledger-recovery path** — an ambiguous commit resolved by reading still cost the caller that wall-clock |
+| `rollback_duration_ms` | same module, around `rollback()` from the caller's entry, so the lock wait is inside the number: time queued behind another promoter is time the environment was still on the bad snapshot |
+| `snapshot_read_latency_ms` | `PeSnapshotGateService.loadRows` — every canonical row read on the PE surface. `resolve()`'s pointer lookup is deliberately excluded; folding a pointer lookup and a row read into one metric makes it unreadable exactly when someone is deciding whether to widen the canary |
+| `shadow_read_mismatch_count` | `recordPeShadowComparisonV1`, fed by both `schedulePeShadowComparisonV1` call sites in `program-element-read.service.ts`. One per comparison (1 or 0), not per differing field — §M.10's gate counts reads that disagreed, and a field count would be silently capped by the comparator's `MAX_DETAILS` |
+| `promotion_outbox_backlog_age_ms` | `scripts/status-defense-budget-promotion-v1.ts`. Age of the oldest undrained row, not the count: ten rows four hours old is an incident, ten thousand rows nine seconds old is a healthy burst. `POISON` excluded — it ages forever by design and would peg the metric permanently |
+
+Each is an optional dependency defaulting to a no-op, so every existing caller
+compiles unchanged. On the Nest surface the sink is selected from
+`PE_SNAPSHOT_READ_MODE` rather than a switch of its own: `legacy` (the default,
+and what every environment runs today) gets `NoopSloMetricSinkV1`, so the
+instrumentation lands as inert as the rest of Workstream M and starts measuring
+only when an operator moves the rollout flag. A second flag to remember
+alongside the mode is a flag that gets forgotten, and the failure mode is a
+canary running blind.
+
+**Specified but not wired (1 of 9): `promotion_db_connection_saturation_ratio`.**
+Not an oversight, and not blocked on effort. A saturation *ratio* needs a
+numerator and a denominator that do not exist anywhere in this repository:
+Prisma exposes no pool statistics without the `metrics` preview feature (a
+schema and client-generation change), and the alternative — polling
+`pg_stat_activity` against `max_connections` — is a new recurring query against
+a live database, on a schedule nobody has set, attributing connections to a
+`role` dimension whose values are a deployment fact rather than a code fact.
+Every plausible implementation would also be unfalsifiable here: there is no
+Phase 7 deployment whose pool could be observed to confirm the number means
+anything. **This one needs an operator, not an engineer.**
+
+Recorded as data in `SLO_METRIC_WIRING_STATUS_V1`, not prose, with tests
+asserting both that the map cannot drift from the taxonomy and that the wired
+list plus the unwired one accounts for every declared metric — so a tenth metric
+fails the suite until someone states which side it belongs on, and an emission
+added without updating the map is caught rather than becoming a documentation
+lie the next reader has no way to detect.
 
 No concrete metrics backend is implemented, deliberately — which namespace,
 which IAM role, which service is an infrastructure question nobody has asked
