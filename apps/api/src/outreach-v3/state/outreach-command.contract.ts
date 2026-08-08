@@ -46,11 +46,75 @@ export type OutreachCommandType = (typeof OUTREACH_COMMAND_TYPES)[number];
 export type OutreachImplementedCommandType = (typeof OUTREACH_IMPLEMENTED_COMMAND_TYPES)[number];
 export type OutreachFutureCommandType = (typeof OUTREACH_FUTURE_COMMAND_TYPES)[number];
 
-const nullableBoundedText = (max: number) => z.string().max(max).nullable();
+const FORBIDDEN_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
+
+const boundedString = (max: number, min = 0) =>
+  z
+    .string()
+    .min(min)
+    .max(max)
+    .refine((value) => !FORBIDDEN_CONTROL_CHARACTERS.test(value), {
+      message: 'Text contains disallowed control characters.',
+    });
+
+const nullableBoundedText = (max: number) => boundedString(max).nullable();
+const boundedRef = boundedString(256, 1);
 const emptyPayload = z.object({}).strict();
-const futureRefsPayload = z
-  .object({ refs: z.array(z.string().min(1).max(256)).min(1).max(500) })
-  .strict();
+const futureRefsPayload = z.object({ refs: z.array(boundedRef).min(1).max(500) }).strict();
+
+const sponsorPayloadSchema = z
+  .object({
+    kind: z.enum([
+      'undecided',
+      'firm',
+      'client',
+      'multi_client',
+      'coalition',
+      'internal_team',
+      'none',
+    ]),
+    label: nullableBoundedText(OUTREACH_V3_LIMITS.sponsorLabel),
+    clientRefs: z
+      .array(z.object({ clientId: z.string().uuid() }).strict())
+      .max(OUTREACH_V3_LIMITS.sponsorClientRefs),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    // Cardinality is evaluated on unique ids so a duplicate input can still be
+    // normalized deterministically instead of being rejected before dedupe.
+    const uniqueClientCount = new Set(value.clientRefs.map((ref) => ref.clientId)).size;
+    if (
+      ['undecided', 'firm', 'internal_team', 'none'].includes(value.kind) &&
+      uniqueClientCount !== 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clientRefs'],
+        message: `${value.kind} sponsor scope cannot contain client references.`,
+      });
+    }
+    if (value.kind === 'client' && uniqueClientCount !== 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clientRefs'],
+        message: 'Client sponsor scope requires exactly one unique client reference.',
+      });
+    }
+    if (value.kind === 'multi_client' && uniqueClientCount < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clientRefs'],
+        message: 'Multi-client sponsor scope requires at least two unique client references.',
+      });
+    }
+    if (value.kind === 'coalition' && !value.label?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['label'],
+        message: 'Coalition sponsor scope requires a label.',
+      });
+    }
+  });
 
 export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
   SET_GOAL: z.object({ value: nullableBoundedText(OUTREACH_V3_LIMITS.goal) }).strict(),
@@ -83,23 +147,7 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
     }),
   CLEAR_ASK: emptyPayload,
   SET_WHY_NOW: z.object({ value: nullableBoundedText(OUTREACH_V3_LIMITS.whyNow) }).strict(),
-  SET_SPONSOR_SCOPE: z
-    .object({
-      kind: z.enum([
-        'undecided',
-        'firm',
-        'client',
-        'multi_client',
-        'coalition',
-        'internal_team',
-        'none',
-      ]),
-      label: nullableBoundedText(OUTREACH_V3_LIMITS.sponsorLabel),
-      clientRefs: z
-        .array(z.object({ clientId: z.string().uuid() }).strict())
-        .max(OUTREACH_V3_LIMITS.sponsorClientRefs),
-    })
-    .strict(),
+  SET_SPONSOR_SCOPE: sponsorPayloadSchema,
   SET_TARGET_CRITERIA: z.object({ value: targetCriteriaV1Schema.nullable() }).strict(),
   SET_DELIVERY_PATTERN: z
     .object({
@@ -138,12 +186,10 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),
   ADD_TARGET_REFS: futureRefsPayload,
   REMOVE_TARGET_REFS: futureRefsPayload,
-  REJECT_TARGET_RECOMMENDATION: z
-    .object({ recommendationRef: z.string().min(1).max(256) })
-    .strict(),
+  REJECT_TARGET_RECOMMENDATION: z.object({ recommendationRef: boundedRef }).strict(),
   ACCEPT_CONTEXT_REFS: futureRefsPayload,
   EXCLUDE_CONTEXT_REFS: futureRefsPayload,
-  SET_SENDER_REF: z.object({ senderRef: z.string().min(1).max(256) }).strict(),
+  SET_SENDER_REF: z.object({ senderRef: boundedRef }).strict(),
   SET_ATTACHMENT_REFS: futureRefsPayload,
   REQUEST_SAMPLE_GENERATION: emptyPayload,
   REQUEST_FULL_GENERATION: emptyPayload,
