@@ -1422,18 +1422,10 @@ export class ProgramElementReadService {
     });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
-    // Snapshot provenance for the exhibit-derived measure below. Resolved once
-    // here rather than per-read, per the one-snapshot invariant's own rule. Null
-    // in legacy mode and when no gate is injected, which is honest: the exhibit
-    // value is then coming from the mutable compatibility tables, and the bucket
-    // says so by carrying a null snapshotId rather than inventing one.
-    const snapshotProvenance = this.peSnapshotGate
-      ? await this.peSnapshotGate
-          .resolve(null)
-          .then((gate) => gate.activeSnapshot)
-          .catch(() => null)
-      : null;
     // A live external observation dates itself at the moment it is taken.
+    // No snapshot is resolved here: neither measure below is snapshot-backed
+    // (see the provenance note on governmentExhibit), so resolving one would be
+    // a round trip whose only use would be labelling data it did not produce.
     const awardsAsOf = new Date().toISOString();
 
     const tableExists = await this.prisma.$queryRaw<Array<{ exists: boolean }>>(Prisma.sql`
@@ -1601,18 +1593,32 @@ export class ProgramElementReadService {
     //
     // No combined total is emitted. One would require defining and governing a
     // real metric that means something across both, and no such metric exists.
-    const activeSnapshotId = snapshotProvenance?.snapshotId ?? null;
     const evidence = {
       governmentExhibit: {
         amountM: namedPrimeM,
         count: namedPrimes.length,
         unit: 'USD millions' as const,
         label: 'Government-named performer value (R-3 exhibit)',
+        // `legacy_compatibility`, NOT `canonical_snapshot`. namedPrimes above
+        // reads `program_element_performer` unconditionally — it is not one of
+        // the migrated methods — so claiming snapshot provenance here would
+        // attach a real snapshot id to legacy data the moment any snapshot went
+        // active. That is the misattribution this whole contract exists to
+        // prevent, and getting it wrong here would have been the first instance
+        // of it.
+        //
+        // This cannot become `canonical_snapshot` by migrating the read alone:
+        // `canonical_rdte_performer` is declared `moneyRule: 'none'` with value
+        // axes ['identity','text'], so the canonical row carries no
+        // `totalCostM` at all. The exhibit *value* has no canonical home until
+        // Phase 4 gives that entity a money axis.
         provenance: {
-          kind: 'canonical_snapshot' as const,
+          kind: 'legacy_compatibility' as const,
           source: 'R-3',
-          snapshotId: activeSnapshotId,
-          asOf: snapshotProvenance?.activatedAt ?? null,
+          table: 'program_element_performer',
+          reason:
+            'canonical_rdte_performer carries no money axis (moneyRule: none), so the exhibit ' +
+            'value has no canonical source; the read stays on the compatibility table',
         },
       },
       federalAwards: {

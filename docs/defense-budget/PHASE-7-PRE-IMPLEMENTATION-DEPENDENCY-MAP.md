@@ -264,6 +264,37 @@ Consequences Phase 8 inherits:
 Do not solve the missing governed relationship by recreating identity
 conflation in cleaner code.
 
+### R1a — `legacy_compatibility` is a third provenance kind, and it is the default
+
+An unmigrated read is **not** snapshot-backed just because a snapshot happens to
+be active. `getContractors` shipped briefly labelling its R-3 exhibit measure
+`kind: 'canonical_snapshot'` with a live `snapshotId`, while `namedPrimes` reads
+`program_element_performer` unconditionally — which would have attached a real
+snapshot id to legacy data the moment any snapshot went active. Caught and
+fixed before any snapshot existed; regression-guarded in
+`measure-provenance.spec.ts`.
+
+`LegacyCompatibilityProvenance` carries the mutable `table` it read and a
+required `reason`, because an unmigrated read with no stated reason is
+indistinguishable from one nobody has looked at.
+
+### Workstream M — verified blockers on the three "mixed provenance" methods
+
+R1 answered the *provenance* question for `getRelationships`, `getGraph`, and
+`getIncumbents`, but all three turn out to be blocked underneath it by missing
+producers. This is the `contract present ≠ producer exists` trap in §7 again.
+
+| Method | Blocker | Evidence |
+| --- | --- | --- |
+| `getRelationships` | PE↔PE edges have **no RDT&E canonical producer** | `canonical_budget_line_relationship` has exactly one producing projection kind, `non_rdte:BudgetLineRelationship`; there are zero `rdte:*Relationship` kinds |
+| `getGraph` | same | same |
+| `getIncumbents` | `canonical_rdte_performer` carries **no money** | registry declares `moneyRule: 'none'`, `valueAxes: ['identity','text']`, so `totalCostM` has no canonical home |
+
+The `getIncumbents` finding also bounds `getContractors`: its exhibit measure
+cannot become snapshot-backed by migrating the read, because the value does not
+exist on the canonical row. Both need Phase 4 to give
+`canonical_rdte_performer` a money axis first.
+
 ---
 
 ## 9. Safety statement

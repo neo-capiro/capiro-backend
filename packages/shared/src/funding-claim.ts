@@ -123,7 +123,10 @@ export type MissingMarkStatus =
  * canonical snapshot to make an endpoint reproducible. Enrichment is allowed to
  * be live; it just has to say so.
  */
-export type MeasureProvenanceKind = 'canonical_snapshot' | 'live_external';
+export type MeasureProvenanceKind =
+  | 'canonical_snapshot'
+  | 'live_external'
+  | 'legacy_compatibility';
 
 /** A measure read out of an immutable, content-addressed canonical snapshot. */
 export interface CanonicalSnapshotProvenance {
@@ -147,7 +150,36 @@ export interface LiveExternalProvenance {
   windowMonths?: number;
 }
 
-export type MeasureProvenance = CanonicalSnapshotProvenance | LiveExternalProvenance;
+/**
+ * A measure still read from the mutable legacy/compatibility tables.
+ *
+ * The third kind exists because it is the *honest* state of every read method
+ * Workstream M has not migrated yet, and mislabelling one of those as
+ * `canonical_snapshot` is the exact misattribution this contract prevents. A
+ * measure is `canonical_snapshot` only when it was actually read out of a
+ * snapshot — not when a snapshot merely happens to be active while the value
+ * came from `program_element_*`.
+ *
+ * It is a distinct kind, so `sumAttributedMeasures` refuses to add it to either
+ * of the others for free.
+ */
+export interface LegacyCompatibilityProvenance {
+  kind: 'legacy_compatibility';
+  /** Human-facing origin, e.g. 'R-3'. */
+  source: string;
+  /** The mutable table the value came from, named so the gap is auditable. */
+  table: string;
+  /**
+   * Why this is not snapshot-backed yet. Required: an unmigrated read with no
+   * stated reason is indistinguishable from one nobody has looked at.
+   */
+  reason: string;
+}
+
+export type MeasureProvenance =
+  | CanonicalSnapshotProvenance
+  | LiveExternalProvenance
+  | LegacyCompatibilityProvenance;
 
 /** One dollar measure that knows where it came from and when. */
 export interface AttributedMeasure {
