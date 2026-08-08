@@ -1,13 +1,14 @@
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 
-interface SupersededProposalIdRow {
+export interface SupersededProposalAuditRow {
   id: string;
+  expectedStateVersion: number;
 }
 
 /**
  * Terminalize every pending proposal that targets a version older than the new
- * current state and return the exact proposal IDs changed by this statement.
+ * current state and return the exact rows changed by this statement.
  *
  * The caller already holds the owner session row lock. UPDATE ... RETURNING is
  * intentionally used instead of a pre-read + UPDATE so the audit layer receives
@@ -19,9 +20,9 @@ export async function supersedeStaleOutreachProposals(
   sessionId: string,
   currentStateVersion: number,
   excludeProposalId: string | null = null,
-): Promise<string[]> {
-  const rows = excludeProposalId
-    ? await tx.$queryRaw<SupersededProposalIdRow[]>`
+): Promise<SupersededProposalAuditRow[]> {
+  return excludeProposalId
+    ? tx.$queryRaw<SupersededProposalAuditRow[]>`
         UPDATE outreach_command_proposals
         SET status = 'superseded',
             decided_at = NOW(),
@@ -32,9 +33,11 @@ export async function supersedeStaleOutreachProposals(
           AND status = 'pending'
           AND expected_state_version < ${currentStateVersion}
           AND id <> CAST(${excludeProposalId} AS uuid)
-        RETURNING id::text AS id
+        RETURNING
+          id::text AS id,
+          expected_state_version AS "expectedStateVersion"
       `
-    : await tx.$queryRaw<SupersededProposalIdRow[]>`
+    : tx.$queryRaw<SupersededProposalAuditRow[]>`
         UPDATE outreach_command_proposals
         SET status = 'superseded',
             decided_at = NOW(),
@@ -44,8 +47,8 @@ export async function supersedeStaleOutreachProposals(
           AND created_by_user_id = CAST(${ctx.userId} AS uuid)
           AND status = 'pending'
           AND expected_state_version < ${currentStateVersion}
-        RETURNING id::text AS id
+        RETURNING
+          id::text AS id,
+          expected_state_version AS "expectedStateVersion"
       `;
-
-  return rows.map((row) => row.id);
 }
