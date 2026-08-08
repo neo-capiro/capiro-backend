@@ -1872,9 +1872,17 @@ jobs:
       # tango-event-processor.service.ts and process-tango-events.ts in one
       # sitting before treating this feature as done — no phase in P00-P51 has
       # ever had one.
+      #
+      # 78/2485 -> 81/2525 covers TWO unrelated changes, and the split matters
+      # if this floor ever fails: +1 suite / +33 tests is P40's DIBBS mapper
+      # (src/external/tango/tango-dibbs.mapper.spec.ts); the remaining +2 suites
+      # / +7 tests arrived from main when PR #850 (federal-market unification)
+      # merged, NOT from this feature. The api typecheck baseline moved in the
+      # same merge, 6 pre-existing errors -> 12, none of them in funding-
+      # opportunities code.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2485
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 81 2525
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
