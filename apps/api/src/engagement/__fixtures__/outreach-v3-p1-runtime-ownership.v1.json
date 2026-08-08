@@ -1,0 +1,13 @@
+[
+  {"concern":"mail_calendar_sync","currentOwner":"api","targetModule":"EngagementWorkersModule","runtimePolicyCheck":"backgroundWorkersEnabled","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"outreach_generation_worker","currentOwner":"api","targetModule":"OutreachJobWorkerService","runtimePolicyCheck":"assertBackgroundOwner","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"outreach_send_intent_worker","currentOwner":"api","targetModule":"OutreachSendIntentWorkerService","runtimePolicyCheck":"assertBackgroundOwner","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"notetaker_reconcile","currentOwner":"api","targetModule":"NotetakerReconcileWorkerService","runtimePolicyCheck":"assertBackgroundOwner","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"microsoft_oauth_callback","currentOwner":"api","targetModule":"EngagementCallbacksModule","runtimePolicyCheck":"assertCallbacksEnabled","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"microsoft_notifications","currentOwner":"api","targetModule":"EngagementCallbacksModule","runtimePolicyCheck":"assertCallbacksEnabled","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"google_oauth_callback","currentOwner":"api","targetModule":"EngagementCallbacksModule","runtimePolicyCheck":"assertCallbacksEnabled","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"recall_webhook","currentOwner":"api","targetModule":"RecallWebhookModule","runtimePolicyCheck":"isRecallWebhookEnabled","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"mail_send","currentOwner":"api","targetModule":"EngagementMailSender","runtimePolicyCheck":"assertExternalAction","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"llm_generation","currentOwner":"api","targetModule":"LlmCompletionService","runtimePolicyCheck":"assertExternalAction","futureOwner":"engagement-api","externalEffect":true},
+  {"concern":"external_document_writes","currentOwner":"api","targetModule":"ClientDocumentWriterService","runtimePolicyCheck":"assertExternalAction","futureOwner":"engagement-api","externalEffect":true}
+]

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "currentProductionProfile": {
+    "name": "current-main-owner",
+    "productionAllowed": true,
+    "testOnly": false,
+    "owners": {"workers":"api","callbacks":"api","recall":"api","externalActions":"api"},
+    "services": {
+      "api": {"serviceName":"api","processMode":"active","backgroundOwner":"api","callbacksEnabled":true,"recallWebhookEnabled":true,"externalActions":"enabled"},
+      "engagement-api": {"serviceName":"engagement-api","processMode":"shadow","backgroundOwner":"disabled","callbacksEnabled":false,"recallWebhookEnabled":false,"externalActions":"disabled"}
+    }
+  },
+  "futureRehearsalProfile": {
+    "name": "future-engagement-api-owner",
+    "productionAllowed": false,
+    "testOnly": true,
+    "owners": {"workers":"engagement-api","callbacks":"engagement-api","recall":"engagement-api","externalActions":"engagement-api"},
+    "services": {
+      "api": {"serviceName":"api","processMode":"active","backgroundOwner":"engagement-api","callbacksEnabled":false,"recallWebhookEnabled":false,"externalActions":"disabled"},
+      "engagement-api": {"serviceName":"engagement-api","processMode":"active","backgroundOwner":"engagement-api","callbacksEnabled":true,"recallWebhookEnabled":true,"externalActions":"enabled"}
+    }
+  }
+}

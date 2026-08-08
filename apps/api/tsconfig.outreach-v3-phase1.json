@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/ai-credentials/**/*.ts",
+    "src/capabilities/**/*.ts",
+    "src/client-documents/**/*.ts",
+    "src/outreach-review/**/*.ts",
+    "src/engagement-workers/**/*.ts",
+    "src/engagement-callbacks/**/*.ts",
+    "src/engagement-integrations/**/*.ts",
+    "src/engagement/microsoft/microsoft-integration-actions.controller.ts",
+    "src/engagement/microsoft/microsoft-callbacks.controller.ts",
+    "src/engagement/google/google-integration-actions.controller.ts",
+    "src/engagement/google/google-callbacks.controller.ts",
+    "src/webhooks/recall-webhook.module.ts",
+    "src/reviews/**/*.ts",
+    "src/app.module.ts",
+    "src/engagement-api.app.module.ts",
+    "src/engagement/engagement.module.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

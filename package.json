@@ -35,6 +35,8 @@
     "verify:engagement-phase-2": "bash scripts/verify-engagement-phase2-code.sh",
     "verify:engagement-phase-3": "node scripts/verify-engagement-phase3-code.mjs",
     "verify:engagement-phase-3:local": "node scripts/run-engagement-phase3-local.mjs",
+    "verify:outreach-v3-phase-1": "node scripts/verify-outreach-v3-phase1-code.mjs",
+    "verify:outreach-v3-phase-1:local": "node scripts/run-outreach-v3-phase1-local.mjs",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
     "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
