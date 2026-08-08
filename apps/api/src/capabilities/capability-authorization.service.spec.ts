@@ -97,8 +97,69 @@ describe('CapabilityAuthorizationService', () => {
       client: { findFirst: jest.fn().mockResolvedValue(client) },
       $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     };
-    const service = new CapabilityAuthorizationService(prismaFor(tx) as never);
+    const prisma = prismaFor(tx);
+    const service = new CapabilityAuthorizationService(prisma as never);
 
     await expect(service.authorizeClient(context(), clientId)).resolves.toEqual(client);
+    expect(prisma.withTenantUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses the same checks inside an existing transaction without nesting another tenant transaction', async () => {
+    const client = {
+      id: clientId,
+      name: 'Allowed in transaction',
+      website: null,
+      description: null,
+      sectorTag: null,
+      status: 'active',
+      updatedAt: new Date('2026-08-01T00:00:00.000Z'),
+    };
+    const tx = {
+      client: { findFirst: jest.fn().mockResolvedValue(client) },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
+    };
+    const prisma = prismaFor(tx);
+    const service = new CapabilityAuthorizationService(prisma as never);
+
+    await expect(
+      service.authorizeClientWithinTx(tx as never, context(), clientId),
+    ).resolves.toEqual(client);
+    expect(prisma.withTenantUser).not.toHaveBeenCalled();
+    expect(tx.client.findFirst).toHaveBeenCalledWith({
+      where: { id: clientId, tenantId },
+      select: {
+        id: true,
+        name: true,
+        website: true,
+        description: true,
+        sectorTag: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+  });
+
+  it('applies the ethical-wall denial identically inside an existing transaction', async () => {
+    const tx = {
+      client: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: clientId,
+          name: 'Walled client',
+          website: null,
+          description: null,
+          sectorTag: null,
+          status: 'active',
+          updatedAt: new Date('2026-08-01T00:00:00.000Z'),
+        }),
+      },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: false }]),
+    };
+    const prisma = prismaFor(tx);
+    const service = new CapabilityAuthorizationService(prisma as never);
+
+    await expect(
+      service.authorizeClientWithinTx(tx as never, context(), clientId),
+    ).rejects.toMatchObject({ code: 'CAPABILITY_ETHICAL_WALL' });
+    expect(prisma.withTenantUser).not.toHaveBeenCalled();
   });
 });
