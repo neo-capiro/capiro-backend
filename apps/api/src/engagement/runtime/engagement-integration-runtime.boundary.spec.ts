@@ -33,6 +33,17 @@ function shadowPolicy(): EngagementRuntimePolicyService {
   });
 }
 
+function callbackDisabledPolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
+    serviceName: 'api',
+    processMode: 'active',
+    backgroundOwner: 'api',
+    externalActions: 'enabled',
+    callbacksEnabled: false,
+    recallWebhookEnabled: true,
+  });
+}
+
 function expectBlocked(
   methods: Readonly<Record<string, unknown>>,
   wrap: (raw: object) => object,
@@ -106,5 +117,38 @@ describe('Engagement integration runtime boundaries', () => {
     );
     expect(guarded.capabilities()).toEqual({ configured: false });
     expect(capabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed on Microsoft notifications when external actions are enabled but callback ownership is off', () => {
+    const handleNotifications = jest.fn(async () => ({ unsafe: true }));
+    const guarded = guardMicrosoftGraphSyncService(
+      { handleNotifications } as unknown as MicrosoftGraphSyncService,
+      callbackDisabledPolicy(),
+    );
+
+    expect(() => guarded.handleNotifications({ value: [] } as never)).toThrow(
+      ServiceUnavailableException,
+    );
+    expect(handleNotifications).not.toHaveBeenCalled();
+    try {
+      void guarded.handleNotifications({ value: [] } as never);
+    } catch (error) {
+      expect((error as ServiceUnavailableException).getResponse()).toMatchObject({
+        code: 'ENGAGEMENT_CALLBACKS_DISABLED',
+      });
+    }
+  });
+
+  it('fails closed on Google OAuth callback when external actions are enabled but callback ownership is off', () => {
+    const handleCallback = jest.fn(async () => ({ unsafe: true }));
+    const guarded = guardGoogleOAuthService(
+      { handleCallback } as unknown as GoogleOAuthService,
+      callbackDisabledPolicy(),
+    );
+
+    expect(() => guarded.handleCallback({ code: 'code', state: 'state' })).toThrow(
+      ServiceUnavailableException,
+    );
+    expect(handleCallback).not.toHaveBeenCalled();
   });
 });

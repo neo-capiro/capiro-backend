@@ -17,6 +17,7 @@ export const RAW_GMAIL_SEND_SERVICE = Symbol('RAW_GMAIL_SEND_SERVICE');
 interface BoundaryMetadata {
   action: EngagementExternalAction;
   testMode?: boolean;
+  requiresCallbacks?: boolean;
 }
 
 export const MICROSOFT_GRAPH_RUNTIME_METHODS = {
@@ -25,14 +26,14 @@ export const MICROSOFT_GRAPH_RUNTIME_METHODS = {
   syncCalendarWindow: { action: 'integration_sync' },
   configureSubscriptions: { action: 'integration_subscription' },
   configureSubscriptionsByTenant: { action: 'integration_subscription' },
-  handleNotifications: { action: 'integration_notification' },
+  handleNotifications: { action: 'integration_notification', requiresCallbacks: true },
   deleteSubscriptionsByTenant: { action: 'integration_disconnect' },
   sendMail: { action: 'outreach_send' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
 export const MICROSOFT_OAUTH_RUNTIME_METHODS = {
   start: { action: 'integration_oauth_start' },
-  handleCallback: { action: 'integration_oauth_callback' },
+  handleCallback: { action: 'integration_oauth_callback', requiresCallbacks: true },
   disconnect: { action: 'integration_disconnect' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
@@ -48,7 +49,7 @@ export const GOOGLE_SYNC_RUNTIME_METHODS = {
 
 export const GOOGLE_OAUTH_RUNTIME_METHODS = {
   start: { action: 'integration_oauth_start' },
-  handleCallback: { action: 'integration_oauth_callback' },
+  handleCallback: { action: 'integration_oauth_callback', requiresCallbacks: true },
   disconnect: { action: 'integration_disconnect' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
@@ -69,6 +70,9 @@ function guardService<T extends object>(
       if (!metadata) return value.bind(target);
       return (...args: unknown[]) => {
         policy.assertExternalAction(metadata.action, { testMode: metadata.testMode });
+        if (metadata.requiresCallbacks) {
+          policy.assertCallbacksEnabled(metadata.action);
+        }
         return Reflect.apply(value, target, args);
       };
     },
