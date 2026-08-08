@@ -69,10 +69,45 @@ injected → failed with exactly the intended assertion (and bound a _base_
 reference to an _advance-procurement_ line, confirming the base/AP crossing) →
 reverted → 24/24.
 
+### Provenance: solved, and it was our own tooling
+
+An earlier revision of this handoff said provenance "was never established" and
+suggested checking what else has write access to `C:\capiro-build`. **That was
+wrong, and the real answer is worse in a more useful way.**
+
+The stray line is **NC06 of `verify-pe-budget-phase6-negative-controls.ts`**,
+byte-for-byte identical to its injection string. That script deliberately writes
+defects into real production source, runs a focused test that must fail, and
+restores in `finally`.
+
+`finally` does not run when the process is killed. Session 7's own handoff
+records the phase-6 negative-control script as "**not run to completion** —
+timed out at 200s after 5/24 controls passed". NC06 is the sixth control: the
+one in flight when the run died. Its mutation stayed on disk, and the only copy
+of the original bytes was an in-memory `Buffer` that died with the process.
+
+Which explains every observation at once — the ~6-minute-later mtime (the
+phase-6 verify ran last), a defect too well-formed to be an accident (it _is_ a
+designed defect), the prettier failure (the injection string is written
+verbatim, unformatted), and why no ordinary test caught it (NC06's detector
+lives in the runner's own focused spec, which never ran).
+
+**The hazard is systemic, not a one-off.** All four
+`verify-pe-budget-phase-*-negative-controls` runners mutate production source
+and restore only in `finally` from an in-memory buffer. Any interruption —
+timeout, cancelled CI job, Ctrl-C — leaves an injected defect with no record.
+This one came within a `git add` of being committed to a financial-truth
+pipeline.
+
+Fixed for phases 5 and 6 via `scripts/lib/source-mutation-journal.ts`: originals
+are written to disk _before_ the first mutation and deleted only after a restore
+is verified byte-for-byte, so a killed run leaves a recoverable journal and the
+next run restores it loudly. Covered by `source-mutation-journal.spec.ts` (5
+tests). **Phases 3 and 4 still have the unfixed pattern** — they have more
+complex multi-site mutations and were left rather than refactored blind.
+
 The original diff is preserved outside the repo at
-`scratchpad/stray-line-reference-resolver.patch`. **Provenance was never
-established.** Nothing in the tree explains the write. Worth a look at what else
-has write access to `C:\capiro-build`.
+`scratchpad/stray-line-reference-resolver.patch`.
 
 ---
 

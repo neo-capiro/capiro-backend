@@ -10,6 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { SourceMutationJournal } from './lib/source-mutation-journal.js';
 
 const API_ROOT = path.resolve(__dirname, '..');
 const GATE = 'src/defense-budget/non-rdte/non-rdte-phase5-audit-gates.spec.ts';
@@ -195,10 +196,22 @@ function runGate(title?: string): { status: number | null; output: string } {
   return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
 }
 
+/**
+ * A killed run must not leave an injected defect on disk — the in-memory
+ * `original` below is unreachable once the process dies, and `finally` never
+ * runs. See `lib/source-mutation-journal.ts` for the incident this prevents.
+ */
+const journal = new SourceMutationJournal({
+  root: API_ROOT,
+  directoryName: '.p5-nc-restore',
+});
+journal.recoverAbandoned();
+
 for (const control of controls) {
   const absolute = path.join(API_ROOT, control.file);
   const original = fs.readFileSync(absolute);
   try {
+    journal.record(control.id, control.file, original);
     fs.writeFileSync(absolute, Buffer.concat([original, Buffer.from(control.defect, 'utf8')]));
     const result = runGate(control.title);
     if (result.status === 0) {
@@ -214,6 +227,8 @@ for (const control of controls) {
     fs.writeFileSync(absolute, original);
     const restored = fs.readFileSync(absolute);
     if (!restored.equals(original)) throw new Error(`${control.id}: byte-for-byte restore failed`);
+    // Only after the restore is verified byte-for-byte.
+    journal.clear();
   }
 }
 
