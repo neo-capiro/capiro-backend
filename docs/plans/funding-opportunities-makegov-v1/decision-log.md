@@ -2065,3 +2065,67 @@ genuinely broken call." The identical mistake recurred one status over.
 The default `--request-ceiling` was also **30 — above the provider's own limit of 25**, so the
 self-imposed cap could never bind; the provider always ran out first. Now 25. A full pass needs ~17 HTTP
 calls, so it fits on a fresh window. The 2026-08-08 run began at `remaining: 12`, which is why it did not.
+
+---
+
+## D-66 · 2026-08-08 · D-65's ceiling fix was inert, because the only caller passed 30 explicitly
+
+PR #857 merged as `094daf1d`. Three findings while closing out its open items, all in the operator
+launcher — which, until now, lived only on one machine and in no repository.
+
+### The fix was real and the tooling overrode it
+
+D-65 lowered the probe's default `--request-ceiling` from 30 to 25, because 30 sits above the account's
+25-per-31s limit and so can never bind. But `run-p17-probe.ps1` — the only path anyone actually invokes —
+defaulted its own `-RequestCeiling` to 30 and passed `--request-ceiling=30` explicitly. **The merged fix
+changed a default that the sole caller was already overriding with the exact value the fix removed.**
+
+Generalisable, and the reason these files are now vendored: **a default is only a fix if no caller
+overrides it, and a fix merged into the repo does not reach tooling that lives outside the repo.** The
+scope of a fix is the scope of the artifacts it touches — the same shape as D-62 (an SDK scan can only
+establish an SDK fact) and D-64 (a prose correction leaves the mechanism running). Third time in this
+program.
+
+### A captured report was one double-click from being destroyed
+
+`p17.cmd` wrote to a fixed `C:\dev\p17-capability-report.json`. The 2026-08-08 run is the only
+live-provider evidence this program has — it answered P17 and found both D-65 defects — and the next run
+would have silently overwritten it. Now timestamped per run, defaulting outside the repo, and the runner
+refuses to write over an existing file.
+
+This is the same principle that kept `p17-tango-capability-report.json` (2026-08-07) unmodified despite two
+superseded rows, applied one layer out: **it is not enough to refuse to edit a record if the tooling
+overwrites it on the next run.**
+
+### An action item and its own contraindication, four rows apart
+
+`HANDOFF-2026-08-08-session.md` told the next reader to point `REPO=` at `C:\dev\capirov2` (Open items) and,
+four rows later, that `C:\dev\capirov2` sits on `agent/fo-p36-outcome-capture` with other agents on it and
+its branch must not be switched (Traps). Both true when written, mutually incompatible as instructions, in
+one document from one session.
+
+Following it would have been quiet rather than loud: that checkout contains none of P40's files, so the
+probe would have run and reported `dibbs: not_attempted / no_rest_client_wired` — a fact about Capiro's
+code wearing the shape of an entitlement answer. **D-64 exactly, one layer out**, which is why the runner
+now hard-fails on a missing `TangoDibbsClient` rather than reporting a status.
+
+Generalisable: **a to-do and its contraindication get written in different modes** — planning versus
+warning — and neither pass re-reads the other. When a handoff's action list names a path, the trap list is
+the thing to check it against.
+
+**Resolved state.** `REPO=` points at `C:\dev\capiro-p17-wt`, a detached worktree at `094daf1d` with deps
+installed. `main` itself could not be used: `git worktree add` cannot check out a branch another worktree
+already holds, and `C:\dev\capiro-outreach-clamp-wt` holds `main`. Launcher and runner are now vendored at
+`operator/`, so the next correction lands in version control instead of on one machine.
+
+**One follow-up, so this fix does not become its own finding.** Vendoring creates a second copy: the
+machine-local `C:\dev\p17.cmd` and `~\OneDrive\Documents\Claude\run-p17-probe.ps1` still exist and were
+fixed in place on 2026-08-08 (ceiling 25, timestamped report, DIBBS guard). Two copies of a script is
+exactly the drift this entry is about. Once this lands, retire the local pair — either delete them and run
+`operator/p17.cmd` from a checkout, or reduce `C:\dev\p17.cmd` to a one-line shortcut that invokes the
+vendored runner with `-RepoPath C:\dev\capiro-p17-wt`. It was left working rather than broken in the
+meantime, because `C:\dev\capiro-p17-wt` sits at `094daf1d` and does not yet contain `operator/`.
+
+**Not resolved, and not an agent's to resolve:** the Tango API key was pasted into a chat transcript on
+2026-08-08 and still needs rotating in Secrets Manager. Until it is, a probe run may report an
+authentication failure that looks like an entitlement problem.

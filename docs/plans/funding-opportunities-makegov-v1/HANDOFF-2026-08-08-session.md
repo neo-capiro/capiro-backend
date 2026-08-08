@@ -98,7 +98,7 @@ A prior session's worry that #856 had staled these was **wrong** — the FO suit
 | **SBIR/STTR entitlement is UNKNOWN, not refused.** `not_attempted` because P42/P43 have built no client. | P42/P43 |
 | `20260908010000_tango_dibbs` is **deliberately not applied to `capiro-dev`**. Correct state, not an oversight. | — |
 | Both DIBBS schedules ship `enabled: false`. Enable the incremental first, read one run's summary, then the full. | P50 |
-| `C:\dev\p17.cmd` points at a session scratch clone. After #857 merges, change its `REPO=` line to `C:\dev\capirov2`. | Neo |
+| ~~`C:\dev\p17.cmd` points at a session scratch clone. After #857 merges, change its `REPO=` line to `C:\dev\capirov2`.~~ **DONE, but not as written — see D-66.** `C:\dev\capirov2` is the one path it must never point at, which the "Traps" section below already said four rows down. It now points at `C:\dev\capiro-p17-wt`, a detached worktree at `094daf1d`, and the launcher is vendored into `operator/`. | done |
 | No phase in this program has ever had an independent review. Unchanged. | — |
 
 ---
