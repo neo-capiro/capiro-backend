@@ -1,6 +1,7 @@
 import { createMeriRuntimeService } from './meriv3-runtime.proxy.js';
 import type { MeriService } from './meri.service.js';
 import type { MeriV3ProxyService } from './meriv3-proxy.service.js';
+import type { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 
 const ctx = {
   tenantId: 'tenant-1',
@@ -14,12 +15,27 @@ function make() {
   const raw = {
     streamMessage: jest.fn(async () => undefined),
     listConversations: jest.fn(async () => ['raw']),
+    getArtifactImage: jest.fn(async () => ({
+      buffer: Buffer.from('legacy-tenant-only-result'),
+      contentType: 'image/png',
+    })),
   } as unknown as MeriService;
   const meriv3 = {
     shouldHandle: jest.fn(async () => false),
     streamMessage: jest.fn(async () => undefined),
   } as unknown as MeriV3ProxyService;
-  return { raw, meriv3, service: createMeriRuntimeService(raw, meriv3) };
+  const visualAnalysis = {
+    getArtifactImage: jest.fn(async () => ({
+      buffer: Buffer.from('user-scoped-result'),
+      contentType: 'image/png',
+    })),
+  } as unknown as MeriV3VisualAnalysisService;
+  return {
+    raw,
+    meriv3,
+    visualAnalysis,
+    service: createMeriRuntimeService(raw, meriv3, visualAnalysis),
+  };
 }
 
 describe('Meri runtime proxy', () => {
@@ -40,7 +56,17 @@ describe('Meri runtime proxy', () => {
     expect(raw.streamMessage).not.toHaveBeenCalled();
   });
 
-  test('binds every non-stream method to the original service', async () => {
+  test('routes the legacy image endpoint through the tenant + user scoped reader', async () => {
+    const { raw, visualAnalysis, service } = make();
+    await expect(service.getArtifactImage(ctx as never, 'chart-1')).resolves.toEqual({
+      buffer: Buffer.from('user-scoped-result'),
+      contentType: 'image/png',
+    });
+    expect(visualAnalysis.getArtifactImage).toHaveBeenCalledWith(ctx, 'chart-1');
+    expect(raw.getArtifactImage).not.toHaveBeenCalled();
+  });
+
+  test('binds every other non-stream method to the original service', async () => {
     const { raw, service } = make();
     await expect(service.listConversations(ctx as never)).resolves.toEqual(['raw']);
     expect(raw.listConversations).toHaveBeenCalledWith(ctx);

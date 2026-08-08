@@ -22,6 +22,7 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
+import { MeriAnalysisArtifactController } from './meri-analysis-artifact.controller.js';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { MeriPolicyPackService } from './meri-policy-pack.service.js';
@@ -48,12 +49,11 @@ import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { MeriV2ChatClient } from './meriv2-chat.client.js';
 import { MeriV3ChatClient } from './meriv3-chat.client.js';
+import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
-import {
-  createMeriRuntimeService,
-  RAW_MERI_SERVICE,
-} from './meriv3-runtime.proxy.js';
+import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 
 @Module({
   imports: [
@@ -80,6 +80,7 @@ import {
   controllers: [
     MeriController,
     MeriV3SettingsController,
+    MeriAnalysisArtifactController,
     MeriActionProposalController,
     MeriContextPacketController,
     MeriPolicyPackController,
@@ -92,13 +93,13 @@ import {
     {
       provide: MeriService,
       useFactory: createMeriRuntimeService,
-      inject: [RAW_MERI_SERVICE, MeriV3ProxyService],
+      inject: [RAW_MERI_SERVICE, MeriV3ProxyService, MeriV3VisualAnalysisService],
     },
     { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
     {
       provide: MeriToolsService,
       useFactory: createGovernedMeriToolsService,
-      inject: [RAW_MERI_TOOLS_SERVICE],
+      inject: [RAW_MERI_TOOLS_SERVICE, PrismaService],
     },
     {
       provide: MeriResearchService,
@@ -116,6 +117,8 @@ import {
     MeriMcpService,
     MeriMcpOAuthService,
     MeriManagedMcpService,
+    MeriV3InternalServiceGuard,
+    MeriV3VisualAnalysisService,
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
     MeriApprovalService,

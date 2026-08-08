@@ -23,6 +23,7 @@ import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3/meriv3-assistant.service.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3/meriv3-managed-mcp-assistant.service.js';
 import { ApiManagedMcpRepo } from './meriv3/api-managed-mcp.repo.js';
+import { ApiVisualAnalysisRepo } from './meriv3/api-visual-analysis.repo.js';
 import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
 
 /**
@@ -57,6 +58,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     MeriV3AccessService,
     OpenAiResponsesClient,
     ApiManagedMcpRepo,
+    ApiVisualAnalysisRepo,
     {
       provide: MeriV3AssistantService,
       useClass: MeriV3ManagedMcpAssistantService,
