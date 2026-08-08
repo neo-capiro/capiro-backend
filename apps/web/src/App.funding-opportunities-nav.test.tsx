@@ -85,11 +85,13 @@ describe('Funding Opportunities route registration', () => {
     // The failure this guards against is the same silent one as above, and it is
     // WORSE for a detail link: pasted into a ticket, an unregistered detail route
     // redirects to Data Explorer, so the record looks like it was deleted.
-    render(
-      <MemoryRouter initialEntries={['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']}>
-        <App />
-      </MemoryRouter>,
-    );
+    // Uses the shared helper, which supplies a QueryClientProvider. `App` began
+    // REQUIRING one when PR #813 mounted `EngagementPreviewBoundary` beside the
+    // route table — it calls `useQueryClient()` unconditionally. Two tests in
+    // this file still rendered `<App />` bare and threw
+    // "No QueryClient set, use QueryClientProvider to set one", which is what
+    // kept this gate red. Nothing about the routes under test changed.
+    renderAppWithRouter(['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']);
 
     await waitFor(() =>
       expect(screen.getByTestId('funding-opportunity-detail-page')).toBeInTheDocument(),
@@ -102,11 +104,7 @@ describe('Funding Opportunities route registration', () => {
   test('a one-segment path under opportunities still falls through to the catch-all', async () => {
     // `/intelligence/opportunities/foo` matches neither the literal list route nor
     // the two-param detail route.
-    render(
-      <MemoryRouter initialEntries={['/intelligence/opportunities/foo']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderAppWithRouter(['/intelligence/opportunities/foo']);
     await waitFor(() => expect(screen.getByTestId('data-explorer-page')).toBeInTheDocument());
   });
 
