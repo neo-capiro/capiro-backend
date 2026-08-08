@@ -1801,9 +1801,16 @@ jobs:
       # Now walks until a page comes back short, and a never-ending provider
       # THROWS rather than returning a partial list — a reconciler acting on half
       # the picture is exactly what this program's completeness rule forbids.
+      # 78/2452 -> 78/2454: a `sh -n` syntax gate on the entrypoint dispatcher.
+      #
+      # Every other assertion in that spec checks a dispatch LINE is present,
+      # which is worth having but cannot catch the failure that matters most: a
+      # syntax error anywhere in that file makes EVERY scheduled job fail to
+      # start, not just the verb somebody edited. Parsing costs nothing and needs
+      # no database, network, or fake binaries.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2452
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2454
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
