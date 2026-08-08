@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "globalPrefix": "/api",
+  "controllerPrefix": "/engagement/outreach-v3",
+  "runtime": "engagement-api",
+  "featureFlag": "OUTREACH_V3_STATE_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions", "handler": "createSession" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions", "handler": "listSessions" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId", "handler": "getSession" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/archive", "handler": "archiveSession" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/commands", "handler": "applyCommands" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/versions", "handler": "listVersions" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/versions/:version", "handler": "getVersion" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/events", "handler": "listEvents" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/proposals", "handler": "createProposal" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/proposals", "handler": "listProposals" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/apply", "handler": "applyProposal" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/reject", "handler": "rejectProposal" }
+  ]
+}
