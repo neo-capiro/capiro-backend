@@ -1,10 +1,21 @@
 # Phase 7 — open architecture gaps
 
-**Status:** open as of session 8 (2026-08-07).
-**Owner needed:** Workstream J/N (Gaps 1-2) and A/D (Gap 3).
-**Why this file exists:** two of these gaps have now been rediscovered twice, by
-two different sessions, each time by trying to build the thing they block. This
-is the escalation artifact so the third rediscovery does not happen.
+**Status as of session 9 (2026-08-08):** Gap 3 is **closed**. Gap 2 is
+**closed**. Gap 4 is **closed**. Gap 1 is **partially closed** — see its
+update below for exactly which stages. Gap 4 was found while closing Gap 3
+and closed later in the same session.
+**Owner needed:** none of the four gaps still needs an owner decision before
+code can be written — the decisions this file originally escalated (whether
+Phase 6 persistence was deferred, and going back to the Workstream A/D owner
+for Gap 3) were made in session 9: build the scoped subset for Gap 1, treat
+Gap 3 as ordinary implementation work rather than something requiring a
+separate design review given the plan was already fully specified, and build
+Gap 4 as a ninth verb rather than a flag on `plan`.
+**Why this file exists:** two of these gaps had been rediscovered twice, by
+two different sessions, each time by trying to build the thing they block.
+This is the escalation artifact that stopped the third rediscovery from
+happening — keep it updated rather than deleting it once a gap closes, so the
+history of what was actually verified survives.
 
 Each gap below is blocking, not cosmetic. None can be closed from inside
 Workstream M or N — all three need a decision or a migration from the owner of
@@ -90,6 +101,48 @@ identity-hash question (hash the natural key, or key the registry by the plain
 `nativeIdentityKeyV1` string the stage emissions already carry) is a small
 representation choice that only matters once something produces rows.
 
+### Session 9: partially closed, for a real subset
+
+The decision this section asked for was made: persistence was not deliberately
+deferred, it was simply never wired. Session 9 built the producer —
+`phase6-projection-builder-v1.ts` (`nativeIdentityHashV1`,
+`buildStagePositionProjectionV1`, `buildStageActionProjectionV1`), a Prisma
+persistence adapter for `Phase6AuditProjectionRepository`
+(`phase6-audit-projection-repository-prisma-v1.ts`), a `persist-phase6-audit-
+projections-v1` command, and a `committee` family added to
+`PrismaPromotionProjectionSourceV1` that reads persisted rows back and calls
+`projectPhase6ProjectionsV1`. Proven end to end against a real disposable
+Postgres (`phase6-producer-rehearsal.sh`, 16/16 checks): build → certify →
+persist → read back → project, with exact money surviving the NUMERIC round
+trip and a real `nativeIdentityHash`, not a placeholder.
+
+**This closes the gap only for:** `stage_position` from HASC, SASC, HAC-D,
+SAC-D, NDAA conference, and appropriations conference — i.e., everything
+`emitStageRowsV1` produces — plus `stage_action` for identity-scoped actions
+(one native line, not a package/account scope or a transfer pair).
+
+**Still open, each for a specific reason, not merely "not gotten to":**
+
+- `public_law` / `continuing_resolution` positions (the `enacted` field) —
+  need to link an `EnactmentProofV1` from `stages/enacted/`, which the builder
+  never received. Building it without that would mean fabricating proof
+  linkage or promoting an enacted value with none.
+- `reprogramming` / `execution` positions — their source module
+  (`stages/post-enactment/reprogramming-execution-v1.ts`) has a different
+  output shape nobody has read yet; `execution` additionally needs a metric/
+  as-of-date/cumulative decision the builder cannot make from a bare
+  `StagePositionV1`.
+- Package-scope, account-scope, and transfer-pair actions — no single native
+  identity, so `nativeIdentityHash` has no defined value for them. This is
+  exactly the kind of decision this file exists to stop someone from guessing
+  at under time pressure.
+- `vehicle_proof`, `native_line_binding`, `provision_link`, `enactment_proof` —
+  not attempted.
+
+So `getProgramElement`/`getTimeline`'s funding grid can now be migrated for
+the authorization and non-enacted-appropriations stages specifically. Enacted
+marks, reprogramming, and execution remain blocked exactly as before.
+
 ---
 
 ## Gap 2 — canonical performer rows do not carry `isNamedCompany`
@@ -108,6 +161,25 @@ and both are wrong answers rather than degraded ones.
 **To close:** add `isNamedCompany` (and `publisher`, if the read contract still
 needs it) to the Phase 4 performer projection and the canonical performer
 mapping, then re-run the projection.
+
+### Session 9: closed
+
+The existing heuristic in `scripts/sync-jbook-performers.ts` was extracted,
+verbatim, into a shared pure module (`r3-named-company-classifier.ts`,
+10 unit tests), so the legacy loader and the real Phase 4 R-3 extractor now
+share one implementation instead of two that could drift apart. Wired into
+`r3-table-extractor-v1.ts`'s row construction, threaded through
+`r3-artifact-builder-v1.ts`'s assertion metadata (the same `metadata` bag
+`roleExplicit` already rides in — no Phase 1 contract/schema-version change
+needed), and read by `rdte-projection-planner-v1.ts`'s performer case into
+`values.isNamedCompany`, defaulting to `null` ("unknown") rather than a
+guessed boolean when an older artifact carries no classification. The
+snapshot diff comparator was updated to notice a changed classification.
+Full `verify:pe-budget-phase-4`: 317/317 tests.
+
+`publisher` remains unaddressed — the gap's own text already called it
+optional ("if the read contract still needs it"), and it is a display field,
+not a selection filter, so it carries none of Gap 2's urgency.
 
 ---
 
@@ -181,6 +253,155 @@ whoever executed session 1 rather than being bolted on from N. Specifically:
 input rather than deriving it, for the same reason. The plan binds to whatever
 hash it is given. Once Gap 3 closes, that flag should become a lookup and the
 plan should refuse a hash with no stored eligibility behind it.
+
+### Session 9: closed
+
+Built exactly the recipe this section specified, plus the one thing it noted
+as a follow-on:
+
+- migration `20260903010000_pe_budget_phase7_promotion_eligibility` — the
+  `defense_budget_promotion_eligibility` table (append-only, same
+  `enforce_promotion_ledger_append_only` trigger every other promotion ledger
+  table uses), and the foreign key from
+  `defense_budget_promotion_plan.eligibility_hash` to it;
+- `PrismaPromotionEligibilityPersistenceRepositoryV1` (insert/findByHash,
+  content-addressed, idempotent on hash, re-validates on read rather than
+  trusting storage) and `PrismaPromotionAuthorizationRepositoryV1`
+  (`loadPlan` now genuinely joins plan → eligibility document) —
+  `promotion-eligibility-authorization-repository-prisma-v1.ts`, 9 unit tests;
+- `authorize-defense-budget-promotion-v1.ts`, wired into `entrypoint.sh`
+  under the serve-role group (not execute/rollback's promoter group — the
+  authorization service's own documented boundary is that it runs under
+  `capiro_app` and can reach nothing else).
+
+**This is not a hash-comparison shortcut.** `PrismaPromotionAuthorizationRepositoryV1.loadPlan`
+returns the real `DefenseBudgetPromotionEligibilityV1` document, re-parsed
+through its own schema and re-hashed to catch tampering — the exact thing
+this section said a bare hash could not support, because
+`deriveSegregationEvidenceV1` needs the candidate bindings themselves, not
+their hash.
+
+**Proven against a real disposable Postgres**
+(`pe-budget-phase7-gap3-authorize-rehearsal.ts`, run from
+`pe-budget-phase7-migration-rehearsal.sh`): the foreign key genuinely refuses
+a plan filed against an unrecorded eligibility hash; the real CLI issues a
+real authorization from a real persisted eligibility record; a reused
+authorization ID is refused; and — the check that matters most — an
+authorizer who is also the reviewer named in a **real** eligibility record's
+own candidate list is refused with `segregation_violation`, derived from
+actual data rather than a test double.
+
+Two things intentionally **not** done, both out of Gap 3's own scope:
+
+1. **`PromotionEligibilityRepositoryV1` (the fact-computing read port
+   `DefenseBudgetPromotionEligibilityServiceV1.evaluate()` uses) still has no
+   Prisma implementation.** That is a different, much larger repository —
+   reading real candidates from Phase 2's verification tables, certifications
+   from Phase 6, projection plans from Phase 4/5/6, conflicts, and the active
+   snapshot — and building it was not attempted. Consequently, an eligibility
+   record must still be assembled by an operator or a future script and handed
+   to `PrismaPromotionEligibilityPersistenceRepositoryV1.insert()` directly;
+   nothing yet _derives_ a fresh eligibility evaluation from live data. This
+   is the honest limit of "Gap 3 closed": the storage and the authorize verb
+   are real; automatic eligibility computation is not.
+2. **`plan-defense-budget-promotion-v1`'s `--eligibility-hash` was not changed
+   into a lookup**, as this section's own note suggested it should become.
+   Left alone deliberately: see Gap 4 below — the CLI doesn't file a plan row
+   at all, so changing how it treats the flag wouldn't yet be exercised by
+   anything real.
+
+---
+
+## Gap 4 — nothing files a promotion plan into the database
+
+**Found by:** session 9, while building the Gap 3 rehearsal, from
+`plan-defense-budget-promotion-v1.ts`'s own header: _"the plan is filed by a
+separate authorized step, not by this command."_ That separate step does not
+exist.
+
+**Blocks:** the operator path from `plan` to `authorize`/`validate`/`execute`
+end to end. Not new — this predates Gap 3 and predates session 9 — but it was
+never written down.
+
+`plan`, `validate`, `execute`, and now `authorize` all read
+`defense_budget_promotion_plan` expecting a row to already be there
+(`.findUnique`, or `loadPlan`'s raw-SQL equivalent). Checked across `src` and
+`scripts`, excluding rehearsal/test code: **no production code path ever
+inserts one.** Every rehearsal that exercises `validate`/`execute`/`authorize`
+seeds the plan row directly with `$executeRawUnsafe`/raw `psql`, from the
+operator's own already-computed plan document and hash — which is a
+reasonable way to _test_ the downstream verbs, but is not a "file the plan"
+capability an operator can actually run.
+
+**Why this wasn't caught by Gaps 1–3's own review:** each of those gaps was
+found by trying to build one specific verb and hitting a wall immediately in
+front of it. Gap 4 is one layer upstream of all of them — `validate` and
+`execute` were already written against a plan row that "just exists," so
+nobody building them needed to ask where it came from.
+
+**To close:** a `file-defense-budget-promotion-plan-v1` verb (or an
+`--file`/`--commit`-style flag on `plan` itself) that takes a computed plan
+document, inserts it into `defense_budget_promotion_plan`, and refuses a
+duplicate `plan_id` with a different hash. It should run under the serve
+role, matching `plan`'s own credential. Whether it belongs on the existing
+`plan` CLI or as a ninth verb is a design call for whoever picks this up —
+not resolved here, and deliberately not decided under time pressure while
+closing an unrelated gap.
+
+### Session 9 (continued): closed
+
+Built as a ninth verb — `file-defense-budget-promotion-plan-v1.ts` —
+rather than a flag on `plan`, to keep `plan` itself pure/read-only (its own
+header's claim, now actually true rather than aspirational). Takes the full
+plan document `plan-defense-budget-promotion-v1` already prints (either its
+whole report, reading the nested `.plan`, or a bare plan object), recomputes
+`promotionPlanHashV1` over it, and inserts one row. Dry run by default,
+`--commit` to write. Refuses a `plan_id` already filed under a different
+hash (`plan_id_conflict`); accepts a byte-identical refile as a replay,
+matching every other content-addressed table in this schema. Runs under the
+serve role — filing what `plan` already computed carries no promotion
+authority of its own. Wired into `entrypoint.sh` alongside `plan`/`validate`/
+`authorize`, and into `tsconfig.phase7.json`.
+
+**One real bug caught before this ever ran against a database:**
+`promotionPlanHashV1`'s parameter type is `Omit<DefenseBudgetPromotionPlanV1,
+'planHash'>` — but `Omit` is erased at runtime. The loaded plan document
+already carries a `planHash` field (attached by `buildPromotionPlanV1`
+*after* computing the hash over the field-less object), so recomputing the
+hash directly on the loaded object hashes a different value than the
+original every time and refuses every plan as tampered. Fixed by destructuring
+`planHash` out before recomputing — the same erased-`Omit` shape mismatch as
+the missing `::uuid`/`::timestamptz` casts found in Gap 3, just at the
+TypeScript layer instead of the SQL layer: a type that claims a runtime
+guarantee it cannot actually enforce.
+
+**Proven against a real disposable Postgres**, replacing the raw-SQL
+plan-filing step in `pe-budget-phase7-plan-rehearsal.ts` with a real spawn of
+this CLI: the plan produced by `plan-defense-budget-promotion-v1` is filed
+through the actual verb, read back by `validate-defense-budget-promotion-v1`,
+and the append-only trigger refuses a later `UPDATE` to it — exercised as
+part of the full `pe-budget-phase7-migration-rehearsal.sh` run, 103/103
+checks passing.
+
+The operator sequence is now, in full, real commands rather than partly
+described and partly raw SQL:
+
+```text
+plan-defense-budget-promotion-v1
+  -> file-defense-budget-promotion-plan-v1 --commit
+  -> validate-defense-budget-promotion-v1
+  -> authorize-defense-budget-promotion-v1
+  -> execute-defense-budget-promotion-v1
+```
+
+All nine verbs now have real, wired, rehearsed CLIs. What remains open is
+not a missing verb: it is `PromotionEligibilityRepositoryV1`'s fact-computing
+side (Gap 3's note 1 — an eligibility record must still be assembled and
+handed to the persistence repository by an operator or script, nothing yet
+derives one from live Phase 2/4/5/6 data), Gap 1's remaining scope (enacted
+positions, reprogramming/execution, package/account/transfer-pair actions),
+and everything outside this file's scope entirely: measured production SLOs
+and a human-authorized canary.
 
 ---
 

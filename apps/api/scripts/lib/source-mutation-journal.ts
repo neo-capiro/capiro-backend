@@ -22,8 +22,12 @@
  * then leaves a journal instead of a silent defect, and the next run restores
  * from it and says so loudly.
  *
- * The journal directory is deliberately inside the package (not a temp dir) so
- * that an abandoned one is visible to `git status` as well as to the next run.
+ * The journal directory is deliberately inside the repository (not a temp dir)
+ * so the next run is guaranteed to find it — a temp dir can be swept between
+ * runs, which is exactly when recovery is needed. It is itself gitignored
+ * (`.gitignore`: `.p*-nc-restore/`), because it holds verbatim copies of
+ * production source and must never be committed. What `git status` shows after
+ * an abandoned run is the *mutated tracked file*, not the journal.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';

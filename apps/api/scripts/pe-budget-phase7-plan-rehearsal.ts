@@ -21,6 +21,7 @@
  * demonstrated is the command an operator will type.
  */
 import { spawnSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
 
@@ -208,22 +209,58 @@ async function main(): Promise<void> {
       'the unreadable family is named rather than silently omitted',
     );
 
-    /* ---- 4. File the plan, then validate it ---- */
+    /* ---- 4. File the plan — through the real verb, not raw SQL — then validate it ---- */
 
     const planId = String(first.report.planId);
     const planHash = String(first.report.planHash);
+    // Gap 3 closeout: eligibility_hash is now a foreign key into
+    // defense_budget_promotion_eligibility. One row here covers every plan
+    // filed below — they all reuse ELIGIBILITY_HASH.
+    //
+    // ON CONFLICT DO NOTHING: ELIGIBILITY_HASH ('e'.repeat(64)) collides with
+    // pe-budget-phase7-engine-rehearsal.ts's SHA('e') — the same 64-'e' string
+    // — and both scripts run against the one shared disposable database within
+    // a single rehearsal invocation. A matching hash already present means the
+    // identical content was already recorded, which is exactly what a
+    // content-addressed table replaying cleanly looks like — not a defect.
     await admin.$executeRawUnsafe(`
-      INSERT INTO defense_budget_promotion_plan
-        (plan_id, plan_hash, eligibility_hash, mapping_registry_version, mapping_registry_hash,
-         cycle_id, fiscal_year, scope, scope_hash, mode, expected_active_snapshot_id,
-         proposed_snapshot_id, item_count, blocked_count, plan_document)
-      VALUES ('${planId}', '${planHash}', '${ELIGIBILITY_HASH}',
+      INSERT INTO defense_budget_promotion_eligibility
+        (eligibility_id, eligibility_hash, cycle_id, mapping_registry_version,
+         mapping_registry_hash, scope, scope_hash, open_conflict_count,
+         unsupported_item_count, document, generated_at)
+      VALUES ('elig-plan-rehearsal', '${ELIGIBILITY_HASH}', '${CYCLE_ID}',
               '${String(first.report.mappingRegistryVersion)}',
               '${String(first.report.mappingRegistryHash)}',
-              '${CYCLE_ID}', ${FISCAL_YEAR}, '{"families":["om"]}'::jsonb, '${SHA('a')}',
-              'baseline_hydration', NULL, '${String(first.report.proposedSnapshotId)}',
-              ${counts.total}, 0, $$${JSON.stringify(first.report.plan)}$$::jsonb);`);
-    ok('filed the plan');
+              '{"cycleId":"${CYCLE_ID}","fiscalYear":${FISCAL_YEAR},"families":["om"],"stages":[]}'::jsonb,
+              '${SHA('a')}', 0, 0, '{}'::jsonb, now())
+      ON CONFLICT ("eligibility_hash") DO NOTHING;`);
+
+    // Gap 4 closeout: this used to be a raw SQL INSERT — the exact gap the
+    // rehearsal itself proved existed (nothing filed a plan through an actual
+    // operator command). Now it spawns the real verb, matching how plan/
+    // validate below are already tested as real CLIs rather than imported.
+    const planDocPath = path.join(API_ROOT, '.p7-plan-rehearsal-doc.json');
+    fs.writeFileSync(planDocPath, JSON.stringify(first.report));
+    let filed: CliResultV1;
+    try {
+      filed = runVerb(
+        'file-defense-budget-promotion-plan-v1.ts',
+        ['--plan-document', planDocPath, '--commit'],
+        APP_URL,
+      );
+    } finally {
+      fs.rmSync(planDocPath, { force: true });
+    }
+    check(
+      filed.status === 0,
+      `file-defense-budget-promotion-plan-v1 exited 0 (got ${filed.status}${
+        filed.status !== 0
+          ? `: ${String(filed.report.reason)} — ${String(filed.report.detail)}`
+          : ''
+      })`,
+    );
+    check(filed.report.filed === true, 'the plan was actually filed, not just dry-run reported');
+    ok('filed the plan through the real verb');
 
     const validated = runVerb(
       'validate-defense-budget-promotion-v1.ts',

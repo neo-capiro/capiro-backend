@@ -70,6 +70,7 @@ export interface RdteCanonicalRowSnapshotV1 {
     costCategory: string;
     fy: number;
     totalCostM?: string | null;
+    isNamedCompany?: boolean | null;
   }>;
   milestones?: ReadonlyArray<{
     peCode: string;
@@ -787,6 +788,12 @@ function projectAssertion(input: {
           ...(assertion.totalCost != null ? { totalCostM: assertion.totalCost.valueMillions } : {}),
           sourceUrl: input.sourceUrl,
           pageNumber: page,
+          // Gap 2: a selection filter (`getContractors`'s namedPrimes), not a
+          // display flag — `null` rather than a guessed boolean when an older
+          // artifact carries no classification, so an unclassified row reads
+          // as "unknown" and is excluded from named-primes rather than
+          // silently counted as a real company.
+          isNamedCompany: metaBoolean(assertion, 'isNamedCompany') ?? null,
         },
         reason: 'R-3 performer/cost-analysis row (role-honest)',
       });
@@ -1108,7 +1115,9 @@ function classifyOperation(
           r.fy === v.fy,
       );
       if (existing == null) return candidate;
-      const same = decimalEqual(existing.totalCostM ?? null, v.totalCostM ?? null);
+      const same =
+        decimalEqual(existing.totalCostM ?? null, v.totalCostM ?? null) &&
+        (existing.isNamedCompany ?? null) === (v.isNamedCompany ?? null);
       return {
         ...candidate,
         operation: same ? 'no_op' : 'update',

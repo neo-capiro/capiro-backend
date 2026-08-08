@@ -9123,12 +9123,39 @@ model DefenseBudgetPromotionPlan {
   planDocument             Json     @map("plan_document")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  eligibility    DefenseBudgetPromotionEligibility     @relation(fields: [eligibilityHash], references: [eligibilityHash], onDelete: Restrict, onUpdate: Restrict)
   authorizations DefenseBudgetPromotionAuthorization[]
   runs           DefenseBudgetPromotionRun[]
 
   @@unique([planId, planHash], map: "defense_budget_promotion_plan_identity_unique")
   @@index([cycleId, fiscalYear], map: "defense_budget_promotion_plan_cycle_idx")
   @@map("defense_budget_promotion_plan")
+}
+
+/// Phase 7 Workstream A / Gap 3 closeout. Append-only record of one eligibility
+/// evaluation, keyed by its content hash. `defense_budget_promotion_plan`
+/// carries a foreign key to this table's `eligibilityHash` so a plan can never
+/// reference an eligibility that was never recorded.
+model DefenseBudgetPromotionEligibility {
+  id                     String   @id @default(uuid()) @db.Uuid
+  eligibilityId          String   @map("eligibility_id")
+  eligibilityHash        String   @unique(map: "defense_budget_promotion_eligibility_hash_unique") @map("eligibility_hash") @db.Char(64)
+  cycleId                String   @map("cycle_id")
+  mappingRegistryVersion String   @map("mapping_registry_version")
+  mappingRegistryHash    String   @map("mapping_registry_hash") @db.Char(64)
+  scope                  Json
+  scopeHash              String   @map("scope_hash") @db.Char(64)
+  openConflictCount      Int      @map("open_conflict_count")
+  unsupportedItemCount   Int      @map("unsupported_item_count")
+  document               Json
+  generatedAt            DateTime @map("generated_at") @db.Timestamptz(6)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  plans DefenseBudgetPromotionPlan[]
+
+  @@unique([eligibilityId, eligibilityHash], map: "defense_budget_promotion_eligibility_identity_unique")
+  @@index([cycleId], map: "defense_budget_promotion_eligibility_cycle_idx")
+  @@map("defense_budget_promotion_eligibility")
 }
 
 /// Phase 7 Workstream K. A governed human correction applied beside the active

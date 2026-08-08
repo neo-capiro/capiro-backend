@@ -247,6 +247,7 @@ describe('Phase 4 negative-control probes', () => {
             performerNormalized: 'LOCKHEED MARTIN',
             performerRole: 'PERFORMING_ACTIVITY',
             roleExplicit: false,
+            isNamedCompany: true,
             location: 'Bethesda, MD',
             contractMethod: 'C/CPFF',
             costCategory: 'Radar Development',

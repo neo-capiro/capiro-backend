@@ -262,6 +262,24 @@ async function main(): Promise<void> {
       VALUES ('${SNAPSHOT_ID}', 'snap-engine', '${ENVIRONMENT}', 'cycle-fy2027', 2027, 'STAGING',
               '["om"]'::jsonb, '[]'::jsonb, '${SHA('a')}');`);
 
+    // Gap 3 closeout: eligibility_hash is now a foreign key into
+    // defense_budget_promotion_eligibility. Both the plan and both
+    // authorizations below reuse SHA('e'), so one row covers all of them.
+    //
+    // ON CONFLICT DO NOTHING: SHA('e') ('e'.repeat(64)) collides with
+    // pe-budget-phase7-plan-rehearsal.ts's ELIGIBILITY_HASH — the same 64-'e'
+    // string — and both scripts run against the one shared disposable database
+    // within a single rehearsal invocation, order notwithstanding.
+    await admin.$executeRawUnsafe(`
+      INSERT INTO defense_budget_promotion_eligibility
+        (eligibility_id, eligibility_hash, cycle_id, mapping_registry_version,
+         mapping_registry_hash, scope, scope_hash, open_conflict_count,
+         unsupported_item_count, document, generated_at)
+      VALUES ('elig-engine-1', '${SHA('e')}', 'cycle-fy2027', '1.0.0', '${SHA('a')}',
+              '{"cycleId":"cycle-fy2027","fiscalYear":2027,"families":["om"],"stages":[]}'::jsonb,
+              '${SHA('a')}', 0, 0, '{}'::jsonb, now())
+      ON CONFLICT ("eligibility_hash") DO NOTHING;`);
+
     await admin.$executeRawUnsafe(`
       INSERT INTO defense_budget_promotion_plan
         (plan_id, plan_hash, eligibility_hash, mapping_registry_version, mapping_registry_hash,

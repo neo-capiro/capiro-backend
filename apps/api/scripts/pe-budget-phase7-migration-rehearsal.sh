@@ -33,6 +33,13 @@ P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
 # Workstream L's drain migration is the third. It adds a column to the outbox
 # the first one creates, so the same exclusion applies for the same reason.
 P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
+# Gap 3's eligibility migration is the fourth. It ALTERs the plan table the
+# first one creates (adding the eligibility foreign key), so it must be
+# excluded from the baseline and replayed last, after P7_MIGRATION exists —
+# replaying it as part of the baseline is exactly what produced
+# `relation "defense_budget_promotion_plan" does not exist` the first time
+# this rehearsal ran after Gap 3 closed.
+P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -86,7 +93,8 @@ defense_budget_promotion_run defense_budget_promotion_item \
 defense_budget_promotion_activation defense_budget_promotion_outbox \
 defense_budget_compatibility_projection_run defense_budget_rollback_record \
 defense_budget_side_effect_drain_pause defense_budget_canonical_delta \
-defense_budget_canonical_row defense_budget_promotion_audit"
+defense_budget_canonical_row defense_budget_promotion_audit \
+defense_budget_promotion_eligibility"
 
 assert_tables() {
   for table in $P7_TABLES; do
@@ -101,7 +109,7 @@ log "Path A: fresh migration chain to repository tip"
 (cd "$API_ROOT" && npx prisma migrate deploy --schema prisma/schema.prisma >/dev/null) \
   || fail "fresh migration chain failed"
 assert_tables
-ok "all 12 Phase 7 tables created on the fresh chain"
+ok "all 13 Phase 7 tables created on the fresh chain"
 
 [ "$(q "SELECT count(*) FROM pg_roles WHERE rolname='capiro_pe_promoter';")" = "1" ] \
   || fail "capiro_pe_promoter was not created"
@@ -131,6 +139,7 @@ for dir in "$MIGRATIONS_DIR"/*/; do
   [ "$migration" = "$P7_MIGRATION" ] && continue
   [ "$migration" = "$P7_MIGRATION_K" ] && continue
   [ "$migration" = "$P7_MIGRATION_L" ] && continue
+  [ "$migration" = "$P7_MIGRATION_GAP3" ] && continue
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
@@ -148,6 +157,8 @@ SQL
   || fail "Workstream K queue-link migration failed on the upgrade path"
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_L/migration.sql" >/dev/null \
   || fail "Workstream L drain migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP3/migration.sql" >/dev/null \
+  || fail "Gap 3 eligibility migration failed on the upgrade path"
 assert_tables
 ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
 
@@ -187,6 +198,22 @@ INSERT INTO defense_budget_canonical_snapshot
 VALUES
   ('11111111-1111-1111-1111-111111111111', 'snap-baseline', 'rehearsal',
    'cycle-fy2027', 2027, 'STAGING', '["om"]'::jsonb, '[]'::jsonb, '$SHA_A');
+
+-- Gap 3 closeout: defense_budget_promotion_plan.eligibility_hash is now a
+-- foreign key into defense_budget_promotion_eligibility. Every plan_hash
+-- inserted below reuses $SHA_A as its eligibility_hash, so one eligibility
+-- row here covers all of them. ON CONFLICT DO NOTHING: this database persists
+-- through the TS sub-rehearsals that follow, so a hash any of them happens to
+-- reuse should replay cleanly rather than fail.
+INSERT INTO defense_budget_promotion_eligibility
+  (eligibility_id, eligibility_hash, cycle_id, mapping_registry_version,
+   mapping_registry_hash, scope, scope_hash, open_conflict_count,
+   unsupported_item_count, document, generated_at)
+VALUES
+  ('elig-1', '$SHA_A', 'cycle-fy2027', '1.0.0', '$SHA_A',
+   '{"cycleId":"cycle-fy2027","fiscalYear":2027,"families":["om"],"stages":[]}'::jsonb,
+   '$SHA_A', 0, 0, '{}'::jsonb, now())
+ON CONFLICT (eligibility_hash) DO NOTHING;
 
 INSERT INTO defense_budget_promotion_plan
   (plan_id, plan_hash, eligibility_hash, mapping_registry_version,
@@ -988,6 +1015,20 @@ ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" 
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-plan-rehearsal.ts" \
   || fail "the plan/validate rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Gap 3 closeout — the authorize operator verb as the serve role"
+# =============================================================================
+# Proves the foreign key from defense_budget_promotion_plan.eligibility_hash to
+# defense_budget_promotion_eligibility actually enforces "a plan cannot
+# reference an eligibility that was never recorded", and that the real
+# authorize-defense-budget-promotion-v1 CLI issues an authorization whose
+# segregation evidence comes from a real, persisted eligibility record.
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
+  || fail "the Gap 3 authorize rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
 # =============================================================================
