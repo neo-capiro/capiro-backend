@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { FederalMarketMeriToolsService } from '../federal-spending/federal-market-meri-tools.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
 export const RAW_MERI_TOOLS_SERVICE = Symbol('RAW_MERI_TOOLS_SERVICE');
@@ -89,10 +90,16 @@ async function assertOwnedChartArtifacts(
  * embedded into Word/PowerPoint. MeriToolsService's historical image resolver is
  * tenant-scoped; validating every id here against tenant + current user prevents
  * another user in the same tenant from embedding a chart they do not own.
+ *
+ * Federal-market tools live with FederalSpendingModule rather than growing the
+ * already-large MeriToolsService. The proxy exposes their schemas and dispatches
+ * them to the same local read service used by the HTTP/UI surfaces. They never
+ * receive a Tango gateway or credential.
  */
 export function createGovernedMeriToolsService(
   raw: MeriToolsService,
-  prisma?: PrismaService,
+  prisma: PrismaService | undefined,
+  federalMarketTools: FederalMarketMeriToolsService,
 ): MeriToolsService {
   const present = async <T>(run: () => Promise<T>): Promise<T | Record<string, unknown>> => {
     try {
@@ -139,21 +146,46 @@ export function createGovernedMeriToolsService(
 
   return new Proxy(raw, {
     get(target, property) {
+      if (property === 'anthropicToolSchemas') {
+        return () => [
+          ...target.anthropicToolSchemas(),
+          ...federalMarketTools.anthropicSchemas(),
+        ];
+      }
+      if (property === 'isConcurrencySafe') {
+        return (name: string) =>
+          federalMarketTools.has(name) ? true : target.isConcurrencySafe(name);
+      }
+      if (property === 'isSideEffecting') {
+        return (name: string) =>
+          federalMarketTools.has(name) ? false : target.isSideEffecting(name);
+      }
       if (property === 'execute') {
-        return (...args: Parameters<MeriToolsService['execute']>) =>
-          present(async () => {
-            const [ctx, name, input] = args;
+        return (...args: Parameters<MeriToolsService['execute']>) => {
+          const [ctx, name, input] = args;
+          if (typeof name === 'string' && federalMarketTools.has(name)) {
+            return present(() => federalMarketTools.execute(ctx, name, input));
+          }
+          return present(async () => {
             await assertOwnedChartArtifacts(prisma, ctx, String(name), input);
             return target.execute(...args);
           });
+        };
       }
       if (property === 'executeFromAuthenticatedUser') {
-        return (...args: Parameters<MeriToolsService['executeFromAuthenticatedUser']>) =>
-          present(async () => {
-            const [ctx, name, input] = args;
-            await assertOwnedChartArtifacts(prisma, ctx, String(name), input);
+        return (...args: Parameters<MeriToolsService['executeFromAuthenticatedUser']>) => {
+          const [ctx, rawName, rawInput] = args;
+          const name = typeof rawName === 'string' ? rawName.trim() : '';
+          if (federalMarketTools.has(name)) {
+            return present(() =>
+              federalMarketTools.execute(ctx as TenantContext, name, rawInput),
+            );
+          }
+          return present(async () => {
+            await assertOwnedChartArtifacts(prisma, ctx, String(name), rawInput);
             return Promise.resolve(target.executeFromAuthenticatedUser(...args));
           });
+        };
       }
       const value = Reflect.get(target, property, target) as unknown;
       return typeof value === 'function' ? value.bind(target) : value;

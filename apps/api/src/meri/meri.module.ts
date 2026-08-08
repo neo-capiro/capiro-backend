@@ -5,6 +5,7 @@ import { AiCredentialResolverService } from '../engagement/ai-credential-resolve
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
+import { FederalMarketMeriToolsService } from '../federal-spending/federal-market-meri-tools.service.js';
 import { ProgramElementModule } from '../program-element/program-element.module.js';
 import { AcquisitionPersonnelModule } from '../acquisition-personnel/acquisition-personnel.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
@@ -99,7 +100,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     {
       provide: MeriToolsService,
       useFactory: createGovernedMeriToolsService,
-      inject: [RAW_MERI_TOOLS_SERVICE, PrismaService],
+      inject: [RAW_MERI_TOOLS_SERVICE, PrismaService, FederalMarketMeriToolsService],
     },
     {
       provide: MeriResearchService,

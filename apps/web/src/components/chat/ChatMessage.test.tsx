@@ -24,6 +24,36 @@ const citations: MeriCitation[] = [
   },
 ];
 
+const federalCitations: MeriCitation[] = [
+  {
+    n: 1,
+    type: 'federal_contract_award',
+    id: 'award-1',
+    title: 'Army autonomy award',
+    url: null,
+    snippet: 'Prime contract obligation.',
+    tool: 'search_federal_contract_awards',
+  },
+  {
+    n: 2,
+    type: 'federal_contract_award',
+    id: 'award-2',
+    title: 'Army autonomy award 2',
+    url: null,
+    snippet: null,
+    tool: 'search_federal_contract_awards',
+  },
+  {
+    n: 3,
+    type: 'procurement_forecast',
+    id: 'forecast-1',
+    title: 'Army autonomy forecast',
+    url: 'https://example.gov/forecast',
+    snippet: 'Agency planning signal.',
+    tool: 'search_procurement_forecasts',
+  },
+];
+
 describe('ChatMessage citations', () => {
   test('renders matched [N] markers as clickable chips and leaves unmatched markers as text', () => {
     render(
@@ -35,13 +65,11 @@ describe('ChatMessage citations', () => {
     );
     expect(screen.getByRole('button', { name: '[1]' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '[2]' })).toBeTruthy();
-    // [3] has no matching citation, so it must NOT become a button.
     expect(screen.queryByRole('button', { name: '[3]' })).toBeNull();
   });
 
   test('clicking a citation chip opens a drawer with the matched source', () => {
     render(<ChatMessage role="assistant" content="See the budget [2]." citations={citations} />);
-    // Drawer content is not present until the chip is clicked.
     expect(screen.queryByText('Budget Resolution')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '[2]' }));
     expect(screen.getByText('Budget Resolution')).toBeTruthy();
@@ -50,9 +78,33 @@ describe('ChatMessage citations', () => {
     expect(link.getAttribute('href')).toBe('https://congress.gov/budget');
   });
 
-  test('user messages render as plain text without citation chips', () => {
+  test('shows compact source labels and collapses duplicate federal source types', () => {
+    render(
+      <ChatMessage
+        role="assistant"
+        content="The award is relevant [1] and the forecast is an early signal [3]."
+        citations={federalCitations}
+      />,
+    );
+
+    expect(screen.getByText('Sources')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'USAspending' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Tango · Forecasts' })).toBeTruthy();
+    expect(screen.getByText('+1 more')).toBeTruthy();
+  });
+
+  test('source strip opens the existing citation drawer rather than adding a second evidence UI', () => {
+    render(<ChatMessage role="assistant" content="Forecast context." citations={federalCitations} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tango · Forecasts' }));
+    expect(screen.getByText('Army autonomy forecast')).toBeTruthy();
+    expect(screen.getByText('Agency planning signal.')).toBeTruthy();
+  });
+
+  test('user messages render as plain text without citation or source chips', () => {
     render(<ChatMessage role="user" content="What about bill [1]?" citations={citations} />);
     expect(screen.queryByRole('button', { name: '[1]' })).toBeNull();
+    expect(screen.queryByText('Sources')).toBeNull();
     expect(screen.getByText('What about bill [1]?')).toBeTruthy();
   });
 });
@@ -66,7 +118,6 @@ describe('ChatMessage markdown tables (GFM)', () => {
     expect(screen.getByText('Program')).toBeTruthy();
     expect(screen.getByText('Aircraft')).toBeTruthy();
     expect(screen.getByText('291.4')).toBeTruthy();
-    // raw markdown pipe row must not survive as literal text
     expect(container.textContent).not.toContain('| Aircraft |');
   });
 
@@ -148,7 +199,6 @@ describe('ChatMessage verification gate', () => {
     expect(screen.getByText(/Low confidence/i)).toBeTruthy();
     expect(screen.getByText('HR1 will pass the floor next week')).toBeTruthy();
     expect(screen.getByText('The sponsor is retiring')).toBeTruthy();
-    // supported claims are not listed as flagged
     expect(screen.queryByText('HR1 cleared committee')).toBeNull();
   });
 

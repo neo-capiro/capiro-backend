@@ -223,8 +223,7 @@ export class FederalSpendingService {
         count: Array.isArray(c.noBidAwards) ? (c.noBidAwards as unknown[]).length : 0,
       }));
 
-    const lastSyncedAt =
-      topContractors[0]?.lastSyncedAt ?? topAgencies[0]?.lastSyncedAt ?? null;
+    const lastSyncedAt = topContractors[0]?.lastSyncedAt ?? topAgencies[0]?.lastSyncedAt ?? null;
 
     return {
       totalContractors,
@@ -354,15 +353,13 @@ export class FederalSpendingService {
    * highest-budget agencies overall.
    */
   async getAiContext(clientName: string | null): Promise<{
-    matchedContractor:
-      | {
-          name: string;
-          totalContracts: number | null;
-          rankByContracts: number | null;
-          category: string | null;
-          topAgencies: { name: string; amount: number }[];
-        }
-      | null;
+    matchedContractor: {
+      name: string;
+      totalContracts: number | null;
+      rankByContracts: number | null;
+      category: string | null;
+      topAgencies: { name: string; amount: number }[];
+    } | null;
     topAgencyTotals: { name: string; budget: number | null }[];
   }> {
     const matched = clientName ? await this.lookupByClientName(clientName) : null;

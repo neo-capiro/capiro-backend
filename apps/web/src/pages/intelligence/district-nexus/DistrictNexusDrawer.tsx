@@ -12,6 +12,7 @@ import {
   type NexusScoreBreakdown,
   type TopAward,
 } from './district-nexus-api.js';
+import { DistrictFederalMarketPanel } from './DistrictFederalMarketPanel.js';
 import {
   bandOf,
   directoryDistrictPath,
@@ -39,16 +40,10 @@ interface Props {
 }
 
 /**
- * WS-G district drawer. Renders exactly what GET
- * district-nexus/districts/:state/:district (WS-E2) returns — no invented
- * sections. Two things the plan's §3.2 spec and the visual prototype both
- * call for are deliberately absent because the shipped response has no data
- * for them:
- *   - Grant opportunities as a list (only aggregate estimated/ceiling money
- *     exists on this response; there is no per-opportunity field).
- *   - Targets and relationship context (no `targets` field on the response
- *     at all).
- * Both are noted in the WS-G report as backend gaps, not UI omissions.
+ * District detail stays evidence-first and progressively disclosed. The map is
+ * the scan surface; this drawer is where one district is interpreted. Shared
+ * federal-market context lives here so the main map does not grow a second,
+ * competing dashboard below it.
  */
 export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, onClose }: Props) {
   const api = useApi();
@@ -69,10 +64,6 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
       onClose={onClose}
       width={620}
       destroyOnClose
-      // Render inline rather than porting to document.body: this drawer's
-      // content uses the district-nexus.css custom properties scoped to
-      // .dn-root, which only cascade to DOM descendants — a body-level
-      // portal would sit outside that scope and lose every token.
       getContainer={false}
       title={
         districtKey ? (
@@ -106,9 +97,6 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
               <Tag>Unscored · below coverage floor</Tag>
             )}
             <Tag>Coverage {d.coveragePercent}%</Tag>
-            {/* `boundaryVintage` is the vintage of the manifest ACTUALLY being
-                rendered, passed down by the page. It must never be the future
-                manifest's vintage while current data is on screen. */}
             <Tag>Boundary: current{boundaryVintage ? `, ${boundaryVintage}th` : ''}</Tag>
           </div>
           <div className="dn-dr-l3">
@@ -136,12 +124,19 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
 
           <Collapse
             ghost
-            defaultActiveKey={['score', 'representation', 'clients', 'contracts', 'grants']}
+            defaultActiveKey={['score', 'market']}
             items={[
               {
                 key: 'score',
                 label: <SectionLabel title="Why this score" meta={`${d.score ?? '—'} / 100`} />,
                 children: <ScoreBreakdown breakdown={d.breakdown} coveragePercent={d.coveragePercent} />,
+              },
+              {
+                key: 'market',
+                label: <SectionLabel title="Federal market context" meta="contracts · subawards · future" />,
+                children: districtKey ? (
+                  <DistrictFederalMarketPanel clientId={clientId} districtKey={districtKey} />
+                ) : null,
               },
               {
                 key: 'representation',
@@ -174,9 +169,6 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
                           awards={d.clientContractAwards}
                           emptyText="No contract award matched to this client's confirmed contractor names in this district."
                         />
-                        {/* Explicitly re-labelled. The list below is real and
-                            useful, but under a client filter it is NOT this
-                            client's money and must not read as though it were. */}
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', margin: '14px 0 6px' }}>
                           All public contract awards in this district
                         </div>
@@ -240,8 +232,7 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
                       <dd className="dn-num">{formatMoney(d.opportunities.opportunityAwardCeiling)}</dd>
                     </dl>
                     <div className="dn-muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-                      Individual opportunity listings aren't available in this view yet — see the Grant
-                      Opportunities source in Data Explorer.
+                      Individual opportunity listings aren't available in this view yet — see Funding Opportunities for client qualification.
                     </div>
                   </>
                 ),
@@ -322,11 +313,7 @@ function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreB
   );
 }
 
-function RepresentationSection({
-  representatives,
-}: {
-  representatives: DistrictNexusDistrictDetailResponse['representatives'];
-}) {
+function RepresentationSection({ representatives }: { representatives: DistrictNexusDistrictDetailResponse['representatives'] }) {
   if (!representatives) {
     return (
       <div className="dn-hint dn-info">
@@ -371,13 +358,7 @@ function MemberRow({ member, role }: { member: FederalMemberSummary; role: strin
   );
 }
 
-function ClientsSection({
-  clients,
-  facilities,
-}: {
-  clients: DistrictNexusDistrictDetailResponse['clients'];
-  facilities: DistrictNexusDistrictDetailResponse['facilities'];
-}) {
+function ClientsSection({ clients, facilities }: { clients: DistrictNexusDistrictDetailResponse['clients']; facilities: DistrictNexusDistrictDetailResponse['facilities'] }) {
   if (!clients.length) {
     return (
       <div className="dn-hint">
@@ -483,18 +464,11 @@ function DemographicsSection({ demographics }: { demographics: DistrictNexusDist
   );
 }
 
-/** `place_of_performance` -> `Place of performance`. */
 function humanizeToken(value: string): string {
   const spaced = value.replace(/_/g, ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/**
- * Verification tiers, rendered honestly (plan §7-E4 / §8.2). `inferred` is
- * called out in the warning colour rather than shown as a neutral peer of the
- * verified tiers — it means "matched by name, not by a verified identifier",
- * which is exactly the claim the plan insists must never read as confirmed.
- */
 const VERIFICATION_LABEL: Record<EvidenceVerificationStatus, { text: string; muted: boolean }> = {
   source_verified: { text: 'Source verified', muted: false },
   geocode_verified: { text: 'Geocode verified', muted: false },
@@ -502,13 +476,7 @@ const VERIFICATION_LABEL: Record<EvidenceVerificationStatus, { text: string; mut
   inferred: { text: 'Name match only', muted: true },
 };
 
-function EvidenceSection({
-  evidence,
-  freshness,
-}: {
-  evidence: DistrictNexusDistrictDetailResponse['evidence'];
-  freshness: DistrictNexusDistrictDetailResponse['freshness'];
-}) {
+function EvidenceSection({ evidence, freshness }: { evidence: DistrictNexusDistrictDetailResponse['evidence']; freshness: DistrictNexusDistrictDetailResponse['freshness'] }) {
   return (
     <>
       {evidence.length ? (
@@ -532,10 +500,7 @@ function EvidenceSection({
                     </td>
                     <td>
                       {humanizeToken(e.geographyBasis)}
-                      <div
-                        className="dn-sub"
-                        style={verification.muted ? { color: 'var(--notable)' } : undefined}
-                      >
+                      <div className="dn-sub" style={verification.muted ? { color: 'var(--notable)' } : undefined}>
                         {verification.text}
                       </div>
                     </td>

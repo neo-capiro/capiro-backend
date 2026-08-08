@@ -59,6 +59,11 @@ const INTELLIGENCE: V2NavLeaf[] = [
   { key: 'radar', label: 'LegiWatch', path: '/legiwatch' },
   { key: 'intelligence', label: 'Data Explorer', path: '/explorer' },
   {
+    key: 'federal-spending',
+    label: 'Federal Spending',
+    path: '/intelligence/federal-spending',
+  },
+  {
     key: 'district-nexus',
     label: 'District Nexus',
     path: '/intelligence/district-nexus',
