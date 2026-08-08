@@ -603,6 +603,29 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
     enabled: false,
   },
+  // Funding Opportunities P48: drain verified webhook deliveries into client
+  // alerts. DISABLED, and it must stay that way until P50's controlled
+  // enablement — P48's own ship note requires a manual two-pass quiet test
+  // before any cadence runs, because the first automated run of an alerting
+  // job is the one that can page a whole tenant at once.
+  //
+  // ORDER MATTERS: this reads what `sync-tango-opportunity-notices` holds and
+  // does not fetch inline, so it is scheduled AFTER that sync. Running it first
+  // is not harmful — it simply finds no change yet and the next cycle picks it
+  // up — but it makes alerts arrive a cycle late for no reason.
+  //
+  // `--commit` is deliberate here: the dry run is for an operator at a shell.
+  // A scheduled drain that never committed would silently do nothing, which is
+  // exactly the failure the entrypoint spec's argument-forwarding test guards.
+  {
+    id: 'ProcessTangoEvents',
+    command: ['process-tango-events', '--commit'],
+    cron: { minute: '20', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: drain verified Tango webhook deliveries into deduped client alerts (daily 13:20 UTC, after the notice sync)',
+    enabled: false,
+  },
   {
     id: 'SyncOpenstates',
     command: ['sync-openstates'],

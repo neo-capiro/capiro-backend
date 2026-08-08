@@ -18,6 +18,10 @@ describe('Funding Opportunities container commands', () => {
     // dispatcher that dropped them would silently downgrade a commit to a dry
     // run — or, far worse, drop --confirm-callback from a real commit.
     ['reconcile-tango-webhook-alerts', 'reconcile-tango-webhook-alerts.ts'],
+    // P48. Same reasoning: --commit is the interlock between a dry run and
+    // real alert writes, and a dispatcher that dropped it would silently turn
+    // a scheduled drain into a no-op nobody noticed.
+    ['process-tango-events', 'process-tango-events.ts'],
   ])('%s dispatches to %s and forwards all arguments', (verb, script) => {
     if (verb === 'sync-sam-opportunities-all-federal') {
       expect(dispatcher).toContain(

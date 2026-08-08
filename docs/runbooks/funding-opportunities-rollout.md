@@ -1752,3 +1752,60 @@ and read the diff rather than re-committing.
 recommended way to preview a removal. Even with it, an alert lacking the
 `capiro-managed/` prefix is never proposed for deletion: absence from desired
 state is not evidence that a human's dashboard alert is unwanted.
+
+## 29. Drain webhook events into alerts (P48)
+
+**Two-pass quiet test before any cadence.** The `ProcessTangoEvents` schedule
+ships `enabled: false` and must stay that way until P50. The first automated run
+of an alerting job is the one that can page a whole tenant at once.
+
+Run the notice sync FIRST — the drain reads what that sync holds and does not
+fetch inline:
+
+```bash
+sync-tango-opportunity-notices --commit
+```
+
+Then dry-run the drain. It writes nothing: no insert, no lease, no status change.
+
+```bash
+process-tango-events
+```
+
+Read the JSON summary. `alertsWritten` is what a `--commit` run WOULD write;
+`suppressions` explains every alert that did not fire, by reason:
+
+| Reason | Meaning |
+|---|---|
+| `baselined_first_observation` | nothing before it to compare against |
+| `no_change` / (absent) | the source did not change |
+| `below_materiality` | informational only — visible on the timeline instead |
+| `human_declined` | somebody already passed on it |
+| `terminal_stage` | won, lost, or passed |
+| `stage_not_engaged` | nobody staged it; usually `workflow_status = 'suggested'` |
+
+**The quiet test:** run the dry run twice with no sync in between. The second
+run must report the same `alertsWritten` and write nothing new. If the number
+grows, the fingerprint is not stable and the dedupe index will not save you —
+stop and investigate before committing.
+
+Then commit:
+
+```bash
+process-tango-events --commit --limit=200
+```
+
+Re-run the dry run afterwards. `alertsWritten` must be 0 and `alertsDeduped`
+should equal what the commit wrote.
+
+**Quarantine.** A poison event is retried up to 5 times, then moved to
+`quarantined` — terminal, visible, and skipped by the claim query forever after.
+It never blocks the queue. To see them:
+
+```sql
+SELECT delivery_id, event_type, attempts, last_error, completed_at
+FROM tango_event_outbox WHERE status = 'quarantined' ORDER BY completed_at DESC;
+```
+
+A quarantined row is an operator decision, not a retry: fix the cause, then
+reset it to `pending` with `attempts = 0` deliberately, one row at a time.

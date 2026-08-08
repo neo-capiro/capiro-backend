@@ -6508,6 +6508,117 @@ model TangoWebhookDelivery {
   @@map("tango_webhook_delivery")
 }
 
+/// Funding Opportunities P48 — one unit of fan-out work.
+///
+/// GLOBAL, like the delivery it comes from: a change in the federal
+/// marketplace carries no tenant. Whether it matters to a client is decided
+/// per-client downstream, against that client's own profile and workflow.
+///
+/// SEPARATE from `TangoWebhookDelivery` on purpose. A delivery is immutable
+/// inbound evidence of what arrived; this carries the MUTABLE work state —
+/// attempts, leases, quarantine — so a poisoned event's retry history never
+/// scribbles on the proof of what the provider actually sent.
+///
+/// Leased rather than locked (`leaseUntil` + `FOR UPDATE SKIP LOCKED`), so
+/// several processors run without blocking each other and a crashed processor's
+/// row becomes claimable again instead of stuck. Quarantine is TERMINAL and
+/// visible: a row at the attempt ceiling stops retrying and is skipped by the
+/// claim query forever, but it never disappears and never blocks the queue.
+model TangoEventOutbox {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The verified delivery this work came from. No relation, deliberately —
+  /// the record that work was queued must outlive what it pointed at.
+  deliveryId String @unique(map: "tango_event_outbox_delivery_uniq") @map("delivery_id")
+  eventType  String @map("event_type")
+
+  /// Which provider resource to refresh. `externalId` is nullable: a payload
+  /// may name an event with no addressable resource, and such a row completes
+  /// as a no-op rather than retrying forever.
+  resourceType String  @map("resource_type")
+  externalId   String? @map("external_id")
+
+  /// 'pending' | 'processing' | 'done' | 'quarantined'. CHECK-constrained.
+  status   String @default("pending") @map("status")
+  attempts Int    @default(0) @map("attempts")
+  /// Sanitized. Never a payload body, never a secret.
+  lastError String? @map("last_error")
+
+  leaseUntil      DateTime? @map("lease_until") @db.Timestamptz(6)
+  lastAttemptedAt DateTime? @map("last_attempted_at") @db.Timestamptz(6)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  /// The claim query: oldest pending first; quarantined never selected.
+  @@index([status, leaseUntil, createdAt], map: "tango_event_outbox_claim_idx")
+  @@map("tango_event_outbox")
+}
+
+/// Funding Opportunities P48 — one material change, for one client, told once.
+///
+/// TENANT-SCOPED with RLS ENABLED and FORCED, and it carries `tenantId` so
+/// `PrismaService`'s tenant-scope extension picks it up automatically.
+///
+/// ── Deduplication is a UNIQUE INDEX, not application logic ──────────────────
+///
+/// Replay and out-of-order delivery are NORMAL for an at-least-once webhook
+/// sender, and P48's acceptance requires they "produce one result". Two
+/// processors racing the same change both reach the INSERT; only the database
+/// can collapse that correctly under concurrency.
+///
+/// The fingerprint is computed from the CHANGE (dimension + before + after),
+/// never from the delivery — so the same deadline slip re-delivered under a new
+/// delivery id collapses onto one alert. This is exactly why P46 stores
+/// `payloadSha256` separately from `deliveryId`.
+///
+/// ── No model creates a row here ─────────────────────────────────────────────
+///
+/// `evidenceJsonb` holds the P28 classifier's own before/after values. An LLM
+/// summary may be attached downstream, but it can never bring an alert into
+/// existence — the plan is explicit that model summaries "cannot create the
+/// alert".
+model TangoEventAlert {
+  id String @id @default(uuid()) @db.Uuid
+
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Generic source identity (P13), so forecasts and future sources reuse this
+  /// table rather than growing a second one.
+  sourceType      String @map("source_type")
+  sourceRecordKey String @map("source_record_key")
+
+  /// P28's vocabulary, reused rather than re-derived. This phase applies policy
+  /// to the classifier's band; it does not invent a second severity scale.
+  changeDimension String @map("change_dimension")
+  severity        String @map("severity")
+
+  /// Lowercase hex SHA-256 over the change. CHECK-constrained to that shape.
+  changeFingerprint String @map("change_fingerprint")
+
+  evidenceJsonb Json    @map("evidence_jsonb")
+  beforeValue   String? @map("before_value")
+  afterValue    String? @map("after_value")
+
+  /// What the row looked like when the alert fired, so a reader can tell why
+  /// they were told. A later stage change never rewrites this.
+  pipelineStageAtAlert String? @map("pipeline_stage_at_alert")
+
+  /// When Capiro last saw the source. Stale evidence must say so rather than
+  /// reading as current.
+  sourceObservedAt DateTime? @map("source_observed_at") @db.Timestamptz(6)
+
+  deliveryId String?  @map("delivery_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, clientId, sourceRecordKey, changeFingerprint], map: "tango_event_alert_dedupe_uniq")
+  @@index([tenantId, createdAt], map: "tango_event_alert_tenant_created_idx")
+  @@index([tenantId, clientId, createdAt], map: "tango_event_alert_client_idx")
+  @@map("tango_event_alert")
+}
+
 /// Funding Opportunities P20 — client profile enrichment review workflow.
 ///
 /// ONE proposed change to ONE field on ONE client's profile, sourced from

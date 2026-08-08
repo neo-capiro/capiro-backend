@@ -96,7 +96,10 @@
     // --commit path carries the endpoint/callback interlocks, so a type error
     // reaching an operator's shell here is a genuinely bad outcome.
     "scripts/reconcile-tango-webhook-alerts.ts",
-    "scripts/reconcile-tango-webhook-alerts.spec.ts"
+    "scripts/reconcile-tango-webhook-alerts.spec.ts",
+    // P48: webhook event drain. Same rootDir gap as every entry above.
+    "scripts/process-tango-events.ts",
+    "scripts/process-tango-events.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
