@@ -99,7 +99,10 @@
     "scripts/reconcile-tango-webhook-alerts.spec.ts",
     // P48: webhook event drain. Same rootDir gap as every entry above.
     "scripts/process-tango-events.ts",
-    "scripts/process-tango-events.spec.ts"
+    "scripts/process-tango-events.spec.ts",
+    // P49: read-only canary diagnostic.
+    "scripts/diag-funding-opportunities-makegov.ts",
+    "scripts/diag-funding-opportunities-makegov.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
