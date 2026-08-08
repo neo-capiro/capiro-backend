@@ -68,8 +68,8 @@ function buildHarness(overrides?: {
     $executeRaw: jest.fn(async () => 1),
   };
   const prisma = {
-    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) =>
-      fn(tx),
+    withTenantUser: jest.fn(
+      async (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) => fn(tx),
     ),
   } as unknown as PrismaService;
 
@@ -150,7 +150,7 @@ describe('OutreachCommandProposalService', () => {
     );
   });
 
-  it('persists stale proposal supersession before returning the conflict', async () => {
+  it('persists a still-pending stale proposal supersession before returning conflict', async () => {
     const staleSession = { ...session, currentStateVersion: 2 };
     const harness = buildHarness({ session: staleSession });
 
@@ -167,6 +167,27 @@ describe('OutreachCommandProposalService', () => {
       expect.objectContaining({ id: session.id }),
       expect.objectContaining({ eventType: 'proposal_superseded' }),
     );
+  });
+
+  it('surfaces an eagerly superseded proposal as stale rather than generic decided', async () => {
+    const superseded = {
+      ...proposal,
+      status: 'superseded',
+      decidedAt: new Date('2026-08-08T00:02:00Z'),
+      rejectionCode: 'state_advanced',
+    } satisfies OutreachProposalRow;
+    const harness = buildHarness({
+      session: { ...session, currentStateVersion: 2 },
+      proposal: superseded,
+    });
+
+    await expect(harness.service.applyProposal(ctx, session.id, proposalId)).rejects.toMatchObject({
+      code: 'OUTREACH_PROPOSAL_STALE',
+      httpStatus: 409,
+      details: { currentStateVersion: 2 },
+    } satisfies Partial<OutreachCommandError>);
+    expect(harness.tx.$executeRaw).not.toHaveBeenCalled();
+    expect(harness.applyBatchWithinTx).not.toHaveBeenCalled();
   });
 
   it('rejects a semantically invalid sponsor proposal before durable creation', async () => {
