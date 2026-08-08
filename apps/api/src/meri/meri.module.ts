@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
-import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
+import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
+import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
@@ -58,6 +59,7 @@ import {
 @Module({
   imports: [
     EngagementModule,
+    AiCredentialsModule,
     LdaIntelModule,
     LobbyIntelModule,
     FederalSpendingModule,
@@ -71,10 +73,6 @@ import {
     MemoryModule,
     ContextModule,
     ReviewsModule,
-    // P37. Meri imports Funding Opportunities; the reverse is forbidden and
-    // would be a cycle — FundingOpportunitiesModule has no `imports` at all,
-    // by design, and this module already imports thirteen feature modules.
-    // Safe in this direction precisely because of that asymmetry.
     FundingOpportunitiesModule,
   ],
   controllers: [
@@ -128,22 +126,6 @@ import {
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
-    // ── P38: hand the assessment service its audit collaborators ───────────
-    //
-    // A side-effecting provider, deliberately, and the only shape that works.
-    // MeriOpportunityAssessmentService lives in FundingOpportunitiesModule
-    // (which imports nothing, by design), but two of its three collaborators —
-    // the claim writer and the compliance auditor — are declared HERE. Taking
-    // them as constructor parameters over there would require importing
-    // MeriModule from FundingOpportunitiesModule, which is the cycle the
-    // adapter's docblock explains at length.
-    //
-    // Nest instantiates providers eagerly, so this runs once at bootstrap. The
-    // service works without any of it — every collaborator is an AUDIT surface
-    // and none can change what an assessment says, so a missing one degrades to
-    // `compilerVersion: null` and no artifact row, never to a wrong answer.
-    // That is also what lets the unit suite exercise the whole path with none
-    // of them present.
     {
       provide: 'FUNDING_OPPORTUNITY_ASSESSMENT_WIRING',
       useFactory: (
@@ -160,12 +142,7 @@ import {
             claimWriter,
             auditor,
           })
-          // The model transport, injected rather than imported, so the service
-          // holds no credential resolver of its own and the suite can drive it
-          // with a fake.
           .withCompletion(async (tenantId, system, user) => {
-            // BYOK per tenant, resolved on every call. The resolver falls back
-            // to the platform key when a workspace has none of its own.
             const resolved = await aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
             if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
             const controller = new AbortController();
@@ -190,8 +167,6 @@ import {
                 signal: controller.signal,
               });
               if (!response.ok) {
-                // The status only. An Anthropic error body can echo request
-                // content, and this string reaches a log.
                 throw new Error(`Anthropic HTTP ${response.status}`);
               }
               const json = (await response.json()) as {
