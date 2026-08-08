@@ -19,6 +19,7 @@ import { DirectoryModule } from './directory/directory.module.js';
 import { DistrictNexusModule } from './district-nexus/district-nexus.module.js';
 import { FundingOpportunitiesModule } from './funding-opportunities/funding-opportunities.module.js';
 import { EngagementModule } from './engagement/engagement.module.js';
+import { CapabilitiesModule } from './capabilities/capabilities.module.js';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module.js';
 import { MeriModule } from './meri/meri.module.js';
 import { LobbyIntelModule } from './lobby-intel/lobby-intel.module.js';
@@ -45,7 +46,6 @@ import { BillingModule } from './billing/billing.module.js';
 import { MemoryModule } from './memory/memory.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
-// Defense budget packages: global public-domain funding read APIs (R3 §3.4).
 import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { TangoModule } from './external/tango/tango.module.js';
@@ -55,33 +55,16 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
   imports: [
     ProgramElementModule,
     AcquisitionPersonnelModule,
-    // GovInfoModule was defined but never imported — wired here so GovInfoService
-    // is resolvable app-wide (the sync-hearing-transcripts verb needs it; safe/
-    // additive — the service fails closed only when GOVINFO_API_KEY is used, not
-    // at boot).
     GovInfoModule,
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
       validate: (raw) => validateConfig(raw as Record<string, unknown>),
     }),
-    // MakeGov/Tango provider boundary (P14). Registered UNCONDITIONALLY and
-    // configured optionally: with no TANGO_API_KEY the gateway constructs fine,
-    // makes no network call and reads no secret, so boot is identical either way.
-    //
-    // Conditional registration would turn a missing environment variable into a
-    // startup dependency-resolution failure — the API refusing to boot because an
-    // additive, dark provider is not configured yet. Same reasoning as
-    // GovInfoModule above.
     TangoModule,
-    // Per-IP rate limiting at the application edge. WAF already drops
-    // sustained 2000 req/IP at the ALB; this is the second-layer defence
-    // that catches accidental client loops and bot-net-style fan-out within
-    // the WAF allowance. In-memory storage is per-task, which is fine while
-    // we run with a small task count; swap to Redis once ElastiCache lands.
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1_000, limit: 30 }, // 30 req / sec / IP
-      { name: 'long', ttl: 60_000, limit: 600 }, // 600 req / min / IP
+      { name: 'short', ttl: 1_000, limit: 30 },
+      { name: 'long', ttl: 60_000, limit: 600 },
     ]),
     PrismaModule,
     AuthModule,
@@ -93,22 +76,10 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ClientsModule,
     BrandingModule,
     DirectoryModule,
-    // Ships dark — every route 404s until the tenant has district_nexus_v2.
     DistrictNexusModule,
-    // Ships dark — every route 404s until the tenant has an EXPLICIT enabled
-    // funding_opportunities row. No internal-tenant fallback, so merging this
-    // enables it for nobody.
-    //
-    // This controller shares the `intelligence` prefix with IntelligenceController
-    // and is registered first, so its paths must not shadow any of that
-    // controller's — a shadowed route would start 404ing for every tenant, since
-    // this module is flag-gated and that one is not. Checked at the time of
-    // writing: every path here is under `opportunities` or
-    // `clients/:clientId/opportunities`, and IntelligenceController owns no
-    // `opportunities` segment. Adding a broader pattern here (e.g. a bare
-    // `clients/:clientId/:something`) would break that and must not be done.
     FundingOpportunitiesModule,
     EngagementModule,
+    CapabilitiesModule,
     DemoRequestsModule,
     MeriModule,
     LobbyIntelModule,
@@ -141,12 +112,6 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Tenant context resolution runs on every authenticated route.
-    // Webhooks and /health are explicitly excluded, they have no Clerk session.
-    // The Microsoft OAuth callback is also excluded: Microsoft redirects the
-    // user's browser to it as a top-level navigation, which doesn't carry the
-    // Clerk bearer token. The callback authenticates via the HMAC-signed
-    // `state` parameter (which encodes tenantId + connectionId) instead.
     consumer
       .apply(TenantContextMiddleware)
       .exclude(
@@ -154,63 +119,18 @@ export class AppModule implements NestModule {
         { path: 'webhooks/(.*)', method: RequestMethod.ALL },
         { path: '/api/v1/demo-requests', method: RequestMethod.POST },
         { path: 'api/v1/demo-requests', method: RequestMethod.POST },
-        {
-          path: '/api/engagement/integrations/microsoft/callback',
-          method: RequestMethod.GET,
-        },
-        {
-          path: 'api/engagement/integrations/microsoft/callback',
-          method: RequestMethod.GET,
-        },
-        {
-          path: '/api/engagement/integrations/microsoft/notifications',
-          method: RequestMethod.ALL,
-        },
-        {
-          path: 'api/engagement/integrations/microsoft/notifications',
-          method: RequestMethod.ALL,
-        },
-        // Google OAuth callback — top-level browser redirect from Google with
-        // ?code&state and no Clerk session; authenticates via the HMAC-signed
-        // `state`, same as the Microsoft callback above.
-        {
-          path: '/api/engagement/integrations/google/callback',
-          method: RequestMethod.GET,
-        },
-        {
-          path: 'api/engagement/integrations/google/callback',
-          method: RequestMethod.GET,
-        },
-        {
-          path: '/api/clio/runtime/(.*)',
-          method: RequestMethod.ALL,
-        },
-        {
-          path: 'api/clio/runtime/(.*)',
-          method: RequestMethod.ALL,
-        },
-        // MCP connector OAuth callback (connector-library v1) — a top-level
-        // browser redirect from the external OAuth provider with ?code&state and
-        // no Clerk session. Authenticates via the HMAC-signed `state`
-        // (MeriMcpOAuthService.verifyState), same pattern as the Microsoft
-        // callback above.
-        {
-          path: '/api/clio/mcp-oauth/callback',
-          method: RequestMethod.GET,
-        },
-        {
-          path: 'api/clio/mcp-oauth/callback',
-          method: RequestMethod.GET,
-        },
-        // Public marketing endpoint (capiro.ai Insights page) — no Clerk session.
+        { path: '/api/engagement/integrations/microsoft/callback', method: RequestMethod.GET },
+        { path: 'api/engagement/integrations/microsoft/callback', method: RequestMethod.GET },
+        { path: '/api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
+        { path: 'api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
+        { path: '/api/engagement/integrations/google/callback', method: RequestMethod.GET },
+        { path: 'api/engagement/integrations/google/callback', method: RequestMethod.GET },
+        { path: '/api/clio/runtime/(.*)', method: RequestMethod.ALL },
+        { path: 'api/clio/runtime/(.*)', method: RequestMethod.ALL },
+        { path: '/api/clio/mcp-oauth/callback', method: RequestMethod.GET },
+        { path: 'api/clio/mcp-oauth/callback', method: RequestMethod.GET },
         { path: '/api/insights', method: RequestMethod.GET },
         { path: 'api/insights', method: RequestMethod.GET },
-        // Internal service-to-service endpoints (BYOK3: intel-api resolves a
-        // tenant AI credential for live-hearing extraction). Authenticated by
-        // InternalServiceGuard (shared INTERNAL_SERVICE_SECRET header), NOT a
-        // Clerk session — the caller sends no Bearer, so TenantContextMiddleware
-        // MUST be excluded or it 401s before the guard runs (the endpoint reads
-        // tenantId from the body, never from req.tenantContext).
         { path: '/api/internal/(.*)', method: RequestMethod.ALL },
         { path: 'api/internal/(.*)', method: RequestMethod.ALL },
       )
