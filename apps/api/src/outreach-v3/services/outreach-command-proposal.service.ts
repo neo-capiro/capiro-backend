@@ -109,6 +109,18 @@ export class OutreachCommandProposalService {
       const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
       const proposal = await this.repository.lockOwnedProposal(tx, ctx, sessionId, proposalId);
 
+      // State-changing command batches proactively terminalize proposals that
+      // target the old version. Keep that eager supersession, but surface the
+      // contract-specific stale error when a user later presses Apply instead of
+      // collapsing it into a generic already-decided response.
+      if (proposal.status === 'superseded') {
+        throw new OutreachCommandError(
+          'OUTREACH_PROPOSAL_STALE',
+          'The outreach proposal targets an older campaign state and cannot be rebased automatically.',
+          409,
+          { currentStateVersion: session.currentStateVersion },
+        );
+      }
       if (proposal.status !== 'pending') {
         throw new OutreachCommandError(
           'OUTREACH_PROPOSAL_ALREADY_DECIDED',
