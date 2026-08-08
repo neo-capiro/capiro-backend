@@ -11,6 +11,7 @@ import { FederalSpendingService } from '../federal-spending/federal-spending.ser
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
+import { MeetingCapturePersistenceService } from '../meeting-capture/meeting-capture-persistence.service.js';
 import {
   NotetakerModule,
   RAW_MEETING_BOT_PROVIDER,
@@ -81,11 +82,6 @@ import {
   guardNotetakerService,
 } from './runtime/engagement-notetaker-runtime.boundary.js';
 
-/**
- * Request/core Engagement composition. This module deliberately owns no OAuth
- * callback controllers and no background timer providers; those live in the
- * separately composable callback and worker modules.
- */
 @Module({
   imports: [
     PrismaModule,
@@ -161,23 +157,24 @@ import {
         EngagementRuntimePolicyService,
       ],
     },
+    MeetingCapturePersistenceService,
     {
       provide: NotetakerService,
       useFactory: (
         prisma: PrismaService,
         bot: MeetingBotProvider,
-        engagement: EngagementService,
+        persistence: MeetingCapturePersistenceService,
         config: ConfigService<AppConfig, true>,
         runtime: EngagementRuntimePolicyService,
       ) =>
         guardNotetakerService(
-          new NotetakerService(prisma, bot, engagement, config, runtime),
+          new NotetakerService(prisma, bot, persistence as never, config, runtime),
           runtime,
         ),
       inject: [
         PrismaService,
         MEETING_BOT_PROVIDER,
-        EngagementService,
+        MeetingCapturePersistenceService,
         ConfigService,
         EngagementRuntimePolicyService,
       ],
@@ -234,6 +231,7 @@ import {
     AiCredentialsModule,
     OutcomeService,
     EngagementService,
+    MeetingCapturePersistenceService,
     NotetakerService,
     MicrosoftGraphSyncService,
     MicrosoftOAuthService,
