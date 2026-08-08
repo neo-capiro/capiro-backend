@@ -1881,13 +1881,18 @@ jobs:
       # merged, NOT from this feature. The api typecheck baseline moved in the
       # same merge, 6 pre-existing errors -> 12, none of them in funding-
       # opportunities code.
-      # 81/2528 -> 82/2556: P40 part 3, the DIBBS sync. +1 suite and +28 tests,
-      # ALL of it this feature's — nothing arrived from main in this move.
-      # (+27 in the new scripts/sync-tango-dibbs.spec.ts, +1 from the new
-      # dispatch row in funding-opportunities-entrypoint.spec.ts.) Measured
-      # against real Postgres 16 on a clean migration replay: 82 passed, 2556
-      # passed, zero failures, zero skips. The api typecheck baseline did NOT
-      # move — still 12 pre-existing errors, none in funding-opportunities code.
+      # 81/2528 -> 82/2558: P40 part 3, the DIBBS sync, plus the D-64 probe fix.
+      # +1 suite and +30 tests, ALL of it this feature's — nothing arrived from
+      # main in this move. Split: +27 in the new scripts/sync-tango-dibbs.spec.ts,
+      # +1 from the new dispatch row in funding-opportunities-entrypoint.spec.ts,
+      # +2 in tango-capability-probe.service.spec.ts (D-64 — the dibbs/sbir_sttr
+      # probes had D-62's error compiled in, with a test pinning `unsupported`;
+      # that assertion is now inverted and a real-call test added).
+      #
+      # Measured against real Postgres 16 on a clean migration replay: 82 passed,
+      # 2558 passed, zero failures, zero skips. The api typecheck baseline did
+      # NOT move — still 12 pre-existing errors, none in funding-opportunities
+      # code.
       #
       # Note for whoever reads the block above: its "78/2485 -> 81/2525" and
       # "+33 tests" were understated by 3. The floor asserted at that time was
@@ -1895,7 +1900,7 @@ jobs:
       # that prose was written. The floor was right; the prose was stale.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 82 2556
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 82 2558
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

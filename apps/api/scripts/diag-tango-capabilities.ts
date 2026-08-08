@@ -60,6 +60,7 @@ import {
   createProbeClient,
   type CapabilityReport,
 } from '../src/external/tango/tango-capability-probe.service.js';
+import { TangoDibbsClient } from '../src/external/tango/tango-dibbs.client.js';
 
 dotenvConfig();
 
@@ -139,11 +140,23 @@ async function main(): Promise<void> {
     timeoutMs: args.timeoutMs,
   });
 
+  // The DIBBS REST surface the SDK does not wrap. Constructed here rather than
+  // inside the probe service so this file stays the only place that decides
+  // what a diagnostic run is allowed to talk to. Read-only: the probe issues
+  // one `listRfqs({ limit: 1 })`. See decision-log D-62 for why this probe used
+  // to report `unsupported` and no longer does.
+  const dibbs = new TangoDibbsClient({
+    apiKey: args.apiKey,
+    baseUrl: args.baseUrl,
+    timeoutMs: args.timeoutMs,
+  });
+
   const service = new TangoCapabilityProbeService();
   const report = await service.run(client, args.apiKey, {
     uei: args.uei,
     vehicleUuid: args.vehicleUuid,
     requestCeiling: args.requestCeiling,
+    dibbs,
   });
 
   console.error(formatSummary(report));

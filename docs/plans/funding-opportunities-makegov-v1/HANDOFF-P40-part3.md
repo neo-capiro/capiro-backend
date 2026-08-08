@@ -48,7 +48,16 @@ drift silently.
 - **The live contract-validation step has not run.** Every coercion in the mappers and every assumption in
   the client — including the `results`/`next`/`count` pagination envelope — is still a reading of
   published field names. This remains the real gate.
-- **P17's entitlement question is still open.** Only a real call with a real key answers it.
+- **P17's entitlement question is still open — but the probe can now answer it.** See **D-64**: the
+  `dibbs` and `sbir_sttr` probes had D-62's error compiled into them, reporting
+  `unsupported_by_provider`, with a test pinning it. `dibbs` is now a real read-only probe
+  (`listRfqs({ limit: 1 })` through `TangoDibbsClient`); `sbir_sttr` reports `not_attempted` with an
+  honest reason until P42/P43 build a client. **The 2026-08-07 capability report's rows for these two
+  are superseded and must not be cited** — re-run `diag-tango-capabilities` to answer them.
+
+  A live run now closes two questions at once: entitlement, **and** whether the pagination envelope is
+  what the client assumes. A mismatch surfaces as `TangoDibbsEnvelopeError` naming the problem, rather
+  than as an empty page.
 - The client **throws** rather than returning an empty page when `results` is absent, so a wrong envelope
   fails loudly on the first live run instead of reporting "0 records, complete". Expect that to be the
   first thing the live run tells you, and treat it as a contract update plus a new fixture — never a
@@ -156,12 +165,13 @@ last merge here:
   **Re-measured 2026-08-08 at `main` d1d7030c (PR #856) and after part 3: still
   exactly 12.** #856's `noImplicitAny` fix was in `apps/web`, so the api count
   never moved, and part 3 introduced none.
-- FO CI floor: **now 82 suites / 2556 tests**, raised from 81/2528 by part 3.
+- FO CI floor: **now 82 suites / 2558 tests**, raised from 81/2528 by part 3.
   Of the movement from 78/2485 to 81/2528, +1 suite and +36 tests are P40's;
-  +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2556 move is
-  **entirely** part 3's: +27 in `sync-tango-dibbs.spec.ts`, +1 dispatch row.
-  Measured against real Postgres 16 on a clean migration replay — 82 passed,
-  2556 passed, zero failures, zero skips.
+  +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2558 move is
+  **entirely** this work's: +27 in `sync-tango-dibbs.spec.ts`, +1 dispatch row,
+  +2 in `tango-capability-probe.service.spec.ts` (D-64). Measured against real
+  Postgres 16 on a clean migration replay — 82 passed, 2558 passed, zero
+  failures, zero skips.
 
 Note that #856 (the NewsCatcher dashboard) added a 402-line spec under
 `src/intelligence/news/`, which does **not** appear in this gate's enumerated

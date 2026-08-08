@@ -1976,3 +1976,39 @@ in `ingestion-schedule.ts`. **A schedule that only ever runs the incremental wil
 Widening the checkpoint vocabulary in a later migration is still open as an option, but it should not be
 done merely to make DIBBS look like the other syncs — the modification-window semantics would still be
 absent, and a checkpoint row implying otherwise is worse than no row.
+
+## D-64 · 2026-08-08 · The P17 probe had D-62's error compiled into it, and a test holding it in place
+
+D-62 corrected the claim in prose. It did not correct the code that produced the claim.
+
+`tango-capability-probe.service.ts` carried `dibbs` and `sbir_sttr` probes with `call: null` and
+`skippedReason: 'unsupported_by_provider'`, which this file's own `ProbeDef` doc defines as "a genuine SDK
+gap … a fact about the provider/SDK surface itself". The `dibbs` reason read: *"P40 cannot assume this
+dataset is reachable through this SDK version; escalate to MakeGov before designing P40 around it."*
+
+So `p17-tango-capability-report.json` — the artifact attached to a handoff, and the thing a reader
+consults to answer "is Capiro entitled to this dataset" — asserted that a dataset with a published REST
+API was unsupported by the provider. Worse, **a test pinned it**:
+`expect(byKey(report, key).status).toBe('unsupported')` over a list including both keys. The error was
+load-bearing in three places at once: a service, a report, and a green assertion.
+
+Corrected here:
+
+- A fourth `skippedReason`, `no_rest_client_wired` → `not_attempted`. "Capiro has not built a client"
+  is a fact about Capiro's code; `unsupported` is a claim about the provider. Conflating them is the
+  whole of D-62 in one enum value.
+- `dibbs` is now a REAL probe when a `TangoDibbsClient` is supplied — one read-only
+  `listRfqs({ limit: 1 })`, the same smallest-shaped-call policy as every other probe here.
+- `sbir_sttr` stays uncalled (P42/P43 have not built a client) but now reports `not_attempted` with a
+  reason stating the provider **does** document `/api/sbir/topics/` and `/api/sbir/solicitations/`, and
+  that entitlement is therefore **unknown, not refused**.
+- The test that pinned `unsupported` for both keys now asserts the opposite: `unsupported` for these two
+  is a regression, not a baseline.
+
+**`p17-tango-capability-report.json` (captured 2026-08-07) is left unmodified — it is a record of a real
+run, and editing a captured artifact to match a later understanding is how records stop being evidence.
+Its `dibbs` and `sbir_sttr` rows are SUPERSEDED and must not be cited. A re-run answers them.**
+
+The generalisable point is narrower than "update code when you update docs": **a correction that lands
+only in prose leaves the mechanism that generated the error still running.** D-62 was written, reviewed
+and merged while the probe kept emitting the corrected claim, and a passing test kept it there.
