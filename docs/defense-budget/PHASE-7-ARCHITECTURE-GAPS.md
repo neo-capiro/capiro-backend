@@ -612,6 +612,18 @@ real; that error type survives for one narrower job — a candidate whose Gap 5
 decision-1 metadata was never backfilled is refused by name, with the backfill
 command in the message, rather than promoted on a default.
 
+**Proven against a real disposable Postgres**, matching how Gaps 1–4 were
+closed: `pe-budget-phase7-migration-rehearsal.sh` now runs **117 checks** (up
+from 103), covering both migrations on the upgrade path. Specifically — a
+candidate written *before* the metadata migration survives it and arrives with
+NULL rather than a default; `defense_budget_projection_plan` refuses a
+PROJECTABLE row carrying a nonzero count, a BLOCKED row carrying none, an
+unknown status, a row with neither storage mode and a row with both, and any
+UPDATE or DELETE; a byte-identical re-file is a replay rather than a duplicate;
+and the real `persist-defense-budget-projection-plan-v1` verb files a plan under
+the serve role, with a by-design `contextual_only_value` exclusion correctly not
+blocking while its reason is still recorded.
+
 Details worth not rediscovering:
 
 - **`extractionMethod` for a composed artifact resolves to the riskiest
@@ -646,21 +658,70 @@ Details worth not rediscovering:
   so bumping the constant surfaced as `projection_hash_mismatch` — a
   projection-plan refusal for a schema-version problem. Now uses the constant.
 
-**Not done, and not blocked on a decision — the remaining producer wiring:**
+### Producer wiring — the separate verb IS the correct boundary, not a shortcut
 
-1. The three producers do not yet call `persist-defense-budget-projection-plan-v1`
-   from inside their own pipelines. The verb exists, is typechecked, and
-   persists any of the three plan shapes, but `build-rdte-cycle`,
-   `plan-defense-budget-non-rdte-projection`, and the Phase 6 cycle commands
-   still print a plan and exit. Until they are wired, filing a plan is a
-   separate operator step — the same shape Gap 4 closed for promotion plans.
-2. Existing Phase 4/5/6 outputs have not been rebuilt and persisted. Per
+Recorded because the obvious next step is forbidden, and a session that tries it
+will break a mandatory negative control before understanding why.
+
+A first reading of decision 3's "ownership belongs with the producer" suggests
+`build-rdte-cycle` and `plan-defense-budget-non-rdte-projection` should call the
+persistence themselves. **They must not.** Phase 5's mandatory negative control
+**NC20** (`non-rdte-phase5-audit-gates.spec.ts`, "Phase 5 operators and
+projection execute no Prisma DML") asserts over all five Phase 5 command scripts
+plus their shared lib that:
+
+```text
+imports do not match  /@prisma\/client|prisma\.service/
+source does not match /\b(prisma|tx|db)\s*\.\s*\w+\s*\.\s*(create|update|upsert|delete|...)\(/
+source does not match /\$executeRaw|\$queryRawUnsafe/
+command source does not contain '--commit'
+```
+
+Importing Prisma into that planner — under any flag, however carefully gated —
+fails the first assertion outright. `plan-defense-budget-non-rdte-projection.ts`
+also routes every argument through `refuseUnknownFlags`, which refuses `--commit`
+permanently by design.
+
+So the correct shape is what already exists: **pure planners, a separate persist
+verb.** That is not a compromise — it is the same conclusion three independent
+parts of this codebase already reached, for the same reason:
+
+| Concern                    | Pure producer                                | Separate persist verb                         |
+| -------------------------- | -------------------------------------------- | --------------------------------------------- |
+| Phase 6 audit projections  | `phase6-stage-cycle.ts` (refuses `--commit`) | `persist-phase6-audit-projections-v1`         |
+| Phase 7 promotion plans    | `plan-defense-budget-promotion-v1`           | `file-defense-budget-promotion-plan-v1` (Gap 4) |
+| Phase 4/5 projection plans | `build-rdte-cycle`, `plan-…-non-rdte-…`      | `persist-defense-budget-projection-plan-v1`   |
+
+"Ownership belongs with the producer" is satisfied by the *phase* owning the
+persist step, not by the planner process opening a database connection. Decision
+3's substantive requirement — that Phase 7 never recomputes a family projection
+during eligibility or authorization — is met either way.
+
+What remains is therefore chaining, not wiring: the runbook now documents the
+persist step, and a producing pipeline should call the verb after its planner,
+the way `plan → file → validate → authorize → execute` chains today.
+
+**Still open under decision 3, and this one does need an owner:** Phase 6 has
+**no plan-shaped document to persist.** Phase 4 and Phase 5 emit a
+`*CanonicalProjectionPlanV1` with `candidates[].operation`, exclusions, and a
+`contentSha256`. Phase 6 emits native projections plus a cycle certification,
+and the committee family's projection is computed at promotion-plan time by
+`projectPhase6ProjectionsV1` reading `phase6_audit_projection`. Manufacturing a
+Phase 6 plan document would require deciding what a Phase 6 projection candidate
+is, what `operation` it carries (which needs a canonical diff Phase 6 does not
+perform), and what its exclusions are — three semantic decisions, which is
+exactly what this file exists to stop someone guessing at. Until that is
+answered, `loadProjectionPlans` returns nothing for family `committee`, and the
+service refuses the promotion with `projection_hash_mismatch` — a visible
+refusal, not a silent gap.
+
+**Not done, and not blocked on a decision:**
+
+1. Existing Phase 4/5/6 outputs have not been rebuilt and persisted. Per
    decision 3 they should be, through their existing deterministic planners,
    before Phase 7 can proceed against real data.
-3. No DB-backed rehearsal has exercised the two new migrations. Everything
-   above is unit-tested against fakes;
-   `pe-budget-phase7-migration-rehearsal.sh` has not been extended to cover
-   `defense_budget_projection_plan` or the new candidate columns.
+2. No producing pipeline calls the persist verb yet, so filing a projection plan
+   is currently a separate operator step (documented in the runbook).
 
 ---
 

@@ -73,8 +73,12 @@ Made by Neo on 2026-08-08, recorded verbatim in Gap 5. In one line each:
 | `jest src/defense-budget src/program-element/snapshot`           | 204 suites / 2845 tests pass                   |
 | `verify-pe-budget-phase-7-negative-controls.ts`                  | 32/32 controls passed                          |
 | `verify-pe-budget-phase-7-safety.ts`                             | passed                                         |
+| `pe-budget-phase7-migration-rehearsal.sh`                        | **117 checks, exit 0** (was 103)               |
 
-No database was involved. Everything is unit-tested against fakes.
+The rehearsal covers both new migrations on the upgrade path, including a
+candidate row written *before* the metadata migration, every CHECK and the
+append-only trigger on `defense_budget_projection_plan`, and the real persist
+verb running under the serve role.
 
 ## Things worth not rediscovering
 
@@ -101,32 +105,38 @@ No database was involved. Everything is unit-tested against fakes.
 
 ## What's left
 
-Items 2–5 from session 9 are unchanged and still Neo's. Item 1 is now closed
-except for producer wiring, which needs no further decision:
+Items 2–5 from session 9 are unchanged and still Neo's. Item 1 is closed,
+including its DB rehearsal.
 
-| #   | Item                                                        | Needs a human first?      |
-| --- | ----------------------------------------------------------- | ------------------------- |
-| 1a  | Wire the three producers to persist their plans             | **No** — pure engineering |
-| 1b  | Rebuild + persist existing Phase 4/5/6 outputs              | **No** — per decision 3   |
-| 1c  | Extend the DB rehearsal to the two new migrations           | **No**                    |
-| 2   | Gap 1's remaining stages (enacted, reprogramming/execution) | Yes, then engineering     |
-| 3   | Production-scale rehearsal thresholds                       | Yes — measured SLOs       |
-| 4   | Canary acceptance                                           | Yes, mandatory            |
-| 5   | Any actual deployment, including `capiro-dev`               | Yes                       |
+| #   | Item                                                         | Needs a human first?  |
+| --- | ------------------------------------------------------------ | --------------------- |
+| 1a  | A Phase 6 plan-shaped document to persist                    | **Yes** — 3 decisions |
+| 1b  | Rebuild + persist existing Phase 4/5/6 outputs               | No — per decision 3   |
+| 1c  | Chain the persist verb into the producing pipelines          | No                    |
+| 2   | Gap 1's remaining stages (enacted, reprogramming/execution)  | Yes, then engineering |
+| 3   | Production-scale rehearsal thresholds                        | Yes — measured SLOs   |
+| 4   | Canary acceptance                                            | Yes, mandatory        |
+| 5   | Any actual deployment, including `capiro-dev`                | Yes                   |
 
-**1a in detail:** `persist-defense-budget-projection-plan-v1` exists, is
-typechecked, and files any of the three plan shapes, but `build-rdte-cycle`,
-`plan-defense-budget-non-rdte-projection`, and the Phase 6 cycle commands still
-print a plan and exit. Until they call it, filing a plan is a separate operator
-step — the same shape Gap 4 closed for promotion plans, and it should probably
-close the same way.
+**Do not try to wire persistence into the planners themselves.** Phase 5's
+mandatory negative control **NC20** asserts that its five command scripts import
+nothing matching `/@prisma\/client|prisma\.service/` and contain no
+`$executeRaw|$queryRawUnsafe`. Importing Prisma there fails it outright, and the
+planner's `refuseUnknownFlags` guard refuses `--commit` permanently by design.
+The separate persist verb is the correct boundary — the same pure-producer /
+separate-verb split `persist-phase6-audit-projections-v1` and
+`file-defense-budget-promotion-plan-v1` already use. Gap 5's section has the
+full table.
 
-**1c in detail:** `pe-budget-phase7-migration-rehearsal.sh` has not been
-extended to cover `defense_budget_projection_plan` or the new candidate
-columns. The append-only trigger, the status/count CHECK, and the storage-mode
-CHECK on the new table have never run against a real Postgres. Both migrations
-are additive, but "additive" has not been *demonstrated* here the way session
-9 demonstrated it for the eligibility table.
+**1a in detail:** Phase 4 and Phase 5 emit a `*CanonicalProjectionPlanV1` with
+`candidates[].operation`, exclusions, and a `contentSha256`. Phase 6 emits
+native projections plus a certification, and the committee projection is
+computed at promotion-plan time. Inventing a Phase 6 plan document means
+deciding what a Phase 6 candidate is, what `operation` it carries (needing a
+canonical diff Phase 6 does not perform), and what its exclusions are. Until
+that is decided, `loadProjectionPlans` returns nothing for family `committee`
+and the promotion is refused with `projection_hash_mismatch` — visible, not
+silent.
 
 ## Environment notes
 

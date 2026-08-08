@@ -40,6 +40,19 @@ P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
 # `relation "defense_budget_promotion_plan" does not exist` the first time
 # this rehearsal ran after Gap 3 closed.
 P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
+
+# Gap 5's two migrations are the fifth and sixth. Both are purely additive and
+# neither depends on a Phase 7 table, so unlike Gap 3's they *could* replay in
+# the baseline — they are excluded anyway so the upgrade path proves they apply
+# on top of a pre-Phase-7 schema, which is the claim that matters for a
+# database that has already been migrated once.
+#
+# `..._CANDIDATE_METADATA` ALTERs a Phase 2 table that predates Phase 7
+# entirely, so it is also the one migration here that touches data an existing
+# environment already holds. The checks below assert it arrives nullable and
+# disturbs nothing.
+P7_MIGRATION_GAP5_CANDIDATE="20260907010000_pe_budget_phase2_candidate_source_metadata"
+P7_MIGRATION_GAP5_PLANS="20260907020000_pe_budget_projection_plan_persistence"
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -94,7 +107,7 @@ defense_budget_promotion_activation defense_budget_promotion_outbox \
 defense_budget_compatibility_projection_run defense_budget_rollback_record \
 defense_budget_side_effect_drain_pause defense_budget_canonical_delta \
 defense_budget_canonical_row defense_budget_promotion_audit \
-defense_budget_promotion_eligibility"
+defense_budget_promotion_eligibility defense_budget_projection_plan"
 
 assert_tables() {
   for table in $P7_TABLES; do
@@ -109,7 +122,9 @@ log "Path A: fresh migration chain to repository tip"
 (cd "$API_ROOT" && npx prisma migrate deploy --schema prisma/schema.prisma >/dev/null) \
   || fail "fresh migration chain failed"
 assert_tables
-ok "all 13 Phase 7 tables created on the fresh chain"
+# Counted from the list rather than hardcoded: the literal said 13 while the
+# list held 15, so it had already drifted once before Gap 5 added another.
+ok "all $(echo $P7_TABLES | wc -w) Phase 7 tables created on the fresh chain"
 
 [ "$(q "SELECT count(*) FROM pg_roles WHERE rolname='capiro_pe_promoter';")" = "1" ] \
   || fail "capiro_pe_promoter was not created"
@@ -140,15 +155,45 @@ for dir in "$MIGRATIONS_DIR"/*/; do
   [ "$migration" = "$P7_MIGRATION_K" ] && continue
   [ "$migration" = "$P7_MIGRATION_L" ] && continue
   [ "$migration" = "$P7_MIGRATION_GAP3" ] && continue
+  [ "$migration" = "$P7_MIGRATION_GAP5_CANDIDATE" ] && continue
+  [ "$migration" = "$P7_MIGRATION_GAP5_PLANS" ] && continue
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
   || fail "pre-Phase-7 replay failed"
 
 # Legacy data that must survive an additive migration untouched.
+#
+# The candidate row is the Gap 5 case: `20260907010000` ALTERs a Phase 2 table
+# that predates Phase 7 and that a real environment already holds rows in, so a
+# row written before the migration is exactly the situation the backfill exists
+# for. It must arrive with NULL metadata rather than a default.
 "${PSQL[@]}" <<'SQL' >/dev/null
 INSERT INTO program_element (pe_code, title, source)
 VALUES ('0601101A', 'Legacy PE survives Phase 7', 'rehearsal');
+
+-- The candidate carries a foreign key to source_document, so the parent has to
+-- exist before it. Same shape a real environment would already have.
+INSERT INTO source_document (
+  id, source_key, budget_cycle, document_type, title, source_url, extraction_method
+) VALUES (
+  '22222222-2222-2222-2222-222222222222', 'legacy-source-key', 'pb_fy2027',
+  'r-2', 'Legacy source document', 'https://example.test/legacy.pdf',
+  'deterministic_pdfplumber'
+);
+
+INSERT INTO budget_extraction_candidate_v1 (
+  id, cycle_id, manifest_content_sha256, manifest_document_key,
+  extraction_artifact_id, extraction_artifact_sha256, source_document_id,
+  source_sha256, verifier_version, policy_version, policy_sha256, status
+) VALUES (
+  '11111111-1111-1111-1111-111111111111', 'cycle-gap5-legacy',
+  repeat('a', 64), 'legacy-doc-key',
+  'artifact-legacy', repeat('b', 64),
+  '22222222-2222-2222-2222-222222222222',
+  repeat('c', 64), 'defense_budget_verifier_v1',
+  'defense_budget_verification_policy_v1', repeat('d', 64), 'VERIFICATION_PASSED'
+);
 SQL
 
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION/migration.sql" >/dev/null \
@@ -159,8 +204,27 @@ SQL
   || fail "Workstream L drain migration failed on the upgrade path"
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP3/migration.sql" >/dev/null \
   || fail "Gap 3 eligibility migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP5_CANDIDATE/migration.sql" >/dev/null \
+  || fail "Gap 5 candidate-metadata migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP5_PLANS/migration.sql" >/dev/null \
+  || fail "Gap 5 projection-plan migration failed on the upgrade path"
 assert_tables
 ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
+
+# --- Gap 5 decision 1: the candidate metadata columns are additive -----------
+[ "$(q "SELECT count(*) FROM budget_extraction_candidate_v1
+        WHERE id = '11111111-1111-1111-1111-111111111111'
+          AND status = 'VERIFICATION_PASSED';")" = "1" ] \
+  || fail "the legacy candidate row did not survive the Gap 5 migration"
+ok "a candidate written before the Gap 5 migration survives it untouched"
+
+# NULL, not a default. A default would make an un-backfilled row look scopeable
+# and would be exactly the silent-guess failure decision 1 exists to prevent.
+[ "$(q "SELECT family IS NULL AND extraction_method IS NULL
+          FROM budget_extraction_candidate_v1
+         WHERE id = '11111111-1111-1111-1111-111111111111';")" = "t" ] \
+  || fail "the Gap 5 metadata columns arrived with a default instead of NULL"
+ok "the new candidate metadata columns arrive NULL, never defaulted"
 
 # The queue link is added to a table that already holds rows, so prove the
 # column arrives nullable and disturbs nothing that was already queued.
@@ -1030,6 +1094,175 @@ APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
   || fail "the Gap 3 authorize rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Gap 5 decision 3 — projection plan persistence"
+# =============================================================================
+# Every constraint on defense_budget_projection_plan is here because a reader
+# downstream trusts it. These prove the database enforces them rather than the
+# adapter that happens to be doing the writing.
+
+PLAN_DOC='{"schemaVersion":"rdte_canonical_projection_plan_v1","cycleId":"cycle-gap5","fiscalYear":2027,"contentSha256":"'"$(printf 'e%.0s' $(seq 1 64))"'","candidates":[{"operation":"insert","artifactContentSha256":"'"$(printf 'f%.0s' $(seq 1 64))"'"}]}'
+
+run_sql "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document
+) VALUES (
+  'pp_gap5_clean', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('e', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'PROJECTABLE',
+  0, 0, '$PLAN_DOC'::jsonb
+);"
+ok "a projectable plan can be filed"
+
+# Content-addressed identity: re-filing the same plan is a replay, not a
+# second plan and not an error.
+run_sql "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document
+) VALUES (
+  'pp_gap5_clean', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('e', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'PROJECTABLE',
+  0, 0, '$PLAN_DOC'::jsonb
+) ON CONFLICT (projection_plan_id) DO NOTHING;"
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan
+        WHERE projection_plan_id = 'pp_gap5_clean';")" = "1" ] \
+  || fail "re-filing the same plan produced a second row"
+ok "re-filing a byte-identical plan is a replay, not a duplicate"
+
+# The summary columns are a cross-check on the stored document. A row claiming
+# PROJECTABLE while carrying a nonzero count would make
+# `open_blocking_conflict_ignored` pass while proving nothing.
+expect_fail "a PROJECTABLE plan carrying a nonzero conflict count" "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document
+) VALUES (
+  'pp_gap5_lying', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('9', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'PROJECTABLE',
+  3, 0, '$PLAN_DOC'::jsonb
+);"
+
+expect_fail "a BLOCKED plan carrying no blocking count at all" "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document
+) VALUES (
+  'pp_gap5_blocked_zero', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('8', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'BLOCKED',
+  0, 0, '$PLAN_DOC'::jsonb
+);"
+
+expect_fail "a plan with an unknown status" "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document
+) VALUES (
+  'pp_gap5_status', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('7', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'MAYBE',
+  0, 0, '$PLAN_DOC'::jsonb
+);"
+
+# Exactly one storage mode. A row with neither would read as an empty plan;
+# a row with both would leave which one is authoritative undefined.
+expect_fail "a plan stored with neither a document nor a locator" "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count
+) VALUES (
+  'pp_gap5_nostorage', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('6', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'PROJECTABLE', 0, 0
+);"
+
+expect_fail "a plan stored inline AND at a locator" "
+INSERT INTO defense_budget_projection_plan (
+  projection_plan_id, record_schema_version, schema_version, family,
+  cycle_id, fiscal_year, content_sha256, producer_version,
+  certification_sha256, artifact_set_sha256, status,
+  conflict_count, unsupported_count, plan_document, plan_locator, plan_byte_sha256
+) VALUES (
+  'pp_gap5_bothstorage', 'defense_budget_projection_plan_record_v1',
+  'rdte_canonical_projection_plan_v1', 'rdte',
+  'cycle-gap5', 2027, repeat('5', 64), 'rehearsal@1',
+  repeat('1', 64), repeat('2', 64), 'PROJECTABLE', 0, 0,
+  '$PLAN_DOC'::jsonb, 's3://plans/x.json', repeat('3', 64)
+);"
+
+# A filed plan is evidence about what a producer computed at a moment in time.
+# Append-only, enforced by trigger rather than by grants, for the same reason
+# every other ledger table here is.
+expect_fail "an UPDATE to a filed projection plan" "
+UPDATE defense_budget_projection_plan SET conflict_count = 99
+ WHERE projection_plan_id = 'pp_gap5_clean';"
+
+expect_fail "a DELETE of a filed projection plan" "
+DELETE FROM defense_budget_projection_plan WHERE projection_plan_id = 'pp_gap5_clean';"
+
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan;")" = "1" ] \
+  || fail "a refused statement still changed the projection plan table"
+ok "the projection plan table holds exactly the one plan that was legitimately filed"
+
+# =============================================================================
+log "Gap 5 — the real persist verb, end to end"
+# =============================================================================
+# The verb, not raw SQL: this is the same substitution Gap 4 made for plan
+# filing, and it is what proves an operator can actually produce this row.
+GAP5_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-projection-plan.json"
+cat > "$GAP5_PLAN_FILE" <<JSON
+{
+  "schemaVersion": "rdte_canonical_projection_plan_v1",
+  "cycleId": "cycle-gap5-verb",
+  "fiscalYear": 2027,
+  "contentSha256": "$(printf 'a%.0s' $(seq 1 64))",
+  "candidates": [
+    { "operation": "insert", "artifactContentSha256": "$(printf 'b%.0s' $(seq 1 64))" },
+    { "operation": "no_op", "artifactContentSha256": "$(printf 'b%.0s' $(seq 1 64))",
+      "exclusionReason": "contextual_only_value" }
+  ]
+}
+JSON
+
+DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  --plan "$GAP5_PLAN_FILE" --family rdte \
+  --producer-version 'rehearsal-build-rdte-cycle@1' \
+  --certification-sha256 "$(printf '4%.0s' $(seq 1 64))" \
+  --commit >/dev/null \
+  || fail "persist-defense-budget-projection-plan-v1 could not file a plan as the serve role"
+ok "the real persist verb files a plan under the serve role"
+
+# The by-design exclusion above must not have been counted as blocking —
+# counting every exclusion would refuse a promotion for a value that was
+# supposed to be left out.
+[ "$(q "SELECT status FROM defense_budget_projection_plan
+         WHERE cycle_id = 'cycle-gap5-verb';")" = "PROJECTABLE" ] \
+  || fail "a by-design exclusion was counted as blocking"
+ok "a contextual-only exclusion does not block, while its reason is still recorded"
 
 # =============================================================================
 log "Prisma validate/generate against the final schema"

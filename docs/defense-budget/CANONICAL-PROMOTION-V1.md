@@ -299,11 +299,18 @@ eligibility derivation are now closed or substantially narrowed, every data
 family's ingestion pipeline has been independently proven against a real
 disposable Postgres, and the cutover has still never run anywhere real.
 
-One caveat specific to Gap 5's closure, worth stating next to the claim: the
-two migrations it added and the seven eligibility reads are covered by unit
-tests and typechecks only. Unlike Gaps 1–4, **none of it has run against a real
-disposable Postgres yet** — `pe-budget-phase7-migration-rehearsal.sh` has not
-been extended to `defense_budget_projection_plan` or the new candidate columns.
-"Closed" here means the code and storage exist and the decisions are made, not
-that the schema has been demonstrated the way session 9 demonstrated the
-eligibility table.
+Gap 5's two migrations are now proven the same way the rest of Phase 7 is:
+`pe-budget-phase7-migration-rehearsal.sh` covers both on the upgrade path and
+runs at **117 checks** (up from 103). What it demonstrates specifically — a
+candidate written before the migration surviving it with NULL metadata rather
+than a default; the append-only trigger, the status-agrees-with-counts CHECK,
+and the exactly-one-storage-mode CHECK on `defense_budget_projection_plan`;
+content-addressed re-filing as a replay; and the real
+`persist-defense-budget-projection-plan-v1` verb filing a plan under the serve
+role, with a by-design exclusion correctly not blocking.
+
+The remaining honest caveat is narrower: **Phase 6 has no plan-shaped document
+to persist**, so `loadProjectionPlans` returns nothing for family `committee`
+and a committee promotion is refused with `projection_hash_mismatch`. That is a
+visible refusal rather than a silent gap, and closing it needs an owner
+decision — see Gap 5's "Still open under decision 3".
