@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * Phase 3 must prove the current UI through engagement-api without consuming
- * Phase 4 or Outreach V3 scope. This verifier evaluates the actual Phase 3 git
- * diff rather than scanning all historical source for words that legitimately
- * predate this phase.
+ * later Outreach V3 product/reasoning scope. Revised Outreach Phase 1 may add
+ * backend foundations, contracts, documentation, and verification scripts; it
+ * still may not add the final V3 UI, Campaign Spec, checkpoints, preflight, or
+ * a LangGraph-owned runtime.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.ENGAGEMENT_PHASE3_BASE_SHA ?? '3841a5ee58e011be7fb4fb6008adfccf081976d9';
 
 export const FORBIDDEN_NEW_PATHS = [
-  /(?:^|\/)outreach(?:-|\/)v3(?:\/|\.|$)/i,
+  /^apps\/web\/.*(?:outreach(?:-|\/)v3|OutreachV3)/i,
   /(?:^|\/)CampaignSpec(?:\.|\/)/i,
   /(?:^|\/)campaign-spec(?:\.|\/)/i,
   /(?:^|\/)outreach-checkpoint/i,

@@ -18,6 +18,21 @@ test('accepts current Phase 3 preview/parity files', () => {
   );
 });
 
+test('accepts Revised Phase 1 backend foundations, docs, and verification scripts', () => {
+  assert.deepEqual(
+    verifyBoundary({
+      changed: [
+        'apps/api/src/capabilities/capability-registry.ts',
+        'docs/plans/outreach-v3/revised-phase-1-shared-foundations.md',
+        'scripts/verify-outreach-v3-phase1-code.mjs',
+      ],
+      addedLines: "export class CapabilityRegistry {}",
+      deleted: [],
+    }),
+    [],
+  );
+});
+
 test('negative control: V3 production component path fails', () => {
   const issues = verifyBoundary({
     changed: ['apps/web/src/pages/engagement/outreach/v3/OutreachV3Wizard.tsx'],
@@ -34,6 +49,15 @@ test('negative control: LangGraph source addition fails', () => {
     deleted: [],
   });
   assert.equal(issues.some((issue) => issue.includes('source addition')), true);
+});
+
+test('negative control: Campaign Spec repository still fails', () => {
+  const issues = verifyBoundary({
+    changed: ['apps/api/src/outreach/campaign-spec/CampaignSpecRepository.ts'],
+    addedLines: 'export class CampaignSpecRepository {}',
+    deleted: [],
+  });
+  assert.equal(issues.length > 0, true);
 });
 
 test('negative control: prototype asset shipping fails', () => {
