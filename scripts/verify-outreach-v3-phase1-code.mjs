@@ -7,7 +7,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const steps = [
   ['ownership negative controls', 'node', ['--test', 'scripts/engagement-runtime-ownership.spec.mjs']],
   ['architecture negative controls', 'node', ['--test', 'scripts/verify-outreach-v3-p1-architecture.spec.mjs']],
+  ['route-parser controls', 'node', ['--test', 'scripts/verify-outreach-v3-p1-route-parity.spec.mjs']],
   ['runtime ownership contract', 'node', ['scripts/engagement-runtime-ownership.mjs']],
+  ['callback route parity', 'node', ['scripts/verify-outreach-v3-p1-route-parity.mjs']],
   ['architecture and scope gate', 'node', ['scripts/verify-outreach-v3-p1-architecture.mjs']],
   ['owner rehearsals', 'node', ['scripts/run-outreach-v3-p1-owner-rehearsal.mjs']],
   [
@@ -20,7 +22,10 @@ const steps = [
       'jest',
       '--runInBand',
       '--forceExit',
+      'src/capabilities/capability-authorization.service.spec.ts',
       'src/capabilities/capability-registry.spec.ts',
+      'src/capabilities/proof-capabilities.spec.ts',
+      'src/meeting-capture/meeting-capture-persistence.service.spec.ts',
       'src/outreach-review/outreach-review-transactions.service.spec.ts',
       'src/engagement-workers/engagement-workers.spec.ts',
       'src/engagement/runtime',
@@ -28,6 +33,9 @@ const steps = [
       'src/engagement/outreach-job.service.spec.ts',
       'src/engagement/outreach-send-intent.service.spec.ts',
       'src/engagement/notetaker/notetaker.service.spec.ts',
+      'src/intelligence/alert-memo/alert-memo.service.spec.ts',
+      'src/intelligence/alert-memo/district-brief.service.spec.ts',
+      'src/intelligence/alert-memo/hearing-recap.service.spec.ts',
     ],
   ],
   [
