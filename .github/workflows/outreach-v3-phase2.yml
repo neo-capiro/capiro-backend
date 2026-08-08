@@ -14,7 +14,11 @@ on:
       - 'apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/**'
       - 'apps/api/prisma/outreach-v3-phase2/**'
       - 'apps/api/tsconfig.outreach-v3-phase2.json'
+      - 'apps/api/scripts/outreach-v3-phase2-flow-rehearsal.ts'
       - 'scripts/*outreach-v3-phase2*'
+      - 'docs/contracts/outreach-v3-*'
+      - 'docs/plans/outreach-v3/revised-phase-2-*'
+      - 'docs/runbooks/outreach-v3-state-*'
       - 'package.json'
       - '.github/workflows/outreach-v3-phase2.yml'
 
@@ -92,6 +96,12 @@ jobs:
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql --version
 
       - name: Generate canonical Prisma client
         env:
