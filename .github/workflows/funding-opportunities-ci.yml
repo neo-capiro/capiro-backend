@@ -1774,9 +1774,23 @@ jobs:
       # batch delivery would have been rejected `missing_event_type`:
       # authenticated, stored nowhere, and answered 400 so the provider would
       # never retry it. That is the worst failure this receiver has.
+      # 78/2442 -> 78/2446: the canary diagnostic's own queries were fixed and
+      # the failure-vs-absence distinction added. Measured: 78 / 2446 / 0 failures.
+      #
+      # Three of that script's queries were BROKEN and invisible: they named
+      # `tango_entity_profile` (a table that has never existed in any migration —
+      # P19 writes entity rows into `tango_resource_snapshot`) and a column
+      # `agrees` (the real one is `agreement`, vocabulary agree/conflict/
+      # local_only/provider_only/both_absent). All three threw, all three were
+      # swallowed into null, and null renders as an em dash — identical to "the
+      # provider holds nothing". A canary reviewer would have read three broken
+      # measurements as three empty datasets.
+      #
+      # A failed query is now its OWN value and prints `QUERY FAILED <reason>`.
+      # The em dash is reserved for genuine absence.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2442
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2446
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

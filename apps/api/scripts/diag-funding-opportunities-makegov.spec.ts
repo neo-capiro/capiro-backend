@@ -3,6 +3,7 @@ import {
   type CanaryReport,
   type Measurement,
   buildReport,
+  hasQueryFailure,
   parseArgs,
   renderReport,
 } from './diag-funding-opportunities-makegov.js';
@@ -121,17 +122,50 @@ describe('buildReport', () => {
     expect(sections.has('Event queue health')).toBe(true);
   });
 
-  it('reports a MISSING table as null rather than aborting the whole report', async () => {
-    // A table whose migration has not been applied is a real, reportable canary
-    // state. Crashing would hide every other measurement behind it.
+  it('reports a MISSING table as a FAILURE, and still finishes the report', async () => {
+    // Superseded the original assertion, which required `null` here. That was
+    // the bug: null renders as an em dash, identical to a genuine absence, so
+    // three broken queries in the first version of this script read as three
+    // empty datasets. A missing table is still not a reason to abort — the rest
+    // of the report is exactly what a canary reviewer needs to see alongside it.
     const { double, prisma } = pd();
     double.missing.add('tango_event_alert');
 
     const report = await buildReport(prisma, parseArgs([]));
     const alerts = report.measurements.find((m) => m.label === 'client alerts (P48)');
-    expect(alerts?.value).toBeNull();
-    // …and the rest of the report still arrived.
+    expect(alerts?.value).toMatchObject({ failed: expect.stringContaining('does not exist') });
+    expect(alerts?.value).not.toBeNull();
     expect(report.measurements.length).toBeGreaterThan(10);
+    expect(hasQueryFailure(report)).toBe(true);
+  });
+
+  it('a healthy report reports NO query failure', async () => {
+    const { prisma } = pd();
+    expect(hasQueryFailure(await buildReport(prisma, parseArgs([])))).toBe(false);
+  });
+
+  it('queries entity snapshots from the P15 substrate, not a table that never existed', async () => {
+    // P19 has NO dedicated entity table. It writes `resource_type = 'entity'`
+    // rows into `tango_resource_snapshot`. The first version of this script
+    // queried `tango_entity_profile`, which has never existed in any migration.
+    const { double, prisma } = pd();
+    await buildReport(prisma, parseArgs([]));
+    expect(double.sql.some((q) => q.includes('tango_entity_profile'))).toBe(false);
+    expect(
+      double.sql.some((q) => q.includes('tango_resource_snapshot') && q.includes("'entity'")),
+    ).toBe(true);
+  });
+
+  it('counts parity CONFLICTS by the real column and vocabulary', async () => {
+    // The column is `agreement`, not a boolean `agrees`, and only 'conflict' is
+    // a disagreement — `local_only` / `provider_only` mean one side simply has
+    // no value, which is absence, not contradiction. Counting those as
+    // conflicts would inflate the one number a reviewer is most likely to act
+    // on.
+    const { double, prisma } = pd();
+    await buildReport(prisma, parseArgs([]));
+    expect(double.sql.some((q) => q.includes('"agrees"'))).toBe(false);
+    expect(double.sql.some((q) => q.includes(`"agreement" = 'conflict'`))).toBe(true);
   });
 
   it('honours the window in the usage and alert queries', async () => {
@@ -158,8 +192,16 @@ describe('renderReport', () => {
       { section: 'Counts', label: 'notices', value: 12 },
       { section: 'Counts', label: 'alerts', value: 0 },
       { section: 'Counts', label: 'absent table', value: null },
+      { section: 'Counts', label: 'broken query', value: { failed: 'relation does not exist' } },
     ] satisfies Measurement[],
   };
+
+  it('prints a FAILED query distinctly from an absent value', () => {
+    // The em dash is reserved for genuine absence. A failure must be loud.
+    const text = renderReport(report).join('\n');
+    expect(text).toMatch(/broken query\s+QUERY FAILED/);
+    expect(text).toContain('relation does not exist');
+  });
 
   it('prints a null as an em dash, NOT as zero', () => {
     // The distinction this whole program is built on: "the source stated

@@ -74,7 +74,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
 export interface Measurement {
   section: string;
   label: string;
-  value: number | string | null;
+  /** A `{failed}` value means the QUERY broke — not that the data is absent. */
+  value: Measured;
   /** Present when the value needs reading in context rather than at face value. */
   note?: string;
 }
@@ -107,7 +108,12 @@ export function renderReport(report: CanaryReport): string[] {
       current = m.section;
       lines.push(`── ${current} ${'─'.repeat(Math.max(0, 60 - current.length))}`);
     }
-    const value = m.value === null ? '—' : String(m.value);
+    const value =
+      m.value === null
+        ? '—'
+        : typeof m.value === 'object' && 'failed' in m.value
+          ? `QUERY FAILED — ${m.value.failed}`
+          : String(m.value);
     lines.push(`  ${m.label.padEnd(46)} ${value}`);
     if (m.note) lines.push(`      ${m.note}`);
   }
@@ -120,30 +126,60 @@ export function renderReport(report: CanaryReport): string[] {
   return lines;
 }
 
-/** Count helper that turns a missing table into an explicit null, not a crash. */
-async function safeCount(prisma: PrismaClient, sql: string): Promise<number | null> {
+/**
+ * A query that FAILED is not the same fact as a query that found nothing, and
+ * conflating them is how three broken queries in the first version of this
+ * script hid in plain sight.
+ *
+ * They referenced `tango_entity_profile` (a table that has never existed —
+ * P19 stores entity snapshots in `tango_resource_snapshot`) and a column
+ * `agrees` (the real one is `agreement`). Both threw, both were swallowed, and
+ * both rendered as an em dash — visually identical to "the provider holds
+ * nothing". A canary reviewer would have read three broken measurements as
+ * three empty datasets and moved on.
+ *
+ * So a failure is now its own value, and it PRINTS as `QUERY FAILED` with the
+ * reason. It still does not abort the report: a table missing because its
+ * migration has not been applied is a real canary state worth seeing alongside
+ * everything else.
+ */
+export type Measured = number | string | null | { failed: string };
+
+/** Collapse an error to one short, single-line reason. Never a payload. */
+export function failure(e: unknown): { failed: string } {
+  const raw = e instanceof Error ? e.message : String(e);
+  return { failed: raw.replace(/\s+/g, ' ').trim().slice(0, 120) };
+}
+
+async function safeCount(prisma: PrismaClient, sql: string): Promise<Measured> {
   try {
     const rows = await prisma.$queryRawUnsafe<{ n: bigint | number }[]>(sql);
     const n = rows[0]?.n;
-    return n === undefined ? null : Number(n);
-  } catch {
-    // A table absent because its migration has not been applied is a real,
-    // reportable state for a canary — not an error that should abort the rest
-    // of the report.
-    return null;
+    // No row back from a COUNT is itself impossible; treat it as a failure
+    // rather than as zero.
+    return n === undefined ? failure('count returned no row') : Number(n);
+  } catch (e) {
+    return failure(e);
   }
 }
 
-async function safeValue(prisma: PrismaClient, sql: string): Promise<string | null> {
+async function safeValue(prisma: PrismaClient, sql: string): Promise<Measured> {
   try {
     const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql);
     const first = rows[0];
     if (!first) return null;
     const v = Object.values(first)[0];
     return v === null || v === undefined ? null : String(v);
-  } catch {
-    return null;
+  } catch (e) {
+    return failure(e);
   }
+}
+
+/** True when any measurement failed outright, as opposed to being absent. */
+export function hasQueryFailure(report: CanaryReport): boolean {
+  return report.measurements.some(
+    (m) => typeof m.value === 'object' && m.value !== null && 'failed' in m.value,
+  );
 }
 
 export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promise<CanaryReport> {
@@ -152,24 +188,28 @@ export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promi
 
   // ── Freshness ─────────────────────────────────────────────────────────────
   const freshness: [string, string][] = [
-    ['tango_entity_profile', 'entity profiles (P19)'],
+    ['__entity_snapshots__', 'entity snapshots (P19)'],
     ['tango_procurement_forecast', 'forecasts (P24)'],
     ['tango_opportunity_notice', 'notice history (P28)'],
     ['tango_budget_account', 'budget accounts (P44)'],
     ['tango_procurement_protest', 'protests (P45)'],
   ];
   for (const [table, label] of freshness) {
-    m.push({
-      section: 'Freshness — last sync',
-      label,
-      value: await safeValue(prisma, `SELECT max("last_synced_at")::text AS v FROM "${table}"`),
-    });
+    // P19 has NO dedicated entity table — it writes into the P15 substrate,
+    // `tango_resource_snapshot`, whose freshness column is `provider_fetched_at`
+    // rather than `last_synced_at`. The first version of this script queried a
+    // `tango_entity_profile` table that has never existed.
+    const sql =
+      table === '__entity_snapshots__'
+        ? `SELECT max("provider_fetched_at")::text AS v FROM "tango_resource_snapshot" WHERE "resource_type" = 'entity'`
+        : `SELECT max("last_synced_at")::text AS v FROM "${table}"`;
+    m.push({ section: 'Freshness — last sync', label, value: await safeValue(prisma, sql) });
   }
 
   // ── Counts ────────────────────────────────────────────────────────────────
   const counts: [string, string][] = [
     ['tango_resource_snapshot', 'provider snapshots'],
-    ['tango_entity_profile', 'entity profiles'],
+    ['__entity_snapshots__', 'entity snapshots'],
     ['tango_procurement_forecast', 'forecasts'],
     ['tango_opportunity_notice', 'notices'],
     ['tango_webhook_delivery', 'verified webhook deliveries (P46)'],
@@ -177,11 +217,11 @@ export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promi
     ['tango_event_alert', 'client alerts (P48)'],
   ];
   for (const [table, label] of counts) {
-    m.push({
-      section: 'Counts',
-      label,
-      value: await safeCount(prisma, `SELECT count(*) AS n FROM "${table}"`),
-    });
+    const sql =
+      table === '__entity_snapshots__'
+        ? `SELECT count(*) AS n FROM "tango_resource_snapshot" WHERE "resource_type" = 'entity'`
+        : `SELECT count(*) AS n FROM "${table}"`;
+    m.push({ section: 'Counts', label, value: await safeCount(prisma, sql) });
   }
 
   // ── Linkage ───────────────────────────────────────────────────────────────
@@ -209,7 +249,13 @@ export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promi
     label: 'parity rows where the two sources disagree',
     value: await safeCount(
       prisma,
-      `SELECT count(*) AS n FROM "tango_opportunity_parity" WHERE "agrees" = false`,
+      // The column is `agreement`, with vocabulary
+      // agree | conflict | local_only | provider_only | both_absent — NOT a
+      // boolean `agrees`. Only 'conflict' is a disagreement: local_only and
+      // provider_only mean one side simply has no value, which is absence, not
+      // a contradiction, and counting them as conflicts would inflate the one
+      // number a reviewer is most likely to act on.
+      `SELECT count(*) AS n FROM "tango_opportunity_parity" WHERE "agreement" = 'conflict'`,
     ),
     note: '§4.2 requires a conflict be RECORDED, never silently merged. A nonzero count here is the system working, not failing.',
   });
@@ -217,12 +263,15 @@ export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promi
   // ── Missing enrichment ────────────────────────────────────────────────────
   m.push({
     section: 'Missing enrichment',
-    label: 'clients with a UEI but no entity profile',
+    label: 'clients with a UEI but no entity snapshot',
     value: await safeCount(
       prisma,
       `SELECT count(*) AS n FROM "clients" c
        WHERE c."uei" IS NOT NULL
-         AND NOT EXISTS (SELECT 1 FROM "tango_entity_profile" e WHERE e."uei" = c."uei")`,
+         AND NOT EXISTS (
+           SELECT 1 FROM "tango_resource_snapshot" s
+           WHERE s."resource_type" = 'entity' AND s."external_id" = c."uei" AND s."active"
+         )`,
     ),
     note: 'Work P19 has not done yet. Without this line it would look identical to "the provider holds nothing".',
   });
