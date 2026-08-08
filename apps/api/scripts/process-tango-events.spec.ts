@@ -1,4 +1,5 @@
-import { parseArgs, readResourceRefs } from './process-tango-events.js';
+import type { PrismaClient } from '@prisma/client';
+import { enqueuePendingDeliveries, parseArgs, readResourceRefs } from './process-tango-events.js';
 
 /**
  * Funding Opportunities P48 — the drain CLI's own argument and payload parsing.
@@ -42,17 +43,47 @@ describe('readResourceRefs — EVERY event in a batch (re-review N1)', () => {
     expect(refs.map((r) => r.eventIndex)).toEqual([0, 1, 2]);
   });
 
-  it("classifies each event on ITS OWN type, not the envelope's", () => {
+  it("classifies each event on ITS OWN type, not the delivery's (re-review NEW-2)", () => {
+    // A THIRD review reproduced this end to end: a delivery whose own
+    // `event_type` was 'opportunity.updated' — the realistic, always-non-empty
+    // case; `tango_webhook_delivery_event_type_chk` forbids a blank one, and
+    // `readEnvelope` never lets it through empty — carried three events typed
+    // opportunity/forecast/entity, and ALL THREE were classified 'opportunity'.
+    // The original test asserting this worked passed `eventType: ''`, an input
+    // production cannot generate, so it never caught that the precedence was
+    // backwards. This one uses the real, non-empty delivery type.
     const refs = readResourceRefs(
       {
         events: [
           { event_type: 'opportunity.updated', id: 'OPP-1' },
           { event_type: 'forecast.published', id: 'F-1' },
+          { event_type: 'entity.updated', id: 'E-1' },
         ],
       },
-      '',
+      'opportunity.updated', // the delivery-level type — REALISTIC, non-empty
     );
-    expect(refs.map((r) => r.resourceType)).toEqual(['opportunity', 'forecast']);
+    expect(refs.map((r) => r.resourceType)).toEqual(['opportunity', 'forecast', 'entity']);
+  });
+
+  it('a single-event body with NO type key of its own still falls back to the delivery type', () => {
+    // The fallback this fix must not break: a bare body carrying only an id has
+    // nothing to classify on except what the delivery itself states.
+    expect(readResourceRefs({ opportunity_id: 'OPP-bare' }, 'forecast.published')[0]).toMatchObject(
+      { resourceType: 'forecast' },
+    );
+  });
+
+  it('event_index is the position WITHIN THE DELIVERY, not within the filtered list (re-review NEW-4)', () => {
+    // A prior version filtered non-object entries out before indexing, so
+    // `['junk', {...}]` numbered the real event 0 instead of 1 — silently
+    // violating the documented contract on a column that is part of the
+    // idempotency key.
+    const refs = readResourceRefs(
+      { events: ['junk', { event_type: 'opportunity.updated', id: 'OPP-real' }] },
+      'opportunity.updated',
+    );
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ eventIndex: 1, externalId: 'OPP-real' });
   });
 
   it('an event with no id yields a null ref rather than shifting the others', () => {
@@ -243,5 +274,186 @@ describe('readResourceRef — BATCH deliveries (review finding F3)', () => {
       ],
     };
     expect(first(batch, 'opportunity.updated').externalId).toBe('opp-agree');
+  });
+});
+
+// ── enqueuePendingDeliveries — ATOMICITY (re-review NEW-1) ───────────────────
+
+interface FakeOutboxRow {
+  deliveryId: string;
+  eventIndex: number;
+  eventType: string;
+  resourceType: string;
+  externalId: string | null;
+}
+
+interface PendingDeliveryRow {
+  delivery_id: string;
+  event_type: string;
+  payload: unknown;
+}
+
+/**
+ * A fake Prisma client whose `$transaction` has REAL rollback semantics: if
+ * the callback throws, nothing it inserted is kept; if it resolves, all of it
+ * is. That distinction is the entire point of the fix under test, so a fake
+ * that could not fail partway through would prove nothing — the whole prior
+ * bug (re-review NEW-1) was that a crash mid-batch left SOME of a delivery's
+ * rows committed and the rest lost forever. `failAfter` lets a test put the
+ * crash exactly where it matters: between two `INSERT`s of the same delivery.
+ */
+function makeFakePrisma(pending: PendingDeliveryRow[]) {
+  const committed: FakeOutboxRow[] = [];
+  const seen = new Set<string>(); // "deliveryId|eventIndex" already committed
+  let failAfter: number | null = null;
+  let insertAttempts = 0;
+
+  const fake = {
+    async $queryRaw() {
+      return pending;
+    },
+    async $transaction(
+      run: (tx: { $executeRaw: (...args: unknown[]) => Promise<void> }) => Promise<void>,
+    ) {
+      const stagedInThisTx: FakeOutboxRow[] = [];
+      const tx = {
+        $executeRaw: async (_strings: unknown, ...values: unknown[]) => {
+          insertAttempts += 1;
+          if (failAfter !== null && insertAttempts > failAfter) {
+            throw new Error('simulated crash mid-transaction');
+          }
+          const [deliveryId, eventIndex, eventType, resourceType, externalId] = values as [
+            string,
+            number,
+            string,
+            string,
+            string | null,
+          ];
+          const key = `${deliveryId}|${eventIndex}`;
+          if (!seen.has(key))
+            stagedInThisTx.push({ deliveryId, eventIndex, eventType, resourceType, externalId });
+        },
+      };
+      // A throw here propagates OUT of $transaction before this loop ever
+      // runs — that is the rollback. Nothing staged is kept.
+      await run(tx);
+      for (const row of stagedInThisTx) {
+        seen.add(`${row.deliveryId}|${row.eventIndex}`);
+        committed.push(row);
+      }
+    },
+    get rows() {
+      return committed;
+    },
+    /** Throw on the (1-indexed) insert attempt AFTER this many succeed. Null = never. */
+    setFailAfter(n: number | null) {
+      failAfter = n;
+    },
+  };
+  return fake;
+}
+
+function threeEventBatch(deliveryId: string) {
+  return {
+    delivery_id: deliveryId,
+    event_type: 'opportunity.updated',
+    payload: {
+      events: [
+        { event_type: 'opportunity.updated', id: 'A' },
+        { event_type: 'opportunity.updated', id: 'B' },
+        { event_type: 'opportunity.updated', id: 'C' },
+      ],
+    },
+  };
+}
+
+describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1)', () => {
+  it('a delivery crashing mid-batch leaves ZERO rows for it, never a partial set', async () => {
+    // This is the exact defect the third review reproduced: a prior version
+    // inserted each event as an independent statement, so a crash after event
+    // 0 but before events 1 and 2 left event 0 committed and the "already
+    // enqueued" check (one row exists) meant 1 and 2 were never revisited —
+    // silent, permanent loss.
+    const fake = makeFakePrisma([threeEventBatch('DLV-CRASH')]);
+    fake.setFailAfter(1); // event 0 succeeds, event 1 throws
+
+    await expect(
+      enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
+    ).rejects.toThrow('simulated crash mid-transaction');
+
+    expect(fake.rows).toHaveLength(0);
+  });
+
+  it('a delivery that crashes is retried FROM SCRATCH on the next pass, not resumed', async () => {
+    const fake = makeFakePrisma([threeEventBatch('DLV-RETRY')]);
+    fake.setFailAfter(0); // every insert in the first attempt fails
+
+    await expect(
+      enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
+    ).rejects.toThrow();
+    expect(fake.rows).toHaveLength(0);
+
+    // "the process restarted" — no more injected failure.
+    fake.setFailAfter(null);
+    const enqueued = await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+
+    expect(enqueued).toBe(3);
+    expect(fake.rows.map((r) => r.externalId)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('a delivery that succeeds commits ALL of its events, never a subset', async () => {
+    const fake = makeFakePrisma([threeEventBatch('DLV-OK')]);
+    const enqueued = await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+
+    expect(enqueued).toBe(3);
+    expect(fake.rows.map((r) => r.externalId)).toEqual(['A', 'B', 'C']);
+    expect(fake.rows.every((r) => r.deliveryId === 'DLV-OK')).toBe(true);
+  });
+
+  it('one delivery crashing does not corrupt an UNRELATED delivery in the same run', async () => {
+    // One transaction PER DELIVERY — a later delivery's own transaction must
+    // not be caught up in an earlier one's rollback.
+    const fake = makeFakePrisma([threeEventBatch('DLV-BAD'), threeEventBatch('DLV-GOOD')]);
+    fake.setFailAfter(1); // fails during DLV-BAD's second insert
+
+    await expect(
+      enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
+    ).rejects.toThrow();
+
+    // DLV-BAD is the one being processed when the throw happens, so the run
+    // stops there; DLV-GOOD, never reached, is untouched — also zero, not
+    // corrupted. This documents the current stop-on-first-failure behaviour
+    // rather than a partial-success-with-skip behaviour, which is the
+    // conservative choice: continuing past an unexplained transaction failure
+    // risks compounding whatever broke it.
+    expect(fake.rows.filter((r) => r.deliveryId === 'DLV-BAD')).toHaveLength(0);
+    expect(fake.rows.filter((r) => r.deliveryId === 'DLV-GOOD')).toHaveLength(0);
+  });
+
+  it('a dry run never opens a transaction at all', async () => {
+    const fake = makeFakePrisma([
+      {
+        delivery_id: 'DLV-DRY',
+        event_type: 'opportunity.updated',
+        payload: { opportunity_id: 'D1' },
+      },
+    ]);
+    const count = await enqueuePendingDeliveries(fake as unknown as PrismaClient, false, 50);
+
+    expect(count).toBe(1); // reports what WOULD be enqueued
+    expect(fake.rows).toHaveLength(0);
+  });
+
+  it('a REPLAY of an already-fully-enqueued delivery commits nothing new', async () => {
+    // Same fake, same delivery, presented a second time — as if the enqueue
+    // SELECT's own "already has a row" filter had somehow not excluded it.
+    // `ON CONFLICT DO NOTHING` means every insert is still attempted, but none
+    // of them land, because `seen` already holds all three keys.
+    const fake = makeFakePrisma([threeEventBatch('DLV-REPLAY')]);
+    await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+    expect(fake.rows).toHaveLength(3);
+
+    await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+    expect(fake.rows).toHaveLength(3);
   });
 });

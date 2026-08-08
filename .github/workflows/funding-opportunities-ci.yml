@@ -1829,9 +1829,24 @@ jobs:
       # syntax error anywhere in that file makes EVERY scheduled job fail to
       # start, not just the verb somebody edited. Parsing costs nothing and needs
       # no database, network, or fake binaries.
+      #
+      # 78/2474 -> 78/2482 after a THIRD independent review of the event-drain
+      # code, which found the SECOND round's own fixes had introduced two new
+      # defects (decision-log D-56, D-57): a per-event insert loop that could
+      # lose events permanently if interrupted mid-batch, and a per-event type
+      # classifier whose only test passed an input production cannot generate.
+      # Both are fixed here: one transaction per delivery (proven against REAL
+      # Postgres that a mid-transaction throw rolls back completely, not just a
+      # rejected JS promise), and correct type precedence with a realistic test.
+      #
+      # This is the third review in a row to find something the previous round
+      # missed. If a fourth round of this exact loop is needed, get a human to
+      # read tango-event-processor.service.ts and process-tango-events.ts in
+      # one sitting before attempting another automated pass — see the P46-P51
+      # handoff's revised recommendation.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2474
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2482
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

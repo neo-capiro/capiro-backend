@@ -1734,3 +1734,76 @@ gates verified green locally (api 78/2454, web 412/412) and every PR
 P00–P51 and not merely for these six, is *self-verified only*. The
 independent-review column is empty because the review has never happened, not
 because it passed.
+
+## D-56 · 2026-08-08 · A per-event insert loop is not idempotent recovery, it is a new data-loss path
+
+A third independent review of the fixes for the fixes for the fixes (§ this is not a typo — three rounds
+deep) found that the N1 fix from the previous round introduced its own defect: `enqueuePendingDeliveries`
+enqueued one outbox row per event via a loop of separate, independent `$executeRaw` statements. If that
+process died — a crash, a task timeout, a redeploy — after inserting row 0 of a 3-event delivery but
+before rows 1 and 2, the enqueue SELECT's own "already enqueued" check (`o.id IS NOT NULL` for that
+delivery) saw that a row existed and never revisited it. Events 1 and 2 were lost **permanently**: the
+receiver never re-delivers (delivery_id is unique there too), and nothing downstream reconciles a
+partially-enqueued delivery.
+
+This is the SAME failure class this program has now hit three times in three different shapes — accepted
+at one layer, silently dropped at the next — and this was the third round's own fix introducing a fourth
+instance of it, narrower each time.
+
+**Fixed by making it structurally impossible, not by sequencing more carefully.** Each delivery's N
+inserts now run inside one `$transaction`. Proven two ways: a unit test against a fake whose
+`$transaction` has real commit/rollback semantics (a throwing callback commits nothing), and — because a
+fake, however faithful, has twice now been shown insufficient this session — a throwaway script against
+REAL Postgres 16 confirming a transaction that throws mid-way genuinely leaves zero rows in the actual
+database, and that the real exported function correctly enqueues all three events of a real webhook
+delivery row.
+
+**The general rule, restated because it needed restating a fourth time:** a loop of independent
+statements over "the parts of one logical unit of work" is not idempotent just because each statement
+individually has a conflict guard. Idempotency of the parts does not give you atomicity of the whole.
+
+## D-57 · 2026-08-08 · Per-event classification never ran, and the test proving it used an impossible input
+
+Review 3 also found: `readResourceRefs`' per-event type classification checked the DELIVERY's own
+`event_type` before the event's own type (`eventType || <event's own type> || ''`). The delivery's
+`event_type` comes from `tango_webhook_delivery.event_type`, which a CHECK constraint forbids being blank
+and `readEnvelope` never lets through empty — so the left side of that `||` always won, and the per-event
+branch was dead code. A batch mixing `opportunity.updated` / `forecast.updated` / `entity.updated` events
+classified every one of them as whatever the delivery header said.
+
+**The test that was supposed to catch this passed `eventType: ''` — an input production cannot generate.**
+This is the second time this exact failure mode has appeared in three rounds: a test shaped to make a
+claim pass, rather than shaped to check whether the claim is true against realistic input. Review 2 found
+the first instance of this pattern (N1's original test enshrined the very discard it should have caught);
+this is the second, in a completely different function, written by the same round of fixes that fixed the
+first one. **That recurrence is more informative than either individual bug**: it suggests a systematic
+gap in how fix-round tests were being constructed, not two unrelated mistakes.
+
+Fixed by inverting the precedence: an event's own type wins when present; the delivery's type is the
+fallback ONLY for a single-event body whose envelope carries no type key of its own. New test uses a
+realistic, non-empty delivery-level type (`'opportunity.updated'`) alongside three differently-typed
+events, and separately checks the single-event fallback still works.
+
+**A related, smaller defect fixed at the same time:** `event_index` was computed as the position within
+the events array AFTER filtering out non-object entries, so `['junk', {...}]` numbered the real event 0
+instead of 1 — silently violating the documented contract on a column that is part of the idempotency
+key. Fixed to preserve the true array position through filtering.
+
+## D-58 · 2026-08-08 · The alert-volume cap bounds one delivery, not a whole drain run
+
+Review 3 found the volume cap added the previous round (`MAX_ALERTS_PER_DELIVERY_PER_CLIENT`) only
+tracks alerts written from the delivery currently being processed. A second, ordinary delivery over the
+same long notice history re-walks it, dedupes what the first delivery already wrote, and writes MORE up
+to its own cap — so two deliveries together can still deliver an entire backlog, just spread across two
+runs instead of one. The docstring's claim that capped changes are "left on the P28 timeline" for later
+is not really true in the sense a reader would expect: they are not skipped, they are deferred to
+whichever delivery happens to touch that opportunity next.
+
+**Deliberately NOT fixed in this round.** The correct bound is almost certainly "per opportunity per
+client per some *time window*", not "per delivery per client" — which needs a decision about what that
+window is and where its state lives (a new column? a separate rate-limit table?), not a quick patch. Given
+this session's own track record — three straight rounds where a fast, locally-reasonable fix introduced a
+new defect the next review caught — writing that design decision under time pressure right now would very
+plausibly repeat it a fourth time. Recorded here, and in the rollout runbook's suppression-reason table, so
+the actual behavior (capped per delivery, not per run) is what an operator reads rather than what the
+comment used to imply.

@@ -6560,8 +6560,13 @@ model TangoEventOutbox {
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
 
-  /// The claim query: oldest pending first; quarantined never selected.
+  /// The idempotency key. A delivery carrying N events enqueues N rows under
+  /// this key; a replay of that delivery collapses onto exactly those rows via
+  /// ON CONFLICT DO NOTHING, never producing a duplicate.
   @@unique([deliveryId, eventIndex], map: "tango_event_outbox_delivery_event_uniq")
+  /// The claim query: a row is claimable when PENDING, or when PROCESSING with
+  /// an EXPIRED lease — the second half is what lets a crashed processor's rows
+  /// be reclaimed instead of stranded. Oldest first; quarantined never selected.
   @@index([status, leaseUntil, createdAt], map: "tango_event_outbox_claim_idx")
   @@map("tango_event_outbox")
 }

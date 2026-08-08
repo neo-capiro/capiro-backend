@@ -1783,6 +1783,11 @@ Read the JSON summary. `alertsWritten` is what a `--commit` run WOULD write;
 | `human_declined` | somebody already passed on it |
 | `terminal_stage` | won, lost, or passed |
 | `stage_not_engaged` | nobody staged it; usually `workflow_status = 'suggested'` |
+| `volume_capped` | this client already hit `MAX_ALERTS_PER_DELIVERY_PER_CLIENT` (25) on this delivery — the newest changes were sent; older ones for this run are on the timeline, not silently dropped |
+
+**A `volume_capped` count above zero on the FIRST drain over an existing history is expected and not a
+failure** — see decision-log **D-58** before treating repeated capping across many *separate* deliveries
+as normal; the cap bounds one delivery's contribution per client, not the total across a run.
 
 **The quiet test:** run the dry run twice with no sync in between. The second
 run must report the same `alertsWritten` and write nothing new. If the number
