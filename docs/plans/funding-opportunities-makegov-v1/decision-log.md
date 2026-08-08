@@ -1943,3 +1943,125 @@ Two things that do NOT change:
 What genuinely changes: P40–P43 move from `blocked` to `buildable, unverified`. Schema, migrations,
 mappers, sync scripts, fixtures, tests, dispatcher verbs and disabled schedules can all be written now.
 Only the entitlement probe and live sync still need a key.
+
+## D-63 · 2026-08-08 · The DIBBS sync keeps no checkpoint, and the window is an issue-date window
+
+`sync-tango-dibbs` is the first Funding Opportunities sync that does **not** resume from
+`TangoStoreService`'s checkpoint. Two independent reasons, and the second matters more than the first.
+
+**It is unstorable.** `tango_sync_checkpoint.resource_type` carries a CHECK admitting exactly
+`entity, opportunity, notice, forecast, vehicle, vehicle_awardee`
+(`20260821010000_tango_source_substrate`). No migration has ever widened it, and P40's own
+`20260908010000_tango_dibbs` does not either — it creates two tables and touches nothing else. A DIBBS
+checkpoint row cannot be inserted. This was found while writing part 3, not while planning it: the part-3
+brief specifies "incremental" and every prior sync in this program gets incrementality from that table, so
+the gap was invisible until someone tried to write the row.
+
+**It would be the wrong abstraction even if it fit.** A checkpoint stores a modification-time high-water
+mark. DIBBS publishes no `modified_after` filter — the documented filters are `issue_date_after`,
+`issued_date_after` and `posted_date_after`. Storing an "as of" instant would encode a guarantee the
+provider never offered, and the CHECK constraint merely made that visible early.
+
+So the window is derived from the data the sync already wrote — the newest issued/posted date per
+endpoint, minus an overlap — and every run's summary states the window it actually used.
+
+**The consequence that must not get lost:** an issue-date window selects records *issued* since a date. A
+solicitation amended after issue does not re-enter it, so an incremental run will not see the amendment
+and will still report itself `complete`. This is a permanent limit of the published filter set, not a
+tuning problem. The mitigation is `--full`, which drops the window and reconciles the whole catalog; the
+upsert keys on the provider's own `uuid`, so a full run is idempotent. The shipped (disabled) schedule
+therefore pairs a daily incremental with a weekly `--full`, the same shape as the LegiStorm directory pair
+in `ingestion-schedule.ts`. **A schedule that only ever runs the incremental will drift, silently.**
+
+Widening the checkpoint vocabulary in a later migration is still open as an option, but it should not be
+done merely to make DIBBS look like the other syncs — the modification-window semantics would still be
+absent, and a checkpoint row implying otherwise is worse than no row.
+
+## D-64 · 2026-08-08 · The P17 probe had D-62's error compiled into it, and a test holding it in place
+
+D-62 corrected the claim in prose. It did not correct the code that produced the claim.
+
+`tango-capability-probe.service.ts` carried `dibbs` and `sbir_sttr` probes with `call: null` and
+`skippedReason: 'unsupported_by_provider'`, which this file's own `ProbeDef` doc defines as "a genuine SDK
+gap … a fact about the provider/SDK surface itself". The `dibbs` reason read: *"P40 cannot assume this
+dataset is reachable through this SDK version; escalate to MakeGov before designing P40 around it."*
+
+So `p17-tango-capability-report.json` — the artifact attached to a handoff, and the thing a reader
+consults to answer "is Capiro entitled to this dataset" — asserted that a dataset with a published REST
+API was unsupported by the provider. Worse, **a test pinned it**:
+`expect(byKey(report, key).status).toBe('unsupported')` over a list including both keys. The error was
+load-bearing in three places at once: a service, a report, and a green assertion.
+
+Corrected here:
+
+- A fourth `skippedReason`, `no_rest_client_wired` → `not_attempted`. "Capiro has not built a client"
+  is a fact about Capiro's code; `unsupported` is a claim about the provider. Conflating them is the
+  whole of D-62 in one enum value.
+- `dibbs` is now a REAL probe when a `TangoDibbsClient` is supplied — one read-only
+  `listRfqs({ limit: 1 })`, the same smallest-shaped-call policy as every other probe here.
+- `sbir_sttr` stays uncalled (P42/P43 have not built a client) but now reports `not_attempted` with a
+  reason stating the provider **does** document `/api/sbir/topics/` and `/api/sbir/solicitations/`, and
+  that entitlement is therefore **unknown, not refused**.
+- The test that pinned `unsupported` for both keys now asserts the opposite: `unsupported` for these two
+  is a regression, not a baseline.
+
+**`p17-tango-capability-report.json` (captured 2026-08-07) is left unmodified — it is a record of a real
+run, and editing a captured artifact to match a later understanding is how records stop being evidence.
+Its `dibbs` and `sbir_sttr` rows are SUPERSEDED and must not be cited. A re-run answers them.**
+
+The generalisable point is narrower than "update code when you update docs": **a correction that lands
+only in prose leaves the mechanism that generated the error still running.** D-62 was written, reviewed
+and merged while the probe kept emitting the corrected claim, and a passing test kept it there.
+
+## D-65 · 2026-08-08 · P17 answered: DIBBS is entitled, and the run found two defects
+
+The corrected probe was run against the real account (operator-run, outside any agent session, key pulled
+from Secrets Manager and never displayed). Result:
+
+**`dibbs`: `supported`. P40's entitlement gate is CLOSED.**
+
+A second result comes free, and it is the more valuable one. The probe calls `listRfqs({ limit: 1 })`
+through `TangoDibbsClient`, which **throws** `TangoDibbsEnvelopeError` when a 200 response carries no
+`results` array. It returned "Call succeeded." **So the pagination envelope is confirmed to be
+`results`-shaped against a live response** — the single largest unknown in P40.
+
+Scope that precisely: the probe never captures response bodies, so this confirms the ENVELOPE only. Field
+types, null semantics and date formats in the mappers remain unconfirmed readings of published names.
+`sbir_sttr` remains `not_attempted` — no client exists yet, so entitlement there is still unknown.
+
+### Defect 1 — the DIBBS sync had no rate-limit handling whatsoever
+
+The run measured this account at **25 requests per ~31 seconds** (`x-ratelimit-limit: 25`,
+`resetIn: 31`). That is small enough that a page-complete catalog walk reaches it routinely.
+
+`sync-tango-dibbs.ts` as first written had no handling for it. `sync-tango-forecasts` wraps its gateway in
+`TangoResilienceService`; the DIBBS sync talks to its REST client directly, and its only `try/catch` was
+around the upserts. A 429 would have propagated out of `walkEndpoint` and **killed the entire run — all
+three endpoints, not just the throttled one.** Fixed here:
+
+- `TangoDibbsHttpError` now carries the failing response's rate metadata, so `Retry-After` can be
+  honoured rather than guessed. Guessing is worse in both directions.
+- Bounded retry on 429 (default 5), preferring `Retry-After`, then `resetIn`, then a fixed fallback.
+- Proactive throttle: a page reporting `remaining: 0` pauses before the next request instead of spending
+  a request to learn what the previous response already said.
+- **A rate limit that outlasts the retries stops ONE endpoint and leaves it `complete: false`. It never
+  aborts the run.** Killing the other two would turn one throttled walk into three unsynced datasets.
+- `rateLimited` is surfaced per endpoint AND at run level, because `completeness: in_progress` alone
+  cannot distinguish "capped by `--limit`, as instructed" from "the provider throttled us".
+
+**This is what the live gate is for.** No unit test would have found it — the fakes never return 429.
+
+### Defect 2 — a throttled probe was indistinguishable from a broken capability
+
+`budget_accounts_flows` reported `status: "error", reason: "Rate limit exceeded"` because the budget ran
+out mid-run. The 2026-08-07 report has it `supported`. A reader diffing the two would have seen a P44
+regression that does not exist.
+
+`classifyStatus` already returns a `rate_limit` kind; the probe was collapsing it into `error`. Added
+`rate_limited` as its own `ProbeStatus` — **the same reasoning that produced `not_found`**, which this
+file's own doc justifies as "collapsing it into generic `error` would make it indistinguishable from a
+genuinely broken call." The identical mistake recurred one status over.
+
+The default `--request-ceiling` was also **30 — above the provider's own limit of 25**, so the
+self-imposed cap could never bind; the provider always ran out first. Now 25. A full pass needs ~17 HTTP
+calls, so it fits on a fresh window. The 2026-08-08 run began at `remaining: 12`, which is why it did not.

@@ -36,7 +36,19 @@
  *
  * ── The request ceiling ──────────────────────────────────────────────────
  *
- * Defaults to 30 (there are ~24 probes total; this leaves headroom without
+ * Defaults to 25 -- the account's MEASURED per-window rate limit, observed
+ * 2026-08-08: `x-ratelimit-limit: 25`, resetting in ~31s. The previous default
+ * of 30 sat ABOVE that, so the self-imposed cap could never bind: the provider
+ * always ran out first. That run started with only 12 of 25 remaining and died
+ * on `budget_accounts_flows` with a rate-limit error that looked, in the
+ * report, exactly like a broken capability.
+ *
+ * A full pass needs ~17 HTTP calls (several probes are `not_attempted` and
+ * issue none), so 25 fits comfortably -- ON A FRESH WINDOW. If a run reports
+ * `rate_limited` probes, the window was already partly spent; wait ~31s and
+ * re-run rather than raising this.
+ *
+ * (There are ~24 probes total; this leaves headroom without
  * being anywhere near TANGO_REQUEST_CEILING_PER_RUN's default of 5,000).
  * That larger number is P18's SYNC-RUN ceiling — a different, much bigger
  * concern (draining real pagination) — and is deliberately NOT reused here as
@@ -60,10 +72,12 @@ import {
   createProbeClient,
   type CapabilityReport,
 } from '../src/external/tango/tango-capability-probe.service.js';
+import { TangoDibbsClient } from '../src/external/tango/tango-dibbs.client.js';
 
 dotenvConfig();
 
-const DEFAULT_REQUEST_CEILING = 30;
+/** The account's measured per-window limit (2026-08-08). See the header. */
+const DEFAULT_REQUEST_CEILING = 25;
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -139,11 +153,23 @@ async function main(): Promise<void> {
     timeoutMs: args.timeoutMs,
   });
 
+  // The DIBBS REST surface the SDK does not wrap. Constructed here rather than
+  // inside the probe service so this file stays the only place that decides
+  // what a diagnostic run is allowed to talk to. Read-only: the probe issues
+  // one `listRfqs({ limit: 1 })`. See decision-log D-62 for why this probe used
+  // to report `unsupported` and no longer does.
+  const dibbs = new TangoDibbsClient({
+    apiKey: args.apiKey,
+    baseUrl: args.baseUrl,
+    timeoutMs: args.timeoutMs,
+  });
+
   const service = new TangoCapabilityProbeService();
   const report = await service.run(client, args.apiKey, {
     uei: args.uei,
     vehicleUuid: args.vehicleUuid,
     requestCeiling: args.requestCeiling,
+    dibbs,
   });
 
   console.error(formatSummary(report));

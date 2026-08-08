@@ -603,6 +603,53 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
     enabled: false,
   },
+  // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
+  //
+  // TWO JOBS, and the pairing is load-bearing rather than belt-and-braces.
+  // DIBBS publishes no `modified_after` filter — only `issue_date_after`,
+  // `issued_date_after` and `posted_date_after` — so the incremental window
+  // selects records ISSUED since a date. An amendment to an already-issued
+  // solicitation never re-enters that window, and the incremental job would
+  // report itself complete having never seen it. The weekly `--full` run is
+  // what actually keeps the catalog true; it is not an optimisation.
+  //
+  // Both are idempotent (upsert on the provider's own `uuid`), so the two
+  // firing on the same day is harmless — Sunday simply refreshes what Sunday's
+  // incremental already wrote.
+  //
+  // RATE LIMIT: P17's live probe (2026-08-08) measured this account at 25
+  // requests per ~31s. A page-complete walk at limit=100 reaches that as a
+  // matter of course, so the sync throttles and retries rather than treating a
+  // 429 as exceptional (D-65). Budget wall-clock accordingly: the full weekly
+  // reconciliation is paced by the provider, not by Postgres.
+  //
+  // DISABLED, and not merely by house convention. P17 now confirms entitlement
+  // and confirms the pagination ENVELOPE against a live response — but the
+  // probe captures no response bodies, so mapper field types, null semantics
+  // and date formats remain readings of published NAMES. Full live contract
+  // validation has not run. Enabling this before it would write a whole catalog
+  // shaped by an only-partly-verified contract.
+  // Enable the incremental first, read one run's summary — especially
+  // `quantityDroppedMissingUnit` and the per-endpoint drop counts — and only
+  // then enable the full reconciliation.
+  {
+    id: 'SyncTangoDibbs',
+    command: ['sync-tango-dibbs', '--commit'],
+    cron: { minute: '10', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: DIBBS bid-board incremental sync (daily 13:10 UTC, issue-date window + 7d overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileTangoDibbsFull',
+    command: ['sync-tango-dibbs', '--commit', '--full'],
+    cron: { minute: '10', hour: '13', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
+    enabled: false,
+  },
   // Funding Opportunities P48: drain verified webhook deliveries into client
   // alerts. DISABLED, and it must stay that way until P50's controlled
   // enablement — P48's own ship note requires a manual two-pass quiet test

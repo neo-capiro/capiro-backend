@@ -11,6 +11,74 @@ writing a line of the sync. It is transcribed from published documentation and
 marks explicitly what is confirmed (field names) and what is not (types, null
 semantics, date formats, pagination envelope).
 
+## STATUS — part 3 is BUILT (2026-08-08), and still unverified against the provider
+
+Everything in "What part 3 must deliver" below is now implemented. Read that section as the
+specification it was, not as outstanding work. What shipped:
+
+| File | What |
+|---|---|
+| `apps/api/src/external/tango/tango-dibbs.client.ts` | The REST client for the three DIBBS endpoints. New. |
+| `apps/api/scripts/sync-tango-dibbs.ts` | The sync. Dry-run by default. |
+| `apps/api/scripts/sync-tango-dibbs.spec.ts` | 27 tests, no Postgres and no network required. |
+| `apps/api/scripts/entrypoint-dispatcher.inc` | `sync-tango-dibbs` verb. |
+| `apps/api/tsconfig.funding-opportunities.json` | Both new script files registered. |
+| `infra/cdk/lib/ingestion-schedule.ts` | `SyncTangoDibbs` + `ReconcileTangoDibbsFull`, **both `enabled: false`**. |
+| `.github/workflows/funding-opportunities-ci.yml` | Scope regex, suite list, floors raised to 82/2556. |
+| `decision-log.md` | **D-63**, below. |
+
+**No migration was added, no schedule was enabled, and no AWS or deployment change was made.**
+
+### The one thing that changed the design — read D-63
+
+`tango_sync_checkpoint.resource_type` carries a CHECK admitting exactly
+`entity, opportunity, notice, forecast, vehicle, vehicle_awardee`. No migration has ever widened it, and
+P40's own migration does not either. **A DIBBS checkpoint row is unstorable**, so this is the first sync in
+the program that keeps none — the window is derived from the newest issued/posted date already stored.
+
+That is not merely a workaround. DIBBS publishes no `modified_after` filter, only `issue_date_after` /
+`issued_date_after` / `posted_date_after`, so **the window is an issue-date window, not a modification
+window**: a solicitation amended after issue does not re-enter it, and an incremental run will miss the
+amendment while still reporting `complete`. `--full` is the mitigation and the shipped schedule pairs a
+daily incremental with a weekly full reconciliation. A schedule that only ever runs the incremental will
+drift silently.
+
+### P17 IS ANSWERED — `dibbs: supported` (2026-08-08). See D-65.
+
+An operator-run probe against the real account returned `supported` for `dibbs`. **P40's entitlement gate
+is closed.** And because the probe calls through `TangoDibbsClient`, which throws on a missing `results`
+array, the run also **confirms the pagination envelope is `results`-shaped against a live response** —
+the largest single unknown in P40.
+
+Scope it precisely: the probe captures no response bodies, so this confirms the ENVELOPE only. Mapper
+field types, null semantics and date formats are still unverified readings.
+
+The run also found two defects, both now fixed (D-65): the DIBBS sync had **no rate-limit handling at
+all** and a 429 would have killed all three endpoint walks; and the probe reported a throttled call as a
+generic `error`, indistinguishable from a broken capability. **The account's limit is 25 requests per
+~31 seconds** — small enough that a catalog walk hits it as a matter of course, not exceptionally.
+
+### What is still NOT done
+
+- **Full live contract validation has not run.** The envelope is confirmed; the record CONTENTS are not.
+  Every coercion in the mappers is still a reading of published field names. This remains the real gate.
+- **SBIR/STTR entitlement is still unknown** — `not_attempted`, because P42/P43 have built no client.
+  Unknown, not refused.
+- **P17's entitlement question is still open — but the probe can now answer it.** See **D-64**: the
+  `dibbs` and `sbir_sttr` probes had D-62's error compiled into them, reporting
+  `unsupported_by_provider`, with a test pinning it. `dibbs` is now a real read-only probe
+  (`listRfqs({ limit: 1 })` through `TangoDibbsClient`); `sbir_sttr` reports `not_attempted` with an
+  honest reason until P42/P43 build a client. **The 2026-08-07 capability report's rows for these two
+  are superseded and must not be cited** — re-run `diag-tango-capabilities` to answer them.
+
+  A live run now closes two questions at once: entitlement, **and** whether the pagination envelope is
+  what the client assumes. A mismatch surfaces as `TangoDibbsEnvelopeError` naming the problem, rather
+  than as an empty page.
+- The client **throws** rather than returning an empty page when `results` is absent, so a wrong envelope
+  fails loudly on the first live run instead of reporting "0 records, complete". Expect that to be the
+  first thing the live run tells you, and treat it as a contract update plus a new fixture — never a
+  client that accepts both shapes.
+
 ## What is already on `main`
 
 | PR | What |
@@ -110,8 +178,21 @@ last merge here:
 
 - api typecheck: **12 pre-existing errors**, none in funding-opportunities code.
   It was 6 until PR #850 (federal-market unification) merged and doubled it.
-- FO CI floor: **81 suites / 2528 tests**. Of the movement from 78/2485, +1 suite
-  and +36 tests are P40's; +2 suites and +7 tests arrived from #850.
+  **Re-measured 2026-08-08 at `main` d1d7030c (PR #856) and after part 3: still
+  exactly 12.** #856's `noImplicitAny` fix was in `apps/web`, so the api count
+  never moved, and part 3 introduced none.
+- FO CI floor: **now 82 suites / 2564 tests**, raised from 81/2528 by this work.
+  Of the earlier movement from 78/2485 to 81/2528, +1 suite and +36 tests are
+  P40's; +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2564 move
+  is **entirely** this work's: +27 `sync-tango-dibbs.spec.ts`, +1 dispatch row,
+  +2 probe spec (D-64), +6 rate-limit tests (D-65). Measured against real
+  Postgres 16 on a clean migration replay — 82 passed, 2564 passed, zero
+  failures, zero skips.
+
+Note that #856 (the NewsCatcher dashboard) added a 402-line spec under
+`src/intelligence/news/`, which does **not** appear in this gate's enumerated
+suite list and therefore never touched the floor. The list is explicit for
+exactly this reason.
 
 Do not repair unrelated federal-market baseline failures inside this work unless
 they directly block the feature and the causal relationship is proven.

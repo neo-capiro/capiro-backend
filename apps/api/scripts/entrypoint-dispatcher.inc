@@ -592,6 +592,19 @@ case "${1:-serve}" in
   # by default; a dispatched task passes --commit. Resumable via
   # tango_sync_checkpoint, same as sync-tango-vehicles above.
   sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts "$@" ;;
+  # Funding Opportunities P40 part 3: DLA bid-board (DIBBS) sync — RFQs, RFP/IFBs
+  # and awards, at line-item grain. Dry-run by default; a dispatched task passes
+  # --commit. NOT resumable via tango_sync_checkpoint, unlike every verb above:
+  # that table's resource_type CHECK admits only entity/opportunity/notice/
+  # forecast/vehicle/vehicle_awardee, and DIBBS publishes no modified_after
+  # filter anyway. The window is derived from the newest issued/posted date
+  # already stored, minus an overlap.
+  #
+  # THE WINDOW IS AN ISSUE-DATE WINDOW, NOT A MODIFICATION WINDOW: an amendment
+  # to an already-issued solicitation does not re-enter it. Pair a frequent
+  # incremental with a periodic --full reconciliation (the upsert keys on the
+  # provider's uuid, so a full run is idempotent).
+  sync-tango-dibbs) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-dibbs.ts "$@" ;;
   # Funding Opportunities P47: reconcile provider-side webhook ALERT
   # subscriptions against the desired set held in reviewed code. DRY-RUN BY
   # DEFAULT and read-only in that mode. `--commit` additionally demands
