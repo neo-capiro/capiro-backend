@@ -10,6 +10,7 @@ import { TenantContextMiddleware } from './tenant/tenant-context.middleware.js';
 import { UsersModule } from './users/users.module.js';
 import { HealthController } from './health/health.controller.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
+import { RecallWebhookModule } from './webhooks/recall-webhook.module.js';
 import { CapiroAdminModule } from './capiro-admin/capiro-admin.module.js';
 import { TenantAdminModule } from './tenant-admin/tenant-admin.module.js';
 import { ClientsModule } from './clients/clients.module.js';
@@ -19,6 +20,9 @@ import { DirectoryModule } from './directory/directory.module.js';
 import { DistrictNexusModule } from './district-nexus/district-nexus.module.js';
 import { FundingOpportunitiesModule } from './funding-opportunities/funding-opportunities.module.js';
 import { EngagementModule } from './engagement/engagement.module.js';
+import { EngagementIntegrationActionsModule } from './engagement-integrations/engagement-integration-actions.module.js';
+import { EngagementCallbacksModule } from './engagement-callbacks/engagement-callbacks.module.js';
+import { EngagementWorkersModule } from './engagement-workers/engagement-workers.module.js';
 import { CapabilitiesModule } from './capabilities/capabilities.module.js';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module.js';
 import { MeriModule } from './meri/meri.module.js';
@@ -71,6 +75,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     TenantModule,
     UsersModule,
     WebhooksModule,
+    RecallWebhookModule,
     CapiroAdminModule,
     TenantAdminModule,
     ClientsModule,
@@ -79,6 +84,9 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     DistrictNexusModule,
     FundingOpportunitiesModule,
     EngagementModule,
+    EngagementIntegrationActionsModule,
+    EngagementCallbacksModule,
+    EngagementWorkersModule,
     CapabilitiesModule,
     DemoRequestsModule,
     MeriModule,

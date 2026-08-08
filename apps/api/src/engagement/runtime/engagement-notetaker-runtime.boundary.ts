@@ -56,12 +56,9 @@ export function guardMeetingBotProvider(
 }
 
 /**
- * Single-instance proxy for NotetakerService.
- *
- * The service owns an onModuleInit timer, so it must not be registered under a
- * second raw Nest token. The module constructs it once and returns this proxy;
- * lifecycle hooks pass through to the same instance, while every externally
- * acting or background-owned public entry point is independently fail-closed.
+ * Single-instance proxy for NotetakerService. Lifecycle registration is disabled
+ * here so the request/core provider owns zero timers. EngagementWorkersModule
+ * invokes the guarded runReconcileSweep method from its explicit worker shell.
  */
 export function guardNotetakerService(
   service: NotetakerService,
@@ -71,13 +68,14 @@ export function guardNotetakerService(
     get(target, property, receiver) {
       const value = Reflect.get(target, property, receiver);
       if (typeof property !== 'string' || typeof value !== 'function') return value;
+      if (property === 'onModuleInit' || property === 'onModuleDestroy') {
+        return () => undefined;
+      }
       const external = NOTETAKER_EXTERNAL_METHODS[property];
       if (external) {
         return (...args: unknown[]) => {
           policy.assertExternalAction(external.action);
-          if (external.requiresCallbacks) {
-            policy.assertCallbacksEnabled(external.action);
-          }
+          if (external.requiresCallbacks) policy.assertCallbacksEnabled(external.action);
           return Reflect.apply(value, target, args);
         };
       }

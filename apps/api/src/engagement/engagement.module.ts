@@ -32,16 +32,13 @@ import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js'
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
-import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller.js';
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
 import { ContextModule } from '../context/context.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
-import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
-import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
 import { GoogleTokenService } from './google/google-token.service.js';
 import { GmailSendService } from './google/gmail-send.service.js';
 import { EngagementMailSender } from './mail-sender.service.js';
@@ -84,6 +81,11 @@ import {
   guardNotetakerService,
 } from './runtime/engagement-notetaker-runtime.boundary.js';
 
+/**
+ * Request/core Engagement composition. This module deliberately owns no OAuth
+ * callback controllers and no background timer providers; those live in the
+ * separately composable callback and worker modules.
+ */
 @Module({
   imports: [
     PrismaModule,
@@ -96,12 +98,7 @@ import {
     EngagementRuntimeModule,
     AiCredentialsModule,
   ],
-  controllers: [
-    EngagementController,
-    MicrosoftOAuthController,
-    GoogleOAuthController,
-    OutcomeController,
-  ],
+  controllers: [EngagementController, OutcomeController],
   providers: [
     {
       provide: MEETING_BOT_PROVIDER,
@@ -210,7 +207,6 @@ import {
       ],
     },
     MeetingNotesCryptoService,
-    EngagementSyncSchedulerService,
     EngagementMailSender,
     TokenCryptoService,
     OutreachDraftService,
@@ -240,8 +236,13 @@ import {
     EngagementService,
     NotetakerService,
     MicrosoftGraphSyncService,
+    MicrosoftOAuthService,
+    GoogleSyncService,
+    GoogleOAuthService,
     EngagementMailSender,
+    OutreachJobService,
     OutreachDraftService,
+    OutreachSendIntentService,
     GenerationGatewayService,
     EvidencePacketService,
   ],

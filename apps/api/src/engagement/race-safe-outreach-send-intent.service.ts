@@ -16,12 +16,7 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
 
 /**
  * Production DI wrapper for the send-intent check-then-create race.
- *
- * Two identical first-time requests can both observe no existing requestKey.
- * The database unique constraint chooses one winner; this wrapper retries the
- * loser exactly once so the normal fingerprint comparison sees that winner and
- * returns it as a deduplicated intent. A changed payload still reaches the
- * existing OUTREACH_REQUEST_KEY_REUSED conflict on the retry.
+ * Request/core construction owns no timer; EngagementWorkersModule does.
  */
 @Injectable()
 export class RaceSafeOutreachSendIntentService extends OutreachSendIntentService {
@@ -34,7 +29,24 @@ export class RaceSafeOutreachSendIntentService extends OutreachSendIntentService
     config: ConfigService<AppConfig, true>,
     runtimePolicy: EngagementRuntimePolicyService,
   ) {
-    super(prisma, engagement, mailSender, attachmentContent, attachmentScanner, config, runtimePolicy);
+    super(
+      prisma,
+      engagement,
+      mailSender,
+      attachmentContent,
+      attachmentScanner,
+      config,
+      runtimePolicy,
+    );
+  }
+
+  /** Request/core construction must never start a worker timer. */
+  override onModuleInit(): void {}
+
+  override onModuleDestroy(): void {}
+
+  runWorkerSweep(): Promise<void> {
+    return super.runSweep();
   }
 
   override createIntent(

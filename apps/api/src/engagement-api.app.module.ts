@@ -14,6 +14,10 @@ import { TenantModule } from './tenant/tenant.module.js';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 import { EngagementModule } from './engagement/engagement.module.js';
+import { EngagementIntegrationActionsModule } from './engagement-integrations/engagement-integration-actions.module.js';
+import { EngagementCallbacksModule } from './engagement-callbacks/engagement-callbacks.module.js';
+import { EngagementWorkersModule } from './engagement-workers/engagement-workers.module.js';
+import { RecallWebhookModule } from './webhooks/recall-webhook.module.js';
 import { CapabilitiesModule } from './capabilities/capabilities.module.js';
 import { EngagementRuntimeGuard } from './engagement/runtime/engagement-runtime.guard.js';
 import { EngagementApiHealthController } from './engagement-api/engagement-api-health.controller.js';
@@ -33,6 +37,10 @@ import { EngagementApiHealthController } from './engagement-api/engagement-api-h
     AuthModule,
     TenantModule,
     EngagementModule,
+    EngagementIntegrationActionsModule,
+    EngagementCallbacksModule,
+    EngagementWorkersModule,
+    RecallWebhookModule,
     CapabilitiesModule,
   ],
   controllers: [EngagementApiHealthController],

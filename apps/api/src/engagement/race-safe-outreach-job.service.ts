@@ -15,9 +15,8 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
 /**
  * Production DI wrapper for concurrent outreach-job submissions.
  *
- * The unique key already prevents duplicate fan-out. Retrying the losing
- * transaction once lets OutreachJobService's ordinary lookup return the durable
- * winner instead of leaking a raw Prisma P2002 to the browser.
+ * The request/core provider deliberately owns NO timer. EngagementWorkersModule
+ * registers the explicit timer shell and calls runWorkerTick().
  */
 @Injectable()
 export class RaceSafeOutreachJobService extends OutreachJobService {
@@ -29,6 +28,16 @@ export class RaceSafeOutreachJobService extends OutreachJobService {
     runtimePolicy: EngagementRuntimePolicyService,
   ) {
     super(prisma, engagement, gateway, config, runtimePolicy);
+  }
+
+  /** Request/core construction must never start a worker timer. */
+  override onModuleInit(): void {}
+
+  override onModuleDestroy(): void {}
+
+  /** Explicit worker-shell entry point over the base class's private sweep. */
+  runWorkerTick(): Promise<void> {
+    return (this as unknown as { tick(): Promise<void> }).tick();
   }
 
   override submit(
