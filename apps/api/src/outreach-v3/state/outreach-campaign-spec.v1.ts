@@ -42,7 +42,7 @@ const clientRefSchema = z
   })
   .strict();
 
-const targetCriteriaSchema = z
+export const targetCriteriaV1Schema = z
   .object({
     notes: boundedNullableText(OUTREACH_V3_LIMITS.targetCriteriaNotes),
     governmentLevels: z
@@ -65,7 +65,7 @@ const targetCriteriaSchema = z
 // empty until their owning phases introduce and authorize those reference types.
 const reservedFutureRefsSchema = z.array(z.never()).max(0);
 
-export const outreachCampaignSpecV1Schema = z
+const outreachCampaignSpecV1BaseSchema = z
   .object({
     schemaVersion: z.literal(OUTREACH_CAMPAIGN_SPEC_SCHEMA_VERSION),
     goal: z
@@ -100,7 +100,7 @@ export const outreachCampaignSpecV1Schema = z
       .strict(),
     targeting: z
       .object({
-        criteria: targetCriteriaSchema.nullable(),
+        criteria: targetCriteriaV1Schema.nullable(),
         selectedTargetRefs: reservedFutureRefsSchema,
         rejectedRecommendationRefs: reservedFutureRefsSchema,
       })
@@ -137,15 +137,17 @@ export const outreachCampaignSpecV1Schema = z
       })
       .strict(),
   })
-  .strict()
-  .superRefine((spec, ctx) => {
+  .strict();
+
+export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.superRefine(
+  (spec, ctx) => {
     const refs = spec.sponsor.clientRefs;
     const uniqueRefs = new Set(refs.map((ref) => ref.clientId));
     if (uniqueRefs.size !== refs.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['sponsor', 'clientRefs'],
-        message: 'Sponsor client references must be unique.',
+        message: 'Sponsor client references must be unique after normalization.',
       });
     }
 
@@ -213,10 +215,11 @@ export const outreachCampaignSpecV1Schema = z
         message: 'Custom length instruction must be null unless length is custom.',
       });
     }
-  });
+  },
+);
 
-export type OutreachCampaignSpecV1 = z.infer<typeof outreachCampaignSpecV1Schema>;
-export type TargetCriteriaV1 = z.infer<typeof targetCriteriaSchema>;
+export type OutreachCampaignSpecV1 = z.infer<typeof outreachCampaignSpecV1BaseSchema>;
+export type TargetCriteriaV1 = z.infer<typeof targetCriteriaV1Schema>;
 export type OutreachSponsorScopeV1 = OutreachCampaignSpecV1['sponsor'];
 
 export function createBlankCampaignSpecV1(): OutreachCampaignSpecV1 {
@@ -274,6 +277,9 @@ function normalizeSet(values: string[]): string[] {
 }
 
 export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachCampaignSpecV1 {
+  const sortedClientRefs = [...spec.sponsor.clientRefs].sort((a, b) =>
+    a.clientId.localeCompare(b.clientId),
+  );
   const normalized: OutreachCampaignSpecV1 = {
     ...spec,
     goal: {
@@ -290,9 +296,9 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
     sponsor: {
       kind: spec.sponsor.kind,
       label: normalizeNullableText(spec.sponsor.label),
-      clientRefs: [...spec.sponsor.clientRefs]
-        .sort((a, b) => a.clientId.localeCompare(b.clientId))
-        .filter((ref, index, array) => index === 0 || ref.clientId !== array[index - 1]?.clientId),
+      clientRefs: sortedClientRefs.filter(
+        (ref, index, array) => index === 0 || ref.clientId !== array[index - 1]?.clientId,
+      ),
     },
     targeting: {
       criteria: spec.targeting.criteria
@@ -329,8 +335,10 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
 }
 
 export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
-  const parsed = outreachCampaignSpecV1Schema.parse(input);
-  const normalized = normalizeCampaignSpecV1(parsed);
+  // Structural parsing intentionally precedes invariant validation so set-like
+  // fields can canonicalize first (e.g. duplicate sponsor/client inputs).
+  const structurallyValid = outreachCampaignSpecV1BaseSchema.parse(input);
+  const normalized = normalizeCampaignSpecV1(structurallyValid);
   const bytes = Buffer.byteLength(canonicalJsonStringify(normalized), 'utf8');
   if (bytes > OUTREACH_V3_LIMITS.campaignSpecBytes) {
     throw new Error(`OUTREACH_CAMPAIGN_SPEC_TOO_LARGE:${bytes}`);
@@ -339,7 +347,12 @@ export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
 }
 
 export function canonicalJsonStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (value === undefined) throw new Error('undefined is not valid canonical JSON');
+  if (value === null || typeof value !== 'object') {
+    const encoded = JSON.stringify(value);
+    if (encoded === undefined) throw new Error('value is not valid canonical JSON');
+    return encoded;
+  }
   if (Array.isArray(value)) {
     return `[${value.map((entry) => canonicalJsonStringify(entry)).join(',')}]`;
   }
