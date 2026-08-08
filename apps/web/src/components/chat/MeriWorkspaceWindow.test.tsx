@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -129,20 +129,27 @@ describe('MeriWorkspaceWindow prototype parity', () => {
   test('keeps reasoning modes as a design-system header chip rather than the old button', async () => {
     render(<MeriWorkspaceWindow controller={controller()} />);
     const trigger = screen.getByRole('button', { name: /MODE · STANDARD/i });
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Deep/i }));
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+    const deepOption = screen.getByRole('menuitemradio', { name: /Deep/i });
+    await act(async () => {
+      fireEvent.click(deepOption);
+    });
 
     await waitFor(() =>
       expect(mocks.patch).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode', {
         reasoningMode: 'deep',
       }),
     );
-    expect(screen.getByRole('button', { name: /MODE · DEEP/i })).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /MODE · DEEP/i })).toBeTruthy(),
+    );
   });
 
   test('starts a new production conversation from the prototype rail', () => {
     render(<MeriWorkspaceWindow controller={controller()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'New thread' }));
+    fireEvent.click(screen.getByRole('button', { name: /\+?\s*New thread/i }));
     expect(mocks.newSession).toHaveBeenCalledTimes(1);
   });
 });

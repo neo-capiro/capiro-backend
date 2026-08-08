@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
+import type React from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { config } from '../../env.js';
 import { useImpersonation } from '../../state/impersonation.js';
@@ -147,7 +148,7 @@ export function MeriWorkspaceThreadRail({
       <div className="meri-v3-thread-search">
         <span aria-hidden="true">⌕</span>
         <input
-          ref={searchInputRef}
+          ref={searchInputRef as React.RefObject<HTMLInputElement> | undefined}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="SEARCH THREADS"

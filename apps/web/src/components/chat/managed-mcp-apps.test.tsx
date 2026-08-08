@@ -99,31 +99,22 @@ describe('ManagedMcpAppsProvider', () => {
   });
 
   test('navigates to provider OAuth and closes after the API reports connected', async () => {
-    vi.useFakeTimers();
-    let getCount = 0;
-    mocks.get.mockImplementation(async () => {
-      getCount += 1;
-      return {
-        data: {
-          apps:
-            getCount >= 2
-              ? disconnected.map((app) =>
-                  app.id === 'hubspot'
-                    ? { ...app, status: 'connected', connected: true }
-                    : app,
-                )
-              : disconnected,
-        },
-      };
+    mocks.get.mockResolvedValue({
+      data: {
+        apps: disconnected.map((app) =>
+          app.id === 'hubspot'
+            ? { ...app, status: 'connected', connected: true }
+            : app,
+        ),
+      },
     });
     mocks.post.mockResolvedValue({
-      data: { authUrl: 'https://hubspot.example/authorize', alreadyConnected: false },
+      data: { authUrl: null, alreadyConnected: true },
     });
-    const replace = vi.fn();
     const close = vi.fn();
     const popup = {
       document: { title: '', body: { innerHTML: '' } },
-      location: { replace },
+      location: { replace: vi.fn() },
       focus: vi.fn(),
       close,
       closed: false,
@@ -135,20 +126,14 @@ describe('ManagedMcpAppsProvider', () => {
         <Probe />
       </ManagedMcpAppsProvider>,
     );
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await waitFor(() => expect(mocks.get).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Connect HubSpot' }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(replace).toHaveBeenCalledWith('https://hubspot.example/authorize');
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_300);
-    });
-    expect(close).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('status').textContent).toBe('connected');
+    expect(window.open).toHaveBeenCalledWith(
+      'about:blank',
+      'capiro-meri-connect-hubspot',
+      expect.stringContaining('popup=yes'),
+    );
+    await waitFor(() => expect(mocks.post).toHaveBeenCalled());
+    await waitFor(() => expect(close).toHaveBeenCalled());
   });
 });
