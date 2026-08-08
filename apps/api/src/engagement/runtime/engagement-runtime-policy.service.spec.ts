@@ -2,7 +2,6 @@ import { describe, it, expect } from '@jest/globals';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
 import type { EngagementExternalAction } from './engagement-runtime.types.js';
 
-// Table-driven test for the full policy matrix.
 function makePolicy(config: {
   serviceName: 'api' | 'engagement-api';
   processMode: 'shadow' | 'active';
@@ -50,9 +49,7 @@ describe('EngagementRuntimePolicyService', () => {
       expect(snap.externalActions).toBe('disabled');
       expect(snap.callbacksEnabled).toBe(false);
       expect(snap.recallWebhookEnabled).toBe(false);
-      // No secrets in the snapshot
-      const json = JSON.stringify(snap);
-      expect(json).not.toMatch(/password|secret|token|apiKey|credential/i);
+      expect(JSON.stringify(snap)).not.toMatch(/password|secret|token|apiKey|credential/i);
     });
   });
 
@@ -129,7 +126,6 @@ describe('EngagementRuntimePolicyService', () => {
       callbacksEnabled: true,
       recallWebhookEnabled: true,
     });
-
     it.each(ALL_ACTIONS)('allows action %s in enabled mode', (action) => {
       expect(policy.externalActionAllowed(action)).toBe(true);
     });
@@ -144,7 +140,6 @@ describe('EngagementRuntimePolicyService', () => {
       callbacksEnabled: false,
       recallWebhookEnabled: false,
     });
-
     it.each(ALL_ACTIONS)('denies action %s in disabled mode', (action) => {
       expect(policy.externalActionAllowed(action)).toBe(false);
     });
@@ -159,25 +154,21 @@ describe('EngagementRuntimePolicyService', () => {
       callbacksEnabled: false,
       recallWebhookEnabled: false,
     });
-
     it('allows outreach_test_send with testMode=true', () => {
       expect(policy.externalActionAllowed('outreach_test_send', { testMode: true })).toBe(true);
     });
-
     it('denies outreach_test_send without testMode', () => {
       expect(policy.externalActionAllowed('outreach_test_send')).toBe(false);
     });
-
-    it.each(
-      ALL_ACTIONS.filter((a) => a !== 'outreach_test_send'),
-    )('denies ordinary action %s in test_only mode', (action) => {
-      expect(policy.externalActionAllowed(action)).toBe(false);
-    });
-
+    it.each(ALL_ACTIONS.filter((action) => action !== 'outreach_test_send'))(
+      'denies ordinary action %s in test_only mode',
+      (action) => {
+        expect(policy.externalActionAllowed(action)).toBe(false);
+      },
+    );
     it('denies outreach_send in test_only mode', () => {
       expect(policy.externalActionAllowed('outreach_send', { testMode: true })).toBe(false);
     });
-
     it('denies outreach_generate in test_only mode', () => {
       expect(policy.externalActionAllowed('outreach_generate', { testMode: true })).toBe(false);
     });
@@ -195,7 +186,6 @@ describe('EngagementRuntimePolicyService', () => {
       });
       expect(() => policy.assertExternalAction('outreach_send')).toThrow();
     });
-
     it('does not throw for allowed action', () => {
       const policy = makePolicy({
         serviceName: 'api',
@@ -207,7 +197,6 @@ describe('EngagementRuntimePolicyService', () => {
       });
       expect(() => policy.assertExternalAction('outreach_send')).not.toThrow();
     });
-
     it('does not throw for test_send in test_only mode', () => {
       const policy = makePolicy({
         serviceName: 'engagement-api',
@@ -235,7 +224,6 @@ describe('EngagementRuntimePolicyService', () => {
       });
       expect(() => policy.assertCallbacksEnabled('integration_oauth_callback')).toThrow();
     });
-
     it('does not throw when callbacks are enabled', () => {
       const policy = makePolicy({
         serviceName: 'api',
@@ -249,20 +237,29 @@ describe('EngagementRuntimePolicyService', () => {
     });
   });
 
-  describe('isRecallWebhookEnabled', () => {
-    it('returns false when disabled', () => {
+  describe('Recall webhook ownership', () => {
+    it('throws the Recall-specific code when callbacks are on but Recall is disabled', () => {
       const policy = makePolicy({
-        serviceName: 'engagement-api',
-        processMode: 'shadow',
-        backgroundOwner: 'disabled',
-        externalActions: 'disabled',
-        callbacksEnabled: false,
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
         recallWebhookEnabled: false,
       });
+      try {
+        policy.assertRecallWebhookEnabled();
+        throw new Error('expected Recall ownership denial');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as { getResponse?: () => unknown }).getResponse?.()).toMatchObject({
+          code: 'ENGAGEMENT_RECALL_WEBHOOK_DISABLED',
+        });
+      }
       expect(policy.isRecallWebhookEnabled()).toBe(false);
     });
 
-    it('returns true when enabled', () => {
+    it('allows Recall processing only when its own flag is enabled', () => {
       const policy = makePolicy({
         serviceName: 'api',
         processMode: 'active',
@@ -271,6 +268,7 @@ describe('EngagementRuntimePolicyService', () => {
         callbacksEnabled: true,
         recallWebhookEnabled: true,
       });
+      expect(() => policy.assertRecallWebhookEnabled()).not.toThrow();
       expect(policy.isRecallWebhookEnabled()).toBe(true);
     });
   });

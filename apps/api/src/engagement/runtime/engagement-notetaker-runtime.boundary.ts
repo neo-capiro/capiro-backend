@@ -6,6 +6,7 @@ import type { EngagementExternalAction } from './engagement-runtime.types.js';
 interface ExternalMethodMetadata {
   action: EngagementExternalAction;
   requiresCallbacks?: boolean;
+  requiresRecallWebhook?: boolean;
 }
 
 export const NOTETAKER_EXTERNAL_METHODS: Readonly<
@@ -13,8 +14,16 @@ export const NOTETAKER_EXTERNAL_METHODS: Readonly<
 > = {
   dispatch: { action: 'notetaker_dispatch' },
   remove: { action: 'notetaker_remove' },
-  receiveWebhook: { action: 'notetaker_dispatch', requiresCallbacks: true },
-  handleBotEvent: { action: 'notetaker_dispatch', requiresCallbacks: true },
+  receiveWebhook: {
+    action: 'notetaker_dispatch',
+    requiresCallbacks: true,
+    requiresRecallWebhook: true,
+  },
+  handleBotEvent: {
+    action: 'notetaker_dispatch',
+    requiresCallbacks: true,
+    requiresRecallWebhook: true,
+  },
 };
 
 export const MEETING_BOT_EXTERNAL_METHODS: Readonly<Record<string, EngagementExternalAction>> = {
@@ -76,6 +85,9 @@ export function guardNotetakerService(
         return (...args: unknown[]) => {
           policy.assertExternalAction(external.action);
           if (external.requiresCallbacks) policy.assertCallbacksEnabled(external.action);
+          if (external.requiresRecallWebhook) {
+            policy.assertRecallWebhookEnabled('recall_webhook');
+          }
           return Reflect.apply(value, target, args);
         };
       }

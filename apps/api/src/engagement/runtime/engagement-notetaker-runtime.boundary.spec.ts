@@ -22,6 +22,17 @@ function shadowPolicy(): EngagementRuntimePolicyService {
   });
 }
 
+function recallDisabledPolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
+    serviceName: 'api',
+    processMode: 'active',
+    backgroundOwner: 'api',
+    externalActions: 'enabled',
+    callbacksEnabled: true,
+    recallWebhookEnabled: false,
+  });
+}
+
 function invokeAndCapture(
   service: Record<string, (...args: unknown[]) => unknown>,
   methodName: string,
@@ -58,6 +69,23 @@ describe('Notetaker runtime boundary', () => {
       ) as unknown as Record<string, (...args: unknown[]) => unknown>;
       const caught = invokeAndCapture(guarded, methodName);
       expect(caught).toBeInstanceOf(ServiceUnavailableException);
+      expect(implementation).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['receiveWebhook', 'handleBotEvent'])(
+    'blocks %s when callbacks are enabled but Recall ownership is disabled',
+    (methodName) => {
+      const implementation = jest.fn(async () => undefined);
+      const guarded = guardNotetakerService(
+        { [methodName]: implementation } as unknown as NotetakerService,
+        recallDisabledPolicy(),
+      ) as unknown as Record<string, (...args: unknown[]) => unknown>;
+      const caught = invokeAndCapture(guarded, methodName);
+      expect(caught).toBeInstanceOf(ServiceUnavailableException);
+      expect((caught as ServiceUnavailableException).getResponse()).toMatchObject({
+        code: 'ENGAGEMENT_RECALL_WEBHOOK_DISABLED',
+      });
       expect(implementation).not.toHaveBeenCalled();
     },
   );

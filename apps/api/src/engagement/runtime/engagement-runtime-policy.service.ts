@@ -130,9 +130,7 @@ export class EngagementRuntimePolicyService {
     }
   }
 
-  /**
-   * Assert that OAuth callbacks / Microsoft notifications are enabled.
-   */
+  /** Assert that OAuth callbacks / Microsoft notifications are enabled. */
   assertCallbacksEnabled(action: string): void {
     if (!this.callbacksEnabled) {
       throw new ServiceUnavailableException({
@@ -145,8 +143,22 @@ export class EngagementRuntimePolicyService {
   }
 
   /**
-   * Whether Recall webhook processing is enabled.
+   * Assert the independently movable Recall-webhook ownership boundary.
+   * Callback ownership alone is insufficient: a transfer rehearsal may enable
+   * OAuth callbacks while intentionally keeping Recall on the current owner.
    */
+  assertRecallWebhookEnabled(action = 'recall_webhook'): void {
+    if (!this.recallWebhookEnabled) {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_RECALL_WEBHOOK_DISABLED',
+        action,
+        message: 'Recall webhook processing is disabled in this runtime.',
+      });
+    }
+  }
+
+  /** Whether Recall webhook processing is enabled. */
   isRecallWebhookEnabled(): boolean {
     return this.recallWebhookEnabled;
   }
