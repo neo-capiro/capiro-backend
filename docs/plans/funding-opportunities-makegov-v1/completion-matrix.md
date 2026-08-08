@@ -72,10 +72,10 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 | P37 | Typed local Meri opportunity tools | merged | `a25b1854` (PR [#804](https://github.com/neo-capiro/capirov2/pull/804)) | api 65/2051 (see P38+ for the running floor) | *self-verified only — no independent reviewer* | n/a — no migration | not yet deployed to capiro-dev | Flag `funding_opportunities_meri_v2` has no row for any tenant; the adapter's constructor arity and no-Tango-import are asserted structurally, not just claimed | Revert code; no data, schema or flag involved |
 | P38 | Structured Meri assessment and artifacts | merged | `ae120059` (PR [#809](https://github.com/neo-capiro/capirov2/pull/809)) | api 66/2096, web 89/360 | *self-verified only — no independent reviewer* | n/a — persists through existing `clio_artifacts`/claim-store/`compliance_check` tables | not yet deployed to capiro-dev | The model's restatement of the recommendation is WRITTEN from the packet, never read from the model — asserted by feeding a hostile model output that argues a different recommendation and proving the field is unchanged | Reuses `funding_opportunities_meri_v2`; off restores nothing-changed |
 | P39 | Research-only Tango MCP connector | merged | `cf173123` (PR [#810](https://github.com/neo-capiro/capirov2/pull/810)) | api 68/2123 | *self-verified only — no independent reviewer* | n/a — no migration | not yet deployed to capiro-dev | **Not verified live** — P17's probe could not reach MCP at all (the SDK does not wrap it), so the endpoint, header name and tool names come from the plan document, unconfirmed against the real server | Disable/delete the connector and `funding_opportunities_tango_mcp`; no product data loss |
-| P40 | DIBBS schema and sync | **blocked on provider** | | | | **required** | | `@makegov/tango-node@1.1.0` (latest published) has no DIBBS method anywhere in its 96-method surface; P17's own report says escalate to MakeGov before designing this phase | |
-| P41 | DIBBS matching and UI | blocked (depends on P40) | | | | n/a | | | |
-| P42 | SBIR/STTR schema and sync | **blocked on provider** | | | | **required** | | Same SDK gap as P40 — no method with "sbir" or "sttr" in its name anywhere in the client surface | |
-| P43 | SBIR/STTR matching and UI | blocked (depends on P42) | | | | n/a | | | |
+| P40 | DIBBS schema and sync | **merged** | parts 1–2 PRs [#851](https://github.com/neo-capiro/capirov2/pull/851)–[#854](https://github.com/neo-capiro/capirov2/pull/854); part 3 `0b6aec0c` / `f801297e` / `0c27fec0`, merge `094daf1d` (PR [#857](https://github.com/neo-capiro/capirov2/pull/857)) | api 82/2564, 0 failures / 0 skipped, real Postgres on a clean replay | **read by Neo 2026-08-08** — the first human review any phase in this program has had; §6.2's independent tester still has not run | `20260908010000_tango_dibbs` (part 1) | **NOT applied to `capiro-dev`** — deliberate, not an oversight. Nothing writes these tables until a sync runs, and applying it registers a migrate revision, which is a de facto deploy of 16 unpinned scheduled jobs (see §"Two things a reader should not have to rediscover") | **Entitlement CLOSED and the envelope confirmed — contents NOT.** D-65's operator probe returned `dibbs: supported`, and because it calls through `TangoDibbsClient` (which throws on a 200 carrying no `results` array) the pagination envelope is confirmed against a live response. No response body was captured, so mapper field types, null semantics and date formats remain readings of published names. **Full contract validation, recording record contents, is still the real gate.** Also unverified live: an issue-date window never re-admits an amendment to an already-issued solicitation and the run still reports `complete` (D-63) — `--full` is the mitigation | Revert code; both schedules already ship `enabled: false`; leave the additive tables (widening is never narrowed in this program) |
+| P41 | DIBBS matching and UI | **not built — no longer blocked** | | | | n/a | | Previously "blocked (depends on P40)". P40 is merged, so that dependency is satisfied and nothing external gates this phase | |
+| P42 | SBIR/STTR schema and sync | **not built — buildable now** | | | | **required** | | **Not blocked on the provider (D-62).** The SDK gap is real and was re-verified by full-text scan — no `sbir`/`sttr` method anywhere in `@makegov/tango-node@1.1.0` — but `/api/sbir/{topics,solicitations}/` is documented, transcribed in `dibbs-sbir-rest-contract.md`. Entitlement is **`not_attempted`: UNKNOWN, not refused.** The P17 probe reports `no_rest_client_wired`, which is a fact about Capiro's code, not the provider's surface (D-64) | |
+| P43 | SBIR/STTR matching and UI | **not built** (depends on P42) | | | | n/a | | | |
 | P44 | Budget beta context in shadow mode | merged | `f32d7e91` (PR [#811](https://github.com/neo-capiro/capirov2/pull/811)) | api 69/2154, web 95/375 | *self-verified only — no independent reviewer* | `20260902010000_tango_budget_context` — clean + ordered rehearsed, 11 constraints proven by insert | **Applied to `capiro-dev`** 2026-08-07 23:18 UTC via `capiro-dev-api-migrate:52`, verified read-only (`tango_budget_account` resolves via `to_regclass`, ledger row `finished_at` set). Was blocked for hours by an UNRELATED stuck migration ahead of it in the queue — see the Deviations row below | Field names were observed from a live read-only probe, not inferred from the SDK (which declares no schema for this resource); the client-footprint vs. opportunity-crosswalk distinction (no source-backed key links a notice to a Treasury account) is enforced by keying the route on the client and matching by exact UEI only | Labeled beta; flag `funding_opportunities_budget_context` off; leave the two additive tables |
 | P45 | Protest and exclusion risk context | merged | `34cddb7c` (PR [#812](https://github.com/neo-capiro/capirov2/pull/812)) | api 70/2185, web 101/393 | *self-verified only — no independent reviewer* | `20260903010000_tango_procurement_risk` — clean + ordered rehearsed, 13 constraints proven by insert | **Applied to `capiro-dev`** 2026-08-07 23:18 UTC via `capiro-dev-api-migrate:52`, verified read-only (`tango_procurement_protest` resolves via `to_regclass`, ledger row `finished_at` set). Same blocker and recovery as P44's row | No legal conclusion anywhere, swept over the service AND mapper source (not one rendered response) against a list of advice-shaped phrasings; an expired exclusion never reads as active because the date check runs before the staleness check | Flag `funding_opportunities_risk_context` off; leave the two additive tables |
 | P46 | Verified Tango webhook receiver | **merged + migration applied** | `34300518`, merge `12eb8cb3` (PR [#825](https://github.com/neo-capiro/capirov2/pull/825)) | api 72/2256, 0 failures / 0 skipped / 0 todo | *self-verified only — no independent reviewer* | `20260905010000_tango_webhook_deliveries` — clean 247-migration replay, retry a no-op, 13 structural + 12 functional assertions incl. a duplicate `delivery_id` genuinely refused | **Applied to `capiro-dev` 2026-08-08** via `capiro-dev-api-migrate:54` (image `9b23dc89`); verified 246 -> 248, "Database schema is up to date!" | Signature verified before JSON is trusted, pinned by a test asserting a bad signature over malformed JSON reports `invalid_signature`, not `malformed_json` | Unset `TANGO_WEBHOOK_SIGNING_SECRET` (receiver goes dark and rejects everything); leave the additive table |
@@ -218,7 +218,7 @@ any other way.**
 | Phase range | State |
 |---|---|
 | P00–P39, P44, P45 | merged; P26–P35 deployed |
-| **P40–P43** | **NOT blocked — this row previously said otherwise and was wrong (D-62).** The SDK finding is real: `@makegov/tango-node@1.1.0` has no DIBBS or SBIR method, re-verified 2026-08-08 by full-text scan. But a documented REST API exists for both (`/api/dibbs/{rfqs,rfps,awards}/`, `/api/sbir/{topics,solicitations}/`) — see `dibbs-sbir-rest-contract.md`. "Not in the SDK" was recorded as "does not exist"; those are different claims. Status is **buildable, unverified**: schema/mappers/sync/tests can be written now; the entitlement probe and any live sync still need a key. |
+| **P40–P43** | **NOT blocked — this row previously said otherwise and was wrong (D-62).** The SDK finding is real: `@makegov/tango-node@1.1.0` has no DIBBS or SBIR method, re-verified 2026-08-08 by full-text scan. But a documented REST API exists for both (`/api/dibbs/{rfqs,rfps,awards}/`, `/api/sbir/{topics,solicitations}/`) — see `dibbs-sbir-rest-contract.md`. "Not in the SDK" was recorded as "does not exist"; those are different claims. **Updated 2026-08-08: P40 is now BUILT AND MERGED** (`094daf1d`, PR #857) with its entitlement question answered — `dibbs: supported` — and its pagination envelope confirmed against a live response. Its migration is deliberately unapplied and both its schedules ship disabled. **P41 is unblocked but unbuilt; P42 is buildable but unbuilt, its entitlement `not_attempted` rather than refused; P43 depends on P42.** Full DIBBS contract validation, recording record contents, still needs a key. |
 | P46, P47, P48 | **merged** (#825 / #826 / #827). The P46 and P48 migrations are **applied to `capiro-dev`**; P47 has none. One later migration remains unapplied — see below. |
 | P49, P50, P51 | **code and docs merged; every operator step still blocked.** Instrumentation, runbooks and the product doc exist. Nothing that requires a live key, a console, or a human judgement has run. |
 
@@ -231,8 +231,8 @@ three handoffs cite this table.
 
 | Blocked item | Blocked on |
 |---|---|
-| Merging **PR #846** (event-drain fixes D-56/D-57/D-59) | a human reading it — four agent reviews have each found something the previous round missed, three of them defects introduced by the preceding fix |
-| Applying `20260907010000_tango_event_outbox_per_event` to `capiro-dev` | #846 merging first — the migration widens the outbox to one row per event, and the writer that populates it correctly is in that PR |
+| ~~Merging **PR #846** (event-drain fixes D-56/D-57/D-59)~~ | **UNBLOCKED — #846 merged 2026-08-08 14:20 UTC.** There are now zero open PRs in the repo |
+| Applying `20260907010000_tango_event_outbox_per_event` to `capiro-dev` | **No longer blocked on #846** (merged), so this is now an actionable apply step rather than a dependency. It shares the hazard in P40's Deploy cell: applying it registers a migrate revision, which is a de facto deploy of 16 unpinned scheduled jobs |
 | Registering the webhook endpoint + provisioning `tango-webhook-secret` | Neo, MakeGov console |
 | Resolving the webhook write tier | one deliberate `--commit` run, or MakeGov confirming |
 | Running the canary (P49) | Neo — live key, flag enablement, browser walk |
@@ -245,20 +245,31 @@ three handoffs cite this table.
 1. **23 of the 27 EventBridge rules targeting `capiro-dev-api-migrate` are
    revision-unpinned, and 16 are enabled.** Registering a migrate revision is
    therefore a de facto deploy of 16 scheduled jobs. See rollout runbook §30.
-2. **The web CI gate cannot report green**, for a reason outside this program:
+2. ~~**The web CI gate cannot report green**, for a reason outside this program:
    `EngagementPreviewBoundary` calls `useQueryClient()` outside a provider,
-   from PR #813. Owned by whoever owns the Engagement stack.
+   from PR #813. Owned by whoever owns the Engagement stack.~~
+   **Superseded — see the Correction below: the blocker was OURS and is fixed.**
+   Left struck rather than deleted because handoffs cite this list. What is still
+   true, and for a different reason: **no gate can report green at all, because
+   GitHub Actions has been `startup_failure` repo-wide since 2026-07-31.** Every
+   phase's evidence in this matrix is a local run.
 
 ### Not done, and deliberately so
 
 - **No destructive cleanup migration.** GA ships none, per the plan.
-- **No HUMAN independent review.** Every phase in this program is marked
-  *self-verified only*. §6.2's independent-tester gate has now run **four times**
-  against the P46–P51 event-drain code specifically — every round an autonomous
-  agent, and every round found a real defect the previous round missed (see
-  decision log D-48 through D-59). That is a meaningful signal about the code,
-  and it is **not** the gate the plan specifies: no phase in P00–P51 has been
-  read by a human other than its author.
+- **No HUMAN independent review, with one partial exception as of 2026-08-08.**
+  Every phase in this program is marked *self-verified only*. §6.2's
+  independent-tester gate has now run **four times** against the P46–P51
+  event-drain code specifically — every round an autonomous agent, and every
+  round found a real defect the previous round missed (see decision log D-48
+  through D-59). That is a meaningful signal about the code, and it is **not**
+  the gate the plan specifies.
+
+  The exception: **Neo read #857, #860 and #861 himself on 2026-08-08** — the
+  first human review of any phase in this program. Scope it honestly. It covers
+  P40 part 3 and the D-66 operator tooling, not P00–P39 or P44–P51, and the
+  reviewer is the program's owner rather than the independent tester §6.2 asks
+  for. **Do not upgrade "Neo reviewed it" into "the gate ran".**
 
 
 ### Correction (2026-08-08): the web gate blocker was OURS, not Engagement's
