@@ -1,0 +1,189 @@
+/* Dashboard-only additions for the GA command surface.
+ *
+ * Keep these deliberately small. The dashboard continues to inherit the Capiro
+ * redesign tokens and existing home-panel / attention primitives from theme.css;
+ * this file only supports the new interaction/content states while the Figma
+ * design system is still being finalized.
+ */
+
+.home-dashboard-customize {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.home-dashboard-customize-popover {
+  width: 250px;
+}
+
+.home-dashboard-customize-title {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.home-dashboard-customize-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.home-dashboard-customize-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-1);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.home-coming-policy-label {
+  padding: 11px 16px 7px;
+  border-top: 1px solid var(--border-1);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.home-coming-policy-row {
+  min-height: 58px;
+}
+
+.home-coming-kind {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-left: 10px;
+}
+
+.home-meeting-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 8px 12px 8px 4px;
+  flex-wrap: wrap;
+}
+
+.home-work-list,
+.home-news-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-work-row,
+.home-news-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--border-1);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+
+.home-work-row:first-child,
+.home-news-row:first-child {
+  border-top: 0;
+}
+
+.home-work-row:hover,
+.home-news-row:hover {
+  background: var(--bg-sunken);
+  color: inherit;
+}
+
+.home-work-main,
+.home-news-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.home-work-title,
+.home-news-title {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-1);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-work-sub,
+.home-news-meta,
+.home-news-relevance {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-news-relevance {
+  color: var(--ink-2);
+}
+
+.home-news-panel {
+  margin-top: 18px;
+}
+
+.home-news-panel .home-panel-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.home-news-status {
+  padding: 18px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.home-news-footnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--border-1);
+  color: var(--ink-3);
+  font-size: 10.5px;
+}
+
+.home-news-footnote .coverage-warning {
+  color: var(--notable);
+}
+
+@media (max-width: 760px) {
+  .home-dashboard-customize {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .home-meeting-actions {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 12px 10px 16px;
+  }
+
+  .home-work-title,
+  .home-news-title,
+  .home-work-sub,
+  .home-news-meta,
+  .home-news-relevance {
+    white-space: normal;
+  }
+}

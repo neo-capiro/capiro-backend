@@ -130,6 +130,16 @@ const DistrictNexusPage = lazy(async () =>
   })),
 );
 
+// Federal Spending & Market Intelligence. Kept in its own chunk because the
+// four explorer tables are independent from the generic Data Explorer and from
+// District Nexus. All provider-backed rows are local reads; this page never
+// calls MakeGov/Tango directly.
+const FederalSpendingPage = lazy(async () =>
+  import('./pages/intelligence/federal-spending/FederalSpendingPage.js').then((m) => ({
+    default: m.FederalSpendingPage,
+  })),
+);
+
 // Funding Opportunities. Lazy for the same chunk-splitting reason as the routes
 // above — it is a large page with its own card/CSS surface that nothing else
 // needs, and it must never reach the initial bundle. Gated IN-PAGE by
@@ -334,6 +344,24 @@ export function App() {
               fallback={<PlaceholderPage title="Loading District Nexus" description="Loading map and district data..." />}
             >
               <DistrictNexusPage />
+            </Suspense>
+          }
+        />
+        {/* Federal Spending & Market Intelligence — local first-party awards and
+            provider-labelled Tango subawards, vehicles, and forecasts. This
+            literal route must precede the `/intelligence/*` catch-all. */}
+        <Route
+          path="/intelligence/federal-spending"
+          element={
+            <Suspense
+              fallback={
+                <PlaceholderPage
+                  title="Loading Federal Spending"
+                  description="Loading awards, subawards, vehicles, and forecasts..."
+                />
+              }
+            >
+              <FederalSpendingPage />
             </Suspense>
           }
         />

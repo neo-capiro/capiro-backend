@@ -194,7 +194,8 @@ jobs:
             20260903010000_tango_procurement_risk \
             20260904010000_outcome_event_funding_opportunity \
             20260905010000_tango_webhook_deliveries \
-            20260906010000_tango_event_outbox
+            20260906010000_tango_event_outbox \
+            20260907010000_tango_event_outbox_per_event
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -697,7 +698,14 @@ jobs:
           # ever collapses, one of these two blocks fails.
           check "outbox has NO tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='tenant_id'"             "0"
           check "outbox RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_outbox'"             "f"
-          check "one queue row per delivery"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "1"
+          # ONE ROW PER EVENT, not per delivery. The single-column key made a
+          # multi-event batch unrepresentable: the receiver accepted it and the
+          # outbox kept only events[0], marking the row done while every later
+          # event was silently discarded.
+          check "the old delivery-only key is GONE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "0"
+          check "idempotency is (delivery, event_index)"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_event_uniq'"             "1"
+          check "event_index is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='event_index'"             "NO"
+          check "event_index has a non-negative CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_event_index_chk'"             "1"
           check "outbox status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_status_chk'"             "1"
           check "completed_at agrees with outbox status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_completed_chk'"             "1"
 
@@ -1821,9 +1829,60 @@ jobs:
       # syntax error anywhere in that file makes EVERY scheduled job fail to
       # start, not just the verb somebody edited. Parsing costs nothing and needs
       # no database, network, or fake binaries.
+      #
+      # 78/2474 -> 78/2482 -> 78/2484 across a THIRD and FOURTH independent
+      # review of the event-drain code. The third found the second round's own
+      # fixes had introduced two new defects (D-56, D-57). The fourth confirmed
+      # both were genuinely closed — and found that D-56's fix had itself
+      # introduced a worse one (D-59): wrapping a delivery's N inserts in
+      # `$transaction` inherits Prisma's 5s interactive-transaction timeout,
+      # which a ~3000-event delivery (~152KB, well inside the 1MB body limit)
+      # exceeds. That failure is NOT transient — same count, same latency, every
+      # retry — and since deliveries drain oldest-first with no per-delivery
+      # try/catch, one such delivery would permanently jam every delivery behind
+      # it.
+      #
+      # Now fixed by removing the failure class rather than moving its
+      # threshold: one `INSERT ... SELECT FROM unnest(...)` per delivery.
+      # Postgres applies a single statement atomically by construction, so
+      # there is no transaction to time out and cost is independent of N.
+      # Arrays rather than a multi-row VALUES because VALUES binds 5 params per
+      # row against the 65535 cap — a ~13k-event ceiling, higher but still a
+      # cliff. Verified against REAL Postgres 16: 3000 events 5009ms-timeout ->
+      # 113ms, 20000 events 477ms, mid-statement failure leaves zero rows, two
+      # concurrent drains converge with no duplicates.
+      #
+      # 78/2484 -> 78/2485 after a FIFTH review, scoped to the D-59 rewrite
+      # alone. It PASSED — the first pass in five rounds — after driving the
+      # real function against real Postgres: null refs mid-batch keep every
+      # column aligned, int[] arrives as true integers, ON CONFLICT resolves
+      # each row independently, and the "no ceiling" claim holds to 5,000,000
+      # rows in one statement (the 1MB body limit caps a real delivery near
+      # 19,400 events). It also confirmed the spec's no-transaction guard
+      # genuinely fails when tripped, rather than being theater.
+      #
+      # It did find that the dry-run and commit paths returned DIFFERENT UNITS
+      # — deliveries vs events — which agreed only until the per-event outbox
+      # widening, after which a dry run stopped predicting what --commit
+      # writes. Fixed here, with a test pinning the two to the same number.
+      #
+      # FIVE reviews, four of which found something the previous round missed,
+      # three of those defects introduced BY the preceding fix. The fifth found
+      # nothing wrong with the mechanism itself. Still get a HUMAN to read
+      # tango-event-processor.service.ts and process-tango-events.ts in one
+      # sitting before treating this feature as done — no phase in P00-P51 has
+      # ever had one.
+      #
+      # 78/2485 -> 81/2525 covers TWO unrelated changes, and the split matters
+      # if this floor ever fails: +1 suite / +33 tests is P40's DIBBS mapper
+      # (src/external/tango/tango-dibbs.mapper.spec.ts); the remaining +2 suites
+      # / +7 tests arrived from main when PR #850 (federal-market unification)
+      # merged, NOT from this feature. The api typecheck baseline moved in the
+      # same merge, 6 pre-existing errors -> 12, none of them in funding-
+      # opportunities code.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2467
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 81 2528
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

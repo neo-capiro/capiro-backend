@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   patch: vi.fn(),
   newSession: vi.fn(),
   changeScope: vi.fn(),
+  sendMessage: vi.fn(),
 }));
 
 vi.mock('../../lib/use-api.js', () => {
@@ -57,12 +58,14 @@ function controller(overrides: Record<string, unknown> = {}) {
         createdAt: new Date('2026-08-07T18:00:00-04:00'),
       },
     ],
+    isStreaming: false,
     selectedClientValue: 'client-1',
     clients: [
       { id: 'client-1', name: 'C2 Strategies' },
       { id: 'client-2', name: 'Maven Advocacy Partners' },
     ],
     changeSessionClient: mocks.changeScope,
+    sendMessage: mocks.sendMessage,
     metaError: null,
     handleNewSession: mocks.newSession,
     ...overrides,
@@ -71,10 +74,15 @@ function controller(overrides: Record<string, unknown> = {}) {
 
 describe('MeriWorkspaceWindow prototype parity', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/');
     mocks.get.mockReset();
     mocks.patch.mockReset();
     mocks.newSession.mockReset();
     mocks.changeScope.mockReset();
+    mocks.sendMessage.mockReset();
+    mocks.newSession.mockResolvedValue(undefined);
+    mocks.changeScope.mockResolvedValue(undefined);
+    mocks.sendMessage.mockResolvedValue(undefined);
     mocks.get.mockResolvedValue({ data: { reasoningMode: 'standard' } });
     mocks.patch.mockResolvedValue({ data: { reasoningMode: 'deep' } });
   });
@@ -96,6 +104,61 @@ describe('MeriWorkspaceWindow prototype parity', () => {
     await waitFor(() =>
       expect(mocks.get).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode'),
     );
+  });
+
+  test('runs a contextual Ask Meri prompt once in an already-clean thread when scope matches', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?meriWindow=1&meriPrompt=Analyze%20this%20award&meriClient=client-1',
+    );
+
+    render(
+      <MeriWorkspaceWindow
+        controller={controller({ messages: [], sessionTitle: 'Chat session' })}
+      />,
+    );
+
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledWith('Analyze this award'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.newSession).not.toHaveBeenCalled();
+    expect(mocks.changeScope).not.toHaveBeenCalled();
+    expect(new URLSearchParams(window.location.search).get('meriPrompt')).toBeNull();
+    expect(new URLSearchParams(window.location.search).get('meriClient')).toBeNull();
+    expect(new URLSearchParams(window.location.search).get('meriWindow')).toBe('1');
+  });
+
+  test('starts a fresh thread instead of appending contextual analysis to an unrelated conversation', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?meriWindow=1&meriPrompt=Analyze%20this%20award&meriClient=client-1',
+    );
+
+    render(<MeriWorkspaceWindow controller={controller()} />);
+
+    await waitFor(() => expect(mocks.newSession).toHaveBeenCalledTimes(1));
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(new URLSearchParams(window.location.search).get('meriPrompt')).toBe(
+      'Analyze this award',
+    );
+  });
+
+  test('does not send a client-scoped contextual prompt before the requested scope is established', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?meriWindow=1&meriPrompt=Analyze%20this%20award&meriClient=client-2',
+    );
+
+    render(
+      <MeriWorkspaceWindow
+        controller={controller({ messages: [], sessionTitle: 'Chat session' })}
+      />,
+    );
+
+    await waitFor(() => expect(mocks.changeScope).toHaveBeenCalledWith('client-2'));
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
   });
 
   test('renders an empty durable conversation as the prototype New thread state', () => {

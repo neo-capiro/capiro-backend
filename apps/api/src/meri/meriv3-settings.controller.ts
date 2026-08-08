@@ -17,7 +17,12 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
-import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import {
+  ANALYSIS_CHART_TYPES,
+  ANALYSIS_VISUALIZATION_VERSION,
+} from './meri-analysis-visualization.js';
+import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
+import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import {
   MERIV3_REASONING_MODES,
   reasoningModeFromConversationMetadata,
@@ -38,11 +43,13 @@ export class MeriV3SettingsController {
     private readonly prisma: PrismaService,
     private readonly flags: MeriFeatureFlagsService,
     private readonly managedMcp: MeriManagedMcpService,
+    private readonly visualAnalysis: MeriV3VisualAnalysisService,
   ) {}
 
   @Get('capabilities')
   async capabilities(@CurrentTenant() ctx: TenantContext) {
     await this.assertEnabled(ctx);
+    const visualAnalysisEnabled = await this.visualAnalysis.isAvailable(ctx.tenantId);
     return {
       runtime: 'meriv3' as const,
       defaultReasoningMode: 'standard' as const,
@@ -56,6 +63,13 @@ export class MeriV3SettingsController {
       providerStateStored: false,
       defaultPresentation: 'browser_window' as const,
       managedApps: ['hubspot', 'airtable'] as const,
+      visualAnalysis: {
+        enabled: visualAnalysisEnabled,
+        version: ANALYSIS_VISUALIZATION_VERSION,
+        interactive: true,
+        canonicalExport: 'png' as const,
+        chartTypes: [...ANALYSIS_CHART_TYPES],
+      },
     };
   }
 
@@ -93,9 +107,9 @@ export class MeriV3SettingsController {
     return { schemas: await this.managedMcp.schemasForMeriV3(ctx) };
   }
 
-  /** Isolated orchestrator execution bridge; reads only, service identity required. */
+  /** Isolated orchestrator execution bridge; reads only, strict service identity required. */
   @Post('mcp-tools/:toolName')
-  @UseGuards(ToolServiceSecretGuard)
+  @UseGuards(MeriV3InternalServiceGuard)
   async executeManagedMcpRead(
     @CurrentTenant() ctx: TenantContext,
     @Param('toolName') toolName: string,
@@ -103,6 +117,35 @@ export class MeriV3SettingsController {
   ) {
     await this.assertEnabled(ctx);
     return this.managedMcp.executeRead(ctx, toolName, body ?? {});
+  }
+
+  /**
+   * MeriV3 analysis bridge. Reuses the canonical run_analysis implementation,
+   * then persists sanitized interactive specs + canonical PNGs before returning
+   * artifact ids to the isolated orchestrator. A user bearer alone is never
+   * sufficient to invoke arbitrary compute.
+   */
+  @Post('visual-analysis')
+  @UseGuards(MeriV3InternalServiceGuard)
+  async executeVisualAnalysis(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: Record<string, unknown>,
+  ) {
+    await this.assertEnabled(ctx);
+    return this.visualAnalysis.run(ctx, body ?? {});
+  }
+
+  /** Assurance-held visuals are deleted immediately; the TTL sweep is crash recovery only. */
+  @Post('visual-analysis/discard')
+  @UseGuards(MeriV3InternalServiceGuard)
+  async discardVisualAnalysis(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: { artifactIds?: unknown },
+  ) {
+    await this.assertEnabled(ctx);
+    return {
+      deleted: await this.visualAnalysis.discardUnreleasedArtifacts(ctx, body?.artifactIds ?? []),
+    };
   }
 
   @Get('conversations/:conversationId/reasoning-mode')

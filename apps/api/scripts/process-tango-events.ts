@@ -8,9 +8,14 @@
  *
  * Two phases, in order:
  *
- *   1. ENQUEUE — copy `received` deliveries (P46) into `tango_event_outbox`.
- *      Idempotent by the outbox's unique index on delivery_id, so re-running is
- *      free and a delivery can never be queued twice.
+ *   1. ENQUEUE — copy `received` deliveries (P46) into `tango_event_outbox`,
+ *      one row PER EVENT. Idempotent by the outbox's unique key on
+ *      (delivery_id, event_index), so re-running is free and a delivery's
+ *      events can never be queued twice. Each delivery's rows go in as ONE
+ *      statement — deliberately NOT a transaction, which is what makes a
+ *      crash mid-batch unable to leave a delivery partially enqueued without
+ *      inheriting a transaction timeout. See `enqueuePendingDeliveries`'s own
+ *      doc for why that distinction is the whole point (D-59).
  *   2. DRAIN — claim a leased batch, classify, fan out, alert once.
  *
  * ── Dry run is the default and writes nothing ────────────────────────────────
@@ -75,9 +80,52 @@ export function parseArgs(argv: string[]): ParsedArgs {
 /**
  * Copy verified deliveries into the work queue.
  *
- * `ON CONFLICT DO NOTHING` against the outbox's unique delivery_id is what
- * makes this idempotent — the same guarantee P46 relies on for replay, applied
- * one layer down.
+ * `ON CONFLICT DO NOTHING` against the outbox's widened unique key
+ * (delivery_id, event_index) is what makes this idempotent — the same
+ * guarantee P46 relies on for replay, applied one layer down.
+ *
+ * ── EACH DELIVERY'S ROWS ARE INSERTED AS ONE STATEMENT, AND THAT IS NOT
+ *    OPTIONAL ──────────────────────────────────────────────────────────────
+ *
+ * A prior version inserted one row per event as N separate, independent
+ * `$executeRaw` calls. That created a state nothing else in this program
+ * could recover from: if the process died — a crash, a task timeout, a
+ * redeploy — after inserting row 0 but before rows 1..N-1, the "already
+ * enqueued" check above (`o.id IS NOT NULL`) saw that *a* row existed for
+ * that delivery and never revisited it. The remaining events were lost
+ * PERMANENTLY: the receiver never re-delivers (delivery_id is unique there
+ * too), and nothing downstream reconciles a partially-enqueued delivery.
+ *
+ * THE NEXT FIX WRAPPED THOSE N CALLS IN ONE `$transaction`, and an
+ * independent review found that fix ALSO broken: Prisma's interactive
+ * transactions carry a default 5-second timeout, measured against real
+ * Postgres to bite at roughly 3000 sequential statements — a delivery well
+ * under the existing 1MB webhook body limit (~152KB for 3000 minimal
+ * events), so a legitimately-sized delivery could trip it. Worse than the
+ * original bug: this failure is NOT transient (the same delivery fails
+ * identically on every retry), and because the enqueue loop processes
+ * deliveries oldest-first with no per-delivery isolation, one such delivery
+ * would permanently block every delivery behind it — the whole pipeline
+ * jams rather than losing one delivery's tail. Same failure shape, a fourth
+ * time, introduced by the fix meant to close the third.
+ *
+ * THIS VERSION ELIMINATES THE FAILURE CLASS RATHER THAN MOVING ITS
+ * THRESHOLD. All of a delivery's rows go in as ONE `INSERT ... SELECT FROM
+ * unnest(...)` statement. Postgres executes a single statement atomically by
+ * construction — no explicit transaction, no interactive-transaction
+ * machinery, and therefore no interactive-transaction timeout to size a
+ * batch against. It is also ONE ROUND TRIP regardless of N, so it does not
+ * get slower — let alone time out — as a delivery's event count grows.
+ * Raising the timeout number instead would only have moved the same cliff to
+ * a different N.
+ *
+ * `unnest` of five ARRAYS, rather than a multi-row `VALUES (...), (...)`,
+ * for a specific reason: `VALUES` binds five parameters PER ROW, and Postgres
+ * caps a statement at 65535 bound parameters — which would have reintroduced
+ * a hard ceiling at ~13k events, higher than the 5-second cliff but still a
+ * cliff, and still inside what the 1MB body limit can deliver. Passing five
+ * arrays binds five parameters TOTAL for any N, so there is no event count
+ * at which this statement stops working.
  */
 export async function enqueuePendingDeliveries(
   prisma: PrismaClient,
@@ -95,18 +143,43 @@ export async function enqueuePendingDeliveries(
     LIMIT ${limit}
   `;
 
-  if (!commit || pending.length === 0) return pending.length;
+  if (pending.length === 0) return 0;
 
+  // A dry run must report the SAME UNIT the commit path reports, or it does not
+  // predict anything. This returned `pending.length` — a count of DELIVERIES —
+  // while the commit path below returns a count of EVENTS. That agreed only
+  // while the outbox held one row per delivery; the per-event widening broke
+  // the correspondence silently, so two deliveries carrying 3 and 2 events had
+  // a dry run promising 2 and a commit writing 5.
+  if (!commit) {
+    return pending.reduce(
+      (total, row) => total + readResourceRefs(row.payload, row.event_type).length,
+      0,
+    );
+  }
+
+  let enqueued = 0;
   for (const row of pending) {
-    const { resourceType, externalId } = readResourceRef(row.payload, row.event_type);
+    const refs = readResourceRefs(row.payload, row.event_type);
+    // ONE statement for ALL of this delivery's rows, and FIVE bound parameters
+    // no matter how many events it carries. Nothing wraps across deliveries:
+    // each delivery's atomicity is entirely self-contained, so a later
+    // delivery can never be at risk because an earlier one failed.
     await prisma.$executeRaw`
       INSERT INTO "tango_event_outbox"
-        ("delivery_id", "event_type", "resource_type", "external_id")
-      VALUES (${row.delivery_id}, ${row.event_type}, ${resourceType}, ${externalId})
-      ON CONFLICT ("delivery_id") DO NOTHING
+        ("delivery_id", "event_index", "event_type", "resource_type", "external_id")
+      SELECT * FROM unnest(
+        ${refs.map(() => row.delivery_id)}::text[],
+        ${refs.map((ref) => ref.eventIndex)}::int[],
+        ${refs.map(() => row.event_type)}::text[],
+        ${refs.map((ref) => ref.resourceType)}::text[],
+        ${refs.map((ref) => ref.externalId)}::text[]
+      )
+      ON CONFLICT ("delivery_id", "event_index") DO NOTHING
     `;
+    enqueued += refs.length;
   }
-  return pending.length;
+  return enqueued;
 }
 
 /**
@@ -117,61 +190,102 @@ export async function enqueuePendingDeliveries(
  * none is present — a null resource completes as a no-op instead of retrying
  * forever against an id that was never there.
  */
-export function readResourceRef(
-  payload: unknown,
-  eventType: string,
-): { resourceType: string; externalId: string | null } {
-  const body =
+export interface ResourceRef {
+  /** Position within the delivery. 0 for a single-event body. */
+  eventIndex: number;
+  resourceType: string;
+  externalId: string | null;
+}
+
+/**
+ * EVERY resource a delivery refers to, one entry per event.
+ *
+ * Returns a LIST because the provider's batch envelope carries an array. The
+ * first version returned a single ref read from `events[0]`, so a two-event
+ * delivery resolved the first opportunity, marked itself done, and silently
+ * discarded the second — accepted at the receiver, dropped here. That is the
+ * same failure an earlier fix was supposed to close and only narrowed.
+ *
+ * A body with no `events` array yields exactly one ref at index 0, which is
+ * what a single-event delivery has always been.
+ */
+export function readResourceRefs(payload: unknown, eventType: string): ResourceRef[] {
+  const envelope =
     payload && typeof payload === 'object' && !Array.isArray(payload)
       ? (payload as Record<string, unknown>)
       : {};
 
-  // DESCEND INTO A BATCH. The receiver deliberately accepts the provider's
-  // `{ timestamp, events: [...] }` shape (see tango-webhook.service.ts), but
-  // this function only ever looked at the top level and `data`. A batch
-  // delivery therefore resolved to `externalId: null`, which the processor
-  // treats as a legitimate no-op and marks DONE — so the delivery was accepted
-  // with a 202, queued, and silently discarded. No alert, no error, no
-  // quarantine. Accepting a shape at one layer and dropping it at the next is
-  // worse than rejecting it outright.
-  const events = body.events;
-  const firstEvent =
-    Array.isArray(events) &&
-    events.length > 0 &&
-    typeof events[0] === 'object' &&
-    events[0] !== null &&
-    !Array.isArray(events[0])
-      ? (events[0] as Record<string, unknown>)
-      : null;
+  // The TRUE position within the delivery, preserved through filtering.
+  //
+  // A prior version filtered non-object entries out BEFORE indexing
+  // (`events.filter(...).map((event, i) => ...)`), so `event_index` was the
+  // position within the FILTERED list, not the delivery — `['junk', {...}]`
+  // gave the real event index 0 instead of 1. That column is documented, in
+  // its own migration comment and Prisma doc, as "position of this event
+  // within its delivery" and is part of the idempotency key; silently
+  // renumbering breaks both.
+  const events = envelope.events;
+  const eventList: { event: Record<string, unknown>; index: number }[] = Array.isArray(events)
+    ? events.reduce<{ event: Record<string, unknown>; index: number }[]>((acc, e, index) => {
+        if (typeof e === 'object' && e !== null && !Array.isArray(e)) {
+          acc.push({ event: e as Record<string, unknown>, index });
+        }
+        return acc;
+      }, [])
+    : [];
 
-  const envelope =
-    body.data && typeof body.data === 'object' && !Array.isArray(body.data)
-      ? (body.data as Record<string, unknown>)
-      : body;
+  const outer =
+    envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data)
+      ? (envelope.data as Record<string, unknown>)
+      : envelope;
 
-  // Top level wins where it states an id; the first event fills the gap.
-  const data = firstEvent ? { ...firstEvent, ...envelope } : envelope;
+  const ID_KEYS = ['opportunity_id', 'opportunityId', 'resource_id', 'id', 'external_id'];
+  const TYPE_KEYS = ['event_type', 'eventType'];
 
-  // Prefer the EVENT's own type when the envelope carries none — a batch names
-  // its type per event, not on the wrapper.
-  const typeSource =
-    eventType ||
-    (typeof firstEvent?.event_type === 'string' ? firstEvent.event_type : '') ||
-    (typeof firstEvent?.eventType === 'string' ? firstEvent.eventType : '');
+  // THE EVENT'S OWN TYPE WINS. This precedence was inverted before, and it
+  // meant per-event classification never ran: `eventType` is the DELIVERY's
+  // type, supplied by the caller from `tango_webhook_delivery.event_type`,
+  // which `readEnvelope` never allows to be empty and the column CHECK
+  // forbids being blank — so `eventType || <event's own type> || ''` always
+  // short-circuited on the left side. A batch mixing
+  // opportunity.updated/forecast.updated/entity.updated events classified
+  // every one of them as whatever the delivery header said, silently.
+  //
+  // The fallback still matters: a single-event body whose envelope carries no
+  // type key of its own (a bare `{opportunity_id: '...'}`) has nothing else to
+  // classify on, so the delivery-level type is the right answer THERE.
+  const classify = (source: Record<string, unknown>): string => {
+    const own = TYPE_KEYS.map((k) =>
+      typeof source[k] === 'string' ? (source[k] as string) : '',
+    ).find(Boolean);
+    const stated = own || eventType || '';
+    if (stated.includes('forecast')) return 'forecast';
+    if (stated.includes('entity')) return 'entity';
+    return 'opportunity';
+  };
 
-  const resourceType = typeSource.includes('forecast')
-    ? 'forecast'
-    : typeSource.includes('entity')
-      ? 'entity'
-      : 'opportunity';
-
-  for (const key of ['opportunity_id', 'opportunityId', 'resource_id', 'id', 'external_id']) {
-    const value = data[key];
-    if (typeof value === 'string' && value.trim() !== '') {
-      return { resourceType, externalId: value.trim() };
+  const idFrom = (source: Record<string, unknown>): string | null => {
+    for (const key of ID_KEYS) {
+      const value = source[key];
+      if (typeof value === 'string' && value.trim() !== '') return value.trim();
     }
+    return null;
+  };
+
+  if (eventList.length === 0) {
+    return [{ eventIndex: 0, resourceType: classify(outer), externalId: idFrom(outer) }];
   }
-  return { resourceType, externalId: null };
+
+  // Each event supplies its own id and type; the envelope fills only what the
+  // event omits. A batch names its type per event, not on the wrapper.
+  return eventList.map(({ event, index }) => {
+    const merged = { ...outer, ...event };
+    return {
+      eventIndex: index,
+      resourceType: classify(merged),
+      externalId: idFrom(merged),
+    };
+  });
 }
 
 /**
@@ -212,11 +326,14 @@ function withSystem<T>(
 
 /** Prisma-backed port. Mirrors `opportunity-timeline.service.ts`'s own mapping. */
 function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
+  /** Alerts this DRY RUN has already counted as new. Never used when committing. */
+  const plannedInThisRun = new Set<string>();
+
   return {
     claimBatch: async (limit, leaseSeconds) => {
       if (!commit) {
         const rows = await prisma.$queryRaw<OutboxRow[]>`
-          SELECT "id", "delivery_id" AS "deliveryId", "event_type" AS "eventType",
+          SELECT "id", "delivery_id" AS "deliveryId", "event_index" AS "eventIndex", "event_type" AS "eventType",
                  "resource_type" AS "resourceType", "external_id" AS "externalId", "attempts"
           FROM "tango_event_outbox"
           WHERE "status" = 'pending'
@@ -256,7 +373,7 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
             "updated_at" = now()
         FROM claimed
         WHERE o."id" = claimed."id"
-        RETURNING o."id", o."delivery_id" AS "deliveryId", o."event_type" AS "eventType",
+        RETURNING o."id", o."delivery_id" AS "deliveryId", o."event_index" AS "eventIndex", "event_index" AS "eventIndex", o."event_type" AS "eventType",
                   o."resource_type" AS "resourceType", o."external_id" AS "externalId", o."attempts"
       `;
     },
@@ -348,11 +465,22 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
      */
     insertAlertIfNew: async (alert: AlertToWrite): Promise<boolean> => {
       if (!commit) {
-        // Ask whether it WOULD be new, rather than assuming it would. The first
-        // version returned true unconditionally, so a dry run reported every
-        // alert as newly written and alertsDeduped was always 0 — inflating the
-        // exact numbers an operator uses to decide whether to commit, and
-        // breaking the two-quiet-passes check the canary depends on.
+        // Ask whether it WOULD be new, rather than assuming it would.
+        //
+        // Two things count as "already there": a row persisted by an earlier
+        // run, and a row THIS run would already have written. The first version
+        // returned true unconditionally; the second checked only the database,
+        // so a dry run over a history containing the same change twice still
+        // reported both as new. Both inflate the numbers an operator uses to
+        // decide whether to commit, and both break the canary's two-quiet-
+        // passes check.
+        const key = [
+          alert.tenantId,
+          alert.clientId,
+          alert.sourceRecordKey,
+          alert.changeFingerprint,
+        ].join('|');
+        if (plannedInThisRun.has(key)) return false;
         const existing = await withSystem(
           prisma,
           (tx) => tx.$queryRaw<{ n: bigint }[]>`
@@ -363,7 +491,9 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
             AND "change_fingerprint" = ${alert.changeFingerprint}
         `,
         );
-        return Number(existing[0]?.n ?? 0) === 0;
+        const wouldBeNew = Number(existing[0]?.n ?? 0) === 0;
+        if (wouldBeNew) plannedInThisRun.add(key);
+        return wouldBeNew;
       }
       const inserted = await withSystem(
         prisma,

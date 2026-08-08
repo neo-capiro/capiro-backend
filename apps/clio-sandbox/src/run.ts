@@ -43,6 +43,7 @@ export interface SandboxRunResult {
   stderr: string;
   results: unknown | null;
   images: SandboxImage[];
+  warnings: string[];
 }
 
 const WALL_TIMEOUT_MS = 35_000;
@@ -50,6 +51,7 @@ const MAX_CODE_CHARS = 40_000;
 const MAX_DATASETS = 8;
 const MAX_DATASET_ROWS = 5000;
 const MAX_STD_CHARS = 64_000;
+const MAX_RESULTS_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 6;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -75,22 +77,36 @@ function toCsv(rows: Array<Record<string, unknown>>): string {
   return lines.join('\n');
 }
 
-export function validateRunRequest(body: unknown): { ok: true; req: SandboxRunRequest } | { ok: false; error: string } {
+export function validateRunRequest(
+  body: unknown,
+): { ok: true; req: SandboxRunRequest } | { ok: false; error: string } {
   if (!body || typeof body !== 'object') return { ok: false, error: 'body must be an object' };
   const b = body as Record<string, unknown>;
-  if (typeof b.code !== 'string' || !b.code.trim()) return { ok: false, error: 'code is required' };
-  if (b.code.length > MAX_CODE_CHARS) return { ok: false, error: `code exceeds ${MAX_CODE_CHARS} chars` };
+  if (typeof b.code !== 'string' || !b.code.trim()) {
+    return { ok: false, error: 'code is required' };
+  }
+  if (b.code.length > MAX_CODE_CHARS) {
+    return { ok: false, error: `code exceeds ${MAX_CODE_CHARS} chars` };
+  }
   const datasets: SandboxDataset[] = [];
   if (b.datasets !== undefined) {
     if (!Array.isArray(b.datasets)) return { ok: false, error: 'datasets must be an array' };
-    if (b.datasets.length > MAX_DATASETS) return { ok: false, error: `at most ${MAX_DATASETS} datasets` };
+    if (b.datasets.length > MAX_DATASETS) {
+      return { ok: false, error: `at most ${MAX_DATASETS} datasets` };
+    }
     for (const d of b.datasets) {
-      if (!d || typeof d !== 'object') return { ok: false, error: 'each dataset must be an object' };
+      if (!d || typeof d !== 'object') {
+        return { ok: false, error: 'each dataset must be an object' };
+      }
       const ds = d as Record<string, unknown>;
-      if (typeof ds.name !== 'string' || !ds.name) return { ok: false, error: 'dataset.name is required' };
+      if (typeof ds.name !== 'string' || !ds.name) {
+        return { ok: false, error: 'dataset.name is required' };
+      }
       const rows = Array.isArray(ds.rows) ? (ds.rows as Array<Record<string, unknown>>) : undefined;
       const text = typeof ds.text === 'string' ? ds.text : undefined;
-      if (!rows && !text) return { ok: false, error: `dataset "${ds.name}" needs rows or text` };
+      if (!rows && !text) {
+        return { ok: false, error: `dataset "${ds.name}" needs rows or text` };
+      }
       datasets.push({
         name: ds.name,
         rows,
@@ -117,11 +133,16 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         await writeFile(join(workdir, 'data', `${base}.csv`), toCsv(dataset.rows), 'utf8');
       } else if (dataset.text) {
         const ext = dataset.format === 'json' ? 'json' : dataset.format === 'txt' ? 'txt' : 'csv';
-        await writeFile(join(workdir, 'data', `${base}.${ext}`), dataset.text.slice(0, 5_000_000), 'utf8');
+        await writeFile(
+          join(workdir, 'data', `${base}.${ext}`),
+          dataset.text.slice(0, 5_000_000),
+          'utf8',
+        );
       }
     }
 
-    const python = process.env.SANDBOX_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+    const python =
+      process.env.SANDBOX_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
     const child = spawn(python, ['harness.py'], {
       cwd: workdir,
       // Scrubbed environment: no inherited secrets, ever. The Windows-only
@@ -173,12 +194,21 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
       });
     });
 
+    const warnings: string[] = [];
     let results: unknown = null;
     try {
-      results = JSON.parse(await readFile(join(workdir, 'out', 'results.json'), 'utf8'));
+      const bytes = await readFile(join(workdir, 'out', 'results.json'));
+      if (bytes.length > MAX_RESULTS_BYTES) {
+        warnings.push(
+          `Structured results exceeded ${MAX_RESULTS_BYTES} bytes and were omitted. Return a smaller table or fewer visualization rows.`,
+        );
+      } else {
+        results = JSON.parse(bytes.toString('utf8'));
+      }
     } catch {
-      /* no results.json produced */
+      /* no results.json produced or invalid JSON */
     }
+
     const images: SandboxImage[] = [];
     try {
       const files = (await readdir(join(workdir, 'out'))).filter((f) => f.endsWith('.png')).sort();
@@ -186,6 +216,10 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         const bytes = await readFile(join(workdir, 'out', file));
         if (bytes.length <= MAX_IMAGE_BYTES) {
           images.push({ filename: file, dataBase64: bytes.toString('base64') });
+        } else {
+          warnings.push(
+            `Chart ${file} exceeded ${MAX_IMAGE_BYTES} bytes and was omitted. Reduce figure size or DPI.`,
+          );
         }
       }
     } catch {
@@ -203,6 +237,7 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         : stderr.slice(0, MAX_STD_CHARS),
       results,
       images,
+      warnings,
     };
   } finally {
     await rm(workdir, { recursive: true, force: true }).catch(() => {});

@@ -3,7 +3,11 @@ import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { setMeriSurfaceMode } from './chat-store.js';
 import { ManagedMcpAppsProvider } from './managed-mcp-apps.js';
-import { isMeriWorkspaceWindow } from './meri-window.js';
+import {
+  isMeriWorkspaceWindow,
+  MERI_WINDOW_CLIENT_QUERY,
+  MERI_WINDOW_PROMPT_QUERY,
+} from './meri-window.js';
 import { MeriWorkspaceConversation } from './MeriWorkspaceConversation.js';
 import { MeriWorkspaceThreadRail } from './MeriWorkspaceThreadRail.js';
 import type { MeriChatController } from './useMeriChatController.js';
@@ -43,6 +47,24 @@ function roleLabel(role: string | undefined, title: string | null | undefined): 
     .toUpperCase();
 }
 
+function readContextRequest(): { prompt: string; clientId: string | null } | null {
+  if (!isMeriWorkspaceWindow()) return null;
+  const params = new URLSearchParams(window.location.search);
+  const prompt = params.get(MERI_WINDOW_PROMPT_QUERY)?.trim() ?? '';
+  if (!prompt) return null;
+  return {
+    prompt,
+    clientId: params.get(MERI_WINDOW_CLIENT_QUERY)?.trim() || null,
+  };
+}
+
+function clearContextRequestFromUrl(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(MERI_WINDOW_PROMPT_QUERY);
+  url.searchParams.delete(MERI_WINDOW_CLIENT_QUERY);
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
 export function MeriWorkspaceWindow({ controller }: { controller: MeriChatController }) {
   const api = useApi();
   const me = useMe();
@@ -51,8 +73,15 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
   const [reasoningMode, setReasoningMode] = useState<ReasoningMode>('standard');
   const [savingMode, setSavingMode] = useState(false);
   const [modeError, setModeError] = useState<string | null>(null);
+  const [, setContextSetupTick] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
+  const contextRequestRef = useRef<ReturnType<typeof readContextRequest>>(readContextRequest());
+  const contextHandledRef = useRef(false);
+  const contextNewThreadAttemptedRef = useRef(false);
+  const contextNewThreadInFlightRef = useRef(false);
+  const contextScopeAttemptedRef = useRef(false);
+  const contextScopeInFlightRef = useRef(false);
   const activeConversationId = controller.activeConversationId;
   const isNewThread = controller.messages.length === 0;
   const selectedClient =
@@ -123,6 +152,65 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
       cancelled = true;
     };
   }, [activeConversationId, api]);
+
+  /**
+   * A contextual "Ask Meri" from another product surface opens this separate
+   * window with a one-time prompt in the URL.
+   *
+   * If the reusable window was already sitting on an unrelated thread, create a
+   * fresh conversation first. Then establish any requested client scope and wait
+   * for that PATCH to settle before sending. The query parameters are removed
+   * immediately before execution so refresh/back cannot duplicate the turn.
+   */
+  useEffect(() => {
+    const request = contextRequestRef.current;
+    if (!request || contextHandledRef.current || controller.isStreaming) return;
+
+    if (!isNewThread) {
+      if (contextNewThreadAttemptedRef.current || contextNewThreadInFlightRef.current) return;
+      contextNewThreadAttemptedRef.current = true;
+      contextNewThreadInFlightRef.current = true;
+      void controller.handleNewSession().finally(() => {
+        contextNewThreadInFlightRef.current = false;
+        setContextSetupTick((value) => value + 1);
+      });
+      return;
+    }
+
+    if (contextNewThreadInFlightRef.current || !activeConversationId) return;
+
+    if (request.clientId) {
+      const clientExists = controller.clients.some((client) => client.id === request.clientId);
+      if (!clientExists) return;
+
+      if (controller.selectedClientValue !== request.clientId) {
+        if (contextScopeAttemptedRef.current || contextScopeInFlightRef.current) return;
+        contextScopeAttemptedRef.current = true;
+        contextScopeInFlightRef.current = true;
+        void controller.changeSessionClient(request.clientId).finally(() => {
+          contextScopeInFlightRef.current = false;
+          setContextSetupTick((value) => value + 1);
+        });
+        return;
+      }
+
+      if (contextScopeInFlightRef.current) return;
+    }
+
+    contextHandledRef.current = true;
+    clearContextRequestFromUrl();
+    void controller.sendMessage(request.prompt);
+  }, [
+    activeConversationId,
+    controller.changeSessionClient,
+    controller.clients,
+    controller.handleNewSession,
+    controller.isStreaming,
+    controller.messages.length,
+    controller.selectedClientValue,
+    controller.sendMessage,
+    isNewThread,
+  ]);
 
   const changeReasoningMode = useCallback(
     async (next: ReasoningMode) => {

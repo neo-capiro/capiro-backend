@@ -8,10 +8,22 @@
 
 FROM node:20-slim
 
+# Keep every analytical dependency pinned. These libraries execute only over
+# datasets already retrieved through governed Capiro/MCP tools; the sandbox has
+# no network route, credentials, package installer, or provider access at run
+# time. matplotlib remains the canonical export renderer, while scipy /
+# statsmodels / seaborn / networkx unlock statistical, time-series and graph
+# analysis without asking the language model to approximate the math.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip \
   && pip3 install --no-cache-dir --break-system-packages \
-    pandas==2.2.3 numpy==2.1.3 matplotlib==3.9.2 \
+    pandas==2.2.3 \
+    numpy==2.1.3 \
+    matplotlib==3.9.2 \
+    scipy==1.14.1 \
+    statsmodels==0.14.4 \
+    seaborn==0.13.2 \
+    networkx==3.4.2 \
   && apt-get purge -y python3-pip \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*

@@ -13,6 +13,7 @@ import type {
 } from './chat-store.js';
 import { attachmentKindIcon, truncateFilenameMiddle } from './ChatInput.js';
 import meriBubbleImage from '../../assets/chat/meri-bubble.png';
+import './meri-source-strip.css';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
@@ -56,6 +57,15 @@ export function ChatMessage({
     const map = new Map<number, MeriCitation>();
     for (const c of citations ?? []) map.set(c.n, c);
     return map;
+  }, [citations]);
+
+  const sourceChips = useMemo(() => {
+    const unique = new Map<string, MeriCitation>();
+    for (const citation of citations ?? []) {
+      const label = citationSourceLabel(citation);
+      if (!unique.has(label)) unique.set(label, citation);
+    }
+    return [...unique.entries()].slice(0, 4).map(([label, citation]) => ({ label, citation }));
   }, [citations]);
 
   // Markdown rendering is done with react-markdown + remark-gfm (real GFM tables,
@@ -114,6 +124,27 @@ export function ChatMessage({
           >
             {copied ? '✓ Copied' : 'Copy'}
           </button>
+        )}
+        {!isUser && !isStreaming && sourceChips.length > 0 && (
+          <div className="chat-msg-source-strip" aria-label="Sources used">
+            <span>Sources</span>
+            {sourceChips.map(({ label, citation }) => (
+              <button
+                key={label}
+                type="button"
+                className="chat-msg-source-chip"
+                title={citation.title}
+                onClick={() => setActiveCitation(citation)}
+              >
+                {label}
+              </button>
+            ))}
+            {(citations?.length ?? 0) > sourceChips.length ? (
+              <small className="chat-msg-source-more">
+                +{(citations?.length ?? 0) - sourceChips.length} more
+              </small>
+            ) : null}
+          </div>
         )}
         {!isUser && verification && verification.totalCount > 0 && (
           <div className="chat-msg-verification" style={{ marginTop: 8 }}>
@@ -213,7 +244,7 @@ export function ChatMessage({
       >
         {activeCitation && (
           <div className="chat-citation-detail">
-            <Tag color="blue">{citationTypeLabel(activeCitation.type)}</Tag>
+            <Tag color="blue">{citationSourceLabel(activeCitation)}</Tag>
             <Typography.Title level={5} style={{ marginTop: 12 }}>
               {activeCitation.title}
             </Typography.Title>
@@ -237,6 +268,23 @@ function citationTypeLabel(type: string): string {
     .split('_')
     .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
     .join(' ');
+}
+
+function citationSourceLabel(citation: MeriCitation): string {
+  switch (citation.tool) {
+    case 'search_federal_contract_awards':
+      return 'USAspending';
+    case 'search_federal_subawards':
+      return 'Tango · Subawards';
+    case 'search_contract_vehicles':
+      return 'Tango · Vehicles';
+    case 'search_procurement_forecasts':
+      return 'Tango · Forecasts';
+    case 'get_district_federal_market':
+      return 'Federal market';
+    default:
+      return citationTypeLabel(citation.type);
+  }
 }
 
 /**

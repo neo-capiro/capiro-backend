@@ -1,0 +1,206 @@
+name: meriv3-visual-analysis-ci
+
+on:
+  push:
+    branches: [agent/meriv3-visual-analysis]
+    paths:
+      - 'apps/api/src/meri/governed-meri-tools*'
+      - 'apps/api/src/meri/meri-analysis-artifact.controller*'
+      - 'apps/api/src/meri/meri-analysis-provenance*'
+      - 'apps/api/src/meri/meri-analysis-visualization*'
+      - 'apps/api/src/meri/meri-v3-internal-service.guard*'
+      - 'apps/api/src/meri/meri-v3-visual-analysis*'
+      - 'apps/api/src/meri/meriv3-runtime.proxy*'
+      - 'apps/api/src/meri/meriv3-settings.controller*'
+      - 'apps/api/src/meri/meriv3-proxy.service*'
+      - 'apps/api/src/meri/meri.module.ts'
+      - 'apps/clio-sandbox/**'
+      - 'apps/meriv2-orchestrator/src/meri/meri.module.ts'
+      - 'apps/meriv2-orchestrator/src/meri/meriv3/**'
+      - 'apps/web/src/components/chat/AnalysisChartCard*'
+      - 'apps/web/src/components/chat/analysis-chart-card.css'
+      - 'docs/handoffs/meriv3-visual-analysis-handoff.md'
+      - 'docs/plans/meriv3-visual-analysis.md'
+      - 'docs/runbooks/meriv3-visual-analysis-canary.md'
+      - '.github/workflows/clio-evals.yml'
+      - '.github/workflows/meriv3-visual-analysis-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/meri/governed-meri-tools*'
+      - 'apps/api/src/meri/meri-analysis-artifact.controller*'
+      - 'apps/api/src/meri/meri-analysis-provenance*'
+      - 'apps/api/src/meri/meri-analysis-visualization*'
+      - 'apps/api/src/meri/meri-v3-internal-service.guard*'
+      - 'apps/api/src/meri/meri-v3-visual-analysis*'
+      - 'apps/api/src/meri/meriv3-runtime.proxy*'
+      - 'apps/api/src/meri/meriv3-settings.controller*'
+      - 'apps/api/src/meri/meriv3-proxy.service*'
+      - 'apps/api/src/meri/meri.module.ts'
+      - 'apps/clio-sandbox/**'
+      - 'apps/meriv2-orchestrator/src/meri/meri.module.ts'
+      - 'apps/meriv2-orchestrator/src/meri/meriv3/**'
+      - 'apps/web/src/components/chat/AnalysisChartCard*'
+      - 'apps/web/src/components/chat/analysis-chart-card.css'
+      - 'docs/handoffs/meriv3-visual-analysis-handoff.md'
+      - 'docs/plans/meriv3-visual-analysis.md'
+      - 'docs/runbooks/meriv3-visual-analysis-canary.md'
+      - '.github/workflows/clio-evals.yml'
+      - '.github/workflows/meriv3-visual-analysis-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meriv3-visual-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned sandbox analysis stack
+        run: >-
+          pip install --only-binary=:all:
+          pandas==2.2.3 numpy==2.1.3 matplotlib==3.9.2
+          scipy==1.14.1 statsmodels==0.14.4 seaborn==0.13.2 networkx==3.4.2
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Format gate
+        run: >
+          pnpm exec prettier --check
+          "apps/api/src/meri/governed-meri-tools*.ts"
+          "apps/api/src/meri/meri-analysis-artifact.controller*.ts"
+          "apps/api/src/meri/meri-analysis-provenance*.ts"
+          "apps/api/src/meri/meri-analysis-visualization*.ts"
+          "apps/api/src/meri/meri-v3-internal-service.guard*.ts"
+          "apps/api/src/meri/meri-v3-visual-analysis*.ts"
+          "apps/api/src/meri/meriv3-runtime.proxy*.ts"
+          "apps/api/src/meri/meriv3-settings.controller*.ts"
+          "apps/api/src/meri/meriv3-proxy.service.ts"
+          "apps/api/src/meri/meri.module.ts"
+          "apps/meriv2-orchestrator/src/meri/meriv3/api-visual-analysis.repo*.ts"
+          "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-artifact-release.spec.ts"
+          "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service*.ts"
+          "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-visual-intent*.ts"
+          "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-visual-work-label.spec.ts"
+          "apps/web/src/components/chat/AnalysisChartCard*.tsx"
+          "apps/web/src/components/chat/analysis-chart-card.css"
+          "apps/clio-sandbox/src/*.ts"
+          "apps/clio-sandbox/scripts/*.ts"
+          "docs/handoffs/meriv3-visual-analysis-handoff.md"
+          "docs/plans/meriv3-visual-analysis.md"
+          "docs/runbooks/meriv3-visual-analysis-canary.md"
+          ".github/workflows/clio-evals.yml"
+          ".github/workflows/meriv3-visual-analysis-ci.yml"
+
+      - name: Build shared prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/strategy-verifier build
+
+      - name: Typecheck deployables
+        run: |
+          pnpm --filter @capiro/clio-sandbox typecheck
+          pnpm --filter @capiro/meriv2-orchestrator typecheck
+          pnpm --filter @capiro/api exec tsc --noEmit
+          pnpm --filter @capiro/web typecheck
+
+      - name: Sandbox containment and visual smoke
+        run: |
+          pnpm --filter @capiro/clio-sandbox pentest
+          pnpm --filter @capiro/clio-sandbox visual-smoke
+
+      - name: Isolated MeriV3 tests
+        run: >
+          pnpm --filter @capiro/meriv2-orchestrator exec jest
+          --runInBand --forceExit
+          src/meri/meriv3
+
+      - name: API visual contract, provenance, persistence, routing and access tests
+        run: >
+          pnpm --filter @capiro/api exec jest
+          --runInBand --forceExit
+          src/meri/governed-meri-tools.chart-scope.spec.ts
+          src/meri/meri-analysis-artifact.controller.spec.ts
+          src/meri/meri-analysis-provenance.spec.ts
+          src/meri/meri-analysis-visualization.spec.ts
+          src/meri/meri-v3-internal-service.guard.spec.ts
+          src/meri/meri-v3-visual-analysis.service.spec.ts
+          src/meri/meri-v3-visual-analysis.alignment.spec.ts
+          src/meri/meriv3-runtime.proxy.spec.ts
+          src/meri/meriv3-settings.controller.visual-analysis.spec.ts
+
+      - name: Web visual card, workspace rendering and safe-export tests
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          src/components/chat/AnalysisChartCard.test.tsx
+          src/components/chat/MeriWorkspaceConversation.test.tsx
+          src/components/chat/MeriWorkspaceWindow.test.tsx
+          --testTimeout=20000 --hookTimeout=20000
+
+      - name: Permanent architecture and security guards
+        run: |
+          set -e
+          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
+            echo "Visual analysis must remain isolated to MeriV3 chat."
+            exit 1
+          fi
+          if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
+            apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \
+            apps/api/src/meri/meriv3-proxy.service.ts; then
+            echo "MeriV3 must not expose raw reasoning/thinking SSE events."
+            exit 1
+          fi
+          if grep -RinE "^[[:space:]]*(import|from)[[:space:]]+(requests|urllib\.request|httpx|aiohttp)" \
+            apps/clio-sandbox/src/harness.py; then
+            echo "Sandbox user-code runtime must not add a network client."
+            exit 1
+          fi
+          if grep -n "ToolServiceSecretGuard" apps/api/src/meri/meriv3-settings.controller.ts; then
+            echo "New MeriV3 execution bridges must use the strict internal-service guard."
+            exit 1
+          fi
+          if ! awk '
+            /^\.analysis-card \{/ { in_card=1; next }
+            in_card && /box-shadow:/ && $0 !~ /none/ { bad=1 }
+            in_card && /^}/ { in_card=0 }
+            END { exit bad ? 1 : 0 }
+          ' apps/web/src/components/chat/analysis-chart-card.css; then
+            echo "Persistent analysis cards must not use elevation; shadow is reserved for transient overlays."
+            exit 1
+          fi
+          echo "Visual-analysis isolation, no-egress, release, export and design-system guards passed."
+
+      - name: Build deployables
+        run: |
+          pnpm --filter @capiro/clio-sandbox build
+          pnpm --filter @capiro/meriv2-orchestrator build
+          pnpm --filter @capiro/api build
+          pnpm --filter @capiro/web build

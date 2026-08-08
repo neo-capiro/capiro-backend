@@ -1,13 +1,26 @@
 export const MERI_WINDOW_QUERY = 'meriWindow';
 export const MERI_WINDOW_NAME = 'capiro-meri-v3';
+export const MERI_WINDOW_PROMPT_QUERY = 'meriPrompt';
+export const MERI_WINDOW_CLIENT_QUERY = 'meriClient';
+
+export interface MeriWorkspaceContextRequest {
+  prompt: string;
+  clientId?: string | null;
+}
 
 export function isMeriWorkspaceWindow(search = window.location.search): boolean {
   return new URLSearchParams(search).get(MERI_WINDOW_QUERY) === '1';
 }
 
-export function meriWorkspaceUrl(origin = window.location.origin): string {
+export function meriWorkspaceUrl(
+  origin = window.location.origin,
+  context?: MeriWorkspaceContextRequest,
+): string {
   const url = new URL('/', origin);
   url.searchParams.set(MERI_WINDOW_QUERY, '1');
+  const prompt = context?.prompt.trim();
+  if (prompt) url.searchParams.set(MERI_WINDOW_PROMPT_QUERY, prompt);
+  if (context?.clientId) url.searchParams.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
   return url.toString();
 }
 
@@ -20,6 +33,7 @@ export function meriWorkspaceUrl(origin = window.location.origin): string {
 export function openMeriWorkspaceWindow(
   opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'> = window,
   origin = window.location.origin,
+  context?: MeriWorkspaceContextRequest,
 ): Window | null {
   const width = Math.max(980, Math.min(1480, Math.round(opener.outerWidth * 0.86)));
   const height = Math.max(720, Math.min(980, Math.round(opener.outerHeight * 0.9)));
@@ -34,7 +48,20 @@ export function openMeriWorkspaceWindow(
     `left=${left}`,
     `top=${top}`,
   ].join(',');
-  const popup = opener.open(meriWorkspaceUrl(origin), MERI_WINDOW_NAME, features);
+  const popup = opener.open(meriWorkspaceUrl(origin, context), MERI_WINDOW_NAME, features);
   popup?.focus();
   return popup;
+}
+
+/**
+ * Open/focus the Meriv3 workspace with one contextual question ready to run.
+ * The prompt lives only in the one-time workspace URL; Meri removes it before
+ * executing so refresh/back cannot resend it.
+ */
+export function openMeriWorkspaceWithContext(
+  context: MeriWorkspaceContextRequest,
+  opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'> = window,
+  origin = window.location.origin,
+): Window | null {
+  return openMeriWorkspaceWindow(opener, origin, context);
 }

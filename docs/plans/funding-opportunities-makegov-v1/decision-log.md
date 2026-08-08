@@ -1734,3 +1734,212 @@ gates verified green locally (api 78/2454, web 412/412) and every PR
 P00–P51 and not merely for these six, is *self-verified only*. The
 independent-review column is empty because the review has never happened, not
 because it passed.
+
+## D-56 · 2026-08-08 · A per-event insert loop is not idempotent recovery, it is a new data-loss path
+
+A third independent review of the fixes for the fixes for the fixes (§ this is not a typo — three rounds
+deep) found that the N1 fix from the previous round introduced its own defect: `enqueuePendingDeliveries`
+enqueued one outbox row per event via a loop of separate, independent `$executeRaw` statements. If that
+process died — a crash, a task timeout, a redeploy — after inserting row 0 of a 3-event delivery but
+before rows 1 and 2, the enqueue SELECT's own "already enqueued" check (`o.id IS NOT NULL` for that
+delivery) saw that a row existed and never revisited it. Events 1 and 2 were lost **permanently**: the
+receiver never re-delivers (delivery_id is unique there too), and nothing downstream reconciles a
+partially-enqueued delivery.
+
+This is the SAME failure class this program has now hit three times in three different shapes — accepted
+at one layer, silently dropped at the next — and this was the third round's own fix introducing a fourth
+instance of it, narrower each time.
+
+**Fixed by making it structurally impossible, not by sequencing more carefully.** Each delivery's N
+inserts now run inside one `$transaction`. Proven two ways: a unit test against a fake whose
+`$transaction` has real commit/rollback semantics (a throwing callback commits nothing), and — because a
+fake, however faithful, has twice now been shown insufficient this session — a throwaway script against
+REAL Postgres 16 confirming a transaction that throws mid-way genuinely leaves zero rows in the actual
+database, and that the real exported function correctly enqueues all three events of a real webhook
+delivery row.
+
+**The general rule, restated because it needed restating a fourth time:** a loop of independent
+statements over "the parts of one logical unit of work" is not idempotent just because each statement
+individually has a conflict guard. Idempotency of the parts does not give you atomicity of the whole.
+
+## D-57 · 2026-08-08 · Per-event classification never ran, and the test proving it used an impossible input
+
+Review 3 also found: `readResourceRefs`' per-event type classification checked the DELIVERY's own
+`event_type` before the event's own type (`eventType || <event's own type> || ''`). The delivery's
+`event_type` comes from `tango_webhook_delivery.event_type`, which a CHECK constraint forbids being blank
+and `readEnvelope` never lets through empty — so the left side of that `||` always won, and the per-event
+branch was dead code. A batch mixing `opportunity.updated` / `forecast.updated` / `entity.updated` events
+classified every one of them as whatever the delivery header said.
+
+**The test that was supposed to catch this passed `eventType: ''` — an input production cannot generate.**
+This is the second time this exact failure mode has appeared in three rounds: a test shaped to make a
+claim pass, rather than shaped to check whether the claim is true against realistic input. Review 2 found
+the first instance of this pattern (N1's original test enshrined the very discard it should have caught);
+this is the second, in a completely different function, written by the same round of fixes that fixed the
+first one. **That recurrence is more informative than either individual bug**: it suggests a systematic
+gap in how fix-round tests were being constructed, not two unrelated mistakes.
+
+Fixed by inverting the precedence: an event's own type wins when present; the delivery's type is the
+fallback ONLY for a single-event body whose envelope carries no type key of its own. New test uses a
+realistic, non-empty delivery-level type (`'opportunity.updated'`) alongside three differently-typed
+events, and separately checks the single-event fallback still works.
+
+**A related, smaller defect fixed at the same time:** `event_index` was computed as the position within
+the events array AFTER filtering out non-object entries, so `['junk', {...}]` numbered the real event 0
+instead of 1 — silently violating the documented contract on a column that is part of the idempotency
+key. Fixed to preserve the true array position through filtering.
+
+## D-58 · 2026-08-08 · The alert-volume cap bounds one EVENT, not a delivery and not a run
+
+Review 3 found the volume cap added the previous round only tracks alerts written from the unit
+currently being processed. Review 4 then found THIS ENTRY'S OWN DESCRIPTION of that unit was wrong,
+and wrong in the direction that understated the problem: the counter resets inside `processOne`, which
+runs once per CLAIMED OUTBOX ROW — and the same session's per-event outbox change made that unit one
+EVENT, not one delivery. The constant has been renamed `MAX_ALERTS_PER_EVENT_PER_CLIENT` so its name
+states the bound it actually enforces. The two units coincide only for a single-event delivery, which
+is why the imprecision survived a round. Recording that here rather than quietly correcting it: an
+admission that names the wrong unit is not a smaller version of the problem, it is a different claim,
+and "we already wrote this one down" is exactly the reason it went unchecked for a round. A second, ordinary delivery over the
+same long notice history re-walks it, dedupes what the first delivery already wrote, and writes MORE up
+to its own cap — so two deliveries together can still deliver an entire backlog, just spread across two
+runs instead of one. The docstring's claim that capped changes are "left on the P28 timeline" for later
+is not really true in the sense a reader would expect: they are not skipped, they are deferred to
+whichever delivery happens to touch that opportunity next.
+
+**Deliberately NOT fixed in this round.** The correct bound is almost certainly "per opportunity per
+client per some *time window*", not "per delivery per client" — which needs a decision about what that
+window is and where its state lives (a new column? a separate rate-limit table?), not a quick patch. Given
+this session's own track record — three straight rounds where a fast, locally-reasonable fix introduced a
+new defect the next review caught — writing that design decision under time pressure right now would very
+plausibly repeat it a fourth time. Recorded here, and in the rollout runbook's suppression-reason table, so
+the actual behavior (capped per delivery, not per run) is what an operator reads rather than what the
+comment used to imply.
+
+## D-59 · 2026-08-08 · Atomicity via ONE statement, not via a transaction with a timeout
+
+Review 4 confirmed D-56's atomicity fix worked for the crash it targeted — verified against real
+Postgres with a trigger raising mid-batch — and then found the fix had introduced a worse failure than
+the one it closed. Wrapping a delivery's N per-event inserts in `prisma.$transaction` inherits Prisma's
+default **5-second interactive-transaction timeout**, measured to bite at roughly 3000 sequential
+inserts. A 3000-event batch of minimal event objects is ~152KB — comfortably inside the webhook route's
+existing 1MB body limit, so a legitimately-sized delivery the receiver had already accepted with a 202
+could trip it.
+
+Worse than the bug it replaced, in the specific way that matters: the failure is **not transient**. The
+event count and per-statement latency are identical on every retry, so the delivery fails the same way
+forever; deliveries are drained oldest-first; and the enqueue loop has no per-delivery `try`/`catch`. One
+oversized delivery would therefore jam **every delivery queued behind it**, permanently. That is the same
+"accepted at one layer, stuck at the next" shape this program has now hit four times — the fourth
+introduced by the fix for the third.
+
+**Fixed by removing the failure class rather than moving its threshold.** A delivery's rows now go in as
+one `INSERT ... SELECT FROM unnest(...)` statement. Postgres applies a single statement atomically by
+construction, so atomicity costs nothing and needs no transaction, no interactive-transaction machinery,
+and no timeout to size a batch against. It is also one round trip regardless of N.
+
+`unnest` of five ARRAYS specifically, not a multi-row `VALUES (...), (...)`: `VALUES` binds five
+parameters per row against Postgres's 65535-parameter statement cap, which would have reintroduced a hard
+ceiling near 13k events — higher than the 5s cliff, still a cliff, and still reachable inside the 1MB body
+limit. Five arrays bind five parameters total for any N, so no event count breaks it.
+
+Raising the transaction timeout was considered and rejected: it would have picked a new number for the
+same cliff, and the number that is obviously safe today is a function of row width, index count, and
+database load, none of which are stable.
+
+Verified against real Postgres 16, 10/10: arrays bind as real `text[]`/`int[]`; 3000 events (the size that
+previously timed out at 5009ms) now completes in **113ms**; 20000 events — past the `VALUES` parameter
+ceiling — completes in **477ms**; nulls survive the `text[]` round trip with indices intact; a trigger
+raising mid-statement leaves **zero** rows and the delivery then retries to a complete set; and two
+concurrent drains racing the same delivery converge to exactly the right row count with no duplicates and
+no deadlock.
+
+One consequence worth stating: a PARTIAL set of outbox rows for a delivery is now unreachable — the atomic
+statement is the only writer and nothing in the codebase deletes outbox rows — which is what makes the
+enqueue filter's "any row exists means already enqueued" test sound rather than lossy. That filter was the
+mechanism by which the original D-56 bug lost events permanently; it is safe now only because partial sets
+cannot occur. If anything ever starts deleting outbox rows, that reasoning breaks and this filter has to
+be revisited.
+
+## D-60 · 2026-08-08 · A dry run must report the same unit the commit reports
+
+Review 5 — scoped to the D-59 rewrite alone, and the first PASS in five rounds — found that
+`enqueuePendingDeliveries` returned a count of **deliveries** on the dry-run path and a count of
+**events** on the commit path, both surfacing as the same `enqueued` field. Two deliveries carrying 3 and
+2 events produced a dry run promising `2` and a commit writing `5`.
+
+This was not introduced by the D-59 rewrite; it dates from the per-event outbox widening earlier in the
+same session. Before that change the outbox held one row per delivery and the two units genuinely
+coincided, so the correspondence broke silently rather than visibly — nothing failed, the number just
+quietly stopped meaning what the flag promises.
+
+It understates rather than overstates, so it was never a safety problem. It is a **credibility** problem,
+and specifically for the one feature this whole CLI is built around: dry-run-first. A dry run whose
+number does not predict the commit is not a preview, and every mutating command in this program advertises
+that it is one. Fixed by computing the same per-event sum on both paths, with a test asserting the two
+return the identical number rather than merely asserting each in isolation — the latter is what let them
+drift apart.
+
+Two further findings from the same review were left alone deliberately. Concurrent drains each report the
+full count when they race (the ROWS are correct and verified — exactly 2000 with no duplicates — only the
+aggregate log line double-counts). And one replay test exercises a path the pending query's `LEFT JOIN`
+makes unreachable in production; its comment now says so, and points at the concurrent-drain race, which
+is where `ON CONFLICT` actually earns its keep and which was verified against real Postgres.
+
+## D-61 · 2026-08-08 · Five agent reviews are not the human review the plan asks for
+
+Recorded because the count is now large enough to be misread as a substitute.
+
+Five independent review rounds have run against the P46–P51 event-drain code. Four found real defects the
+previous round missed, and three of those four found a defect **introduced by the immediately preceding
+fix** — including, twice, a test written to make a claim pass rather than to check whether it was true.
+The fifth found the mechanism sound.
+
+The honest reading is both halves at once. The technique works: each round found something real, the
+defects got smaller and more specific, and the last round's finding was a unit mismatch in a return value
+rather than a data-loss path. And it is not the gate §6.2 specifies. Every one of those reviewers was an
+autonomous agent briefed by the same author as the code, and the recurring failure — a test shaped to
+pass — is exactly the failure an author-adjacent reviewer is worst positioned to catch, which is presumably
+why the plan asks for a human.
+
+No phase in P00–P51 has been read by a human other than its author. That remains true, and five agent
+rounds on one feature does not change it for that feature, let alone the other 46 phases.
+
+## D-62 · 2026-08-08 · CORRECTION: P40–P43 were never blocked on the provider
+
+**This entry corrects a claim this program recorded in at least five places and repeated for a day.**
+
+The completion matrix, this log, P17's capability report, the P46–P51 handoff, and the project closeout
+all stated that DIBBS and SBIR/STTR have **no API surface**, and that P40/P42 were `blocked` on MakeGov
+shipping one — with the explicit note that this was "not a scheduling choice."
+
+What was actually verified was narrower: `@makegov/tango-node@1.1.0` exposes no DIBBS or SBIR method. That
+is true, and was re-confirmed on 2026-08-08 by a full-text scan of the installed package finding zero
+occurrences of dibbs/sbir/sttr anywhere in it.
+
+**"Not wrapped by the SDK" was then written down as "does not exist."** Both datasets have a fully
+documented REST API — `/api/dibbs/rfqs/`, `/api/dibbs/rfps/`, `/api/dibbs/awards/`, `/api/sbir/topics/`,
+`/api/sbir/solicitations/` — published at docs.makegov.com. The contract is transcribed into
+`dibbs-sbir-rest-contract.md`.
+
+The failure is worth naming precisely, because "verify your claims" is too general to be useful here. The
+SDK scan was rigorous, repeated, and correct. **A negative finding carries the scope of the instrument
+that produced it** — an SDK scan can only establish an SDK fact. Promoting it to a provider fact required
+an assumption that was never written down, and therefore never checked. It survived five independent
+review rounds because every one of those reviews was scoped to the event-drain code; nobody was ever asked
+to review the blocked-status claim, and a blocker is exactly the kind of conclusion that stops attracting
+scrutiny once recorded.
+
+Two things that do NOT change:
+
+1. **The entitlement gate stands.** The plan's "API key: Required; P17 must show access" is unaffected —
+   endpoints existing says nothing about whether Capiro's plan is entitled to them, which is what P17's
+   probe was for and which only a real call with a real key can answer.
+2. **The prohibition on guessing stands.** D-35, D-41, D-42 and D-45 forbid writing a sync against an
+   endpoint shape nobody has confirmed. That is why the contract document marks every field type, null
+   semantic, date format, and the pagination envelope as UNCONFIRMED: the docs give field names, not
+   types, and P40's own acceptance requires "quantity/unit/money null semantics pass." Mappers built from
+   this document are provisional until one live response validates them.
+
+What genuinely changes: P40–P43 move from `blocked` to `buildable, unverified`. Schema, migrations,
+mappers, sync scripts, fixtures, tests, dispatcher verbs and disabled schedules can all be written now.
+Only the entitlement probe and live sync still need a key.
