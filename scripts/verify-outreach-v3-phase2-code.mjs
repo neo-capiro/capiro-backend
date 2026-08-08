@@ -30,6 +30,7 @@ const steps = [
       'src/outreach-v3/services/outreach-command-proposal.service.spec.ts',
       'src/outreach-v3/api/outreach-v3-state.guard.spec.ts',
       'src/outreach-v3/outreach-v3-phase2-architecture.spec.ts',
+      'src/outreach-v3/outreach-v3-migration-contract.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
     ],
   ],
