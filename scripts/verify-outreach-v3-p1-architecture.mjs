@@ -79,6 +79,9 @@ export function validateReverseDependencies(entries) {
     ]) {
       if (!(field in entry)) problems.push(`${entry.consumerFile ?? 'entry'} missing ${field}`);
     }
+    if (entry.allowedAfterPhase1 !== true) {
+      problems.push(`${entry.consumerFile} still has a prohibited post-Phase-1 dependency`);
+    }
   }
   return problems;
 }
@@ -118,8 +121,16 @@ export function architectureProblems() {
       problems.push(`request/core EngagementModule still registers ${forbidden}`);
     }
   }
-  for (const required of ['OutreachJobService', 'OutreachSendIntentService', 'NotetakerService']) {
-    if (!engagementModule.includes(required)) problems.push(`EngagementModule does not export ${required}`);
+  for (const required of [
+    'MeetingCapturePersistenceService',
+    'OutreachJobService',
+    'OutreachSendIntentService',
+    'NotetakerService',
+  ]) {
+    if (!engagementModule.includes(required)) problems.push(`EngagementModule missing ${required}`);
+  }
+  if (!/new NotetakerService\(prisma, bot, persistence as never/.test(engagementModule)) {
+    problems.push('Notetaker is not composed with the exact meeting-capture persistence port');
   }
 
   const reviewsModule = read('apps/api/src/reviews/reviews.module.ts');
@@ -128,6 +139,31 @@ export function architectureProblems() {
     if (reviewsModule.includes(forbidden) || reviewsService.includes(forbidden)) {
       problems.push(`Reviews still depends on broad ${forbidden}`);
     }
+  }
+
+  const alertMemoModule = read('apps/api/src/intelligence/alert-memo/alert-memo.module.ts');
+  const districtBriefModule = read(
+    'apps/api/src/intelligence/alert-memo/district-brief.module.ts',
+  );
+  const hearingRecapService = read(
+    'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
+  );
+  if (alertMemoModule.includes('EngagementModule')) {
+    problems.push('AlertMemoModule still imports broad EngagementModule');
+  }
+  if (districtBriefModule.includes('EngagementModule')) {
+    problems.push('DistrictBriefModule still imports broad EngagementModule');
+  }
+  if (hearingRecapService.includes('EngagementService')) {
+    problems.push('HearingRecapService still imports broad EngagementService');
+  }
+
+  const meriModule = read('apps/api/src/meri/meri.module.ts');
+  if (!meriModule.includes('AiCredentialsModule')) {
+    problems.push('MeriModule does not consume the neutral AiCredentialsModule');
+  }
+  if (meriModule.includes("../engagement/ai-credential-resolver.service")) {
+    problems.push('MeriModule still resolves credentials through the Engagement path');
   }
 
   const webhooksModule = read('apps/api/src/webhooks/webhooks.module.ts');
@@ -157,9 +193,7 @@ export function architectureProblems() {
     'apps/api/src/capabilities/capability-registry.ts',
     'apps/api/src/capabilities/adapters/capability-tool-adapter.ts',
   ];
-  for (const file of capabilityFiles) {
-    problems.push(...providerImportProblem(read(file), file));
-  }
+  for (const file of capabilityFiles) problems.push(...providerImportProblem(read(file), file));
 
   const credentialController = read(
     'apps/api/src/ai-credentials/internal-ai-credentials.controller.ts',
