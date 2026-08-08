@@ -38,6 +38,7 @@ import type {
   TangoWebhookAlertInput,
   TangoWebhookEndpoint,
   TangoWebhookEventType,
+  TangoWebhookSample,
 } from './tango.types.js';
 
 /**
@@ -375,6 +376,55 @@ export class TangoGatewayService implements TangoGateway {
   /** Delete one filter subscription. Never called without an explicit operator flag. */
   async deleteWebhookAlert(alertId: string): Promise<void> {
     await this.call('deleteWebhookAlert', (c) => c.deleteWebhookAlert(alertId));
+  }
+
+  /**
+   * The provider's sample delivery and the header it signs with. READ-ONLY.
+   *
+   * Normalized into a SHAPE DESCRIPTION rather than passing the sample body
+   * through. A caller wants to know "is the header what we assumed, and is the
+   * body one event or a batch" — not to be handed provider content that would
+   * then need scrubbing before it could be printed.
+   *
+   * The SDK returns two different shapes (one event type, or all of them), so
+   * both are folded here into one answer.
+   */
+  async getWebhookSamplePayload(eventType?: string): Promise<TangoWebhookSample> {
+    const raw = (await this.call('getWebhookSamplePayload', (c) =>
+      c.getWebhookSamplePayload(eventType === undefined ? {} : { eventType }),
+    )) as unknown as Record<string, unknown>;
+
+    const single = raw.sample_delivery as Record<string, unknown> | undefined;
+    const all = raw.samples as Record<string, { sample_delivery?: unknown }> | undefined;
+
+    const firstDelivery =
+      single ??
+      (all
+        ? ((Object.values(all)[0]?.sample_delivery ?? undefined) as
+            | Record<string, unknown>
+            | undefined)
+        : undefined);
+
+    const eventTypes = single
+      ? [String(raw.event_type ?? '')].filter(Boolean)
+      : Object.keys(all ?? {});
+
+    const envelopeKeys = firstDelivery ? Object.keys(firstDelivery) : [];
+    const events = firstDelivery?.events;
+    const isBatchEnvelope = Array.isArray(events);
+    const firstEvent = isBatchEnvelope ? (events as unknown[])[0] : undefined;
+
+    return {
+      signatureHeader: String(raw.signature_header ?? ''),
+      eventTypes,
+      envelopeKeys,
+      isBatchEnvelope,
+      eventKeys:
+        firstEvent && typeof firstEvent === 'object' && !Array.isArray(firstEvent)
+          ? Object.keys(firstEvent as Record<string, unknown>)
+          : [],
+      note: raw.note === undefined || raw.note === null ? null : String(raw.note),
+    };
   }
 
   // ── Plumbing ──────────────────────────────────────────────────────────────

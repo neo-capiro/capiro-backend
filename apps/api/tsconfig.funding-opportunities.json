@@ -102,7 +102,11 @@
     "scripts/process-tango-events.spec.ts",
     // P49: read-only canary diagnostic.
     "scripts/diag-funding-opportunities-makegov.ts",
-    "scripts/diag-funding-opportunities-makegov.spec.ts"
+    "scripts/diag-funding-opportunities-makegov.spec.ts",
+    // Webhook contract probe: checks P46's assumed signature header and
+    // envelope keys against the provider's published sample. Read-only.
+    "scripts/diag-tango-webhook-contract.ts",
+    "scripts/diag-tango-webhook-contract.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

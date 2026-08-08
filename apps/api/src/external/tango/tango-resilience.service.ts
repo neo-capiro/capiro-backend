@@ -21,6 +21,7 @@ import {
   type TangoWebhookAlertInput,
   type TangoWebhookEndpoint,
   type TangoWebhookEventType,
+  type TangoWebhookSample,
 } from './tango.types.js';
 
 /**
@@ -302,6 +303,12 @@ export class TangoResilienceService implements TangoGateway {
 
   deleteWebhookAlert(alertId: string): Promise<void> {
     return this.execute('deleteWebhookAlert', () => this.gateway.deleteWebhookAlert(alertId));
+  }
+
+  getWebhookSamplePayload(eventType?: string): Promise<TangoWebhookSample> {
+    return this.execute('getWebhookSamplePayload', () =>
+      this.gateway.getWebhookSamplePayload(eventType),
+    );
   }
 
   /** This process's live breaker/ceiling state. See the class doc for why this is not cross-process. */
