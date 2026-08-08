@@ -8,8 +8,8 @@ function apiRoot(): string {
 }
 
 const root = apiRoot();
-const engine = readFileSync(
-  resolve(root, 'src/outreach-v3/services/outreach-command-engine.service.ts'),
+const auditedRepository = readFileSync(
+  resolve(root, 'src/outreach-v3/persistence/outreach-audited-state.repository.ts'),
   'utf8',
 );
 const helper = readFileSync(
@@ -18,19 +18,21 @@ const helper = readFileSync(
 );
 
 describe('Outreach V3 eager proposal supersession audit', () => {
-  it('uses the exact UPDATE RETURNING helper rather than an unaudited count-only update', () => {
+  it('uses exact UPDATE RETURNING rows rather than an unaudited count-only update', () => {
     expect(helper).toContain('UPDATE outreach_command_proposals');
-    expect(helper).toContain('RETURNING id::text AS id');
+    expect(helper).toContain('RETURNING');
+    expect(helper).toContain('id::text AS id');
+    expect(helper).toContain('expected_state_version AS "expectedStateVersion"');
     expect(helper).toContain("rejection_code = 'state_advanced'");
     expect(helper).not.toMatch(/LIMIT\s+\d+/i);
   });
 
-  it('requires the command transaction to emit a proposal_superseded event for returned ids', () => {
-    // This assertion intentionally fails until the command engine consumes the
-    // exact returned IDs and appends one safe audit event per eager status
-    // transition in the same transaction. Do not weaken/remove this gate to
-    // close the finding; wire the helper into the authoritative command path.
-    expect(engine).toContain('supersedeStaleOutreachProposals');
-    expect(engine).toContain("eventType: 'proposal_superseded'");
+  it('emits a proposal_superseded event for every exact returned row', () => {
+    expect(auditedRepository).toContain('supersedeStaleOutreachProposals');
+    expect(auditedRepository).toContain("eventType: 'proposal_superseded'");
+    expect(auditedRepository).toContain("source: 'system'");
+    expect(auditedRepository).toContain('proposalId: proposal.id');
+    expect(auditedRepository).toContain('expectedStateVersion: proposal.expectedStateVersion');
+    expect(auditedRepository).toContain('return superseded.length');
   });
 });
