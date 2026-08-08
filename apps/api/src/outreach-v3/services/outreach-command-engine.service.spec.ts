@@ -61,15 +61,18 @@ function harness(input?: {
 }) {
   const tx = {};
   const prisma = {
-    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) =>
-      fn(tx),
+    withTenantUser: jest.fn(
+      async (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) => fn(tx),
     ),
   } as unknown as PrismaService;
 
   const repositoryMethods = {
     lockOwnedSession: jest.fn(async () => session(input?.currentVersion ?? 1)),
     findBatchResult: jest.fn(async () => input?.prior ?? null),
-    loadStateVersion: jest.fn(async (_tx, _ctx, _sessionId, version) => stateVersion(version)),
+    loadStateVersion: jest.fn(
+      async (_tx: unknown, _ctx: TenantContext, _sessionId: string, version: number) =>
+        stateVersion(version),
+    ),
     insertStateVersion: jest.fn(async () => undefined),
     updateCurrentVersion: jest.fn(async () => undefined),
     appendEvent: jest.fn(async () => ({ id: 'event' })),
@@ -132,10 +135,9 @@ describe('OutreachCommandEngineService', () => {
     };
     const h = harness({ currentVersion: 2, prior });
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).resolves.toMatchObject({
-      stateVersion: 2,
-      replayed: true,
-    });
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ stateVersion: 2, replayed: true });
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).not.toHaveBeenCalled();
   });
@@ -154,7 +156,9 @@ describe('OutreachCommandEngineService', () => {
     } as OutreachEventRow;
     const h = harness({ prior });
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).rejects.toMatchObject({
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({
       code: 'OUTREACH_COMMAND_ID_REUSE',
       httpStatus: 409,
     } satisfies Partial<OutreachCommandError>);
@@ -170,11 +174,9 @@ describe('OutreachCommandEngineService', () => {
       }),
     );
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).resolves.toMatchObject({
-      status: 'no_change',
-      stateVersion: 1,
-      changed: false,
-    });
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ status: 'no_change', stateVersion: 1, changed: false });
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.updateCurrentVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).toHaveBeenCalledTimes(1);
@@ -195,11 +197,9 @@ describe('OutreachCommandEngineService', () => {
       }),
     );
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).resolves.toMatchObject({
-      status: 'applied',
-      stateVersion: 2,
-      changed: true,
-    });
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ status: 'applied', stateVersion: 2, changed: true });
     expect(h.repository.insertStateVersion).toHaveBeenCalledWith(
       expect.anything(),
       ctx,
@@ -242,7 +242,9 @@ describe('OutreachCommandEngineService', () => {
       }),
     );
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).rejects.toMatchObject({
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({
       code: 'OUTREACH_REFERENCE_UNAUTHORIZED',
       httpStatus: 403,
     } satisfies Partial<OutreachCommandError>);
@@ -263,9 +265,9 @@ describe('OutreachCommandEngineService', () => {
       }),
     );
 
-    await expect(h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed)).rejects.toBeInstanceOf(
-      OutreachCommandError,
-    );
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toBeInstanceOf(OutreachCommandError);
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.updateCurrentVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).not.toHaveBeenCalled();
