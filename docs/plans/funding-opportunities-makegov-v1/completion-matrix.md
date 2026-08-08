@@ -83,7 +83,7 @@ Status vocabulary: `not started`, `in progress`, `awaiting review`, `merged`,
 | P48 | Event fan-out, materiality, quiet alerts | merged to branch, **draft PR open** | `e812d6f9` (draft PR [#827](https://github.com/neo-capiro/capirov2/pull/827), stacked on #826) | api 76/2394, 0 failures / 0 skipped / 0 todo | *self-verified only* | `20260906010000_tango_event_outbox` — clean 248-migration replay; 14 structural + 13 functional; cross-tenant INSERT refused by the DATABASE, proven as a NON-superuser (the first attempt used `postgres`, which bypasses RLS even under FORCE, and proved nothing) | **not applied** — draft PR, not merged | Replay and out-of-order produce one result, guaranteed by a UNIQUE index on (tenant, client, source record, change fingerprint); fingerprint EXCLUDES the delivery id | Schedule ships `enabled: false`; disable the flag and the additive tables remain |
 | P49 | Internal tenant canary and browser acceptance | **partially built — operator steps blocked** | canary runbook + read-only `diag-funding-opportunities-makegov` built and tested (17 tests) | included in the api scope above | *self-verified only* | none | **blocked** — the canary itself needs a live MakeGov key, flag enablement, and Neo performing every mutating step | Diagnostic is SELECT-only, reads no API key, and deliberately states NO verdict — a canary that prints PASS is a canary that gets waved through | Flags off first, then roll API/web to the prior immutable digests recorded in canary step 3 |
 | P50 | Controlled schedule and webhook enablement | **partially built — enablement blocked** | enablement runbook (rollout §30–34) built; `ProcessTangoEvents` schedule declared `enabled: false` | n/a — documentation and a disabled declaration | *self-verified only* | none | **blocked** — live rule enablement is out-of-band and Neo's, and the tracked Compute stack is drifted | Found and recorded that **27 rules target the `capiro-dev-api-migrate` family and 23 are unpinned, 16 of them ENABLED** — so registering a migrate revision is a de facto deploy of 16 scheduled jobs | `aws events disable-rule` per rule, then tenant flags; source data stays |
-| P51 | General availability and closeout | not started | | | | n/a | | | |
+| P51 | General availability and closeout | **partially built — GA blocked** | product doc `docs/product/funding-opportunities.md` written; matrix rows P46-P51 filled | n/a — documentation | *self-verified only* | none | **blocked** — GA needs P49's canary and P50's enablement to have actually run, plus design-partner acceptance | Every deferred capability is named and flag-off, never implied complete: P40-P43 blocked on the provider, webhook write tier unresolved, P39 MCP merged without a live handshake | Flags off first, then roll API/web to prior immutable digests |
 
 ---
 
@@ -208,3 +208,45 @@ Recorded here rather than discovered later.
 | 2026-08-07 | **P39's Tango MCP connector was merged without a live handshake.** | P17's probe could not reach MCP at all — `@makegov/tango-node` does not wrap it, so there is no code path through which the SDK could confirm the endpoint, the header name, or the tool names. All three come from the plan document. | Ships with `funding_opportunities_tango_mcp` off for every tenant, which is the correct mitigation, but the first canary of this flag is also the first real test of whether `https://govcon.dev/mcp` and `X-Tango-API-Key` are correct. Separately confirmed live during P44's own probe: the Tango **REST** API (a different host) authenticates on `X-API-KEY`, not `X-Tango-API-Key` — consistent with the plan (which specifies the Tango-prefixed header for MCP specifically) but a reminder that the two surfaces do not share an auth convention and neither should be assumed from the other. |
 | 2026-08-07 | **The already-merged Phase 7 Workstream D migration (`20260822010000_pe_budget_phase7_canonical_promotion`, PE budget program — not this program's own work) had never successfully applied to `capiro-dev`, and was silently blocking P44/P45's migrations behind it.** | Its `ALTER ROLE capiro_pe_promoter NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS` line requires the *calling* role to itself hold real `SUPERUSER`. Aurora's master user only holds the restricted `rds_superuser` pseudo-role, so this line failed every real Aurora deploy with `permission denied to alter role`, and since Prisma runs each migration file in one transaction, the whole migration (13 tables, the role, every grant) rolled back — every time, silently, for as long as this migration has existed. It never surfaced in local rehearsal because a local Postgres superuser really does hold `SUPERUSER`. | Fixed in [PR #815](https://github.com/neo-capiro/capirov2/pull/815): the `ALTER ROLE` line is dropped entirely (every attribute it named is already `CREATE ROLE`'s own default), verified by a clean 245-migration replay confirming the role still ends up `rolsuper=f, rolcreatedb=f, rolcreaterole=f, rolreplication=f, rolbypassrls=f`. Recovery required a documented, two-person-overridden `prisma migrate resolve --rolled-back` per `docs/runbooks/prisma-failed-migration-recovery.md` (a new `migrate-resolve-rolled-back`/`migrate-resolve-applied` entrypoint verb pair was added in [PR #816](https://github.com/neo-capiro/capirov2/pull/816) so that recovery never touches `_prisma_migrations` by hand) — executed against `capiro-dev` 2026-08-07, after which `migrate deploy` applied this migration plus its queue-link migration plus **both P44 and P45's migrations** in one run. Collateral damage from the fix's own wording (the word "real" in a prose comment false-matched a structural test's `\bREAL\b` no-floating-point regex) plus pre-existing CRLF-vs-LF drift on this migration file (`.sql` has no `eol=lf` rule in `.gitattributes`, unlike `.sh`/`.ts`/`.md`) broke 4 more assertions in `canonical-promotion-schema-v1.spec.ts` on a Windows checkout; all fixed in the same PR by normalizing the spec's own read of the file to LF rather than touching the applied migration's committed bytes. |
 | 2026-08-07 | **The Funding Opportunities web CI gate cannot currently report zero failures**, independent of anything in this program. | `src/App.funding-opportunities-nav.test.tsx` (already in this gate's own scope) fails 2 tests from `EngagementPreviewBoundary` calling `useQueryClient()` outside a `QueryClientProvider`, a context leak across tests in vitest's single-thread pool. Reproduced with **only pre-existing files** — no Funding Opportunities or P36 file is involved — and traced to the concurrent Engagement API stack merge ([PR #813](https://github.com/neo-capiro/capirov2/pull/813)). | Not fixed here: it is not this program's code and Engagement was mid-flight in the same session this was found. The web test floor is still raised to `109`/`412` to reflect the real added test count, but `scripts/assert-test-summary.mjs`'s zero-failures bar means the gate stays red until whoever owns Engagement fixes `EngagementPreviewBoundary`. Account-wide GitHub Actions has been down since 2026-07-31 (see §7 finding above), so this cannot currently be observed on a real Actions run either way — stated here so the next reader does not have to rediscover it. |
+
+
+## Closeout status (P51, 2026-08-08)
+
+**The program is NOT complete, and this section exists so that cannot be read
+any other way.**
+
+| Phase range | State |
+|---|---|
+| P00–P39, P44, P45 | merged; P26–P35 deployed |
+| **P40–P43** | **blocked on the provider.** `@makegov/tango-node@1.1.0` has no DIBBS and no SBIR/STTR method anywhere in its client surface. Not a scheduling choice. |
+| P46, P47, P48 | built, **draft PRs #825 / #826 / #827, stacked, not merged**. Their three migrations are **not applied** to any environment. |
+| P49, P50, P51 | **partially built.** Instrumentation, runbooks and the product doc exist; every operator step is blocked. |
+
+### What is blocked, and on whom
+
+| Blocked item | Blocked on |
+|---|---|
+| Merging #825–#829 | review |
+| Applying the P46/P48 migrations | merge, then a migrate run |
+| Registering the webhook endpoint + provisioning `tango-webhook-secret` | Neo, MakeGov console |
+| Resolving the webhook write tier | one deliberate `--commit` run, or MakeGov confirming |
+| Running the canary (P49) | Neo — live key, flag enablement, browser walk |
+| Enabling any schedule (P50) | Neo — out-of-band, and the Compute stack is drifted |
+| GA (P51) | P49 and P50 actually running |
+| DIBBS / SBIR (P40–P43) | MakeGov shipping an API surface |
+
+### Two things a reader should not have to rediscover
+
+1. **23 of the 27 EventBridge rules targeting `capiro-dev-api-migrate` are
+   revision-unpinned, and 16 are enabled.** Registering a migrate revision is
+   therefore a de facto deploy of 16 scheduled jobs. See rollout runbook §30.
+2. **The web CI gate cannot report green**, for a reason outside this program:
+   `EngagementPreviewBoundary` calls `useQueryClient()` outside a provider,
+   from PR #813. Owned by whoever owns the Engagement stack.
+
+### Not done, and deliberately so
+
+- **No destructive cleanup migration.** GA ships none, per the plan.
+- **No independent review.** Every phase in this program is marked
+  *self-verified only*. §6.2's independent-tester gate has not run for any of
+  P46–P51.
