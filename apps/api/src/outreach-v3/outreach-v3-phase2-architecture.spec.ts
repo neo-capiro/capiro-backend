@@ -12,14 +12,20 @@ const REPO_ROOT = resolve(API_ROOT, '../..');
 const readApi = (path: string) => readFileSync(resolve(API_ROOT, path), 'utf8');
 const readRepo = (path: string) => readFileSync(resolve(REPO_ROOT, path), 'utf8');
 
-function productionTsFiles(root: string): string[] {
+function productionSourceFiles(root: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(root)) {
     const path = resolve(root, entry);
     if (statSync(path).isDirectory()) {
       if (entry === '__fixtures__') continue;
-      files.push(...productionTsFiles(path));
-    } else if (entry.endsWith('.ts') && !entry.endsWith('.spec.ts')) {
+      files.push(...productionSourceFiles(path));
+    } else if (
+      (entry.endsWith('.ts') || entry.endsWith('.tsx')) &&
+      !entry.endsWith('.spec.ts') &&
+      !entry.endsWith('.spec.tsx') &&
+      !entry.endsWith('.test.ts') &&
+      !entry.endsWith('.test.tsx')
+    ) {
       files.push(path);
     }
   }
@@ -74,7 +80,7 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
 
   it('contains no external provider/runtime dependency in Phase 2 production source', () => {
     const root = resolve(API_ROOT, 'src/outreach-v3');
-    const imports = productionTsFiles(root).flatMap((file) => importSources(readFileSync(file, 'utf8')));
+    const imports = productionSourceFiles(root).flatMap((file) => importSources(readFileSync(file, 'utf8')));
     for (const source of imports) {
       expect(source).not.toMatch(/openai|langgraph|langchain|microsoft|google|recall|s3|mail-sender|gmail|client-document|llm-completion/i);
     }
@@ -82,7 +88,7 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
 
   it('contains no legacy Outreach table write dependency in Phase 2 production source', () => {
     const root = resolve(API_ROOT, 'src/outreach-v3');
-    const source = productionTsFiles(root)
+    const source = productionSourceFiles(root)
       .map((file) => readFileSync(file, 'utf8'))
       .join('\n');
     for (const table of [
@@ -144,7 +150,12 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
     const controller = readApi('src/outreach-v3/api/outreach-v3-state.controller.ts');
     const manifest = JSON.parse(
       readApi('src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json'),
-    ) as { runtime: string; featureFlag: string; disabledBehavior: number; routes: Array<{ method: string; path: string; handler: string }> };
+    ) as {
+      runtime: string;
+      featureFlag: string;
+      disabledBehavior: number;
+      routes: Array<{ method: string; path: string; handler: string }>;
+    };
     const expected = [...manifest.routes].sort((a, b) =>
       `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`),
     );
@@ -156,7 +167,7 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
 
   it('does not add a V3 state call or enable flag to the current web application', () => {
     const webRoot = resolve(REPO_ROOT, 'apps/web/src');
-    const source = productionTsFiles(webRoot)
+    const source = productionSourceFiles(webRoot)
       .map((file) => readFileSync(file, 'utf8'))
       .join('\n');
     expect(source).not.toContain('/outreach-v3/');
