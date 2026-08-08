@@ -8,12 +8,15 @@ import {
   type TangoRateMetadata,
 } from './tango.errors.js';
 import {
+  asArray,
   mapEntity,
   mapForecast,
   mapNotice,
   mapOpportunity,
   mapVehicle,
   mapVehicleAwardee,
+  mapWebhookAlert,
+  mapWebhookEndpoint,
 } from './tango.mappers.js';
 import { TANGO_SHAPES } from './tango.shapes.js';
 import type {
@@ -31,6 +34,10 @@ import type {
   TangoVehicle,
   TangoVehicleListOptions,
   TangoVehicleAwardee,
+  TangoWebhookAlert,
+  TangoWebhookAlertInput,
+  TangoWebhookEndpoint,
+  TangoWebhookEventType,
 } from './tango.types.js';
 
 /**
@@ -180,14 +187,18 @@ export class TangoGatewayService implements TangoGateway {
   }
 
   async listEntities(options: TangoEntityListOptions = {}): Promise<TangoPage<TangoEntity>> {
-    return this.page('listEntities', 'entity', mapEntity, (c, base) =>
-      c.listEntities({
-        ...base,
-        shape: TANGO_SHAPES.entity,
-        ...(options.uei ? { uei: options.uei } : {}),
-        ...(options.naics ? { naics: options.naics } : {}),
-        ...(options.state ? { state: options.state } : {}),
-      }),
+    return this.page(
+      'listEntities',
+      'entity',
+      mapEntity,
+      (c, base) =>
+        c.listEntities({
+          ...base,
+          shape: TANGO_SHAPES.entity,
+          ...(options.uei ? { uei: options.uei } : {}),
+          ...(options.naics ? { naics: options.naics } : {}),
+          ...(options.state ? { state: options.state } : {}),
+        }),
       options,
     );
   }
@@ -195,35 +206,43 @@ export class TangoGatewayService implements TangoGateway {
   async listOpportunities(
     options: TangoOpportunityListOptions = {},
   ): Promise<TangoPage<TangoOpportunity>> {
-    return this.page('listOpportunities', 'opportunity', mapOpportunity, (c, base) =>
-      c.listOpportunities({
-        ...base,
-        shape: TANGO_SHAPES.opportunity,
-        ...(options.solicitationNumber
-          ? { solicitation_number: options.solicitationNumber }
-          : {}),
-        ...(options.naics ? { naics: options.naics } : {}),
-        ...(options.psc ? { psc: options.psc } : {}),
-        ...(options.changedSince ? { last_notice_date_after: options.changedSince } : {}),
-        ...(options.active != null ? { active: options.active } : {}),
-      }),
+    return this.page(
+      'listOpportunities',
+      'opportunity',
+      mapOpportunity,
+      (c, base) =>
+        c.listOpportunities({
+          ...base,
+          shape: TANGO_SHAPES.opportunity,
+          ...(options.solicitationNumber
+            ? { solicitation_number: options.solicitationNumber }
+            : {}),
+          ...(options.naics ? { naics: options.naics } : {}),
+          ...(options.psc ? { psc: options.psc } : {}),
+          ...(options.changedSince ? { last_notice_date_after: options.changedSince } : {}),
+          ...(options.active != null ? { active: options.active } : {}),
+        }),
       options,
     );
   }
 
   async listNotices(options: TangoNoticeListOptions = {}): Promise<TangoPage<TangoNotice>> {
-    return this.page('listNotices', 'notice', mapNotice, (c, base) =>
-      c.listNotices({
-        ...base,
-        shape: TANGO_SHAPES.notice,
-        ...(options.solicitationNumber
-          ? { solicitation_number: options.solicitationNumber }
-          : {}),
-        ...(options.naics ? { naics: options.naics } : {}),
-        ...(options.psc ? { psc: options.psc } : {}),
-        ...(options.postedSince ? { posted_date_after: options.postedSince } : {}),
-        ...(options.active != null ? { active: options.active } : {}),
-      }),
+    return this.page(
+      'listNotices',
+      'notice',
+      mapNotice,
+      (c, base) =>
+        c.listNotices({
+          ...base,
+          shape: TANGO_SHAPES.notice,
+          ...(options.solicitationNumber
+            ? { solicitation_number: options.solicitationNumber }
+            : {}),
+          ...(options.naics ? { naics: options.naics } : {}),
+          ...(options.psc ? { psc: options.psc } : {}),
+          ...(options.postedSince ? { posted_date_after: options.postedSince } : {}),
+          ...(options.active != null ? { active: options.active } : {}),
+        }),
       options,
     );
   }
@@ -239,29 +258,37 @@ export class TangoGatewayService implements TangoGateway {
    * server accepts without complaint.
    */
   async listForecasts(options: TangoForecastListOptions = {}): Promise<TangoPage<TangoForecast>> {
-    return this.page('listForecasts', 'forecast', mapForecast, (c, base) =>
-      rawForecastsGet(c, {
-        ...base,
-        shape: TANGO_SHAPES.forecast,
-        ...(options.changedSince ? { modified_after: options.changedSince } : {}),
-        ...(options.fiscalYear ? { fiscal_year: options.fiscalYear } : {}),
-        ...(options.naics ? { naics_code: options.naics } : {}),
-        ...(options.agency ? { agency: options.agency } : {}),
-      }),
+    return this.page(
+      'listForecasts',
+      'forecast',
+      mapForecast,
+      (c, base) =>
+        rawForecastsGet(c, {
+          ...base,
+          shape: TANGO_SHAPES.forecast,
+          ...(options.changedSince ? { modified_after: options.changedSince } : {}),
+          ...(options.fiscalYear ? { fiscal_year: options.fiscalYear } : {}),
+          ...(options.naics ? { naics_code: options.naics } : {}),
+          ...(options.agency ? { agency: options.agency } : {}),
+        }),
       options,
     );
   }
 
   async listVehicles(options: TangoVehicleListOptions = {}): Promise<TangoPage<TangoVehicle>> {
-    return this.page('listVehicles', 'vehicle', mapVehicle, (c, base) =>
-      c.listVehicles({
-        ...base,
-        shape: TANGO_SHAPES.vehicle,
-        ...(options.naics ? { naics_code: options.naics } : {}),
-        ...(options.psc ? { psc_code: options.psc } : {}),
-        ...(options.agency ? { agency: options.agency } : {}),
-        ...(options.vehicleType ? { vehicle_type: options.vehicleType } : {}),
-      }),
+    return this.page(
+      'listVehicles',
+      'vehicle',
+      mapVehicle,
+      (c, base) =>
+        c.listVehicles({
+          ...base,
+          shape: TANGO_SHAPES.vehicle,
+          ...(options.naics ? { naics_code: options.naics } : {}),
+          ...(options.psc ? { psc_code: options.psc } : {}),
+          ...(options.agency ? { agency: options.agency } : {}),
+          ...(options.vehicleType ? { vehicle_type: options.vehicleType } : {}),
+        }),
       options,
     );
   }
@@ -270,10 +297,84 @@ export class TangoGatewayService implements TangoGateway {
     vehicleId: string,
     options: TangoListOptions = {},
   ): Promise<TangoPage<TangoVehicleAwardee>> {
-    return this.page('listVehicleAwardees', 'vehicleAwardee', mapVehicleAwardee, (c, base) =>
-      c.listVehicleAwardees(vehicleId, { ...base, shape: TANGO_SHAPES.vehicleAwardee }),
+    return this.page(
+      'listVehicleAwardees',
+      'vehicleAwardee',
+      mapVehicleAwardee,
+      (c, base) =>
+        c.listVehicleAwardees(vehicleId, { ...base, shape: TANGO_SHAPES.vehicleAwardee }),
       options,
     );
+  }
+
+  // ── Webhook subscription management (P47) ─────────────────────────────────
+  //
+  // Normalized at this boundary like everything else: the SDK speaks snake_case
+  // (`callback_url`, `alert_id`, `query_type`) and product code never should.
+  //
+  // These are NOT paged. The provider returns a bounded list for all three, and
+  // an account with enough endpoints or alerts to need pagination would be a
+  // sign this program had violated its own rule against one provider alert per
+  // Capiro client — so a silent page-1-only read is the correct shape here, not
+  // a truncation bug.
+
+  async listWebhookEventTypes(): Promise<TangoWebhookEventType[]> {
+    const raw = await this.call('listWebhookEventTypes', (c) => c.listWebhookEventTypes());
+    return (raw?.event_types ?? []).map((t) => ({
+      eventType: t.event_type,
+      description: t.description,
+      schemaVersion: t.schema_version,
+    }));
+  }
+
+  // NOTE the two SDK methods disagree on their own option name: endpoints take
+  // `limit`, alerts take `pageSize`. That is the SDK's inconsistency, not a
+  // typo here — passing `limit` to the alerts call compiles (excess-property
+  // checks do not fire through a variable) and is silently ignored at runtime,
+  // which is exactly the kind of quiet truncation this program refuses to ship.
+  async listWebhookEndpoints(options: TangoListOptions = {}): Promise<TangoWebhookEndpoint[]> {
+    const raw = await this.call('listWebhookEndpoints', (c) =>
+      c.listWebhookEndpoints({ limit: options.limit ?? 100 }),
+    );
+    return asArray(raw).map(mapWebhookEndpoint);
+  }
+
+  async listWebhookAlerts(options: TangoListOptions = {}): Promise<TangoWebhookAlert[]> {
+    const raw = await this.call('listWebhookAlerts', (c) =>
+      c.listWebhookAlerts({ pageSize: options.limit ?? 100 }),
+    );
+    return asArray(raw).map(mapWebhookAlert);
+  }
+
+  /**
+   * Create one filter subscription.
+   *
+   * MAY FAIL ON TIER. P17 never attempted this — see the TangoGateway doc — so
+   * the plan's "all tiers vs Large/Enterprise" discrepancy is unresolved and
+   * this call is the first thing that will actually answer it. The error is
+   * classified and rethrown by `wrap()`; the caller is required to treat a tier
+   * failure as terminal rather than retrying it.
+   */
+  async createWebhookAlert(input: TangoWebhookAlertInput): Promise<TangoWebhookAlert> {
+    const raw = await this.call('createWebhookAlert', (c) =>
+      c.createWebhookAlert({
+        name: input.name,
+        query_type: input.queryType,
+        filters: input.filters,
+        ...(input.frequency === undefined ? {} : { frequency: input.frequency }),
+        ...(input.endpointId === undefined ? {} : { endpoint: input.endpointId }),
+      }),
+    );
+    // The SDK types this response, unlike the list calls. Normalising it through
+    // the SAME mapper is deliberate: a created alert and a listed alert must
+    // become the identical domain shape, or the reconciler's post-commit
+    // re-run would diff a freshly created alert against itself and report drift.
+    return mapWebhookAlert(raw as unknown as Record<string, unknown>);
+  }
+
+  /** Delete one filter subscription. Never called without an explicit operator flag. */
+  async deleteWebhookAlert(alertId: string): Promise<void> {
+    await this.call('deleteWebhookAlert', (c) => c.deleteWebhookAlert(alertId));
   }
 
   // ── Plumbing ──────────────────────────────────────────────────────────────
@@ -471,7 +572,9 @@ export class TangoGatewayService implements TangoGateway {
  */
 function rawForecastsGet<T>(client: SdkClient, query: Record<string, unknown>): Promise<T> {
   return (
-    client as unknown as { http: { get<U>(path: string, query?: Record<string, unknown>): Promise<U> } }
+    client as unknown as {
+      http: { get<U>(path: string, query?: Record<string, unknown>): Promise<U> };
+    }
   ).http.get<T>('/api/forecasts/', query);
 }
 

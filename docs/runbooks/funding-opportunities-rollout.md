@@ -1654,3 +1654,101 @@ safe: the pass will not recreate them unless the source genuinely changed again.
 
 **Hard boundary, restated:** do not deploy the drifted `Capiro-dev-Compute` stack
 under any circumstances, including rollback.
+
+---
+
+# Part I — Tango webhooks (P46 receiver, P47 alert reconciler)
+
+## 27. Provision the webhook endpoint and its signing secret
+
+**Operator step. Not automatable, deliberately.** Nothing in this repository
+creates a MakeGov webhook endpoint, and nothing in it ever handles the signing
+secret in process memory.
+
+Two reasons, both load-bearing:
+
+1. **The tier is unknown.** P17 recorded `webhook_write_apis` as
+   `not_attempted` — every one of those SDK methods mutates a live
+   subscription, so a read-only probe could not answer it. The plan's own
+   "all tiers vs Large/Enterprise" discrepancy is therefore still open, and
+   `reconcile-tango-webhook-alerts` is written to discover the answer and stop
+   cleanly rather than assume one.
+2. **Endpoint creation is the only call that returns a signing secret.** A
+   secret that reaches a CLI's memory is a secret that wants to be printed,
+   logged, or left in shell history.
+
+So: create the endpoint in the MakeGov console, and put the secret straight
+into Secrets Manager without it passing through a terminal you can scroll back.
+
+```bash
+# Callback URL to register in the MakeGov console:
+#   https://api.dev.capiro.ai/webhooks/tango
+#
+# Then, WITHOUT echoing the value:
+read -s TANGO_WEBHOOK_SECRET
+aws secretsmanager create-secret \
+  --profile capiro-dev \
+  --region us-east-1 \
+  --name capiro/dev/tango-webhook-secret \
+  --secret-string "$TANGO_WEBHOOK_SECRET"
+unset TANGO_WEBHOOK_SECRET
+```
+
+If the secret already exists, use `put-secret-value` — never a second
+same-name secret.
+
+**Then, and only then**, set `externalSecretArns.tangoWebhookSecret` in
+`infra/cdk/lib/config.ts`. It is ARN-gated: while unset, the receiver runs
+dark and rejects every delivery, and no task definition references it. Setting
+it before the secret exists would make every new serve task fail to start
+("unable to pull secrets" → circuit-breaker rollback).
+
+The secret goes onto **API serve only**. `TANGO_API_KEY` is the mirror image —
+outbound, sync task only. A CDK synth test asserts the two never land on the
+same task definition.
+
+## 28. Reconcile the alert subscriptions
+
+Dry run first. It is read-only, and it is the default.
+
+```bash
+aws ecs run-task --cluster capiro-dev --launch-type FARGATE \
+  --task-definition capiro-dev-api-sync-jobs \
+  --overrides '{"containerOverrides":[{"name":"api","command":["reconcile-tango-webhook-alerts"]}]}' \
+  --network-configuration "$NETCFG" --region us-east-1
+```
+
+Read the exit code — it is the operator contract:
+
+| Exit | Meaning |
+|---:|---|
+| 0 | desired state already matches, or the commit completed |
+| 2 | bad arguments; nothing attempted |
+| 3 | **tier or permission denied** — nothing left half-configured |
+| 4 | endpoint ambiguous or missing; nothing attempted |
+| 5 | drift exists, and this was a dry run |
+
+**Exit 3 is the interesting one.** It means this account's tier does not permit
+webhook writes, which finally settles the P17 discrepancy. Do not retry it;
+take it to MakeGov.
+
+To commit, the endpoint id and its callback URL must BOTH be stated, and the
+provider must agree with the URL:
+
+```bash
+# --confirm-callback must match the endpoint's actual callback_url as the
+# provider reports it. This is the guard against attaching Capiro's
+# subscriptions to the wrong endpoint and sending federal procurement events
+# somewhere unintended.
+reconcile-tango-webhook-alerts --commit \
+  --endpoint-id=<uuid-from-the-dry-run> \
+  --confirm-callback=https://api.dev.capiro.ai/webhooks/tango
+```
+
+Re-run the dry run afterwards. **It must report no work.** If it does not, stop
+and read the diff rather than re-committing.
+
+`--allow-delete` is opt-in and is safe to pass on a dry run — that is the
+recommended way to preview a removal. Even with it, an alert lacking the
+`capiro-managed/` prefix is never proposed for deletion: absence from desired
+state is not evidence that a human's dashboard alert is unwanted.

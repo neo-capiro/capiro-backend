@@ -9,6 +9,8 @@ import type {
   TangoResourceType,
   TangoVehicle,
   TangoVehicleAwardee,
+  TangoWebhookAlert,
+  TangoWebhookEndpoint,
 } from './tango.types.js';
 
 /**
@@ -340,7 +342,10 @@ function forecastOrganization(value: unknown): {
   officeName: string | null;
   organizationId: string | null;
 } {
-  const o = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const o =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return {
     departmentCode: str(o.department_code),
     departmentName: str(o.department_name),
@@ -455,5 +460,70 @@ export function mapVehicleAwardee(
     // own doc before assuming a different field name fixes this.
     recipientParentUei: null,
     recipientName: str(recipient.display_name ?? recipient.legal_business_name),
+  };
+}
+
+// ── Webhook subscription management (P47) ────────────────────────────────────
+
+/**
+ * Coerce a provider list response into an array.
+ *
+ * The webhook endpoints differ from the dataset endpoints: some return a bare
+ * array and some wrap it in `{results: [...]}`. Neither shape is documented as
+ * stable, so this accepts both rather than picking one and breaking the moment
+ * the provider changes it. Anything else — null, an object with neither shape —
+ * becomes an EMPTY list, never a crash: "the provider told us about no
+ * endpoints" is a survivable answer for a reconciler whose default mode is to
+ * print a diff.
+ */
+export function asArray(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  if (raw && typeof raw === 'object') {
+    const results = (raw as { results?: unknown }).results;
+    if (Array.isArray(results)) return results as Record<string, unknown>[];
+  }
+  return [];
+}
+
+/**
+ * One delivery endpoint.
+ *
+ * `secret` is carried through ONLY because a create response is the one and
+ * only time the provider ever discloses it. It is never logged, never printed,
+ * and never written to the reconciler's stdout — see the CLI's own handling.
+ */
+export function mapWebhookEndpoint(raw: Record<string, unknown>): TangoWebhookEndpoint {
+  const secret = str(raw.secret);
+  return {
+    id: str(raw.id) ?? '',
+    name: str(raw.name) ?? '',
+    callbackUrl: str(raw.callback_url) ?? '',
+    // Absent is treated as INACTIVE, not active. A reconciler that assumes an
+    // endpoint of unknown state is live would report "already configured" and
+    // skip the very work it exists to do.
+    isActive: bool(raw.is_active) ?? false,
+    ...(secret === null ? {} : { secret }),
+  };
+}
+
+/**
+ * One filter subscription.
+ *
+ * `status` is narrowed to the two values the provider documents. Anything else
+ * is recorded as 'paused' — the conservative reading, because treating an
+ * unrecognized status as 'active' would let the reconciler believe delivery is
+ * happening when it may not be.
+ */
+export function mapWebhookAlert(raw: Record<string, unknown>): TangoWebhookAlert {
+  return {
+    alertId: str(raw.alert_id) ?? str(raw.id) ?? '',
+    name: str(raw.name) ?? '',
+    queryType: str(raw.query_type) ?? '',
+    filters:
+      raw.filters && typeof raw.filters === 'object' && !Array.isArray(raw.filters)
+        ? (raw.filters as Record<string, unknown>)
+        : {},
+    frequency: str(raw.frequency) ?? '',
+    status: str(raw.status) === 'active' ? 'active' : 'paused',
   };
 }

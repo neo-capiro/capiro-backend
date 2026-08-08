@@ -91,7 +91,12 @@
     "scripts/sync-tango-opportunity-attachments.spec.ts",
     // P30: extracted-text status seeding.
     "scripts/sync-tango-opportunity-text.ts",
-    "scripts/sync-tango-opportunity-text.spec.ts"
+    "scripts/sync-tango-opportunity-text.spec.ts",
+    // P47: webhook alert subscription reconciler. Dry-run by default; the
+    // --commit path carries the endpoint/callback interlocks, so a type error
+    // reaching an operator's shell here is a genuinely bad outcome.
+    "scripts/reconcile-tango-webhook-alerts.ts",
+    "scripts/reconcile-tango-webhook-alerts.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
