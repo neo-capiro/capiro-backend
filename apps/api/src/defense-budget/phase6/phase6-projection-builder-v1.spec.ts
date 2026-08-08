@@ -2,8 +2,16 @@ import type { MoneyValueV1 } from '../contracts/extraction-artifact-v1.js';
 import { nativeIdentityHashV1 } from '../stages/budget-line-reference-v1.js';
 import type { DefenseBudgetStageActionV1 } from '../stages/appropriations/actions/defense-budget-stage-action-v1.js';
 import type { StagePositionV1 } from '../stages/stage-row-emitter-v1.js';
+import type {
+  EnactedLineCandidateV1,
+  DefenseBudgetEnactmentProofV1,
+} from '../stages/enacted/enactment-proof-v1.js';
+import type { ExecutionCompositionV1 } from '../stages/post-enactment/reprogramming-execution-v1.js';
+import { phase6ActionScopeIdentityHashV1 } from './phase6-action-scope-identity-v1.js';
 import { phase6NativeProjectionV1Schema } from './phase6-native-projection-v1.js';
 import {
+  buildEnactedStagePositionProjectionV1,
+  buildExecutionStagePositionProjectionV1,
   buildStageActionProjectionV1,
   buildStagePositionProjectionV1,
   type Phase6ProjectionProvenanceV1,
@@ -281,30 +289,107 @@ describe('buildStageActionProjectionV1', () => {
     expect(result.projection.payload.narrative).toBe('shipyard capacity shortfall');
   });
 
-  it('refuses a package-scoped action rather than inventing a pseudo-identity hash', () => {
+  it('B3: projects a package-scoped action via its derived scope identity, not a refusal', () => {
     const result = buildStageActionProjectionV1(
       action({ identity: undefined, packageScope: 'defense-wide' }),
       PROVENANCE,
       'verified',
     );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.refusal.reason).toBe('no_single_native_identity');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(() => phase6NativeProjectionV1Schema.parse(result.projection)).not.toThrow();
+    expect(result.projection.nativeIdentityHash).toBe(
+      phase6ActionScopeIdentityHashV1({
+        kind: 'PACKAGE',
+        packageScope: 'defense-wide',
+        vehicleClass: 'committee_report',
+        fiscalYear: 2027,
+        stage: 'hac_d',
+      }),
+    );
+    expect(result.projection.payload.identityScopeKind).toBe('PACKAGE');
   });
 
-  it('refuses a transfer-pair action with source/destination identities but no single scope', () => {
+  it('B3: projects an account-scoped action via its derived scope identity', () => {
+    const result = buildStageActionProjectionV1(
+      action({ identity: undefined, accountScope: 'ARMY-RDTE' }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.projection.nativeIdentityHash).toBe(
+      phase6ActionScopeIdentityHashV1({
+        kind: 'ACCOUNT',
+        accountScope: 'ARMY-RDTE',
+        fiscalYear: 2027,
+        stage: 'hac_d',
+      }),
+    );
+    expect(result.projection.payload.identityScopeKind).toBe('ACCOUNT');
+  });
+
+  it('B3: projects a two-sided transfer via its derived pair identity, direction-sensitive', () => {
+    const destination = { lineKind: 'RDTE_PE' as const, peCode: '0605054A' };
     const result = buildStageActionProjectionV1(
       action({
         identity: undefined,
         sourceIdentity: PE_IDENTITY,
-        destinationIdentity: { lineKind: 'RDTE_PE', peCode: '0605054A' },
+        destinationIdentity: destination,
       }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.projection.nativeIdentityHash).toBe(
+      phase6ActionScopeIdentityHashV1({
+        kind: 'TRANSFER_PAIR',
+        from: PE_IDENTITY,
+        to: destination,
+        fiscalYear: 2027,
+        stage: 'hac_d',
+      }),
+    );
+    // Swapping the endpoints must not hash the same — direction matters.
+    expect(result.projection.nativeIdentityHash).not.toBe(
+      phase6ActionScopeIdentityHashV1({
+        kind: 'TRANSFER_PAIR',
+        from: destination,
+        to: PE_IDENTITY,
+        fiscalYear: 2027,
+        stage: 'hac_d',
+      }),
+    );
+    expect(result.projection.payload.identityScopeKind).toBe('TRANSFER_PAIR');
+  });
+
+  it('B3: a native-line-identity action records identityScopeKind NATIVE_LINE', () => {
+    const result = buildStageActionProjectionV1(action(), PROVENANCE, 'verified');
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.projection.payload.identityScopeKind).toBe('NATIVE_LINE');
+  });
+
+  it('B3: still refuses a transfer naming only one endpoint, rather than inferring the other', () => {
+    const result = buildStageActionProjectionV1(
+      action({ identity: undefined, sourceIdentity: PE_IDENTITY }),
       PROVENANCE,
       'verified',
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.refusal.reason).toBe('no_single_native_identity');
+    expect(result.refusal.reason).toBe('incomplete_transfer_endpoint');
+  });
+
+  it('B3: still refuses an action with no scope of any kind', () => {
+    const result = buildStageActionProjectionV1(
+      action({ identity: undefined }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.reason).toBe('no_scope_present');
   });
 
   it('gives distinct action rows on the same line distinct natural keys via the action id', () => {
@@ -320,5 +405,229 @@ describe('buildStageActionProjectionV1', () => {
     );
     if (!first.ok || !second.ok) throw new Error('expected ok');
     expect(first.projection.naturalKey).not.toBe(second.projection.naturalKey);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* B1 — enacted positions                                              */
+/* ------------------------------------------------------------------ */
+
+function enactedCandidate(overrides: Partial<EnactedLineCandidateV1> = {}): EnactedLineCandidateV1 {
+  return {
+    candidateId: 'enacted-1',
+    identity: PE_IDENTITY,
+    bindingStatus: 'accepted',
+    fiscalYear: 2027,
+    money: { originalValue: '200', originalUnit: 'millions', valueMillions: '200' },
+    sourceDocumentId: 'doc-plaw',
+    sourceSha256: SHA('e'),
+    evidenceIds: ['ev-plaw-2', 'ev-plaw-1'],
+    ...overrides,
+  };
+}
+
+function enactmentProof(
+  overrides: Partial<DefenseBudgetEnactmentProofV1> = {},
+): DefenseBudgetEnactmentProofV1 {
+  return {
+    schemaVersion: 'defense_budget_enactment_proof_v1',
+    proofId: 'proof-1',
+    fiscalYear: 2027,
+    publicLawNumber: '118-31',
+    enactmentDate: '2027-12-15',
+    billId: 'hr-1234',
+    vehicleKind: 'full_year',
+    publicLawSource: {
+      manifestDocumentKey: 'plaw-doc',
+      sourceDocumentId: 'doc-plaw',
+      sourceSha256: SHA('f'),
+      status: 'current',
+    },
+    lineDetailSource: {
+      manifestDocumentKey: 'line-detail-doc',
+      sourceDocumentId: 'doc-line',
+      sourceSha256: SHA('9'),
+      status: 'current',
+    },
+    proofType: 'statutory_line_item',
+    vehicleProfileHash: SHA('1'),
+    reviewerStatus: 'verified',
+    explicitLineAuthority: false,
+    ...overrides,
+  };
+}
+
+describe('buildEnactedStagePositionProjectionV1 (Gap 5 decision B1)', () => {
+  it('builds a schema-valid enacted stage_position, carrying the real proof', () => {
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate(),
+      'public_law',
+      enactmentProof(),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(() => phase6NativeProjectionV1Schema.parse(result.projection)).not.toThrow();
+    expect(result.projection.fundingField).toBe('enacted');
+    expect(result.projection.enactmentProofId).toBe('proof-1');
+    expect(result.projection.payload.publicLawNumber).toBe('118-31');
+    expect(result.projection.payload.enactmentProofType).toBe('statutory_line_item');
+    expect(result.projection.payload.publicLawSourceSha256).toBe(SHA('f'));
+    expect(result.projection.payload.lineDetailSourceSha256).toBe(SHA('9'));
+  });
+
+  it('refuses a candidate that is not accepted, rather than promoting an unverified enacted value', () => {
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate({ bindingStatus: 'unresolved' }),
+      'public_law',
+      enactmentProof(),
+      PROVENANCE,
+      'candidate',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.reason).toBe('candidate_not_accepted');
+  });
+
+  it('refuses a fiscal-year mismatch between proof and candidate', () => {
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate({ fiscalYear: 2028 }),
+      'public_law',
+      enactmentProof({ fiscalYear: 2027 }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.reason).toBe('proof_fiscal_year_mismatch');
+  });
+
+  it('refuses a continuing-resolution position whose proof has no explicit line authority', () => {
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate(),
+      'continuing_resolution',
+      enactmentProof({ vehicleKind: 'continuing_resolution', explicitLineAuthority: false }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.reason).toBe('continuing_resolution_without_explicit_line_authority');
+  });
+
+  it('accepts a continuing-resolution position when explicit line authority is proven', () => {
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate(),
+      'continuing_resolution',
+      enactmentProof({ vehicleKind: 'continuing_resolution', explicitLineAuthority: true }),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(() => phase6NativeProjectionV1Schema.parse(result.projection)).not.toThrow();
+    expect(result.projection.payload.explicitLineAuthority).toBe(true);
+  });
+
+  it('does not invent a second proof model: the payload carries the same proof fields, nothing synthesized', () => {
+    const proof = enactmentProof({ proofType: 'incorporated_table', publicLawNumber: '118-99' });
+    const result = buildEnactedStagePositionProjectionV1(
+      enactedCandidate(),
+      'public_law',
+      proof,
+      PROVENANCE,
+      'verified',
+    );
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.projection.payload.enactmentProofType).toBe(proof.proofType);
+    expect(result.projection.payload.publicLawNumber).toBe(proof.publicLawNumber);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* B2 — execution positions                                            */
+/* ------------------------------------------------------------------ */
+
+function executionComposition(
+  overrides: Partial<NonNullable<ExecutionCompositionV1['executedPosition']>> = {},
+): ExecutionCompositionV1 {
+  const record: ExecutionCompositionV1['record'] = {
+    schemaVersion: 'execution_record_v1',
+    recordId: 'exec-rec-1',
+    identity: PE_IDENTITY,
+    metric: 'obligations',
+    asOfDate: '2027-06-30',
+    budgetFiscalYear: 2027,
+    amount: { originalValue: '50', originalUnit: 'millions', valueMillions: '50' },
+    sourceSystem: 'DAI',
+    sourceDocumentId: 'doc-exec',
+    sourceSha256: SHA('2'),
+    evidenceIds: ['ev-exec-2', 'ev-exec-1'],
+    cumulative: true,
+  };
+  return {
+    schemaVersion: 'execution_composition_v1',
+    record,
+    metricFact: record,
+    executedPosition: {
+      projectionId: 'executed_test',
+      field: 'executed',
+      identity: PE_IDENTITY,
+      fiscalYear: 2027,
+      metric: 'obligations',
+      money: record.amount,
+      asOfDate: '2027-06-30',
+      cumulative: true,
+      canonicalWriteAllowed: false,
+      ...overrides,
+    },
+  };
+}
+
+describe('buildExecutionStagePositionProjectionV1 (Gap 5 decision B2)', () => {
+  it('builds a schema-valid execution stage_position, threading metric/asOfDate/cumulative', () => {
+    const result = buildExecutionStagePositionProjectionV1(
+      executionComposition(),
+      PROVENANCE,
+      'verified',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(() => phase6NativeProjectionV1Schema.parse(result.projection)).not.toThrow();
+    expect(result.projection.stage).toBe('execution');
+    expect(result.projection.track).toBe('post_enactment');
+    expect(result.projection.payload.executionMetric).toBe('obligations');
+    expect(result.projection.payload.asOfDate).toBe('2027-06-30');
+    expect(result.projection.payload.cumulative).toBe(true);
+  });
+
+  it('carries the evidence from the underlying execution record, not an empty list', () => {
+    const result = buildExecutionStagePositionProjectionV1(
+      executionComposition(),
+      PROVENANCE,
+      'verified',
+    );
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.projection.evidenceIds).toEqual(['ev-exec-1', 'ev-exec-2']);
+  });
+
+  it('refuses when the composition has no executed position, rather than fabricating one', () => {
+    const composition = executionComposition();
+    composition.executedPosition = undefined;
+    const result = buildExecutionStagePositionProjectionV1(composition, PROVENANCE, 'verified');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.reason).toBe('no_executed_position');
+  });
+
+  it('uses no synonym for the existing metric vocabulary — the payload value is exactly the enum member', () => {
+    const result = buildExecutionStagePositionProjectionV1(
+      executionComposition({ metric: 'disbursements' }),
+      PROVENANCE,
+      'verified',
+    );
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.projection.payload.executionMetric).toBe('disbursements');
   });
 });

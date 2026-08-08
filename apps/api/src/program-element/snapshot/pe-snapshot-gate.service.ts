@@ -41,6 +41,7 @@ import {
 import { resolveSnapshotReadModeV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import type { SnapshotReadDecisionV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import { SNAPSHOT_READ_PORT_V1 } from '../../defense-budget/promotion/snapshot-read-port.tokens.js';
+import { resolveCanaryRollbackV1 } from '../../defense-budget/promotion/canary-controls-v1.js';
 
 const DEFENSE_BUDGET_DOMAIN = 'defense_budget';
 
@@ -72,6 +73,20 @@ export class PeSnapshotGateService {
       this.environment(),
     );
     const activeSnapshot = await resolver.resolve();
+
+    // Phase 7 Gap 5 decision C. Checked first and unconditionally: the whole
+    // point of a rollback switch is that it does not depend on correctly
+    // reasoning through resolveSnapshotReadModeV1's other branches to take
+    // effect.
+    const rollback = resolveCanaryRollbackV1({
+      rollbackEngaged: this.config.get('PE_SNAPSHOT_CANARY_ROLLBACK', { infer: true }) === 'on',
+    });
+    if (rollback.forceLegacy) {
+      return {
+        decision: { serve: 'legacy', compare: false, reason: 'canary_rollback_engaged' },
+        activeSnapshot,
+      };
+    }
 
     const configuredMode = this.config.get('PE_SNAPSHOT_READ_MODE', { infer: true });
     const canaryTenantIds = (this.config.get('PE_SNAPSHOT_CANARY_TENANTS', { infer: true }) ?? '')

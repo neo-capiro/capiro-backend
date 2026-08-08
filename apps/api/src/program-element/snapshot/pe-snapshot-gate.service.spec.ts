@@ -94,6 +94,47 @@ describe('PeSnapshotGateService', () => {
     expect(port.loadActiveSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it('Gap 5 decision C: the rollback switch forces legacy even in snapshot mode', async () => {
+    const gate = new PeSnapshotGateService(
+      portReturning(activeSnapshot()),
+      config({
+        PE_SNAPSHOT_READ_MODE: 'snapshot',
+        PE_SNAPSHOT_CANARY_ROLLBACK: 'on',
+        NODE_ENV: 'test',
+      }),
+    );
+    const { decision } = await gate.resolve('tenant-1');
+    expect(decision).toEqual({
+      serve: 'legacy',
+      compare: false,
+      reason: 'canary_rollback_engaged',
+    });
+  });
+
+  it('Gap 5 decision C: the rollback switch also overrides an active canary tenant', async () => {
+    const gate = new PeSnapshotGateService(
+      portReturning(activeSnapshot()),
+      config({
+        PE_SNAPSHOT_READ_MODE: 'snapshot_canary',
+        PE_SNAPSHOT_CANARY_TENANTS: 'tenant-a',
+        PE_SNAPSHOT_CANARY_ROLLBACK: 'on',
+        NODE_ENV: 'test',
+      }),
+    );
+    const { decision } = await gate.resolve('tenant-a');
+    expect(decision.serve).toBe('legacy');
+    expect(decision.reason).toBe('canary_rollback_engaged');
+  });
+
+  it('defaults to not rolled back when the switch is absent from config', async () => {
+    const gate = new PeSnapshotGateService(
+      portReturning(activeSnapshot()),
+      config({ PE_SNAPSHOT_READ_MODE: 'snapshot', NODE_ENV: 'test' }),
+    );
+    const { decision } = await gate.resolve('tenant-1');
+    expect(decision.reason).toBe('mode_snapshot');
+  });
+
   it('passes loadRows through to the underlying port', async () => {
     const port = portReturning(activeSnapshot());
     const gate = new PeSnapshotGateService(port, config({ NODE_ENV: 'test' }));

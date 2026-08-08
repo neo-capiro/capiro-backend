@@ -64,14 +64,27 @@ export interface SnapshotReadDecisionV1 {
   serve: 'legacy' | 'snapshot';
   /** Whether to compute the other side and compare digests. */
   compare: boolean;
-  /** Machine-readable reason, for the metric label. Never contains data. */
+  /**
+   * Machine-readable reason, for the metric label. Never contains data.
+   *
+   * `canary_rollback_engaged` is produced by `resolveCanaryRollbackV1`
+   * (`canary-controls-v1.ts`), not by this function — it is declared here
+   * because it is still a `SnapshotReadDecisionV1` reason, and a caller that
+   * checks the rollback switch before calling `resolveSnapshotReadModeV1`
+   * needs a value from this same union to report it with. Deliberately
+   * distinct from `mode_legacy`: an operator watching this metric needs to
+   * tell "the mode is configured to legacy" apart from "an emergency rollback
+   * overrode whatever the mode was," and collapsing them would hide exactly
+   * the signal the rollback switch exists to surface.
+   */
   reason:
     | 'mode_legacy'
     | 'mode_shadow'
     | 'canary_tenant'
     | 'canary_non_tenant'
     | 'mode_snapshot'
-    | 'no_active_snapshot';
+    | 'no_active_snapshot'
+    | 'canary_rollback_engaged';
 }
 
 /**

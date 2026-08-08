@@ -29,10 +29,30 @@ promotion cannot be evaluated until they have happened:
   row is refused by eligibility rather than promoted on a default.
 - `persist-defense-budget-projection-plan-v1 --plan <plan.json> --family <f>
   --producer-version <id> --certification-sha256 <sha> --commit` — files the
-  Phase 4/5/6 projection plan the eligibility record will name. Until the
-  producers call this themselves, it is a separate operator step after the
-  family planner runs. Exit code 3 means the plan is `BLOCKED` (it is still
-  filed — a blocked plan is evidence); that blocks promotion by design.
+  Phase 4/5/6 projection plan the eligibility record will name. This is a
+  separate operator step **by design**, not a temporary gap: Phase 5's
+  mandatory negative control NC20 forbids its planner from importing Prisma, so
+  the pure-planner / separate-persist-verb split is the architecture, the same
+  shape `file-defense-budget-promotion-plan-v1` uses for promotion plans. Exit
+  code 3 means the plan is `BLOCKED` (it is still filed — a blocked plan is
+  evidence); that blocks promotion by design.
+
+- **For the `committee` family only**, the plan document has to be built first,
+  because Phase 6 emits audit projections rather than a plan:
+
+  ```text
+  build-defense-budget-phase6-projection-plan-v1 --cycle-id <id> --fiscal-year <fy> --out plan.json
+  persist-defense-budget-projection-plan-v1 --plan plan.json --family committee \
+    --producer-version build-defense-budget-phase6-projection-plan-v1@1 \
+    --certification-sha256 <phase6_cycle_certification.content_sha256> \
+    --certification-id <phase6_cycle_certification.id> --commit
+  ```
+
+  The build verb is read-only and has no `--commit`. It reads every
+  non-superseded `phase6_audit_projection` row for the cycle/FY; a `superseded`
+  row is never a candidate, and an unresolved or conflicting binding becomes a
+  retained `no_op`/`conflict` candidate rather than being dropped, so the filed
+  plan can prove it was complete.
 
 Background: [`CANONICAL-PROMOTION-V1.md`](../defense-budget/CANONICAL-PROMOTION-V1.md).
 

@@ -38,6 +38,7 @@ import {
   canonicalMappingRegistryHashV1,
 } from './canonical-mapping-registry-v1.js';
 import { familyRequiresStageSourceProfileV1 } from '../stages/stage-source-profile-coverage-v1.js';
+import { NOOP_SLO_METRIC_RECORDER_V1, type SloMetricRecorderV1 } from './slo-metrics-v1.js';
 import type { BudgetFamilyV1, ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 
 /* ------------------------------------------------------------------ */
@@ -230,19 +231,50 @@ export interface PromotionEligibilityServiceOptionsV1 {
   now: () => Date;
   /** Deterministic eligibility identifier, derived by the caller's convention. */
   eligibilityId: (request: PromotionEligibilityRequestV1) => string;
+  /**
+   * Phase 7 Gap 5 decision C. Optional and defaulted to a no-op, so every
+   * existing caller keeps compiling unchanged. Measures
+   * `eligibility_evaluation_latency_ms` around the whole evaluation — not only
+   * the allowed path, since a slow refusal is still a latency fact an SLO
+   * needs to see. The threshold this emits is always
+   * `THRESHOLD_PENDING_ROLLOUT_BASELINE`; see `slo-metrics-v1.ts`.
+   */
+  sloMetrics?: SloMetricRecorderV1;
 }
 
 /**
  * Builds an eligibility record from trusted persistence and evaluates it.
  */
 export class DefenseBudgetPromotionEligibilityServiceV1 {
+  private readonly sloMetrics: SloMetricRecorderV1;
+
   constructor(
     private readonly repository: PromotionEligibilityRepositoryV1,
     private readonly audit: PromotionAuditSinkV1,
     private readonly options: PromotionEligibilityServiceOptionsV1,
-  ) {}
+  ) {
+    this.sloMetrics = options.sloMetrics ?? NOOP_SLO_METRIC_RECORDER_V1;
+  }
 
   async evaluate(request: PromotionEligibilityRequestV1): Promise<PromotionEligibilityResultV1> {
+    const startedAtMs = this.options.now().getTime();
+    let outcome: 'ALLOWED' | 'REFUSED' | 'ERROR' = 'ERROR';
+    try {
+      const result = await this.evaluateInner(request);
+      outcome = result.eligible ? 'ALLOWED' : 'REFUSED';
+      return result;
+    } finally {
+      this.sloMetrics.record('eligibility_evaluation_latency_ms', this.options.now().getTime() - startedAtMs, {
+        cycleId: request.cycleId,
+        environment: request.environment,
+        outcome,
+      });
+    }
+  }
+
+  private async evaluateInner(
+    request: PromotionEligibilityRequestV1,
+  ): Promise<PromotionEligibilityResultV1> {
     const domain = request.domain ?? 'defense_budget';
     const blocks: { reason: PromotionEligibilityBlockReasonV1; detail: string }[] = [];
 

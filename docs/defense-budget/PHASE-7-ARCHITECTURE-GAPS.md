@@ -1,14 +1,22 @@
 # Phase 7 — open architecture gaps
 
-**Status as of session 10 (2026-08-08):** Gaps 2, 3, 4, and 5 are **closed**.
-Gap 1 is **partially closed** — see its update below for exactly which stages.
-Gap 5 was found *and* closed in session 10: found by attempting the work
-session 9's handoff listed as needing no owner decision, and closed after Neo
-made the four decisions it escalated, which are recorded verbatim in its
-section.
-**Owner needed:** none. Every decision this file escalated has been made and
-implemented. What remains under Gap 5 is producer wiring and a DB-backed
-rehearsal, neither of which needs a decision first.
+**Status as of session 11 (2026-08-08):** Gaps 1, 2, 3, 4, and 5 are **all
+closed**. Gap 1's three remaining stages — enacted proof linkage, execution
+metric/as-of semantics, and package/account/transfer-pair action identity —
+were decided by Neo and implemented this session, so the "partially closed"
+qualifier this file carried since session 9 is gone.
+
+**Owner needed: none.** Every architecture decision this file ever escalated has
+now been made and implemented, and each one is recorded verbatim in its own
+section so it is not reopened. What remains is not architecture:
+
+- rebuilding and persisting existing Phase 4/5/6 outputs, and chaining the
+  persist verb into the producing pipelines — both pure engineering;
+- the operational acceptance gates (measured SLO thresholds, a live canary, any
+  real deployment), which require separate authorization and were deliberately
+  not performed. Their status is **IMPLEMENTATION COMPLETE / LIVE ACCEPTANCE
+  NOT RUN — AUTHORIZATION REQUIRED**, which is a scheduling state, not an
+  incomplete-code state. See the SLO/canary/deployment section.
 **Why this file exists:** two of these gaps had been rediscovered twice, by
 two different sessions, each time by trying to build the thing they block.
 This is the escalation artifact that stopped the third rediscovery from
@@ -701,19 +709,105 @@ What remains is therefore chaining, not wiring: the runbook now documents the
 persist step, and a producing pipeline should call the verb after its planner,
 the way `plan → file → validate → authorize → execute` chains today.
 
-**Still open under decision 3, and this one does need an owner:** Phase 6 has
-**no plan-shaped document to persist.** Phase 4 and Phase 5 emit a
-`*CanonicalProjectionPlanV1` with `candidates[].operation`, exclusions, and a
-`contentSha256`. Phase 6 emits native projections plus a cycle certification,
-and the committee family's projection is computed at promotion-plan time by
-`projectPhase6ProjectionsV1` reading `phase6_audit_projection`. Manufacturing a
-Phase 6 plan document would require deciding what a Phase 6 projection candidate
-is, what `operation` it carries (which needs a canonical diff Phase 6 does not
-perform), and what its exclusions are — three semantic decisions, which is
-exactly what this file exists to stop someone guessing at. Until that is
-answered, `loadProjectionPlans` returns nothing for family `committee`, and the
-service refuses the promotion with `projection_hash_mismatch` — a visible
-refusal, not a silent gap.
+### The Phase 6 plan-document decisions — MADE 2026-08-08 by Neo. Do not reopen.
+
+Session 10 escalated this as needing an owner: Phase 6 had **no plan-shaped
+document to persist**, and manufacturing one required three semantic decisions.
+All three were made, plus a fourth on architecture. Recorded verbatim.
+
+**A1 — one candidate boundary.** One normalized `phase6_audit_projection` row
+is one persisted projection-plan candidate. Do **not** group by source
+document, committee, family, verification candidate, or cycle. The boundary is
+the smallest Phase 6 projection unit that can independently be included,
+excluded, or blocked — so a funding position, action, provision, enactment
+observation, or execution observation is its own candidate per its existing
+`projectionKind`. Each candidate must retain enough identity to deterministically
+reconstruct the exact audit projection row and its proof binding. Artifact
+binding uses the exact artifact hash already bound to that projection; a
+candidate legitimately dependent on multiple artifacts binds to the existing
+deterministic certified artifact-set hash, never to one arbitrarily chosen
+constituent.
+
+**A2 — `operation` is the producer's disposition, not a canonical operation.**
+Do **not** add a canonical-row diff to Phase 6; Phase 7 owns canonical mapping
+and snapshot diff, and Phase 6 must not start reading canonical tables to
+manufacture `insert`/`update`/`no_op` semantics it never had. Semantics:
+
+- `insert` — fully bound, verified/certified, non-conflicting; emit for Phase 7
+  consumption.
+- `no_op` — intentionally not promotable, retained in the plan for
+  completeness/auditability with an explicit `exclusionReason`.
+- `conflict` — two or more candidate facts cannot resolve to one unambiguous
+  promotable projection, including duplicate-natural-key disagreement or
+  conflicting binding.
+- `update` — **unused by Phase 6 v1.** Do not invent one merely because the
+  enum contains it. A future schema version may define it if Phase 6 gains a
+  legitimate producer-local prior-plan comparison.
+
+Most importantly: **`insert` here does not mean "insert a canonical database
+row."** Phase 7 still determines INSERT / SUPERSEDE / UNCHANGED / CORRECTION /
+BLOCKED for itself after loading the immutable family plan and applying its own
+mapping registry. That distinction is documented directly next to the adapter.
+
+**A3 — `bindingStatus` maps by semantic category**, preserving the exact
+existing enum strings. Bound/accepted → `insert`, no exclusion reason.
+Unbound/unresolved/candidate → `no_op` + `unresolved_binding` (or a more
+specific existing shared reason where one already applies — do not collapse a
+precise reason into `unresolved_binding`). Ambiguous/conflicting → `conflict` +
+`binding_conflict`. Unsupported/intentionally non-projectable → `no_op` +
+`unsupported_projection`. Add the minimum precise new Phase 6 reasons rather
+than forcing semantically different states into an inaccurate existing value.
+Two further rules: same natural key + same normalized content may collapse
+deterministically or produce a `no_op` duplicate per the existing composition
+policy; same natural key + **materially different content must be `conflict`,
+never last-wins.** The persisted plan must preserve excluded and conflicting
+candidates rather than dropping them, so eligibility can independently prove the
+plan was complete.
+
+**A4 — persistence stays outside the pure planners.** Confirmed the session-10
+NC20 finding. The architecture is `pure deterministic planner → immutable plan
+object + content hash → separate persistence command → reload + hash
+verification → Phase 7 eligibility`, and the same separation applies to Phase 6.
+Do not import Prisma into any pure planner, do not weaken NC20, and do not add
+`--commit` to an existing planner verb.
+
+### Session 11: A1–A4 implemented, and committee can now file a real plan
+
+- `phase6/phase6-projection-plan-builder-v1.ts` — pure, Prisma-free. One row =
+  one candidate (A1); `superseded` rows are read but never become candidates,
+  since a superseded row is a historical fact whose successor represents current
+  truth and including both would corrupt the duplicate analysis. `operation`
+  per A2, with `update` never emitted and a test asserting so. `bindingStatus`
+  and `projectionStatus` mapped per A3, with `projectionStatus` checked first
+  because `blocked`/`candidate` are producer-level states that pre-empt any
+  binding question. Duplicate resolution mirrors
+  `rdte-projection-planner-v1.ts`'s `dedupeCandidates` deliberately rather than
+  reinventing it: identical content collapses to one candidate merging its
+  sources; differing content splits into one `conflict` candidate per member.
+  A collapsed multi-artifact duplicate binds to the deterministic sorted
+  artifact-set hash, and a single-artifact group keeps its own hash.
+- Four new exclusion reasons in `PROJECTION_EXCLUSION_BLOCKS_PROMOTION_V1`:
+  `unresolved_binding`, `binding_conflict`, `unsupported_projection`,
+  `phase6_projection_blocked` — all blocking. Added minimally, because RDTE's
+  `unresolved_evidence`/`artifact_rejected` describe something more specific
+  than "this audit projection's native binding never resolved."
+  `artifact_needs_review` is **reused**, not duplicated, for a not-yet-verified
+  projection, per A3's instruction to prefer an existing precise reason.
+- `scripts/build-defense-budget-phase6-projection-plan-v1.ts` — the I/O half,
+  read-only, no `--commit` and no write mode. Reads through the MAIN
+  `PrismaClient`'s raw SQL, matching the rationale
+  `phase6-audit-projection-repository-prisma-v1.ts` already records for why it
+  does not open a second client against `.prisma/phase6-projection-client`.
+  Chains into the existing generic `persist-defense-budget-projection-plan-v1`.
+
+**Proven end to end against a real disposable Postgres** — the rehearsal is now
+**124 checks** (from 117). It deploys the `phase6-projection` migrations onto the
+same physical database (proving that shared-database reasoning rather than
+assuming it), seeds two live rows plus one superseded row, runs the real build
+verb, and asserts the superseded row does not become a candidate, that A3's
+mapping produces exactly `insert` + `no_op`, and that the real persist verb
+files the committee plan under the serve role. Exit 3 there is the *correct*
+outcome for a BLOCKED plan and is accepted as such.
 
 **Not done, and not blocked on a decision:**
 
@@ -722,6 +816,180 @@ refusal, not a silent gap.
    before Phase 7 can proceed against real data.
 2. No producing pipeline calls the persist verb yet, so filing a projection plan
    is currently a separate operator step (documented in the runbook).
+3. `composeEnactedStageV1` still produces `EnactedLineCandidateV1` rows from
+   real extraction upstream of B1's builder — B1 closes "given a real candidate
+   and a real proof, build the projection correctly," not "discover the
+   candidate."
+
+---
+
+## Gap 1's remaining stages — DECIDED 2026-08-08 by Neo, and closed
+
+Session 10's narrower reading was accepted: B1 and B2 are plumbing, not new
+semantic design; only B3 was a genuine addition.
+
+**B1 — enacted proof: thread the existing proof through.** The contract already
+exists; do not define a second enactment-proof model. Thread the existing object
+through builder input → audit projection → certification → persisted plan →
+Phase 7 eligibility, preserving the exact source/public-law/incorporation hashes
+and proof type.
+
+*Shipped:* `buildEnactedStagePositionProjectionV1`
+(`phase6-projection-builder-v1.ts`) takes an `EnactedLineCandidateV1` plus the
+existing `DefenseBudgetEnactmentProofV1` and emits a `public_law` /
+`continuing_resolution` `stage_position`. It carries `proofId` into
+`enactmentProofId` and preserves `publicLawNumber`, `proofType`, and **both**
+source SHAs on the payload — "thread the proof through" means a reader of the
+persisted projection sees what governed it without a second lookup. It performs
+the same two checks `assertCandidateAgainstProofV1` already performs in
+`enacted-composer-v1.ts` (accepted binding, fiscal-year match), so a candidate
+that would fail the composer fails here identically rather than slipping through
+a looser second path. Continuing resolutions without `explicitLineAuthority` are
+refused by name rather than surfacing as an opaque ZodError from the
+projection's own schema.
+
+**B2 — execution metric/as-of: thread the existing vocabulary through.** Use the
+existing metric vocabulary and as-of/period semantics, create no synonyms, and
+fail closed if a required execution observation has no explicit metric or as-of
+semantics.
+
+*Shipped:* `buildExecutionStagePositionProjectionV1` takes the whole
+`ExecutionCompositionV1` — not just its `executedPosition` — so the underlying
+`ExecutionRecordV1`'s required, non-empty `evidenceIds` travel with it rather
+than being silently dropped. `metric`/`asOfDate`/`cumulative` go onto the
+payload verbatim from the existing enum. Fail-closed is structural here:
+`executedPosition`'s own type requires all three, so this function cannot
+construct a projection missing them, and
+`phase6NativeProjectionV1Schema`'s matching superRefine is defense-in-depth for
+a hand-built payload elsewhere.
+
+**B3 — a discriminated action-scope identity, not a fake budget-line identity.**
+Define one discriminated native action-scope identity contract with PACKAGE,
+ACCOUNT and TRANSFER_PAIR variants; derive the action's natural identity from
+the scope identity plus action kind, exact vehicle/stage/FY, and a
+source-defined discriminator where genuinely necessary. Requirements: a PACKAGE
+action is not converted into a fake PE/BLIN/SAG; an ACCOUNT action stays account
+scoped; TRANSFER_PAIR preserves both endpoints and **direction matters — A→B is
+not B→A**; do not use titles as identity; do not infer an account; an action
+that cannot be uniquely identified stays excluded or conflicting; implemented
+transfer and transfer authority remain distinct concepts. Add this to the Phase
+6 contract rather than leaking a special-case string through Phase 7.
+
+*Shipped:* `phase6/phase6-action-scope-identity-v1.ts` — a zod
+`discriminatedUnion` over exactly those three kinds, matching the three shapes
+`defense-budget-stage-action-v1.ts`'s own schema already validates as a valid
+primary scope or transfer endpoints. `phase6ActionScopeIdentityKeyV1` produces a
+`TAG:field:field` key in the same shape `nativeIdentityKeyV1` uses for a single
+line, hashed by the same `sha256Hex`, so a promotion trace reads a scope
+identity exactly as it already reads a native line.
+
+Direction sensitivity is structural, not a convention: `from`/`to` are ordered
+fields and are deliberately **not** sorted into a canonical pair order, with a
+test asserting A→B and B→A hash differently. PACKAGE scopes on the action's real
+`vehicleClass` rather than a fabricated per-instance vehicle ID; ACCOUNT is not
+split into component + appropriation-account substructure the upstream data does
+not provide, because inventing that split *is* inferring an account. An action
+naming only one side of a transfer is refused with
+`incomplete_transfer_endpoint` rather than having its missing endpoint guessed.
+Transfer authority stays distinct from an implemented transfer by construction:
+a `general_provision` or `directive` action never reaches the TRANSFER_PAIR
+branch, because it will not carry both endpoint identities.
+
+`buildStageActionProjectionV1` now falls back to this derivation instead of
+refusing every non-identity-scoped action, and records `identityScopeKind`
+(`NATIVE_LINE` | `PACKAGE` | `ACCOUNT` | `TRANSFER_PAIR`) on the payload so a
+reader can tell a scope-derived identity from a single native line without
+re-deriving it.
+
+---
+
+## SLOs, canary, and deployment — DECIDED 2026-08-08 by Neo
+
+The instruction, in one line: **implement the measurement and the controls; do
+not invent the thresholds; do not execute canary or deployment without separate
+authorization.** And critically — do not let the absence of that authorization
+make the deterministic local closeout look like a failure.
+
+### SLOs — MEASUREMENT IMPLEMENTED, THRESHOLD PENDING ROLLOUT BASELINE
+
+Final thresholds come from the measured pre-Phase-7 production baseline and are
+approved during rollout. Nothing in this repository substitutes for that.
+
+*Shipped:* `promotion/slo-metrics-v1.ts` declares all nine metrics Neo named —
+eligibility latency, plan load/hash-verification latency, staging duration,
+activation duration, snapshot-read latency, shadow mismatch, outbox
+backlog/age, rollback duration, DB connection/load — each with a unit and its
+own dimension list. Every emission carries the literal
+`THRESHOLD_PENDING_ROLLOUT_BASELINE`, never a number.
+
+**Wired and emitting today (2 of 9):** `eligibility_evaluation_latency_ms` in
+`DefenseBudgetPromotionEligibilityServiceV1.evaluate()` (measured around the
+whole evaluation including refusals — a slow refusal is still a latency fact),
+and `projection_plan_load_latency_ms` in `PrismaProjectionPlanRepositoryV1`'s
+`loadVerified`/`loadForScope`. Both are optional constructor dependencies
+defaulting to a no-op, so every existing caller compiles unchanged.
+
+**Specified but not yet wired (7 of 9):** the rest are declared with a contract
+for a future emitter but have no emission call site in their services. Recorded
+as data in `SLO_METRIC_WIRING_STATUS_V1`, not prose, with a test asserting the
+map cannot drift from the taxonomy — an emission added without updating it is a
+documentation lie the next reader could not otherwise catch. Reported honestly
+here rather than claimed alongside the two that are real: wiring seven call
+sites across modules outside this pass's scope in one sitting risks getting
+several wrong in code nobody asked to have touched.
+
+No concrete metrics backend is implemented, deliberately — which namespace,
+which IAM role, which service is an infrastructure question nobody has asked
+yet, and there is no deployed Phase 7 to send to. The module stops at the
+`SloMetricSinkV1` port with a console and a no-op implementation.
+
+### Canary — controls implemented, disabled by default, not authorized to run
+
+Most of what Neo asked for already existed from Workstream M and is
+deliberately **not** duplicated: `PE_SNAPSHOT_READ_MODE` (defaults `legacy`),
+`PE_SNAPSHOT_CANARY_TENANTS`, `resolveSnapshotReadModeV1`'s tenant allowlist,
+`compareShadowReadV1`'s comparison and severity classes, and the "no active
+snapshot forces legacy" fail-safe.
+
+Two pieces were genuinely missing, and are now in
+`promotion/canary-controls-v1.ts`:
+
+- **A rollback switch distinct from the mode.** `PE_SNAPSHOT_CANARY_ROLLBACK`
+  (`off` by default) with `resolveCanaryRollbackV1`, checked **first and
+  unconditionally** in `PeSnapshotGateService.resolve()` — the point of a kill
+  switch is that it does not depend on correctly reasoning through the other
+  mode branches. It reports its own distinct reason,
+  `canary_rollback_engaged`, rather than reusing `mode_legacy`: an operator
+  needs to tell "configured to legacy" apart from "an emergency rollback
+  overrode whatever the mode was," and collapsing them hides exactly the signal
+  the switch exists to surface.
+- **Mismatch reporting.** `CanaryMismatchAggregatorV1` — a bounded rolling
+  window over already-computed `ShadowComparisonV1` results, reporting
+  compared/matched/mismatch-rate/worst-severity plus `shouldHaltCanary`. It
+  halts the instant any single observation blocks the canary, never letting an
+  average dilute one P0 back into "mostly fine." An empty window reports a
+  healthy, unblocked canary rather than a division-by-zero alarm.
+
+**No live canary was enabled, and none may be without separate authorization.**
+
+### Deployment — none performed, and that is not a defect
+
+No AWS mutation, no migration applied to a shared environment, no task launch,
+no canonical promotion, no flag enablement, no ALB or EventBridge change, and no
+production traffic. Those remain explicit operational acceptance steps requiring
+separate authorization.
+
+Per Neo's instruction, the correct status line for this work is:
+
+```text
+IMPLEMENTATION COMPLETE
+LIVE ACCEPTANCE NOT RUN — AUTHORIZATION REQUIRED
+```
+
+The overall Phase 7 release is not production-accepted until those operational
+gates are eventually run. They are **not** reasons to block completion of code
+that can be validated locally and against disposable containers, and they should
+not be reported as incomplete code.
 
 ---
 

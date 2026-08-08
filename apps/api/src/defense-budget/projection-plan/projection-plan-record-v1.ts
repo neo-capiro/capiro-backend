@@ -83,6 +83,24 @@ export const PROJECTION_EXCLUSION_BLOCKS_PROMOTION_V1: Record<string, boolean> =
   non_annual_cost_value: false,
   outyear_not_request: false,
   not_projection_eligible: false,
+
+  /**
+   * Phase 7 Gap 5 decision A3. Phase 6's own `bindingStatus` vocabulary has no
+   * member that already matches one of the reasons above precisely enough to
+   * reuse — RDTE/non-RDTE's `unresolved_evidence` and `artifact_rejected`
+   * describe something more specific (a missing evidence item, a rejected
+   * artifact) than "this audit projection's native binding never resolved."
+   * Added here, minimally, rather than forcing a semantically different state
+   * into an inaccurate existing value. All three are blocking: none of them
+   * describes a value that was correctly excluded by design.
+   */
+  unresolved_binding: true,
+  binding_conflict: true,
+  unsupported_projection: true,
+  /** A Phase 6 producer marked this audit projection `blocked` outright —
+   * distinct from a binding disagreement, since the producer itself refused it
+   * for a reason this substrate does not need to re-derive. */
+  phase6_projection_blocked: true,
 };
 
 /* ------------------------------------------------------------------ */

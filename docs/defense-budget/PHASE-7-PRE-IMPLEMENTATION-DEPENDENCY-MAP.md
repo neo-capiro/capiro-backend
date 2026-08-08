@@ -54,9 +54,23 @@ prerequisites in this table were accepted on the presence of a contract rather
 than of a producer.
 
 Closed in session 10 under Gap 5 decision 3: `defense_budget_projection_plan`
-(migration `20260907020000`) plus the `projection-plan/` substrate. The
-prerequisite as originally intended is satisfied **only once the three
-producers write through it** — see Gap 5's "remaining producer wiring".
+(migration `20260907020000`) plus the `projection-plan/` substrate.
+
+**Session 11 completes it.** Phase 6 was the last family with no plan-shaped
+document to persist at all; `build-defense-budget-phase6-projection-plan-v1`
+plus the pure `phase6-projection-plan-builder-v1.ts` close that, and the DB
+rehearsal proves the committee family filing a real, non-empty plan end to end.
+All three families can now produce a persisted plan.
+
+Note the shape this settled into, because it looks like an omission and is not:
+**filing stays a separate verb, deliberately.** Phase 5's mandatory negative
+control NC20 forbids its planner scripts from importing Prisma at all, so
+"wire persistence into the planner" is prohibited, not merely unfinished. The
+architecture Neo confirmed is `pure deterministic planner → immutable plan +
+content hash → separate persistence command → reload + hash verification →
+Phase 7 eligibility`. What remains is chaining the verb into producing
+pipelines and rebuilding existing outputs — operational sequencing, not a
+missing capability.
 
 **The generalizable check, for any future prerequisite in this table:** ask
 whether the thing is *produced and persisted*, not whether a type for it

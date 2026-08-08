@@ -24,6 +24,10 @@ import {
   summarizeProjectionPlanV1,
   type DefenseBudgetProjectionPlanRecordV1,
 } from './projection-plan-record-v1.js';
+import {
+  NOOP_SLO_METRIC_RECORDER_V1,
+  type SloMetricRecorderV1,
+} from '../promotion/slo-metrics-v1.js';
 import type { BudgetFamilyV1 } from '../contracts/extraction-artifact-v1.js';
 
 export interface ProjectionPlanPrismaLikeV1 {
@@ -80,7 +84,22 @@ const SELECT_COLUMNS = `
 `;
 
 export class PrismaProjectionPlanRepositoryV1 implements ProjectionPlanRepositoryV1 {
-  constructor(private readonly prisma: ProjectionPlanPrismaLikeV1) {}
+  private readonly sloMetrics: SloMetricRecorderV1;
+
+  /**
+   * Phase 7 Gap 5 decision C. `sloMetrics` is optional and defaults to a
+   * no-op, so every existing caller keeps compiling unchanged. Measures
+   * `projection_plan_load_latency_ms` around `loadVerified` and
+   * `loadForScope` — the reload-and-verify step decision A4's architecture
+   * makes load-bearing for every family, so its latency is exactly the number
+   * an SLO for "can Phase 7 reload a plan fast enough" needs.
+   */
+  constructor(
+    private readonly prisma: ProjectionPlanPrismaLikeV1,
+    sloMetrics?: SloMetricRecorderV1,
+  ) {
+    this.sloMetrics = sloMetrics ?? NOOP_SLO_METRIC_RECORDER_V1;
+  }
 
   async insert(record: DefenseBudgetProjectionPlanRecordV1): Promise<void> {
     // Re-validated rather than trusted: this is the last gate before a row the
@@ -115,14 +134,21 @@ export class PrismaProjectionPlanRepositoryV1 implements ProjectionPlanRepositor
   async loadVerified(
     projectionPlanId: string,
   ): Promise<DefenseBudgetProjectionPlanRecordV1 | null> {
-    const rows = await this.prisma.$queryRawUnsafe<ProjectionPlanRowV1[]>(
-      `SELECT ${SELECT_COLUMNS}
-         FROM "defense_budget_projection_plan"
-        WHERE "projection_plan_id" = $1`,
-      projectionPlanId,
-    );
-    const row = rows[0];
-    return row == null ? null : verifyRowV1(row);
+    const startedAtMs = Date.now();
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<ProjectionPlanRowV1[]>(
+        `SELECT ${SELECT_COLUMNS}
+           FROM "defense_budget_projection_plan"
+          WHERE "projection_plan_id" = $1`,
+        projectionPlanId,
+      );
+      const row = rows[0];
+      return row == null ? null : verifyRowV1(row);
+    } finally {
+      this.sloMetrics.record('projection_plan_load_latency_ms', Date.now() - startedAtMs, {
+        family: 'unspecified_single_lookup',
+      });
+    }
   }
 
   async loadForScope(
@@ -130,6 +156,20 @@ export class PrismaProjectionPlanRepositoryV1 implements ProjectionPlanRepositor
     families: readonly BudgetFamilyV1[],
   ): Promise<DefenseBudgetProjectionPlanRecordV1[]> {
     if (families.length === 0) return [];
+    const startedAtMs = Date.now();
+    try {
+      return await this.loadForScopeInner(cycleId, families);
+    } finally {
+      this.sloMetrics.record('projection_plan_load_latency_ms', Date.now() - startedAtMs, {
+        family: [...families].sort((a, b) => a.localeCompare(b)).join('+'),
+      });
+    }
+  }
+
+  private async loadForScopeInner(
+    cycleId: string,
+    families: readonly BudgetFamilyV1[],
+  ): Promise<DefenseBudgetProjectionPlanRecordV1[]> {
     // Parameterized IN list rather than an interpolated one: the families come
     // from an operator-supplied scope.
     const placeholders = families.map((_, index) => `$${index + 2}`).join(', ');

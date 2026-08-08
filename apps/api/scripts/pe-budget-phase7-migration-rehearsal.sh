@@ -1265,6 +1265,122 @@ ok "the real persist verb files a plan under the serve role"
 ok "a contextual-only exclusion does not block, while its reason is still recorded"
 
 # =============================================================================
+log "Gap 5 decision A — the Phase 6 committee projection plan, end to end"
+# =============================================================================
+# `phase6_audit_projection` belongs to a separate Prisma schema project
+# (prisma/phase6-projection/schema.prisma) but the SAME physical database — the
+# same reasoning `phase6-audit-projection-repository-prisma-v1.ts` already
+# documents for why it reads/writes that table through the main PrismaClient's
+# raw SQL rather than a second client. Deploying its migrations onto this same
+# container, additively, proves that reasoning rather than assuming it.
+(cd "$API_ROOT" && npx prisma migrate deploy --schema prisma/phase6-projection/schema.prisma >/dev/null) \
+  || fail "phase6-projection schema migrations failed to deploy onto the shared database"
+ok "phase6-projection migrations apply onto the same physical database as the main schema"
+
+# One accepted/verified row (becomes an insert candidate) and one not-yet-
+# verified row on a different natural key (becomes a no_op/artifact_needs_review
+# candidate) — enough to exercise decision A3's mapping without re-testing
+# phase6-producer-rehearsal.ts's own already-proven certification chain.
+#
+# The second row uses projection_status 'candidate', not 'verified' +
+# bindingStatus 'unresolved': phase6_verified_binding_check (this schema's own
+# migration) refuses a verified stage_position with any binding_status other
+# than 'accepted' — the database-level twin of
+# phase6NativeProjectionV1Schema's superRefine, and a real invariant, not a
+# rehearsal-fixture inconvenience to route around with an unrealistic row.
+run_sql "
+INSERT INTO phase6_audit_projection (
+  projection_id, natural_key, idempotency_key, projection_kind,
+  verification_candidate_id, verification_run_id, artifact_id,
+  artifact_content_sha256, source_document_id, source_pdf_sha256,
+  source_profile_hash, native_identity_hash, track, stage, funding_field,
+  original_value, original_unit, amount_millions, direct_or_derived,
+  evidence_ids_jsonb, binding_status, projection_status, payload_jsonb
+) VALUES (
+  'p6proj-gap5-a-1', repeat('a', 64) || '|2027|hac_d|hacDMark', 'idem-gap5-a-1',
+  'stage_position', 'vc-gap5-a', 'vr-gap5-a', 'artifact-gap5-a', repeat('1', 64),
+  'doc-gap5-a', repeat('2', 64), repeat('3', 64), repeat('a', 64),
+  'appropriations', 'hac_d', 'hacDMark', '125', 'millions', 125,
+  'direct', '[\"ev-1\"]'::jsonb, 'accepted', 'verified',
+  '{\"fiscalYear\": 2027}'::jsonb
+);
+INSERT INTO phase6_audit_projection (
+  projection_id, natural_key, idempotency_key, projection_kind,
+  verification_candidate_id, verification_run_id, artifact_id,
+  artifact_content_sha256, source_document_id, source_pdf_sha256,
+  source_profile_hash, native_identity_hash, track, stage, funding_field,
+  original_value, original_unit, amount_millions, direct_or_derived,
+  evidence_ids_jsonb, binding_status, projection_status, payload_jsonb
+) VALUES (
+  'p6proj-gap5-a-2', repeat('b', 64) || '|2027|sasc|sascMark', 'idem-gap5-a-2',
+  'stage_position', 'vc-gap5-a', 'vr-gap5-a', 'artifact-gap5-a', repeat('1', 64),
+  'doc-gap5-a', repeat('2', 64), repeat('3', 64), repeat('b', 64),
+  'authorization', 'sasc', 'sascMark', '50', 'millions', 50,
+  'direct', '[\"ev-2\"]'::jsonb, 'unresolved', 'candidate',
+  '{\"fiscalYear\": 2027}'::jsonb
+);
+-- A superseded row on its own natural key must not become a candidate at all.
+INSERT INTO phase6_audit_projection (
+  projection_id, natural_key, idempotency_key, projection_kind,
+  verification_candidate_id, verification_run_id, artifact_id,
+  artifact_content_sha256, source_document_id, source_pdf_sha256,
+  source_profile_hash, native_identity_hash, track, stage, funding_field,
+  original_value, original_unit, amount_millions, direct_or_derived,
+  evidence_ids_jsonb, binding_status, projection_status, payload_jsonb
+) VALUES (
+  'p6proj-gap5-a-3', repeat('c', 64) || '|2027|hasc|hascMark', 'idem-gap5-a-3',
+  'stage_position', 'vc-gap5-a', 'vr-gap5-a', 'artifact-gap5-a', repeat('1', 64),
+  'doc-gap5-a', repeat('2', 64), repeat('3', 64), repeat('c', 64),
+  'authorization', 'hasc', 'hascMark', '10', 'millions', 10,
+  'direct', '[\"ev-3\"]'::jsonb, 'accepted', 'superseded',
+  '{\"fiscalYear\": 2027}'::jsonb
+);"
+ok "seeded two live Phase 6 audit-projection rows and one superseded row"
+
+GAP5_PHASE6_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-phase6-projection-plan.json"
+npx tsx "$SCRIPT_DIR/build-defense-budget-phase6-projection-plan-v1.ts" \
+  --cycle-id cycle-gap5-a --fiscal-year 2027 --out "$GAP5_PHASE6_PLAN_FILE" \
+  || fail "build-defense-budget-phase6-projection-plan-v1 could not build a plan document"
+ok "the real build verb reads phase6_audit_projection and produces a plan document"
+
+PHASE6_PLAN_CANDIDATE_COUNT="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).candidates.length)" "$GAP5_PHASE6_PLAN_FILE")"
+[ "$PHASE6_PLAN_CANDIDATE_COUNT" = "2" ] \
+  || fail "expected 2 candidates (the superseded row must not appear), got $PHASE6_PLAN_CANDIDATE_COUNT"
+ok "the superseded row did not become a candidate; exactly the two live rows did"
+
+PHASE6_PLAN_OPERATIONS="$(node -e "
+  const doc = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+  console.log(doc.candidates.map((c) => c.operation).sort().join(','));
+" "$GAP5_PHASE6_PLAN_FILE")"
+[ "$PHASE6_PLAN_OPERATIONS" = "insert,no_op" ] \
+  || fail "expected operations [insert,no_op] from A3's mapping, got [$PHASE6_PLAN_OPERATIONS]"
+ok "A3's mapping produced insert (accepted) and no_op (unresolved_binding) exactly as specified"
+
+# Exit 3 here means "filed, and correctly reported BLOCKED" — this plan's own
+# no_op/artifact_needs_review candidate makes that the CORRECT outcome, per
+# persist-defense-budget-projection-plan-v1's own documented exit codes. Only
+# 0 or 3 are acceptable; anything else is a real failure. `set +e`/`set -e`
+# bracket the call so `set -euo pipefail` does not abort the script on exit 3
+# before this line gets to inspect it.
+set +e
+DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  --plan "$GAP5_PHASE6_PLAN_FILE" --family committee \
+  --producer-version 'rehearsal-build-phase6-plan@1' \
+  --certification-sha256 "$(printf '5%.0s' $(seq 1 64))" \
+  --commit >/dev/null
+PHASE6_PERSIST_EXIT=$?
+set -e
+[ "$PHASE6_PERSIST_EXIT" = "0" ] || [ "$PHASE6_PERSIST_EXIT" = "3" ] \
+  || fail "persist-defense-budget-projection-plan-v1 could not file the Phase 6 plan as the serve role (exit $PHASE6_PERSIST_EXIT)"
+ok "the real persist verb files the Phase 6 committee plan under the serve role (exit $PHASE6_PERSIST_EXIT, BLOCKED plans are still filed)"
+
+[ "$(q "SELECT status FROM defense_budget_projection_plan
+         WHERE cycle_id = 'cycle-gap5-a' AND family = 'committee';")" = "BLOCKED" ] \
+  || fail "the filed committee plan should be BLOCKED (it carries one unresolved_binding candidate)"
+ok "committee family can now file a real, non-empty projection plan — Gap 5 decision A closes end to end"
+
+# =============================================================================
 log "Prisma validate/generate against the final schema"
 # =============================================================================
 (cd "$API_ROOT" && npx prisma validate --schema prisma/schema.prisma >/dev/null) \
