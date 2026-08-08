@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { EngagementService } from '../../engagement/engagement.service.js';
+import { ClientDocumentWriterService } from '../../client-documents/client-document-writer.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DOCX_MIME, markdownToMemoDocInput, renderMemoDocx } from './alert-memo-docx.js';
 
@@ -36,17 +36,12 @@ function decodeCursor(value?: string): RecapCursor | null {
   }
 }
 
-/**
- * Files a hearing recap as an ordinary client Document while retaining enough
- * generic provenance to reopen the source session and render a real Saved view.
- * A recap is not an alert memo and does not inherit alert-memo governance.
- */
 @Injectable()
 export class HearingRecapService {
   private readonly logger = new Logger(HearingRecapService.name);
 
   constructor(
-    private readonly engagement: EngagementService,
+    private readonly documents: ClientDocumentWriterService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -106,8 +101,6 @@ export class HearingRecapService {
     ]);
     const existing = await this.currentRecap(ctx, clientId, input.sessionId);
 
-    // A repeated click or retry is idempotent. Regeneration is explicit and must
-    // name the current document it replaces.
     if (existing && !input.replaceAttachmentId) {
       return {
         title: input.title,
@@ -124,7 +117,7 @@ export class HearingRecapService {
       markdownToMemoDocInput(input.markdown, client.name, input.title),
     );
     const fileName = `${input.title}.docx`.replace(/[\/:*?"<>|]+/g, '-');
-    const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
+    const saved = await this.documents.createAttachmentFromBuffer(ctx, {
       clientId,
       fileName,
       contentType: DOCX_MIME,
@@ -135,7 +128,7 @@ export class HearingRecapService {
     });
 
     if (input.replaceAttachmentId) {
-      await this.engagement
+      await this.documents
         .supersedeAttachment(ctx, input.replaceAttachmentId, saved.id)
         .catch((err) =>
           this.logger.warn(`superseding prior hearing recap failed: ${(err as Error).message}`),
