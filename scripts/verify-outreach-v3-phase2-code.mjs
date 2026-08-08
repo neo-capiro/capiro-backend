@@ -22,6 +22,7 @@ const steps = [
       'src/outreach-v3/state/outreach-command-contract.spec.ts',
       'src/outreach-v3/services/outreach-command-engine.service.spec.ts',
       'src/outreach-v3/services/outreach-command-proposal.service.spec.ts',
+      'src/outreach-v3/api/outreach-v3-state.guard.spec.ts',
       'src/outreach-v3/outreach-v3-phase2-architecture.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
     ],
