@@ -17,6 +17,8 @@
  * changed daily while claiming to describe an immutable exhibit, and a reader
  * could not decompose it.
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   MeasureConflationError,
   sumAttributedMeasures,
@@ -99,5 +101,59 @@ describe('measure provenance — snapshot and live external are never conflated'
       expect(exhibit.provenance.snapshotId).toBe('snap-1');
       expect(exhibit.provenance.asOf).toBe('2026-08-01T00:00:00.000Z');
     }
+  });
+
+  it('legacy-compatibility is its own kind and never merges with the others', () => {
+    const legacy: AttributedMeasure = {
+      amountM: 42,
+      count: 3,
+      unit: 'USD millions',
+      label: 'Government-named performer value (R-3 exhibit)',
+      provenance: {
+        kind: 'legacy_compatibility',
+        source: 'R-3',
+        table: 'program_element_performer',
+        reason: 'canonical_rdte_performer carries no money axis',
+      },
+    };
+    expect(() => sumAttributedMeasures([legacy, awards])).toThrow(MeasureConflationError);
+    expect(() => sumAttributedMeasures([legacy, exhibit])).toThrow(MeasureConflationError);
+  });
+});
+
+/**
+ * Regression guard for a defect that actually shipped: `getContractors`
+ * labelled its exhibit measure `kind: 'canonical_snapshot'` with a live
+ * `snapshotId`, while `namedPrimes` reads `program_element_performer`
+ * unconditionally. That attaches a real snapshot id to legacy data the moment
+ * any snapshot goes active — the exact misattribution this contract exists to
+ * prevent.
+ *
+ * Asserted against the source text rather than by invoking the method, because
+ * the method needs a live Prisma client and the property under test is which
+ * literal the code carries, not what a query returns.
+ */
+describe('getContractors does not claim snapshot provenance for a legacy read', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, 'program-element-read.service.ts'),
+    'utf8',
+  );
+  const block = source.slice(
+    source.indexOf('governmentExhibit:'),
+    source.indexOf('federalAwards:'),
+  );
+
+  it('labels the exhibit measure legacy_compatibility', () => {
+    expect(block).toContain("kind: 'legacy_compatibility'");
+  });
+
+  it('never labels it canonical_snapshot while the read is on the legacy table', () => {
+    expect(block).not.toContain("kind: 'canonical_snapshot'");
+    expect(block).not.toContain('snapshotId');
+  });
+
+  it('names the compatibility table it actually reads', () => {
+    expect(block).toContain('program_element_performer');
+    expect(source).toContain('FROM program_element_performer');
   });
 });
