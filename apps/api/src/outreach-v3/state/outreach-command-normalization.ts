@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   canonicalJsonStringify,
+  compareCanonicalStrings,
   type TargetCriteriaV1,
 } from './outreach-campaign-spec.v1.js';
 import type {
@@ -15,8 +16,8 @@ function normalizeText(value: string | null): string | null {
 }
 
 function normalizeSet(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b),
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort(
+    compareCanonicalStrings,
   );
 }
 
@@ -25,8 +26,8 @@ function normalizeCriteria(value: TargetCriteriaV1 | null): TargetCriteriaV1 | n
   return {
     ...value,
     notes: normalizeText(value.notes),
-    governmentLevels: [...new Set(value.governmentLevels)].sort(),
-    chambers: [...new Set(value.chambers)].sort(),
+    governmentLevels: [...new Set(value.governmentLevels)].sort(compareCanonicalStrings),
+    chambers: [...new Set(value.chambers)].sort(compareCanonicalStrings),
     committees: normalizeSet(value.committees),
     agencies: normalizeSet(value.agencies),
     states: normalizeSet(value.states),
@@ -64,7 +65,7 @@ export function normalizeOutreachCommandEnvelope(
           kind: payload.kind,
           label: normalizeText(payload.label as string | null),
           clientRefs: [...refs]
-            .sort((a, b) => a.clientId.localeCompare(b.clientId))
+            .sort((a, b) => compareCanonicalStrings(a.clientId, b.clientId))
             .filter(
               (ref, index, array) => index === 0 || ref.clientId !== array[index - 1]?.clientId,
             ),
