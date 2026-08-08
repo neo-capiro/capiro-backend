@@ -17,17 +17,24 @@ import {
 } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
+import { OpportunityOutcomeModal } from './OpportunityOutcomeModal.js';
 import {
   FUNDING_OPPORTUNITIES_PIPELINE_FEATURE,
   PIPELINE_STAGES,
   PIPELINE_STAGES_NEEDING_REASON,
   PIPELINE_STAGE_LABELS,
+  PURSUIT_OUTCOME_KINDS,
   pipelineBoardApiPath,
   pipelineStageApiPath,
   type PipelineBoardView,
   type PipelineCardView,
   type PipelineStageView,
+  type PursuitOutcomeKindView,
 } from './funding-opportunities-api.js';
+
+function isPursuitOutcomeKind(value: PipelineStageView): value is PursuitOutcomeKindView {
+  return (PURSUIT_OUTCOME_KINDS as readonly string[]).includes(value);
+}
 
 const { Paragraph, Text } = Typography;
 
@@ -83,6 +90,16 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
     null,
   );
   const [reason, setReason] = useState('');
+  // Opened automatically once a move to won/lost/passed COMMITS — P36 is what
+  // happens after that transition, never a gate on it. Null when there is
+  // nothing to capture, or when the card carries no sourceRecordId (an
+  // unstaged/legacy row this feature was never built to describe).
+  const [outcomeFor, setOutcomeFor] = useState<{
+    clientId: string;
+    source: string;
+    sourceRecordId: string;
+    kind: PursuitOutcomeKindView;
+  } | null>(null);
 
   const enabled = flag.ready && flag.enabled && clientId != null;
 
@@ -115,6 +132,17 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
         message: `Moved to ${PIPELINE_STAGE_LABELS[input.to]}`,
         description: 'Recorded with your name and the time.',
       });
+      // Offer outcome capture right after the move commits — never before,
+      // and never as a condition of the move succeeding. A card with no
+      // sourceRecordId (unstaged/legacy) has nothing this feature can key on.
+      if (isPursuitOutcomeKind(input.to) && input.card.sourceRecordId) {
+        setOutcomeFor({
+          clientId: clientId!,
+          source: input.card.source,
+          sourceRecordId: input.card.sourceRecordId,
+          kind: input.to,
+        });
+      }
     },
     onError: (error: unknown, input) => {
       const conflict = (error as { response?: { status?: number } })?.response?.status === 409;
@@ -368,6 +396,17 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
           data-testid="fo-pipeline-reason-input"
         />
       </Modal>
+
+      {outcomeFor ? (
+        <OpportunityOutcomeModal
+          open={outcomeFor != null}
+          onClose={() => setOutcomeFor(null)}
+          clientId={outcomeFor.clientId}
+          source={outcomeFor.source}
+          sourceRecordId={outcomeFor.sourceRecordId}
+          kind={outcomeFor.kind}
+        />
+      ) : null}
     </Card>
   );
 }

@@ -2213,8 +2213,11 @@ model OutcomeEvent {
   clientId   String?  @map("client_id") @db.Uuid
   /// response_received | meeting_scheduled | meeting_held | language_included
   /// | funding_changed | filing_completed | commitment_secured | no_action
+  /// | pursuit_won | pursuit_lost | pursuit_passed (P36 — `pursuit_` prefixed
+  /// so a procurement outcome can never collide with an advocacy one)
   kind       String   @db.VarChar(32)
   /// outreach | meeting | artifact | campaign | submission | manual
+  /// | funding_opportunity (P36)
   sourceType String   @map("source_type") @db.VarChar(24)
   sourceId   String?  @map("source_id")
   /// Snapshotted proof: { peCode?, fiscalYear?, stage?, amountFrom?, amountTo?, billNumber?, ... }
