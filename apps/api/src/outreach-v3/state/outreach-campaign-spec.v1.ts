@@ -31,9 +31,10 @@ export function compareCanonicalStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function boundedText(max: number) {
+function boundedText(max: number, min = 0) {
   return z
     .string()
+    .min(min)
     .max(max)
     .refine((value) => !FORBIDDEN_CONTROL_CHARACTERS.test(value), {
       message: 'Text contains disallowed control characters.',
@@ -50,7 +51,7 @@ const clientRefSchema = z
   })
   .strict();
 
-const targetCriteriaText = boundedText(OUTREACH_V3_LIMITS.targetCriteriaStrings).min(1);
+const targetCriteriaText = boundedText(OUTREACH_V3_LIMITS.targetCriteriaStrings, 1);
 
 export const targetCriteriaV1Schema = z
   .object({
