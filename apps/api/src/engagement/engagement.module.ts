@@ -9,6 +9,8 @@ import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
+import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
+import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import {
   NotetakerModule,
   RAW_MEETING_BOT_PROVIDER,
@@ -18,8 +20,6 @@ import {
   type MeetingBotProvider,
 } from './notetaker/meeting-bot.provider.js';
 import { EngagementController } from './engagement.controller.js';
-import { InternalAiCredentialsController } from './internal-ai-credentials.controller.js';
-import { AiCredentialResolverService } from './ai-credential-resolver.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
@@ -62,8 +62,8 @@ import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
+import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
-import { resolveEngagementRuntimeEnvironment } from './runtime/engagement-runtime-env.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
 import {
   guardGmailSendService,
@@ -93,22 +93,16 @@ import {
     EmbeddingsModule,
     NotetakerModule,
     ContextModule,
+    EngagementRuntimeModule,
+    AiCredentialsModule,
   ],
   controllers: [
     EngagementController,
     MicrosoftOAuthController,
     GoogleOAuthController,
-    InternalAiCredentialsController,
     OutcomeController,
   ],
   providers: [
-    {
-      provide: EngagementRuntimePolicyService,
-      useFactory: () =>
-        new EngagementRuntimePolicyService(
-          resolveEngagementRuntimeEnvironment(process.env as Record<string, unknown>),
-        ),
-    },
     {
       provide: MEETING_BOT_PROVIDER,
       useFactory: (raw: MeetingBotProvider, runtime: EngagementRuntimePolicyService) =>
@@ -215,7 +209,6 @@ import {
         EngagementRuntimePolicyService,
       ],
     },
-    AiCredentialResolverService,
     MeetingNotesCryptoService,
     EngagementSyncSchedulerService,
     EngagementMailSender,
@@ -241,13 +234,13 @@ import {
     AlertPacketClientService,
   ],
   exports: [
-    EngagementRuntimePolicyService,
+    EngagementRuntimeModule,
+    AiCredentialsModule,
     OutcomeService,
     EngagementService,
     NotetakerService,
     MicrosoftGraphSyncService,
     EngagementMailSender,
-    AiCredentialResolverService,
     OutreachDraftService,
     GenerationGatewayService,
     EvidencePacketService,
