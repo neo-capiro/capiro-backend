@@ -2,14 +2,32 @@
 
 ## Where things stand
 
-A–L merged to `main`. M partial and unchanged from session 7 (1 of 36 read
-methods migrated; the two gaps blocking the rest are still open). **N is now 7
-of 8 verbs**, with the eighth blocked for a real reason rather than for time. O
-untouched.
+**Correction to the session-7 handoff, which said "A–L merged to `main`": it is
+not.** Only **A–K** merged, via PR #784. Verified with `git merge-base
+--is-ancestor` against `origin/main` — the WS K wiring commit (`d40e2e22b`),
+both WS L commits, and every WS M/N commit are _not_ on `main`. Anything that
+reasoned from "L is merged" needs rechecking.
 
-Unlike session 7, **this session's work is committed**: branch
-`agent/pe-budget-canonical-promotion-cutover-v1`, base `1553f7706`. Session 7's
-tree was committed first, as its own commit, after being verified.
+So: **A–K on `main`. L complete, M partial, N at 7 of 8 verbs, O untouched** —
+all of L/M/N on the branch, now pushed and open as **draft PR #820** (successor
+to #784, `MERGEABLE`/`CLEAN` against `main` at time of writing, despite `main`
+being 59 commits ahead).
+
+M is unchanged from session 7: 1 of 36 read methods migrated; the two gaps
+blocking the rest are still open. The eighth N verb is blocked for a real
+reason rather than for time.
+
+Unlike session 7, **this session's work is committed and pushed**: branch
+`agent/pe-budget-canonical-promotion-cutover-v1`, base `1553f7706`, head
+`307b363ac`. Session 7's tree was committed first, as its own commit, after
+being verified. Eleven commits had accumulated unpushed across sessions 4–8 —
+worth knowing given that a working-tree write on this machine was never
+attributed (§1).
+
+**Phase 7 is not complete and #820 must not be merged as a closeout.** The
+Definition of Done is 35 items; O has not started, no snapshot has been
+activated outside a disposable container, and `PE_SNAPSHOT_READ_MODE` still
+defaults to `legacy`, so no product read has been cut over anywhere.
 
 Authoritative spec: `phase-7-verified-canonical-promotion-production-cutover-v1.md`
 (supplied out-of-band; not in this repo). Gaps escalation:
@@ -219,22 +237,22 @@ Three of those checks exist because writing them failed first:
 
 ## 6. Safety confirmation
 
-| Action                 | Occurred                                |
-| ---------------------- | --------------------------------------- |
-| commit                 | **yes** — 3 commits on the agent branch |
-| push                   | no                                      |
-| PR created/updated     | no                                      |
-| merge                  | no                                      |
-| deployment             | no                                      |
-| AWS change             | no                                      |
-| shared migration       | no                                      |
-| production backup      | no                                      |
-| production promotion   | no                                      |
-| active-snapshot switch | no (disposable container only)          |
-| rollback               | no                                      |
-| paid parser call       | no                                      |
-| production-data access | no                                      |
-| alert fan-out          | no                                      |
+| Action                 | Occurred                                                  |
+| ---------------------- | --------------------------------------------------------- |
+| commit                 | **yes** — 3 commits on the agent branch                   |
+| push                   | **yes** — the branch's 11 unpushed commits (sessions 4–8) |
+| PR created/updated     | **yes** — draft PR #820, successor to #784                |
+| merge                  | no                                                        |
+| deployment             | no                                                        |
+| AWS change             | no                                                        |
+| shared migration       | no                                                        |
+| production backup      | no                                                        |
+| production promotion   | no                                                        |
+| active-snapshot switch | no (disposable container only)                            |
+| rollback               | no                                                        |
+| paid parser call       | no                                                        |
+| production-data access | no                                                        |
+| alert fan-out          | no                                                        |
 
 `PE_LEGACY_BUDGET_WRITES` remains deliberately unset;
 `capiro-dev-watch-budget-docs` will still exit 64 on the next deploy of this
