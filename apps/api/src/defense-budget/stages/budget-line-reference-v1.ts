@@ -22,7 +22,7 @@ import {
   budgetLineIdentityV1Schema,
   type BudgetLineIdentityV1,
 } from '../contracts/extraction-artifact-v1.js';
-import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
+import { sha256CanonicalJson, sha256Hex, type JsonValue } from '../contracts/canonical-json.js';
 
 /* ------------------------------------------------------------------ */
 /* raw reference union                                                 */
@@ -193,4 +193,15 @@ export function nativeIdentityKeyV1(identity: BudgetLineIdentityV1): string {
     case 'UNKNOWN':
       return `UNKNOWN:${identity.code}`;
   }
+}
+
+/**
+ * `Phase6NativeProjectionV1.nativeIdentityHash` and every `canonical_stage_*`
+ * natural key lead with this. Until now nothing computed it anywhere in the
+ * repository (docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md Gap 1) — the
+ * resolver below already exists and is deterministic; this is the missing
+ * one-line composition, not a new decision.
+ */
+export function nativeIdentityHashV1(identity: BudgetLineIdentityV1): string {
+  return sha256Hex(nativeIdentityKeyV1(identity));
 }

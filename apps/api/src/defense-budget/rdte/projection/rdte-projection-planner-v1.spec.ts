@@ -523,6 +523,61 @@ describe('proof-bound RDT&E projection planner', () => {
     expect(plan.exclusions.some((entry) => entry.reason === 'non_annual_cost_value')).toBe(true);
   });
 
+  it('reads isNamedCompany from metadata as a null-safe selection-filter value, not a guessed boolean', () => {
+    // Gap 2: `getContractors`'s namedPrimes panel filters on this. `buildR3()`'s
+    // fixture sets no `isNamedCompany` in metadata, so an unclassified row must
+    // come through as `null` ("unknown"), never a guessed `true`/`false`.
+    const artifacts = artifactSet();
+    const { plan } = planProofBoundRdteCanonicalProjection({
+      bundle: certifiedBundle({ artifacts }),
+      artifacts,
+    });
+    const performer = plan.candidates.find(
+      (candidate) => candidate.target === 'ProgramElementPerformer',
+    );
+    expect(performer?.values.isNamedCompany).toBeNull();
+  });
+
+  it('threads a real isNamedCompany classification through to the projected values', () => {
+    const value = source('R-3', 'r3-named');
+    const created = builderFor(value);
+    const fact = addFact({
+      ...created,
+      source: value,
+      key: { peCode: PE, performer: 'BOEING' },
+      category: 'performer',
+      rawValue: 'BOEING',
+      page: 5,
+    });
+    created.builder.addAssertion({
+      assertionKind: 'performer',
+      assertionId: assertionIdV1({ peCode: PE, performer: 'BOEING' }),
+      sourceFactIds: [fact.factId],
+      evidenceIds: [fact.evidenceId],
+      confidence: 1,
+      parentPeCode: PE,
+      performerName: 'BOEING COMPANY',
+      performerNormalized: 'BOEING',
+      performerRole: 'PERFORMING_ACTIVITY',
+      location: 'MO',
+      contractMethod: 'C/CPFF',
+      costCategory: 'Airframe',
+      fiscalYear: FY,
+      metadata: { roleExplicit: false, isNamedCompany: true },
+    });
+    const artifacts = [buildR1(), buildR2a(), created.builder.finalize(), buildR4()];
+    const { plan } = planProofBoundRdteCanonicalProjection({
+      bundle: certifiedBundle({ artifacts }),
+      artifacts,
+    });
+    const performer = plan.candidates.find(
+      (candidate) =>
+        candidate.target === 'ProgramElementPerformer' &&
+        candidate.values.performerNormalized === 'BOEING',
+    );
+    expect(performer?.values.isNamedCompany).toBe(true);
+  });
+
   it('preserves fiscal-quarter schedule fidelity without fabricating a date', () => {
     const artifacts = artifactSet();
     const { plan } = planProofBoundRdteCanonicalProjection({

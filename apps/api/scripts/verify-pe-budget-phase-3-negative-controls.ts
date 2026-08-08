@@ -16,6 +16,8 @@ import * as fs from 'node:fs';
 
 import * as path from 'node:path';
 
+import { SourceMutationJournal } from './lib/source-mutation-journal.js';
+
 const API_ROOT = path.resolve(__dirname, '..');
 
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');
@@ -480,12 +482,31 @@ function withFileNewlines(source: string, needle: string): string {
 
 const results: ControlResult[] = [];
 
+/**
+ * A killed run must not leave an injected defect on disk — `originalBytes`
+ * below is unreachable once the process dies, and `finally` never runs. See
+ * `lib/source-mutation-journal.ts` for the incident this prevents.
+ *
+ * The root is REPO_ROOT, not API_ROOT, because Phase 3 controls mutate the
+ * Python parser runtime as well as `apps/api`.
+ */
+
+const journal = new SourceMutationJournal({
+  root: REPO_ROOT,
+
+  directoryName: '.p3-nc-restore',
+});
+
+journal.recoverAbandoned();
+
 for (const control of controls) {
   const targetPath = path.join(REPO_ROOT, control.target);
 
   const originalBytes = fs.readFileSync(targetPath);
 
   try {
+    journal.record(String(control.id), control.target, originalBytes);
+
     const source = originalBytes.toString('utf8');
 
     const originalNeedle = withFileNewlines(source, control.original);
@@ -541,6 +562,16 @@ for (const control of controls) {
     });
   } finally {
     fs.writeFileSync(targetPath, originalBytes);
+
+    const restoredBytes = fs.readFileSync(targetPath);
+
+    if (!restoredBytes.equals(originalBytes)) {
+      throw new Error(`#${control.id}: byte-for-byte restore of ${control.target} failed`);
+    }
+
+    // Only after the restore is verified byte-for-byte.
+
+    journal.clear();
   }
 }
 

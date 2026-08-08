@@ -8,6 +8,7 @@
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { SourceMutationJournal } from './lib/source-mutation-journal.js';
 
 const API_ROOT = path.resolve(__dirname, '..');
 const RDTE = path.join(API_ROOT, 'src', 'defense-budget', 'rdte');
@@ -19,6 +20,27 @@ const BASE_MIGRATION = path.join(
   'migration.sql',
 );
 const JEST_JS = path.join(API_ROOT, 'node_modules', 'jest', 'bin', 'jest.js');
+
+/**
+ * A killed run must not leave an injected defect on disk — the in-memory
+ * `originalBytes` in each mutating helper is unreachable once the process
+ * dies, and `finally` never runs. See `lib/source-mutation-journal.ts` for the
+ * incident this prevents.
+ */
+const journal = new SourceMutationJournal({
+  root: API_ROOT,
+  directoryName: '.p4-nc-restore',
+});
+
+/** Restore a mutated file and prove it matches byte-for-byte before clearing. */
+function restoreVerified(id: number, file: string, originalBytes: Buffer): void {
+  fs.writeFileSync(file, originalBytes);
+  if (!fs.readFileSync(file).equals(originalBytes)) {
+    throw new Error(`#${id}: byte-for-byte restore of ${path.relative(API_ROOT, file)} failed`);
+  }
+  // Only after the restore is verified byte-for-byte.
+  journal.clear();
+}
 
 interface ControlResult {
   id: number;
@@ -68,6 +90,7 @@ function whitespacePattern(value: string): RegExp {
 function runReplacement(control: ReplacementControl): void {
   const originalBytes = fs.readFileSync(control.file);
   try {
+    journal.record(String(control.id), path.relative(API_ROOT, control.file), originalBytes);
     const source = originalBytes.toString('utf8').replace(/\r\n/g, '\n');
     const pattern = whitespacePattern(control.original);
     if (!pattern.test(source)) {
@@ -100,7 +123,7 @@ function runReplacement(control: ReplacementControl): void {
         : `SAFETY GAP: injected defect passed: ${injected.output.slice(-1200)}`,
     });
   } finally {
-    fs.writeFileSync(control.file, originalBytes);
+    restoreVerified(control.id, control.file, originalBytes);
   }
 }
 
@@ -276,6 +299,7 @@ function runProbe(id: number, description: string, file: string, content: string
 function runMigrationControl(): void {
   const originalBytes = fs.readFileSync(BASE_MIGRATION);
   try {
+    journal.record('20', path.relative(API_ROOT, BASE_MIGRATION), originalBytes);
     const source = originalBytes.toString('utf8');
     const original = 'CREATE UNIQUE INDEX "program_element_project_budget_position_natural_key"';
     if (!source.includes(original)) {
@@ -315,11 +339,25 @@ function runMigrationControl(): void {
         : 'SAFETY GAP: migration defect passed',
     });
   } finally {
-    fs.writeFileSync(BASE_MIGRATION, originalBytes);
+    restoreVerified(20, BASE_MIGRATION, originalBytes);
   }
 }
 
+const NC17_PROBE = path.join(RDTE, '__nc17_writer_probe.ts');
+const NC18_PROBE = path.join(RDTE, 'projection', '__nc18_upsert_probe.ts');
+
 function main(): void {
+  // A killed run leaves either a mutated tracked file (restored from the
+  // journal) or a stray probe file (deleted here). Both must go before the
+  // preflight, or the preflight fails on the previous run's leftovers.
+  journal.recoverAbandoned();
+  for (const probe of [NC17_PROBE, NC18_PROBE]) {
+    if (fs.existsSync(probe)) {
+      process.stderr.write(`!! removed abandoned probe file ${path.relative(API_ROOT, probe)}\n`);
+      fs.rmSync(probe, { force: true });
+    }
+  }
+
   const preflight = runJest('src/defense-budget/rdte/gates/rdte-phase4-gates-v1.spec.ts');
   if (!preflight.passed) {
     console.error(`negative-control runner preflight failed:\n${preflight.output.slice(-2000)}`);
@@ -329,13 +367,13 @@ function main(): void {
   runProbe(
     17,
     'Import ProgramElementWriterService',
-    path.join(RDTE, '__nc17_writer_probe.ts'),
+    NC17_PROBE,
     "import { ProgramElementWriterService } from '../../../program-element/program-element-writer.service.js';\nexport const probe = ProgramElementWriterService;\n",
   );
   runProbe(
     18,
     'Add a Prisma canonical upsert',
-    path.join(RDTE, 'projection', '__nc18_upsert_probe.ts'),
+    NC18_PROBE,
     'export async function probe(prisma: any) { return prisma.programElementProjectBudgetPosition.upsert({}); }\n',
   );
   runMigrationControl();

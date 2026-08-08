@@ -124,25 +124,43 @@ case "${1:-serve}" in
   # Phase 7 Workstream N. Trust-critical promotion-operator verbs belong here,
   # not in entrypoint-dispatcher.inc — that file is the frozen legacy include
   # Workstream M's containment gate wraps, not where new promotion verbs go
-  # (docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md §4). Only
-  # two of the plan's eight promotion verbs are wired as of session 7 —
-  # plan/validate/authorize/execute/compare/rollback are not yet built; see the
-  # session-7 handoff for the exact construction pattern to follow. As of
-  # session 8, seven of the plan's eight promotion verbs are wired. Only
-  # authorize-defense-budget-promotion-v1 is missing, and it is blocked rather
-  # than skipped: the authorization service derives segregation-of-duties
-  # evidence from the eligibility record, and no table stores one — see
-  # docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md.
+  # (docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md §4). All
+  # eight of the plan's own promotion verbs are wired as of session 9 (Gap 3
+  # closeout): authorize-defense-budget-promotion-v1 was the last, blocked on
+  # segregation-of-duties evidence needing the full eligibility record, and no
+  # table stored one. defense_budget_promotion_eligibility (append-only, FK'd
+  # from defense_budget_promotion_plan.eligibility_hash) now does.
+  #
+  # file-defense-budget-promotion-plan-v1 is a NINTH verb, not in the original
+  # plan: plan-defense-budget-promotion-v1's own header always said "the plan
+  # is filed by a separate authorized step, not by this command," and that
+  # step never existed anywhere — validate/authorize/execute all read a plan
+  # row that nothing wrote. Session 9 found this (Gap 4) and closed it; see
+  # docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md Gap 4.
   #
   # execute and rollback deliberately read PROMOTER_DATABASE_URL and never fall
   # back to the composed DATABASE_URL, so compose_database_url is not called for
   # them; promoting as the serve role is the boundary Workstream D exists to
-  # enforce.
+  # enforce. authorize and file-plan run under the general serve role — neither
+  # carries promotion authority of its own — so both are grouped with
+  # plan/validate/status/compare, not execute/rollback.
   plan-defense-budget-promotion-v1)
     shift
     compose_database_url
     echo "Running plan-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
     exec ./node_modules/.bin/tsx scripts/plan-defense-budget-promotion-v1.ts "$@"
+    ;;
+  file-defense-budget-promotion-plan-v1)
+    shift
+    compose_database_url
+    echo "Running file-defense-budget-promotion-plan-v1 (dry run unless --commit; writes only this one plan row)"
+    exec ./node_modules/.bin/tsx scripts/file-defense-budget-promotion-plan-v1.ts "$@"
+    ;;
+  authorize-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running authorize-defense-budget-promotion-v1 (writes only an immutable, one-use authorization record)"
+    exec ./node_modules/.bin/tsx scripts/authorize-defense-budget-promotion-v1.ts "$@"
     ;;
   validate-defense-budget-promotion-v1)
     shift

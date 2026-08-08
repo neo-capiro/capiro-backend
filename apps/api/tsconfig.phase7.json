@@ -18,7 +18,14 @@
     "scripts/pe-budget-phase7-plan-rehearsal.ts",
     "scripts/pe-budget-phase7-engine-rehearsal.ts",
     "scripts/pe-budget-phase7-read-rehearsal.ts",
-    "scripts/pe-budget-phase7-drain-rehearsal.ts"
+    "scripts/pe-budget-phase7-drain-rehearsal.ts",
+    "scripts/verify-pe-budget-phase-7-safety.ts",
+    "scripts/verify-pe-budget-phase-7-negative-controls.ts",
+    "scripts/persist-phase6-audit-projections-v1.ts",
+    "scripts/phase6-producer-rehearsal.ts",
+    "scripts/authorize-defense-budget-promotion-v1.ts",
+    "scripts/pe-budget-phase7-gap3-authorize-rehearsal.ts",
+    "scripts/file-defense-budget-promotion-plan-v1.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -195,3 +195,106 @@ describe('PrismaPromotionProjectionSourceV1 — reload for execution', () => {
     expect(projections.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Gap 1 closeout: `committee` reads `phase6_audit_projection` rows —
+ * everything `phase6-projection-builder-v1.ts` persists — and reconstructs
+ * them into the exact `Phase6NativeProjectionV1` shape
+ * `projectPhase6ProjectionsV1` validates.
+ */
+describe('PrismaPromotionProjectionSourceV1 — committee (Phase 6)', () => {
+  const PHASE6_POSITION_ROW = {
+    projectionId: 'p6proj_1',
+    naturalKey: `${SHA('9')}|2027|hac_d|hacDMark`,
+    idempotencyKey: 'idem-1',
+    projectionKind: 'stage_position',
+    verificationCandidateId: 'vc-1',
+    verificationRunId: 'vr-1',
+    artifactId: 'artifact-p6',
+    artifactContentSha256: SHA('a'),
+    sourceDocumentId: 'doc-p6',
+    sourcePdfSha256: SHA('b'),
+    sourceProfileHash: SHA('c'),
+    nativeIdentityHash: SHA('9'),
+    track: 'appropriations',
+    stage: 'hac_d',
+    fundingField: 'hacDMark',
+    originalValue: '125',
+    originalUnit: 'millions',
+    amountMillions: '125.000000000',
+    directOrDerived: 'direct',
+    evidenceIds: ['ev-p6'],
+    bindingStatus: 'accepted',
+    projectionStatus: 'verified',
+    enactmentProofId: null,
+    payload: { fiscalYear: 2027 },
+  };
+
+  it('names committee as a supported family', () => {
+    expect(PROJECTION_SOURCE_SUPPORTED_FAMILIES_V1).toContain('committee');
+  });
+
+  it('reconstructs a persisted stage_position row and promotes it', async () => {
+    const source = new PrismaPromotionProjectionSourceV1(fakePrisma([PHASE6_POSITION_ROW]));
+    const result = await source.loadForScope({ fiscalYear: 2027, families: ['committee'] });
+
+    expect(result.unsupportedFamilies).toEqual([]);
+    expect(result.refusals).toEqual([]);
+    expect(result.projections).toHaveLength(1);
+    expect(result.projections[0]!.fundingField).toBe('hacDMark');
+    expect(result.projections[0]!.stageAuthority).toBe('hacd_appropriations');
+  });
+
+  it('preserves exact decimal money through the Postgres NUMERIC round trip', async () => {
+    const source = new PrismaPromotionProjectionSourceV1(fakePrisma([PHASE6_POSITION_ROW]));
+    const { projections } = await source.loadForScope({
+      fiscalYear: 2027,
+      families: ['committee'],
+    });
+
+    // amountMillions came back "125.000000000" (NUMERIC(24,9) padding);
+    // normalizeDecimal must strip it to the canonical "125", not "125.0".
+    expect(projections[0]!.values.money?.valueMillions).toBe('125');
+    expect(projections[0]!.values.money?.originalValue).toBe('125');
+    expect(projections[0]!.values.money?.originalUnit).toBe('millions');
+  });
+
+  it('carries real lineage through the round trip, not a placeholder', async () => {
+    const source = new PrismaPromotionProjectionSourceV1(fakePrisma([PHASE6_POSITION_ROW]));
+    const { projections } = await source.loadForScope({
+      fiscalYear: 2027,
+      families: ['committee'],
+    });
+
+    expect(projections[0]!.lineage.artifactId).toBe('artifact-p6');
+    expect(projections[0]!.lineage.verificationRunId).toBe('vr-1');
+    expect(projections[0]!.lineage.evidenceIds).toEqual(['ev-p6']);
+  });
+
+  it('refuses a reconstructed row whose stage does not own the persisted funding field', async () => {
+    // Simulates a corrupted/tampered row: HAC-D persisted, but the funding
+    // field claims the appropriations-conference field. The projector must
+    // still catch this on the way back out, independent of what wrote it.
+    const swapped = { ...PHASE6_POSITION_ROW, fundingField: 'conference' };
+    const source = new PrismaPromotionProjectionSourceV1(fakePrisma([swapped]));
+    const { projections, refusals } = await source.loadForScope({
+      fiscalYear: 2027,
+      families: ['committee'],
+    });
+
+    expect(projections).toHaveLength(0);
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]!.reason).toBe('stage_authority_violation');
+  });
+
+  it('reports an unreadable family alongside a readable committee scope', async () => {
+    const source = new PrismaPromotionProjectionSourceV1(fakePrisma([PHASE6_POSITION_ROW]));
+    const result = await source.loadForScope({
+      fiscalYear: 2027,
+      families: ['committee', 'milcon'],
+    });
+
+    expect(result.unsupportedFamilies).toEqual(['milcon']);
+    expect(result.projections).toHaveLength(1);
+  });
+});

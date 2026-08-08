@@ -352,11 +352,21 @@ describe('Workstream L — the handler', () => {
     const stripComments = (text: string): string =>
       text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-    const offenders = sources.filter((name) =>
-      /intelligenceChange|intelligence_change|programElementChangeOutbox/.test(
-        stripComments(readFileSync(join(dir, name), 'utf8')),
-      ),
-    );
+    // `phase7-closeout-gates-v1.ts` (Workstream O) contains the literal string
+    // `intelligenceChange` as *regex data* — it is itself the gate that bans
+    // inline alert emission elsewhere in this directory. It imports no Prisma
+    // client and calls no `intelligenceChange` member; the string only appears
+    // inside a `RegExp` literal. Excluding it here is the same reasoning as the
+    // stripComments step above: a scanner should not flag the thing that
+    // enforces the rule for stating the rule.
+    const RULE_DEFINITION_FILES = new Set(['phase7-closeout-gates-v1.ts']);
+    const offenders = sources
+      .filter((name) => !RULE_DEFINITION_FILES.has(name))
+      .filter((name) =>
+        /intelligenceChange|intelligence_change|programElementChangeOutbox/.test(
+          stripComments(readFileSync(join(dir, name), 'utf8')),
+        ),
+      );
     expect(offenders).toEqual([]);
 
     // And it still catches a real one, so stripping has not blunted it.

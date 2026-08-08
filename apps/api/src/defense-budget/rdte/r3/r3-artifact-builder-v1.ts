@@ -119,6 +119,10 @@ export function buildR3PerformerArtifact(input: {
         metadata: {
           exhibit: 'R-3',
           roleExplicit: performer.roleExplicit,
+          // Selection-filter grade (Gap 2): `getContractors`'s named-primes
+          // panel filters on this, so it rides in metadata rather than as a
+          // display-only afterthought — same pattern as `roleExplicit` above.
+          isNamedCompany: performer.isNamedCompany,
           naturalKey: performer.naturalKey,
           physicalPage: performer.page,
           tableIndex: performer.tableIndex,

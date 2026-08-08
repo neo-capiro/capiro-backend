@@ -15,6 +15,20 @@ DB_NAME="capiro"
 P4_BASE="20260817010000_rdte_phase4_projection_schema"
 P4_CLOSEOUT="20260818010000_rdte_phase4_closeout_constraints"
 P4_REPAIR="20260818020000_rdte_phase4_audit_repairs"
+# Phase 7's canonical-promotion migration (added by a later session) FKs into
+# program_element_project_budget_position, which Phase 4's own migrations
+# create. Written back when Phase 4 was the newest phase, this script's
+# "pre-Phase-4" baseline was simply "everything except Phase 4's own
+# migrations" — correct then, but Phase 7 now sits chronologically after
+# Phase 4 in that same "everything else" set, so replaying it before Phase 4
+# exists fails on a missing relation. Excluded here for the same reason
+# pe-budget-phase7-migration-rehearsal.sh excludes its OWN later add-ons from
+# ITS pre-baseline: none of these four are needed until Phase 4's tables
+# already exist, and Path A above already proves they apply cleanly at tip.
+P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
+P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
+P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
+P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
 
 log() { echo "[p4-rehearsal] $*"; }
 fail() { echo "[p4-rehearsal] FAILED: $*" >&2; exit 1; }
@@ -83,7 +97,11 @@ for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
   if [ "$migration" = "$P4_BASE" ] || \
      [ "$migration" = "$P4_CLOSEOUT" ] || \
-     [ "$migration" = "$P4_REPAIR" ]; then
+     [ "$migration" = "$P4_REPAIR" ] || \
+     [ "$migration" = "$P7_MIGRATION" ] || \
+     [ "$migration" = "$P7_MIGRATION_K" ] || \
+     [ "$migration" = "$P7_MIGRATION_L" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP3" ]; then
     continue
   fi
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"

@@ -84,7 +84,7 @@ refuse_legacy_budget_commit() {
     if [ "$arg" = "--commit" ]; then
       echo "REFUSED: '$verb --commit' writes canonical budget data directly, and the Phase 7 legacy-write kill switch is off (PE_LEGACY_BUDGET_WRITES)." >&2
       echo "Canonical budget data now enters through the promotion workflow, which binds every row to a verified projection, a plan hash, and an independent authorization:" >&2
-      echo "  plan-defense-budget-promotion-v1 -> validate -> authorize -> execute" >&2
+      echo "  plan-defense-budget-promotion-v1 -> file-defense-budget-promotion-plan-v1 --commit -> validate -> authorize -> execute" >&2
       echo "Re-run without --commit to inspect. Set PE_LEGACY_BUDGET_WRITES=allow to override deliberately." >&2
       exit 64
     fi

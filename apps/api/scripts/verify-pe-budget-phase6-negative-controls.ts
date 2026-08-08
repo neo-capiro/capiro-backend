@@ -10,6 +10,7 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { SourceMutationJournal } from './lib/source-mutation-journal.js';
 
 const API_ROOT = path.resolve(__dirname, '..');
 const SPEC = 'src/defense-budget/phase6/phase6-negative-controls-final.spec.ts';
@@ -31,7 +32,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/congressional-table-v1.ts',
-        find: "  const direct = money.find((entry) => ABSOLUTE_MONEY_SEMANTICS.includes(entry.semantic));",
+        find: '  const direct = money.find((entry) => ABSOLUTE_MONEY_SEMANTICS.includes(entry.semantic));',
         replace:
           "  const lastCell = [...row.cells].reverse().find((cell) => cell.value != null);\n  const direct: (typeof money)[number] | undefined = lastCell?.value == null ? undefined : { semantic: 'authorized_total', columnIndex: lastCell.columnIndex, unit: table.declaredUnit ?? 'millions', value: lastCell.value };",
       },
@@ -42,8 +43,9 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/congressional-table-v1.ts',
-        find: "    if (distinct.length > 1) return { key, rows, conflict: { values: distinct.sort() } };",
-        replace: "    if (distinct.length > 1) return { key, rows, agreedValue: distinct.at(-1)! };",
+        find: '    if (distinct.length > 1) return { key, rows, conflict: { values: distinct.sort() } };',
+        replace:
+          '    if (distinct.length > 1) return { key, rows, agreedValue: distinct.at(-1)! };',
       },
     ],
   },
@@ -73,10 +75,8 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/line-reference-resolver.ts',
-        find:
-          "      basis: 'title_candidate',\n      confidence: 0,\n      status: 'candidate',",
-        replace:
-          "      basis: 'title_candidate',\n      confidence: 1,\n      status: 'accepted',",
+        find: "      basis: 'title_candidate',\n      confidence: 0,\n      status: 'candidate',",
+        replace: "      basis: 'title_candidate',\n      confidence: 1,\n      status: 'accepted',",
       },
     ],
   },
@@ -85,8 +85,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/line-reference-resolver.ts',
-        find:
-          "    case 'procurement_line': {\n      if (reference.account == null) return [];\n      const advance = reference.advanceProcurement === true;",
+        find: "    case 'procurement_line': {\n      if (reference.account == null) return [];\n      const advance = reference.advanceProcurement === true;",
         replace:
           "    case 'procurement_line': {\n      if (reference.account == null) return index.filter((entry) => entry.identity.lineKind === 'PROCUREMENT_BLIN' && entry.identity.code === reference.lineCode);\n      const advance = reference.advanceProcurement === true;",
       },
@@ -107,8 +106,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/congressional-table-v1.ts',
-        find:
-          "    const unit = column.declaredUnit ?? table.declaredUnit;\n    if (unit == null) continue;",
+        find: '    const unit = column.declaredUnit ?? table.declaredUnit;\n    if (unit == null) continue;',
         replace: "    const unit = column.declaredUnit ?? table.declaredUnit ?? 'millions';",
       },
     ],
@@ -149,8 +147,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/verification/rules/comparison/ndaa-conference-chamber.rules.ts',
-        find:
-          '        rowDetails.houseVsSenateDelta = signedDifference(\n          senate.value.valueMillions,\n          house.value.valueMillions,\n        );',
+        find: '        rowDetails.houseVsSenateDelta = signedDifference(\n          senate.value.valueMillions,\n          house.value.valueMillions,\n        );',
         replace: "        rowDetails.houseVsSenateDelta = '0';",
       },
     ],
@@ -180,10 +177,8 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/phase6/phase6-cycle-certification-v1.ts',
-        find:
-          "    (comparison) => comparison.required && comparison.outcome === 'NOT_RUN',",
-        replace:
-          "    (comparison) => comparison.required && comparison.outcome === 'SKIPPED',",
+        find: "    (comparison) => comparison.required && comparison.outcome === 'NOT_RUN',",
+        replace: "    (comparison) => comparison.required && comparison.outcome === 'SKIPPED',",
       },
     ],
   },
@@ -192,8 +187,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/phase6/phase6-native-projection-v1.ts',
-        find:
-          "      value.projectionKind === 'stage_position' &&\n      value.fundingField === 'enacted' &&\n      value.enactmentProofId == null",
+        find: "      value.projectionKind === 'stage_position' &&\n      value.fundingField === 'enacted' &&\n      value.enactmentProofId == null",
         replace:
           "      false && value.projectionKind === 'stage_position' &&\n      value.fundingField === 'enacted' &&\n      value.enactmentProofId == null",
       },
@@ -214,8 +208,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/phase6/phase6-native-projection-v1.ts',
-        find:
-          "      value.projectionKind === 'stage_position' &&\n      value.stage === 'continuing_resolution' &&\n      value.payload.explicitLineAuthority !== true",
+        find: "      value.projectionKind === 'stage_position' &&\n      value.stage === 'continuing_resolution' &&\n      value.payload.explicitLineAuthority !== true",
         replace:
           "      false && value.projectionKind === 'stage_position' &&\n      value.stage === 'continuing_resolution' &&\n      value.payload.explicitLineAuthority !== true",
       },
@@ -247,8 +240,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/post-enactment/reprogramming-execution-v1.ts',
-        find:
-          '  const actions: DefenseBudgetStageActionV1[] = [];\n  const revisedPositions: ReprogrammedPositionV1[] = [];',
+        find: '  const actions: DefenseBudgetStageActionV1[] = [];\n  const revisedPositions: ReprogrammedPositionV1[] = [];',
         replace:
           "  const actions: DefenseBudgetStageActionV1[] = [];\n  const revisedPositions: ReprogrammedPositionV1[] = [];\n  if (event.status === 'approved' && event.sourceIdentity != null) revisedPositions.push(position(event, event.sourceIdentity, absValue(event.amount), 'direct'));",
       },
@@ -259,8 +251,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/stages/post-enactment/reprogramming-execution-v1.ts',
-        find:
-          "  if (record.metric !== profile.metric) throw new Error('ambiguous execution metric');",
+        find: "  if (record.metric !== profile.metric) throw new Error('ambiguous execution metric');",
         replace:
           "  if (false && record.metric !== profile.metric) throw new Error('ambiguous execution metric');",
       },
@@ -281,8 +272,7 @@ const controls: NegativeControl[] = [
     mutations: [
       {
         file: 'src/defense-budget/phase6/phase6-native-projection-v1.ts',
-        find:
-          "      value.projectionStatus === 'verified' &&\n      value.projectionKind === 'stage_position' &&\n      value.bindingStatus !== 'accepted'",
+        find: "      value.projectionStatus === 'verified' &&\n      value.projectionKind === 'stage_position' &&\n      value.bindingStatus !== 'accepted'",
         replace:
           "      false && value.projectionStatus === 'verified' &&\n      value.projectionKind === 'stage_position' &&\n      value.bindingStatus !== 'accepted'",
       },
@@ -308,7 +298,8 @@ function resolvePnpm(): { command: string; prefix: string[]; shell: boolean } {
     'dist',
     'pnpm.js',
   );
-  if (fs.existsSync(corepack)) return { command: process.execPath, prefix: [corepack], shell: false };
+  if (fs.existsSync(corepack))
+    return { command: process.execPath, prefix: [corepack], shell: false };
   return { command: 'pnpm', prefix: [], shell: process.platform === 'win32' };
 }
 
@@ -347,13 +338,27 @@ function mutate(original: Buffer, mutation: Mutation): Buffer {
   return Buffer.from(text.replace(mutation.find, mutation.replace), 'utf8');
 }
 
+/**
+ * A killed run must not leave an injected defect on disk — see
+ * `lib/source-mutation-journal.ts` for the incident that motivated this.
+ */
+const journal = new SourceMutationJournal({
+  root: API_ROOT,
+  directoryName: '.p6-nc-restore',
+});
+journal.recoverAbandoned();
+
 for (const control of controls) {
   const originals = new Map<string, Buffer>();
   try {
     for (const mutation of control.mutations) {
       const absolute = path.join(API_ROOT, mutation.file);
       const original = originals.get(absolute) ?? fs.readFileSync(absolute);
-      if (!originals.has(absolute)) originals.set(absolute, original);
+      if (!originals.has(absolute)) {
+        originals.set(absolute, original);
+        // Journal BEFORE the first write, so a kill mid-write is recoverable.
+        journal.record(control.id, mutation.file, original);
+      }
       const current = fs.readFileSync(absolute);
       fs.writeFileSync(absolute, mutate(current, mutation));
     }
@@ -367,9 +372,13 @@ for (const control of controls) {
     for (const [absolute, original] of originals) {
       fs.writeFileSync(absolute, original);
       if (!fs.readFileSync(absolute).equals(original)) {
-        throw new Error(`${control.id}: byte-for-byte restore failed for ${path.relative(API_ROOT, absolute)}`);
+        throw new Error(
+          `${control.id}: byte-for-byte restore failed for ${path.relative(API_ROOT, absolute)}`,
+        );
       }
     }
+    // Only after every restore is verified byte-for-byte.
+    journal.clear();
   }
 }
 

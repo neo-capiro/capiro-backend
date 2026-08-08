@@ -11,6 +11,7 @@
     "src/defense-budget/verification/authority-policy-resolution.ts",
     "src/defense-budget/verification/rules/**/*.ts",
     "scripts/phase6-stage-cycle.ts",
+    "scripts/persist-phase6-audit-projections-v1.ts",
     "scripts/verify-pe-budget-phase6-negative-controls.ts",
     "scripts/verify-pe-budget-phase6-safety.ts",
     "scripts/parse-defense-approps-public-law.ts"
