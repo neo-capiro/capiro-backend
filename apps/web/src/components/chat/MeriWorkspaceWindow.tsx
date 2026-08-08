@@ -1,63 +1,73 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckOutlined, CloseOutlined, DownOutlined, RobotOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
-import { MeriLegacyDrawer } from './ChatDrawer.js';
-import { SessionRail } from './SessionRail.js';
+import { useMe } from '../../lib/me.js';
+import { setMeriSurfaceMode } from './chat-store.js';
 import { ManagedMcpAppsProvider } from './managed-mcp-apps.js';
+import { isMeriWorkspaceWindow } from './meri-window.js';
+import { MeriWorkspaceConversation } from './MeriWorkspaceConversation.js';
+import { MeriWorkspaceThreadRail } from './MeriWorkspaceThreadRail.js';
 import type { MeriChatController } from './useMeriChatController.js';
 import './meri-workspace-window.css';
-import './meri-workspace-window-scope.css';
 
 const REASONING_MODES = [
-  {
-    mode: 'fast',
-    label: 'Fast',
-    description: 'Quick answers and direct lookups.',
-  },
-  {
-    mode: 'standard',
-    label: 'Standard',
-    description: 'Balanced everyday reasoning.',
-  },
-  {
-    mode: 'deep',
-    label: 'Deep',
-    description: 'More investigation for strategic work.',
-  },
-  {
-    mode: 'max',
-    label: 'Max',
-    description: 'Highest configured reasoning tier.',
-  },
+  { mode: 'fast', label: 'Fast', description: 'Quick answers and direct lookups.' },
+  { mode: 'standard', label: 'Standard', description: 'Balanced everyday reasoning.' },
+  { mode: 'deep', label: 'Deep', description: 'More investigation for strategic work.' },
+  { mode: 'max', label: 'Max', description: 'Highest configured reasoning tier.' },
 ] as const;
 
 type ReasoningMode = (typeof REASONING_MODES)[number]['mode'];
 
+function displayName(me: ReturnType<typeof useMe>['data']): string {
+  const first = me?.user.firstName?.trim() ?? '';
+  const last = me?.user.lastName?.trim() ?? '';
+  const full = `${first} ${last}`.trim();
+  return full || me?.user.email?.split('@')[0] || 'Capiro user';
+}
+
+function shortGreetingName(me: ReturnType<typeof useMe>['data']): string {
+  return me?.user.firstName?.trim() || displayName(me);
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'CU';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
+}
+
+function roleLabel(role: string | undefined, title: string | null | undefined): string {
+  if (title?.trim()) return title.trim().toUpperCase();
+  return String(role ?? 'standard_user')
+    .replace(/_/g, ' ')
+    .toUpperCase();
+}
+
 export function MeriWorkspaceWindow({ controller }: { controller: MeriChatController }) {
   const api = useApi();
+  const me = useMe();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [tipOpen, setTipOpen] = useState(false);
   const [reasoningMode, setReasoningMode] = useState<ReasoningMode>('standard');
   const [savingMode, setSavingMode] = useState(false);
   const [modeError, setModeError] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const activeConversationId = controller.activeConversationId;
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  // Prototype rail subtitle: the active client scope, or the breadth in scope.
-  const scopeLine =
-    controller.clients.find((client) => client.id === controller.selectedClientValue)?.name ??
-    `${controller.clients.length} clients in scope`;
-  // Prototype header verification chip: totals across the loaded thread's
-  // verified answers. Only rendered when at least one answer was checked —
-  // never a fabricated count.
-  const v3Verification = (() => {
-    let verified = 0;
-    let flagged = 0;
-    for (const msg of controller.messages ?? []) {
-      if (msg.role !== 'assistant' || !msg.verification || msg.verification.totalCount <= 0)
-        continue;
-      if (msg.verification.lowConfidence || msg.verification.unsupportedCount > 0) flagged += 1;
-      else verified += 1;
-    }
-    return { verified, flagged, any: verified + flagged > 0 };
-  })();
+  const isNewThread = controller.messages.length === 0;
+  const selectedClient =
+    controller.clients.find((client) => client.id === controller.selectedClientValue) ?? null;
+
+  const personName = displayName(me.data);
+  const greetingName = shortGreetingName(me.data);
+  const tenantName = me.data?.tenant.name ?? 'Capiro';
+  const tenantQualifier = me.data?.tenant.slug
+    ? `${tenantName} · ${me.data.tenant.slug}`.toUpperCase()
+    : tenantName.toUpperCase();
+  const userRole = roleLabel(me.data?.role, me.data?.user.title);
+  const sessionTitle = isNewThread
+    ? 'New thread'
+    : controller.sessionTitle.trim() || 'Untitled thread';
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -70,6 +80,28 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
       document.body.classList.remove('meri-v3-window-document');
     };
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSidebarOpen(true);
+        window.setTimeout(() => searchInputRef.current?.focus(), 20);
+      }
+      if (event.key === 'Escape') setTipOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!tipOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!tipRef.current?.contains(event.target as Node)) setTipOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [tipOpen]);
 
   useEffect(() => {
     if (!activeConversationId) {
@@ -113,128 +145,183 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
     [activeConversationId, api, reasoningMode, savingMode],
   );
 
+  const minimize = useCallback(() => {
+    if (isMeriWorkspaceWindow()) {
+      window.close();
+      return;
+    }
+    setMeriSurfaceMode('closed');
+  }, []);
+
+  const headerChips = useMemo(() => {
+    const chips: string[] = [];
+    if (selectedClient) chips.push(`SCOPED · ${selectedClient.name.toUpperCase()}`);
+    return chips;
+  }, [selectedClient]);
+
   return (
-    <section
-      className={`meri-v3-workspace${sidebarOpen ? '' : ' meri-v3-workspace--railless'}`}
-      aria-label="Meri workspace"
-    >
-      {sidebarOpen ? (
-        <aside className="meri-v3-workspace-sidebar" aria-label="Meri conversations">
-          <div className="meri-v3-workspace-brand">
-            <div className="meri-v3-brand-row">
-              <span className="meri-v3-brand-ring" aria-hidden="true" />
-              <span className="meri-v3-brand-name">Meri</span>
-              <span className="meri-v3-brand-kbd" aria-hidden="true">
-                &#8984;K
+    <ManagedMcpAppsProvider>
+      <section
+        className={`meri-v3-workspace${sidebarOpen ? '' : ' meri-v3-workspace--railless'}`}
+        aria-label="Meri workspace"
+      >
+        {sidebarOpen ? (
+          <aside className="meri-v3-workspace-sidebar" aria-label="Meri conversations">
+            <div className="meri-v3-workspace-brand">
+              <div className="meri-v3-brand-row">
+                <span className="meri-v3-brand-ring" aria-hidden="true" />
+                <span className="meri-v3-brand-name">Meri</span>
+                <span className="meri-v3-brand-kbd" aria-hidden="true">
+                  ⌘K
+                </span>
+              </div>
+              <div className="meri-v3-brand-firm">{tenantQualifier}</div>
+            </div>
+
+            <div className="meri-v3-sidebar-command">
+              <button
+                type="button"
+                className="meri-v3-new-thread"
+                onClick={() => void controller.handleNewSession()}
+              >
+                + New thread
+              </button>
+              <MeriWorkspaceThreadRail searchInputRef={searchInputRef} />
+            </div>
+
+            <div className="meri-v3-sidebar-footer">
+              <span className="meri-v3-user-initials" aria-hidden="true">
+                {initials(personName)}
+              </span>
+              <span className="meri-v3-user-copy">
+                <strong>{personName}</strong>
+                <small>{userRole}</small>
               </span>
             </div>
-            <div className="meri-v3-brand-firm">{scopeLine}</div>
-          </div>
-          <button
-            type="button"
-            className="meri-v3-new-thread"
-            onClick={() => void controller.handleNewSession()}
-            aria-label="New thread"
-          >
-            + New thread
-          </button>
-          <div className="meri-v3-thread-rail">
-            <SessionRail forceOpen />
-          </div>
-          <div className="meri-v3-sidebar-footer">
-            <span className="meri-v3-online-dot" aria-hidden="true" />
-            Capiro intelligence connected
-          </div>
-        </aside>
-      ) : null}
-
-      <main className="meri-v3-workspace-main">
-        <header className="meri-v3-workspace-header">
-          <button
-            type="button"
-            className="meri-v3-sidebar-toggle"
-            onClick={() => setSidebarOpen((open) => !open)}
-            aria-label="Toggle sidebar"
-            aria-expanded={sidebarOpen}
-          >
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-          </button>
-          <div className="meri-v3-conversation-identity">
-            <input
-              value={controller.sessionTitle}
-              onChange={(event) => controller.setSessionTitle(event.target.value)}
-              onBlur={() => void controller.saveConversationMeta()}
-              maxLength={160}
-              aria-label="Conversation title"
-            />
-            <select
-              className="meri-v3-scope-select meri-v3-header-chip meri-v3-header-chip--control"
-              value={controller.selectedClientValue}
-              onChange={(event) => void controller.changeSessionClient(event.target.value)}
-              disabled={!activeConversationId || controller.isSavingMeta}
-              aria-label="Conversation client scope"
-              title="Change conversation client scope"
-            >
-              <option value="">General</option>
-              {controller.clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-            {v3Verification.any && (
-              <span className="meri-v3-header-chip meri-v3-header-chip--verify">
-                {v3Verification.verified} verified
-                {v3Verification.flagged > 0 ? ` · ${v3Verification.flagged} flag` : ''}
-              </span>
-            )}
-          </div>
-          <div className="meri-v3-header-actions">
-            <ReasoningModePicker
-              value={reasoningMode}
-              disabled={!activeConversationId || savingMode}
-              error={modeError}
-              onChange={(mode) => void changeReasoningMode(mode)}
-            />
-            <span className="meri-v3-runtime-badge">
-              <RobotOutlined /> MeriV3
-            </span>
-            <button
-              type="button"
-              className="meri-v3-close-window"
-              onClick={() => window.close()}
-              aria-label="Close Meri window"
-              title="Close Meri window"
-            >
-              <CloseOutlined />
-            </button>
-          </div>
-        </header>
-        {controller.metaError ? (
-          <div className="meri-v3-workspace-error" role="alert">
-            {controller.metaError}
-          </div>
+          </aside>
         ) : null}
 
-        <div className="meri-v3-workspace-body">
-          <ManagedMcpAppsProvider>
-            <MeriLegacyDrawer
-              controller={controller}
-              embedded
-              surface="undocked"
-              showSessionRail={false}
-              variant="v3"
-            />
-          </ManagedMcpAppsProvider>
-        </div>
-      </main>
-    </section>
+        <main className="meri-v3-workspace-main">
+          <header className="meri-v3-workspace-header">
+            <button
+              type="button"
+              className="meri-v3-sidebar-toggle"
+              onClick={() => setSidebarOpen((open) => !open)}
+              aria-label="Toggle sidebar"
+              aria-expanded={sidebarOpen}
+            >
+              <span aria-hidden="true" />
+              <span aria-hidden="true" />
+              <span aria-hidden="true" />
+            </button>
+
+            <div className="meri-v3-header-thread">
+              <strong>{sessionTitle}</strong>
+              {!isNewThread && activeConversationId ? (
+                <div className="meri-v3-header-chips">
+                  {headerChips.map((chip) => (
+                    <span className="meri-v3-header-chip" key={chip}>
+                      {chip}
+                    </span>
+                  ))}
+                  <ReasoningChip
+                    value={reasoningMode}
+                    disabled={savingMode}
+                    error={modeError}
+                    onChange={(mode) => void changeReasoningMode(mode)}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="meri-v3-header-actions">
+              <div className="meri-v3-tip" ref={tipRef}>
+                <button
+                  type="button"
+                  className={`meri-v3-tip-trigger${tipOpen ? ' is-open' : ''}`}
+                  onClick={() => setTipOpen((open) => !open)}
+                  aria-haspopup="dialog"
+                  aria-expanded={tipOpen}
+                >
+                  <span aria-hidden="true" /> PRO TIP
+                </button>
+                {tipOpen ? <ProTip onClose={() => setTipOpen(false)} /> : null}
+              </div>
+              <button
+                type="button"
+                className="meri-v3-minimize"
+                onClick={minimize}
+                aria-label="Minimize window"
+                title="Minimize window"
+              >
+                <span aria-hidden="true" />
+              </button>
+            </div>
+          </header>
+
+          <div className="meri-v3-header-fade" aria-hidden="true" />
+
+          {controller.metaError ? (
+            <div className="meri-v3-workspace-error" role="alert">
+              {controller.metaError}
+            </div>
+          ) : null}
+
+          <MeriWorkspaceConversation
+            controller={controller}
+            userLabel={personName}
+            greetingName={greetingName}
+            tenantName={tenantName}
+          />
+        </main>
+      </section>
+    </ManagedMcpAppsProvider>
   );
 }
 
-function ReasoningModePicker({
+function ProTip({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="meri-v3-tip-panel" role="dialog" aria-label="Get more out of Meri">
+      <header>
+        <span>GET MORE OUT OF MERI</span>
+        <button type="button" onClick={onClose}>
+          CLOSE ⎋
+        </button>
+      </header>
+      <div className="meri-v3-tip-content">
+        <section>
+          <div className="meri-v3-tip-title">
+            <span>01</span>
+            <strong>Tell Meri to remember things</strong>
+          </div>
+          <p>
+            Say it plainly in the thread — “remember that this principal prefers one-page briefs” —
+            and Meri proposes it as institutional memory. You approve it before it sticks, and future
+            answers for that client can use it.
+          </p>
+          <blockquote>“Remember: we never cite draft RFP language with clients.”</blockquote>
+        </section>
+        <section>
+          <div className="meri-v3-tip-title">
+            <span>02</span>
+            <strong>Turn a routine into a skill</strong>
+          </div>
+          <p>
+            Describe a workflow you repeat, in your own words, and Meri can save it as a named skill
+            you can call again. No server configuration belongs in this workspace.
+          </p>
+          <blockquote>
+            “Create a skill called Monday Brief: for each client, list what moved last week, what
+            needs a decision, and the sources.”
+          </blockquote>
+          <small>THEN JUST SAY: RUN MONDAY BRIEF</small>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ReasoningChip({
   value,
   disabled,
   error,
@@ -246,13 +333,13 @@ function ReasoningModePicker({
   onChange: (mode: ReasoningMode) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const selected = REASONING_MODES.find((item) => item.mode === value) ?? REASONING_MODES[1];
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = REASONING_MODES.find((mode) => mode.mode === value) ?? REASONING_MODES[1];
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -266,43 +353,40 @@ function ReasoningModePicker({
   }, [open]);
 
   return (
-    <div className="meri-v3-reasoning-picker" ref={rootRef}>
+    <div className="meri-v3-mode-chip" ref={ref}>
       <button
         type="button"
-        className="meri-v3-reasoning-trigger"
-        onClick={() => setOpen((current) => !current)}
+        className="meri-v3-header-chip meri-v3-header-chip--button"
         disabled={disabled}
-        aria-haspopup="listbox"
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Reasoning mode: ${selected.label}`}
       >
-        <span className="meri-v3-reasoning-spark" aria-hidden="true" />
-        {selected.label}
-        <DownOutlined />
+        MODE · {selected.label.toUpperCase()} ▾
       </button>
       {open ? (
-        <div className="meri-v3-reasoning-menu" role="listbox" aria-label="Reasoning mode">
-          {REASONING_MODES.map((item) => (
+        <div className="meri-v3-mode-menu" role="menu" aria-label="Reasoning mode">
+          {REASONING_MODES.map((mode) => (
             <button
-              key={item.mode}
               type="button"
-              role="option"
-              aria-selected={item.mode === value}
+              role="menuitemradio"
+              aria-checked={mode.mode === value}
+              key={mode.mode}
               onClick={() => {
-                onChange(item.mode);
+                onChange(mode.mode);
                 setOpen(false);
               }}
             >
               <span>
-                <strong>{item.label}</strong>
-                <small>{item.description}</small>
+                <strong>{mode.label}</strong>
+                <small>{mode.description}</small>
               </span>
-              {item.mode === value ? <CheckOutlined /> : null}
+              <i>{mode.mode === value ? '✓' : ''}</i>
             </button>
           ))}
         </div>
       ) : null}
-      {error ? <span className="meri-v3-mode-error">{error}</span> : null}
+      {error ? <div className="meri-v3-mode-error">{error}</div> : null}
     </div>
   );
 }

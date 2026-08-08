@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import type { ReactNode } from 'react';
 import { setAlerts, setChatOpen, resetChatStoreForTests } from './chat-store.js';
 
 const mocks = vi.hoisted(() => ({
@@ -15,12 +14,6 @@ vi.mock('../../lib/me.js', () => ({
     data: { features: { meriv3Chat: mocks.meriv3 } },
     isLoading: false,
   }),
-}));
-
-vi.mock('./managed-mcp-apps.js', () => ({
-  ManagedMcpAppsProvider: ({ children }: { children: ReactNode }) => (
-    <div data-testid="managed-app-provider">{children}</div>
-  ),
 }));
 
 vi.mock('./meri-window.js', () => ({
@@ -130,23 +123,21 @@ describe('MeriOverlay window state integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /Open Meri workspace window/i }));
     expect(mocks.openWorkspace).toHaveBeenCalledTimes(1);
     expect(screen.queryByLabelText('Meri assistant')).toBeNull();
-    expect(screen.queryByTestId('managed-app-provider')).toBeNull();
+    expect(screen.queryByTestId('meri-workspace-window')).toBeNull();
   });
 
-  test('a popup blocker falls back to the full undocked surface with connected apps', () => {
+  test('a popup blocker falls back to the exact MeriV3 prototype workspace', () => {
     mocks.meriv3 = true;
     mocks.openWorkspace.mockReturnValue(null);
     render(<MeriOverlay />);
     fireEvent.click(screen.getByRole('button', { name: /Open Meri workspace window/i }));
-    expect(screen.getByLabelText('Meri assistant').className).toContain('meri-overlay--undocked');
-    expect(screen.getByLabelText('Meri assistant').className).not.toContain('meri-overlay--docked');
-    expect(screen.getByTestId('managed-app-provider')).toBeTruthy();
+    expect(screen.getByTestId('meri-workspace-window')).toBeTruthy();
+    expect(screen.queryByLabelText('Meri assistant')).toBeNull();
   });
 
   test('renders an already-open legacy caller as the docked surface', () => {
     setChatOpen(true);
     render(<MeriOverlay />);
     expect(screen.getByLabelText('Meri assistant').className).toContain('meri-overlay--docked');
-    expect(screen.queryByTestId('managed-app-provider')).toBeNull();
   });
 });

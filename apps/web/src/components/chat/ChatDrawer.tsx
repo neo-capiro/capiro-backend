@@ -44,46 +44,16 @@ export function ChatDrawer(props: ChatDrawerProps) {
   return <MeriLegacyDrawer controller={controller} />;
 }
 
-/** V3 workspace timestamp: 24-hour HH:MM, matching the prototype meta lines. */
-function formatV3Time(value: Date | string): string {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
-
-/** V3 workspace day-divider label (TODAY / YESTERDAY / weekday / date). */
-function formatV3DayLabel(value: Date | string): string {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((dayStart(new Date()) - dayStart(date)) / 86_400_000);
-  if (diffDays <= 0) return 'TODAY';
-  if (diffDays === 1) return 'YESTERDAY';
-  if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'long' }).toUpperCase();
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
-}
-
 export function MeriLegacyDrawer({
   controller,
   embedded = false,
   surface = 'legacy',
   showSessionRail = true,
-  variant = 'v2',
 }: {
   controller: MeriChatController;
   embedded?: boolean;
   surface?: 'legacy' | 'docked' | 'undocked';
   showSessionRail?: boolean;
-  /**
-   * Visual variant. 'v2' is the production MeriV2 rendering — never modified.
-   * 'v3' opts the embedded workspace window into the Meri Chat Workspace
-   * prototype chrome (square bubbles, ring avatar, meta lines, day dividers,
-   * composer footnote). Every v3 difference is scoped CSS or an explicit
-   * `variant === 'v3'` branch; the 'v2' path renders exactly as before.
-   */
-  variant?: 'v2' | 'v3';
 }) {
   const {
     isOpen,
@@ -165,6 +135,7 @@ export function MeriLegacyDrawer({
     setResearchQuestions,
     researchSessionRef,
   } = controller;
+
 
   return (
     <>
@@ -354,30 +325,13 @@ export function MeriLegacyDrawer({
           onClearAll={() => void handleClearAllAlerts()}
         />
 
-        <div
-          className={`chat-messages${variant === 'v3' ? ' chat-messages--v3' : ''}`}
-          role="log"
-          aria-live="polite"
-          aria-label="Conversation"
-        >
+        <div className="chat-messages" role="log" aria-live="polite" aria-label="Conversation">
           {messages.length === 0 && !isStreaming && (
             <MeriEmptyState surface={surface} onSend={(prompt) => void sendMessage(prompt)} />
           )}
 
           {messages.map((msg, i) => {
             const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1;
-            // V3 prototype chrome only: day dividers between calendar days and
-            // a mono meta line under each message. Both derive from the real
-            // message timestamp; v2 renders neither.
-            const v3Time = variant === 'v3' ? formatV3Time(msg.createdAt) : '';
-            const v3ShowDivider =
-              variant === 'v3' &&
-              (i === 0 ||
-                formatV3DayLabel(messages[i - 1]!.createdAt) !== formatV3DayLabel(msg.createdAt));
-            const v3DividerLabel =
-              variant === 'v3' && v3ShowDivider
-                ? `${formatV3DayLabel(msg.createdAt)}${v3Time ? ` · ${v3Time}` : ''}`
-                : '';
             const verificationDisplay =
               msg.role === 'assistant' && msg.content !== ''
                 ? deriveVerificationDisplay({
@@ -388,13 +342,6 @@ export function MeriLegacyDrawer({
                 : null;
             return (
               <div key={msg.id} className={`meri-turn meri-turn--${msg.role}`}>
-                {variant === 'v3' && v3ShowDivider && (
-                  <div className="meri-v3-day-divider" aria-hidden="true">
-                    <span className="meri-v3-day-divider-line" />
-                    <span className="meri-v3-day-divider-label">{v3DividerLabel}</span>
-                    <span className="meri-v3-day-divider-line" />
-                  </div>
-                )}
                 {isLastAssistant && (
                   <WorkPerformed
                     intent={orchestratorIntent}
@@ -418,21 +365,12 @@ export function MeriLegacyDrawer({
                     msg.content !== ''
                   }
                 />
-                {variant === 'v3' && msg.role === 'user' && v3Time && (
-                  <div className="meri-v3-msg-meta meri-v3-msg-meta--user" aria-hidden="true">
-                    {v3Time}
-                  </div>
-                )}
-                {variant === 'v3' && msg.role === 'assistant' && v3Time && (
-                  <div className="meri-v3-msg-meta meri-v3-msg-meta--assistant" aria-hidden="true">
-                    MERI · {v3Time}
-                  </div>
-                )}
-                {verificationDisplay && !(isStreaming && i === messages.length - 1) && (
-                  <div className="chat-verification-summary">
-                    <VerificationStatus display={verificationDisplay} compact />
-                  </div>
-                )}
+                {verificationDisplay &&
+                  !(isStreaming && i === messages.length - 1) && (
+                    <div className="chat-verification-summary">
+                      <VerificationStatus display={verificationDisplay} compact />
+                    </div>
+                  )}
                 {msg.role === 'assistant' &&
                   msg.chartArtifacts &&
                   msg.chartArtifacts.length > 0 && (
@@ -651,11 +589,6 @@ export function MeriLegacyDrawer({
               });
             }}
           />
-          {variant === 'v3' && (
-            <div className="meri-v3-composer-footnote" aria-hidden="true">
-              Meri cites sources · network writes and external sends require your approval
-            </div>
-          )}
         </div>
       </div>
 
