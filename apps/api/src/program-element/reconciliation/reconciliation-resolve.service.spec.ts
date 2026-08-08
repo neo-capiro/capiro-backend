@@ -25,6 +25,8 @@ interface QueueEntry {
   resolvedByUserId?: string | null;
   resolvedAt?: Date | null;
   resolutionNotes?: string | null;
+  /** Phase 7 WS K: the governed override this entry raised, if any. */
+  proposedOverrideId?: string | null;
 }
 
 /** Read-service mock: a queue + an audit log + a withTenant that just runs the callback. */
@@ -72,29 +74,74 @@ describe('ProgramElementReadService.resolveReconciliation', () => {
     const res = await svc.resolveReconciliation('r1', { decision: 'keep_current', notes: 'looks right' }, ctx, apply);
 
     expect(apply).not.toHaveBeenCalled();
-    expect(res).toMatchObject({ resolved: true, decision: 'keep_current', appliedValue: null });
+    // keep_current governs no correction, so it still resolves outright.
+    expect(res).toMatchObject({
+      resolved: true,
+      pendingApproval: false,
+      decision: 'keep_current',
+      proposedOverrideId: null,
+    });
     expect(queue[0]).toMatchObject({ status: 'resolved', resolvedByUserId: ctx.userId, resolutionNotes: 'looks right' });
     expect(queue[0]?.resolvedAt).toBeInstanceOf(Date);
     expect(audits[0]).toMatchObject({ action: 'program_element.reconciliation.resolve', entityId: 'r1' });
   });
 
-  test('accept_conflicting applies the conflicting value (in $M) via the callback', async () => {
-    const { svc, queue } = makeReadService(entryFixture());
-    const apply = jest.fn().mockResolvedValue(undefined);
-    const res = await svc.resolveReconciliation('r1', { decision: 'accept_conflicting' }, ctx, apply);
+  test('accept_conflicting proposes an override and parks the entry, writing nothing canonical', async () => {
+    const { svc, queue, audits } = makeReadService(entryFixture());
+    const propose = jest.fn().mockResolvedValue('ovr-1');
+    const res = await svc.resolveReconciliation('r1', { decision: 'accept_conflicting' }, ctx, propose);
 
-    expect(apply).toHaveBeenCalledWith('0601102A', 2027, 'hascMark', 250.5);
-    expect(res.appliedValue).toBe(250.5);
-    expect(queue[0]?.status).toBe('resolved');
+    // The stored value is TEXT and stays TEXT — no Number() anywhere.
+    expect(propose).toHaveBeenCalledWith(
+      { peCode: '0601102A', fy: 2027, fieldName: 'hascMark' },
+      '250.5',
+    );
+    expect(res).toMatchObject({
+      resolved: false,
+      pendingApproval: true,
+      proposedValue: '250.5',
+      proposedOverrideId: 'ovr-1',
+    });
+    expect(queue[0]?.status).toBe('pending_approval');
+    expect(queue[0]?.proposedOverrideId).toBe('ovr-1');
+    // Nobody has resolved it yet — a second admin still has to approve.
+    expect(queue[0]?.resolvedByUserId).toBeNull();
+    expect(queue[0]?.resolvedAt).toBeNull();
+    expect(audits[0]).toMatchObject({
+      action: 'program_element.reconciliation.propose_override',
+    });
   });
 
-  test('manual_value applies the operator-entered value', async () => {
+  test('manual_value proposes the operator-entered value as an exact string', async () => {
     const { svc } = makeReadService(entryFixture());
-    const apply = jest.fn().mockResolvedValue(undefined);
-    const res = await svc.resolveReconciliation('r1', { decision: 'manual_value', manualValue: 199 }, ctx, apply);
+    const propose = jest.fn().mockResolvedValue('ovr-2');
+    const res = await svc.resolveReconciliation(
+      'r1',
+      { decision: 'manual_value', manualValue: '199' },
+      ctx,
+      propose,
+    );
 
-    expect(apply).toHaveBeenCalledWith('0601102A', 2027, 'hascMark', 199);
-    expect(res.appliedValue).toBe(199);
+    expect(propose).toHaveBeenCalledWith(
+      { peCode: '0601102A', fy: 2027, fieldName: 'hascMark' },
+      '199',
+    );
+    expect(res.proposedValue).toBe('199');
+    expect(res.pendingApproval).toBe(true);
+  });
+
+  test('a fractional value keeps every digit rather than being rounded', async () => {
+    const { svc } = makeReadService(entryFixture());
+    const propose = jest.fn().mockResolvedValue('ovr-3');
+    const res = await svc.resolveReconciliation(
+      'r1',
+      { decision: 'manual_value', manualValue: '12.345678' },
+      ctx,
+      propose,
+    );
+
+    expect(propose).toHaveBeenCalledWith(expect.anything(), '12.345678');
+    expect(res.proposedValue).toBe('12.345678');
   });
 
   test('manual_value without a value is a 400 and applies nothing', async () => {
@@ -165,6 +212,10 @@ function makeWriterPrisma(seedYear: Record<string, unknown>) {
 
   const prisma = {
     $queryRaw: async () => [],
+    // The writer takes a pg advisory lock via $executeRaw before touching a
+    // PE-year row. Absent from this fake, every writer test throws
+    // "tx.$executeRaw is not a function" before reaching its assertion.
+    $executeRaw: async () => 0,
     programElementYear: {
       findUnique: async ({ where }: { where: { peCode_fy: { peCode: string; fy: number } } }) =>
         years.get(key(where.peCode_fy.peCode, where.peCode_fy.fy)) ?? null,

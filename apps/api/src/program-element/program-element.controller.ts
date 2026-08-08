@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Type } from 'class-transformer';
 import {
   IsIn,
@@ -23,7 +34,32 @@ import {
 } from './program-element-read.service.js';
 import { ProgramElementWriterService } from './program-element-writer.service.js';
 import { ProgramElementDataIssueService } from './program-element-data-issue.service.js';
-import { MANUAL_OVERRIDE_SOURCE, type PeYearInput } from './types.js';
+import {
+  ManualOverrideRefusalError,
+  approveManualOverrideV1,
+  canonicalTargetForLegacyPeYearV1,
+  proposeManualOverrideV1,
+  type ManualOverrideRepositoryV1,
+} from '../defense-budget/promotion/manual-override-service-v1.js';
+import { MANUAL_OVERRIDE_REPOSITORY_V1 } from '../defense-budget/promotion/manual-override.tokens.js';
+import { Inject } from '@nestjs/common';
+
+/**
+ * A manual value that can represent money exactly.
+ *
+ * A JSON number is accepted only when it is an integer, because converting an
+ * integer to its decimal string is exact. A fractional number is refused rather
+ * than converted — the same rule the canonical projectors apply, and the point
+ * at which float error would otherwise enter a governed override.
+ */
+function exactManualValueOrThrow(value: string | number | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string') return value;
+  if (Number.isInteger(value)) return String(value);
+  throw new BadRequestException(
+    `manualValue must be an exact decimal string; ${value} is a fractional JSON number and cannot represent money exactly`,
+  );
+}
 
 class SetPeAlertEmailPrefDto {
   /** PE Watch email-alert mode (plan Phase 2). */
@@ -35,10 +71,20 @@ class ResolveReconciliationDto {
   @IsIn(['keep_current', 'accept_conflicting', 'manual_value'])
   decision!: ReconciliationDecision;
 
-  /** Required for decision=manual_value; numeric value in $ millions. */
+  /**
+   * Required for decision=manual_value; an exact decimal string in $ millions.
+   *
+   * Widened from `number` in Phase 7 Workstream K. This value becomes a governed
+   * override, and Phase 7 forbids JavaScript floats anywhere in the promotion
+   * path. An integer number is still accepted — converting one to its decimal
+   * string is exact, the same rule the canonical projectors apply — but a
+   * fractional number is refused rather than converted, because that is
+   * precisely where float error enters. `exactManualValueOrThrow` below does
+   * that check, so the caller gets a 400 explaining it rather than a constraint
+   * violation from deep in the override contract.
+   */
   @IsOptional()
-  @IsNumber()
-  manualValue?: number;
+  manualValue?: string | number;
 
   @IsOptional()
   @IsString()
@@ -118,6 +164,8 @@ export class ProgramElementController {
     private readonly service: ProgramElementReadService,
     private readonly writer: ProgramElementWriterService,
     private readonly dataIssues: ProgramElementDataIssueService,
+    @Inject(MANUAL_OVERRIDE_REPOSITORY_V1)
+    private readonly overrides: ManualOverrideRepositoryV1,
   ) {}
 
   // Static admin route declared before the ':peCode' dynamic route so 'admin' is
@@ -158,8 +206,20 @@ export class ProgramElementController {
     );
   }
 
-  // Resolve a queued conflict. accept_conflicting/manual_value write the chosen value through
-  // the writer's manual_override path (canonical update + is_winner flip). capiro_admin only.
+  /**
+   * Propose a correction for a queued conflict. capiro_admin only.
+   *
+   * Phase 7 Workstream K: this no longer writes anything canonical. It records a
+   * governed override in the `proposed` state and parks the entry at
+   * `pending_approval`; a second capiro_admin puts it in force via the approve
+   * route below. `keep_current` still resolves outright — there is no correction
+   * to govern.
+   *
+   * `ProgramElementWriterService` is deliberately not called. The old path wrote
+   * through it under a `manual_override` source string, which made a human
+   * decision indistinguishable from a parsed J-book line and flipped a winner
+   * flag on the strength of one person's judgement.
+   */
   @Post('admin/reconciliation-queue/:id/resolve')
   @Roles('capiro_admin')
   resolveReconciliation(
@@ -169,14 +229,71 @@ export class ProgramElementController {
   ) {
     return this.service.resolveReconciliation(
       id,
-      { decision: body.decision, manualValue: body.manualValue, notes: body.notes },
+      {
+        decision: body.decision,
+        manualValue: exactManualValueOrThrow(body.manualValue),
+        notes: body.notes,
+      },
       ctx,
-      async (peCode: string, fy: number, fieldName: string, value: number) => {
-        const record: PeYearInput = { peCode, fy };
-        (record as unknown as Record<string, unknown>)[fieldName] = value;
-        await this.writer.upsertProgramElementYear(record, MANUAL_OVERRIDE_SOURCE);
+      async (entry, exactValue) => {
+        try {
+          const record = await proposeManualOverrideV1(
+            {
+              overrideId: randomUUID(),
+              target: canonicalTargetForLegacyPeYearV1(entry),
+              value: {
+                // The queue stores $ millions, so the printed figure and the
+                // normalized millions figure are the same string.
+                originalValue: exactValue,
+                originalUnit: 'millions',
+                valueMillions: exactValue,
+              },
+              authorActorId: ctx.userId,
+              reason: body.notes?.trim() || 'reconciliation queue resolution',
+              evidenceIds: [`reconciliation_review_queue:${id}`],
+              effectiveFrom: new Date().toISOString(),
+              proposedAt: new Date().toISOString(),
+            },
+            this.overrides,
+          );
+          return record.overrideId;
+        } catch (error) {
+          // A governed refusal is the caller's fault, not a server fault.
+          if (error instanceof ManualOverrideRefusalError) {
+            throw new BadRequestException(`${error.reason}: ${error.message}`);
+          }
+          throw error;
+        }
       },
     );
+  }
+
+  /**
+   * Approve a proposed correction, putting it in force. capiro_admin only, and
+   * necessarily a different admin from the one who proposed it — the override
+   * contract, a CHECK constraint, and a lifecycle trigger each refuse otherwise.
+   */
+  @Post('admin/reconciliation-queue/:id/approve')
+  @Roles('capiro_admin')
+  approveReconciliation(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.approveReconciliation(id, ctx, async (overrideId: string) => {
+      try {
+        await approveManualOverrideV1(
+          {
+            overrideId,
+            approverActorId: ctx.userId,
+            approverRole: ctx.role,
+            approvedAt: new Date().toISOString(),
+          },
+          this.overrides,
+        );
+      } catch (error) {
+        if (error instanceof ManualOverrideRefusalError) {
+          throw new BadRequestException(`${error.reason}: ${error.message}`);
+        }
+        throw error;
+      }
+    });
   }
 
   // Step 1.4 — cross-PE "needs attention" delta feed (most material first, tenant-relevance

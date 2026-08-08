@@ -74,6 +74,30 @@ export const configSchema = z.object({
   DEFENSE_BUDGET_RAW_KMS_KEY_ARN: z.string().optional(),
   DEFENSE_BUDGET_RETENTION_YEARS: z.coerce.number().int().positive().default(7),
 
+  // ── Phase 7 Workstream M — canonical read cutover (all inert by default) ───
+  // Which source a Program Elements read is served from. 'legacy' = today's
+  // mutable program_element* tables, exactly as now; 'shadow' = serve legacy but
+  // compute the snapshot response and compare digests; 'snapshot_canary' = serve
+  // the snapshot to PE_SNAPSHOT_CANARY_TENANTS only, still comparing for
+  // everyone; 'snapshot' = serve the snapshot to all. Defaults to 'legacy', so
+  // the whole workstream lands inert — same shape as KG_TRAVERSAL_SOURCE below.
+  //
+  // No active snapshot forces 'legacy' regardless of this setting: a snapshot
+  // read with no activation pointer is a product outage, not an empty result.
+  PE_SNAPSHOT_READ_MODE: z
+    .enum(['legacy', 'shadow', 'snapshot_canary', 'snapshot'])
+    .default('legacy'),
+  // Comma-separated tenant ids promoted to snapshot reads while the mode is
+  // 'snapshot_canary'. Ignored in every other mode.
+  PE_SNAPSHOT_CANARY_TENANTS: z.string().optional(),
+  // The Workstream M kill switch. 'off' (default) refuses --commit on the twelve
+  // dispatcher verbs that write canonical budget rows directly; canonical data
+  // enters through the promotion workflow instead. 'allow' is the deliberate
+  // operator override, and it is itself overridden by a snapshot or canary read
+  // mode — a legacy write underneath snapshot reads produces a divergence
+  // indistinguishable from a promotion defect.
+  PE_LEGACY_BUDGET_WRITES: z.enum(['off', 'allow']).default('off'),
+
   // Optional AI providers. Meeting prep endpoints fail closed with 503 until
   // one provider key is configured; they never return canned prep.
   AI_PROVIDER: z.enum(['openai', 'anthropic']).optional(),

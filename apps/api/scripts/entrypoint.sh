@@ -121,6 +121,63 @@ case "${1:-serve}" in
     echo "Running demo-meriv2-control-alarms (refuses dev/prod; explicit non-prod confirmation required)"
     exec ./node_modules/.bin/tsx scripts/demo-meriv2-control-alarms.ts "$@"
     ;;
+  # Phase 7 Workstream N. Trust-critical promotion-operator verbs belong here,
+  # not in entrypoint-dispatcher.inc — that file is the frozen legacy include
+  # Workstream M's containment gate wraps, not where new promotion verbs go
+  # (docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md §4). Only
+  # two of the plan's eight promotion verbs are wired as of session 7 —
+  # plan/validate/authorize/execute/compare/rollback are not yet built; see the
+  # session-7 handoff for the exact construction pattern to follow. As of
+  # session 8, seven of the plan's eight promotion verbs are wired. Only
+  # authorize-defense-budget-promotion-v1 is missing, and it is blocked rather
+  # than skipped: the authorization service derives segregation-of-duties
+  # evidence from the eligibility record, and no table stores one — see
+  # docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md.
+  #
+  # execute and rollback deliberately read PROMOTER_DATABASE_URL and never fall
+  # back to the composed DATABASE_URL, so compose_database_url is not called for
+  # them; promoting as the serve role is the boundary Workstream D exists to
+  # enforce.
+  plan-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running plan-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/plan-defense-budget-promotion-v1.ts "$@"
+    ;;
+  validate-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running validate-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/validate-defense-budget-promotion-v1.ts "$@"
+    ;;
+  status-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running status-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/status-defense-budget-promotion-v1.ts "$@"
+    ;;
+  compare-defense-budget-canonical-reads-v1)
+    shift
+    compose_database_url
+    echo "Running compare-defense-budget-canonical-reads-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/compare-defense-budget-canonical-reads-v1.ts "$@"
+    ;;
+  execute-defense-budget-promotion-v1)
+    shift
+    echo "Running execute-defense-budget-promotion-v1 (promoter role; dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/execute-defense-budget-promotion-v1.ts "$@"
+    ;;
+  rollback-defense-budget-snapshot-v1)
+    shift
+    echo "Running rollback-defense-budget-snapshot-v1 (promoter role; dry run unless --commit --confirm <env>; deletes nothing)"
+    exec ./node_modules/.bin/tsx scripts/rollback-defense-budget-snapshot-v1.ts "$@"
+    ;;
+  resume-defense-budget-promotion-side-effects-v1)
+    shift
+    compose_database_url
+    echo "Running resume-defense-budget-promotion-side-effects-v1 (writes only this scope's drain-pause row; dry run unless --commit)"
+    exec ./node_modules/.bin/tsx scripts/resume-defense-budget-promotion-side-effects-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

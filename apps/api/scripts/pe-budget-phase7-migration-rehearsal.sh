@@ -30,6 +30,9 @@ P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
 # both — replaying it alone would fail on a missing relation rather than
 # reproducing the real upgrade path.
 P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
+# Workstream L's drain migration is the third. It adds a column to the outbox
+# the first one creates, so the same exclusion applies for the same reason.
+P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -82,6 +85,7 @@ defense_budget_promotion_plan defense_budget_promotion_authorization \
 defense_budget_promotion_run defense_budget_promotion_item \
 defense_budget_promotion_activation defense_budget_promotion_outbox \
 defense_budget_compatibility_projection_run defense_budget_rollback_record \
+defense_budget_side_effect_drain_pause defense_budget_canonical_delta \
 defense_budget_canonical_row defense_budget_promotion_audit"
 
 assert_tables() {
@@ -126,6 +130,7 @@ for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
   [ "$migration" = "$P7_MIGRATION" ] && continue
   [ "$migration" = "$P7_MIGRATION_K" ] && continue
+  [ "$migration" = "$P7_MIGRATION_L" ] && continue
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
@@ -141,6 +146,8 @@ SQL
   || fail "Phase 7 migration failed on the upgrade path"
 "${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_K/migration.sql" >/dev/null \
   || fail "Workstream K queue-link migration failed on the upgrade path"
+"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_L/migration.sql" >/dev/null \
+  || fail "Workstream L drain migration failed on the upgrade path"
 assert_tables
 ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
 
@@ -230,6 +237,43 @@ ok "canonical row inserted into a STAGING snapshot"
 [ "$(q "SELECT money_value_millions::text FROM defense_budget_canonical_row;")" = "1.250000000" ] \
   || fail "exact decimal money was altered"
 ok "money stored exactly as NUMERIC(24,9) alongside its printed string"
+
+# Session 7 — three canonical_rdte_budget_position rows for the read
+# rehearsal's own projector check (pe-budget-phase7-read-rehearsal.ts §6).
+# Inserted here, in the same STAGING window as the om row above, because
+# canonical rows are immutable once a snapshot leaves STAGING — inserting
+# these later, after baseline activation, is exactly the write the
+# immutability trigger exists to refuse.
+SHA_E="$(printf 'e%.0s' $(seq 1 64))"
+"${PSQL[@]}" <<SQL >/dev/null
+INSERT INTO defense_budget_canonical_row
+  (snapshot_id, promotion_run_id, canonical_entity, canonical_natural_key,
+   parent_natural_key, family, fiscal_year, canonical_row_hash,
+   money_original_value, money_original_unit, money_value_millions,
+   attributes, direct_or_derived, source_projection_id, source_assertion_id,
+   evidence_ids, artifact_id, artifact_content_sha256, verification_candidate_id,
+   verification_run_id, source_document_id, source_pdf_sha256, mapping_registry_hash)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2026|2027|total',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '200', 'millions', 200,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2026","valueKind":"total"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E'),
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2027|2027|total',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '250', 'millions', 250,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2027","valueKind":"total"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E'),
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2027|2027|quantity',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '12', 'millions', 12,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2027","valueKind":"quantity"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E');
+SQL
+ok "three canonical_rdte_budget_position rows inserted while the snapshot was still STAGING"
 
 # =============================================================================
 log "Stage authority owns every field except 'request'"
@@ -897,10 +941,53 @@ run_sql "ALTER ROLE capiro_pe_promoter PASSWORD 'rehearsal-promoter';"
 run_sql "GRANT USAGE ON SCHEMA public TO capiro_pe_promoter;"
 ok "promoter role given a rehearsal password"
 
+# The Workstream M read rehearsal connects as the general API serve role, because
+# "can the role that serves product traffic read the active snapshot, and is it
+# still unable to write it" is the only question a read cutover has to answer.
+run_sql "ALTER ROLE capiro_app WITH LOGIN PASSWORD 'rehearsal-app';"
+ok "serve role given a rehearsal password"
+
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
   npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Workstream L — the outbox drainer against a real database"
+# =============================================================================
+#
+# Runs after the engine rehearsal and depends on the state it leaves: a
+# committed activation with a suppressed hydration outbox, and a scope paused by
+# the rollback. A unit test cannot prove SKIP LOCKED, so this is where the
+# claim's concurrency, its agreement with the drain policy, poison quarantine,
+# and lease recovery are actually demonstrated.
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-drain-rehearsal.ts" \
+  || fail "the drain rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Workstream M — the snapshot read path as the general serve role"
+# =============================================================================
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-read-rehearsal.ts" \
+  || fail "the read rehearsal did not pass"
+PASS_COUNT=$((PASS_COUNT + 1))
+
+# =============================================================================
+log "Workstream N — the plan and validate operator verbs as the serve role"
+# =============================================================================
+# Spawns the real CLIs rather than importing them, so what is demonstrated is
+# the command an operator types. Runs as capiro_app because that is the
+# credential Workstream N assigns the planner/validator — a missing SELECT
+# grant fails here instead of in production.
+ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
+  npx tsx "$SCRIPT_DIR/pe-budget-phase7-plan-rehearsal.ts" \
+  || fail "the plan/validate rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
 # =============================================================================

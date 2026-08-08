@@ -297,12 +297,23 @@ export interface PromotionExecutionRepositoryV1 {
    * Without this, a drainer mid-flight keeps publishing the rolled-back
    * snapshot's material_change rows AFTER the pointer has moved back, so
    * downstream consumers receive alerts for data that is no longer active —
-   * arriving after the rollback's own suppressed marker row. The drainer does
-   * not exist yet; this port is what makes the ordering explicit so L cannot be
-   * built without honouring it.
+   * arriving after the rollback's own suppressed marker row.
+   *
+   * `context` is required rather than convenient. A paused drain is an
+   * operational stop that someone will eventually find and want to lift, and a
+   * pause row that cannot say who set it or why leaves that person choosing
+   * between resuming blind and leaving side effects stalled.
    */
-  pauseSideEffectDrain(domain: string, environment: string): Promise<void>;
-  resumeSideEffectDrain(domain: string, environment: string): Promise<void>;
+  pauseSideEffectDrain(
+    domain: string,
+    environment: string,
+    context: { reason: string; actor: string },
+  ): Promise<void>;
+  resumeSideEffectDrain(
+    domain: string,
+    environment: string,
+    context: { actor: string },
+  ): Promise<void>;
 
   /** Append-only rollback ledger entry. */
   recordRollback(input: {
@@ -989,7 +1000,10 @@ export class DefenseBudgetCanonicalPromotionServiceV1 {
 
     // E.10, first bullet. Pause BEFORE the pointer moves, so the drainer cannot
     // publish the outgoing snapshot's changes after it stops being active.
-    await this.repository.pauseSideEffectDrain(domain, request.environment);
+    await this.repository.pauseSideEffectDrain(domain, request.environment, {
+      reason: `rollback to ${request.toSnapshotId}: ${request.reason}`,
+      actor: request.executorIdentity,
+    });
 
     // A rollback needs its own run: the activation ledger has a foreign key to
     // a run, and reusing the original promotion run would consume a second

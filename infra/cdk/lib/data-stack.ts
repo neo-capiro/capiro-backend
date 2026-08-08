@@ -35,6 +35,19 @@ export class DataStack extends cdk.Stack {
    * ALTER ROLE), this Secret holds the source-of-truth value.
    */
   public readonly appSecret: secretsmanager.ISecret;
+  /**
+   * Phase 7 Workstream N. `capiro_pe_promoter` credential — the least-privilege
+   * role that alone may write canonical snapshot rows (Workstream D). Same
+   * pattern as `appSecret`: this Secret holds the source-of-truth value, and
+   * `bootstrap-roles` (already supports `PROMOTER_USER`/`PROMOTER_PASSWORD` as
+   * of Workstream D — confirmed in `apps/api/scripts/bootstrap-roles.ts`)
+   * rotates the actual DB role's password to match when it runs. Extends the
+   * existing bootstrap-roles/separate-secret mechanism rather than inventing a
+   * parallel one — see `docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md`
+   * §5, which calls this "a significant favourable finding" for exactly this
+   * reason.
+   */
+  public readonly promoterSecret: secretsmanager.ISecret;
   public readonly key: kms.Key;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
@@ -48,9 +61,7 @@ export class DataStack extends cdk.Stack {
       alias: `alias/capiro/${cfg.envName}/data`,
       description: `Capiro ${cfg.envName} Aurora + DB-related encryption CMK`,
       enableKeyRotation: true,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
     // Cluster parameter group, preload pgvector + pg_trgm. The application
@@ -85,9 +96,7 @@ export class DataStack extends cdk.Stack {
         excludePunctuation: true,
         passwordLength: 32,
       },
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
     this.secret = masterSecret;
 
@@ -110,9 +119,7 @@ export class DataStack extends cdk.Stack {
       cloudwatchLogsRetention: logs.RetentionDays.ONE_YEAR,
       iamAuthentication: true,
       deletionProtection: cfg.protectFromDestroy,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       serverlessV2MinCapacity: cfg.auroraMinAcu,
       serverlessV2MaxCapacity: cfg.auroraMaxAcu,
       writer: rds.ClusterInstance.serverlessV2('writer', {
@@ -156,14 +163,32 @@ export class DataStack extends cdk.Stack {
         excludePunctuation: true,
         passwordLength: 32,
       },
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
     this.appSecret = appSecret;
+
+    // Phase 7 Workstream N — the promoter's own secret, deliberately separate
+    // from both master (DDL) and app (general serve). No LLM/vendor/parser
+    // secrets attach to this role's task; this Secret is the only credential
+    // it needs.
+    const promoterSecret = new secretsmanager.Secret(this, 'PromoterSecret', {
+      secretName: `/capiro/${cfg.envName}/aurora/promoter`,
+      description:
+        'Capiro Aurora capiro_pe_promoter runtime credentials (Phase 7 canonical promotion)',
+      encryptionKey: this.key,
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({ username: 'capiro_pe_promoter' }),
+        generateStringKey: 'password',
+        excludePunctuation: true,
+        passwordLength: 32,
+      },
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+    });
+    this.promoterSecret = promoterSecret;
 
     new cdk.CfnOutput(this, 'AuroraEndpoint', { value: this.cluster.clusterEndpoint.hostname });
     new cdk.CfnOutput(this, 'AuroraSecretArn', { value: masterSecret.secretArn });
     new cdk.CfnOutput(this, 'AuroraAppSecretArn', { value: appSecret.secretArn });
+    new cdk.CfnOutput(this, 'AuroraPromoterSecretArn', { value: promoterSecret.secretArn });
   }
 }

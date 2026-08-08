@@ -30,6 +30,8 @@ export interface ComputeStackProps extends cdk.StackProps {
   dbCluster: rds.IDatabaseCluster;
   dbSecret: secretsmanager.ISecret;
   appDbSecret: secretsmanager.ISecret;
+  /** Phase 7 Workstream N — `capiro_pe_promoter`'s credential (`DataStack.promoterSecret`). */
+  promoterDbSecret: secretsmanager.ISecret;
   databaseName: string;
   dataKey: kms.IKey;
   secretsStack: SecretsStack;
@@ -67,6 +69,8 @@ export class ComputeStack extends cdk.Stack {
   public readonly workspaceService: ecs.FargateService;
   public readonly apiMigrateTaskDefinition: ecs.FargateTaskDefinition;
   public readonly apiBootstrapRolesTaskDefinition: ecs.FargateTaskDefinition;
+  /** Phase 7 Workstream N. One-off, no schedule — the only task def allowed to run the promotion CLI verbs. */
+  public readonly apiPromoterTaskDefinition: ecs.FargateTaskDefinition;
   public readonly apiEmbedBackfillTaskDefinition: ecs.FargateTaskDefinition;
   public readonly workspaceMigrateTaskDefinition: ecs.FargateTaskDefinition;
   public readonly apiTargetGroup: elb.ApplicationTargetGroup;
@@ -91,6 +95,7 @@ export class ComputeStack extends cdk.Stack {
       dbCluster,
       dbSecret,
       appDbSecret,
+      promoterDbSecret,
       databaseName,
       dataKey,
       secretsStack,
@@ -117,6 +122,11 @@ export class ComputeStack extends cdk.Stack {
       this,
       'ImportedAppDbSecret',
       appDbSecret.secretArn,
+    );
+    const promoterDbSecretImported = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      'ImportedPromoterDbSecret',
+      promoterDbSecret.secretArn,
     );
     const clerkSecretKeyImported = secretsmanager.Secret.fromSecretCompleteArn(
       this,
@@ -277,7 +287,12 @@ export class ComputeStack extends cdk.Stack {
     // never depend on a live MakeGov call (plan §4.1), so the long-lived serve
     // task has no way to reach for this key even if a future bug tried.
     const tangoApiKeySecret = cfg.externalSecretArns?.tangoApiKey
-      ? importExternalSecret(this, 'ImportedTangoApiKey', 'tango', cfg.externalSecretArns.tangoApiKey)
+      ? importExternalSecret(
+          this,
+          'ImportedTangoApiKey',
+          'tango',
+          cfg.externalSecretArns.tangoApiKey,
+        )
       : undefined;
 
     // Google Workspace OAuth (engagement Gmail/Calendar integration + the
@@ -1193,9 +1208,7 @@ export class ComputeStack extends cdk.Stack {
     const apiStrategyMigrateLogGroup = new logs.LogGroup(this, 'ApiStrategyMigrateLogs', {
       logGroupName: `/capiro/${cfg.envName}/api-strategy-migrate`,
       retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
     const apiStrategyTaskRole = new iam.Role(this, 'ApiStrategyTaskRole', {
@@ -1256,11 +1269,7 @@ export class ComputeStack extends cdk.Stack {
     });
     grantSecretsAndKmsToExecutionRole(
       apiStrategyTaskDef,
-      [
-        dbSecretImported.secretArn,
-        appDbSecretImported.secretArn,
-        clerkSecretKeyImported.secretArn,
-      ],
+      [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
     apiStrategyTaskDef.addContainer('api-strategy', {
@@ -1580,7 +1589,11 @@ export class ComputeStack extends cdk.Stack {
     );
     grantSecretsAndKmsToExecutionRole(
       this.apiBootstrapRolesTaskDefinition,
-      [dbSecretImported.secretArn, appDbSecretImported.secretArn],
+      [
+        dbSecretImported.secretArn,
+        appDbSecretImported.secretArn,
+        promoterDbSecretImported.secretArn,
+      ],
       [dataKey.keyArn],
     );
     this.apiBootstrapRolesTaskDefinition.addContainer('api-bootstrap-roles', {
@@ -1592,10 +1605,15 @@ export class ComputeStack extends cdk.Stack {
       }),
       command: ['bootstrap-roles'],
       environment: apiSharedEnv,
-      // The bootstrap-roles script reads master + app credentials from env.
-      // The container's entrypoint already composes DATABASE_URL from DB_*,
-      // but bootstrap-roles uses MASTER_*/APP_* explicitly to keep the two
-      // credentials clearly named.
+      // The bootstrap-roles script reads master + app + promoter credentials
+      // from env. The container's entrypoint already composes DATABASE_URL
+      // from DB_*, but bootstrap-roles uses MASTER_*/APP_*/PROMOTER_*
+      // explicitly to keep the three credentials clearly named.
+      // apps/api/scripts/bootstrap-roles.ts already reads PROMOTER_USER/
+      // PROMOTER_PASSWORD (optional — it no-ops if absent) as of Workstream D;
+      // this is the CDK side the session-4/5/6 handoffs flagged as the one
+      // outstanding piece before capiro_pe_promoter can authenticate anywhere
+      // outside a disposable rehearsal container.
       secrets: {
         DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
         DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
@@ -1605,6 +1623,58 @@ export class ComputeStack extends cdk.Stack {
         MASTER_PASSWORD: ecs.Secret.fromSecretsManager(dbSecretImported, 'password'),
         APP_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
         APP_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+        PROMOTER_USER: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'username'),
+        PROMOTER_PASSWORD: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'password'),
+      },
+      readonlyRootFilesystem: false,
+    });
+
+    // -------------------------------------------------------- promoter task (one-off)
+    // Phase 7 Workstream N. The only task definition allowed to run the
+    // promotion CLI verbs (execute/rollback) as `capiro_pe_promoter`. Follows
+    // `apiEmbedBackfillTaskDefinition`'s one-off-with-overridable-command
+    // shape: no service, no schedule, `aws ecs run-task --overrides` supplies
+    // the actual verb per invocation. Private subnets only, no public
+    // listener, dedicated log group, and — per plan invariant — no
+    // LLM/vendor/parser secrets on this container at all: the promoter reloads
+    // already-verified projections from persistence, it never calls a paid
+    // parser or LLM.
+    const promoterLogGroup = new logs.LogGroup(this, 'ApiPromoterLogGroup', {
+      logGroupName: `/capiro/${cfg.envName}/api-promoter`,
+      retention: logs.RetentionDays.ONE_YEAR,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+    });
+    this.apiPromoterTaskDefinition = new ecs.FargateTaskDefinition(this, 'ApiPromoterTaskDef', {
+      family: `capiro-${cfg.envName}-api-promoter`,
+      cpu: 512,
+      memoryLimitMiB: 1024,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
+      taskRole: apiTaskRole,
+    });
+    grantSecretsAndKmsToExecutionRole(
+      this.apiPromoterTaskDefinition,
+      [dbSecretImported.secretArn, promoterDbSecretImported.secretArn],
+      [dataKey.keyArn],
+    );
+    this.apiPromoterTaskDefinition.addContainer('api-promoter', {
+      image: ecs.ContainerImage.fromEcrRepository(this.apiRepo, 'latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: promoterLogGroup,
+        streamPrefix: 'promoter',
+      }),
+      // Default command is intentionally the safest read-only verb; every
+      // real invocation overrides this via `aws ecs run-task --overrides`.
+      command: ['status-defense-budget-promotion-v1'],
+      environment: apiSharedEnv,
+      secrets: {
+        DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
+        DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
+        DB_USER: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'password'),
       },
       readonlyRootFilesystem: false,
     });
@@ -1787,31 +1857,27 @@ export class ComputeStack extends cdk.Stack {
       },
     );
 
-    this.apiStrategyTargetGroup = new elb.ApplicationTargetGroup(
-      this,
-      'ApiStrategyTargetGroup',
-      {
-        vpc,
-        port: 4400,
-        protocol: elb.ApplicationProtocol.HTTP,
-        targetType: elb.TargetType.IP,
-        targets: [
-          this.apiStrategyService.loadBalancerTarget({
-            containerName: 'api-strategy',
-            containerPort: 4400,
-          }),
-        ],
-        healthCheck: {
-          path: '/strategy-api/health',
-          healthyHttpCodes: '200',
-          interval: cdk.Duration.seconds(30),
-          timeout: cdk.Duration.seconds(5),
-          unhealthyThresholdCount: 3,
-          healthyThresholdCount: 2,
-        },
-        deregistrationDelay: cdk.Duration.seconds(15),
+    this.apiStrategyTargetGroup = new elb.ApplicationTargetGroup(this, 'ApiStrategyTargetGroup', {
+      vpc,
+      port: 4400,
+      protocol: elb.ApplicationProtocol.HTTP,
+      targetType: elb.TargetType.IP,
+      targets: [
+        this.apiStrategyService.loadBalancerTarget({
+          containerName: 'api-strategy',
+          containerPort: 4400,
+        }),
+      ],
+      healthCheck: {
+        path: '/strategy-api/health',
+        healthyHttpCodes: '200',
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        unhealthyThresholdCount: 3,
+        healthyThresholdCount: 2,
       },
-    );
+      deregistrationDelay: cdk.Duration.seconds(15),
+    });
 
     // Listener rules, ORDER MATTERS, lower priority wins.
     //   3  /api/*, /webhooks/*, /health (any host) → api  [must beat marketing host rule]
