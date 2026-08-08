@@ -230,11 +230,24 @@ export function readEnvelope(
     ? { ...firstEvent, ...stripUndefined(envelope) }
     : envelope;
 
+  // THE SIGNED BODY WINS. The HMAC covers the body only, so the header is
+  // attacker-controlled: preferring it — which the first version did, reasoning
+  // that the header is "the transport's own identifier for THIS delivery" —
+  // meant one captured signed body could be replayed under unlimited distinct
+  // delivery ids, each one a fresh row. The unique index on `delivery_id` is
+  // described in its own migration as "the whole replay defence", and it was
+  // keyed on unsigned input.
+  //
+  // The header is still read, but only as a LAST resort for a provider that
+  // sends no id in the body at all. That path is replay-vulnerable by
+  // construction and there is no way around it without the provider signing the
+  // header; `diag-tango-webhook-contract` reports whether the body carries an
+  // id, and if it does, this branch never runs.
   const deliveryId = firstNonEmptyString([
-    deliveryHeader,
     body.delivery_id,
     body.deliveryId,
     body.id,
+    deliveryHeader,
   ]);
   if (deliveryId === null) return { ok: false, rejection: 'missing_delivery_id' };
 

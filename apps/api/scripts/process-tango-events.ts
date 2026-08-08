@@ -40,6 +40,7 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   type AffectedClientRow,
   type AlertToWrite,
@@ -124,14 +125,43 @@ export function readResourceRef(
     payload && typeof payload === 'object' && !Array.isArray(payload)
       ? (payload as Record<string, unknown>)
       : {};
-  const data =
+
+  // DESCEND INTO A BATCH. The receiver deliberately accepts the provider's
+  // `{ timestamp, events: [...] }` shape (see tango-webhook.service.ts), but
+  // this function only ever looked at the top level and `data`. A batch
+  // delivery therefore resolved to `externalId: null`, which the processor
+  // treats as a legitimate no-op and marks DONE — so the delivery was accepted
+  // with a 202, queued, and silently discarded. No alert, no error, no
+  // quarantine. Accepting a shape at one layer and dropping it at the next is
+  // worse than rejecting it outright.
+  const events = body.events;
+  const firstEvent =
+    Array.isArray(events) &&
+    events.length > 0 &&
+    typeof events[0] === 'object' &&
+    events[0] !== null &&
+    !Array.isArray(events[0])
+      ? (events[0] as Record<string, unknown>)
+      : null;
+
+  const envelope =
     body.data && typeof body.data === 'object' && !Array.isArray(body.data)
       ? (body.data as Record<string, unknown>)
       : body;
 
-  const resourceType = eventType.includes('forecast')
+  // Top level wins where it states an id; the first event fills the gap.
+  const data = firstEvent ? { ...firstEvent, ...envelope } : envelope;
+
+  // Prefer the EVENT's own type when the envelope carries none — a batch names
+  // its type per event, not on the wrapper.
+  const typeSource =
+    eventType ||
+    (typeof firstEvent?.event_type === 'string' ? firstEvent.event_type : '') ||
+    (typeof firstEvent?.eventType === 'string' ? firstEvent.eventType : '');
+
+  const resourceType = typeSource.includes('forecast')
     ? 'forecast'
-    : eventType.includes('entity')
+    : typeSource.includes('entity')
       ? 'entity'
       : 'opportunity';
 
@@ -142,6 +172,42 @@ export function readResourceRef(
     }
   }
   return { resourceType, externalId: null };
+}
+
+/**
+ * Run one unit of work in SYSTEM context.
+ *
+ * THIS SCRIPT CANNOT FUNCTION WITHOUT IT, and the first version did not have
+ * it. `client_funding_opportunity` and `tango_event_alert` are both RLS ENABLED
+ * and FORCED. A bare `PrismaClient` sets neither `app.current_tenant` nor
+ * `app.bypass_rls`, so as the real application role:
+ *
+ *   - `findAffectedClients` returns ZERO rows — fan-out finds nobody;
+ *   - `insertAlertIfNew` raises `new row violates row-level security policy`,
+ *     which the processor counts as a failure: five retries, then quarantine.
+ *
+ * The drain is CROSS-TENANT by nature — it must consider every tenant that
+ * saved an opportunity — so a per-tenant GUC is the wrong tool and system
+ * context is the right one. Every other drain and backfill in this repo does
+ * exactly this (`drain-pe-change-outbox.ts`, `drain-identity-outbox.ts`,
+ * `bootstrap-tenant.ts`, and a dozen more).
+ *
+ * Why it was invisible: the CI workflow provisions `POSTGRES_USER: postgres`,
+ * a SUPERUSER, which bypasses RLS even under FORCE — so the migration
+ * rehearsal could never surface it. The unit tests drive an in-memory
+ * `EventProcessorPort` double and never touch a database at all.
+ *
+ * Set only inside the transaction (`is_local = true`), so it cannot leak to
+ * another statement on a pooled connection.
+ */
+function withSystem<T>(
+  prisma: PrismaClient,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+    return fn(tx);
+  });
 }
 
 /** Prisma-backed port. Mirrors `opportunity-timeline.service.ts`'s own mapping. */
@@ -160,13 +226,25 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
         return rows;
       }
       // FOR UPDATE SKIP LOCKED inside a CTE feeding the UPDATE: several
-      // processors claim disjoint batches without blocking each other, and an
-      // expired lease makes a crashed processor's row claimable again.
+      // processors claim disjoint batches without blocking each other.
+      //
+      // RECLAIMS EXPIRED LEASES, which the first version did not. It selected
+      // `status = 'pending'` and then set `'processing'` — so nothing ever
+      // selected a `'processing'` row again and the `lease_until` predicate was
+      // dead code. A processor that died mid-batch left its rows in
+      // `'processing'` FOREVER: never retried, never quarantined, never
+      // surfaced. The migration's own comment promised the opposite ("a crashed
+      // processor's row becomes eligible again when its lease expires").
+      //
+      // A row is claimable when it is pending, OR when it is processing and its
+      // lease has expired — which is exactly what a lease is for.
       return prisma.$queryRaw<OutboxRow[]>`
         WITH claimed AS (
           SELECT "id" FROM "tango_event_outbox"
-          WHERE "status" = 'pending'
-            AND ("lease_until" IS NULL OR "lease_until" < now())
+          WHERE (
+                  "status" = 'pending'
+                  OR ("status" = 'processing' AND "lease_until" IS NOT NULL AND "lease_until" < now())
+                )
           ORDER BY "created_at" ASC
           LIMIT ${limit}
           FOR UPDATE SKIP LOCKED
@@ -220,7 +298,9 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
       // Bridged through `tango_opportunity_notice`, which already carries BOTH
       // ids, rather than through a separate crosswalk table — one fewer join and
       // one fewer thing that can be out of date.
-      return prisma.$queryRaw<AffectedClientRow[]>`
+      return withSystem(
+        prisma,
+        (tx) => tx.$queryRaw<AffectedClientRow[]>`
         SELECT DISTINCT
                c."tenant_id"      AS "tenantId",
                c."client_id"      AS "clientId",
@@ -236,7 +316,8 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
           WHERE n."tango_opportunity_id" = ${sourceRecordKey}
             AND n."sam_opportunity_id" IS NOT NULL
         )
-      `;
+      `,
+      );
     },
 
     /**
@@ -258,7 +339,9 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
      */
     insertAlertIfNew: async (alert: AlertToWrite): Promise<boolean> => {
       if (!commit) return true;
-      const inserted = await prisma.$executeRaw`
+      const inserted = await withSystem(
+        prisma,
+        (tx) => tx.$executeRaw`
         INSERT INTO "tango_event_alert"
           ("tenant_id", "client_id", "source_type", "source_record_key",
            "change_dimension", "severity", "change_fingerprint", "evidence_jsonb",
@@ -272,7 +355,8 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
            ${alert.sourceObservedAt}, ${alert.deliveryId})
         ON CONFLICT ("tenant_id", "client_id", "source_record_key", "change_fingerprint")
         DO NOTHING
-      `;
+      `,
+      );
       return inserted > 0;
     },
 
