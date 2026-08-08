@@ -248,11 +248,15 @@ export function SendMeriButton({
   onClick,
   size = 'md',
   block = false,
+  className,
 }: {
   m: MeriActionTarget;
   onClick?: () => void;
   size?: 'sm' | 'md';
   block?: boolean;
+  /** Optional hook so a surface (e.g. the Dashboard v2 panel) can re-skin the
+   *  button onto a different design system without changing its behaviour. */
+  className?: string;
 }) {
   if (m.meri === 'done') return null;
   const canDetect = m.isVirtual && m.joinLink;
@@ -309,6 +313,7 @@ export function SendMeriButton({
   return (
     <button
       type="button"
+      className={className}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();

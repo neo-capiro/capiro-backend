@@ -807,7 +807,7 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                         Debrief
                       </button>
                     ) : canMeri ? (
-                      <SendMeriButton m={m} size="sm" onClick={() => openNotetaker(m)} />
+                      <SendMeriButton m={m} size="sm" className="dash-send-meri" onClick={() => openNotetaker(m)} />
                     ) : null}
                   </div>
                 ) : (

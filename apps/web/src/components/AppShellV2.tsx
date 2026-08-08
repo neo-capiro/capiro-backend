@@ -184,6 +184,15 @@ export function AppShellV2({ me }: { me: MeResponse }) {
     (!n.meFeature || Boolean(me.features?.[n.meFeature]));
 
   const section = sectionFor(location.pathname);
+
+  // The all-client Dashboard must never carry an invisible client scope. Clear
+  // any persisted selection on entry so a hidden filter can't affect the data.
+  useEffect(() => {
+    if (section === 'dashboard' && selectedClientId) {
+      setSelectedClientId(null);
+    }
+  }, [section, selectedClientId, setSelectedClientId]);
+
   const go = (path?: string) => {
     closeAll();
     if (path) navigate(path);
@@ -369,52 +378,59 @@ export function AppShellV2({ me }: { me: MeResponse }) {
       <div className="v2-band2">
         <span className="v2-band2-eyebrow">TENANT</span>
         <span className="v2-band2-tenant">{tenantName}</span>
-        <span className="v2-band2-sep" aria-hidden />
-        <span className="v2-band2-eyebrow">CLIENT</span>
 
-        <div className="v2-client-wrap">
-          <button
-            type="button"
-            className="v2-client"
-            aria-haspopup="listbox"
-            onClick={() => setOpenMenu(openMenu === 'client' ? null : 'client')}
-          >
-            <span className="v2-client-mark">{clientMark}</span>
-            <span className="v2-client-name">{selectedClient?.name ?? 'All clients'}</span>
-            <CaretIcon />
-          </button>
-          {openMenu === 'client' ? (
-            <div className="v2-pop v2-client-pop" role="listbox">
+        {/* Dashboard is an all-client command view: no client scope control,
+            and no separator introducing one. Other sections keep it. */}
+        {section !== 'dashboard' ? (
+          <>
+            <span className="v2-band2-sep" aria-hidden />
+            <span className="v2-band2-eyebrow">CLIENT</span>
+
+            <div className="v2-client-wrap">
               <button
                 type="button"
-                className={`v2-menu-row${!selectedClient ? ' is-current' : ''}`}
-                onClick={() => {
-                  setSelectedClientId(null);
-                  closeAll();
-                }}
+                className="v2-client"
+                aria-haspopup="listbox"
+                onClick={() => setOpenMenu(openMenu === 'client' ? null : 'client')}
               >
-                <span className="v2-menu-label">All clients</span>
-                {!selectedClient ? <span className="v2-menu-check">✓</span> : null}
+                <span className="v2-client-mark">{clientMark}</span>
+                <span className="v2-client-name">{selectedClient?.name ?? 'All clients'}</span>
+                <CaretIcon />
               </button>
-              {visibleClients.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="option"
-                  aria-selected={selectedClientId === c.id}
-                  className={`v2-menu-row${selectedClientId === c.id ? ' is-current' : ''}`}
-                  onClick={() => {
-                    setSelectedClientId(c.id);
-                    closeAll();
-                  }}
-                >
-                  <span className="v2-menu-label">{c.name}</span>
-                  {selectedClientId === c.id ? <span className="v2-menu-check">✓</span> : null}
-                </button>
-              ))}
+              {openMenu === 'client' ? (
+                <div className="v2-pop v2-client-pop" role="listbox">
+                  <button
+                    type="button"
+                    className={`v2-menu-row${!selectedClient ? ' is-current' : ''}`}
+                    onClick={() => {
+                      setSelectedClientId(null);
+                      closeAll();
+                    }}
+                  >
+                    <span className="v2-menu-label">All clients</span>
+                    {!selectedClient ? <span className="v2-menu-check">✓</span> : null}
+                  </button>
+                  {visibleClients.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selectedClientId === c.id}
+                      className={`v2-menu-row${selectedClientId === c.id ? ' is-current' : ''}`}
+                      onClick={() => {
+                        setSelectedClientId(c.id);
+                        closeAll();
+                      }}
+                    >
+                      <span className="v2-menu-label">{c.name}</span>
+                      {selectedClientId === c.id ? <span className="v2-menu-check">✓</span> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </>
+        ) : null}
 
         <span className="v2-band2-flex" />
 
@@ -521,7 +537,7 @@ function DataRow({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
 
 /* ── Route → section mapping ───────────────────────────────────────────── */
 
-function sectionFor(pathname: string): V2Section {
+export function sectionFor(pathname: string): V2Section {
   if (pathname === '/') return 'dashboard';
   if (pathname.startsWith('/engagement')) return 'engagement';
   if (pathname.startsWith('/clients')) return 'portfolio';
