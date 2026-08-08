@@ -4,6 +4,10 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OutreachStateRepository } from '../persistence/outreach-state.repository.js';
 import {
+  canonicalJsonStringify,
+  OUTREACH_V3_LIMITS,
+} from '../state/outreach-campaign-spec.v1.js';
+import {
   parseOutreachCommandEnvelope,
   type ParsedOutreachCommandEnvelope,
 } from '../state/outreach-command.contract.js';
@@ -223,16 +227,28 @@ export class OutreachCommandProposalService {
   }
 
   private parseNormalizeCommands(input: unknown[]): ParsedOutreachCommandEnvelope[] {
-    if (!Array.isArray(input) || input.length === 0 || input.length > 20) {
+    if (!Array.isArray(input) || input.length === 0 || input.length > OUTREACH_V3_LIMITS.commandsPerBatch) {
       throw new OutreachCommandError(
         'OUTREACH_COMMAND_INVALID',
-        'A proposal must contain between 1 and 20 commands.',
+        `A proposal must contain between 1 and ${OUTREACH_V3_LIMITS.commandsPerBatch} commands.`,
         400,
       );
     }
-    return input.map((entry) =>
-      parseOutreachCommandEnvelope(normalizeOutreachCommandEnvelope(parseOutreachCommandEnvelope(entry))),
+    const normalized = input.map((entry) =>
+      parseOutreachCommandEnvelope(
+        normalizeOutreachCommandEnvelope(parseOutreachCommandEnvelope(entry)),
+      ),
     );
+    const bytes = Buffer.byteLength(canonicalJsonStringify(normalized), 'utf8');
+    if (bytes > OUTREACH_V3_LIMITS.commandBatchBytes) {
+      throw new OutreachCommandError(
+        'OUTREACH_COMMAND_BATCH_TOO_LARGE',
+        'The proposal command payload exceeds the allowed size.',
+        413,
+        { bytes, maxBytes: OUTREACH_V3_LIMITS.commandBatchBytes },
+      );
+    }
+    return normalized;
   }
 
   private parseNormalizeStoredCommands(input: unknown): ParsedOutreachCommandEnvelope[] {
