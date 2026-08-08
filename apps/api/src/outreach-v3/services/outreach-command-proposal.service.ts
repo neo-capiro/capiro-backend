@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -159,10 +160,15 @@ export class OutreachCommandProposalService {
         );
       }
 
-      // Proposal UUID is also the deterministic command batch UUID. A provider
-      // retry can never manufacture a second state mutation for one proposal.
+      // Proposal Apply owns its mutation identity. Do not reuse proposal.id as a
+      // public command-batch UUID: direct controls accept caller-chosen batch IDs,
+      // so a caller who knows the proposal UUID could otherwise pre-consume that
+      // idempotency key before pressing Apply. This UUID is generated server-side
+      // inside the same transaction; proposal terminal state prevents a second
+      // committed Apply, while a rollback discards both the state and proposal stamp.
+      const commandBatchId = randomUUID();
       const batch = this.commandEngine.parseNormalizeAndValidateBatch({
-        batchId: proposal.id,
+        batchId: commandBatchId,
         expectedStateVersion: proposal.expectedStateVersion,
         commands,
       });
@@ -186,7 +192,7 @@ export class OutreachCommandProposalService {
         stateVersionAfter: result.stateVersion,
         safeMetadata: {
           proposalId: proposal.id,
-          commandBatchId: proposal.id,
+          commandBatchId,
           result: result.status,
         },
       });
