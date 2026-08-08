@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -776,6 +776,7 @@ jobs:
           scripts/sync-tango-opportunity-notices.spec.ts
           scripts/sync-tango-opportunity-attachments.spec.ts
           scripts/sync-tango-opportunity-text.spec.ts
+          scripts/reconcile-tango-webhook-alerts.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -1653,9 +1654,28 @@ jobs:
       # PARSING" sends a bad signature over malformed JSON and requires the
       # answer to be invalid_signature, not malformed_json. If that ever flips,
       # the JSON parser is being handed unauthenticated input.
+      # 72/2256 -> 74/2316 after P47 (webhook alert reconciler): two NEW suites,
+      # tango-webhook-config.spec.ts (23) and reconcile-tango-webhook-alerts
+      # .spec.ts (36), plus one row added to the entrypoint dispatcher table.
+      # Measured: 74 suites / 2316 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The load-bearing assertions, if these ever need defending:
+      #   - "PERFORMS NO WRITE, and issues only reads" asserts the COMPLETE call
+      #     list of a dry run, not just the absence of one method. A per-call
+      #     mock would let a stray write through unasserted.
+      #   - "exits 3 and STOPS on a refused write" proves a tier refusal leaves
+      #     no half-configured account — it attempts exactly one write, then
+      #     stops, rather than marching through collecting failures.
+      #   - "NEVER deletes a human's dashboard alert, even WITH allowDelete"
+      #     and "never proposes deleting an unmanaged alert" are the two guards
+      #     behind "deletion is never implied by absence".
+      #   - "NEVER contains a per-client subscription" is structural: it greps
+      #     the shipped desired filters for tenant/client/uei/cage/duns, because
+      #     fan-out belongs in Capiro and a per-client filter would leak the
+      #     client roster into the provider's system.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 72 2256
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 74 2316
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

@@ -17,6 +17,10 @@ import {
   type TangoVehicle,
   type TangoVehicleAwardee,
   type TangoVehicleListOptions,
+  type TangoWebhookAlert,
+  type TangoWebhookAlertInput,
+  type TangoWebhookEndpoint,
+  type TangoWebhookEventType,
 } from './tango.types.js';
 
 /**
@@ -161,7 +165,7 @@ export class TangoRequestCeilingExceededError extends Error {
   constructor(operation: string, ceiling: number) {
     super(
       `Tango request ceiling (${ceiling}) reached before "${operation}" — refusing to issue ` +
-        'another call this run. This protects the account\'s quota, not a per-call limit; a new ' +
+        "another call this run. This protects the account's quota, not a per-call limit; a new " +
         'process (a new run) starts with a fresh count.',
     );
     this.name = 'TangoRequestCeilingExceededError';
@@ -264,7 +268,40 @@ export class TangoResilienceService implements TangoGateway {
     vehicleId: string,
     options?: TangoListOptions,
   ): Promise<TangoPage<TangoVehicleAwardee>> {
-    return this.execute('listVehicleAwardees', () => this.gateway.listVehicleAwardees(vehicleId, options));
+    return this.execute('listVehicleAwardees', () =>
+      this.gateway.listVehicleAwardees(vehicleId, options),
+    );
+  }
+
+  // ── Webhook subscription management (P47) ─────────────────────────────────
+  //
+  // Reads go through `execute` like everything else: they consume the same
+  // account rate budget, so they belong under the same ceiling and breaker.
+  //
+  // The WRITES do too, and that is deliberate rather than incidental. P18's
+  // retry policy never retries auth, validation, tier, or unknown-argument
+  // errors — which is exactly the class a tier-gated webhook write returns —
+  // so wrapping them adds the ceiling and the usage record without adding a
+  // retry loop that would hammer a permanently-forbidden endpoint.
+
+  listWebhookEventTypes(): Promise<TangoWebhookEventType[]> {
+    return this.execute('listWebhookEventTypes', () => this.gateway.listWebhookEventTypes());
+  }
+
+  listWebhookEndpoints(options?: TangoListOptions): Promise<TangoWebhookEndpoint[]> {
+    return this.execute('listWebhookEndpoints', () => this.gateway.listWebhookEndpoints(options));
+  }
+
+  listWebhookAlerts(options?: TangoListOptions): Promise<TangoWebhookAlert[]> {
+    return this.execute('listWebhookAlerts', () => this.gateway.listWebhookAlerts(options));
+  }
+
+  createWebhookAlert(input: TangoWebhookAlertInput): Promise<TangoWebhookAlert> {
+    return this.execute('createWebhookAlert', () => this.gateway.createWebhookAlert(input));
+  }
+
+  deleteWebhookAlert(alertId: string): Promise<void> {
+    return this.execute('deleteWebhookAlert', () => this.gateway.deleteWebhookAlert(alertId));
   }
 
   /** This process's live breaker/ceiling state. See the class doc for why this is not cross-process. */
