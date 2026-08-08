@@ -1,30 +1,27 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// This spec proves the EngagementApiAppModule is statically safe:
-// it does not import AppModule, WebhooksModule, or any main-only module,
-// and it registers the correct guards and middleware exclusions.
+// This spec proves the EngagementApiAppModule is statically safe: it does
+// not import AppModule, the broad general WebhooksModule, or main-only product
+// modules, and it registers the split Phase 1 runtime boundaries.
 
 const MODULE_PATH = join(__dirname, 'engagement-api.app.module.ts');
 const source = readFileSync(MODULE_PATH, 'utf-8');
 
 describe('EngagementApiAppModule', () => {
   describe('static import safety', () => {
-    // Read the source file and verify it does not import forbidden modules.
     it('does not import AppModule', () => {
       expect(source).not.toMatch(/^import\s+\{[^}]*AppModule/m);
       expect(source).not.toMatch(/from\s+['"]\.\/app\.module/);
     });
 
-    it('does not import WebhooksModule', () => {
-      // Check for actual import statements, not the word in comments or
-      // middleware exclusion paths (which legitimately contain "webhooks").
+    it('does not import the broad general WebhooksModule', () => {
       expect(source).not.toMatch(/^import\s+\{[^}]*WebhooksModule/m);
-      expect(source).not.toMatch(/from\s+['"][^'"]*webhooks[^'"]*['"]/);
+      expect(source).not.toMatch(/from\s+['"]\.\/webhooks\/webhooks\.module/);
     });
 
-    it('does not import ProgramElementModule or MeriModule', () => {
+    it('does not import main-only product modules', () => {
       expect(source).not.toMatch(/^import\s+\{[^}]*ProgramElementModule/m);
       expect(source).not.toMatch(/^import\s+\{[^}]*MeriModule/m);
       expect(source).not.toMatch(/^import\s+\{[^}]*ReviewsModule/m);
@@ -33,8 +30,16 @@ describe('EngagementApiAppModule', () => {
       expect(source).not.toMatch(/^import\s+\{[^}]*DistrictBriefModule/m);
     });
 
-    it('imports EngagementModule', () => {
+    it('imports request/core Engagement and the shared capability registry', () => {
       expect(source).toMatch(/import\s+.*EngagementModule/);
+      expect(source).toMatch(/import\s+.*CapabilitiesModule/);
+    });
+
+    it('registers independently composable actions, callbacks, workers, and Recall', () => {
+      expect(source).toMatch(/EngagementIntegrationActionsModule/);
+      expect(source).toMatch(/EngagementCallbacksModule/);
+      expect(source).toMatch(/EngagementWorkersModule/);
+      expect(source).toMatch(/RecallWebhookModule/);
     });
 
     it('registers EngagementApiHealthController', () => {
@@ -56,6 +61,10 @@ describe('EngagementApiAppModule', () => {
 
     it('excludes Microsoft notifications from tenant middleware', () => {
       expect(source).toMatch(/microsoft\/notifications/);
+    });
+
+    it('excludes Recall and all webhook paths from tenant middleware', () => {
+      expect(source).toMatch(/webhooks\/\(\.\*\)/);
     });
 
     it('excludes internal routes from tenant middleware', () => {
