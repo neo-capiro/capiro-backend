@@ -1,0 +1,45 @@
+name: outreach-v3-p1-preflight
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p1-shared-foundations-gpt56-complete
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  phase3-db-free-prerequisite:
+    name: Phase 3 DB-free prerequisite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show exact execution head
+        run: |
+          git rev-parse HEAD
+          test -z "$(git status --short)"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Execute exact Phase 3 DB-free prerequisite
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm verify:engagement-phase-3
+          git diff --check
+          test -z "$(git status --short)"
+          echo OUTREACH_V3_P1_PHASE3_DB_FREE_PREREQUISITE_COMPLETE
