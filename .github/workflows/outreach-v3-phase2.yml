@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - agent/outreach-v3-p1-shared-foundations-gpt56-complete
     paths:
       - 'apps/api/src/outreach-v3/**'
       - 'apps/api/src/capabilities/**'
