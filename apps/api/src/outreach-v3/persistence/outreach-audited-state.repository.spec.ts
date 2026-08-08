@@ -20,7 +20,6 @@ describe('OutreachAuditedStateRepository', () => {
           expectedStateVersion: 4,
         },
       ]),
-      $executeRaw: jest.fn(async () => 2),
     };
     const repository = new OutreachAuditedStateRepository();
     const appendEvent = jest
@@ -31,6 +30,7 @@ describe('OutreachAuditedStateRepository', () => {
       repository.supersedeStaleProposals(tx as never, ctx, sessionId, 5),
     ).resolves.toBe(2);
 
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(appendEvent).toHaveBeenCalledTimes(2);
     expect(appendEvent).toHaveBeenNthCalledWith(
       1,
@@ -52,22 +52,16 @@ describe('OutreachAuditedStateRepository', () => {
     );
   });
 
-  it('rolls back by throwing if status changes and captured audit rows ever diverge', async () => {
+  it('emits no audit event when no proposal is superseded', async () => {
     const tx = {
-      $queryRaw: jest.fn(async () => [
-        {
-          id: '00000000-0000-4000-8000-000000000020',
-          expectedStateVersion: 4,
-        },
-      ]),
-      $executeRaw: jest.fn(async () => 2),
+      $queryRaw: jest.fn(async () => []),
     };
     const repository = new OutreachAuditedStateRepository();
     const appendEvent = jest.spyOn(repository, 'appendEvent');
 
     await expect(
       repository.supersedeStaleProposals(tx as never, ctx, sessionId, 5),
-    ).rejects.toThrow('OUTREACH_PROPOSAL_SUPERSESSION_AUDIT_MISMATCH');
+    ).resolves.toBe(0);
     expect(appendEvent).not.toHaveBeenCalled();
   });
 });
