@@ -1,7 +1,7 @@
 # Phase 7 — open architecture gaps
 
 **Status:** open as of session 8 (2026-08-07).
-**Owner needed:** whoever owns Workstreams J and N.
+**Owner needed:** Workstream J/N (Gaps 1-2) and A/D (Gap 3).
 **Why this file exists:** two of these gaps have now been rediscovered twice, by
 two different sessions, each time by trying to build the thing they block. This
 is the escalation artifact so the third rediscovery does not happen.
@@ -12,15 +12,30 @@ the workstream that was supposed to produce the missing thing.
 
 ---
 
-## Gap 1 — the congressional-mark join has no producer or reader anywhere
+## Gap 1 — the native-identity join has no producer or reader anywhere
 
 **Reported by:** session 7, by attempting to migrate `getProgramElement`.
-**Blocks:** `getProgramElement`, `getTimeline`, `listProgramElements` — the PE
-profile's funding grid. All three are Meri-reachable.
+**Widened by:** session 8 — it is not only about congressional marks.
+**Blocks (6 methods, across two services):**
 
-`getProgramElement`/`getTimeline`/`listProgramElements` need HASC, SASC, HAC-D,
-SAC-D, conference, NDAA, and enacted positions. Those live in Phase 6's
-`canonical_stage_position`, keyed by `nativeIdentityHash`.
+- `getProgramElement`, `getTimeline`, `listProgramElements` — the PE profile's
+  funding grid, via `canonical_stage_position`;
+- `getActions`, `getMovement`, `getWatchSignals` in `BudgetLinesReadService`,
+  via `canonical_stage_action`.
+
+All six are Meri-reachable.
+
+Both destinations lead their natural key with `nativeIdentityHash`:
+
+```text
+canonical_stage_position → ['nativeIdentityHash', 'fiscalYear', 'stage', 'fundingField']
+canonical_stage_action   → ['nativeIdentityHash', 'fiscalYear', 'stage', 'actionType', 'actionKey']
+```
+
+So the gap is not "the congressional-mark fields are missing"; it is that
+**nothing can resolve a `peCode` to the key every Phase 6 canonical row is filed
+under.** Any surface reading a Phase 6 destination hits it, marks and typed
+actions alike.
 
 Session 7 checked all 767 local and remote branches: **nothing computes that
 hash, and nothing resolves `peCode → nativeIdentityHash`, anywhere in the
