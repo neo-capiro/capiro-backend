@@ -1788,9 +1788,22 @@ jobs:
       #
       # A failed query is now its OWN value and prints `QUERY FAILED <reason>`.
       # The em dash is reserved for genuine absence.
+      # 78/2446 -> 78/2452: webhook list pagination. 6 tests, driven through the
+      # REAL SDK on a fake transport, so the SDK's own URL building and page
+      # handling execute exactly as in production.
+      #
+      # `PaginatedResponse` carries `count`/`next`/`results` — these endpoints ARE
+      # paginated, and the adapter read page 1 only. The account also holds alerts
+      # a HUMAN created in the MakeGov dashboard, and this program does not
+      # control how many, so a Capiro-managed alert on page 2 would have been
+      # diffed as ABSENT and re-created, colliding on its own name.
+      #
+      # Now walks until a page comes back short, and a never-ending provider
+      # THROWS rather than returning a partial list — a reconciler acting on half
+      # the picture is exactly what this program's completeness rule forbids.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2446
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2452
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
