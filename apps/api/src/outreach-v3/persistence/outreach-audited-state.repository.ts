@@ -1,21 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { supersedeStaleOutreachProposals } from './outreach-proposal-supersession.js';
 import { OutreachStateRepository } from './outreach-state.repository.js';
-
-interface SupersededProposalAuditRow {
-  id: string;
-  expectedStateVersion: number;
-}
 
 /**
  * Phase 2 audit-hardening wrapper around the state repository.
  *
  * Every caller of supersedeStaleProposals already owns the outreach_sessions
- * row lock. Under that lock we can capture the exact pending proposal set,
- * terminalize it through the canonical repository operation, and append one
- * durable event per transition in the same transaction. Any count drift fails
- * the transaction closed instead of leaving proposal state ahead of its ledger.
+ * row lock. UPDATE ... RETURNING gives this layer the exact proposal rows whose
+ * status changed, so one durable ledger event is appended for every eager
+ * supersession in the same transaction with no pre-read race or pagination cap.
  */
 @Injectable()
 export class OutreachAuditedStateRepository extends OutreachStateRepository {
@@ -26,20 +21,7 @@ export class OutreachAuditedStateRepository extends OutreachStateRepository {
     currentStateVersion: number,
     excludeProposalId: string | null = null,
   ): Promise<number> {
-    const stale = await tx.$queryRaw<SupersededProposalAuditRow[]>`
-      SELECT
-        id,
-        expected_state_version AS "expectedStateVersion"
-      FROM outreach_command_proposals
-      WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
-        AND session_id = CAST(${sessionId} AS uuid)
-        AND status = 'pending'
-        AND expected_state_version < ${currentStateVersion}
-        AND (${excludeProposalId}::text IS NULL OR id <> CAST(${excludeProposalId} AS uuid))
-      ORDER BY id
-    `;
-
-    const changed = await super.supersedeStaleProposals(
+    const superseded = await supersedeStaleOutreachProposals(
       tx,
       ctx,
       sessionId,
@@ -47,13 +29,7 @@ export class OutreachAuditedStateRepository extends OutreachStateRepository {
       excludeProposalId,
     );
 
-    if (changed !== stale.length) {
-      throw new Error(
-        `OUTREACH_PROPOSAL_SUPERSESSION_AUDIT_MISMATCH:${changed}:${stale.length}`,
-      );
-    }
-
-    for (const proposal of stale) {
+    for (const proposal of superseded) {
       await this.appendEvent(tx, ctx, { id: sessionId }, {
         eventType: 'proposal_superseded',
         source: 'system',
@@ -68,6 +44,6 @@ export class OutreachAuditedStateRepository extends OutreachStateRepository {
       });
     }
 
-    return changed;
+    return superseded.length;
   }
 }
