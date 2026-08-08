@@ -1783,7 +1783,7 @@ Read the JSON summary. `alertsWritten` is what a `--commit` run WOULD write;
 | `human_declined` | somebody already passed on it |
 | `terminal_stage` | won, lost, or passed |
 | `stage_not_engaged` | nobody staged it; usually `workflow_status = 'suggested'` |
-| `volume_capped` | this client already hit `MAX_ALERTS_PER_DELIVERY_PER_CLIENT` (25) on this delivery — the newest changes were sent; older ones for this run are on the timeline, not silently dropped |
+| `volume_capped` | this client already hit `MAX_ALERTS_PER_EVENT_PER_CLIENT` (25) for **this one event** — the newest changes were sent; older ones are on the P28 timeline, not silently dropped. Note the unit: the budget resets per EVENT, so a multi-event delivery, or several deliveries over the same history, can each send up to the cap. This bounds one event's blast radius, NOT a drain run's total (D-58) |
 
 **A `volume_capped` count above zero on the FIRST drain over an existing history is expected and not a
 failure** — see decision-log **D-58** before treating repeated capping across many *separate* deliveries

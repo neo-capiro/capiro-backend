@@ -294,60 +294,75 @@ interface PendingDeliveryRow {
 }
 
 /**
- * A fake Prisma client whose `$transaction` has REAL rollback semantics: if
- * the callback throws, nothing it inserted is kept; if it resolves, all of it
- * is. That distinction is the entire point of the fix under test, so a fake
- * that could not fail partway through would prove nothing — the whole prior
- * bug (re-review NEW-1) was that a crash mid-batch left SOME of a delivery's
- * rows committed and the rest lost forever. `failAfter` lets a test put the
- * crash exactly where it matters: between two `INSERT`s of the same delivery.
+ * A fake Prisma client that models the ONE property the fix depends on: a
+ * single SQL statement either applies in full or not at all. Postgres gives
+ * that by construction, so the fake gives it by construction too — there is
+ * no code path here that can stage a partial set, because there is no code
+ * path in the real thing either.
+ *
+ * The fake ALSO fails loudly if the code under test opens an interactive
+ * transaction (`$transaction`). That is not pedantry: the previous version of
+ * this fix wrapped N per-event inserts in `$transaction`, and a fourth review
+ * found that Prisma's default 5-second interactive-transaction timeout made a
+ * large-but-legal delivery fail identically on every retry — permanently
+ * jamming every delivery queued behind it. Reintroducing `$transaction` here
+ * would reintroduce that cliff, so the fake treats it as a hard error rather
+ * than letting it pass quietly.
  */
 function makeFakePrisma(pending: PendingDeliveryRow[]) {
   const committed: FakeOutboxRow[] = [];
   const seen = new Set<string>(); // "deliveryId|eventIndex" already committed
-  let failAfter: number | null = null;
-  let insertAttempts = 0;
+  let failNextStatement = false;
+  let statements = 0;
 
   const fake = {
     async $queryRaw() {
       return pending;
     },
-    async $transaction(
-      run: (tx: { $executeRaw: (...args: unknown[]) => Promise<void> }) => Promise<void>,
-    ) {
-      const stagedInThisTx: FakeOutboxRow[] = [];
-      const tx = {
-        $executeRaw: async (_strings: unknown, ...values: unknown[]) => {
-          insertAttempts += 1;
-          if (failAfter !== null && insertAttempts > failAfter) {
-            throw new Error('simulated crash mid-transaction');
-          }
-          const [deliveryId, eventIndex, eventType, resourceType, externalId] = values as [
-            string,
-            number,
-            string,
-            string,
-            string | null,
-          ];
-          const key = `${deliveryId}|${eventIndex}`;
-          if (!seen.has(key))
-            stagedInThisTx.push({ deliveryId, eventIndex, eventType, resourceType, externalId });
-        },
-      };
-      // A throw here propagates OUT of $transaction before this loop ever
-      // runs — that is the rollback. Nothing staged is kept.
-      await run(tx);
-      for (const row of stagedInThisTx) {
-        seen.add(`${row.deliveryId}|${row.eventIndex}`);
-        committed.push(row);
+    async $transaction() {
+      throw new Error(
+        'enqueuePendingDeliveries must NOT open an interactive transaction — ' +
+          'its 5s default timeout is the D-59 queue-jamming defect. One statement per delivery.',
+      );
+    },
+    async $executeRaw(_strings: unknown, ...values: unknown[]) {
+      statements += 1;
+      if (failNextStatement) {
+        failNextStatement = false;
+        // A statement that fails writes NOTHING. Not "writes what it got to".
+        throw new Error('simulated statement failure');
       }
+      const [deliveryIds, eventIndexes, eventTypes, resourceTypes, externalIds] = values as [
+        string[],
+        number[],
+        string[],
+        string[],
+        (string | null)[],
+      ];
+      // Five parallel arrays, one row each — exactly what `unnest` expands.
+      deliveryIds.forEach((deliveryId, i) => {
+        const eventIndex = eventIndexes[i] as number;
+        const key = `${deliveryId}|${eventIndex}`;
+        if (seen.has(key)) return; // ON CONFLICT DO NOTHING
+        seen.add(key);
+        committed.push({
+          deliveryId,
+          eventIndex,
+          eventType: eventTypes[i] as string,
+          resourceType: resourceTypes[i] as string,
+          externalId: externalIds[i] ?? null,
+        });
+      });
     },
     get rows() {
       return committed;
     },
-    /** Throw on the (1-indexed) insert attempt AFTER this many succeed. Null = never. */
-    setFailAfter(n: number | null) {
-      failAfter = n;
+    /** How many SQL statements were issued — one per delivery, never one per event. */
+    get statementCount() {
+      return statements;
+    },
+    failNext() {
+      failNextStatement = true;
     },
   };
   return fake;
@@ -367,26 +382,64 @@ function threeEventBatch(deliveryId: string) {
   };
 }
 
-describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1)', () => {
-  it('a delivery crashing mid-batch leaves ZERO rows for it, never a partial set', async () => {
-    // This is the exact defect the third review reproduced: a prior version
-    // inserted each event as an independent statement, so a crash after event
-    // 0 but before events 1 and 2 left event 0 committed and the "already
-    // enqueued" check (one row exists) meant 1 and 2 were never revisited —
-    // silent, permanent loss.
+describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1, D-59)', () => {
+  it('issues exactly ONE statement per delivery, regardless of event count', async () => {
+    // The load-bearing assertion of this whole fix. Two earlier versions failed
+    // here in opposite directions: N independent statements (a crash between
+    // them lost events permanently), then N statements inside one interactive
+    // transaction (whose 5s default timeout jammed the queue on a large but
+    // perfectly legal delivery). One statement is what makes atomicity free
+    // and makes cost independent of N.
+    const fake = makeFakePrisma([threeEventBatch('DLV-ONE-STMT')]);
+    await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+
+    expect(fake.statementCount).toBe(1);
+    expect(fake.rows).toHaveLength(3);
+  });
+
+  it('a 5000-event delivery is still ONE statement — no size at which this breaks', async () => {
+    // 5000 events is past BOTH prior cliffs: the ~3000-statement interactive
+    // transaction timeout, and the ~13k-row ceiling a multi-row VALUES would
+    // have hit against Postgres's 65535 bound-parameter cap. Passing five
+    // ARRAYS binds five parameters total, so N does not enter into it.
+    const fake = makeFakePrisma([
+      {
+        delivery_id: 'DLV-HUGE',
+        event_type: 'opportunity.updated',
+        payload: {
+          events: Array.from({ length: 5000 }, (_, i) => ({
+            event_type: 'opportunity.updated',
+            id: `OPP-${i}`,
+          })),
+        },
+      },
+    ]);
+    const enqueued = await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
+
+    expect(enqueued).toBe(5000);
+    expect(fake.statementCount).toBe(1);
+    expect(fake.rows).toHaveLength(5000);
+    expect(fake.rows[4999]).toMatchObject({ eventIndex: 4999, externalId: 'OPP-4999' });
+  });
+
+  it('a statement that fails leaves ZERO rows for that delivery, never a partial set', async () => {
+    // The third review's defect: a prior version inserted each event
+    // independently, so a failure after event 0 left it committed while the
+    // "already enqueued" check (a row exists) meant 1 and 2 were never
+    // revisited — silent, permanent loss.
     const fake = makeFakePrisma([threeEventBatch('DLV-CRASH')]);
-    fake.setFailAfter(1); // event 0 succeeds, event 1 throws
+    fake.failNext();
 
     await expect(
       enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
-    ).rejects.toThrow('simulated crash mid-transaction');
+    ).rejects.toThrow('simulated statement failure');
 
     expect(fake.rows).toHaveLength(0);
   });
 
-  it('a delivery that crashes is retried FROM SCRATCH on the next pass, not resumed', async () => {
+  it('a delivery that fails is retried FROM SCRATCH on the next pass, not resumed', async () => {
     const fake = makeFakePrisma([threeEventBatch('DLV-RETRY')]);
-    fake.setFailAfter(0); // every insert in the first attempt fails
+    fake.failNext();
 
     await expect(
       enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
@@ -394,7 +447,6 @@ describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1)', () => {
     expect(fake.rows).toHaveLength(0);
 
     // "the process restarted" — no more injected failure.
-    fake.setFailAfter(null);
     const enqueued = await enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50);
 
     expect(enqueued).toBe(3);
@@ -410,27 +462,26 @@ describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1)', () => {
     expect(fake.rows.every((r) => r.deliveryId === 'DLV-OK')).toBe(true);
   });
 
-  it('one delivery crashing does not corrupt an UNRELATED delivery in the same run', async () => {
-    // One transaction PER DELIVERY — a later delivery's own transaction must
-    // not be caught up in an earlier one's rollback.
+  it('one delivery failing does not corrupt an UNRELATED delivery in the same run', async () => {
+    // Nothing wraps ACROSS deliveries, so a later delivery can never be rolled
+    // back by an earlier one's failure.
     const fake = makeFakePrisma([threeEventBatch('DLV-BAD'), threeEventBatch('DLV-GOOD')]);
-    fake.setFailAfter(1); // fails during DLV-BAD's second insert
+    fake.failNext(); // fails on DLV-BAD's statement
 
     await expect(
       enqueuePendingDeliveries(fake as unknown as PrismaClient, true, 50),
     ).rejects.toThrow();
 
     // DLV-BAD is the one being processed when the throw happens, so the run
-    // stops there; DLV-GOOD, never reached, is untouched — also zero, not
+    // stops there; DLV-GOOD, never reached, is untouched — zero, not
     // corrupted. This documents the current stop-on-first-failure behaviour
-    // rather than a partial-success-with-skip behaviour, which is the
-    // conservative choice: continuing past an unexplained transaction failure
-    // risks compounding whatever broke it.
+    // rather than partial-success-with-skip, which is the conservative choice:
+    // continuing past an unexplained failure risks compounding what broke it.
     expect(fake.rows.filter((r) => r.deliveryId === 'DLV-BAD')).toHaveLength(0);
     expect(fake.rows.filter((r) => r.deliveryId === 'DLV-GOOD')).toHaveLength(0);
   });
 
-  it('a dry run never opens a transaction at all', async () => {
+  it('a dry run issues no statement at all', async () => {
     const fake = makeFakePrisma([
       {
         delivery_id: 'DLV-DRY',
@@ -442,6 +493,7 @@ describe('enqueuePendingDeliveries — ATOMICITY (re-review NEW-1)', () => {
 
     expect(count).toBe(1); // reports what WOULD be enqueued
     expect(fake.rows).toHaveLength(0);
+    expect(fake.statementCount).toBe(0);
   });
 
   it('a REPLAY of an already-fully-enqueued delivery commits nothing new', async () => {

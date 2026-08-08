@@ -1830,23 +1830,36 @@ jobs:
       # start, not just the verb somebody edited. Parsing costs nothing and needs
       # no database, network, or fake binaries.
       #
-      # 78/2474 -> 78/2482 after a THIRD independent review of the event-drain
-      # code, which found the SECOND round's own fixes had introduced two new
-      # defects (decision-log D-56, D-57): a per-event insert loop that could
-      # lose events permanently if interrupted mid-batch, and a per-event type
-      # classifier whose only test passed an input production cannot generate.
-      # Both are fixed here: one transaction per delivery (proven against REAL
-      # Postgres that a mid-transaction throw rolls back completely, not just a
-      # rejected JS promise), and correct type precedence with a realistic test.
+      # 78/2474 -> 78/2482 -> 78/2484 across a THIRD and FOURTH independent
+      # review of the event-drain code. The third found the second round's own
+      # fixes had introduced two new defects (D-56, D-57). The fourth confirmed
+      # both were genuinely closed — and found that D-56's fix had itself
+      # introduced a worse one (D-59): wrapping a delivery's N inserts in
+      # `$transaction` inherits Prisma's 5s interactive-transaction timeout,
+      # which a ~3000-event delivery (~152KB, well inside the 1MB body limit)
+      # exceeds. That failure is NOT transient — same count, same latency, every
+      # retry — and since deliveries drain oldest-first with no per-delivery
+      # try/catch, one such delivery would permanently jam every delivery behind
+      # it.
       #
-      # This is the third review in a row to find something the previous round
-      # missed. If a fourth round of this exact loop is needed, get a human to
-      # read tango-event-processor.service.ts and process-tango-events.ts in
-      # one sitting before attempting another automated pass — see the P46-P51
-      # handoff's revised recommendation.
+      # Now fixed by removing the failure class rather than moving its
+      # threshold: one `INSERT ... SELECT FROM unnest(...)` per delivery.
+      # Postgres applies a single statement atomically by construction, so
+      # there is no transaction to time out and cost is independent of N.
+      # Arrays rather than a multi-row VALUES because VALUES binds 5 params per
+      # row against the 65535 cap — a ~13k-event ceiling, higher but still a
+      # cliff. Verified against REAL Postgres 16: 3000 events 5009ms-timeout ->
+      # 113ms, 20000 events 477ms, mid-statement failure leaves zero rows, two
+      # concurrent drains converge with no duplicates.
+      #
+      # FOUR reviews in a row have each found something the previous round
+      # missed, and three of those findings were defects introduced BY the
+      # preceding fix. Before a fifth automated pass, get a HUMAN to read
+      # tango-event-processor.service.ts and process-tango-events.ts in one
+      # sitting — see the P46-P51 handoff's revised recommendation.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2482
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2484
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

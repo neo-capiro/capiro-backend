@@ -296,8 +296,22 @@ export const MAX_ATTEMPTS = 5;
  * is longer than any human wants narrated, so the drain records the newest
  * changes, reports the truncation, and leaves the rest on the P28 timeline
  * where it is still readable.
+ *
+ * ── WHAT THIS DOES *NOT* BOUND (D-58) ──
+ *
+ * The counter resets once per CLAIMED OUTBOX ROW, and since the outbox became
+ * one row per event, that unit is one EVENT — not one delivery, and not one
+ * drain run. This constant was previously named ...PER_DELIVERY..., which
+ * claimed a coarser bound than it enforces; the two coincide only for the
+ * common single-event delivery. Several events, or several deliveries, over
+ * the same long notice history each get their own budget, so a backlog can
+ * still arrive in full — spread across events rather than sent at once.
+ *
+ * The bound an operator probably wants is per-opportunity-per-client-per-time-
+ * window, which needs a decision about where that window's state lives. Until
+ * then, this is a real bound on a single event's blast radius and nothing more.
  */
-export const MAX_ALERTS_PER_DELIVERY_PER_CLIENT = 25;
+export const MAX_ALERTS_PER_EVENT_PER_CLIENT = 25;
 
 @Injectable()
 export class TangoEventProcessorService {
@@ -388,12 +402,12 @@ export class TangoEventProcessorService {
       let writtenForClient = 0;
 
       for (const entry of newestFirst) {
-        if (writtenForClient >= MAX_ALERTS_PER_DELIVERY_PER_CLIENT) {
+        if (writtenForClient >= MAX_ALERTS_PER_EVENT_PER_CLIENT) {
           summary.suppressions.volume_capped = (summary.suppressions.volume_capped ?? 0) + 1;
           break;
         }
         for (const change of entry.changes) {
-          if (writtenForClient >= MAX_ALERTS_PER_DELIVERY_PER_CLIENT) break;
+          if (writtenForClient >= MAX_ALERTS_PER_EVENT_PER_CLIENT) break;
           const decision = decideAlert({
             change,
             isFirstObservation: entry.isFirstObservation,

@@ -1789,10 +1789,17 @@ the events array AFTER filtering out non-object entries, so `['junk', {...}]` nu
 instead of 1 — silently violating the documented contract on a column that is part of the idempotency
 key. Fixed to preserve the true array position through filtering.
 
-## D-58 · 2026-08-08 · The alert-volume cap bounds one delivery, not a whole drain run
+## D-58 · 2026-08-08 · The alert-volume cap bounds one EVENT, not a delivery and not a run
 
-Review 3 found the volume cap added the previous round (`MAX_ALERTS_PER_DELIVERY_PER_CLIENT`) only
-tracks alerts written from the delivery currently being processed. A second, ordinary delivery over the
+Review 3 found the volume cap added the previous round only tracks alerts written from the unit
+currently being processed. Review 4 then found THIS ENTRY'S OWN DESCRIPTION of that unit was wrong,
+and wrong in the direction that understated the problem: the counter resets inside `processOne`, which
+runs once per CLAIMED OUTBOX ROW — and the same session's per-event outbox change made that unit one
+EVENT, not one delivery. The constant has been renamed `MAX_ALERTS_PER_EVENT_PER_CLIENT` so its name
+states the bound it actually enforces. The two units coincide only for a single-event delivery, which
+is why the imprecision survived a round. Recording that here rather than quietly correcting it: an
+admission that names the wrong unit is not a smaller version of the problem, it is a different claim,
+and "we already wrote this one down" is exactly the reason it went unchecked for a round. A second, ordinary delivery over the
 same long notice history re-walks it, dedupes what the first delivery already wrote, and writes MORE up
 to its own cap — so two deliveries together can still deliver an entire backlog, just spread across two
 runs instead of one. The docstring's claim that capped changes are "left on the P28 timeline" for later
@@ -1807,3 +1814,48 @@ new defect the next review caught — writing that design decision under time pr
 plausibly repeat it a fourth time. Recorded here, and in the rollout runbook's suppression-reason table, so
 the actual behavior (capped per delivery, not per run) is what an operator reads rather than what the
 comment used to imply.
+
+## D-59 · 2026-08-08 · Atomicity via ONE statement, not via a transaction with a timeout
+
+Review 4 confirmed D-56's atomicity fix worked for the crash it targeted — verified against real
+Postgres with a trigger raising mid-batch — and then found the fix had introduced a worse failure than
+the one it closed. Wrapping a delivery's N per-event inserts in `prisma.$transaction` inherits Prisma's
+default **5-second interactive-transaction timeout**, measured to bite at roughly 3000 sequential
+inserts. A 3000-event batch of minimal event objects is ~152KB — comfortably inside the webhook route's
+existing 1MB body limit, so a legitimately-sized delivery the receiver had already accepted with a 202
+could trip it.
+
+Worse than the bug it replaced, in the specific way that matters: the failure is **not transient**. The
+event count and per-statement latency are identical on every retry, so the delivery fails the same way
+forever; deliveries are drained oldest-first; and the enqueue loop has no per-delivery `try`/`catch`. One
+oversized delivery would therefore jam **every delivery queued behind it**, permanently. That is the same
+"accepted at one layer, stuck at the next" shape this program has now hit four times — the fourth
+introduced by the fix for the third.
+
+**Fixed by removing the failure class rather than moving its threshold.** A delivery's rows now go in as
+one `INSERT ... SELECT FROM unnest(...)` statement. Postgres applies a single statement atomically by
+construction, so atomicity costs nothing and needs no transaction, no interactive-transaction machinery,
+and no timeout to size a batch against. It is also one round trip regardless of N.
+
+`unnest` of five ARRAYS specifically, not a multi-row `VALUES (...), (...)`: `VALUES` binds five
+parameters per row against Postgres's 65535-parameter statement cap, which would have reintroduced a hard
+ceiling near 13k events — higher than the 5s cliff, still a cliff, and still reachable inside the 1MB body
+limit. Five arrays bind five parameters total for any N, so no event count breaks it.
+
+Raising the transaction timeout was considered and rejected: it would have picked a new number for the
+same cliff, and the number that is obviously safe today is a function of row width, index count, and
+database load, none of which are stable.
+
+Verified against real Postgres 16, 10/10: arrays bind as real `text[]`/`int[]`; 3000 events (the size that
+previously timed out at 5009ms) now completes in **113ms**; 20000 events — past the `VALUES` parameter
+ceiling — completes in **477ms**; nulls survive the `text[]` round trip with indices intact; a trigger
+raising mid-statement leaves **zero** rows and the delivery then retries to a complete set; and two
+concurrent drains racing the same delivery converge to exactly the right row count with no duplicates and
+no deadlock.
+
+One consequence worth stating: a PARTIAL set of outbox rows for a delivery is now unreachable — the atomic
+statement is the only writer and nothing in the codebase deletes outbox rows — which is what makes the
+enqueue filter's "any row exists means already enqueued" test sound rather than lossy. That filter was the
+mechanism by which the original D-56 bug lost events permanently; it is safe now only because partial sets
+cannot occur. If anything ever starts deleting outbox rows, that reasoning breaks and this filter has to
+be revisited.

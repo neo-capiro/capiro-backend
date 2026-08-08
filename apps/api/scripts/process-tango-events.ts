@@ -82,27 +82,48 @@ export function parseArgs(argv: string[]): ParsedArgs {
  * (delivery_id, event_index) is what makes this idempotent — the same
  * guarantee P46 relies on for replay, applied one layer down.
  *
- * ── EACH DELIVERY'S ROWS ARE INSERTED ATOMICALLY, AND THAT IS NOT OPTIONAL ──
+ * ── EACH DELIVERY'S ROWS ARE INSERTED AS ONE STATEMENT, AND THAT IS NOT
+ *    OPTIONAL ──────────────────────────────────────────────────────────────
  *
- * A prior version of this function inserted one row per event as N separate,
- * independent `$executeRaw` statements. That created a state nothing else in
- * this program could recover from: if the process died — a crash, a task
- * timeout, a redeploy — after inserting row 0 but before rows 1..N-1, the
- * "already enqueued" check above (`o.id IS NOT NULL`) saw that *a* row existed
- * for that delivery and never revisited it. The remaining events of that
- * batch were lost PERMANENTLY: the receiver never re-delivers (delivery_id is
- * unique there too), and nothing downstream reconciles a partially-enqueued
- * delivery.
+ * A prior version inserted one row per event as N separate, independent
+ * `$executeRaw` calls. That created a state nothing else in this program
+ * could recover from: if the process died — a crash, a task timeout, a
+ * redeploy — after inserting row 0 but before rows 1..N-1, the "already
+ * enqueued" check above (`o.id IS NOT NULL`) saw that *a* row existed for
+ * that delivery and never revisited it. The remaining events were lost
+ * PERMANENTLY: the receiver never re-delivers (delivery_id is unique there
+ * too), and nothing downstream reconciles a partially-enqueued delivery.
  *
- * That is the identical failure this program has now hit three times in three
- * different shapes — accepted at one layer, silently dropped at the next —
- * and each prior fix narrowed it rather than closing it by construction. This
- * closes it by construction: `$transaction` makes one delivery's N inserts a
- * single all-or-nothing unit. A crash mid-batch rolls the whole delivery back,
- * which means the NEXT enqueue pass sees zero rows for it and processes it
- * from scratch — exactly the retry behavior the rest of this pipeline already
- * assumes. There is no code path that can observe a partially-enqueued
- * delivery, because Postgres will not commit one.
+ * THE NEXT FIX WRAPPED THOSE N CALLS IN ONE `$transaction`, and an
+ * independent review found that fix ALSO broken: Prisma's interactive
+ * transactions carry a default 5-second timeout, measured against real
+ * Postgres to bite at roughly 3000 sequential statements — a delivery well
+ * under the existing 1MB webhook body limit (~152KB for 3000 minimal
+ * events), so a legitimately-sized delivery could trip it. Worse than the
+ * original bug: this failure is NOT transient (the same delivery fails
+ * identically on every retry), and because the enqueue loop processes
+ * deliveries oldest-first with no per-delivery isolation, one such delivery
+ * would permanently block every delivery behind it — the whole pipeline
+ * jams rather than losing one delivery's tail. Same failure shape, a fourth
+ * time, introduced by the fix meant to close the third.
+ *
+ * THIS VERSION ELIMINATES THE FAILURE CLASS RATHER THAN MOVING ITS
+ * THRESHOLD. All of a delivery's rows go in as ONE `INSERT ... SELECT FROM
+ * unnest(...)` statement. Postgres executes a single statement atomically by
+ * construction — no explicit transaction, no interactive-transaction
+ * machinery, and therefore no interactive-transaction timeout to size a
+ * batch against. It is also ONE ROUND TRIP regardless of N, so it does not
+ * get slower — let alone time out — as a delivery's event count grows.
+ * Raising the timeout number instead would only have moved the same cliff to
+ * a different N.
+ *
+ * `unnest` of five ARRAYS, rather than a multi-row `VALUES (...), (...)`,
+ * for a specific reason: `VALUES` binds five parameters PER ROW, and Postgres
+ * caps a statement at 65535 bound parameters — which would have reintroduced
+ * a hard ceiling at ~13k events, higher than the 5-second cliff but still a
+ * cliff, and still inside what the 1MB body limit can deliver. Passing five
+ * arrays binds five parameters TOTAL for any N, so there is no event count
+ * at which this statement stops working.
  */
 export async function enqueuePendingDeliveries(
   prisma: PrismaClient,
@@ -125,20 +146,22 @@ export async function enqueuePendingDeliveries(
   let enqueued = 0;
   for (const row of pending) {
     const refs = readResourceRefs(row.payload, row.event_type);
-    // One transaction PER DELIVERY, not one for the whole batch of pending
-    // deliveries: an unrelated delivery's rows must not roll back because a
-    // later delivery in this same run happened to fail.
-    await prisma.$transaction(async (tx) => {
-      for (const ref of refs) {
-        await tx.$executeRaw`
-          INSERT INTO "tango_event_outbox"
-            ("delivery_id", "event_index", "event_type", "resource_type", "external_id")
-          VALUES (${row.delivery_id}, ${ref.eventIndex}, ${row.event_type},
-                  ${ref.resourceType}, ${ref.externalId})
-          ON CONFLICT ("delivery_id", "event_index") DO NOTHING
-        `;
-      }
-    });
+    // ONE statement for ALL of this delivery's rows, and FIVE bound parameters
+    // no matter how many events it carries. Nothing wraps across deliveries:
+    // each delivery's atomicity is entirely self-contained, so a later
+    // delivery can never be at risk because an earlier one failed.
+    await prisma.$executeRaw`
+      INSERT INTO "tango_event_outbox"
+        ("delivery_id", "event_index", "event_type", "resource_type", "external_id")
+      SELECT * FROM unnest(
+        ${refs.map(() => row.delivery_id)}::text[],
+        ${refs.map((ref) => ref.eventIndex)}::int[],
+        ${refs.map(() => row.event_type)}::text[],
+        ${refs.map((ref) => ref.resourceType)}::text[],
+        ${refs.map((ref) => ref.externalId)}::text[]
+      )
+      ON CONFLICT ("delivery_id", "event_index") DO NOTHING
+    `;
     enqueued += refs.length;
   }
   return enqueued;
