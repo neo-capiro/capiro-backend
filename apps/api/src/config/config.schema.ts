@@ -762,6 +762,24 @@ export const configSchema = z.object({
   TANGO_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(5),
   TANGO_CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(60_000),
 
+  // P46's webhook signing secret. A SEPARATE credential from TANGO_API_KEY, per
+  // the plan's §5 ("a separate Tango webhook signing secret is introduced only
+  // in P46") — the API key is an outbound credential injected into the ephemeral
+  // sync task, this is an inbound one injected only into API serve. Neither task
+  // ever holds both.
+  //
+  // OPTIONAL, and unset today. Absent means the receiver is DARK: it rejects
+  // every delivery unverified rather than accepting anything. That is the whole
+  // mechanism behind P46's "deploy receiver dark" — there is no development
+  // bypass and no implicit fallback, matching this program's rule that nothing
+  // has an internal-tenant escape hatch.
+  TANGO_WEBHOOK_SIGNING_SECRET: z.string().min(1).optional(),
+  // Replay window for the provider's send timestamp, applied in BOTH directions
+  // so a provider clock running fast does not reject every delivery. Defence in
+  // depth only — the real replay guarantee is the unique index on delivery_id,
+  // which holds regardless of clock skew and regardless of this value.
+  TANGO_WEBHOOK_REPLAY_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
+
   // P29's attachment archive. BOTH optional and BOTH unset today: the
   // discovery half of the sync needs neither, and the archiving half refuses
   // to start without a bucket rather than fetching megabytes with nowhere to
@@ -880,16 +898,12 @@ export const configSchema = z.object({
   ENGAGEMENT_PROCESS_MODE: z.enum(['shadow', 'active']).default('active'),
 
   // Which service owns background workers. 'disabled' = no workers run.
-  ENGAGEMENT_BACKGROUND_OWNER: z
-    .enum(['api', 'engagement-api', 'disabled'])
-    .default('api'),
+  ENGAGEMENT_BACKGROUND_OWNER: z.enum(['api', 'engagement-api', 'disabled']).default('api'),
 
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true.
-  ENGAGEMENT_EXTERNAL_ACTIONS: z
-    .enum(['disabled', 'test_only', 'enabled'])
-    .default('enabled'),
+  ENGAGEMENT_EXTERNAL_ACTIONS: z.enum(['disabled', 'test_only', 'enabled']).default('enabled'),
 
   // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
   // transform (NOT z.coerce.boolean()) so 'false'/'0'/'no'/'off' correctly

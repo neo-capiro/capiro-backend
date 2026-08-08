@@ -34,6 +34,7 @@ describe('configureApiHttpApp', () => {
       releaseShaHeader: undefined,
       includeClerkRawBody: true,
       includeRecallRawBody: true,
+      includeTangoRawBody: true,
       includeEmailSignatureLargeBody: true,
       defaultJsonLimit: '1mb',
     };
@@ -77,6 +78,9 @@ describe('configureApiHttpApp', () => {
       releaseShaHeader: releaseSha,
       includeClerkRawBody: false,
       includeRecallRawBody: true,
+      // The engagement service does not mount WebhooksModule, so it hosts no
+      // Tango receiver and needs no raw parser for it.
+      includeTangoRawBody: false,
       includeEmailSignatureLargeBody: false,
       defaultJsonLimit: '1mb',
     };

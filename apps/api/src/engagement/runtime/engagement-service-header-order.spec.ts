@@ -24,6 +24,7 @@ describe('engagement-api service identity ordering', () => {
       serviceHeader: 'engagement-api',
       includeClerkRawBody: false,
       includeRecallRawBody: false,
+      includeTangoRawBody: false,
       includeEmailSignatureLargeBody: false,
       defaultJsonLimit: '1mb',
     });

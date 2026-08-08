@@ -20,6 +20,7 @@ async function bootstrap() {
     serviceHeader: undefined,
     includeClerkRawBody: true,
     includeRecallRawBody: true,
+    includeTangoRawBody: true,
     includeEmailSignatureLargeBody: true,
     defaultJsonLimit: '1mb',
   });

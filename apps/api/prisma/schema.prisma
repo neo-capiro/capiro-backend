@@ -6440,6 +6440,74 @@ model TangoApiUsage {
   @@map("tango_api_usage")
 }
 
+/// Funding Opportunities P46 — one VERIFIED webhook delivery from Tango.
+///
+/// A row means exactly: at `receivedAt`, bytes carrying this `deliveryId`
+/// arrived, their HMAC-SHA256 matched the shared secret, and `payload` is what
+/// they said. It is NOT a statement that anything is true about the world — the
+/// provider's claim that a notice changed is the provider's claim, and P47
+/// decides out of band, dry-run first, whether it means anything.
+///
+/// Rows exist only for deliveries that PASSED verification, which is why there
+/// is no `signatureValid` field: a bad signature yields a 401 and no row, so
+/// the column could only ever hold `true`.
+///
+/// GLOBAL, not tenant-scoped, and deliberately carries no RLS — a webhook
+/// arrives with no session and no tenant, and this receiver is mounted outside
+/// TenantContext middleware. Inventing a tenant would write a guess into a
+/// durable record. Tenant fan-out is P48's, after P47 resolves a delivery to
+/// real local rows.
+model TangoWebhookDelivery {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own delivery identifier. THE idempotency key: a provider
+  /// retry hits the unique index and is answered 200 without a second enqueue.
+  deliveryId String @unique(map: "tango_webhook_delivery_delivery_id_uniq") @map("delivery_id")
+
+  /// Provider vocabulary, stored as stated. Not mapped to a Capiro enum: an
+  /// unknown event type must be recordable, since refusing to store an event we
+  /// do not yet understand loses the evidence needed to add support for it.
+  eventType String  @map("event_type")
+  /// The provider's id for the underlying event, when present. Distinct from
+  /// `deliveryId` — one event may be delivered more than once.
+  eventId   String? @map("event_id")
+
+  /// SHA-256 over the exact verified bytes, lowercase hex. A SEPARATE fact from
+  /// `deliveryId` and NOT unique: identical content legitimately arrives under
+  /// different delivery ids, and holding both lets P47 tell "said the same
+  /// thing twice" apart from "said something new".
+  payloadSha256 String @map("payload_sha256")
+  payloadBytes  Int    @map("payload_bytes")
+  /// Verified bytes, parsed. Stored so P47 can reconcile and replay without
+  /// re-asking the provider what it already told us.
+  payload       Json   @map("payload")
+
+  /// Delivery lifecycle only, never outcome: 'received' | 'processed' |
+  /// 'ignored' | 'failed'. P46 only ever writes 'received'. CHECK-constrained.
+  status String @default("received") @map("status")
+
+  /// The provider's own event timestamp, when supplied, used for the replay
+  /// window. NULL means the payload carried none — treated as missing evidence,
+  /// never as stale evidence.
+  providerEventAt DateTime? @map("provider_event_at") @db.Timestamptz(6)
+
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  /// Sanitized reason a drain failed. Never a secret, never a raw payload.
+  processError String?  @map("process_error")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// P47's drain query: oldest undrained delivery first.
+  @@index([status, receivedAt], map: "tango_webhook_delivery_status_idx")
+  /// P48 materiality, and operator diagnostics on event volume over time.
+  @@index([eventType, receivedAt], map: "tango_webhook_delivery_event_idx")
+  /// Same-content detection across differing delivery ids. Non-unique by design.
+  @@index([payloadSha256], map: "tango_webhook_delivery_payload_sha_idx")
+  @@map("tango_webhook_delivery")
+}
+
 /// Funding Opportunities P20 — client profile enrichment review workflow.
 ///
 /// ONE proposed change to ONE field on ONE client's profile, sourced from

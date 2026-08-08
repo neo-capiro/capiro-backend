@@ -86,6 +86,21 @@ export interface EnvConfig {
     // — because that is the name it was actually created under; see the
     // comment on the dev entry below for the exact provenance.
     tangoApiKey?: string;
+    // MakeGov/Tango WEBHOOK signing secret (Funding Opportunities P46).
+    // OPTIONAL AND GATING, same pattern as the two above.
+    //
+    // A DIFFERENT CREDENTIAL FROM tangoApiKey, and it goes to the opposite
+    // task. `tangoApiKey` is OUTBOUND (Capiro calling MakeGov) and is wired
+    // only onto the ephemeral sync task; this one is INBOUND (MakeGov calling
+    // Capiro) and is wired only onto API serve, because the serve task is the
+    // only one that hosts an HTTP listener. No task ever holds both.
+    //
+    // Created together with the provider-side webhook endpoint, which is P50's
+    // operator step — until then this stays unset and the receiver runs dark,
+    // rejecting every delivery. Wiring a not-yet-existing secret would make
+    // every new serve task fail to start ("unable to pull secrets" →
+    // circuit-breaker rollback), which is exactly why this is ARN-gated.
+    tangoWebhookSecret?: string;
   };
 }
 
@@ -282,8 +297,7 @@ export function loadConfig(app: cdk.App): EnvConfig {
               // Wiring this ARN does NOT itself deploy or grant anything live —
               // it only takes effect on the next `cdk deploy`, which P16's own
               // plan text defers until P17 is ready to use the key.
-              tangoApiKey:
-                'arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk',
+              tangoApiKey: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk',
             },
           };
 
