@@ -135,5 +135,56 @@ Recorded so the next session does not re-derive it:
   the authorization, and the projections, and only ever compare
   `eligibilityHash` as a string. Both shipped in session 8.
 - `compare` is not blocked by anything. It shipped in session 8.
-- `BudgetLinesReadService`'s 9 methods are not blocked by Gaps 1 or 2 — session
-  7's snapshot-read pattern applies to them directly.
+
+---
+
+## Correction — `BudgetLinesReadService` is not the easy next target
+
+The session-7 handoff recommends "migrate `BudgetLinesReadService`'s 9 methods
+(pattern from this session applies directly)" as unblocked work, and an earlier
+revision of **this file repeated it**. Checked properly in session 8 by mapping
+every method to the tables it reads and every table to its canonical entity:
+**not one of the nine migrates cleanly.**
+
+| Method                         | Reads                        | Canonical status                      |
+| ------------------------------ | ---------------------------- | ------------------------------------- |
+| `getActions`                   | `budgetAction`               | **Gap 1** — `canonical_stage_action`  |
+| `getMovement`                  | `budgetAction`, PE, cache    | **Gap 1** + cache                     |
+| `getWatchSignals`              | `budgetAction`, PE, tenant   | **Gap 1** + tenant overlay            |
+| `getRelationships`             | relationship, PE, cache      | canonical, **+ cache**                |
+| `getGraph`                     | relationship, PE, cache      | canonical, **+ cache**                |
+| `getIncumbents`                | `federalAward`, performer    | performer canonical, **award is not** |
+| `listCapabilities`             | `capability`                 | **no canonical entity**               |
+| `getCapabilityRecommendations` | capability, match, PE, cache | **no canonical entity**               |
+| `searchCapabilityLines`        | PE, cache, embeddings        | **no canonical entity**               |
+
+Two distinct reasons, neither of them time:
+
+1. **Three methods read `budget_action`**, which maps to `canonical_stage_action`,
+   whose natural key is `['nativeIdentityHash', 'fiscalYear', 'stage',
+'actionType', 'actionKey']`. It leads with `nativeIdentityHash`, so these are
+   blocked by **Gap 1** for exactly the same reason `getProgramElement` is.
+   Gap 1 is therefore wider than session 7 recorded: it blocks actions, not just
+   congressional marks.
+2. **Six methods read tables with no canonical entity at all** —
+   `program_element_intelligence_cache`, `federal_award`, `capability`,
+   `capability_budget_line_match`. These are derived product data and external
+   award data, not defense-budget truth, and the mapping registry rightly has no
+   destination for them.
+
+What _is_ reachable, for the record: `canonical_rdte_program_element` is keyed
+`['peCode']`, `canonical_rdte_performer` is keyed
+`['peCode', 'projectCode', 'performerName', 'performerRole']`, and
+`canonical_budget_line_relationship` is keyed by `fromNaturalKey`/`toNaturalKey`
+— which for an RDT&E line _is_ the peCode. So the identity, performer, and
+relationship halves are all queryable by `peCode` without Gap 1's hash.
+
+**The open question this raises is a plan-owner decision, not an implementation
+one:** `getRelationships`, `getGraph`, and `getIncumbents` would each serve a
+single response built half from the active snapshot and half from tables that
+are not snapshot-scoped at all. Invariant 22 forbids mixing two _snapshots_ in
+one response; it says nothing about mixing snapshot data with derived caches and
+external award data. Someone has to decide whether that is a legitimate partial
+cutover or whether those surfaces stay on the legacy path until their inputs
+have canonical homes. Until that is answered, migrating them is guesswork with a
+correctness label on it.

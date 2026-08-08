@@ -226,8 +226,20 @@ Three of those checks exist because writing them failed first:
    outside this repo.
 2. **Close Gap 3** — it is the smallest of the three and unblocks the last verb
    plus any real operator promotion path.
-3. **Migrate `BudgetLinesReadService`'s 9 methods.** Not blocked by any gap;
-   session 7's pattern applies directly.
+3. **Do _not_ start with `BudgetLinesReadService`.** Session 7 recommended it as
+   unblocked and an earlier revision of this handoff repeated that. It is wrong:
+   mapping all nine methods to their tables and those tables to canonical
+   entities shows **none migrate cleanly**. Three read `budget_action`
+   (`canonical_stage_action`, natural key led by `nativeIdentityHash`) and are
+   blocked by **Gap 1** — which is therefore wider than recorded, covering
+   actions as well as congressional marks. The other six read
+   `program_element_intelligence_cache`, `federal_award`, or `capability*`,
+   none of which have a canonical entity at all. Full table in the gaps doc.
+   The reachable pieces — PE identity, performers, relationships, all keyed by
+   `peCode` — raise a plan-owner question first: whether a response may be built
+   half from the active snapshot and half from tables that are not
+   snapshot-scoped. Invariant 22 forbids mixing two snapshots; it is silent on
+   this. Get that answered before writing code.
 4. **Extend the projection source to the other four families** as their readers
    become possible. Each one currently exits 3 by design.
 5. Workstream O proper: the 32 negative controls, production-scale fixtures, and
