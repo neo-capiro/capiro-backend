@@ -126,34 +126,46 @@ export function isAlertableStage(stage: string | null): boolean {
  * the unique index on (tenant, client, source record, fingerprint) rejects the
  * second insert.
  *
- * Deliberately EXCLUDES the delivery id, the notice id, and any timestamp. It
- * includes the source record so the same-looking change on two different
- * opportunities stays two alerts.
+ * Deliberately EXCLUDES the delivery id and any timestamp — those vary between
+ * deliveries that carry the same news. It INCLUDES the source record, so the
+ * same-looking change on two different opportunities stays two alerts, and the
+ * NOTICE id, for the reasons set out at the hash below.
  */
-export function changeFingerprint(sourceRecordKey: string, change: MaterialChange): string {
+export function changeFingerprint(
+  sourceRecordKey: string,
+  change: MaterialChange,
+  tangoNoticeId: string,
+): string {
   return createHash('sha256')
     .update(
       JSON.stringify([
         sourceRecordKey,
         change.dimension,
-        // STATE, NOT TRANSITION — `after` only, deliberately.
+        // The resulting value, plus THE NOTICE THAT CARRIED IT.
         //
-        // The first version hashed `before` too, which made the fingerprint
-        // UNSTABLE. `buildNoticeTimeline` computes `before` from the
-        // immediately preceding notice, so a notice back-filled BETWEEN two
-        // syncs rewrites `before` for the very same current state — and the
-        // same deadline then hashed differently and alerted twice. The unique
-        // index cannot collapse what does not collide.
+        // Two earlier attempts were both wrong, in opposite directions:
         //
-        // The trade-off, stated rather than hidden: a value that changes away
-        // and back (B → C → B) does not re-alert on the return, because "this
-        // deadline is now B" has already been sent. That is the correct side to
-        // err on for a phase whose entire promise is quietness, and the full
-        // history remains visible on the P28 timeline either way.
+        //   1. Hashing `before` AND `after` was UNSTABLE. `buildNoticeTimeline`
+        //      derives `before` from the immediately preceding notice, so a
+        //      notice back-filled BETWEEN two syncs rewrote it for the very same
+        //      current state — one deadline, two fingerprints, two alerts.
+        //
+        //   2. Hashing `after` ALONE was worse. It collapsed materially opposite
+        //      changes: a deadline moving Dec -> Sep (a three-month PULL-IN,
+        //      critical) landed on the same fingerprint as an earlier Jun -> Sep
+        //      extension, because both end at Sep — and the pull-in, the more
+        //      urgent of the two, was the one silently suppressed. That traded a
+        //      duplicate-alert bug for a MISSING-alert bug.
+        //
+        // The notice id fixes both. It is stable under back-fill (inserting a
+        // notice before N3 changes N3's `before`, never N3's identity or its
+        // `after`), and it separates two transitions that happen to end at the
+        // same value, because they arrived on different notices.
         //
         // The ESCAPE SEQUENCE, not a raw NUL byte: written as a literal 0x00
         // this file became binary to git and could not be read in review.
         change.after ?? '\0null',
+        tangoNoticeId,
       ]),
     )
     .digest('hex');
@@ -231,6 +243,8 @@ export interface AlertToWrite {
 export interface OutboxRow {
   id: string;
   deliveryId: string;
+  /** Position within the delivery. Part of the idempotency key. */
+  eventIndex: number;
   eventType: string;
   resourceType: string;
   externalId: string | null;
@@ -268,6 +282,22 @@ export interface ProcessSummary {
 
 /** Attempts before a row is quarantined. Terminal, and deliberately small. */
 export const MAX_ATTEMPTS = 5;
+
+/**
+ * Most alerts one delivery may produce for one client before the drain stops.
+ *
+ * F5 widened this from "the latest timeline entry" to "every entry", which
+ * fixed dropped changes but removed the only thing bounding the volume: a
+ * single delivery over a 120-notice history produced 119 alerts for one client,
+ * and the notice fetch allows up to 500. Multiplied by every client watching
+ * that opportunity, the first drain after enabling could page a whole tenant.
+ *
+ * A runbook instruction is not a bound. This is. Reaching it means the history
+ * is longer than any human wants narrated, so the drain records the newest
+ * changes, reports the truncation, and leaves the rest on the P28 timeline
+ * where it is still readable.
+ */
+export const MAX_ALERTS_PER_DELIVERY_PER_CLIENT = 25;
 
 @Injectable()
 export class TangoEventProcessorService {
@@ -345,13 +375,25 @@ export class TangoEventProcessorService {
     // moved again between drains simply never alerted for the first move.
     //
     // Safe to widen precisely because the fingerprint is stable and the dedupe
-    // is a unique index: re-processing the same history writes nothing new. The
-    // cost is that the FIRST drain over an existing history alerts once per
-    // distinct value per dimension — which is why P50 requires two quiet manual
-    // passes before any cadence is enabled, and why the runbook says so.
-    for (const entry of entries) {
-      for (const change of entry.changes) {
-        for (const client of affected) {
+    // is a unique index: re-processing the same history writes nothing new.
+    //
+    // BOUNDED PER CLIENT. Widening removed the only thing limiting volume — a
+    // single delivery over a 120-notice history produced 119 alerts for one
+    // client, and the notice fetch allows 500. A runbook instruction is not a
+    // bound, so the newest entries are taken first and the rest are reported as
+    // truncated rather than silently dropped or silently sent.
+    const newestFirst = [...entries].reverse();
+
+    for (const client of affected) {
+      let writtenForClient = 0;
+
+      for (const entry of newestFirst) {
+        if (writtenForClient >= MAX_ALERTS_PER_DELIVERY_PER_CLIENT) {
+          summary.suppressions.volume_capped = (summary.suppressions.volume_capped ?? 0) + 1;
+          break;
+        }
+        for (const change of entry.changes) {
+          if (writtenForClient >= MAX_ALERTS_PER_DELIVERY_PER_CLIENT) break;
           const decision = decideAlert({
             change,
             isFirstObservation: entry.isFirstObservation,
@@ -373,7 +415,11 @@ export class TangoEventProcessorService {
             sourceRecordKey: client.sourceRecordKey,
             changeDimension: change.dimension,
             severity: change.severity,
-            changeFingerprint: changeFingerprint(client.sourceRecordKey, change),
+            changeFingerprint: changeFingerprint(
+              client.sourceRecordKey,
+              change,
+              entry.tangoNoticeId,
+            ),
             evidenceJsonb: {
               dimension: change.dimension,
               severity: change.severity,
@@ -390,8 +436,12 @@ export class TangoEventProcessorService {
             deliveryId: row.deliveryId,
           });
 
-          if (written) summary.alertsWritten += 1;
-          else summary.alertsDeduped += 1;
+          if (written) {
+            summary.alertsWritten += 1;
+            writtenForClient += 1;
+          } else {
+            summary.alertsDeduped += 1;
+          }
         }
       }
     }

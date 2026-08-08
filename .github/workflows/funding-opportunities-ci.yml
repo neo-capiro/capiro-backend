@@ -194,7 +194,8 @@ jobs:
             20260903010000_tango_procurement_risk \
             20260904010000_outcome_event_funding_opportunity \
             20260905010000_tango_webhook_deliveries \
-            20260906010000_tango_event_outbox
+            20260906010000_tango_event_outbox \
+            20260907010000_tango_event_outbox_per_event
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -697,7 +698,14 @@ jobs:
           # ever collapses, one of these two blocks fails.
           check "outbox has NO tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='tenant_id'"             "0"
           check "outbox RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_outbox'"             "f"
-          check "one queue row per delivery"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "1"
+          # ONE ROW PER EVENT, not per delivery. The single-column key made a
+          # multi-event batch unrepresentable: the receiver accepted it and the
+          # outbox kept only events[0], marking the row done while every later
+          # event was silently discarded.
+          check "the old delivery-only key is GONE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "0"
+          check "idempotency is (delivery, event_index)"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_event_uniq'"             "1"
+          check "event_index is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='event_index'"             "NO"
+          check "event_index has a non-negative CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_event_index_chk'"             "1"
           check "outbox status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_status_chk'"             "1"
           check "completed_at agrees with outbox status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_completed_chk'"             "1"
 
@@ -1823,7 +1831,7 @@ jobs:
       # no database, network, or fake binaries.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2467
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 78 2474
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

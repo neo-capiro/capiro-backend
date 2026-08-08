@@ -132,6 +132,7 @@ function outbox(over: Partial<OutboxRow> = {}): OutboxRow {
   return {
     id: 'o-1',
     deliveryId: 'dlv-1',
+    eventIndex: 0,
     eventType: 'opportunity.updated',
     resourceType: 'opportunity',
     externalId: 'opp-1',
@@ -204,49 +205,72 @@ describe('isAlertableStage', () => {
 
 describe('changeFingerprint', () => {
   it('is stable for the same change', () => {
-    expect(changeFingerprint('opp-1', change())).toBe(changeFingerprint('opp-1', change()));
+    expect(changeFingerprint('opp-1', change(), 'n-1')).toBe(
+      changeFingerprint('opp-1', change(), 'n-1'),
+    );
   });
 
   it('is a lowercase hex sha256, matching the column CHECK', () => {
-    expect(changeFingerprint('opp-1', change())).toMatch(/^[0-9a-f]{64}$/);
+    expect(changeFingerprint('opp-1', change(), 'n-1')).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('differs when the AFTER value differs', () => {
-    expect(changeFingerprint('opp-1', change())).not.toBe(
-      changeFingerprint('opp-1', change({ after: '2026-08-20' })),
+    expect(changeFingerprint('opp-1', change(), 'n-1')).not.toBe(
+      changeFingerprint('opp-1', change({ after: '2026-08-20' }), 'n-1'),
     );
   });
 
   it('differs across source records — the same-looking change on two opportunities is two alerts', () => {
-    expect(changeFingerprint('opp-1', change())).not.toBe(changeFingerprint('opp-2', change()));
+    expect(changeFingerprint('opp-1', change(), 'n-1')).not.toBe(
+      changeFingerprint('opp-2', change(), 'n-1'),
+    );
   });
 
   it('IGNORES the summary text, so rewording the sentence never re-alerts', () => {
-    expect(changeFingerprint('opp-1', change())).toBe(
-      changeFingerprint('opp-1', change({ summary: 'completely different prose' })),
+    expect(changeFingerprint('opp-1', change(), 'n-1')).toBe(
+      changeFingerprint('opp-1', change({ summary: 'completely different prose' }), 'n-1'),
     );
   });
 
   it('distinguishes null from the string "null"', () => {
-    expect(changeFingerprint('opp-1', change({ after: null }))).not.toBe(
-      changeFingerprint('opp-1', change({ after: 'null' })),
+    expect(changeFingerprint('opp-1', change({ after: null }), 'n-1')).not.toBe(
+      changeFingerprint('opp-1', change({ after: 'null' }), 'n-1'),
     );
   });
 
-  it('is STABLE when only `before` differs — the back-fill case (review F4)', () => {
-    // `buildNoticeTimeline` computes `before` from the immediately preceding
+  it('is STABLE when only `before` differs — the back-fill case (F4)', () => {
+    // `buildNoticeTimeline` derives `before` from the immediately preceding
     // notice, so a notice back-filled BETWEEN two syncs rewrites it for the very
-    // same current state. Hashing `before` therefore produced two fingerprints
-    // for one deadline and alerted twice — a unique index cannot collapse what
-    // does not collide.
-    expect(changeFingerprint('opp-1', change({ before: '2026-03-01' }))).toBe(
-      changeFingerprint('opp-1', change({ before: '2026-04-01' })),
+    // same current state. Hashing `before` produced two fingerprints for one
+    // deadline and alerted twice; a unique index cannot collapse what does not
+    // collide. The notice identity is unchanged by a back-fill, so it is stable.
+    expect(changeFingerprint('opp-1', change({ before: '2026-03-01' }), 'n-3')).toBe(
+      changeFingerprint('opp-1', change({ before: '2026-04-01' }), 'n-3'),
+    );
+  });
+
+  it('SEPARATES two opposite transitions that end at the same value (re-review N2)', () => {
+    // The regression the second review caught. Hashing `after` alone collapsed
+    // a deadline PULL-IN (Dec -> Sep, critical) onto an earlier EXTENSION
+    // (Jun -> Sep) because both end at Sep — and silently suppressed the
+    // pull-in, the more urgent of the two. They arrive on different notices.
+    const extension = change({ before: '2026-06-01', after: '2026-09-01' });
+    const pullIn = change({ before: '2026-12-01', after: '2026-09-01' });
+    expect(changeFingerprint('opp-1', extension, 'n-2')).not.toBe(
+      changeFingerprint('opp-1', pullIn, 'n-4'),
+    );
+  });
+
+  it('the same notice reporting the same value is still ONE fingerprint', () => {
+    // Replay must still collapse.
+    expect(changeFingerprint('opp-1', change(), 'n-2')).toBe(
+      changeFingerprint('opp-1', change(), 'n-2'),
     );
   });
 
   it('still separates two DIFFERENT resulting values', () => {
-    expect(changeFingerprint('opp-1', change({ after: '2026-08-15' }))).not.toBe(
-      changeFingerprint('opp-1', change({ after: '2026-08-20' })),
+    expect(changeFingerprint('opp-1', change({ after: '2026-08-15' }), 'n-1')).not.toBe(
+      changeFingerprint('opp-1', change({ after: '2026-08-20' }), 'n-1'),
     );
   });
 });
