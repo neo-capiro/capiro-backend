@@ -46,6 +46,11 @@ import {
   PIPELINE_STAGES,
   type PipelineStage,
 } from './funding-opportunity-pipeline.js';
+import {
+  FundingOpportunityOutcomeService,
+  PURSUIT_OUTCOME_KINDS,
+  type PursuitOutcomeKind,
+} from './funding-opportunity-outcome.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import {
@@ -414,6 +419,47 @@ class OpportunityAssessmentDto {
 }
 
 /**
+ * Record a pursuit outcome (P36).
+ *
+ * `outcomeDate`, `reasonCodes` and `note` are all REQUIRED — the plan's own
+ * acceptance line is that a won/lost/passed transition with no outcome fields
+ * fails, and an optional field here would let one through as silently
+ * incomplete. `reasonCodes` is bounded to five entries and validated against
+ * the closed vocabulary for `kind` in the SERVICE, not here: the valid set
+ * differs by kind (won vs. lost vs. passed), which a single `@IsIn` on the DTO
+ * cannot express.
+ *
+ * `vehicleOutcome` and `sourceAwardLink` stay optional — "where relevant" and
+ * "when known" respectively, per the plan.
+ */
+class RecordOutcomeDto {
+  @IsIn(PURSUIT_OUTCOME_KINDS)
+  kind!: PursuitOutcomeKind;
+
+  @IsISO8601()
+  outcomeDate!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  reasonCodes!: string[];
+
+  @IsString()
+  @MaxLength(4_000)
+  note!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  vehicleOutcome?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  sourceAwardLink?: string;
+}
+
+/**
  * Funding Opportunities.
  *
  * ── Roles ────────────────────────────────────────────────────────────────────
@@ -457,6 +503,7 @@ export class FundingOpportunitiesController {
     private readonly assessment: MeriOpportunityAssessmentService,
     private readonly budgetContext: OpportunityBudgetContextService,
     private readonly risk: OpportunityRiskService,
+    private readonly outcomes: FundingOpportunityOutcomeService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -737,6 +784,68 @@ export class FundingOpportunitiesController {
       expectedVersion: body.expectedVersion,
       reason: body.reason ?? null,
     });
+  }
+
+  /**
+   * Record why a pursuit ended the way it did (P36).
+   *
+   * SEPARATE from the stage move above, deliberately. `moveStage` already
+   * requires a free-text `reason` for `won`/`lost`/`passed` — this is a
+   * RICHER, additional capture (bounded reason codes, a vehicle/partner
+   * outcome, a source award link) that feeds a governed learning candidate.
+   * Nothing here gates the pipeline transition; a team may move a card to
+   * `lost` without ever calling this route, and the pipeline stays correct
+   * either way.
+   *
+   * Reuses the PIPELINE flag — the plan's own instruction: this is what
+   * happens *after* a P35 transition commits, not a capability a tenant would
+   * ever want independently of the pipeline itself.
+   *
+   * Calling this twice for the same opportunity is not an error and does not
+   * overwrite the first call. Each call is a NEW row; `GET .../outcome`
+   * returns every one, newest first, with the latest marked `current`. That
+   * is the entire mechanism behind "reopening preserves the prior version".
+   */
+  @Post('clients/:clientId/opportunities/:source/:id/outcome')
+  @UseGuards(FundingOpportunitiesPipelineFlagGuard)
+  recordOutcome(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+    @Body() body: RecordOutcomeDto,
+  ) {
+    return this.outcomes.recordOutcome(
+      { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+      {
+        clientId,
+        source: params.source,
+        sourceRecordId: id,
+        kind: body.kind,
+        outcomeDate: new Date(body.outcomeDate),
+        reasonCodes: body.reasonCodes,
+        note: body.note,
+        vehicleOutcome: body.vehicleOutcome ?? null,
+        sourceAwardLink: body.sourceAwardLink ?? null,
+      },
+    );
+  }
+
+  /** Every outcome recorded for this client-opportunity pair, newest first (P36). */
+  @Get('clients/:clientId/opportunities/:source/:id/outcome')
+  @UseGuards(FundingOpportunitiesPipelineFlagGuard)
+  outcomeHistoryFor(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param() params: SourceParamDto,
+    @Param('id') id: string,
+  ) {
+    return this.outcomes.getOutcomeHistory(
+      { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+      clientId,
+      params.source,
+      id,
+    );
   }
 
   @Get('opportunities/:source/:id')

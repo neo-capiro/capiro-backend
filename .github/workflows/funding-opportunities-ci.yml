@@ -179,7 +179,8 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk
+            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk \
+            20260904010000_outcome_event_funding_opportunity
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -1583,9 +1584,16 @@ jobs:
       # this program has four decision-log entries where the SDK's declared
       # shape and the live server disagreed, so the mapper reads every field
       # defensively and drops a record it cannot identify.
+      #
+      # 70/2180 -> 71/2202 after P36 (outcome capture): one NEW suite,
+      # funding-opportunity-outcome.spec.ts (17 tests). Reuses `outcome_event`
+      # (widened CHECKs, namespaced `pursuit_` kinds) rather than a new table;
+      # reopening a lost/passed pursuit is a second INSERT, never an UPDATE, and
+      # a memory-candidate proposal failure never costs the outcome record
+      # already committed. Same flag guard `funding_opportunities_pipeline_v2`.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 70 2180
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 71 2202
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1774,9 +1782,25 @@ jobs:
       # swept for denied/dismissed/failed. THE ABSENCE CAVEAT renders on every
       # state including the clean one, where a reader is most tempted to
       # conclude the opposite.
+      #
+      # 101/390 -> 109/412 after P36: one NEW file, OpportunityOutcomeModal.test.tsx
+      # (10 tests). Submit is disabled until a reason code AND a note are both
+      # present; every prior outcome renders most-recent-first with the current
+      # one tagged and nothing in the history list is editable; a
+      # memory-candidate failure states the caveat without implying the outcome
+      # itself failed; a server refusal renders its own sentence, never a
+      # generic error.
+      #
+      # KNOWN, NOT INTRODUCED BY P36: this scope's own App.funding-opportunities-nav
+      # test currently fails 2 tests from an EngagementPreviewBoundary /
+      # useQueryClient context leak that reproduces with ONLY pre-existing files
+      # (no P36 file involved) — a regression from the concurrent Engagement API
+      # stack merge (#813), not this phase. The floor below is raised to reflect
+      # the real added test count regardless; it does not and cannot make this
+      # step report green until Engagement's own regression is fixed.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 101 390
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 109 412
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

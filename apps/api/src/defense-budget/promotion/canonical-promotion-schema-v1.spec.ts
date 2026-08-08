@@ -18,15 +18,27 @@ import { join } from 'node:path';
 
 const MIGRATION_DIR = '20260822010000_pe_budget_phase7_canonical_promotion';
 
+// Normalized to LF: `*.sql` has no `eol=lf` rule in .gitattributes (unlike
+// .sh/.ts/.md), so a Windows checkout reads this file back as CRLF and every
+// multi-line literal below (all authored as LF) would silently never match.
 const migrationSql = readFileSync(
   join(__dirname, '..', '..', '..', 'prisma', 'migrations', MIGRATION_DIR, 'migration.sql'),
   'utf8',
-);
+).replace(/\r\n/g, '\n');
 
 const schemaPrisma = readFileSync(
   join(__dirname, '..', '..', '..', 'prisma', 'schema.prisma'),
   'utf8',
 );
+
+// SQL line comments stripped, for checks that must not false-positive on an
+// English word inside prose (e.g. "real Aurora target" is not the type REAL).
+const migrationSqlWithoutComments = migrationSql
+  .split('\n')
+  // No `$` anchor: this file has CRLF line endings on a Windows checkout, and
+  // `.` never matches the trailing `\r`, so `--.*$` silently matches nothing.
+  .map((line) => line.replace(/--.*/, ''))
+  .join('\n');
 
 /** Every table the promotion ledger and canonical substrate is made of. */
 const PHASE7_TABLES = [
@@ -168,7 +180,9 @@ describe('Phase 7 Workstream D — activation and immutability constraints', () 
     expect(migrationSql).toContain('"quantity" NUMERIC(24, 9)');
     expect(migrationSql).toContain('"unit_cost_dollars" NUMERIC(24, 9)');
     // No approximate numeric type may appear anywhere in the canonical path.
-    expect(migrationSql).not.toMatch(/\b(DOUBLE PRECISION|REAL|FLOAT4|FLOAT8)\b/i);
+    // Checked with comments stripped: an English word like "real" in a prose
+    // comment is not the SQL type REAL, and must not read as one.
+    expect(migrationSqlWithoutComments).not.toMatch(/\b(DOUBLE PRECISION|REAL|FLOAT4|FLOAT8)\b/i);
   });
 
   it('forbids an un-suppressed alert for hydration, correction, and rollback', () => {
@@ -264,7 +278,15 @@ describe('Phase 7 Workstream D — trigger-enforced boundaries', () => {
 describe('Phase 7 Workstream D — least-privilege role boundary', () => {
   it('creates capiro_pe_promoter with no superuser, DDL, or role-creation rights', () => {
     expect(migrationSql).toContain('CREATE ROLE capiro_pe_promoter LOGIN PASSWORD');
-    expect(migrationSql).toContain('NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS');
+    // No explicit ALTER ROLE ... NOSUPERUSER here: naming SUPERUSER/NOSUPERUSER
+    // in ALTER ROLE requires the CALLING role to itself hold real SUPERUSER,
+    // which Aurora's master user does not (only the restricted rds_superuser
+    // pseudo-role) — that line used to fail every real Aurora deploy with
+    // "permission denied to alter role" and roll back this whole migration.
+    // A bare CREATE ROLE ... LOGIN PASSWORD already defaults every one of
+    // these attributes to its restrictive form, so nothing needs re-asserting.
+    expect(migrationSql).not.toMatch(/ALTER ROLE capiro_pe_promoter[\s\S]*?SUPERUSER/);
+    expect(migrationSql).toContain("already Postgres's default for a bare");
   });
 
   it('grants the promoter no DELETE anywhere', () => {

@@ -14,6 +14,8 @@ import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js
 import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.service.js';
 import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
 import { OpportunityRiskService } from './opportunity-risk.service.js';
+import { FundingOpportunityOutcomeService } from './funding-opportunity-outcome.service.js';
+import { MemoryModule } from '../memory/memory.module.js';
 import {
   FundingOpportunitiesFlagGuard,
   FundingOpportunitiesForecastFlagGuard,
@@ -52,8 +54,18 @@ import {
  * registration (P14) the same way every provider here already resolves
  * `PrismaService` via the global `PrismaModule` — no explicit import needed,
  * and for the same reason.
+ *
+ * `MemoryModule` (P36) is the SECOND exception, and a real import rather than
+ * a global resolution: `FundingOpportunityOutcomeService` needs
+ * `MemoryCandidateService` directly at request time, and unlike P37/P38's
+ * audit collaborators there is no "MeriModule already imports this module, so
+ * hand it over at bootstrap" path available — this controller's own route
+ * calls it synchronously. Verified no-cycle before adding it: `MemoryModule`
+ * imports only `PrismaModule`/`TenantModule` and nothing under
+ * `funding-opportunities/`.
  */
 @Module({
+  imports: [MemoryModule],
   controllers: [FundingOpportunitiesController],
   providers: [
     FundingOpportunitiesService,
@@ -115,6 +127,12 @@ import {
     // client's own uei; no writer, and nothing in it decides anything — an
     // active exclusion routes to review rather than resolving.
     OpportunityRiskService,
+    // P36. Depends on PrismaService and MemoryCandidateService (imported via
+    // MemoryModule above). Reuses the EXISTING outcome_event table — widened
+    // CHECKs only, no new table — and calls the memory candidate service as a
+    // fail-open audit surface: a proposal failure never loses the outcome
+    // record already committed ahead of it.
+    FundingOpportunityOutcomeService,
     FundingOpportunitiesFlagGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
@@ -134,6 +152,7 @@ import {
     MeriOpportunityAssessmentService,
     OpportunityBudgetContextService,
     OpportunityRiskService,
+    FundingOpportunityOutcomeService,
   ],
 })
 export class FundingOpportunitiesModule {}

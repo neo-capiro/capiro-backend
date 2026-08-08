@@ -1108,6 +1108,94 @@ export const PIPELINE_STAGES_NEEDING_REASON: readonly PipelineStageView[] = [
   'passed',
 ];
 
+// ── Outcome capture (P36) ───────────────────────────────────────────────────
+
+export const PURSUIT_OUTCOME_KINDS = ['won', 'lost', 'passed'] as const;
+export type PursuitOutcomeKindView = (typeof PURSUIT_OUTCOME_KINDS)[number];
+
+/** Mirrors the API's own closed vocabularies. One list per kind, deliberately. */
+export const OUTCOME_REASON_CODES: Readonly<Record<PursuitOutcomeKindView, readonly string[]>> =
+  Object.freeze({
+    won: [
+      'best_value',
+      'lowest_price',
+      'past_performance',
+      'teaming_strength',
+      'incumbent_advantage',
+      'technical_superiority',
+      'other',
+    ],
+    lost: [
+      'price',
+      'technical_score',
+      'past_performance_gap',
+      'no_bid_competitive',
+      'set_aside_ineligible',
+      'protest_related',
+      'agency_cancelled',
+      'other',
+    ],
+    passed: [
+      'capacity_constraint',
+      'strategic_fit',
+      'bonding_capacity',
+      'teaming_fell_through',
+      'deadline_missed',
+      'client_declined',
+      'other',
+    ],
+  });
+
+export const OUTCOME_REASON_CODE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  best_value: 'Best value',
+  lowest_price: 'Lowest price',
+  past_performance: 'Past performance',
+  teaming_strength: 'Teaming strength',
+  incumbent_advantage: 'Incumbent advantage',
+  technical_superiority: 'Technical superiority',
+  price: 'Price',
+  technical_score: 'Technical score',
+  past_performance_gap: 'Past performance gap',
+  no_bid_competitive: 'Did not bid — too competitive',
+  set_aside_ineligible: 'Set-aside ineligible',
+  protest_related: 'Protest-related',
+  agency_cancelled: 'Agency cancelled',
+  capacity_constraint: 'Capacity constraint',
+  strategic_fit: 'Strategic fit',
+  bonding_capacity: 'Bonding capacity',
+  teaming_fell_through: 'Teaming fell through',
+  deadline_missed: 'Deadline missed',
+  client_declined: 'Client declined',
+  other: 'Other',
+});
+
+export interface OutcomeRecordView {
+  id: string;
+  kind: PursuitOutcomeKindView;
+  outcomeDate: string;
+  reasonCodes: string[];
+  note: string | null;
+  vehicleOutcome: string | null;
+  sourceAwardLink: string | null;
+  recordedByUserId: string | null;
+  recordedAt: string;
+  current: boolean;
+}
+
+export type RecordOutcomeResultView =
+  | { state: 'recorded'; outcome: OutcomeRecordView; memoryCandidateProposed: boolean }
+  | { state: 'disabled' | 'denied' | 'invalid_request'; explanation: string };
+
+export interface OutcomeHistoryResultView {
+  state: 'available' | 'disabled' | 'denied';
+  explanation: string;
+  outcomes: OutcomeRecordView[];
+}
+
+export function outcomeApiPath(clientId: string, source: string, sourceRecordId: string): string {
+  return `/api/intelligence/clients/${encodeURIComponent(clientId)}/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/outcome`;
+}
+
 export interface PipelineCardView {
   rowId: string;
   source: string;
