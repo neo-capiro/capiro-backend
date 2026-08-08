@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "phase": "outreach-v3-revised-phase-1",
+  "status": "PROVISIONAL_CODE_COMPLETE_BLOCKED",
+  "repository": "neo-capiro/capirov2",
+  "branch": "agent/outreach-v3-p1-shared-foundations-gpt56-complete",
+  "lastStaticAuditHead": "ae938249d35476a1a7a4eada9949ac3b3aedd20e",
+  "counts": {
+    "openP0": 0,
+    "openP1": 0,
+    "blockingP2": 0
+  },
+  "acceptanceBlockers": [
+    {
+      "id": "P1-ENV-001",
+      "classification": "ENV_BLOCKED",
+      "blocking": true,
+      "owner": "acceptance-environment",
+      "summary": "The merged Phase 3 prerequisite still lacks final exact-head DB-free/local evidence and separate independent approval.",
+      "requiredClosure": "Run the permanent Phase 3 DB-free and local gates on its exact final head and obtain the required independent verdict."
+    },
+    {
+      "id": "P1-ENV-002",
+      "classification": "ENV_BLOCKED",
+      "blocking": true,
+      "owner": "github-actions",
+      "summary": "GitHub Actions runs fail with startup_failure before creating any jobs.",
+      "requiredClosure": "Restore an executable Actions environment or use the recovered local host; do not count startup_failure as a test result."
+    },
+    {
+      "id": "P1-ENV-003",
+      "classification": "EVIDENCE_MISSING",
+      "blocking": true,
+      "owner": "phase1-local-operator",
+      "summary": "pnpm verify:outreach-v3-phase-1 has not executed on the exact final Phase 1 head.",
+      "requiredClosure": "Run the DB-free gate on a clean exact-head checkout and retain its output."
+    },
+    {
+      "id": "P1-ENV-004",
+      "classification": "EVIDENCE_MISSING",
+      "blocking": true,
+      "owner": "phase1-local-operator",
+      "summary": "pnpm verify:outreach-v3-phase-1:local has not executed on the exact final Phase 1 head.",
+      "requiredClosure": "Run the authoritative local gate with Docker/pgvector, Chrome/Chromium, and dedicated acceptance actors; retain the evidence directory."
+    },
+    {
+      "id": "P1-VAL-001",
+      "classification": "PENDING_SEPARATE_VALIDATOR",
+      "blocking": true,
+      "owner": "independent-validator",
+      "summary": "No different operator/model has returned OUTREACH_V3_PHASE1_APPROVED.",
+      "requiredClosure": "Complete the independent validation package after both executable gates pass."
+    }
+  ],
+  "staticAudit": {
+    "knownCodeP0": [],
+    "knownCodeP1": [],
+    "knownBlockingP2": [],
+    "notes": [
+      "Static inspection found the request/core timers neutralized and explicit worker shells as sole timer registrars.",
+      "Callback ownership is checked at controller and provider boundaries.",
+      "Exact-version review identity, authorization, version decision, and review stamping are rechecked in one transaction.",
+      "Capability client scope and ethical-wall authorization fail closed.",
+      "Static inspection is not executable acceptance evidence."
+    ]
+  },
+  "phase2Ready": false
+}

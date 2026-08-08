@@ -1,20 +1,26 @@
-name: outreach-v3-p1-preflight
+name: outreach-v3-p1-closeout
 
 on:
   push:
     branches:
       - agent/outreach-v3-p1-shared-foundations-gpt56-complete
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  statuses: write
+
+concurrency:
+  group: outreach-v3-p1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  phase3-db-free-prerequisite:
-    name: Phase 3 DB-free prerequisite
+  phase1-db-free-closeout:
+    name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,20 +32,22 @@ jobs:
           test -z "$(git status --short)"
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
-      - name: Execute exact Phase 3 DB-free prerequisite
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Execute exact Revised Phase 1 DB-free gate
         run: |
           set -o pipefail
-          pnpm install --frozen-lockfile
-          pnpm --filter @capiro/api exec prisma generate
-          pnpm verify:engagement-phase-3
+          pnpm verify:outreach-v3-phase-1
           git diff --check
           test -z "$(git status --short)"
-          echo OUTREACH_V3_P1_PHASE3_DB_FREE_PREREQUISITE_COMPLETE
+          echo OUTREACH_V3_PHASE1_CI_DB_FREE_COMPLETE
