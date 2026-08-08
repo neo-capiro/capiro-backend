@@ -1,4 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -36,5 +37,43 @@ describe('Funding Opportunities container commands', () => {
     expect(dispatcher).toContain(
       `${verb}) shift; exec ./node_modules/.bin/tsx scripts/${script} "$@" ;;`,
     );
+  });
+});
+
+describe('the dispatcher is valid shell', () => {
+  /**
+   * The tests above assert that a dispatch LINE appears in the file. That is
+   * worth having, but it cannot catch the failure that matters most: a syntax
+   * error anywhere in this file makes EVERY scheduled job fail to start, not
+   * just the verb somebody edited. `sh -n` parses without executing, so this
+   * costs nothing and needs no database, no network, and no fake binaries.
+   *
+   * Skipped rather than failed where no POSIX shell exists (a Windows dev box
+   * without one), because a missing interpreter is not evidence about the file.
+   */
+  const dispatcherPath = join(__dirname, 'entrypoint-dispatcher.inc');
+  const entrypointPath = join(__dirname, 'entrypoint.sh');
+
+  function parses(file: string): 'ok' | 'no-shell' | string {
+    try {
+      execFileSync('sh', ['-n', file], { stdio: 'pipe' });
+      return 'ok';
+    } catch (err) {
+      const e = err as { code?: string; stderr?: Buffer };
+      if (e.code === 'ENOENT') return 'no-shell';
+      return e.stderr?.toString().trim() || 'parse failed';
+    }
+  }
+
+  test('entrypoint-dispatcher.inc parses', () => {
+    const result = parses(dispatcherPath);
+    if (result === 'no-shell') return;
+    expect(result).toBe('ok');
+  });
+
+  test('entrypoint.sh parses', () => {
+    const result = parses(entrypointPath);
+    if (result === 'no-shell') return;
+    expect(result).toBe('ok');
   });
 });
