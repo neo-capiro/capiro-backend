@@ -5,9 +5,19 @@ import {
   OUTREACH_FUTURE_COMMAND_TYPES,
   type OutreachCommandType,
 } from '../state/outreach-command.contract.js';
+import {
+  reduceOutreachCommand,
+  type AuthorizedOutreachCommand,
+  type OutreachCommandReduction,
+} from '../state/outreach-command-reducer.js';
+import type { OutreachCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
 
 export type OutreachCommandPhaseOwner = 'campaign_state' | 'target_context' | 'generation_send';
 export type OutreachCommandImplementationStatus = 'implemented' | 'future';
+export type OutreachCommandReducer = (
+  current: OutreachCampaignSpecV1,
+  command: AuthorizedOutreachCommand,
+) => OutreachCommandReduction;
 
 export interface OutreachCommandRegistryEntry {
   type: OutreachCommandType;
@@ -15,6 +25,9 @@ export interface OutreachCommandRegistryEntry {
   phaseOwner: OutreachCommandPhaseOwner;
   status: OutreachCommandImplementationStatus;
   payloadSchema: z.ZodTypeAny;
+  parse: (input: unknown) => unknown;
+  /** Only implemented Phase 2 business-state commands receive reducer authority. */
+  reduce?: OutreachCommandReducer;
 }
 
 const TARGET_CONTEXT_COMMANDS = new Set<OutreachCommandType>([
@@ -28,17 +41,23 @@ const TARGET_CONTEXT_COMMANDS = new Set<OutreachCommandType>([
 const FUTURE_COMMANDS = new Set<OutreachCommandType>(OUTREACH_FUTURE_COMMAND_TYPES);
 
 export const OUTREACH_COMMAND_REGISTRY: readonly OutreachCommandRegistryEntry[] = Object.freeze(
-  OUTREACH_COMMAND_TYPES.map((type) => ({
-    type,
-    schemaVersion: 1 as const,
-    phaseOwner: FUTURE_COMMANDS.has(type)
-      ? TARGET_CONTEXT_COMMANDS.has(type)
-        ? ('target_context' as const)
-        : ('generation_send' as const)
-      : ('campaign_state' as const),
-    status: FUTURE_COMMANDS.has(type) ? ('future' as const) : ('implemented' as const),
-    payloadSchema: OUTREACH_COMMAND_PAYLOAD_SCHEMAS[type],
-  })),
+  OUTREACH_COMMAND_TYPES.map((type) => {
+    const future = FUTURE_COMMANDS.has(type);
+    const payloadSchema = OUTREACH_COMMAND_PAYLOAD_SCHEMAS[type];
+    return {
+      type,
+      schemaVersion: 1 as const,
+      phaseOwner: future
+        ? TARGET_CONTEXT_COMMANDS.has(type)
+          ? ('target_context' as const)
+          : ('generation_send' as const)
+        : ('campaign_state' as const),
+      status: future ? ('future' as const) : ('implemented' as const),
+      payloadSchema,
+      parse: (input: unknown) => payloadSchema.parse(input),
+      ...(future ? {} : { reduce: reduceOutreachCommand }),
+    };
+  }),
 );
 
 export function assertOutreachCommandRegistry(): void {
@@ -47,8 +66,16 @@ export function assertOutreachCommandRegistry(): void {
     if (seen.has(entry.type)) throw new Error(`Duplicate Outreach command type: ${entry.type}`);
     seen.add(entry.type);
     if (entry.schemaVersion !== 1) throw new Error(`Unsupported schema version for ${entry.type}`);
-    if (entry.status === 'implemented' && entry.phaseOwner !== 'campaign_state') {
-      throw new Error(`Implemented Phase 2 command has an invalid owner: ${entry.type}`);
+    if (entry.status === 'implemented') {
+      if (entry.phaseOwner !== 'campaign_state') {
+        throw new Error(`Implemented Phase 2 command has an invalid owner: ${entry.type}`);
+      }
+      if (!entry.reduce) {
+        throw new Error(`Implemented Phase 2 command has no reducer: ${entry.type}`);
+      }
+    }
+    if (entry.status === 'future' && entry.reduce) {
+      throw new Error(`Future Outreach command has reducer authority: ${entry.type}`);
     }
     if (entry.type.includes('SEND_EMAIL_NOW')) {
       throw new Error('External-action command types are prohibited from the Phase 2 registry.');
