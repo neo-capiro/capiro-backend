@@ -107,3 +107,71 @@ describe('readResourceRef', () => {
     expect(readResourceRef({ id: { nested: true } }, 'opportunity.updated').externalId).toBeNull();
   });
 });
+
+describe('readResourceRef — BATCH deliveries (review finding F3)', () => {
+  // The receiver deliberately ACCEPTS the provider's `{timestamp, events:[...]}`
+  // shape. This function only looked at the top level and `data`, so a batch
+  // resolved to externalId: null — which the processor treats as a legitimate
+  // no-op and marks DONE. The delivery was accepted with a 202, queued, and
+  // silently discarded. Accepting a shape at one layer and dropping it at the
+  // next is worse than rejecting it outright.
+
+  it('resolves the resource id from the FIRST event of a batch', () => {
+    expect(
+      readResourceRef(
+        {
+          timestamp: '2026-08-08T00:00:00Z',
+          events: [
+            { event_type: 'opportunity.updated', opportunity_id: 'opp-batch' },
+            { event_type: 'opportunity.updated', opportunity_id: 'opp-other' },
+          ],
+        },
+        'opportunity.updated',
+      ),
+    ).toEqual({ resourceType: 'opportunity', externalId: 'opp-batch' });
+  });
+
+  it('a TOP-LEVEL id still wins over the event that supplied the gap', () => {
+    expect(
+      readResourceRef(
+        { opportunity_id: 'from-envelope', events: [{ opportunity_id: 'from-event' }] },
+        'opportunity.updated',
+      ).externalId,
+    ).toBe('from-envelope');
+  });
+
+  it('classifies a batch forecast event from the EVENT type when the envelope has none', () => {
+    expect(
+      readResourceRef({ events: [{ event_type: 'forecast.published', id: 'f-1' }] }, '')
+        .resourceType,
+    ).toBe('forecast');
+  });
+
+  it('an EMPTY events array falls back to the top level rather than throwing', () => {
+    expect(readResourceRef({ events: [], id: 'opp-x' }, 'opportunity.updated').externalId).toBe(
+      'opp-x',
+    );
+  });
+
+  it('a non-object inside events is ignored, not spread', () => {
+    expect(
+      readResourceRef({ events: ['nope'], id: 'opp-y' }, 'opportunity.updated').externalId,
+    ).toBe('opp-y');
+  });
+
+  it('a batch naming no resource still returns null — a no-op, not a guess', () => {
+    expect(readResourceRef({ events: [{ event_type: 'ping' }] }, 'ping').externalId).toBeNull();
+  });
+
+  it('the receiver and the processor agree on the same batch payload', () => {
+    // The regression in one sentence: these two must not disagree about
+    // whether a delivery is actionable.
+    const batch = {
+      timestamp: '2026-08-08T00:00:00Z',
+      events: [
+        { delivery_id: 'dlv-1', event_type: 'opportunity.updated', opportunity_id: 'opp-agree' },
+      ],
+    };
+    expect(readResourceRef(batch, 'opportunity.updated').externalId).toBe('opp-agree');
+  });
+});

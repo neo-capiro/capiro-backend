@@ -210,13 +210,32 @@ describe('isWithinReplayWindow', () => {
 });
 
 describe('readEnvelope', () => {
-  it('prefers the delivery header over a body id', () => {
+  it('prefers the SIGNED BODY id over the unsigned header', () => {
+    // Reversed deliberately. The HMAC covers the body only, so the header is
+    // attacker-controlled: preferring it meant one captured signed body could
+    // be replayed under unlimited distinct delivery ids, defeating the unique
+    // index its own migration calls "the whole replay defence".
     const result = readEnvelope(
       { delivery_id: 'from-body', event_type: 'opportunity.updated' },
       'from-header',
       null,
     );
     expect(result).toMatchObject({ ok: true });
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('from-body');
+  });
+
+  it('a replayed signed body cannot be multiplied by varying the header', () => {
+    const signedBody = { delivery_id: 'dlv-real', event_type: 'opportunity.updated' };
+    const ids = ['FORGED-a', 'FORGED-b', undefined].map(
+      (h) =>
+        (readEnvelope(signedBody, h, null) as { envelope: { deliveryId: string } }).envelope
+          .deliveryId,
+    );
+    expect(new Set(ids)).toEqual(new Set(['dlv-real']));
+  });
+
+  it('falls back to the header ONLY when the body carries no id', () => {
+    const result = readEnvelope({ event_type: 'opportunity.updated' }, 'from-header', null);
     expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
       'from-header',
     );
@@ -313,15 +332,13 @@ describe('readEnvelope — BATCH deliveries', () => {
     );
   });
 
-  it('still prefers the delivery HEADER over both', () => {
+  it('still prefers the SIGNED event id over the unsigned header', () => {
     const result = readEnvelope(
       { events: [{ delivery_id: 'from-event', event_type: 'x' }] },
       'from-header',
       null,
     );
-    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
-      'from-header',
-    );
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('from-event');
   });
 
   it('an EMPTY events array falls back to the top level rather than throwing', () => {
