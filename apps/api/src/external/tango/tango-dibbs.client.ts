@@ -56,9 +56,24 @@ export class TangoDibbsHttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /**
+     * Rate metadata from the FAILING response, when the provider sent any.
+     *
+     * Carried on the error rather than dropped because a 429's `Retry-After`
+     * is the only thing that says how long to wait — a caller that has to
+     * guess will either hammer the limit or idle far longer than needed.
+     * P17's live probe measured this account at 25 requests per ~31s, which a
+     * page-complete catalog walk reaches almost immediately.
+     */
+    readonly rate: TangoRateMetadata | null = null,
   ) {
     super(message);
     this.name = 'TangoDibbsHttpError';
+  }
+
+  /** The provider refused for rate reasons, not for content or auth reasons. */
+  get isRateLimited(): boolean {
+    return this.status === 429;
   }
 }
 
@@ -229,6 +244,7 @@ export class TangoDibbsClient implements TangoDibbsGateway {
         throw new TangoDibbsHttpError(
           response.status,
           `Tango DIBBS request failed (${response.status})${bounded ? `: ${bounded}` : ''}`,
+          rateOf(response.headers),
         );
       }
 

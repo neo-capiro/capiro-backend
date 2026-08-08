@@ -43,11 +43,27 @@ amendment while still reporting `complete`. `--full` is the mitigation and the s
 daily incremental with a weekly full reconciliation. A schedule that only ever runs the incremental will
 drift silently.
 
+### P17 IS ANSWERED — `dibbs: supported` (2026-08-08). See D-65.
+
+An operator-run probe against the real account returned `supported` for `dibbs`. **P40's entitlement gate
+is closed.** And because the probe calls through `TangoDibbsClient`, which throws on a missing `results`
+array, the run also **confirms the pagination envelope is `results`-shaped against a live response** —
+the largest single unknown in P40.
+
+Scope it precisely: the probe captures no response bodies, so this confirms the ENVELOPE only. Mapper
+field types, null semantics and date formats are still unverified readings.
+
+The run also found two defects, both now fixed (D-65): the DIBBS sync had **no rate-limit handling at
+all** and a 429 would have killed all three endpoint walks; and the probe reported a throttled call as a
+generic `error`, indistinguishable from a broken capability. **The account's limit is 25 requests per
+~31 seconds** — small enough that a catalog walk hits it as a matter of course, not exceptionally.
+
 ### What is still NOT done
 
-- **The live contract-validation step has not run.** Every coercion in the mappers and every assumption in
-  the client — including the `results`/`next`/`count` pagination envelope — is still a reading of
-  published field names. This remains the real gate.
+- **Full live contract validation has not run.** The envelope is confirmed; the record CONTENTS are not.
+  Every coercion in the mappers is still a reading of published field names. This remains the real gate.
+- **SBIR/STTR entitlement is still unknown** — `not_attempted`, because P42/P43 have built no client.
+  Unknown, not refused.
 - **P17's entitlement question is still open — but the probe can now answer it.** See **D-64**: the
   `dibbs` and `sbir_sttr` probes had D-62's error compiled into them, reporting
   `unsupported_by_provider`, with a test pinning it. `dibbs` is now a real read-only probe
@@ -165,12 +181,12 @@ last merge here:
   **Re-measured 2026-08-08 at `main` d1d7030c (PR #856) and after part 3: still
   exactly 12.** #856's `noImplicitAny` fix was in `apps/web`, so the api count
   never moved, and part 3 introduced none.
-- FO CI floor: **now 82 suites / 2558 tests**, raised from 81/2528 by part 3.
-  Of the movement from 78/2485 to 81/2528, +1 suite and +36 tests are P40's;
-  +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2558 move is
-  **entirely** this work's: +27 in `sync-tango-dibbs.spec.ts`, +1 dispatch row,
-  +2 in `tango-capability-probe.service.spec.ts` (D-64). Measured against real
-  Postgres 16 on a clean migration replay — 82 passed, 2558 passed, zero
+- FO CI floor: **now 82 suites / 2564 tests**, raised from 81/2528 by this work.
+  Of the earlier movement from 78/2485 to 81/2528, +1 suite and +36 tests are
+  P40's; +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2564 move
+  is **entirely** this work's: +27 `sync-tango-dibbs.spec.ts`, +1 dispatch row,
+  +2 probe spec (D-64), +6 rate-limit tests (D-65). Measured against real
+  Postgres 16 on a clean migration replay — 82 passed, 2564 passed, zero
   failures, zero skips.
 
 Note that #856 (the NewsCatcher dashboard) added a 402-line spec under

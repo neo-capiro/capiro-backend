@@ -14,6 +14,9 @@ import {
   TangoDibbsHttpError,
 } from '../src/external/tango/tango-dibbs.client.js';
 
+// Node 18+ global. Declared for the fetch fakes below.
+declare const Response: typeof globalThis.Response;
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
 describe('CLI parsing', () => {
@@ -155,6 +158,7 @@ function fakeDeps(
   const { gateway, calls } = fakeGateway(pagesByEndpoint);
   const solicitations = new Map<string, unknown>();
   const awards = new Map<string, unknown>();
+  const sleeps: number[] = [];
   const deps: DibbsSyncDeps = {
     gateway,
     upsertSolicitation: jest.fn(async (row: any) => {
@@ -165,8 +169,13 @@ function fakeDeps(
     }) as any,
     highWaterMark: jest.fn(async (endpoint: DibbsEndpoint) => highWater[endpoint] ?? null) as any,
     now: () => new Date('2026-08-08T00:00:00.000Z'),
+    // Never a real delay: the rate-limit paths wait ~31s in production, and a
+    // suite that actually slept would be deleted by the first person it slowed.
+    sleep: jest.fn(async (ms: number) => {
+      sleeps.push(ms);
+    }) as any,
   };
-  return { deps, calls, solicitations, awards };
+  return { deps, calls, solicitations, awards, sleeps };
 }
 
 const byEndpoint = (summary: DibbsSyncSummary, e: DibbsEndpoint): DibbsEndpointSummary =>
@@ -442,6 +451,137 @@ describe('page-complete walking', () => {
     expect(deps.gateway.listRfps).not.toHaveBeenCalled();
     expect(deps.gateway.listAwards).not.toHaveBeenCalled();
     expect(summary.endpoints).toHaveLength(1);
+  });
+});
+
+// ── Rate limiting ────────────────────────────────────────────────────────────
+//
+// P17's live probe (2026-08-08) measured this account at 25 requests per ~31s.
+// The first version of this sync had NO rate handling at all: a 429 propagated
+// out of walkEndpoint and killed the whole run, all three endpoints. These
+// tests exist because a live read-only probe found that before any row was
+// written.
+
+describe('rate limiting', () => {
+  const rateLimitError = (retryAfter: number | null, resetIn: number | null = null) =>
+    new TangoDibbsHttpError(429, 'Tango DIBBS request failed (429)', {
+      remaining: 0,
+      limit: 25,
+      resetIn,
+      retryAfter,
+      limitType: null,
+    });
+
+  test('a 429 is retried, honouring Retry-After, and the walk continues', async () => {
+    const { deps, sleeps } = fakeDeps({ rfq: [[rfq('a')]] });
+    let calls = 0;
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw rateLimitError(31);
+      return { items: [rfq('a')], totalCount: 1, nextPage: null, rate: null };
+    });
+
+    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+
+    expect(calls).toBe(2);
+    // Retry-After is in seconds; the sleep is in milliseconds.
+    expect(sleeps).toEqual([31_000]);
+    expect(byEndpoint(summary, 'rfq').rateLimitRetries).toBe(1);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(true);
+    expect(summary.rateLimited).toBe(false);
+  });
+
+  test('falls back to resetIn when Retry-After is absent', async () => {
+    const { deps, sleeps } = fakeDeps({ rfq: [[rfq('a')]] });
+    let calls = 0;
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw rateLimitError(null, 20);
+      return { items: [], totalCount: 0, nextPage: null, rate: null };
+    });
+
+    await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    expect(sleeps).toEqual([20_000]);
+  });
+
+  test('a rate limit that outlasts every retry stops ONE endpoint, never the run', async () => {
+    const { deps, awards } = fakeDeps({ rfq: [[rfq('a')]], award: [[award('z')]] });
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      throw rateLimitError(1);
+    });
+
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq', 'award'],
+      maxRateLimitRetries: 2,
+    });
+
+    // THE containment property. Before this existed, the throw propagated and
+    // the award walk never ran at all.
+    expect(byEndpoint(summary, 'rfq').rateLimited).toBe(true);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(false);
+    expect(byEndpoint(summary, 'award').complete).toBe(true);
+    expect(awards.size).toBe(1);
+
+    // And the run says so at top level — `in_progress` alone cannot distinguish
+    // "capped by --limit, as instructed" from "the provider throttled us".
+    expect(summary.rateLimited).toBe(true);
+    expect(summary.completeness).toBe('in_progress');
+  });
+
+  test('a non-rate-limit HTTP error is NOT swallowed as a throttle', async () => {
+    const { deps } = fakeDeps({ rfq: [[rfq('a')]] });
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      throw new TangoDibbsHttpError(500, 'Tango DIBBS request failed (500)');
+    });
+
+    await expect(
+      runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] }),
+    ).rejects.toBeInstanceOf(TangoDibbsHttpError);
+  });
+
+  test('a page reporting remaining: 0 pauses BEFORE the next request', async () => {
+    const { deps, sleeps } = fakeDeps({});
+    let page = 0;
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      page += 1;
+      return {
+        items: [rfq(`p${page}`)],
+        totalCount: null,
+        nextPage: page === 1 ? 2 : null,
+        rate: page === 1 ? { remaining: 0, limit: 25, resetIn: 31, retryAfter: null, limitType: null } : null,
+      };
+    });
+
+    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+
+    // Waiting for the 429 also works, but it spends a request to learn what the
+    // previous response already said.
+    expect(sleeps).toEqual([31_000]);
+    expect(byEndpoint(summary, 'rfq').throttleWaits).toBe(1);
+    expect(byEndpoint(summary, 'rfq').rateLimitRetries).toBe(0);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(true);
+  });
+
+  test('the client attaches rate metadata to a 429 so the caller can honour it', async () => {
+    const client = new TangoDibbsClient({
+      apiKey: 'k',
+      fetchImpl: (async () =>
+        new Response('slow down', {
+          status: 429,
+          headers: { 'retry-after': '31', 'x-ratelimit-remaining': '0', 'x-ratelimit-limit': '25' },
+        })) as any,
+    });
+
+    await client.listRfqs().catch((error: unknown) => {
+      const e = error as TangoDibbsHttpError;
+      expect(e).toBeInstanceOf(TangoDibbsHttpError);
+      expect(e.isRateLimited).toBe(true);
+      expect(e.rate?.retryAfter).toBe(31);
+      expect(e.rate?.limit).toBe(25);
+    });
+    expect.assertions(4);
   });
 });
 

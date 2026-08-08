@@ -66,6 +66,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   TangoDibbsClient,
   TangoDibbsEnvelopeError,
+  TangoDibbsHttpError,
   type TangoDibbsGateway,
   type TangoDibbsPage,
 } from '../src/external/tango/tango-dibbs.client.js';
@@ -85,6 +86,14 @@ dotenvConfig();
 
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_OVERLAP_DAYS = 7;
+/**
+ * P17's live probe (2026-08-08) measured this account at 25 requests per ~31s.
+ * A page-complete catalog walk reaches that routinely, so rate limiting is a
+ * normal operating condition here, not an exceptional one.
+ */
+const DEFAULT_MAX_RATE_LIMIT_RETRIES = 5;
+/** Only used when the provider sends neither `Retry-After` nor `resetIn`. */
+const DEFAULT_RATE_LIMIT_WAIT_SECONDS = 35;
 /** A runaway `next` chain must not page forever. Hit means in_progress, never "complete". */
 const MAX_PAGES_PER_ENDPOINT = 10_000;
 
@@ -165,6 +174,13 @@ export interface DibbsSyncDeps {
   highWaterMark: (endpoint: DibbsEndpoint) => Promise<Date | null>;
   /** The caller's clock. Never `new Date()` inside the core walk. */
   now?: () => Date;
+  /**
+   * The caller's delay. Injected rather than called directly so the rate-limit
+   * paths are testable in milliseconds instead of half-minutes — a retry test
+   * that really waited 31 seconds would be deleted by the first person whose
+   * suite got slow.
+   */
+  sleep: (ms: number) => Promise<void>;
 }
 
 export interface DibbsSyncOptions {
@@ -175,6 +191,7 @@ export interface DibbsSyncOptions {
   overlapDays?: number;
   batchSize?: number;
   endpoints?: DibbsEndpoint[];
+  maxRateLimitRetries?: number;
 }
 
 export interface DibbsEndpointSummary {
@@ -190,8 +207,17 @@ export interface DibbsEndpointSummary {
   errored: number;
   /** The `*_date_after` value actually sent, or null for a full/first walk. */
   windowFrom: string | null;
-  /** False when the walk stopped early — limit, page ceiling, or an unparseable `next`. */
+  /**
+   * False when the walk stopped early — limit, page ceiling, an unparseable
+   * `next`, or a rate limit that outlasted the retries.
+   */
   complete: boolean;
+  /** A 429 outlasted every retry and stopped THIS endpoint. Never aborts the run. */
+  rateLimited: boolean;
+  /** 429s that were retried and then succeeded. Nonzero is normal on a big walk. */
+  rateLimitRetries: number;
+  /** Deliberate pauses taken because the previous page reported `remaining: 0`. */
+  throttleWaits: number;
 }
 
 export interface DibbsSyncSummary {
@@ -208,10 +234,54 @@ export interface DibbsSyncSummary {
   commit: boolean;
   windowKind: 'full' | 'explicit-since' | 'derived-high-water';
   completeness: 'complete' | 'in_progress';
+  /**
+   * At least one endpoint was cut short by the provider's rate limit.
+   *
+   * Surfaced at run level as well as per endpoint because this is the field an
+   * operator or a scheduled-task alarm reads first: `completeness` alone cannot
+   * distinguish "capped by --limit, as instructed" from "the provider throttled
+   * us and the catalog is now partially synced".
+   */
+  rateLimited: boolean;
 }
 
 function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * One page fetch, retried while the provider says "too many requests".
+ *
+ * `Retry-After` is honoured when the provider sends it, because guessing is
+ * strictly worse in both directions: too short hammers a limit that is already
+ * refusing, too long idles a scheduled task for no reason. Falls back to a
+ * fixed wait only when the header is absent.
+ *
+ * Retries are BOUNDED. A provider that refuses indefinitely is not a transient
+ * condition to wait out — it is a run that should stop and say so, which is
+ * why exhausting the retries re-throws rather than returning an empty page.
+ */
+async function fetchWithRateLimitRetry(
+  fetchPage: () => Promise<TangoDibbsPage>,
+  deps: DibbsSyncDeps,
+  options: DibbsSyncOptions,
+  summary: DibbsEndpointSummary,
+): Promise<TangoDibbsPage> {
+  const maxRetries = options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fetchPage();
+    } catch (error) {
+      const rateLimited = error instanceof TangoDibbsHttpError && error.isRateLimited;
+      if (!rateLimited || attempt >= maxRetries) throw error;
+
+      const retryAfterSec =
+        error.rate?.retryAfter ?? error.rate?.resetIn ?? DEFAULT_RATE_LIMIT_WAIT_SECONDS;
+      summary.rateLimitRetries += 1;
+      await deps.sleep(retryAfterSec * 1000);
+    }
+  }
 }
 
 /**
@@ -241,6 +311,9 @@ async function walkEndpoint(
     errored: 0,
     windowFrom,
     complete: false,
+    rateLimited: false,
+    rateLimitRetries: 0,
+    throttleWaits: 0,
   };
 
   let page: number | null = 1;
@@ -253,31 +326,53 @@ async function walkEndpoint(
     // Capped to `remaining`, not just `batchSize` — a page longer than what
     // this run should consume would force a mid-page stop (decision-log D-43).
     const pageSize = Math.min(batchSize, remaining);
+    const fetchPage = (): Promise<TangoDibbsPage> => {
+      switch (endpoint) {
+        case 'rfq':
+          return deps.gateway.listRfqs({
+            page: page!,
+            limit: pageSize,
+            ...(windowFrom ? { issueDateAfter: windowFrom } : {}),
+          });
+        case 'rfp':
+          return deps.gateway.listRfps({
+            page: page!,
+            limit: pageSize,
+            ...(windowFrom ? { issuedDateAfter: windowFrom } : {}),
+          });
+        case 'award':
+          return deps.gateway.listAwards({
+            page: page!,
+            limit: pageSize,
+            ...(windowFrom ? { postedDateAfter: windowFrom } : {}),
+          });
+      }
+    };
+
     let result: TangoDibbsPage;
-    switch (endpoint) {
-      case 'rfq':
-        result = await deps.gateway.listRfqs({
-          page,
-          limit: pageSize,
-          ...(windowFrom ? { issueDateAfter: windowFrom } : {}),
-        });
-        break;
-      case 'rfp':
-        result = await deps.gateway.listRfps({
-          page,
-          limit: pageSize,
-          ...(windowFrom ? { issuedDateAfter: windowFrom } : {}),
-        });
-        break;
-      case 'award':
-        result = await deps.gateway.listAwards({
-          page,
-          limit: pageSize,
-          ...(windowFrom ? { postedDateAfter: windowFrom } : {}),
-        });
-        break;
+    try {
+      result = await fetchWithRateLimitRetry(fetchPage, deps, options, summary);
+    } catch (error) {
+      // A rate limit that survives every retry stops THIS endpoint and leaves
+      // it `complete: false`. It does not abort the run: the other endpoints
+      // have their own windows and their own counters, and killing them too
+      // would turn one throttled walk into three unsynced datasets.
+      if (error instanceof TangoDibbsHttpError && error.isRateLimited) {
+        summary.rateLimited = true;
+        return summary;
+      }
+      throw error;
     }
     summary.pagesRead += 1;
+
+    // Proactive throttle. Waiting for the 429 works, but it spends a request
+    // to learn something the previous response already said. P17's live probe
+    // measured this account at 25 requests per ~31s — small enough that a
+    // page-complete walk reaches it routinely, not exceptionally.
+    if (result.rate?.remaining === 0 && result.rate.resetIn != null) {
+      summary.throttleWaits += 1;
+      await deps.sleep(result.rate.resetIn * 1000);
+    }
 
     for (const raw of result.items) {
       summary.processed += 1;
@@ -393,6 +488,7 @@ export async function runDibbsSync(
     commit: options.commit,
     windowKind,
     completeness: summaries.every((s) => s.complete) ? 'complete' : 'in_progress',
+    rateLimited: summaries.some((s) => s.rateLimited),
   };
 }
 
@@ -470,6 +566,7 @@ async function main(): Promise<void> {
         upsertSolicitation: realUpsertSolicitation(prisma),
         upsertAward: realUpsertAward(prisma),
         highWaterMark: realHighWaterMark(prisma),
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       },
       {
         commit: args.commit,

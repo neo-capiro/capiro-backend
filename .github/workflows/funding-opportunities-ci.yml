@@ -1881,16 +1881,23 @@ jobs:
       # merged, NOT from this feature. The api typecheck baseline moved in the
       # same merge, 6 pre-existing errors -> 12, none of them in funding-
       # opportunities code.
-      # 81/2528 -> 82/2558: P40 part 3, the DIBBS sync, plus the D-64 probe fix.
-      # +1 suite and +30 tests, ALL of it this feature's — nothing arrived from
-      # main in this move. Split: +27 in the new scripts/sync-tango-dibbs.spec.ts,
-      # +1 from the new dispatch row in funding-opportunities-entrypoint.spec.ts,
-      # +2 in tango-capability-probe.service.spec.ts (D-64 — the dibbs/sbir_sttr
-      # probes had D-62's error compiled in, with a test pinning `unsupported`;
-      # that assertion is now inverted and a real-call test added).
+      # 81/2528 -> 82/2564: P40 part 3, plus the D-64 probe fix, plus the D-65
+      # rate-limit handling. +1 suite and +36 tests, ALL of it this feature's —
+      # nothing arrived from main in this move. Split:
+      #   +27  scripts/sync-tango-dibbs.spec.ts (new suite)
+      #    +1  dispatch row in funding-opportunities-entrypoint.spec.ts
+      #    +2  tango-capability-probe.service.spec.ts (D-64 — the dibbs/sbir_sttr
+      #        probes had D-62's error compiled in, with a test pinning
+      #        `unsupported`; that assertion is now inverted, plus a real-call test)
+      #    +6  rate-limit tests (D-65)
+      #
+      # The D-65 six exist because a LIVE probe run found what no unit test could:
+      # this account is limited to 25 requests per ~31s, and the DIBBS sync had no
+      # handling for a 429 at all — it would have killed all three endpoint walks.
+      # The fakes never return 429, so nothing in the suite could have caught it.
       #
       # Measured against real Postgres 16 on a clean migration replay: 82 passed,
-      # 2558 passed, zero failures, zero skips. The api typecheck baseline did
+      # 2564 passed, zero failures, zero skips. The api typecheck baseline did
       # NOT move — still 12 pre-existing errors, none in funding-opportunities
       # code.
       #
@@ -1900,7 +1907,7 @@ jobs:
       # that prose was written. The floor was right; the prose was stale.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 82 2558
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 82 2564
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

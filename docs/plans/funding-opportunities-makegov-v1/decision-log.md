@@ -2012,3 +2012,56 @@ Its `dibbs` and `sbir_sttr` rows are SUPERSEDED and must not be cited. A re-run 
 The generalisable point is narrower than "update code when you update docs": **a correction that lands
 only in prose leaves the mechanism that generated the error still running.** D-62 was written, reviewed
 and merged while the probe kept emitting the corrected claim, and a passing test kept it there.
+
+## D-65 · 2026-08-08 · P17 answered: DIBBS is entitled, and the run found two defects
+
+The corrected probe was run against the real account (operator-run, outside any agent session, key pulled
+from Secrets Manager and never displayed). Result:
+
+**`dibbs`: `supported`. P40's entitlement gate is CLOSED.**
+
+A second result comes free, and it is the more valuable one. The probe calls `listRfqs({ limit: 1 })`
+through `TangoDibbsClient`, which **throws** `TangoDibbsEnvelopeError` when a 200 response carries no
+`results` array. It returned "Call succeeded." **So the pagination envelope is confirmed to be
+`results`-shaped against a live response** — the single largest unknown in P40.
+
+Scope that precisely: the probe never captures response bodies, so this confirms the ENVELOPE only. Field
+types, null semantics and date formats in the mappers remain unconfirmed readings of published names.
+`sbir_sttr` remains `not_attempted` — no client exists yet, so entitlement there is still unknown.
+
+### Defect 1 — the DIBBS sync had no rate-limit handling whatsoever
+
+The run measured this account at **25 requests per ~31 seconds** (`x-ratelimit-limit: 25`,
+`resetIn: 31`). That is small enough that a page-complete catalog walk reaches it routinely.
+
+`sync-tango-dibbs.ts` as first written had no handling for it. `sync-tango-forecasts` wraps its gateway in
+`TangoResilienceService`; the DIBBS sync talks to its REST client directly, and its only `try/catch` was
+around the upserts. A 429 would have propagated out of `walkEndpoint` and **killed the entire run — all
+three endpoints, not just the throttled one.** Fixed here:
+
+- `TangoDibbsHttpError` now carries the failing response's rate metadata, so `Retry-After` can be
+  honoured rather than guessed. Guessing is worse in both directions.
+- Bounded retry on 429 (default 5), preferring `Retry-After`, then `resetIn`, then a fixed fallback.
+- Proactive throttle: a page reporting `remaining: 0` pauses before the next request instead of spending
+  a request to learn what the previous response already said.
+- **A rate limit that outlasts the retries stops ONE endpoint and leaves it `complete: false`. It never
+  aborts the run.** Killing the other two would turn one throttled walk into three unsynced datasets.
+- `rateLimited` is surfaced per endpoint AND at run level, because `completeness: in_progress` alone
+  cannot distinguish "capped by `--limit`, as instructed" from "the provider throttled us".
+
+**This is what the live gate is for.** No unit test would have found it — the fakes never return 429.
+
+### Defect 2 — a throttled probe was indistinguishable from a broken capability
+
+`budget_accounts_flows` reported `status: "error", reason: "Rate limit exceeded"` because the budget ran
+out mid-run. The 2026-08-07 report has it `supported`. A reader diffing the two would have seen a P44
+regression that does not exist.
+
+`classifyStatus` already returns a `rate_limit` kind; the probe was collapsing it into `error`. Added
+`rate_limited` as its own `ProbeStatus` — **the same reasoning that produced `not_found`**, which this
+file's own doc justifies as "collapsing it into generic `error` would make it indistinguishable from a
+genuinely broken call." The identical mistake recurred one status over.
+
+The default `--request-ceiling` was also **30 — above the provider's own limit of 25**, so the
+self-imposed cap could never bind; the provider always ran out first. Now 25. A full pass needs ~17 HTTP
+calls, so it fits on a fresh window. The 2026-08-08 run began at `remaining: 12`, which is why it did not.

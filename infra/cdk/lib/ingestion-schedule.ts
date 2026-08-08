@@ -617,11 +617,18 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // firing on the same day is harmless — Sunday simply refreshes what Sunday's
   // incremental already wrote.
   //
-  // DISABLED, and not merely by house convention: nothing in P40 has ever seen
-  // a real provider response. The mappers, the schema and the pagination
-  // envelope are all readings of published field NAMES, and the separately
-  // authorized live contract-validation step has not run. Enabling this before
-  // that step would write a whole catalog shaped by an unverified contract.
+  // RATE LIMIT: P17's live probe (2026-08-08) measured this account at 25
+  // requests per ~31s. A page-complete walk at limit=100 reaches that as a
+  // matter of course, so the sync throttles and retries rather than treating a
+  // 429 as exceptional (D-65). Budget wall-clock accordingly: the full weekly
+  // reconciliation is paced by the provider, not by Postgres.
+  //
+  // DISABLED, and not merely by house convention. P17 now confirms entitlement
+  // and confirms the pagination ENVELOPE against a live response — but the
+  // probe captures no response bodies, so mapper field types, null semantics
+  // and date formats remain readings of published NAMES. Full live contract
+  // validation has not run. Enabling this before it would write a whole catalog
+  // shaped by an only-partly-verified contract.
   // Enable the incremental first, read one run's summary — especially
   // `quantityDroppedMissingUnit` and the per-endpoint drop counts — and only
   // then enable the full reconciliation.

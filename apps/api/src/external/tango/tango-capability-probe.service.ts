@@ -40,6 +40,14 @@ export const PROBE_STATUSES = [
   'unsupported',
   'tier_gated',
   'not_found',
+  /**
+   * The provider throttled this call. Says NOTHING about the capability — the
+   * account simply ran out of request budget mid-run. Its own status for the
+   * same reason `not_found` is: folding it into `error` makes a throttled
+   * probe indistinguishable from a broken one, and a reader diffing two
+   * reports would see a phantom regression.
+   */
+  'rate_limited',
   'error',
   'not_attempted',
 ] as const;
@@ -464,7 +472,24 @@ export class TangoCapabilityProbeService {
         // is unavailable — short-circuit the rest rather than proving the same
         // fact ~20 more times.
         if (def.key === 'version' && kind === 'auth') authenticationFailed = true;
-        const status: ProbeStatus = kind === 'tier' ? 'tier_gated' : kind === 'not_found' ? 'not_found' : 'error';
+        // `rate_limited` is its OWN status for exactly the reason `not_found`
+        // is: collapsing it into `error` makes a throttled probe
+        // indistinguishable from a broken capability. The 2026-08-08 run
+        // reported `budget_accounts_flows` as `error: Rate limit exceeded`
+        // after the account's 25-per-~31s budget ran out mid-run — a reader
+        // comparing against the prior report, which had it `supported`, would
+        // reasonably have read a P44 regression that did not exist.
+        //
+        // It says NOTHING about the capability. Re-run with a lower
+        // --request-ceiling, or wait out the window, to learn anything.
+        const status: ProbeStatus =
+          kind === 'tier'
+            ? 'tier_gated'
+            : kind === 'not_found'
+              ? 'not_found'
+              : kind === 'rate_limit'
+                ? 'rate_limited'
+                : 'error';
         results.push({
           key: def.key,
           usedByPhases: def.usedByPhases,
