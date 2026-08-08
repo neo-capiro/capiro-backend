@@ -19,9 +19,22 @@
  * and rewrites; without --commit it prints counts + samples only.
  *
  *   derive-budget-actions [--commit]
+ *
+ * Phase 7 Workstream M/N containment: this is one of the twelve legacy
+ * dispatcher verbs gated behind `PE_LEGACY_BUDGET_WRITES` (see
+ * `legacy-budget-write-gate-v1.ts`), but the gate as shipped in session 6 was
+ * enforced only in the shell dispatcher (`entrypoint-dispatcher.inc`) — and
+ * `run-pe-derive-chain.ts` spawns this script's `--commit` invocation
+ * directly, bypassing that dispatcher entirely. The check below closes that
+ * specific bypass by making the gate a property of this script, not just of
+ * one caller of it.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient, Prisma } from '@prisma/client';
+import {
+  legacyBudgetCommitDecisionV1,
+  legacyBudgetWriteModeFromEnvV1,
+} from '../src/defense-budget/promotion/legacy-budget-write-gate-v1.js';
 
 dotenvConfig();
 
@@ -75,6 +88,24 @@ function markActions(
 
 async function main(): Promise<void> {
   const commit = process.argv.includes('--commit');
+
+  // Same policy the shell dispatcher enforces for a direct `derive-budget-actions
+  // --commit` invocation, applied here too so a caller that spawns this script
+  // directly (run-pe-derive-chain.ts) cannot skip it. readMode is intentionally
+  // omitted — matching the shell dispatcher's own check today, which is
+  // PE_LEGACY_BUDGET_WRITES-only and does not yet look at the read mode either;
+  // extending both to also veto on an active snapshot/canary read is a follow-on,
+  // not something to introduce as a side effect of closing this bypass.
+  const decision = legacyBudgetCommitDecisionV1({
+    verb: 'derive-budget-actions',
+    argv: process.argv,
+    writeMode: legacyBudgetWriteModeFromEnvV1(process.env.PE_LEGACY_BUDGET_WRITES),
+  });
+  if (!decision.allowed) {
+    console.error(decision.message);
+    process.exit(64);
+  }
+
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {

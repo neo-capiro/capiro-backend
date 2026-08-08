@@ -41,6 +41,11 @@ import {
 } from '../src/defense-budget/promotion/manual-override-overlay-v1.js';
 import { manualOverrideFromRowV1 } from '../src/defense-budget/promotion/manual-override-repository-prisma-v1.js';
 import { resolveSnapshotReadModeV1 } from '../src/defense-budget/promotion/snapshot-read-mode-v1.js';
+import { computePbComparison } from '../src/program-element/budget-position.js';
+import {
+  projectPeBudgetPositionsV1,
+  toBudgetPositionLikeV1,
+} from '../src/program-element/snapshot/pe-funding-position-projector-v1.js';
 
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const APP_URL = required('APP_DATABASE_URL');
@@ -283,6 +288,64 @@ async function main(): Promise<void> {
       }
       check(refused, 'a row set straddling two real snapshots is refused, not served');
     }
+
+    /* =================================================================== */
+    /* 6. Session 7 — getBudgetPositions/getPbComparison's real projector   */
+    /* =================================================================== */
+    // Everything above proves the generic port. This proves the one family
+    // projector session 7 actually wired into a live method
+    // (`ProgramElementReadService.getBudgetPositions`/`getPbComparison`)
+    // against real NUMERIC storage — the quantity/total split in particular,
+    // since that mapping is inferred (see the projector's own header) and has
+    // never been checked against anything but hand-written unit fixtures
+    // until now.
+    // Seeded by pe-budget-phase7-migration-rehearsal.sh while snapshot
+    // 11111111-… was still STAGING — canonical rows are immutable the moment a
+    // snapshot leaves STAGING (the DB trigger refuses exactly this INSERT
+    // afterward, which an earlier version of this section learned the hard
+    // way), so these three rows cannot be inserted here, after activation.
+    // This section only reads them back through the same port every other
+    // check in this file uses.
+    const BP_PE = 'PE-REHEARSAL-BP';
+
+    const bpRows = await port.loadRows({
+      snapshotId: active.snapshotId,
+      canonicalEntity: 'canonical_rdte_budget_position',
+      parentNaturalKey: BP_PE,
+    });
+    check(
+      bpRows.length === 3,
+      `loadRows scoped by parentNaturalKey found exactly 3 rows (got ${bpRows.length})`,
+    );
+    assertOneSnapshotV1(bpRows, active.snapshotId);
+
+    const { rows: bpOverlaid } = applyOverrideOverlayV1(bpRows, []);
+    const projected = projectPeBudgetPositionsV1(bpOverlaid);
+    check(projected.length === 3, `the projector produced 3 rows (got ${projected.length})`);
+
+    const totalRows = projected.filter((row) => row.valueKind === 'total');
+    const quantityRow = projected.find((row) => row.valueKind === 'quantity');
+    check(
+      totalRows.every((row) => row.amount != null && row.quantity == null),
+      'total-kind rows carry amount and leave quantity null, against real NUMERIC storage',
+    );
+    check(
+      quantityRow != null && quantityRow.amount == null && quantityRow.quantity === '12',
+      `the quantity-kind row's value landed in quantity, not amount (${quantityRow?.quantity})`,
+    );
+    check(
+      projected.every((row) => row.sourceUrl == null && row.pageNumber == null),
+      'sourceUrl/pageNumber are honest nulls for this entity, not invented',
+    );
+
+    const comparison = computePbComparison(toBudgetPositionLikeV1(totalRows));
+    check(
+      comparison.length === 1 &&
+        comparison[0]?.pbCurrent === 250 &&
+        comparison[0]?.pbPrior === 200 &&
+        comparison[0]?.deltaAbs === 50,
+      `getPbComparison's real path (NUMERIC → projector → computePbComparison) produced the expected delta (${JSON.stringify(comparison)})`,
+    );
 
     console.log(`[p7-read] READ REHEARSAL PASSED — ${passed} checks`);
   } finally {

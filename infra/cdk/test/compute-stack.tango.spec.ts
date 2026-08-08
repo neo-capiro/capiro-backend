@@ -70,17 +70,22 @@ function baseConfig(overrides: Partial<EnvConfig['externalSecretArns']> = {}): E
     protectFromDestroy: false,
     logRetentionDays: 14,
     externalSecretArns: {
-      microsoftClientId: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-client-id-AAAAAA',
-      microsoftTenantId: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-tenant-id-AAAAAA',
+      microsoftClientId:
+        'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-client-id-AAAAAA',
+      microsoftTenantId:
+        'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-tenant-id-AAAAAA',
       microsoftCertThumbprint:
         'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-thumb-AAAAAA',
-      microsoftCertPrivateKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-key-AAAAAA',
+      microsoftCertPrivateKey:
+        'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/ms-key-AAAAAA',
       oauthTokenEncryptionKey:
         'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/oauth-token-key-AAAAAA',
-      oauthStateSecret: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/oauth-state-AAAAAA',
+      oauthStateSecret:
+        'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/oauth-state-AAAAAA',
       openaiApiKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/openai-AAAAAA',
       anthropicApiKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/anthropic-AAAAAA',
-      notesEncryptionKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/notes-key-AAAAAA',
+      notesEncryptionKey:
+        'arn:aws:secretsmanager:us-east-1:123456789012:secret:test/notes-key-AAAAAA',
       ...overrides,
     },
   };
@@ -94,7 +99,9 @@ function synthComputeStack(cfg: EnvConfig): Template {
   // ec2.Vpc/SecurityGroup here costs nothing and needs no context lookup (unlike
   // ec2.Vpc.fromLookup, which DOES require AWS API access and would make this
   // test flaky/impossible in CI).
-  const vpcStack = new cdk.Stack(app, 'VpcStack', { env: { account: cfg.account, region: cfg.region } });
+  const vpcStack = new cdk.Stack(app, 'VpcStack', {
+    env: { account: cfg.account, region: cfg.region },
+  });
   // ComputeStack's services run in PRIVATE_WITH_EGRESS subnets, which a plain
   // `new ec2.Vpc()` does not create unless a NAT gateway is requested — with
   // natGateways: 0 the default subnet configuration falls back to
@@ -105,8 +112,14 @@ function synthComputeStack(cfg: EnvConfig): Template {
   const albSecurityGroup = new ec2.SecurityGroup(vpcStack, 'AlbSg', { vpc });
   const serviceSecurityGroup = new ec2.SecurityGroup(vpcStack, 'ServiceSg', { vpc });
 
-  const secretsStack = new SecretsStack(app, 'SecretsStack', { cfg, env: { account: cfg.account, region: cfg.region } });
-  const assetsStack = new AssetsStack(app, 'AssetsStack', { cfg, env: { account: cfg.account, region: cfg.region } });
+  const secretsStack = new SecretsStack(app, 'SecretsStack', {
+    cfg,
+    env: { account: cfg.account, region: cfg.region },
+  });
+  const assetsStack = new AssetsStack(app, 'AssetsStack', {
+    cfg,
+    env: { account: cfg.account, region: cfg.region },
+  });
 
   const dbCluster = rds.DatabaseCluster.fromDatabaseClusterAttributes(vpcStack, 'DbCluster', {
     clusterIdentifier: 'test-cluster',
@@ -140,6 +153,7 @@ function synthComputeStack(cfg: EnvConfig): Template {
     dbCluster,
     dbSecret: secretsStack.clerkSecretKey, // stand-in ISecret; only .secretArn/grantRead are used pre-synth
     appDbSecret: secretsStack.clerkWebhookSigningSecret,
+    promoterDbSecret: secretsStack.clerkPublishableKey, // stand-in ISecret, same reasoning
     databaseName: 'capiro_test',
     dataKey: secretsStack.secretsKey,
     secretsStack,

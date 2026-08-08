@@ -93,6 +93,25 @@ case "${1:-serve}" in
     echo "Running demo-meriv2-control-alarms (refuses dev/prod; explicit non-prod confirmation required)"
     exec ./node_modules/.bin/tsx scripts/demo-meriv2-control-alarms.ts "$@"
     ;;
+  # Phase 7 Workstream N. Trust-critical promotion-operator verbs belong here,
+  # not in entrypoint-dispatcher.inc — that file is the frozen legacy include
+  # Workstream M's containment gate wraps, not where new promotion verbs go
+  # (docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md §4). Only
+  # two of the plan's eight promotion verbs are wired as of session 7 —
+  # plan/validate/authorize/execute/compare/rollback are not yet built; see the
+  # session-7 handoff for the exact construction pattern to follow.
+  status-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running status-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/status-defense-budget-promotion-v1.ts "$@"
+    ;;
+  resume-defense-budget-promotion-side-effects-v1)
+    shift
+    compose_database_url
+    echo "Running resume-defense-budget-promotion-side-effects-v1 (writes only this scope's drain-pause row; dry run unless --commit)"
+    exec ./node_modules/.bin/tsx scripts/resume-defense-budget-promotion-side-effects-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

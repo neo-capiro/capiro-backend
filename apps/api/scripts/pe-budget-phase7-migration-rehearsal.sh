@@ -238,6 +238,43 @@ ok "canonical row inserted into a STAGING snapshot"
   || fail "exact decimal money was altered"
 ok "money stored exactly as NUMERIC(24,9) alongside its printed string"
 
+# Session 7 — three canonical_rdte_budget_position rows for the read
+# rehearsal's own projector check (pe-budget-phase7-read-rehearsal.ts §6).
+# Inserted here, in the same STAGING window as the om row above, because
+# canonical rows are immutable once a snapshot leaves STAGING — inserting
+# these later, after baseline activation, is exactly the write the
+# immutability trigger exists to refuse.
+SHA_E="$(printf 'e%.0s' $(seq 1 64))"
+"${PSQL[@]}" <<SQL >/dev/null
+INSERT INTO defense_budget_canonical_row
+  (snapshot_id, promotion_run_id, canonical_entity, canonical_natural_key,
+   parent_natural_key, family, fiscal_year, canonical_row_hash,
+   money_original_value, money_original_unit, money_value_millions,
+   attributes, direct_or_derived, source_projection_id, source_assertion_id,
+   evidence_ids, artifact_id, artifact_content_sha256, verification_candidate_id,
+   verification_run_id, source_document_id, source_pdf_sha256, mapping_registry_hash)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2026|2027|total',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '200', 'millions', 200,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2026","valueKind":"total"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E'),
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2027|2027|total',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '250', 'millions', 250,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2027","valueKind":"total"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E'),
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'canonical_rdte_budget_position', 'PE-REHEARSAL-BP|pb_fy2027|2027|quantity',
+   'PE-REHEARSAL-BP', 'rdte', 2027, '$SHA_E', '12', 'millions', 12,
+   '{"peCode":"PE-REHEARSAL-BP","positionCycle":"pb_fy2027","valueKind":"quantity"}'::jsonb,
+   'direct', 'proj-bp-1', 'assert-bp-1', '["ev-bp-1"]'::jsonb,
+   'artifact-bp-1', '$SHA_E', 'cand-bp-1', 'run-bp-1', 'doc-bp-1', '$SHA_E', '$SHA_E');
+SQL
+ok "three canonical_rdte_budget_position rows inserted while the snapshot was still STAGING"
+
 # =============================================================================
 log "Stage authority owns every field except 'request'"
 # =============================================================================

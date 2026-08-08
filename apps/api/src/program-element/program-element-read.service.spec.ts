@@ -27,140 +27,140 @@ describe('ProgramElementReadService', () => {
     });
 
     test('returns markup monitor rows for tenant-scoped watches', async () => {
-          const prisma = makePrisma({
-            queryRawQueue: [
-              [
-                {
-                  peCode: '0603270A',
-                  title: 'Electronic Warfare Advanced Payloads',
-                  service: 'Army',
-                  request: 100,
-                  hascMark: 120,
-                  sascMark: 90,
-                  hacDMark: null,
-                  sacDMark: 130,
-                  // Stale SQL could still ship a cross-track span; TS remap must repair it.
-                  divergencePct: 60,
-                  authDivergencePct: 30,
-                  appropsDivergencePct: 30,
-                  divergenceTrack: 'authorization',
-                  totalCount: 1,
-                },
-              ],
-            ],
-          });
-          const service = new ProgramElementReadService(
-            prisma as never,
-            makeConferenceProbabilityService() as never,
-          );
-
-          const result = await service.listProgramElements(
-            { mode: 'markup-monitor', service: 'Army', divergenceThreshold: 10 },
-            ctx,
-          );
-
-          expect(result.total).toBe(1);
-          const row = result.data[0] as {
-            peCode?: string;
-            divergencePct?: number;
-            authDivergencePct?: number;
-            appropsDivergencePct?: number;
-            divergenceTrack?: string | null;
-          };
-          expect(row?.peCode).toBe('0603270A');
-          // Auth 120..90 = 30%; approps request..130 = 30%; max=30 — NOT blended 40/60 span.
-          expect(row?.authDivergencePct).toBeCloseTo(30, 5);
-          expect(row?.appropsDivergencePct).toBeCloseTo(30, 5);
-          expect(row?.divergencePct).toBeCloseTo(30, 5);
-          expect(row?.divergencePct).not.toBe(60);
-          expect(prisma.__mock.queryRawCalls).toBe(1);
-          expect(prisma.withTenant).toHaveBeenCalledWith(ctx.tenantId, expect.any(Function));
-        });
-
-        test('B1 adversarial: hasc=120 + hacd=60 must not yield cross-track 60% headline', async () => {
-          const prisma = makePrisma({
-            queryRawQueue: [
-              [
-                {
-                  peCode: 'ATTACKPE',
-                  title: 'Cross-track attack fixture',
-                  service: 'Army',
-                  request: 100,
-                  hascMark: 120,
-                  sascMark: null,
-                  hacDMark: 60,
-                  sacDMark: null,
-                  // Poisoned legacy blended value — service must recompute track-safe.
-                  divergencePct: 60,
-                  authDivergencePct: 99,
-                  appropsDivergencePct: 99,
-                  divergenceTrack: null,
-                  totalCount: 1,
-                },
-              ],
-            ],
-          });
-          const service = new ProgramElementReadService(
-            prisma as never,
-            makeConferenceProbabilityService() as never,
-          );
-          const result = await service.listProgramElements({ mode: 'markup-monitor' }, ctx);
-          const row = result.data[0] as {
-            divergencePct: number;
-            authDivergencePct: number;
-            appropsDivergencePct: number;
-            divergenceTrack: string | null;
-          };
-          expect(row.authDivergencePct).toBeCloseTo(20, 5);
-          expect(row.appropsDivergencePct).toBeCloseTo(40, 5);
-          expect(row.divergencePct).toBeCloseTo(40, 5);
-          expect(row.divergencePct).not.toBe(60);
-          expect(row.divergenceTrack).toBe('appropriations');
-        });
-
-        test('B7: markup current_cycle SQL uses sqlCurrentCycleFyExpr, not bare max fy', async () => {
-          const prisma = makePrisma({
-            queryRawQueue: [
-              [
-                {
-                  peCode: 'OUTYEARPE',
-                  title: 'Outyear trap',
-                  service: 'Army',
-                  request: 100,
-                  hascMark: 120,
-                  sascMark: null,
-                  hacDMark: null,
-                  sacDMark: null,
-                  divergencePct: 20,
-                  authDivergencePct: 20,
-                  appropsDivergencePct: 0,
-                  divergenceTrack: 'authorization',
-                  totalCount: 1,
-                },
-              ],
-            ],
-          });
-          const service = new ProgramElementReadService(
-            prisma as never,
-            makeConferenceProbabilityService() as never,
-          );
-          const result = await service.listProgramElements({ mode: 'markup-monitor' }, ctx);
-          const row = result.data[0] as {
-            request: number;
-            hascMark: number | null;
-            divergencePct: number;
-          };
-          expect(row.request).toBe(100);
-          expect(row.hascMark).toBe(120);
-          expect(row.divergencePct).toBeCloseTo(20, 5);
-          const sqlTexts = prisma.__mock.rawSqlTexts as string[];
-          expect(sqlTexts.length).toBeGreaterThan(0);
-          const markupSql = sqlTexts.join('\n');
-          expect(markupSql).toMatch(/pe_cycle/);
-          expect(markupSql).toMatch(/ndaa_conference/);
-          expect(markupSql).not.toMatch(/ORDER BY pey\.pe_code, pey\.fy DESC/);
-        });
+      const prisma = makePrisma({
+        queryRawQueue: [
+          [
+            {
+              peCode: '0603270A',
+              title: 'Electronic Warfare Advanced Payloads',
+              service: 'Army',
+              request: 100,
+              hascMark: 120,
+              sascMark: 90,
+              hacDMark: null,
+              sacDMark: 130,
+              // Stale SQL could still ship a cross-track span; TS remap must repair it.
+              divergencePct: 60,
+              authDivergencePct: 30,
+              appropsDivergencePct: 30,
+              divergenceTrack: 'authorization',
+              totalCount: 1,
+            },
+          ],
+        ],
       });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+
+      const result = await service.listProgramElements(
+        { mode: 'markup-monitor', service: 'Army', divergenceThreshold: 10 },
+        ctx,
+      );
+
+      expect(result.total).toBe(1);
+      const row = result.data[0] as {
+        peCode?: string;
+        divergencePct?: number;
+        authDivergencePct?: number;
+        appropsDivergencePct?: number;
+        divergenceTrack?: string | null;
+      };
+      expect(row?.peCode).toBe('0603270A');
+      // Auth 120..90 = 30%; approps request..130 = 30%; max=30 — NOT blended 40/60 span.
+      expect(row?.authDivergencePct).toBeCloseTo(30, 5);
+      expect(row?.appropsDivergencePct).toBeCloseTo(30, 5);
+      expect(row?.divergencePct).toBeCloseTo(30, 5);
+      expect(row?.divergencePct).not.toBe(60);
+      expect(prisma.__mock.queryRawCalls).toBe(1);
+      expect(prisma.withTenant).toHaveBeenCalledWith(ctx.tenantId, expect.any(Function));
+    });
+
+    test('B1 adversarial: hasc=120 + hacd=60 must not yield cross-track 60% headline', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [
+          [
+            {
+              peCode: 'ATTACKPE',
+              title: 'Cross-track attack fixture',
+              service: 'Army',
+              request: 100,
+              hascMark: 120,
+              sascMark: null,
+              hacDMark: 60,
+              sacDMark: null,
+              // Poisoned legacy blended value — service must recompute track-safe.
+              divergencePct: 60,
+              authDivergencePct: 99,
+              appropsDivergencePct: 99,
+              divergenceTrack: null,
+              totalCount: 1,
+            },
+          ],
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const result = await service.listProgramElements({ mode: 'markup-monitor' }, ctx);
+      const row = result.data[0] as {
+        divergencePct: number;
+        authDivergencePct: number;
+        appropsDivergencePct: number;
+        divergenceTrack: string | null;
+      };
+      expect(row.authDivergencePct).toBeCloseTo(20, 5);
+      expect(row.appropsDivergencePct).toBeCloseTo(40, 5);
+      expect(row.divergencePct).toBeCloseTo(40, 5);
+      expect(row.divergencePct).not.toBe(60);
+      expect(row.divergenceTrack).toBe('appropriations');
+    });
+
+    test('B7: markup current_cycle SQL uses sqlCurrentCycleFyExpr, not bare max fy', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [
+          [
+            {
+              peCode: 'OUTYEARPE',
+              title: 'Outyear trap',
+              service: 'Army',
+              request: 100,
+              hascMark: 120,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              divergencePct: 20,
+              authDivergencePct: 20,
+              appropsDivergencePct: 0,
+              divergenceTrack: 'authorization',
+              totalCount: 1,
+            },
+          ],
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const result = await service.listProgramElements({ mode: 'markup-monitor' }, ctx);
+      const row = result.data[0] as {
+        request: number;
+        hascMark: number | null;
+        divergencePct: number;
+      };
+      expect(row.request).toBe(100);
+      expect(row.hascMark).toBe(120);
+      expect(row.divergencePct).toBeCloseTo(20, 5);
+      const sqlTexts = prisma.__mock.rawSqlTexts as string[];
+      expect(sqlTexts.length).toBeGreaterThan(0);
+      const markupSql = sqlTexts.join('\n');
+      expect(markupSql).toMatch(/pe_cycle/);
+      expect(markupSql).toMatch(/ndaa_conference/);
+      expect(markupSql).not.toMatch(/ORDER BY pey\.pe_code, pey\.fy DESC/);
+    });
+  });
 
   describe('getProgramElement currentUserIsWatching', () => {
     test('cache hit on repeat call (live join path)', async () => {
@@ -428,6 +428,127 @@ describe('ProgramElementReadService', () => {
 
       const result = await service.getPbComparison('0603270A');
       expect(result.comparison).toEqual([]);
+    });
+
+    test('getBudgetPositions serves the snapshot projection in snapshot mode and does not touch legacy Prisma', async () => {
+      const prisma = makePrisma({ queryRawQueue: [], budgetPositions: [] });
+      const gate = makeSnapshotGate({
+        decision: { serve: 'snapshot', compare: false, reason: 'mode_snapshot' },
+        rows: [
+          canonicalBudgetPositionRow({
+            fiscalYear: 2027,
+            attributes: { peCode: '0603270A', positionCycle: 'pb_fy2027', valueKind: 'total' },
+            money: { originalValue: '5000', originalUnit: 'thousands', valueMillions: '5' },
+          }),
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+        undefined,
+        gate as never,
+      );
+
+      const rows = await service.getBudgetPositions('0603270A');
+      expect(rows).toEqual([
+        {
+          positionCycle: 'pb_fy2027',
+          assertedFy: 2027,
+          amount: '5',
+          quantity: null,
+          valueKind: 'total',
+          sourceUrl: null,
+          pageNumber: null,
+        },
+      ]);
+      expect(prisma.programElementBudgetPosition.findMany).not.toHaveBeenCalled();
+      expect(gate.loadRows).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapshotId: 'snap-1',
+          canonicalEntity: 'canonical_rdte_budget_position',
+          parentNaturalKey: '0603270A',
+        }),
+      );
+    });
+
+    test('getBudgetPositions serves legacy and schedules a background comparison in shadow mode', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [],
+        budgetPositions: [
+          {
+            positionCycle: 'pb_fy2027',
+            assertedFy: 2027,
+            amount: '5',
+            quantity: null,
+            valueKind: 'total',
+            sourceUrl: null,
+            pageNumber: null,
+          },
+        ],
+      });
+      const gate = makeSnapshotGate({
+        decision: { serve: 'legacy', compare: true, reason: 'mode_shadow' },
+        rows: [
+          canonicalBudgetPositionRow({
+            fiscalYear: 2027,
+            attributes: { peCode: '0603270A', positionCycle: 'pb_fy2027', valueKind: 'total' },
+            money: { originalValue: '5000', originalUnit: 'thousands', valueMillions: '5' },
+          }),
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+        undefined,
+        gate as never,
+      );
+
+      const rows = await service.getBudgetPositions('0603270A');
+      expect(rows).toHaveLength(1);
+      expect(prisma.programElementBudgetPosition.findMany).toHaveBeenCalled();
+      // The comparison itself is scheduled detached (never awaited by the
+      // method under test) — flush the microtask queue before asserting it ran.
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(gate.loadRows).toHaveBeenCalled();
+    });
+
+    test('getPbComparison serves the snapshot projection in snapshot mode', async () => {
+      const prisma = makePrisma({ queryRawQueue: [], budgetPositions: [] });
+      const gate = makeSnapshotGate({
+        decision: { serve: 'snapshot', compare: false, reason: 'mode_snapshot' },
+        rows: [
+          canonicalBudgetPositionRow({
+            fiscalYear: 2027,
+            attributes: { peCode: '0603270A', positionCycle: 'pb_fy2026', valueKind: 'total' },
+            money: { originalValue: '200', originalUnit: 'millions', valueMillions: '200' },
+          }),
+          canonicalBudgetPositionRow({
+            fiscalYear: 2027,
+            attributes: { peCode: '0603270A', positionCycle: 'pb_fy2027', valueKind: 'total' },
+            money: { originalValue: '250', originalUnit: 'millions', valueMillions: '250' },
+          }),
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+        undefined,
+        gate as never,
+      );
+
+      const result = await service.getPbComparison('0603270A');
+      expect(prisma.programElementBudgetPosition.findMany).not.toHaveBeenCalled();
+      expect(result.comparison).toEqual([
+        {
+          assertedFy: 2027,
+          pbCurrent: 250,
+          pbPrior: 200,
+          deltaAbs: 50,
+          deltaPct: 0.25,
+          newInPb: false,
+          droppedFromPb: false,
+        },
+      ]);
     });
   });
 
@@ -743,273 +864,325 @@ describe('ProgramElementReadService', () => {
       expect(out.fundingClaim.isProjection).toBe(true);
       expect(out.fundingClaim.cycleClass).toBe('outyear');
       // Current request can never be the outyear claim.
-            expect(out.fundingClaim.stage === 'request' && out.fundingClaim.cycleClass === 'current').toBe(
-              false,
-            );
-          });
+      expect(
+        out.fundingClaim.stage === 'request' && out.fundingClaim.cycleClass === 'current',
+      ).toBe(false);
+    });
 
-          test('B3: NDAA-only mark year is current cycle (hasMark includes ndaaConference)', async () => {
-            const prisma = {
-              programElement: {
-                findUnique: jest.fn(async () => ({
-                  peCode: 'NDAAONLY',
-                  title: 'NDAA only',
-                  service: 'NAVY',
-                  appropriationType: 'RDT&E',
-                  budgetActivity: 'BA2',
-                  lineNumber: null,
-                })),
-              },
-              programElementYear: {
-                findMany: jest.fn(async () => [
-                  {
-                    fy: 2026,
-                    request: 10,
-                    hascMark: null,
-                    sascMark: null,
-                    hacDMark: null,
-                    sacDMark: null,
-                    conference: null,
-                    ndaaConference: null,
-                    enacted: null,
-                  },
-                  {
-                    fy: 2027,
-                    request: 12,
-                    hascMark: null,
-                    sascMark: null,
-                    hacDMark: null,
-                    sacDMark: null,
-                    conference: null,
-                    ndaaConference: 12.5,
-                    enacted: null,
-                  },
-                  {
-                    fy: 2028,
-                    request: 14,
-                    hascMark: null,
-                    sascMark: null,
-                    hacDMark: null,
-                    sacDMark: null,
-                    conference: null,
-                    ndaaConference: null,
-                    enacted: null,
-                  },
-                ]),
-              },
-              programElementMilestone: { findMany: jest.fn(async () => []) },
-            };
-            const service = new ProgramElementReadService(
-              prisma as never,
-              makeConferenceProbabilityService() as never,
-            );
-            const t = (await service.getTimeline('NDAAONLY')) as {
-              currentCycleFy: number | null;
-              years: Array<{ fy: number; cycle: string }>;
-            };
-            expect(t.currentCycleFy).toBe(2027);
-            expect(t.years.find((y) => y.fy === 2027)?.cycle).toBe('current');
-            expect(t.years.find((y) => y.fy === 2028)?.cycle).toBe('outyear');
-          });
-        });
+    test('B3: NDAA-only mark year is current cycle (hasMark includes ndaaConference)', async () => {
+      const prisma = {
+        programElement: {
+          findUnique: jest.fn(async () => ({
+            peCode: 'NDAAONLY',
+            title: 'NDAA only',
+            service: 'NAVY',
+            appropriationType: 'RDT&E',
+            budgetActivity: 'BA2',
+            lineNumber: null,
+          })),
+        },
+        programElementYear: {
+          findMany: jest.fn(async () => [
+            {
+              fy: 2026,
+              request: 10,
+              hascMark: null,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              conference: null,
+              ndaaConference: null,
+              enacted: null,
+            },
+            {
+              fy: 2027,
+              request: 12,
+              hascMark: null,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              conference: null,
+              ndaaConference: 12.5,
+              enacted: null,
+            },
+            {
+              fy: 2028,
+              request: 14,
+              hascMark: null,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              conference: null,
+              ndaaConference: null,
+              enacted: null,
+            },
+          ]),
+        },
+        programElementMilestone: { findMany: jest.fn(async () => []) },
+      };
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const t = (await service.getTimeline('NDAAONLY')) as {
+        currentCycleFy: number | null;
+        years: Array<{ fy: number; cycle: string }>;
+      };
+      expect(t.currentCycleFy).toBe(2027);
+      expect(t.years.find((y) => y.fy === 2027)?.cycle).toBe('current');
+      expect(t.years.find((y) => y.fy === 2028)?.cycle).toBe('outyear');
+    });
+  });
 
-        describe('getProgramElement B6 fundingSummary NDAA cycle', () => {
-          test('NDAA-only year is current in detail fundingSummary (not request outyear)', async () => {
-            const prisma = makePrisma({
-              queryRawQueue: [[]],
-              mvRows: [],
-              peYears: [
-                {
-                  fy: 2027,
-                  request: null,
-                  hascMark: null,
-                  sascMark: null,
-                  hacDMark: null,
-                  sacDMark: null,
-                  conference: null,
-                  ndaaConference: 12.5,
-                  enacted: null,
-                },
-                {
-                  fy: 2028,
-                  request: 14,
-                  hascMark: null,
-                  sascMark: null,
-                  hacDMark: null,
-                  sacDMark: null,
-                  conference: null,
-                  ndaaConference: null,
-                  enacted: null,
-                },
-              ],
-              peFind: {
-                peCode: 'NDAADET',
-                title: 'NDAA detail',
-                service: 'NAVY',
-                budgetActivity: 'BA2',
-                appropriationType: 'RDT&E',
-                status: 'active',
-                firstSeenFy: 2027,
-                lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
-              },
-            });
-            const service = new ProgramElementReadService(
-              prisma as never,
-              makeConferenceProbabilityService() as never,
-            );
-            const detail = (await service.getProgramElement('NDAADET', ctx)) as unknown as {
-              fundingSummary: string;
-            };
-            expect(detail.fundingSummary).toContain('FY27 [current budget cycle]');
-            expect(detail.fundingSummary).toContain(
-              'FY28 [OUTYEAR — FYDP projection, NOT the current request]',
-            );
-            expect(detail.fundingSummary).not.toMatch(/FY28 \[current budget cycle\]/);
-          });
-        });
-
-        describe('listProgramElements B2 matched-pair deltaPct', () => {
-          test('cross-FY latestRequest must not become delta base; ler pair drives %', async () => {
-            const prisma = makePrisma({
-              queryRawQueue: [
-                [
-                  {
-                    peCode: 'CROSSFY',
-                    title: 'Cross FY',
-                    service: 'Army',
-                    budgetActivity: 'BA3',
-                    appropriationType: 'RDT&E',
-                    status: 'active',
-                    lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
-                    hasData: true,
-                    watched: false,
-                    billCount: 0,
-                    latestRequest: 200, // FY2027 catalog-latest
-                    latestRequestFy: 2027,
-                    latestEnacted: 110,
-                    latestEnactedFy: 2026,
-                    requestAtEnactedFy: 100, // matched FY2026 request
-                    latestCurrent: 200,
-                    latestCurrentFy: 2027,
-                    latestCurrentStage: 'request',
-                    // SQL already used ler → 10%; TS must not null it because latestRequestFy differs,
-                    // and must not recompute with bare latestRequest (that would be + -45%).
-                    deltaPct: 10,
-                    spark: null,
-                    signalType: null,
-                    signalScore: null,
-                    signalDeltaPct: null,
-                    lineType: null,
-                    maturity: null,
-                    appropTier: null,
-                    appropScore: null,
-                    actionSignalType: null,
-                    actionSignalTone: null,
-                    valleyOfDeath: null,
-                    totalCount: 1,
-                  },
-                ],
-              ],
-            });
-            const service = new ProgramElementReadService(
-              prisma as never,
-              makeConferenceProbabilityService() as never,
-            );
-            const result = await service.listProgramElements({ page: 1, limit: 25 });
-            const row = result.data[0] as {
-              deltaPct: number | null;
-              latestRequest: number | null;
-              latestRequestFy: number | null;
-              latestEnactedFy: number | null;
-              requestAtEnactedFy: number | null;
-              comparableEnactedVsRequest: {
-                fiscalYear: number;
-                request: number;
-                enacted: number;
-                deltaPct: number | null;
-              } | null;
-            };
-            expect(row.latestRequestFy).not.toBe(row.latestEnactedFy);
-            expect(row.requestAtEnactedFy).toBe(100);
-            expect(row.deltaPct).toBeCloseTo(10, 5);
-            // Bare latestRequest must not be the % base: (110-200)/200 = -45.
-            expect(row.deltaPct).not.toBeCloseTo(((110 - 200) / 200) * 100, 5);
-            expect(row.comparableEnactedVsRequest?.fiscalYear).toBe(2026);
-            expect(row.comparableEnactedVsRequest?.request).toBe(100);
-            expect(row.comparableEnactedVsRequest?.deltaPct).toBeCloseTo(10, 5);
-          });
-
-          test('B5: list requestClaim outyear when latestRequestFy > pe mark-bearing cycle', async () => {
-            const prisma = makePrisma({
-              queryRawQueue: [
-                [
-                  {
-                    peCode: 'OUTYEARLIST',
-                    title: 'Outyear list',
-                    service: 'Army',
-                    budgetActivity: 'BA3',
-                    appropriationType: 'RDT&E',
-                    status: 'active',
-                    lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
-                    hasData: true,
-                    watched: false,
-                    billCount: 0,
-                    latestRequest: 50,
-                    latestRequestFy: 2031,
-                    latestEnacted: null,
-                    latestEnactedFy: null,
-                    requestAtEnactedFy: null,
-                    latestCurrent: 50,
-                    latestCurrentFy: 2031,
-                    latestCurrentStage: 'request',
-                    peCurrentCycleFy: 2027,
-                    deltaPct: null,
-                    spark: null,
-                    signalType: null,
-                    signalScore: null,
-                    signalDeltaPct: null,
-                    lineType: null,
-                    maturity: null,
-                    appropTier: null,
-                    appropScore: null,
-                    actionSignalType: null,
-                    actionSignalTone: null,
-                    valleyOfDeath: null,
-                    totalCount: 1,
-                  },
-                ],
-              ],
-            });
-            const service = new ProgramElementReadService(
-              prisma as never,
-              makeConferenceProbabilityService() as never,
-            );
-            const result = await service.listProgramElements({ page: 1, limit: 25 });
-            const row = result.data[0] as {
-              latestRequestFy: number;
-              peCurrentCycleFy: number | null;
-              requestClaim: {
-                fiscalYear: number | null;
-                cycleClass: string;
-                isProjection: boolean;
-              } | null;
-              currentClaim: {
-                fiscalYear: number | null;
-                cycleClass: string;
-                isProjection: boolean;
-              } | null;
-            };
-            expect(row.latestRequestFy).toBe(2031);
-            expect(row.peCurrentCycleFy).toBe(2027);
-            expect(row.requestClaim?.fiscalYear).toBe(2031);
-            expect(row.requestClaim?.cycleClass).toBe('outyear');
-            expect(row.requestClaim?.isProjection).toBe(true);
-            expect(row.currentClaim?.fiscalYear).toBe(2031);
-            expect(row.currentClaim?.cycleClass).toBe('outyear');
-            expect(row.currentClaim?.isProjection).toBe(true);
-          });
-        });
+  describe('getProgramElement B6 fundingSummary NDAA cycle', () => {
+    test('NDAA-only year is current in detail fundingSummary (not request outyear)', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [[]],
+        mvRows: [],
+        peYears: [
+          {
+            fy: 2027,
+            request: null,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            ndaaConference: 12.5,
+            enacted: null,
+          },
+          {
+            fy: 2028,
+            request: 14,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            ndaaConference: null,
+            enacted: null,
+          },
+        ],
+        peFind: {
+          peCode: 'NDAADET',
+          title: 'NDAA detail',
+          service: 'NAVY',
+          budgetActivity: 'BA2',
+          appropriationType: 'RDT&E',
+          status: 'active',
+          firstSeenFy: 2027,
+          lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
+        },
       });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const detail = (await service.getProgramElement('NDAADET', ctx)) as unknown as {
+        fundingSummary: string;
+      };
+      expect(detail.fundingSummary).toContain('FY27 [current budget cycle]');
+      expect(detail.fundingSummary).toContain(
+        'FY28 [OUTYEAR — FYDP projection, NOT the current request]',
+      );
+      expect(detail.fundingSummary).not.toMatch(/FY28 \[current budget cycle\]/);
+    });
+  });
+
+  describe('listProgramElements B2 matched-pair deltaPct', () => {
+    test('cross-FY latestRequest must not become delta base; ler pair drives %', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [
+          [
+            {
+              peCode: 'CROSSFY',
+              title: 'Cross FY',
+              service: 'Army',
+              budgetActivity: 'BA3',
+              appropriationType: 'RDT&E',
+              status: 'active',
+              lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
+              hasData: true,
+              watched: false,
+              billCount: 0,
+              latestRequest: 200, // FY2027 catalog-latest
+              latestRequestFy: 2027,
+              latestEnacted: 110,
+              latestEnactedFy: 2026,
+              requestAtEnactedFy: 100, // matched FY2026 request
+              latestCurrent: 200,
+              latestCurrentFy: 2027,
+              latestCurrentStage: 'request',
+              // SQL already used ler → 10%; TS must not null it because latestRequestFy differs,
+              // and must not recompute with bare latestRequest (that would be + -45%).
+              deltaPct: 10,
+              spark: null,
+              signalType: null,
+              signalScore: null,
+              signalDeltaPct: null,
+              lineType: null,
+              maturity: null,
+              appropTier: null,
+              appropScore: null,
+              actionSignalType: null,
+              actionSignalTone: null,
+              valleyOfDeath: null,
+              totalCount: 1,
+            },
+          ],
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const result = await service.listProgramElements({ page: 1, limit: 25 });
+      const row = result.data[0] as {
+        deltaPct: number | null;
+        latestRequest: number | null;
+        latestRequestFy: number | null;
+        latestEnactedFy: number | null;
+        requestAtEnactedFy: number | null;
+        comparableEnactedVsRequest: {
+          fiscalYear: number;
+          request: number;
+          enacted: number;
+          deltaPct: number | null;
+        } | null;
+      };
+      expect(row.latestRequestFy).not.toBe(row.latestEnactedFy);
+      expect(row.requestAtEnactedFy).toBe(100);
+      expect(row.deltaPct).toBeCloseTo(10, 5);
+      // Bare latestRequest must not be the % base: (110-200)/200 = -45.
+      expect(row.deltaPct).not.toBeCloseTo(((110 - 200) / 200) * 100, 5);
+      expect(row.comparableEnactedVsRequest?.fiscalYear).toBe(2026);
+      expect(row.comparableEnactedVsRequest?.request).toBe(100);
+      expect(row.comparableEnactedVsRequest?.deltaPct).toBeCloseTo(10, 5);
+    });
+
+    test('B5: list requestClaim outyear when latestRequestFy > pe mark-bearing cycle', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [
+          [
+            {
+              peCode: 'OUTYEARLIST',
+              title: 'Outyear list',
+              service: 'Army',
+              budgetActivity: 'BA3',
+              appropriationType: 'RDT&E',
+              status: 'active',
+              lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
+              hasData: true,
+              watched: false,
+              billCount: 0,
+              latestRequest: 50,
+              latestRequestFy: 2031,
+              latestEnacted: null,
+              latestEnactedFy: null,
+              requestAtEnactedFy: null,
+              latestCurrent: 50,
+              latestCurrentFy: 2031,
+              latestCurrentStage: 'request',
+              peCurrentCycleFy: 2027,
+              deltaPct: null,
+              spark: null,
+              signalType: null,
+              signalScore: null,
+              signalDeltaPct: null,
+              lineType: null,
+              maturity: null,
+              appropTier: null,
+              appropScore: null,
+              actionSignalType: null,
+              actionSignalTone: null,
+              valleyOfDeath: null,
+              totalCount: 1,
+            },
+          ],
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const result = await service.listProgramElements({ page: 1, limit: 25 });
+      const row = result.data[0] as {
+        latestRequestFy: number;
+        peCurrentCycleFy: number | null;
+        requestClaim: {
+          fiscalYear: number | null;
+          cycleClass: string;
+          isProjection: boolean;
+        } | null;
+        currentClaim: {
+          fiscalYear: number | null;
+          cycleClass: string;
+          isProjection: boolean;
+        } | null;
+      };
+      expect(row.latestRequestFy).toBe(2031);
+      expect(row.peCurrentCycleFy).toBe(2027);
+      expect(row.requestClaim?.fiscalYear).toBe(2031);
+      expect(row.requestClaim?.cycleClass).toBe('outyear');
+      expect(row.requestClaim?.isProjection).toBe(true);
+      expect(row.currentClaim?.fiscalYear).toBe(2031);
+      expect(row.currentClaim?.cycleClass).toBe('outyear');
+      expect(row.currentClaim?.isProjection).toBe(true);
+    });
+  });
+});
+
+/** Phase 7 Workstream M — a fake `PeSnapshotGateService`, same shape as the real one. */
+function makeSnapshotGate(options: {
+  decision: { serve: 'legacy' | 'snapshot'; compare: boolean; reason: string };
+  rows: Record<string, unknown>[];
+}) {
+  return {
+    resolve: jest.fn(async () => ({
+      decision: options.decision,
+      activeSnapshot: {
+        snapshotId: 'snap-1',
+        domain: 'defense_budget',
+        environment: 'test',
+        status: 'active',
+        activatedAt: '2026-08-01T00:00:00.000Z',
+        snapshotHash: 'hash-1',
+      },
+    })),
+    loadRows: jest.fn(async () => options.rows),
+  };
+}
+
+/** A minimal `canonical_rdte_budget_position` row for `getBudgetPositions`/`getPbComparison` fixtures. */
+function canonicalBudgetPositionRow(overrides: Record<string, unknown> = {}) {
+  return {
+    snapshotId: 'snap-1',
+    canonicalEntity: 'canonical_rdte_budget_position',
+    canonicalNaturalKey: '0603270A|pb_fy2027|2027|total',
+    parentNaturalKey: '0603270A',
+    family: 'rdte',
+    fiscalYear: 2027,
+    fundingField: null,
+    stage: null,
+    canonicalRowHash: 'hash-1',
+    money: null,
+    quantity: null,
+    unitCostDollars: null,
+    textValue: null,
+    dateValue: null,
+    attributes: {},
+    directOrDerived: 'direct',
+    lineage: {
+      sourceProjectionId: 'proj-1',
+      verificationCandidateId: 'cand-1',
+      verificationRunId: 'run-1',
+      artifactId: 'artifact-1',
+      sourceDocumentId: 'doc-1',
+      enactmentProofId: null,
+    },
+    ...overrides,
+  };
+}
 
 function makeConferenceProbabilityService(
   prediction: {

@@ -42,6 +42,15 @@ import { assembleFundingNarrative } from './pe-funding-narrative.helpers.js';
 import { normalizeServiceFilter } from './service-filter.js';
 import { buildIntelligence } from './intelligence/build-intelligence.js';
 import { normalizeBillStage } from './intelligence/bill-stage.js';
+import { PeSnapshotGateService } from './snapshot/pe-snapshot-gate.service.js';
+import {
+  projectPeBudgetPositionsV1,
+  toBudgetPositionLikeV1,
+  type ProjectedBudgetPositionRowV1,
+} from './snapshot/pe-funding-position-projector-v1.js';
+import { schedulePeShadowComparisonV1 } from './snapshot/pe-shadow-compare.helper.js';
+import { assertOneSnapshotV1 } from '../defense-budget/promotion/snapshot-read-repository-v1.js';
+import { applyOverrideOverlayV1 } from '../defense-budget/promotion/manual-override-overlay-v1.js';
 
 export interface ProgramElementListQuery {
   service?: string;
@@ -172,7 +181,66 @@ export class ProgramElementReadService {
     // reconciliation-resolve unit spec (which constructs this service directly and never
     // touches the needs-attention path) keeps compiling; Nest always injects it in prod.
     private readonly relevanceService?: ClientPeRelevanceService,
+    // Phase 7 Workstream M. Optional for the same reason as relevanceService —
+    // the many existing specs above construct this service with 2 args. Every
+    // migrated method falls back to pure-legacy behavior when this is absent.
+    private readonly peSnapshotGate?: PeSnapshotGateService,
   ) {}
+
+  /**
+   * Phase 7 Workstream M — the shared serve/compare wrapper every migrated
+   * method uses. Serves whichever side `decision.serve` names immediately;
+   * when `decision.compare` is also true, the other side is computed and
+   * compared in the background via `schedulePeShadowComparisonV1` — never
+   * awaited, so a shadow/canary comparison can never add latency to, or fail,
+   * the request being served.
+   *
+   * With no gate injected (older direct-construction specs), this degrades to
+   * calling `legacyThunk` alone — the pre-Workstream-M behavior, unchanged.
+   */
+  private async serveWithSnapshotOptionV1<T>(
+    method: string,
+    legacyThunk: () => Promise<T>,
+    snapshotThunk: (snapshotId: string) => Promise<T>,
+  ): Promise<T> {
+    if (!this.peSnapshotGate) return legacyThunk();
+
+    const { decision, activeSnapshot } = await this.peSnapshotGate.resolve(null);
+
+    if (decision.serve === 'snapshot') {
+      // `resolveSnapshotReadModeV1` never returns serve:'snapshot' without a
+      // resolved pointer — see its own no_active_snapshot short-circuit.
+      const snapshotStart = Date.now();
+      const snapshot = await snapshotThunk(activeSnapshot!.snapshotId);
+      const snapshotMs = Date.now() - snapshotStart;
+      if (decision.compare) {
+        schedulePeShadowComparisonV1({
+          method,
+          compute: async () => {
+            const legacyStart = Date.now();
+            const legacy = await legacyThunk();
+            return { legacy, snapshot, timing: { legacyMs: Date.now() - legacyStart, snapshotMs } };
+          },
+        });
+      }
+      return snapshot;
+    }
+
+    const legacyStart = Date.now();
+    const legacy = await legacyThunk();
+    const legacyMs = Date.now() - legacyStart;
+    if (decision.compare) {
+      schedulePeShadowComparisonV1({
+        method,
+        compute: async () => {
+          const snapshotStart = Date.now();
+          const snapshot = await snapshotThunk(activeSnapshot!.snapshotId);
+          return { legacy, snapshot, timing: { legacyMs, snapshotMs: Date.now() - snapshotStart } };
+        },
+      });
+    }
+    return legacy;
+  }
 
   async listProgramElements(query: ProgramElementListQuery, ctx?: TenantContext) {
     if (query.mode === 'markup-monitor') {
@@ -1477,7 +1545,9 @@ export class ProgramElementReadService {
     const directAwardM = data
       .filter((r) => r.source === 'direct')
       .reduce((s, r) => s + (r.amount ?? 0), 0);
-    const directAwardN = data.filter((r) => r.source === 'direct').reduce((s, r) => s + (r.awards ?? 0), 0);
+    const directAwardN = data
+      .filter((r) => r.source === 'direct')
+      .reduce((s, r) => s + (r.awards ?? 0), 0);
     const candidateAwardM = data
       .filter((r) => r.source === 'program')
       .reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -1638,14 +1708,24 @@ export class ProgramElementReadService {
    * today, since the committed R-1 artifact carries no per-line dollar columns
    * (DATA-PENDING: see budget-position-writer.ts). Ordered by FY then cycle.
    */
-  async getBudgetPositions(peCode: string, fy?: number) {
-    const exists = await this.prisma.programElement.findUnique({
-      where: { peCode },
-      select: { peCode: true },
-    });
-    if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
-
-    return this.prisma.programElementBudgetPosition.findMany({
+  /**
+   * The legacy body, renamed so the dispatcher above can call it as either
+   * side. `amount`/`quantity` arrive from Prisma as `Decimal` instances;
+   * `.toString()`'d explicitly here rather than left as Decimal objects.
+   * That is a behavior-preserving change for the HTTP client — `JSON.stringify`
+   * already called `Decimal#toJSON()` (which returns the same string) before
+   * this ever reached a response body — but it matters for the shadow
+   * comparator below, whose normalizer walks plain objects key-by-key rather
+   * than calling `toJSON()`. Left as Decimal instances, every comparison would
+   * report a false `contract_shape_mismatch` (object vs. the snapshot side's
+   * plain string) on every single request, which would be pure self-inflicted
+   * noise, not a real finding.
+   */
+  private async getBudgetPositionsLegacy(
+    peCode: string,
+    fy?: number,
+  ): Promise<ProjectedBudgetPositionRowV1[]> {
+    const rows = await this.prisma.programElementBudgetPosition.findMany({
       where: { peCode, ...(fy !== undefined ? { assertedFy: fy } : {}) },
       orderBy: [{ assertedFy: 'asc' }, { positionCycle: 'asc' }, { valueKind: 'asc' }],
       select: {
@@ -1658,6 +1738,103 @@ export class ProgramElementReadService {
         pageNumber: true,
       },
     });
+    return rows.map((row) => ({
+      positionCycle: row.positionCycle,
+      assertedFy: row.assertedFy,
+      amount: row.amount == null ? null : row.amount.toString(),
+      quantity: row.quantity == null ? null : row.quantity.toString(),
+      valueKind: row.valueKind,
+      sourceUrl: row.sourceUrl,
+      pageNumber: row.pageNumber,
+    }));
+  }
+
+  /**
+   * Phase 7 Workstream M. `canonical_rdte_budget_position`'s natural key is
+   * `peCode|positionCycle|fiscalYear|valueKind` (registry-confirmed, matching
+   * `naturalKeyFields`), and its `parentNaturalKey` is the PE's identity row —
+   * so one `loadRows` call scoped by `parentNaturalKey` gets every position for
+   * this PE without parsing the natural key string apart.
+   *
+   * Overrides are NOT loaded here yet: the manual-override repository today
+   * only exposes `findLatestForTarget` (one target at a time, built for the
+   * propose/approve flow), and there is no bulk "every in-force override for
+   * this canonical entity + PE" query yet. `applyOverrideOverlayV1(rows, [])`
+   * is called anyway — with an empty overlay — purely to get the
+   * `SnapshotReadRowV1` shape the projector expects; it is not a claim that
+   * overrides were checked. An active override targeting a budget position
+   * would not be visible from this endpoint yet. Documented in the session-7
+   * handoff as a stated gap, not a silent one.
+   */
+  private async getBudgetPositionsSnapshot(
+    peCode: string,
+    snapshotId: string,
+    fy?: number,
+  ): Promise<ProjectedBudgetPositionRowV1[]> {
+    const rows = await this.peSnapshotGate!.loadRows({
+      snapshotId,
+      canonicalEntity: 'canonical_rdte_budget_position',
+      parentNaturalKey: peCode,
+      ...(fy !== undefined ? { fiscalYears: [fy] } : {}),
+    });
+    assertOneSnapshotV1(rows, snapshotId);
+    const { rows: overlaid } = applyOverrideOverlayV1(rows, []);
+    return projectPeBudgetPositionsV1(overlaid);
+  }
+
+  async getBudgetPositions(peCode: string, fy?: number) {
+    const exists = await this.prisma.programElement.findUnique({
+      where: { peCode },
+      select: { peCode: true },
+    });
+    if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
+
+    return this.serveWithSnapshotOptionV1(
+      'getBudgetPositions',
+      () => this.getBudgetPositionsLegacy(peCode, fy),
+      (snapshotId) => this.getBudgetPositionsSnapshot(peCode, snapshotId, fy),
+    );
+  }
+
+  /**
+   * `BudgetPositionLike` narrowing shared by the legacy and snapshot sides of
+   * `getPbComparison`. `computePbComparison` already coerces `amount` via
+   * `Number()` internally regardless of whether it receives a string or a
+   * Decimal (both coerce correctly) — but explicitly stringifying here, same
+   * reasoning as `getBudgetPositionsLegacy` above, keeps this list a faithful
+   * `legacy` shadow-comparison input matching the snapshot side's plain
+   * strings, rather than an object the comparator's normalizer would walk.
+   */
+  private toBudgetPositionLikeFromPrismaV1(
+    rows: {
+      positionCycle: string;
+      assertedFy: number;
+      amount: { toString(): string } | null;
+      valueKind: string;
+    }[],
+  ): BudgetPositionLike[] {
+    return rows.map((p) => ({
+      positionCycle: p.positionCycle,
+      assertedFy: p.assertedFy,
+      amount: p.amount == null ? null : p.amount.toString(),
+      valueKind: p.valueKind,
+    }));
+  }
+
+  private async getPbComparisonPositionsLegacy(peCode: string): Promise<BudgetPositionLike[]> {
+    const positions = await this.prisma.programElementBudgetPosition.findMany({
+      where: { peCode, valueKind: 'total' },
+      select: { positionCycle: true, assertedFy: true, amount: true, valueKind: true },
+    });
+    return this.toBudgetPositionLikeFromPrismaV1(positions);
+  }
+
+  private async getPbComparisonPositionsSnapshot(
+    peCode: string,
+    snapshotId: string,
+  ): Promise<BudgetPositionLike[]> {
+    const all = await this.getBudgetPositionsSnapshot(peCode, snapshotId);
+    return toBudgetPositionLikeV1(all.filter((row) => row.valueKind === 'total'));
   }
 
   /**
@@ -1675,23 +1852,12 @@ export class ProgramElementReadService {
     });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
-    const positions = await this.prisma.programElementBudgetPosition.findMany({
-      where: { peCode, valueKind: 'total' },
-      select: { positionCycle: true, assertedFy: true, amount: true, valueKind: true },
-    });
-
-    // Decimal columns arrive as Prisma.Decimal; the pure helper coerces via Number().
-    const comparison = computePbComparison(
-      positions.map(
-        (p): BudgetPositionLike => ({
-          positionCycle: p.positionCycle,
-          assertedFy: p.assertedFy,
-          amount: p.amount as unknown as number | string | null,
-          valueKind: p.valueKind,
-        }),
-      ),
+    const positions = await this.serveWithSnapshotOptionV1(
+      'getPbComparison',
+      () => this.getPbComparisonPositionsLegacy(peCode),
+      (snapshotId) => this.getPbComparisonPositionsSnapshot(peCode, snapshotId),
     );
-    return { peCode, comparison };
+    return { peCode, comparison: computePbComparison(positions) };
   }
 
   /**
