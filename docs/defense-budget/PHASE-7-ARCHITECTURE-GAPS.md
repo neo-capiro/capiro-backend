@@ -45,8 +45,50 @@ This is a Workstream J/N gap, not an M gap. Workstream M cannot invent the
 identity resolution — doing so would be exactly the source-semantic decision
 Phase 7's non-goals forbid.
 
-**To close:** decide where `peCode → nativeIdentityHash` resolution lives, and
-ship the producer. Until then no congressional-mark surface can be migrated.
+### Session 8: the diagnosis above is a symptom, and the fix it implies would not work
+
+Session 8 went looking for the identity resolver, on the theory that
+`nativeIdentityKeyV1({ lineKind: 'RDTE_PE', peCode })` returns
+`` `RDTE_PE:${peCode}` `` — a pure function of the peCode, needing no semantic
+decision at all — so the gap might be unwired rather than undecidable.
+
+It is neither. **The entire Phase 6 → canonical promotion chain has no
+production producer, at any link.** Every one of these was checked across `src`
+and `scripts`, excluding `.spec.ts`:
+
+| Link                                                             | Producer in production code        |
+| ---------------------------------------------------------------- | ---------------------------------- |
+| Constructs a `Phase6NativeProjectionV1`                          | **none** — only spec fixtures      |
+| Computes `nativeIdentityHash` (required, sha256)                 | **none, anywhere**                 |
+| Calls `Phase6AuditProjectionRepository`                          | **none** — the class has no caller |
+| Connects to the `phase6-projection` Prisma client                | **none at all**                    |
+| Calls `projectPhase6ProjectionsV1` (Phase 7's Phase 6 projector) | **none**                           |
+
+The `phase6-projection` database has a schema, migrations, and a generated
+client. Nothing in the application or any script ever opens it.
+
+So the read-side join is not the blocker; it is downstream of the blocker.
+**There is nothing to join to, and there would still be nothing if
+`peCode → nativeIdentityHash` were solved tomorrow** — the resolver would point
+at a table that no code path can ever populate. Shipping the fix as session 7
+scoped it produces a resolver over permanently empty storage.
+
+### What this raises, which is above this file's pay grade
+
+Phase 7's mandatory prerequisite 7 requires Phase 6 "merged and green"
+_including_ "verified stage/action/provision projections". Phase 6's suite is
+genuinely green — 780 tests and 24/24 negative controls, confirmed in session 8.
+But green tests over contracts and projectors whose production wiring does not
+exist is a different claim from a working projection pipeline, and Phase 7's
+prerequisite was accepted on the former. Someone who owns Phase 6 needs to say
+which was intended: that persistence is deliberately deferred to a later
+workstream, or that a producer was expected to exist and does not.
+
+**To close:** not "ship the identity resolver". First decide whether Phase 6
+projections are meant to be produced and persisted at all, and by what. The
+identity-hash question (hash the natural key, or key the registry by the plain
+`nativeIdentityKeyV1` string the stage emissions already carry) is a small
+representation choice that only matters once something produces rows.
 
 ---
 
