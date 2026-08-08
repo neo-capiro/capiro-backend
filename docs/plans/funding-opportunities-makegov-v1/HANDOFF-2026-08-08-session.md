@@ -93,7 +93,7 @@ A prior session's worry that #856 had staled these was **wrong** — the FO suit
 | Item | Owner |
 |---|---|
 | **Rotate the Tango API key** — it was pasted into a chat transcript this session. Update the `tango` secret in Secrets Manager too, or the probe fetches a stale value and reports an auth failure that looks like an entitlement problem. | Neo |
-| Merge or review PR #857. GitHub Actions is `startup_failure` repo-wide, so the local gate run is the only evidence. | Neo |
+| ~~Merge or review PR #857. GitHub Actions is `startup_failure` repo-wide, so the local gate run is the only evidence.~~ **Reviewed and merged 2026-08-08 as `094daf1d`.** Actions was still `startup_failure`, so it merged on the local gate run alone — no CI evidence exists for it. | done |
 | **Full live contract validation** — record CONTENTS, not just the envelope. Still the real gate before anything is trusted. | out-of-band |
 | **SBIR/STTR entitlement is UNKNOWN, not refused.** `not_attempted` because P42/P43 have built no client. | P42/P43 |
 | `20260908010000_tango_dibbs` is **deliberately not applied to `capiro-dev`**. Correct state, not an oversight. | — |
