@@ -136,11 +136,23 @@ export function changeFingerprint(sourceRecordKey: string, change: MaterialChang
       JSON.stringify([
         sourceRecordKey,
         change.dimension,
-        // The ESCAPE SEQUENCE, not a raw NUL byte. Written as a literal 0x00 the
-        // file became binary to git — `git diff` rendered the largest new file in
-        // its merge as `Bin 0 -> 14361 bytes`, so it could not be read in review.
-        // Runtime-identical, so every fingerprint already written stays valid.
-        change.before ?? '\0null',
+        // STATE, NOT TRANSITION — `after` only, deliberately.
+        //
+        // The first version hashed `before` too, which made the fingerprint
+        // UNSTABLE. `buildNoticeTimeline` computes `before` from the
+        // immediately preceding notice, so a notice back-filled BETWEEN two
+        // syncs rewrites `before` for the very same current state — and the
+        // same deadline then hashed differently and alerted twice. The unique
+        // index cannot collapse what does not collide.
+        //
+        // The trade-off, stated rather than hidden: a value that changes away
+        // and back (B → C → B) does not re-alert on the return, because "this
+        // deadline is now B" has already been sent. That is the correct side to
+        // err on for a phase whose entire promise is quietness, and the full
+        // history remains visible on the P28 timeline either way.
+        //
+        // The ESCAPE SEQUENCE, not a raw NUL byte: written as a literal 0x00
+        // this file became binary to git and could not be read in review.
         change.after ?? '\0null',
       ]),
     )
@@ -322,52 +334,65 @@ export class TangoEventProcessorService {
     const entries = timeline.entries;
     if (entries.length === 0) return;
 
-    const latest = entries[entries.length - 1];
-    if (!latest) return;
-
     const affected = await this.port.findAffectedClients(row.externalId);
 
-    for (const change of latest.changes) {
-      for (const client of affected) {
-        const decision = decideAlert({
-          change,
-          isFirstObservation: latest.isFirstObservation,
-          pipelineStage: client.pipelineStage,
-          workflowStatus: client.workflowStatus,
-          humanDecision: client.humanDecision,
-        });
+    // EVERY entry, not just the last one.
+    //
+    // The first version read `entries[entries.length - 1]` only. Because the
+    // notice sync and this drain are separately scheduled, any cycle that lands
+    // TWO notices dropped the earlier one's changes permanently — the event was
+    // marked done and nothing ever revisited it. A deadline that moved and then
+    // moved again between drains simply never alerted for the first move.
+    //
+    // Safe to widen precisely because the fingerprint is stable and the dedupe
+    // is a unique index: re-processing the same history writes nothing new. The
+    // cost is that the FIRST drain over an existing history alerts once per
+    // distinct value per dimension — which is why P50 requires two quiet manual
+    // passes before any cadence is enabled, and why the runbook says so.
+    for (const entry of entries) {
+      for (const change of entry.changes) {
+        for (const client of affected) {
+          const decision = decideAlert({
+            change,
+            isFirstObservation: entry.isFirstObservation,
+            pipelineStage: client.pipelineStage,
+            workflowStatus: client.workflowStatus,
+            humanDecision: client.humanDecision,
+          });
 
-        if (!decision.alert) {
-          summary.suppressions[decision.reason] = (summary.suppressions[decision.reason] ?? 0) + 1;
-          continue;
-        }
+          if (!decision.alert) {
+            summary.suppressions[decision.reason] =
+              (summary.suppressions[decision.reason] ?? 0) + 1;
+            continue;
+          }
 
-        const written = await this.port.insertAlertIfNew({
-          tenantId: client.tenantId,
-          clientId: client.clientId,
-          sourceType: client.sourceType,
-          sourceRecordKey: client.sourceRecordKey,
-          changeDimension: change.dimension,
-          severity: change.severity,
-          changeFingerprint: changeFingerprint(client.sourceRecordKey, change),
-          evidenceJsonb: {
-            dimension: change.dimension,
+          const written = await this.port.insertAlertIfNew({
+            tenantId: client.tenantId,
+            clientId: client.clientId,
+            sourceType: client.sourceType,
+            sourceRecordKey: client.sourceRecordKey,
+            changeDimension: change.dimension,
             severity: change.severity,
-            before: change.before,
-            after: change.after,
-            summary: change.summary,
-            noticeId: latest.tangoNoticeId,
-            sourceUrl: latest.sourceUrl,
-          },
-          beforeValue: change.before,
-          afterValue: change.after,
-          pipelineStageAtAlert: stageForAlerting(client.pipelineStage, client.workflowStatus),
-          sourceObservedAt: latest.providerUpdatedAt ? new Date(latest.providerUpdatedAt) : null,
-          deliveryId: row.deliveryId,
-        });
+            changeFingerprint: changeFingerprint(client.sourceRecordKey, change),
+            evidenceJsonb: {
+              dimension: change.dimension,
+              severity: change.severity,
+              before: change.before,
+              after: change.after,
+              summary: change.summary,
+              noticeId: entry.tangoNoticeId,
+              sourceUrl: entry.sourceUrl,
+            },
+            beforeValue: change.before,
+            afterValue: change.after,
+            pipelineStageAtAlert: stageForAlerting(client.pipelineStage, client.workflowStatus),
+            sourceObservedAt: entry.providerUpdatedAt ? new Date(entry.providerUpdatedAt) : null,
+            deliveryId: row.deliveryId,
+          });
 
-        if (written) summary.alertsWritten += 1;
-        else summary.alertsDeduped += 1;
+          if (written) summary.alertsWritten += 1;
+          else summary.alertsDeduped += 1;
+        }
       }
     }
   }

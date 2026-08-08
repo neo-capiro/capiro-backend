@@ -320,11 +320,6 @@ export class TangoGatewayService implements TangoGateway {
   // Normalized at this boundary like everything else: the SDK speaks snake_case
   // (`callback_url`, `alert_id`, `query_type`) and product code never should.
   //
-  // These are NOT paged. The provider returns a bounded list for all three, and
-  // an account with enough endpoints or alerts to need pagination would be a
-  // sign this program had violated its own rule against one provider alert per
-  // Capiro client — so a silent page-1-only read is the correct shape here, not
-  // a truncation bug.
 
   async listWebhookEventTypes(): Promise<TangoWebhookEventType[]> {
     const raw = await this.call('listWebhookEventTypes', (c) => c.listWebhookEventTypes());

@@ -304,8 +304,17 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
         SELECT DISTINCT
                c."tenant_id"      AS "tenantId",
                c."client_id"      AS "clientId",
-               COALESCE(c."source_record_type", 'sam_opportunity') AS "sourceType",
-               ${sourceRecordKey}::text AS "sourceRecordKey",
+               -- CAPIRO's own identity, not the provider's. The first version
+               -- wrote the TANGO opportunity id under the literal
+               -- 'sam_opportunity', which is not a member of
+               -- SOURCE_RECORD_TYPES at all (it belongs to
+               -- tango_resource_link.local_resource_type). The canonical type
+               -- for a sam_gov row is 'sam_notice' and the key is Capiro's own
+               -- record id. Fixed NOW rather than later precisely because
+               -- source_record_key is part of the dedupe index: correcting it
+               -- after alerts exist would invalidate every fingerprint written.
+               COALESCE(c."source_record_type", 'sam_notice') AS "sourceType",
+               COALESCE(c."source_record_key", c."sam_opportunity_id"::text) AS "sourceRecordKey",
                c."pipeline_stage"  AS "pipelineStage",
                c."workflow_status" AS "workflowStatus",
                c."human_decision"  AS "humanDecision"
@@ -338,7 +347,24 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
      * the index exists — those are different claims.
      */
     insertAlertIfNew: async (alert: AlertToWrite): Promise<boolean> => {
-      if (!commit) return true;
+      if (!commit) {
+        // Ask whether it WOULD be new, rather than assuming it would. The first
+        // version returned true unconditionally, so a dry run reported every
+        // alert as newly written and alertsDeduped was always 0 — inflating the
+        // exact numbers an operator uses to decide whether to commit, and
+        // breaking the two-quiet-passes check the canary depends on.
+        const existing = await withSystem(
+          prisma,
+          (tx) => tx.$queryRaw<{ n: bigint }[]>`
+          SELECT count(*) AS n FROM "tango_event_alert"
+          WHERE "tenant_id" = ${alert.tenantId}::uuid
+            AND "client_id" = ${alert.clientId}::uuid
+            AND "source_record_key" = ${alert.sourceRecordKey}
+            AND "change_fingerprint" = ${alert.changeFingerprint}
+        `,
+        );
+        return Number(existing[0]?.n ?? 0) === 0;
+      }
       const inserted = await withSystem(
         prisma,
         (tx) => tx.$executeRaw`
