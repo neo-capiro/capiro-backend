@@ -19,6 +19,7 @@ import { EngagementCallbacksModule } from './engagement-callbacks/engagement-cal
 import { EngagementWorkersModule } from './engagement-workers/engagement-workers.module.js';
 import { RecallWebhookModule } from './webhooks/recall-webhook.module.js';
 import { CapabilitiesModule } from './capabilities/capabilities.module.js';
+import { OutreachV3StateModule } from './outreach-v3/api/outreach-v3-state.module.js';
 import { EngagementRuntimeGuard } from './engagement/runtime/engagement-runtime.guard.js';
 import { EngagementApiHealthController } from './engagement-api/engagement-api-health.controller.js';
 
@@ -42,6 +43,7 @@ import { EngagementApiHealthController } from './engagement-api/engagement-api-h
     EngagementWorkersModule,
     RecallWebhookModule,
     CapabilitiesModule,
+    OutreachV3StateModule,
   ],
   controllers: [EngagementApiHealthController],
   providers: [
