@@ -192,11 +192,13 @@ function seedIdentity(db) {
       INSERT INTO tenants (id, slug, name, status)
       VALUES
         ('${TENANT_A}', 'outreach-v3-p2-a-${process.pid}', 'Outreach V3 Phase 2 A', 'active'),
-        ('${TENANT_B}', 'outreach-v3-p2-b-${process.pid}', 'Outreach V3 Phase 2 B', 'active');
+        ('${TENANT_B}', 'outreach-v3-p2-b-${process.pid}', 'Outreach V3 Phase 2 B', 'active')
+      ON CONFLICT (id) DO NOTHING;
       INSERT INTO users (id, clerk_user_id, email)
       VALUES
         ('${USER_A}', 'outreach_v3_p2_user_a_${process.pid}', 'outreach-v3-p2-a-${process.pid}@example.invalid'),
-        ('${USER_B}', 'outreach_v3_p2_user_b_${process.pid}', 'outreach-v3-p2-b-${process.pid}@example.invalid');
+        ('${USER_B}', 'outreach_v3_p2_user_b_${process.pid}', 'outreach-v3-p2-b-${process.pid}@example.invalid')
+      ON CONFLICT (id) DO NOTHING;
     `,
   );
 }
