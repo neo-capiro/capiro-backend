@@ -1809,3 +1809,126 @@ FROM tango_event_outbox WHERE status = 'quarantined' ORDER BY completed_at DESC;
 
 A quarantined row is an operator decision, not a retry: fix the cause, then
 reset it to `pending` with `attempts = 0` deliberately, one row at a time.
+
+---
+
+# Part J — controlled schedule and webhook enablement (P50)
+
+## 30. Read this before registering any task-definition revision
+
+**27 EventBridge rules target the `capiro-dev-api-migrate` task-definition
+family. 23 of them are NOT revision-pinned, and 16 of those are ENABLED.**
+
+Measured 2026-08-08, not inferred:
+
+```bash
+for r in $(aws events list-rules --region us-east-1 --query 'Rules[].Name' --output text); do
+  td=$(aws events list-targets-by-rule --rule "$r" --region us-east-1 \
+        --query 'Targets[0].EcsParameters.TaskDefinitionArn' --output text)
+  case "$td" in *api-migrate:[0-9]*) ;; *api-migrate*) echo "UNPINNED $r";; esac
+done
+```
+
+An unpinned target runs **whatever revision is latest at fire time**. So
+registering a new `capiro-dev-api-migrate` revision — which every migration
+deploy does — silently changes the container image for all 16 enabled jobs,
+including `sync-sam-opportunities`, `enrich-grant-details`,
+`generate-grant-opportunity-candidates`, `sync-federal-award`,
+`refresh-memory-graph`, and both clio jobs.
+
+Three consequences worth internalising:
+
+1. **A migrate task exiting 0 may not be your run.** One of those rules firing
+   produces a task in the same family that exits 0 having run something else
+   entirely. Always check `startedBy` before believing an exit code.
+2. **Registering a migrate revision is a de facto deploy of 16 scheduled jobs.**
+   It should be treated with the care of a deploy, not the care of a config
+   change — and the image it points at should be a reviewed merge SHA.
+3. **This is why P48's schedule ships `enabled: false`.** Adding an enabled
+   rule to this family compounds the problem.
+
+**Do not fix this by pinning revisions casually** — a pinned rule stops
+receiving migrations and security updates, which is its own failure mode. The
+real fix is a separate task-definition family for scheduled jobs
+(`capiro-dev-api-sync-jobs` already exists, at revision 1, and is what these
+rules should target). That is a reconciliation task with its own blast radius,
+not something to do during a rollout.
+
+## 31. Enablement order
+
+Never enable a downstream job before the one that feeds it. The order is the
+data dependency, not a preference:
+
+```
+provider source sync  →  crosswalk / enrichment  →  producer / recommendation  →  lifecycle / event processor
+```
+
+Concretely, for this program:
+
+| Order | Job | Verb | Feeds |
+|---:|---|---|---|
+| 1 | SAM source sync | `sync-sam-opportunities` | everything |
+| 2 | Grant detail enrichment | `enrich-grant-details` | grant producer scoring |
+| 3 | Tango opportunity shadow | `sync-tango-opportunity-shadow` | crosswalk + parity |
+| 4 | Tango notice history | `sync-tango-opportunity-notices` | **the event processor** |
+| 5 | Producers | `generate-sam-opportunity-candidates`, `generate-funding-grant-candidates` | recommendations |
+| 6 | Lifecycle | `process-funding-opportunity-lifecycle` | staleness/closure |
+| 7 | Event drain | `process-tango-events` | client alerts |
+
+**Webhooks supplement scheduled reconciliation; they never replace it.** A
+periodic correctness sweep catches what a missed or unverified delivery loses.
+If webhooks are ever treated as the only refresh path, a provider outage
+becomes silent staleness.
+
+## 32. Per-job enablement record
+
+Every job enabled must have this recorded in the P50 handoff **before** it is
+turned on. A rule nobody can disable in one command is a rule nobody should
+have enabled.
+
+| Field | Where to get it |
+|---|---|
+| Command | the `Input` containerOverrides on the rule target |
+| Task definition | `aws events list-targets-by-rule --rule <name> --query 'Targets[0].EcsParameters.TaskDefinitionArn'` |
+| Rule ARN | `aws events describe-rule --name <name> --query 'Arn'` |
+| Log group | `/capiro/dev/api`, stream prefix `api` |
+| Expected cadence | `aws events describe-rule --name <name> --query 'ScheduleExpression'` |
+| **Disable command** | `aws events disable-rule --name <name> --region us-east-1` |
+
+**Two clean manual commit runs per job** before its rule is enabled. Not one —
+the second is what proves idempotency and quietness, and it is the run that
+catches a producer that creates duplicate suggestions on a second pass.
+
+## 33. Alarms
+
+Create these before enabling, not after. An alarm added after the first bad
+night is an alarm that did not catch the first bad night.
+
+| Alarm | Signal | Why it matters |
+|---|---|---|
+| Last success age | max age since a job's last successful run | a silently-failing schedule looks identical to a quiet one |
+| Error / degraded run | non-zero task exit, or `INCOMPLETE` completion | producers return `INCOMPLETE` rather than lying about coverage |
+| Checkpoint incompleteness | `tango_sync_checkpoint.completeness <> 'complete'` | a resumable walk that never resumes |
+| 429 / breaker | `tango_api_usage.status = 'rate_limit'`; breaker opens | account-level limit, shared with every other consumer |
+| Webhook signature failures | 401s on `/webhooks/tango` | either a rotated secret or someone probing |
+| Queue age | oldest `pending` in `tango_event_outbox` | the drain is not keeping up, or not running |
+| Poison events | count of `quarantined` | terminal by design; each one needs a human |
+| Alert volume | alerts/day, and alerts per client | the quietness promise, measured continuously |
+
+Test each alarm by forcing its condition once. An untested alarm is a
+hypothesis.
+
+## 34. Rollout and rollback
+
+Roll out **one tenant and one capability at a time**. Rollback is the reverse:
+
+1. Disable the provider webhook alerts (`reconcile-tango-webhook-alerts
+   --commit --allow-delete`, or pause them in the console).
+2. Disable the EventBridge rules (`aws events disable-rule --name <name>`).
+3. Then the tenant flags.
+
+Source data stays. No phase in this program ships a destructive migration.
+
+**Do not run `cdk deploy Capiro-dev-Compute`.** The tracked Compute stack is
+drifted; enabling live rules is an out-of-band operation until that drift is
+formally reconciled.
