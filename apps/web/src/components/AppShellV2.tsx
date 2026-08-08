@@ -199,6 +199,9 @@ export function AppShellV2({ me }: { me: MeResponse }) {
   };
 
   const initialsText = initials(displayName);
+  // The profile chip shows the user's real photo when one is available (Clerk
+  // avatar), falling back to initials — same source as the legacy shell.
+  const profileImageUrl = user?.imageUrl || null;
   const clientMark = selectedClient
     ? initials(selectedClient.name)
     : 'AC';
@@ -340,7 +343,13 @@ export function AppShellV2({ me }: { me: MeResponse }) {
               onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')}
               aria-label={`Open account menu for ${displayName}`}
             >
-              <span className="v2-profile-avatar">{initialsText}</span>
+              <span className="v2-profile-avatar" aria-hidden>
+                {profileImageUrl ? (
+                  <img src={profileImageUrl} alt="" className="v2-profile-avatar-img" />
+                ) : (
+                  initialsText
+                )}
+              </span>
               <span className="v2-profile-name">{displayName}</span>
               <CaretIcon />
             </button>
