@@ -44,6 +44,7 @@ import {
   type MenuProps,
 } from 'antd';
 import { useMe, type MeResponse } from '../lib/me.js';
+import { AppShellV2 } from './AppShellV2.js';
 import { useApi } from '../lib/use-api.js';
 import { useIntelFeatureFlags } from '../lib/intel-feature-flags.js';
 import { OnboardingGates, START_TOUR_EVENT } from './onboarding/OnboardingGates.js';
@@ -494,6 +495,34 @@ export function AppShell() {
       void signOut({ redirectUrl: '/sign-in' });
     },
   };
+
+  // App shell v2 (capiro-internal only): two persistent top bands replace the
+  // left sider. The legacy shell below is untouched for every other tenant.
+  // Meri is launched from the v2 band-1 control (separate window via Ctrl+J),
+  // so the floating MeriOverlay/ChatDrawer FAB is suppressed on this path.
+  if (me.data?.tenant.slug === 'capiro-internal') {
+    return (
+      <div className="v2-root">
+        <AppShellV2 me={me.data} />
+        <main className="v2-content">
+          {actAsTenantSlug ? (
+            <Alert
+              type="info"
+              showIcon
+              closable
+              message="Impersonation active"
+              description={`You are viewing ${actAsTenantSlug}.`}
+              onClose={endImpersonation}
+              className="app-content-alert"
+            />
+          ) : null}
+          <OnboardingGates>
+            <Outlet />
+          </OnboardingGates>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <>
