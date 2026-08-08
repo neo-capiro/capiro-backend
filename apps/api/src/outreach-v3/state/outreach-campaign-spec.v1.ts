@@ -26,14 +26,22 @@ export const OUTREACH_V3_LIMITS = Object.freeze({
 
 const FORBIDDEN_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
 
-function boundedNullableText(max: number) {
+/** Locale-independent ordering for content-addressed canonical state. */
+export function compareCanonicalStrings(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function boundedText(max: number) {
   return z
     .string()
     .max(max)
     .refine((value) => !FORBIDDEN_CONTROL_CHARACTERS.test(value), {
       message: 'Text contains disallowed control characters.',
-    })
-    .nullable();
+    });
+}
+
+function boundedNullableText(max: number) {
+  return boundedText(max).nullable();
 }
 
 const clientRefSchema = z
@@ -41,6 +49,8 @@ const clientRefSchema = z
     clientId: z.string().uuid(),
   })
   .strict();
+
+const targetCriteriaText = boundedText(OUTREACH_V3_LIMITS.targetCriteriaStrings).min(1);
 
 export const targetCriteriaV1Schema = z
   .object({
@@ -51,9 +61,9 @@ export const targetCriteriaV1Schema = z
     chambers: z
       .array(z.enum(['house', 'senate', 'state_house', 'state_senate']))
       .max(20),
-    committees: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
-    agencies: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
-    states: z.array(z.string().min(1).max(OUTREACH_V3_LIMITS.targetCriteriaStrings)).max(100),
+    committees: z.array(targetCriteriaText).max(100),
+    agencies: z.array(targetCriteriaText).max(100),
+    states: z.array(targetCriteriaText).max(100),
     relationshipPreference: z.enum(['any', 'existing', 'new', 'mixed']),
     includeStaff: z.boolean(),
     includePrincipals: z.boolean(),
@@ -271,14 +281,14 @@ function normalizeNullableText(value: string | null): string | null {
 }
 
 function normalizeSet(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b),
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort(
+    compareCanonicalStrings,
   );
 }
 
 export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachCampaignSpecV1 {
   const sortedClientRefs = [...spec.sponsor.clientRefs].sort((a, b) =>
-    a.clientId.localeCompare(b.clientId),
+    compareCanonicalStrings(a.clientId, b.clientId),
   );
   const normalized: OutreachCampaignSpecV1 = {
     ...spec,
@@ -305,8 +315,12 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
         ? {
             ...spec.targeting.criteria,
             notes: normalizeNullableText(spec.targeting.criteria.notes),
-            governmentLevels: [...new Set(spec.targeting.criteria.governmentLevels)].sort(),
-            chambers: [...new Set(spec.targeting.criteria.chambers)].sort(),
+            governmentLevels: [...new Set(spec.targeting.criteria.governmentLevels)].sort(
+              compareCanonicalStrings,
+            ),
+            chambers: [...new Set(spec.targeting.criteria.chambers)].sort(
+              compareCanonicalStrings,
+            ),
             committees: normalizeSet(spec.targeting.criteria.committees),
             agencies: normalizeSet(spec.targeting.criteria.agencies),
             states: normalizeSet(spec.targeting.criteria.states),
@@ -358,7 +372,7 @@ export function canonicalJsonStringify(value: unknown): string {
   }
   const object = value as Record<string, unknown>;
   return `{${Object.keys(object)
-    .sort()
+    .sort(compareCanonicalStrings)
     .map((key) => `${JSON.stringify(key)}:${canonicalJsonStringify(object[key])}`)
     .join(',')}}`;
 }
