@@ -60,45 +60,43 @@ Repair:
 - mismatch fails closed as `OUTREACH_STATE_CORRUPT`;
 - dedicated internal-boundary regression suite added.
 
-## Open blocker
-
-### P2-AUD-001 — Blocking P2 — eager proposal supersession lacks event-ledger entries
+### P2-AUD-001 — Blocking P2 — eager proposal supersession lacked event-ledger entries
 
 **Classification:** Phase 2 defect  
-**Status:** OPEN / BLOCKING
+**Status:** FIXED
 
-A successful state-advancing command calls `OutreachStateRepository.supersedeStaleProposals()`, which terminalizes competing pending proposals against the old version. The proposal status is correct, but the command path does not currently append a `proposal_superseded` event for each eager transition. A later attempted Apply returns the correct stale error, but a proposal that is never clicked again has no corresponding supersession event.
+A successful state-advancing command terminalizes competing pending proposals against the old version. The initial implementation updated proposal status but did not guarantee a matching append-only `proposal_superseded` event for every eager transition.
 
-This conflicts with the Phase 2 audit contract: proposal lifecycle transitions must be reconstructable from the append-only event ledger without relying on a future user action.
+Repair:
 
-Safe repair is already isolated in:
+- `supersedeStaleOutreachProposals(...)` performs the owner/tenant/session-scoped terminal transition with one `UPDATE ... RETURNING` statement;
+- the returned rows include `id` and `expectedStateVersion`, so there is no pre-read race or pagination cap;
+- `OutreachAuditedStateRepository` is wired as the `OutreachStateRepository` provider for the V3 state module;
+- it appends one `proposal_superseded` event for every exact returned proposal row in the same transaction;
+- event metadata contains only proposal ID, expected/resulting state versions and `state_advanced` reason—never proposal command content;
+- proposal Apply's `excludeProposalId` is preserved by the exact-returning helper;
+- zero returned rows produce zero events;
+- `outreach-v3-supersession-audit.spec.ts` now verifies the exact-returning helper and audited event path;
+- `outreach-audited-state.repository.spec.ts` verifies one event per returned transition;
+- both tests are included in `verify:outreach-v3-phase-2`.
 
-```text
-apps/api/src/outreach-v3/persistence/outreach-proposal-supersession.ts
-```
-
-It performs the same owner/tenant/session-scoped update using `UPDATE ... RETURNING id`, returning the exact changed proposal IDs without a pre-read race or pagination cap.
-
-Required completion:
-
-1. authoritative command engine must call `supersedeStaleOutreachProposals(...)` instead of the count-only repository method;
-2. for every returned ID, append one `proposal_superseded` event in the same session-locked transaction;
-3. safe metadata only: proposal ID + `state_advanced` + resulting state version; no proposal command body;
-4. proposal Apply's `excludeProposalId` must still exclude the proposal being applied;
-5. the existing defensive stale-Apply path must not double-log;
-6. direct command and proposal-Apply state advancement must both satisfy the audit rule;
-7. make `outreach-v3-supersession-audit.spec.ts` green; do not weaken/delete the assertion.
-
-Until this is complete:
+Current code-review finding state:
 
 ```text
 Open P0 = 0
 Open P1 = 0
-Blocking P2 = 1
-OUTREACH_V3_PHASE2_APPROVED = NOT POSSIBLE
-READY_FOR_REVISED_PHASE3 = NO
+Blocking P2 = 0
 ```
+
+This closes the known code blocker. It does **not** manufacture executable acceptance evidence.
 
 ## Environment blocker unchanged
 
-GitHub Actions remains `startup_failure` before job creation on both the Phase 2 PR and untouched Phase 1 base. This is separate from P2-AUD-001: fixing the code blocker does not make CI evidence green, and broken Actions does not excuse the code blocker.
+GitHub Actions remains `startup_failure` before job creation on both the Phase 2 PR and untouched Phase 1 base. This is separate from the fixed code findings.
+
+Until real executable gates and independent validation run:
+
+```text
+OUTREACH_V3_PHASE2_APPROVED = NOT YET
+READY_FOR_REVISED_PHASE3 = NO
+```
