@@ -218,16 +218,21 @@ any other way.**
 | Phase range | State |
 |---|---|
 | P00–P39, P44, P45 | merged; P26–P35 deployed |
-| **P40–P43** | **blocked on the provider.** `@makegov/tango-node@1.1.0` has no DIBBS and no SBIR/STTR method anywhere in its client surface. Not a scheduling choice. |
-| P46, P47, P48 | built, **draft PRs #825 / #826 / #827, stacked, not merged**. Their three migrations are **not applied** to any environment. |
-| P49, P50, P51 | **partially built.** Instrumentation, runbooks and the product doc exist; every operator step is blocked. |
+| **P40–P43** | **blocked on the provider.** `@makegov/tango-node@1.1.0` has no DIBBS and no SBIR/STTR method anywhere in its client surface. Re-verified 2026-08-08: 1.1.0 is still the latest published version, and a full-text scan of the installed package finds **zero** occurrences of dibbs/sbir/sttr. Not a scheduling choice. |
+| P46, P47, P48 | **merged** (#825 / #826 / #827). The P46 and P48 migrations are **applied to `capiro-dev`**; P47 has none. One later migration remains unapplied — see below. |
+| P49, P50, P51 | **code and docs merged; every operator step still blocked.** Instrumentation, runbooks and the product doc exist. Nothing that requires a live key, a console, or a human judgement has run. |
+
+**Superseded rows above:** an earlier version of this section said P46–P48 were
+unmerged drafts whose migrations were applied to no environment. That was true
+when written and is no longer. Corrected 2026-08-08 rather than deleted, because
+three handoffs cite this table.
 
 ### What is blocked, and on whom
 
 | Blocked item | Blocked on |
 |---|---|
-| Merging #825–#829 | review |
-| Applying the P46/P48 migrations | merge, then a migrate run |
+| Merging **PR #846** (event-drain fixes D-56/D-57/D-59) | a human reading it — four agent reviews have each found something the previous round missed, three of them defects introduced by the preceding fix |
+| Applying `20260907010000_tango_event_outbox_per_event` to `capiro-dev` | #846 merging first — the migration widens the outbox to one row per event, and the writer that populates it correctly is in that PR |
 | Registering the webhook endpoint + provisioning `tango-webhook-secret` | Neo, MakeGov console |
 | Resolving the webhook write tier | one deliberate `--commit` run, or MakeGov confirming |
 | Running the canary (P49) | Neo — live key, flag enablement, browser walk |
@@ -247,9 +252,13 @@ any other way.**
 ### Not done, and deliberately so
 
 - **No destructive cleanup migration.** GA ships none, per the plan.
-- **No independent review.** Every phase in this program is marked
-  *self-verified only*. §6.2's independent-tester gate has not run for any of
-  P46–P51.
+- **No HUMAN independent review.** Every phase in this program is marked
+  *self-verified only*. §6.2's independent-tester gate has now run **four times**
+  against the P46–P51 event-drain code specifically — every round an autonomous
+  agent, and every round found a real defect the previous round missed (see
+  decision log D-48 through D-59). That is a meaningful signal about the code,
+  and it is **not** the gate the plan specifies: no phase in P00–P51 has been
+  read by a human other than its author.
 
 
 ### Correction (2026-08-08): the web gate blocker was OURS, not Engagement's
