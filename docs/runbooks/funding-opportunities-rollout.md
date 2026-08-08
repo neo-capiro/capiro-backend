@@ -1852,6 +1852,62 @@ Three consequences worth internalising:
 3. **This is why P48's schedule ships `enabled: false`.** Adding an enabled
    rule to this family compounds the problem.
 
+### 30a. There is a SAFE family for migrations, and the deploy script already uses it
+
+Measured 2026-08-08, by the same sweep as above counted per family:
+
+| family | EventBridge rules targeting it |
+|---|---|
+| `capiro-dev-api-migrate` | **27** (23 unpinned, 16 enabled) |
+| `capiro-dev-api-admin-migrate` | **0** |
+
+`scripts/deploy-dev.sh` line 49 already sets `MIGRATE_TD="capiro-dev-api-admin-migrate"`.
+So the hazard in §30 is real but **avoidable**, and the canonical deploy path
+avoids it: registering a revision on `api-admin-migrate` changes the image for
+no scheduled job at all, because nothing is scheduled against it.
+
+Do not read §30 as "migrations are dangerous here". Read it as: **run migrations
+through `api-admin-migrate`, never through `api-migrate`.** If you find yourself
+registering a revision on `api-migrate`, stop — you are deploying 16 jobs.
+
+### 30b. `capiro-dev-api-admin-migrate:9` carries a hardcoded `migrate resolve`
+
+Revision 9 — the latest ACTIVE at the time of writing, and therefore the one
+`deploy-dev.sh` picks up, since it uses the family name and not a pinned
+revision — runs this **before** `migrate deploy`:
+
+```
+prisma migrate resolve --rolled-back 20260503170000_directory_contact_notes || true
+```
+
+That line is a leftover from a specific past recovery. It is not conditional on
+anything, and `|| true` means it cannot fail the task or announce itself. On a
+database where that migration is applied and healthy, the resolve errors and is
+swallowed — harmless. The failure mode to think about is the one where it
+*succeeds*: the ledger then says rolled-back for a migration whose objects still
+exist, and the following `migrate deploy` will try to re-apply it.
+
+**Before the next dev migration run, register a clean revision** whose command is
+`migrate deploy` alone, and let `deploy-dev.sh` pick that up as latest. Leaving a
+one-off recovery step baked into the family every deploy re-uses is how a
+recovery becomes a recurring behaviour nobody remembers enabling.
+
+### 30c. What "apply the migration to capiro-dev" actually costs
+
+`scripts/deploy-dev.sh` is not a migration runner. It builds **both** the api and
+web images (`docker buildx build --platform linux/arm64`, so QEMU emulation from
+an x86 host), pushes both to ECR, registers task definitions, and then runs the
+migrate task. Applying one migration through it means **deploying the whole dev
+environment**.
+
+That matters for sequencing: as of 2026-08-08 the repo-wide GitHub Actions
+`startup_failure` condition means no CI-built image exists for any recent commit,
+so anything deployed this way is validated only by whatever ran locally. Decide
+deliberately whether that is acceptable for the change in hand; for a schema
+change that nothing in the environment can yet exercise (no registered webhook
+endpoint, no signing secret, schedules disabled), the honest answer is usually
+that it can wait for a real deploy.
+
 **Do not fix this by pinning revisions casually** — a pinned rule stops
 receiving migrations and security updates, which is its own failure mode. The
 real fix is a separate task-definition family for scheduled jobs
