@@ -239,6 +239,23 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
       `;
     },
 
+    /**
+     * Insert one alert, or no-op on the dedupe index.
+     *
+     * ON CONFLICT names the COLUMN LIST, not the constraint. This matters and
+     * was a real bug: `tango_event_alert_dedupe_uniq` is a unique INDEX
+     * (`CREATE UNIQUE INDEX` / Prisma `@@unique`), and Postgres'
+     * `ON CONFLICT ON CONSTRAINT <name>` resolves only real CONSTRAINTS —
+     * against an index it raises `constraint "..." does not exist`.
+     *
+     * The first version used the constraint form, so this threw on EVERY
+     * insert: the drain would have retried each event five times, quarantined
+     * it, and written no alert at all. Every unit test still passed, because
+     * they drive the service against an in-memory double and never execute
+     * this SQL. Found only by running it against real Postgres, and the CI
+     * migration job now executes the statement itself rather than asserting
+     * the index exists — those are different claims.
+     */
     insertAlertIfNew: async (alert: AlertToWrite): Promise<boolean> => {
       if (!commit) return true;
       const inserted = await prisma.$executeRaw`
@@ -253,7 +270,8 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
            ${alert.changeFingerprint}, ${JSON.stringify(alert.evidenceJsonb)}::jsonb,
            ${alert.beforeValue}, ${alert.afterValue}, ${alert.pipelineStageAtAlert},
            ${alert.sourceObservedAt}, ${alert.deliveryId})
-        ON CONFLICT ON CONSTRAINT "tango_event_alert_dedupe_uniq" DO NOTHING
+        ON CONFLICT ("tenant_id", "client_id", "source_record_key", "change_fingerprint")
+        DO NOTHING
       `;
       return inserted > 0;
     },
