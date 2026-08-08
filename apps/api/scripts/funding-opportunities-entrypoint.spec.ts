@@ -27,6 +27,12 @@ describe('Funding Opportunities container commands', () => {
     // --window-days change what a canary reviewer is actually looking at.
     ['diag-funding-opportunities-makegov', 'diag-funding-opportunities-makegov.ts'],
     ['diag-tango-webhook-contract', 'diag-tango-webhook-contract.ts'],
+    // P40 part 3. Same --commit interlock reasoning as P47/P48, plus one more:
+    // --full is what turns an issue-date-windowed incremental into a real
+    // reconciliation. A dispatcher that dropped it would leave amendments to
+    // already-issued solicitations permanently unsynced, and the run would
+    // still report itself complete.
+    ['sync-tango-dibbs', 'sync-tango-dibbs.ts'],
   ])('%s dispatches to %s and forwards all arguments', (verb, script) => {
     if (verb === 'sync-sam-opportunities-all-federal') {
       expect(dispatcher).toContain(

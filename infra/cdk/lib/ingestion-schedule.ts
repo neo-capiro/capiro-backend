@@ -603,6 +603,46 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
     enabled: false,
   },
+  // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
+  //
+  // TWO JOBS, and the pairing is load-bearing rather than belt-and-braces.
+  // DIBBS publishes no `modified_after` filter — only `issue_date_after`,
+  // `issued_date_after` and `posted_date_after` — so the incremental window
+  // selects records ISSUED since a date. An amendment to an already-issued
+  // solicitation never re-enters that window, and the incremental job would
+  // report itself complete having never seen it. The weekly `--full` run is
+  // what actually keeps the catalog true; it is not an optimisation.
+  //
+  // Both are idempotent (upsert on the provider's own `uuid`), so the two
+  // firing on the same day is harmless — Sunday simply refreshes what Sunday's
+  // incremental already wrote.
+  //
+  // DISABLED, and not merely by house convention: nothing in P40 has ever seen
+  // a real provider response. The mappers, the schema and the pagination
+  // envelope are all readings of published field NAMES, and the separately
+  // authorized live contract-validation step has not run. Enabling this before
+  // that step would write a whole catalog shaped by an unverified contract.
+  // Enable the incremental first, read one run's summary — especially
+  // `quantityDroppedMissingUnit` and the per-endpoint drop counts — and only
+  // then enable the full reconciliation.
+  {
+    id: 'SyncTangoDibbs',
+    command: ['sync-tango-dibbs', '--commit'],
+    cron: { minute: '10', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: DIBBS bid-board incremental sync (daily 13:10 UTC, issue-date window + 7d overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileTangoDibbsFull',
+    command: ['sync-tango-dibbs', '--commit', '--full'],
+    cron: { minute: '10', hour: '13', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
+    enabled: false,
+  },
   // Funding Opportunities P48: drain verified webhook deliveries into client
   // alerts. DISABLED, and it must stay that way until P50's controlled
   // enablement — P48's own ship note requires a manual two-pass quiet test

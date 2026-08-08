@@ -11,6 +11,49 @@ writing a line of the sync. It is transcribed from published documentation and
 marks explicitly what is confirmed (field names) and what is not (types, null
 semantics, date formats, pagination envelope).
 
+## STATUS — part 3 is BUILT (2026-08-08), and still unverified against the provider
+
+Everything in "What part 3 must deliver" below is now implemented. Read that section as the
+specification it was, not as outstanding work. What shipped:
+
+| File | What |
+|---|---|
+| `apps/api/src/external/tango/tango-dibbs.client.ts` | The REST client for the three DIBBS endpoints. New. |
+| `apps/api/scripts/sync-tango-dibbs.ts` | The sync. Dry-run by default. |
+| `apps/api/scripts/sync-tango-dibbs.spec.ts` | 27 tests, no Postgres and no network required. |
+| `apps/api/scripts/entrypoint-dispatcher.inc` | `sync-tango-dibbs` verb. |
+| `apps/api/tsconfig.funding-opportunities.json` | Both new script files registered. |
+| `infra/cdk/lib/ingestion-schedule.ts` | `SyncTangoDibbs` + `ReconcileTangoDibbsFull`, **both `enabled: false`**. |
+| `.github/workflows/funding-opportunities-ci.yml` | Scope regex, suite list, floors raised to 82/2556. |
+| `decision-log.md` | **D-63**, below. |
+
+**No migration was added, no schedule was enabled, and no AWS or deployment change was made.**
+
+### The one thing that changed the design — read D-63
+
+`tango_sync_checkpoint.resource_type` carries a CHECK admitting exactly
+`entity, opportunity, notice, forecast, vehicle, vehicle_awardee`. No migration has ever widened it, and
+P40's own migration does not either. **A DIBBS checkpoint row is unstorable**, so this is the first sync in
+the program that keeps none — the window is derived from the newest issued/posted date already stored.
+
+That is not merely a workaround. DIBBS publishes no `modified_after` filter, only `issue_date_after` /
+`issued_date_after` / `posted_date_after`, so **the window is an issue-date window, not a modification
+window**: a solicitation amended after issue does not re-enter it, and an incremental run will miss the
+amendment while still reporting `complete`. `--full` is the mitigation and the shipped schedule pairs a
+daily incremental with a weekly full reconciliation. A schedule that only ever runs the incremental will
+drift silently.
+
+### What is still NOT done
+
+- **The live contract-validation step has not run.** Every coercion in the mappers and every assumption in
+  the client — including the `results`/`next`/`count` pagination envelope — is still a reading of
+  published field names. This remains the real gate.
+- **P17's entitlement question is still open.** Only a real call with a real key answers it.
+- The client **throws** rather than returning an empty page when `results` is absent, so a wrong envelope
+  fails loudly on the first live run instead of reporting "0 records, complete". Expect that to be the
+  first thing the live run tells you, and treat it as a contract update plus a new fixture — never a
+  client that accepts both shapes.
+
 ## What is already on `main`
 
 | PR | What |
@@ -110,8 +153,20 @@ last merge here:
 
 - api typecheck: **12 pre-existing errors**, none in funding-opportunities code.
   It was 6 until PR #850 (federal-market unification) merged and doubled it.
-- FO CI floor: **81 suites / 2528 tests**. Of the movement from 78/2485, +1 suite
-  and +36 tests are P40's; +2 suites and +7 tests arrived from #850.
+  **Re-measured 2026-08-08 at `main` d1d7030c (PR #856) and after part 3: still
+  exactly 12.** #856's `noImplicitAny` fix was in `apps/web`, so the api count
+  never moved, and part 3 introduced none.
+- FO CI floor: **now 82 suites / 2556 tests**, raised from 81/2528 by part 3.
+  Of the movement from 78/2485 to 81/2528, +1 suite and +36 tests are P40's;
+  +2 suites and +7 tests arrived from #850. The 81/2528 -> 82/2556 move is
+  **entirely** part 3's: +27 in `sync-tango-dibbs.spec.ts`, +1 dispatch row.
+  Measured against real Postgres 16 on a clean migration replay — 82 passed,
+  2556 passed, zero failures, zero skips.
+
+Note that #856 (the NewsCatcher dashboard) added a 402-line spec under
+`src/intelligence/news/`, which does **not** appear in this gate's enumerated
+suite list and therefore never touched the floor. The list is explicit for
+exactly this reason.
 
 Do not repair unrelated federal-market baseline failures inside this work unless
 they directly block the feature and the causal relationship is proven.

@@ -1943,3 +1943,36 @@ Two things that do NOT change:
 What genuinely changes: P40–P43 move from `blocked` to `buildable, unverified`. Schema, migrations,
 mappers, sync scripts, fixtures, tests, dispatcher verbs and disabled schedules can all be written now.
 Only the entitlement probe and live sync still need a key.
+
+## D-63 · 2026-08-08 · The DIBBS sync keeps no checkpoint, and the window is an issue-date window
+
+`sync-tango-dibbs` is the first Funding Opportunities sync that does **not** resume from
+`TangoStoreService`'s checkpoint. Two independent reasons, and the second matters more than the first.
+
+**It is unstorable.** `tango_sync_checkpoint.resource_type` carries a CHECK admitting exactly
+`entity, opportunity, notice, forecast, vehicle, vehicle_awardee`
+(`20260821010000_tango_source_substrate`). No migration has ever widened it, and P40's own
+`20260908010000_tango_dibbs` does not either — it creates two tables and touches nothing else. A DIBBS
+checkpoint row cannot be inserted. This was found while writing part 3, not while planning it: the part-3
+brief specifies "incremental" and every prior sync in this program gets incrementality from that table, so
+the gap was invisible until someone tried to write the row.
+
+**It would be the wrong abstraction even if it fit.** A checkpoint stores a modification-time high-water
+mark. DIBBS publishes no `modified_after` filter — the documented filters are `issue_date_after`,
+`issued_date_after` and `posted_date_after`. Storing an "as of" instant would encode a guarantee the
+provider never offered, and the CHECK constraint merely made that visible early.
+
+So the window is derived from the data the sync already wrote — the newest issued/posted date per
+endpoint, minus an overlap — and every run's summary states the window it actually used.
+
+**The consequence that must not get lost:** an issue-date window selects records *issued* since a date. A
+solicitation amended after issue does not re-enter it, so an incremental run will not see the amendment
+and will still report itself `complete`. This is a permanent limit of the published filter set, not a
+tuning problem. The mitigation is `--full`, which drops the window and reconciles the whole catalog; the
+upsert keys on the provider's own `uuid`, so a full run is idempotent. The shipped (disabled) schedule
+therefore pairs a daily incremental with a weekly `--full`, the same shape as the LegiStorm directory pair
+in `ingestion-schedule.ts`. **A schedule that only ever runs the incremental will drift, silently.**
+
+Widening the checkpoint vocabulary in a later migration is still open as an option, but it should not be
+done merely to make DIBBS look like the other syncs — the modification-window semantics would still be
+absent, and a checkpoint row implying otherwise is worse than no row.
