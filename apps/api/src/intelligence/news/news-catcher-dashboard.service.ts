@@ -299,10 +299,9 @@ export class NewsCatcherDashboardService {
           lang: 'en',
           from_: '48h',
           sort_by: 'date',
-          ranked_only: true,
+          ranked_only: false,
           page_size: PAGE_SIZE,
           include_nlp_data: true,
-          has_nlp: true,
           exclude_duplicates: true,
           robots_compliant: true,
         }),
@@ -310,7 +309,10 @@ export class NewsCatcherDashboardService {
       });
 
       if (!response.ok) {
-        this.logger.warn(`NewsCatcher dashboard request failed with HTTP ${response.status}`);
+        const errorBody = await response.text().catch(() => '');
+        this.logger.warn(
+          `NewsCatcher dashboard request failed with HTTP ${response.status}: ${errorBody.slice(0, 300)}`,
+        );
         return staleOrUnavailable(
           staleValue,
           generatedAt,
@@ -329,6 +331,13 @@ export class NewsCatcherDashboardService {
         .map((article) => normalizeArticle(article, watched))
         .filter((item): item is ScoredNewsDashboardItem => item != null);
       const items = selectDashboardItems(scored).map(stripInternalScore);
+
+      this.logger.log(
+        `NewsCatcher dashboard: provider returned ${articles.length} articles, ` +
+        `${scored.length} qualified after Capiro matching, ${items.length} selected for dashboard ` +
+        `(monitored ${monitoredClients.length}/${allClients.length} clients, ` +
+        `${selection.signals.length} signals, query ${portfolioQuery.length} chars)`,
+      );
 
       return {
         available: true,
@@ -839,7 +848,15 @@ function specificityScore(value: string): number {
 }
 
 function cleanSignalTerm(value: string): string {
-  return value.replace(/["\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Strip characters that NewsCatcher's Boolean query parser may interpret
+  // as operators even inside quoted phrases. Parentheses, ampersands, pipes,
+  // and slashes have all caused 422 validation errors when they appear in
+  // capability names, issue names, or program identifiers.
+  return value
+    .replace(/["\\()&|!<>]/g, ' ')
+    .replace(/[/;,]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function stripLegalSuffix(value: string): string {

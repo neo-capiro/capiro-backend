@@ -154,7 +154,8 @@ describe('NewsCatcherDashboardService', () => {
     expect(body.ORG_entity_name).toBeUndefined();
     expect(body.exclude_duplicates).toBe(true);
     expect(body.include_nlp_data).toBe(true);
-    expect(body.has_nlp).toBe(true);
+    expect(body.has_nlp).toBeUndefined();
+    expect(body.ranked_only).toBe(false);
     expect(body.from_).toBe('48h');
     expect(String(body.q)).toContain('Congress');
     expect(String(body.q)).toContain('"Autonomous Ground Vehicles"');
@@ -354,7 +355,7 @@ describe('NewsCatcherDashboardService', () => {
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-    expect(String(body.q)).toContain('"Shiftwave, Inc."');
+    expect(String(body.q)).toContain('"Shiftwave Inc."');
     expect(String(body.q)).toContain('"Shiftwave"');
     expect(result.items[0]?.clientMatches).toEqual([
       { id: 'client-1', name: 'Shiftwave, Inc.' },
