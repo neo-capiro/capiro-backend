@@ -20,6 +20,7 @@ import { SharedCapabilityToolAdapter } from './adapters/capability-tool-adapter.
     SharedCapabilityToolAdapter,
   ],
   exports: [
+    CapabilityAuthorizationService,
     CapabilityRegistry,
     CapiroCapabilityCatalogService,
     SharedCapabilityToolAdapter,
