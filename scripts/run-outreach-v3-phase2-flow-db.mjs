@@ -62,7 +62,10 @@ function databaseUrl(db) {
 
 function dropDatabase() {
   try {
-    psql('postgres', `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${DB}' AND pid <> pg_backend_pid();`);
+    psql(
+      'postgres',
+      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${DB}' AND pid <> pg_backend_pid();`,
+    );
   } catch {}
   try {
     psql('postgres', `DROP DATABASE IF EXISTS "${DB}";`);
@@ -84,7 +87,13 @@ try {
     { env: { DATABASE_URL: url } },
   );
 
-  const flowArgs = ['-C', 'apps/api', 'exec', 'tsx', 'scripts/outreach-v3-phase2-flow-rehearsal.ts'];
+  const flowArgs = [
+    '-C',
+    'apps/api',
+    'exec',
+    'tsx',
+    'scripts/outreach-v3-phase2-flow-rehearsal.ts',
+  ];
   const flowOutput = run('pnpm', flowArgs, {
     env: {
       DATABASE_URL: url,
@@ -97,6 +106,25 @@ try {
   }
   console.log(flowOutput);
   if (output && !existsSync(output)) throw new Error(`Flow evidence was not written: ${output}`);
+
+  const deleteOutput = run(
+    'pnpm',
+    [
+      '-C',
+      'apps/api',
+      'exec',
+      'tsx',
+      'scripts/outreach-v3-phase2-delete-protection-rehearsal.ts',
+    ],
+    { env: { DATABASE_URL: url }, capture: true },
+  );
+  if (!deleteOutput.includes('OUTREACH_V3_PHASE2_DELETE_PROTECTION_COMPLETE')) {
+    throw new Error(
+      'Delete-protection rehearsal exited without OUTREACH_V3_PHASE2_DELETE_PROTECTION_COMPLETE',
+    );
+  }
+  console.log(deleteOutput);
+
   console.log('OUTREACH_V3_PHASE2_FLOW_DB_COMPLETE');
 } catch (error) {
   exitCode = 1;
