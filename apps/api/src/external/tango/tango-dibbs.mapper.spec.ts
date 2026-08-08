@@ -320,3 +320,51 @@ describe('mapDibbsAward', () => {
     expect(a?.awardNumber).toBe(b?.awardNumber);
   });
 });
+
+describe('no alias-fallback logic — enforced structurally, not by convention', () => {
+  // The other negative tests in this file prove the CURRENT mappers do not
+  // cross endpoint vocabularies. They cannot prove the next edit will not
+  // introduce a `raw['issue_date'] ?? raw['issued_date']` as a well-meaning
+  // "be liberal in what you accept" fix. That single line would restore
+  // exactly the failure mode two mappers exist to prevent: an RFP arriving
+  // with RFQ field names would map cleanly, produce a plausible record, and
+  // report success.
+  //
+  // So the rule is checked against the source itself. "First available of
+  // these aliases" is forbidden unless the provider DOCUMENTS aliases, and
+  // dibbs-sbir-rest-contract.md records that it does not.
+
+  const mapperSource = (): string => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { readFileSync } = require('node:fs') as typeof import('node:fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { join } = require('node:path') as typeof import('node:path');
+    const raw = readFileSync(
+      join(process.cwd(), 'src/external/tango/tango-dibbs.mapper.ts'),
+      'utf8',
+    );
+    // Strip comments BEFORE scanning. An earlier source-scanning test in this
+    // repo failed on its own explanatory prose; the rule is about code, so
+    // only code is scanned.
+    return raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  };
+
+  it('never reads one provider key as a fallback for another', () => {
+    // `raw['a'] ?? raw['b']` / `raw['a'] || raw['b']`
+    expect(/raw\[[^\]]+\]\s*(\?\?|\|\|)/.test(mapperSource())).toBe(false);
+  });
+
+  it('never reads a provider key as the fallback SIDE of an alternative either', () => {
+    // The mirror image: `something ?? raw['b']`. Same defect, written the
+    // other way round, and a regex anchored only on the left would miss it.
+    expect(/(\?\?|\|\|)\s*raw\[/.test(mapperSource())).toBe(false);
+  });
+
+  it('the guard itself can fail — a synthetic alias is caught', () => {
+    // A guard that cannot fail is theater. This is the same check the two
+    // tests above run, applied to a string that genuinely contains the
+    // pattern, so a regex that silently stopped matching would be caught.
+    const synthetic = "issuedDate: dateOnly(raw['issue_date'] ?? raw['issued_date']),";
+    expect(/raw\[[^\]]+\]\s*(\?\?|\|\|)/.test(synthetic)).toBe(true);
+  });
+});
