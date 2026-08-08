@@ -6529,7 +6529,16 @@ model TangoEventOutbox {
 
   /// The verified delivery this work came from. No relation, deliberately —
   /// the record that work was queued must outlive what it pointed at.
-  deliveryId String @unique(map: "tango_event_outbox_delivery_uniq") @map("delivery_id")
+  deliveryId String @map("delivery_id")
+  /// Position of this event within its delivery, and part of the idempotency
+  /// key. A delivery carrying N events enqueues N rows; replaying it collapses
+  /// onto exactly those rows.
+  ///
+  /// The first version keyed on `deliveryId` alone, which made a multi-event
+  /// batch UNREPRESENTABLE: the receiver accepted the batch and the outbox kept
+  /// only `events[0]`, marking the row done while every later event was
+  /// silently discarded.
+  eventIndex Int    @default(0) @map("event_index")
   eventType  String @map("event_type")
 
   /// Which provider resource to refresh. `externalId` is nullable: a payload
@@ -6552,6 +6561,7 @@ model TangoEventOutbox {
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
 
   /// The claim query: oldest pending first; quarantined never selected.
+  @@unique([deliveryId, eventIndex], map: "tango_event_outbox_delivery_event_uniq")
   @@index([status, leaseUntil, createdAt], map: "tango_event_outbox_claim_idx")
   @@map("tango_event_outbox")
 }

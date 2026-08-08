@@ -144,9 +144,11 @@ CREATE TABLE IF NOT EXISTS "tango_event_alert" (
   "change_dimension"    TEXT NOT NULL,
   "severity"            TEXT NOT NULL,
 
-  -- THE DEDUPE KEY. Computed from the CHANGE (dimension + before + after),
-  -- never from the delivery — so the same change re-delivered under a new
-  -- delivery id collapses onto one alert.
+  -- THE DEDUPE KEY. Computed from the CHANGE and the notice that carried it
+  -- (dimension + after + notice id), never from the delivery — so the same
+  -- change re-delivered under a new delivery id collapses onto one alert, while
+  -- two transitions that merely END at the same value stay distinct.
+  -- See changeFingerprint() for why `before` is deliberately excluded.
   "change_fingerprint"  TEXT NOT NULL,
 
   -- The classifier's own before/after and one-sentence summary, plus source

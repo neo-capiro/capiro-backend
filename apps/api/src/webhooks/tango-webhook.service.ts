@@ -183,12 +183,14 @@ export type TangoEnvelopeResult =
   | { ok: false; rejection: TangoWebhookRejection };
 
 /**
- * Pull the envelope out of a verified payload, preferring headers over body.
+ * Pull the envelope out of a verified payload.
  *
- * The header is preferred for the delivery id because it is the transport's own
- * identifier for THIS delivery, whereas a body field identifies the event —
- * and one event may be delivered more than once. Falling back to body fields
- * keeps the receiver working if the provider only carries them there.
+ * THE SIGNED BODY WINS. The HMAC covers the body only, so a header is
+ * attacker-controlled: an earlier version preferred the header — reasoning that
+ * it is the transport's own identifier for THIS delivery — and that let one
+ * captured signed body replay under unlimited distinct delivery ids. The header
+ * is still read, but only when the body names no id at all; see the inline note
+ * at the delivery-id resolution below.
  */
 export function readEnvelope(
   payload: unknown,

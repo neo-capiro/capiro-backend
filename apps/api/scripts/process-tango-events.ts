@@ -97,16 +97,23 @@ export async function enqueuePendingDeliveries(
 
   if (!commit || pending.length === 0) return pending.length;
 
+  let enqueued = 0;
   for (const row of pending) {
-    const { resourceType, externalId } = readResourceRef(row.payload, row.event_type);
-    await prisma.$executeRaw`
-      INSERT INTO "tango_event_outbox"
-        ("delivery_id", "event_type", "resource_type", "external_id")
-      VALUES (${row.delivery_id}, ${row.event_type}, ${resourceType}, ${externalId})
-      ON CONFLICT ("delivery_id") DO NOTHING
-    `;
+    // One row PER EVENT. A delivery carrying three events queues three rows;
+    // the widened unique index (delivery_id, event_index) still collapses a
+    // replay of that delivery onto exactly those three.
+    for (const ref of readResourceRefs(row.payload, row.event_type)) {
+      await prisma.$executeRaw`
+        INSERT INTO "tango_event_outbox"
+          ("delivery_id", "event_index", "event_type", "resource_type", "external_id")
+        VALUES (${row.delivery_id}, ${ref.eventIndex}, ${row.event_type},
+                ${ref.resourceType}, ${ref.externalId})
+        ON CONFLICT ("delivery_id", "event_index") DO NOTHING
+      `;
+      enqueued += 1;
+    }
   }
-  return pending.length;
+  return enqueued;
 }
 
 /**
@@ -117,61 +124,81 @@ export async function enqueuePendingDeliveries(
  * none is present — a null resource completes as a no-op instead of retrying
  * forever against an id that was never there.
  */
-export function readResourceRef(
-  payload: unknown,
-  eventType: string,
-): { resourceType: string; externalId: string | null } {
-  const body =
+export interface ResourceRef {
+  /** Position within the delivery. 0 for a single-event body. */
+  eventIndex: number;
+  resourceType: string;
+  externalId: string | null;
+}
+
+/**
+ * EVERY resource a delivery refers to, one entry per event.
+ *
+ * Returns a LIST because the provider's batch envelope carries an array. The
+ * first version returned a single ref read from `events[0]`, so a two-event
+ * delivery resolved the first opportunity, marked itself done, and silently
+ * discarded the second — accepted at the receiver, dropped here. That is the
+ * same failure an earlier fix was supposed to close and only narrowed.
+ *
+ * A body with no `events` array yields exactly one ref at index 0, which is
+ * what a single-event delivery has always been.
+ */
+export function readResourceRefs(payload: unknown, eventType: string): ResourceRef[] {
+  const envelope =
     payload && typeof payload === 'object' && !Array.isArray(payload)
       ? (payload as Record<string, unknown>)
       : {};
 
-  // DESCEND INTO A BATCH. The receiver deliberately accepts the provider's
-  // `{ timestamp, events: [...] }` shape (see tango-webhook.service.ts), but
-  // this function only ever looked at the top level and `data`. A batch
-  // delivery therefore resolved to `externalId: null`, which the processor
-  // treats as a legitimate no-op and marks DONE — so the delivery was accepted
-  // with a 202, queued, and silently discarded. No alert, no error, no
-  // quarantine. Accepting a shape at one layer and dropping it at the next is
-  // worse than rejecting it outright.
-  const events = body.events;
-  const firstEvent =
-    Array.isArray(events) &&
-    events.length > 0 &&
-    typeof events[0] === 'object' &&
-    events[0] !== null &&
-    !Array.isArray(events[0])
-      ? (events[0] as Record<string, unknown>)
-      : null;
+  const events = envelope.events;
+  const eventList: Record<string, unknown>[] = Array.isArray(events)
+    ? events.filter(
+        (e): e is Record<string, unknown> =>
+          typeof e === 'object' && e !== null && !Array.isArray(e),
+      )
+    : [];
 
-  const envelope =
-    body.data && typeof body.data === 'object' && !Array.isArray(body.data)
-      ? (body.data as Record<string, unknown>)
-      : body;
+  const outer =
+    envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data)
+      ? (envelope.data as Record<string, unknown>)
+      : envelope;
 
-  // Top level wins where it states an id; the first event fills the gap.
-  const data = firstEvent ? { ...firstEvent, ...envelope } : envelope;
+  const ID_KEYS = ['opportunity_id', 'opportunityId', 'resource_id', 'id', 'external_id'];
+  const TYPE_KEYS = ['event_type', 'eventType'];
 
-  // Prefer the EVENT's own type when the envelope carries none — a batch names
-  // its type per event, not on the wrapper.
-  const typeSource =
-    eventType ||
-    (typeof firstEvent?.event_type === 'string' ? firstEvent.event_type : '') ||
-    (typeof firstEvent?.eventType === 'string' ? firstEvent.eventType : '');
+  const classify = (source: Record<string, unknown>): string => {
+    const stated =
+      eventType ||
+      TYPE_KEYS.map((k) => (typeof source[k] === 'string' ? (source[k] as string) : '')).find(
+        Boolean,
+      ) ||
+      '';
+    if (stated.includes('forecast')) return 'forecast';
+    if (stated.includes('entity')) return 'entity';
+    return 'opportunity';
+  };
 
-  const resourceType = typeSource.includes('forecast')
-    ? 'forecast'
-    : typeSource.includes('entity')
-      ? 'entity'
-      : 'opportunity';
-
-  for (const key of ['opportunity_id', 'opportunityId', 'resource_id', 'id', 'external_id']) {
-    const value = data[key];
-    if (typeof value === 'string' && value.trim() !== '') {
-      return { resourceType, externalId: value.trim() };
+  const idFrom = (source: Record<string, unknown>): string | null => {
+    for (const key of ID_KEYS) {
+      const value = source[key];
+      if (typeof value === 'string' && value.trim() !== '') return value.trim();
     }
+    return null;
+  };
+
+  if (eventList.length === 0) {
+    return [{ eventIndex: 0, resourceType: classify(outer), externalId: idFrom(outer) }];
   }
-  return { resourceType, externalId: null };
+
+  // Each event supplies its own id and type; the envelope fills only what the
+  // event omits. A batch names its type per event, not on the wrapper.
+  return eventList.map((event, eventIndex) => {
+    const merged = { ...outer, ...event };
+    return {
+      eventIndex,
+      resourceType: classify(merged),
+      externalId: idFrom(merged),
+    };
+  });
 }
 
 /**
@@ -212,11 +239,14 @@ function withSystem<T>(
 
 /** Prisma-backed port. Mirrors `opportunity-timeline.service.ts`'s own mapping. */
 function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
+  /** Alerts this DRY RUN has already counted as new. Never used when committing. */
+  const plannedInThisRun = new Set<string>();
+
   return {
     claimBatch: async (limit, leaseSeconds) => {
       if (!commit) {
         const rows = await prisma.$queryRaw<OutboxRow[]>`
-          SELECT "id", "delivery_id" AS "deliveryId", "event_type" AS "eventType",
+          SELECT "id", "delivery_id" AS "deliveryId", "event_index" AS "eventIndex", "event_type" AS "eventType",
                  "resource_type" AS "resourceType", "external_id" AS "externalId", "attempts"
           FROM "tango_event_outbox"
           WHERE "status" = 'pending'
@@ -256,7 +286,7 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
             "updated_at" = now()
         FROM claimed
         WHERE o."id" = claimed."id"
-        RETURNING o."id", o."delivery_id" AS "deliveryId", o."event_type" AS "eventType",
+        RETURNING o."id", o."delivery_id" AS "deliveryId", o."event_index" AS "eventIndex", "event_index" AS "eventIndex", o."event_type" AS "eventType",
                   o."resource_type" AS "resourceType", o."external_id" AS "externalId", o."attempts"
       `;
     },
@@ -348,11 +378,22 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
      */
     insertAlertIfNew: async (alert: AlertToWrite): Promise<boolean> => {
       if (!commit) {
-        // Ask whether it WOULD be new, rather than assuming it would. The first
-        // version returned true unconditionally, so a dry run reported every
-        // alert as newly written and alertsDeduped was always 0 — inflating the
-        // exact numbers an operator uses to decide whether to commit, and
-        // breaking the two-quiet-passes check the canary depends on.
+        // Ask whether it WOULD be new, rather than assuming it would.
+        //
+        // Two things count as "already there": a row persisted by an earlier
+        // run, and a row THIS run would already have written. The first version
+        // returned true unconditionally; the second checked only the database,
+        // so a dry run over a history containing the same change twice still
+        // reported both as new. Both inflate the numbers an operator uses to
+        // decide whether to commit, and both break the canary's two-quiet-
+        // passes check.
+        const key = [
+          alert.tenantId,
+          alert.clientId,
+          alert.sourceRecordKey,
+          alert.changeFingerprint,
+        ].join('|');
+        if (plannedInThisRun.has(key)) return false;
         const existing = await withSystem(
           prisma,
           (tx) => tx.$queryRaw<{ n: bigint }[]>`
@@ -363,7 +404,9 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
             AND "change_fingerprint" = ${alert.changeFingerprint}
         `,
         );
-        return Number(existing[0]?.n ?? 0) === 0;
+        const wouldBeNew = Number(existing[0]?.n ?? 0) === 0;
+        if (wouldBeNew) plannedInThisRun.add(key);
+        return wouldBeNew;
       }
       const inserted = await withSystem(
         prisma,
