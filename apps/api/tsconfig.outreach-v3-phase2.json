@@ -10,7 +10,8 @@
     "src/capabilities/capability-authorization.service.ts",
     "src/capabilities/capabilities.module.ts",
     "src/engagement-api.app.module.ts",
-    "scripts/outreach-v3-phase2-flow-rehearsal.ts"
+    "scripts/outreach-v3-phase2-flow-rehearsal.ts",
+    "scripts/outreach-v3-phase2-delete-protection-rehearsal.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
