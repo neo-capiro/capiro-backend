@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -181,7 +181,7 @@ jobs:
             20260810020000_funding_opportunities_closeout \
             20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk \
             20260904010000_outcome_event_funding_opportunity \
-            20260905010000_tango_webhook_deliveries
+            20260905010000_tango_webhook_deliveries \n            20260906010000_tango_event_outbox
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -679,6 +679,29 @@ jobs:
 
           # No FK, same reason as P45's ledgers: the record that a delivery
           # arrived must outlive whatever row it later resolves to.
+          # -- P48: event outbox and quiet alerts -------------------------------
+          # The outbox is GLOBAL work; the alert is TENANT truth. If that split
+          # ever collapses, one of these two blocks fails.
+          check "outbox has NO tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='tenant_id'"             "0"
+          check "outbox RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_outbox'"             "f"
+          check "one queue row per delivery"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "1"
+          check "outbox status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_status_chk'"             "1"
+          check "completed_at agrees with outbox status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_completed_chk'"             "1"
+
+          # The alert table is the one place in this phase that holds tenant
+          # data, so it carries the full four-policy FORCE RLS treatment.
+          check "alert HAS tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_alert' AND column_name='tenant_id'"             "1"
+          check "alert RLS is ENABLED"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_alert'"             "t"
+          check "alert RLS is FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='tango_event_alert'"             "t"
+          check "alert has FOUR tenant policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_event_alert'"             "4"
+
+          # THE quiet guarantee: replay and out-of-order delivery produce one
+          # result, and only a unique index can promise that under concurrency.
+          check "alert dedupe index is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_alert_dedupe_uniq' AND indexdef LIKE '%UNIQUE%'"             "1"
+          check "alert fingerprint shape CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_fingerprint_chk'"             "1"
+          check "alert severity vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_severity_chk'"             "1"
+          check "alert stage vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_stage_chk'"             "1"
+
           check "delivery has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_webhook_delivery'::regclass AND contype='f'"             "0"
 
           exit $fail
@@ -777,6 +800,7 @@ jobs:
           scripts/sync-tango-opportunity-attachments.spec.ts
           scripts/sync-tango-opportunity-text.spec.ts
           scripts/reconcile-tango-webhook-alerts.spec.ts
+          scripts/process-tango-events.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -1673,9 +1697,26 @@ jobs:
       #     the shipped desired filters for tenant/client/uei/cage/duns, because
       #     fan-out belongs in Capiro and a per-client filter would leak the
       #     client roster into the provider's system.
+      # 74/2316 -> 76/2394 after P48 (event fan-out and quiet alerts): two NEW
+      # suites, tango-event-processor.spec.ts (57) and process-tango-events
+      # .spec.ts (20), plus one row on the entrypoint dispatcher table.
+      # Measured: 76 suites / 2394 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The assertions that encode this phase's promises:
+      #   - "REPLAY produces one result" and "OUT-OF-ORDER delivery produces one
+      #     result" — the two failure modes an at-least-once sender guarantees.
+      #     Both rely on the change fingerprint EXCLUDING the delivery id.
+      #   - "a POISON event is retried, then quarantined, and NEVER blocks the
+      #     queue" asserts the healthy row BEHIND the poison one still completed.
+      #   - "fans out to several tenants, and each alert carries ONLY its own"
+      #     plus the migration rehearsal's FORCE-RLS block are the two halves of
+      #     "cross-tenant fan-out impossible" — code and database.
+      #   - "SUGGESTED maps to no stage" is the quiet guarantee that matters
+      #     most in practice: `suggested` is the column DEFAULT, so alerting on
+      #     it would mean alerting on the producer's entire backlog.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 74 2316
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 76 2394
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
