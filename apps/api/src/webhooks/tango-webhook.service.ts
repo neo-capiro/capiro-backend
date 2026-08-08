@@ -195,10 +195,40 @@ export function readEnvelope(
   deliveryHeader: string | undefined,
   providerEventAt: Date | null,
 ): TangoEnvelopeResult {
-  const body: Record<string, unknown> =
+  const envelope: Record<string, unknown> =
     typeof payload === 'object' && payload !== null && !Array.isArray(payload)
       ? (payload as Record<string, unknown>)
       : {};
+
+  // THE DELIVERY MAY BE A BATCH. The provider's own SDK models a sample
+  // delivery as `{ timestamp, events: [...] }` — an ARRAY of events, not one
+  // event at the top level (`WebhookSampleDelivery` in @makegov/tango-node).
+  //
+  // P46 originally read event fields from the top level only, which would have
+  // rejected a real batch delivery as `missing_event_type`: authenticated,
+  // recorded nowhere, and answered 400 so the provider would never retry it.
+  // That is the worst possible failure for this receiver.
+  //
+  // So: if the body carries an `events` array, the FIRST event supplies the
+  // envelope fields. The whole payload is still stored, so P47/P48 see every
+  // event; this only decides which one names the delivery. Confirm the real
+  // shape with `diag-tango-webhook-contract` before going live — the batch
+  // form comes from the SDK's model, which is strong evidence but not a
+  // live observation.
+  const events = envelope.events;
+  const firstEvent =
+    Array.isArray(events) &&
+    events.length > 0 &&
+    typeof events[0] === 'object' &&
+    events[0] !== null &&
+    !Array.isArray(events[0])
+      ? (events[0] as Record<string, unknown>)
+      : null;
+
+  // Top level wins when it states a field; the first event fills the gaps.
+  const body: Record<string, unknown> = firstEvent
+    ? { ...firstEvent, ...stripUndefined(envelope) }
+    : envelope;
 
   const deliveryId = firstNonEmptyString([
     deliveryHeader,
@@ -226,6 +256,15 @@ export function readEnvelope(
     ok: true,
     envelope: { deliveryId, eventType, eventId, providerEventAt: resolvedEventAt },
   };
+}
+
+/** Drop keys whose value is undefined, so a spread cannot blank a real value. */
+function stripUndefined(o: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (v !== undefined && v !== null && k !== 'events') out[k] = v;
+  }
+  return out;
 }
 
 function firstNonEmptyString(candidates: unknown[]): string | null {

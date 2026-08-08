@@ -25,6 +25,7 @@ describe('Funding Opportunities container commands', () => {
     // P49. Read-only, but still argument-forwarding: --tenant and
     // --window-days change what a canary reviewer is actually looking at.
     ['diag-funding-opportunities-makegov', 'diag-funding-opportunities-makegov.ts'],
+    ['diag-tango-webhook-contract', 'diag-tango-webhook-contract.ts'],
   ])('%s dispatches to %s and forwards all arguments', (verb, script) => {
     if (verb === 'sync-sam-opportunities-all-federal') {
       expect(dispatcher).toContain(

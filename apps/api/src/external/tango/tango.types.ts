@@ -420,6 +420,32 @@ export interface TangoGateway {
   // the reconciler is required to classify that outcome rather than retry it.
   createWebhookAlert(input: TangoWebhookAlertInput): Promise<TangoWebhookAlert>;
   deleteWebhookAlert(alertId: string): Promise<void>;
+
+  /**
+   * The provider's own SAMPLE delivery, and the header name it signs with.
+   *
+   * READ-ONLY and the cheapest possible way to check an assumption that is
+   * otherwise only checkable by registering a live endpoint and waiting: P46's
+   * receiver takes its signature header name and its envelope key names from
+   * the PLAN DOCUMENT, not from anything the provider confirmed. This is how
+   * that gets verified before an endpoint exists.
+   */
+  getWebhookSamplePayload(eventType?: string): Promise<TangoWebhookSample>;
+}
+
+/** What the provider says a delivery looks like, and how it signs it. */
+export interface TangoWebhookSample {
+  /** The header the provider actually signs with, verbatim. */
+  signatureHeader: string;
+  /** Event types the sample covers. */
+  eventTypes: string[];
+  /** Top-level keys of one sample delivery body. */
+  envelopeKeys: string[];
+  /** True when the body wraps events in an `events` ARRAY rather than being one event. */
+  isBatchEnvelope: boolean;
+  /** Keys of the first event inside the envelope, when there is one. */
+  eventKeys: string[];
+  note: string | null;
 }
 
 /** One provider event type Capiro may subscribe to. */

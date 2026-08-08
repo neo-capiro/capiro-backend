@@ -273,6 +273,87 @@ describe('readEnvelope', () => {
   });
 });
 
+describe('readEnvelope — BATCH deliveries', () => {
+  // The provider's own SDK models a sample delivery as
+  // `{ timestamp, events: [...] }` (WebhookSampleDelivery in
+  // @makegov/tango-node). P46 originally read only the top level, so a real
+  // batch delivery would have been rejected `missing_event_type` —
+  // authenticated, stored nowhere, answered 400 so the provider never retries.
+  // That is the worst failure this receiver has.
+
+  it('reads the envelope from the FIRST event of a batch', () => {
+    const result = readEnvelope(
+      {
+        timestamp: '2026-08-08T00:00:00Z',
+        events: [
+          { delivery_id: 'dlv-batch', event_type: 'opportunity.updated', event_id: 'e1' },
+          { delivery_id: 'other', event_type: 'forecast.published' },
+        ],
+      },
+      undefined,
+      null,
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      envelope: { deliveryId: 'dlv-batch', eventType: 'opportunity.updated', eventId: 'e1' },
+    });
+  });
+
+  it('lets a TOP-LEVEL field win over the event that supplied the gap', () => {
+    const result = readEnvelope(
+      {
+        delivery_id: 'from-envelope',
+        events: [{ delivery_id: 'from-event', event_type: 'opportunity.updated' }],
+      },
+      undefined,
+      null,
+    );
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
+      'from-envelope',
+    );
+  });
+
+  it('still prefers the delivery HEADER over both', () => {
+    const result = readEnvelope(
+      { events: [{ delivery_id: 'from-event', event_type: 'x' }] },
+      'from-header',
+      null,
+    );
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
+      'from-header',
+    );
+  });
+
+  it('an EMPTY events array falls back to the top level rather than throwing', () => {
+    expect(
+      readEnvelope({ events: [], delivery_id: 'd', event_type: 'e' }, undefined, null),
+    ).toMatchObject({ ok: true, envelope: { deliveryId: 'd', eventType: 'e' } });
+  });
+
+  it('a non-object inside events is ignored, not spread', () => {
+    expect(
+      readEnvelope({ events: ['nope'], delivery_id: 'd', event_type: 'e' }, undefined, null),
+    ).toMatchObject({ ok: true });
+  });
+
+  it('the `events` key itself never leaks into the envelope fields', () => {
+    // stripUndefined drops it, so an array can never be read as a delivery id.
+    const result = readEnvelope(
+      { events: [{ delivery_id: 'd', event_type: 'e' }] },
+      undefined,
+      null,
+    );
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('d');
+  });
+
+  it('a batch with no usable event still fails CLOSED', () => {
+    expect(readEnvelope({ events: [{ nothing: true }] }, undefined, null)).toEqual({
+      ok: false,
+      rejection: 'missing_delivery_id',
+    });
+  });
+});
+
 describe('TangoWebhookService.receive', () => {
   const payload = { delivery_id: 'dlv-1', event_type: 'opportunity.updated', event_id: 'evt-1' };
   const body = Buffer.from(JSON.stringify(payload));
