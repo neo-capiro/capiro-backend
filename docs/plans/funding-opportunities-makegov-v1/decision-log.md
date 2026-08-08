@@ -2118,13 +2118,19 @@ installed. `main` itself could not be used: `git worktree add` cannot check out 
 already holds, and `C:\dev\capiro-outreach-clamp-wt` holds `main`. Launcher and runner are now vendored at
 `operator/`, so the next correction lands in version control instead of on one machine.
 
-**One follow-up, so this fix does not become its own finding.** Vendoring creates a second copy: the
-machine-local `C:\dev\p17.cmd` and `~\OneDrive\Documents\Claude\run-p17-probe.ps1` still exist and were
-fixed in place on 2026-08-08 (ceiling 25, timestamped report, DIBBS guard). Two copies of a script is
-exactly the drift this entry is about. Once this lands, retire the local pair — either delete them and run
-`operator/p17.cmd` from a checkout, or reduce `C:\dev\p17.cmd` to a one-line shortcut that invokes the
-vendored runner with `-RepoPath C:\dev\capiro-p17-wt`. It was left working rather than broken in the
-meantime, because `C:\dev\capiro-p17-wt` sits at `094daf1d` and does not yet contain `operator/`.
+**The duplicate copies are retired — done, not pending.** Vendoring briefly created a second copy of the
+runner, which is the drift this entry is about, so it was closed out in the same session #860 merged:
+
+- `~\OneDrive\Documents\Claude\run-p17-probe.ps1` — **deleted.** The vendored `operator/run-p17-probe.ps1`
+  supersedes it. A stale, unreferenced copy of credential-handling logic is worse than no copy.
+- `C:\dev\p17.cmd` — **rewritten as a shortcut with no logic of its own.** It resolves
+  `operator/run-p17-probe.ps1` inside `C:\dev\capiro-p17-wt` and passes `-RepoPath`. Its one guard covers a
+  missing runner; every real guard lives in the versioned script. Its header says why it is empty.
+- `C:\dev\capiro-p17-wt` — moved to a detached checkout of `552df2a1`, so it contains `operator/`. #860 was
+  docs-only, so the lockfile did not move and the existing `node_modules` stayed valid.
+
+There is now exactly one copy of the logic, and it is this one. A change made here reaches the operator;
+that was not true before #860.
 
 **Not resolved, and not an agent's to resolve:** the Tango API key was pasted into a chat transcript on
 2026-08-08 and still needs rotating in Secrets Manager. Until it is, a probe run may report an
