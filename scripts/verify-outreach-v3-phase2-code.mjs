@@ -9,6 +9,12 @@ const DUMMY_DATABASE_URL = 'postgresql://phase2:phase2@127.0.0.1:1/phase2?schema
 
 const steps = [
   [
+    'Canonical API Prisma client generation',
+    'pnpm',
+    ['-C', 'apps/api', 'exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'],
+    { DATABASE_URL: DUMMY_DATABASE_URL },
+  ],
+  [
     'Phase 2 focused state/service/architecture tests',
     'pnpm',
     [
