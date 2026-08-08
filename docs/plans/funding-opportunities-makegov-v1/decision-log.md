@@ -1903,3 +1903,43 @@ why the plan asks for a human.
 
 No phase in P00–P51 has been read by a human other than its author. That remains true, and five agent
 rounds on one feature does not change it for that feature, let alone the other 46 phases.
+
+## D-62 · 2026-08-08 · CORRECTION: P40–P43 were never blocked on the provider
+
+**This entry corrects a claim this program recorded in at least five places and repeated for a day.**
+
+The completion matrix, this log, P17's capability report, the P46–P51 handoff, and the project closeout
+all stated that DIBBS and SBIR/STTR have **no API surface**, and that P40/P42 were `blocked` on MakeGov
+shipping one — with the explicit note that this was "not a scheduling choice."
+
+What was actually verified was narrower: `@makegov/tango-node@1.1.0` exposes no DIBBS or SBIR method. That
+is true, and was re-confirmed on 2026-08-08 by a full-text scan of the installed package finding zero
+occurrences of dibbs/sbir/sttr anywhere in it.
+
+**"Not wrapped by the SDK" was then written down as "does not exist."** Both datasets have a fully
+documented REST API — `/api/dibbs/rfqs/`, `/api/dibbs/rfps/`, `/api/dibbs/awards/`, `/api/sbir/topics/`,
+`/api/sbir/solicitations/` — published at docs.makegov.com. The contract is transcribed into
+`dibbs-sbir-rest-contract.md`.
+
+The failure is worth naming precisely, because "verify your claims" is too general to be useful here. The
+SDK scan was rigorous, repeated, and correct. **A negative finding carries the scope of the instrument
+that produced it** — an SDK scan can only establish an SDK fact. Promoting it to a provider fact required
+an assumption that was never written down, and therefore never checked. It survived five independent
+review rounds because every one of those reviews was scoped to the event-drain code; nobody was ever asked
+to review the blocked-status claim, and a blocker is exactly the kind of conclusion that stops attracting
+scrutiny once recorded.
+
+Two things that do NOT change:
+
+1. **The entitlement gate stands.** The plan's "API key: Required; P17 must show access" is unaffected —
+   endpoints existing says nothing about whether Capiro's plan is entitled to them, which is what P17's
+   probe was for and which only a real call with a real key can answer.
+2. **The prohibition on guessing stands.** D-35, D-41, D-42 and D-45 forbid writing a sync against an
+   endpoint shape nobody has confirmed. That is why the contract document marks every field type, null
+   semantic, date format, and the pagination envelope as UNCONFIRMED: the docs give field names, not
+   types, and P40's own acceptance requires "quantity/unit/money null semantics pass." Mappers built from
+   this document are provisional until one live response validates them.
+
+What genuinely changes: P40–P43 move from `blocked` to `buildable, unverified`. Schema, migrations,
+mappers, sync scripts, fixtures, tests, dispatcher verbs and disabled schedules can all be written now.
+Only the entitlement probe and live sync still need a key.
