@@ -9,7 +9,8 @@
     "src/outreach-v3/**/*.ts",
     "src/capabilities/capability-authorization.service.ts",
     "src/capabilities/capabilities.module.ts",
-    "src/engagement-api.app.module.ts"
+    "src/engagement-api.app.module.ts",
+    "scripts/outreach-v3-phase2-flow-rehearsal.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
