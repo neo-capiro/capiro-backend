@@ -231,7 +231,7 @@ three handoffs cite this table.
 
 | Blocked item | Blocked on |
 |---|---|
-| ~~Merging **PR #846** (event-drain fixes D-56/D-57/D-59)~~ | **UNBLOCKED — #846 merged 2026-08-08 14:20 UTC.** There are now zero open PRs in the repo |
+| ~~Merging **PR #846** (event-drain fixes D-56/D-57/D-59)~~ | **UNBLOCKED — #846 merged 2026-08-08 14:20 UTC.** No PR belonging to this program is open. (An earlier version of this cell said "zero open PRs in the repo", which was simply false — 34 are open repo-wide, none of them `agent/fo-*`. Corrected rather than deleted: the useful claim is the scoped one, and a program doc should not assert repo-wide facts it did not check.) |
 | Applying `20260907010000_tango_event_outbox_per_event` to `capiro-dev` | **No longer blocked on #846** (merged), so this is now an actionable apply step rather than a dependency. It shares the hazard in P40's Deploy cell: applying it registers a migrate revision, which is a de facto deploy of 16 unpinned scheduled jobs |
 | Registering the webhook endpoint + provisioning `tango-webhook-secret` | Neo, MakeGov console |
 | Resolving the webhook write tier | one deliberate `--commit` run, or MakeGov confirming |
