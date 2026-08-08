@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { CapabilitiesModule } from '../../capabilities/capabilities.module.js';
+import { OutreachAuditedStateRepository } from '../persistence/outreach-audited-state.repository.js';
 import { OutreachStateRepository } from '../persistence/outreach-state.repository.js';
 import { OutreachSessionService } from '../services/outreach-session.service.js';
 import { OutreachCommandEngineService } from '../services/outreach-command-engine.service.js';
@@ -13,7 +14,11 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
   imports: [PrismaModule, CapabilitiesModule],
   controllers: [OutreachV3StateController],
   providers: [
-    OutreachStateRepository,
+    OutreachAuditedStateRepository,
+    {
+      provide: OutreachStateRepository,
+      useExisting: OutreachAuditedStateRepository,
+    },
     OutreachSessionService,
     OutreachCommandEngineService,
     OutreachCommandProposalService,
