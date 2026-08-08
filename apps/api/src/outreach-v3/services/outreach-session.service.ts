@@ -96,6 +96,13 @@ export class OutreachSessionService {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
       await this.repository.archiveSession(tx, ctx, session);
+      await tx.$executeRaw`
+        UPDATE outreach_command_proposals
+        SET status = 'superseded', decided_at = NOW(), rejection_code = 'session_archived'
+        WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
+          AND session_id = CAST(${session.id} AS uuid)
+          AND status = 'pending'
+      `;
       return {
         id: session.id,
         status: 'archived' as const,
