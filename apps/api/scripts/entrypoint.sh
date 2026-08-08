@@ -99,7 +99,21 @@ case "${1:-serve}" in
   # (docs/defense-budget/PHASE-7-PRE-IMPLEMENTATION-DEPENDENCY-MAP.md §4). Only
   # two of the plan's eight promotion verbs are wired as of session 7 —
   # plan/validate/authorize/execute/compare/rollback are not yet built; see the
-  # session-7 handoff for the exact construction pattern to follow.
+  # session-7 handoff for the exact construction pattern to follow. As of
+  # session 8, plan/validate are wired too — authorize/execute/compare/rollback
+  # remain unbuilt.
+  plan-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running plan-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/plan-defense-budget-promotion-v1.ts "$@"
+    ;;
+  validate-defense-budget-promotion-v1)
+    shift
+    compose_database_url
+    echo "Running validate-defense-budget-promotion-v1 (READ-ONLY; no write statement issued)"
+    exec ./node_modules/.bin/tsx scripts/validate-defense-budget-promotion-v1.ts "$@"
+    ;;
   status-defense-budget-promotion-v1)
     shift
     compose_database_url

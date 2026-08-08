@@ -140,6 +140,20 @@ describe('resolver — procurement short-code namespace', () => {
     expect(binding.status).not.toBe('accepted');
   });
 
+  it('requires the account namespace even when one entry alone shares the code', () => {
+    // The bare-short-code case above is only rejected because several fixtures
+    // collide on code '12'. A lone index entry must be rejected for the same
+    // reason — the short line number carries no account or base/AP namespace,
+    // so widening the context match to code-only would bind it at confidence 1.
+    const binding = resolveBudgetLineReferenceV1(
+      { referenceKind: 'procurement_line', lineCode: '12' },
+      contextWith([{ identity: PROCUREMENT_ADVANCE, manifestDocumentKey: 'fy2026-p1' }]),
+    );
+    expect(binding.status).not.toBe('accepted');
+    expect(binding.basis).not.toBe('code_plus_unique_context');
+    expect(bindingMachinePassAllowed(binding)).toBe(false);
+  });
+
   it('binds exact code + account + component + base flag', () => {
     const binding = resolveBudgetLineReferenceV1(
       {
