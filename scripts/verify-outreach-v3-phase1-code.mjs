@@ -26,6 +26,7 @@ const steps = [
       'src/engagement/engagement-dependency-manifest.spec.ts',
       'src/engagement/ai-credential-resolver.service.spec.ts',
       'src/engagement/internal-ai-credentials.controller.spec.ts',
+      'src/client-documents/client-document-writer.service.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
       'src/capabilities/capability-registry.spec.ts',
       'src/capabilities/proof-capabilities.spec.ts',
