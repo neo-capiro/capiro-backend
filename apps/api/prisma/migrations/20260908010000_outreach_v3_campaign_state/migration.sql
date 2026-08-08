@@ -170,6 +170,26 @@ BEGIN
 END;
 $$;
 
+-- Sessions and proposals have legitimate UPDATE transitions, but ordinary DELETE
+-- is never a product operation. This trigger is binding even when the runtime
+-- role inherits table-owner privileges, where a plain REVOKE alone is not.
+CREATE OR REPLACE FUNCTION reject_outreach_v3_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF current_setting('app.allow_audit_purge', true) = 'on' THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION '% is delete-protected; archive/decide it instead', TG_TABLE_NAME
+    USING ERRCODE = '55000';
+END;
+$$;
+
+CREATE TRIGGER "outreach_sessions_delete_protected"
+  BEFORE DELETE ON "outreach_sessions"
+  FOR EACH ROW EXECUTE FUNCTION reject_outreach_v3_delete();
+
 CREATE TRIGGER "outreach_state_versions_append_only"
   BEFORE UPDATE OR DELETE ON "outreach_state_versions"
   FOR EACH ROW EXECUTE FUNCTION reject_outreach_v3_history_mutation();
@@ -177,6 +197,10 @@ CREATE TRIGGER "outreach_state_versions_append_only"
 CREATE TRIGGER "outreach_events_append_only"
   BEFORE UPDATE OR DELETE ON "outreach_events"
   FOR EACH ROW EXECUTE FUNCTION reject_outreach_v3_history_mutation();
+
+CREATE TRIGGER "outreach_command_proposals_delete_protected"
+  BEFORE DELETE ON "outreach_command_proposals"
+  FOR EACH ROW EXECUTE FUNCTION reject_outreach_v3_delete();
 
 -- Proposal content is immutable once created, and terminal decisions cannot be
 -- rewritten. This is defense in depth around the service's explicit Apply/Reject
@@ -239,7 +263,8 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
     -- Earlier repo migrations grant broad default table privileges to capiro_app;
     -- revoke the verbs this substrate never needs rather than assuming narrower
-    -- GRANT statements override those defaults.
+    -- GRANT statements override those defaults. Trigger enforcement remains the
+    -- binding control where capiro_app inherits table-owner capabilities.
     GRANT SELECT, INSERT, UPDATE ON "outreach_sessions" TO capiro_app;
     REVOKE DELETE ON "outreach_sessions" FROM capiro_app;
 
