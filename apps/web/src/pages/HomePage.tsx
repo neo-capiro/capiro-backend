@@ -92,6 +92,7 @@ interface NewsDashboardItem {
   title: string;
   source: string;
   url: string;
+  imageUrl: string | null;
   publishedAt: string;
   clientMatches: Array<{ id: string; name: string }>;
   topics: string[];
@@ -255,6 +256,14 @@ export function HomePage() {
         someSourcesUnavailable={recentChanges.isError || portfolioAlerts.isError}
       />
 
+      {visibility.news ? (
+        <NewsAndNarrative
+          data={news.data}
+          loading={news.isLoading}
+          isError={news.isError}
+        />
+      ) : null}
+
       {visibleGridModules > 0 ? (
         <div
           className="home-grid-2"
@@ -276,14 +285,6 @@ export function HomePage() {
             />
           ) : null}
         </div>
-      ) : null}
-
-      {visibility.news ? (
-        <NewsAndNarrative
-          data={news.data}
-          loading={news.isLoading}
-          isError={news.isError}
-        />
       ) : null}
     </section>
   );
@@ -1227,7 +1228,7 @@ function WorkQueue({
   );
 }
 
-/* ── News & Narrative: NewsCatcher entity/watchlist MVP ───────────────── */
+/* ── News & Narrative: NewsCatcher client-relevance feed ───────────────── */
 
 function NewsAndNarrative({
   data,
@@ -1274,6 +1275,20 @@ function NewsAndNarrative({
               target="_blank"
               rel="noreferrer"
             >
+              <span className="home-news-thumb" aria-hidden>
+                <span className="home-news-thumb-fallback">{sourceInitials(item.source)}</span>
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : null}
+              </span>
               <div className="home-news-main">
                 <span className="home-news-title">{item.title}</span>
                 <span className="home-news-meta">
@@ -1304,6 +1319,20 @@ function NewsAndNarrative({
       ) : null}
     </div>
   );
+}
+
+function sourceInitials(source: string): string {
+  const parts = source
+    .replace(/\.[a-z]{2,}$/i, '')
+    .split(/[\s._-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0] ?? '')
+    .join('')
+    .toUpperCase();
+  return initials || 'N';
 }
 
 function newsUnavailableMessage(reason: NewsDashboardResponse['reason']): string {

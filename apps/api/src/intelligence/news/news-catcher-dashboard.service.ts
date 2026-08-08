@@ -70,6 +70,7 @@ interface RawNewsArticle {
   _id?: unknown;
   title?: unknown;
   link?: unknown;
+  media?: unknown;
   name_source?: unknown;
   domain_url?: unknown;
   published_date?: unknown;
@@ -99,6 +100,7 @@ export interface NewsDashboardItem {
   title: string;
   source: string;
   url: string;
+  imageUrl: string | null;
   publishedAt: string;
   clientMatches: Array<{ id: string; name: string }>;
   topics: string[];
@@ -539,6 +541,8 @@ function normalizeArticle(
   const url = asNonEmptyString(article.link);
   if (!title || !url || !isHttpUrl(url)) return null;
 
+  const media = asNonEmptyString(article.media);
+  const imageUrl = media && isHttpUrl(media) ? media : null;
   const nlp = asRecord(article.nlp);
   const summary = asNonEmptyString(nlp?.summary) ?? '';
   const description = asNonEmptyString(article.description) ?? '';
@@ -574,6 +578,7 @@ function normalizeArticle(
       hostname(asNonEmptyString(article.domain_url) ?? url) ??
       'News source',
     url,
+    imageUrl,
     publishedAt: toIsoDate(asNonEmptyString(article.published_date)),
     clientMatches: topMatches.map(({ client }) => ({ id: client.id, name: client.name })),
     topics,
@@ -662,6 +667,7 @@ function stripInternalScore(item: ScoredNewsDashboardItem): NewsDashboardItem {
     title: item.title,
     source: item.source,
     url: item.url,
+    imageUrl: item.imageUrl,
     publishedAt: item.publishedAt,
     clientMatches: item.clientMatches,
     topics: item.topics,
