@@ -23,6 +23,22 @@ export class CapabilityAuthorizationService {
     ctx: AuthorizedCapabilityContext,
     clientId: string,
   ): Promise<AuthorizedClientSummary> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
+      this.authorizeClientWithinTx(tx, ctx, clientId),
+    );
+  }
+
+  /**
+   * Same tenant/client/ethical-wall authorization as authorizeClient(), but on
+   * a transaction the caller already owns. Phase 2 needs this so reference
+   * authorization, expected-version locking and state persistence are one
+   * atomic decision boundary instead of a nested preflight transaction.
+   */
+  async authorizeClientWithinTx(
+    tx: Prisma.TransactionClient,
+    ctx: AuthorizedCapabilityContext,
+    clientId: string,
+  ): Promise<AuthorizedClientSummary> {
     if (ctx.clientScope && ctx.clientScope.clientId !== clientId) {
       throw new CapabilityError(
         'CAPABILITY_INVALID_SCOPE',
@@ -32,35 +48,33 @@ export class CapabilityAuthorizationService {
       );
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId },
-        select: {
-          id: true,
-          name: true,
-          website: true,
-          description: true,
-          sectorTag: true,
-          status: true,
-          updatedAt: true,
-        },
-      });
-      if (!client) {
-        throw new CapabilityError('CAPABILITY_NOT_FOUND', 'The requested record was not found.');
-      }
-      const allowed = await clientMemoryAllowed(
-        tx as Prisma.TransactionClient,
-        ctx.tenantId,
-        ctx.actorUserId,
-        clientId,
-      );
-      if (!allowed) {
-        throw new CapabilityError(
-          'CAPABILITY_ETHICAL_WALL',
-          'The requested client context is restricted by an ethical wall.',
-        );
-      }
-      return client;
+    const client = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId },
+      select: {
+        id: true,
+        name: true,
+        website: true,
+        description: true,
+        sectorTag: true,
+        status: true,
+        updatedAt: true,
+      },
     });
+    if (!client) {
+      throw new CapabilityError('CAPABILITY_NOT_FOUND', 'The requested record was not found.');
+    }
+    const allowed = await clientMemoryAllowed(
+      tx,
+      ctx.tenantId,
+      ctx.actorUserId,
+      clientId,
+    );
+    if (!allowed) {
+      throw new CapabilityError(
+        'CAPABILITY_ETHICAL_WALL',
+        'The requested client context is restricted by an ethical wall.',
+      );
+    }
+    return client;
   }
 }
