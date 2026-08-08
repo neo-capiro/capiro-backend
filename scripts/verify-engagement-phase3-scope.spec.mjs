@@ -16,6 +16,17 @@ test('accepts additive Phase 3 web/test/docs work with shadow runtime unchanged'
   );
 });
 
+test('accepts the reviewed test-only runtime ownership fixture', () => {
+  assert.deepEqual(
+    scopeIssues({
+      changed: ['infra/cdk/fixtures/engagement-runtime-ownership.v1.json'],
+      addedSource: '',
+      counts: greenCounts,
+    }),
+    [],
+  );
+});
+
 test('negative control: migration fails', () => {
   assert.match(
     scopeIssues({ changed: ['apps/api/prisma/migrations/20990101000000_bad/migration.sql'], addedSource: '', counts: greenCounts }).join('\n'),
@@ -23,10 +34,17 @@ test('negative control: migration fails', () => {
   );
 });
 
-test('negative control: infrastructure mutation fails', () => {
+test('negative control: infrastructure source mutation fails', () => {
   assert.match(
     scopeIssues({ changed: ['infra/cdk/lib/compute-stack.ts'], addedSource: '', counts: greenCounts }).join('\n'),
     /infrastructure|Compute/,
+  );
+});
+
+test('negative control: an unreviewed infrastructure fixture fails', () => {
+  assert.match(
+    scopeIssues({ changed: ['infra/cdk/fixtures/unreviewed.json'], addedSource: '', counts: greenCounts }).join('\n'),
+    /infrastructure/,
   );
 });
 
