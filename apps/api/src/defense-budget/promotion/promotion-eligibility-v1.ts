@@ -26,9 +26,24 @@ import {
   sha256Schema,
   type ExtractionMethodV1,
 } from '../contracts/extraction-artifact-v1.js';
+import { familyRequiresStageSourceProfileV1 } from '../stages/stage-source-profile-coverage-v1.js';
 
+/**
+ * Bumped to `_v2` by Phase 7 Gap 5 decisions 1 and 2, which added `family` and
+ * `sourceProfileSha256` to every candidate binding and made
+ * `sourceProfileHashes` allowed to be empty.
+ *
+ * The bump is deliberate rather than incidental. A stored eligibility document
+ * is content-addressed and re-parsed on read, so a `_v1` document and a `_v2`
+ * document are genuinely different shapes — and a version literal makes an old
+ * one fail with "schemaVersion mismatch" instead of "unrecognized key", which
+ * is the difference between a clear diagnostic and a confusing one. Safe to do
+ * now for a specific reason, not merely because it is convenient: no shared
+ * database has ever held one of these rows, so every `_v1` document in
+ * existence is a test fixture or a disposable-rehearsal artifact.
+ */
 export const DEFENSE_BUDGET_PROMOTION_ELIGIBILITY_SCHEMA_VERSION =
-  'defense_budget_promotion_eligibility_v1' as const;
+  'defense_budget_promotion_eligibility_v2' as const;
 
 const nonBlank = z
   .string()
@@ -120,7 +135,20 @@ export const promotionCandidateBindingV1Schema = z
     candidateId: nonBlank,
     status: promotionEligibleCandidateStatusV1Schema,
     terminalVerificationRunId: nonBlank,
+    /**
+     * Phase 7 Gap 5 decision 1. Carried so the record can be re-verified from
+     * storage alone: without it, a reader cannot tell whether an empty
+     * `sourceProfileHashes` was legitimate or a fabrication.
+     */
+    family: budgetFamilyV1Schema,
     extractionMethod: extractionMethodV1Schema,
+    /**
+     * Phase 7 Gap 5 decision 2. Non-null exactly when this candidate's family
+     * has a governed `DefenseBudgetStageSourceProfileV1`; `null` otherwise. Not
+     * optional — an absent field and a deliberate "this family has no profile"
+     * are different claims, and only the second one is allowed to pass.
+     */
+    sourceProfileSha256: sha256Schema.nullable(),
     extractorActorId: nonBlank.optional(),
     reviewDecisionId: nonBlank.optional(),
     reviewerActorId: nonBlank.optional(),
@@ -135,6 +163,28 @@ export const promotionCandidateBindingV1Schema = z
         code: z.ZodIssueCode.custom,
         message: 'REVIEW_ACCEPTED candidate requires the review decision that accepted it',
         path: ['reviewDecisionId'],
+      });
+    }
+    // Both directions are enforced. Missing-when-required is the obvious half;
+    // present-when-not-required is the half that matters, because that is what
+    // a synthesized stand-in would look like.
+    const requiresProfile = familyRequiresStageSourceProfileV1(value.family);
+    if (requiresProfile && value.sourceProfileSha256 == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          `family "${value.family}" is governed by a stage source profile, so candidate ` +
+          `${value.candidateId} must carry the profile hash it was extracted under`,
+        path: ['sourceProfileSha256'],
+      });
+    }
+    if (!requiresProfile && value.sourceProfileSha256 != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          `family "${value.family}" has no governed stage source profile, so candidate ` +
+          `${value.candidateId} must carry null rather than a substitute hash`,
+        path: ['sourceProfileSha256'],
       });
     }
   });
@@ -171,7 +221,15 @@ export const defenseBudgetPromotionEligibilityV1Schema = z
     sourceDocumentHashes: z.array(sha256Schema).min(1).transform(sortedShaSet),
     artifactHashes: z.array(sha256Schema).min(1).transform(sortedShaSet),
     manifestHash: sha256Schema,
-    sourceProfileHashes: z.array(sha256Schema).min(1).transform(sortedShaSet),
+    /**
+     * Phase 7 Gap 5 decision 2: may be empty. A promotion drawn entirely from
+     * Phase 1–5 families has no governed source-profile artifact to name, and
+     * `.min(1)` here used to make that state unrepresentable — which is what
+     * pushed earlier attempts toward inventing a stand-in hash. The per-family
+     * requirement is enforced on each candidate binding and cross-checked
+     * against this set below, so "empty" cannot hide a missing required profile.
+     */
+    sourceProfileHashes: z.array(sha256Schema).transform(sortedShaSet),
     verificationPolicyHashes: z.array(sha256Schema).min(1).transform(sortedShaSet),
 
     /* Cycle certification: Phase 6 must have certified the cycle. */
@@ -217,6 +275,36 @@ export const defenseBudgetPromotionEligibilityV1Schema = z
         path: ['projectionPlanHashes'],
       });
     }
+    // Phase 7 Gap 5 decision 2. The record-level set must be exactly the set of
+    // profile hashes its candidates actually name — no orphan hash that belongs
+    // to no candidate, and no candidate profile missing from the set. Checked
+    // both ways because either direction alone leaves a hole: an orphan hash
+    // would let the record claim provenance nothing was extracted under, and a
+    // missing one would let a governed candidate slip through with its profile
+    // recorded on the binding but absent from the record's own provenance list.
+    const candidateProfileHashes = new Set(
+      value.candidates
+        .map((candidate) => candidate.sourceProfileSha256)
+        .filter((hash): hash is string => hash != null),
+    );
+    for (const hash of value.sourceProfileHashes) {
+      if (!candidateProfileHashes.has(hash)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `sourceProfileHashes names ${hash}, which no candidate was extracted under`,
+          path: ['sourceProfileHashes'],
+        });
+      }
+    }
+    for (const hash of candidateProfileHashes) {
+      if (!value.sourceProfileHashes.includes(hash)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `a candidate names source profile ${hash}, which sourceProfileHashes omits`,
+          path: ['sourceProfileHashes'],
+        });
+      }
+    }
   })
   .transform(stripUndefinedProperties);
 export type DefenseBudgetPromotionEligibilityV1 = z.infer<
@@ -244,6 +332,15 @@ export const PROMOTION_ELIGIBILITY_BLOCK_REASON_V1_VALUES = [
   'projection_hash_mismatch',
   'mapping_registry_hash_mismatch',
   'source_profile_expired',
+  /**
+   * Phase 7 Gap 5 decision 2: a candidate in a family governed by a stage
+   * source profile arrived without the profile hash it was extracted under.
+   * Distinct from `source_profile_expired`, which is about a profile that
+   * exists and no longer applies — this one is about a required profile the
+   * repository could not produce at all, and it must never be answered by
+   * substituting some other hash.
+   */
+  'source_profile_missing',
   'policy_version_expired',
   'active_snapshot_expectation_stale',
 ] as const;

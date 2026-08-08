@@ -7,7 +7,10 @@
   },
   "include": [
     "src/defense-budget/promotion/**/*.ts",
+    "src/defense-budget/projection-plan/**/*.ts",
     "src/program-element/snapshot/**/*.ts",
+    "scripts/persist-defense-budget-projection-plan-v1.ts",
+    "scripts/build-defense-budget-phase6-projection-plan-v1.ts",
     "scripts/plan-defense-budget-promotion-v1.ts",
     "scripts/validate-defense-budget-promotion-v1.ts",
     "scripts/execute-defense-budget-promotion-v1.ts",

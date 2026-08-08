@@ -90,6 +90,12 @@ export const configSchema = z.object({
   // Comma-separated tenant ids promoted to snapshot reads while the mode is
   // 'snapshot_canary'. Ignored in every other mode.
   PE_SNAPSHOT_CANARY_TENANTS: z.string().optional(),
+  // Phase 7 Gap 5 decision C — the canary rollback switch. Defaults to
+  // 'off', same shape as PE_LEGACY_BUDGET_WRITES below. 'on' forces every read
+  // to legacy regardless of PE_SNAPSHOT_READ_MODE — a single, unambiguous
+  // lever an operator can flip without redeploying the mode itself.
+  // See canary-controls-v1.ts's resolveCanaryRollbackV1.
+  PE_SNAPSHOT_CANARY_ROLLBACK: z.enum(['off', 'on']).default('off'),
   // The Workstream M kill switch. 'off' (default) refuses --commit on the twelve
   // dispatcher verbs that write canonical budget rows directly; canonical data
   // enters through the promotion workflow instead. 'allow' is the deliberate

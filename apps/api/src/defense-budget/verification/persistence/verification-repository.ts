@@ -13,6 +13,7 @@ import type {
   TrustedVerificationProofBundleV1,
   ProofFindingV1,
 } from '../trusted-proof/trusted-proof-types.js';
+import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Input types                                                         */
@@ -51,6 +52,15 @@ export interface PersistCompletedVerificationInputV1 {
   discrepancies: VerificationDiscrepancyV1[];
   startedAt: string;
   completedAt: string;
+  /**
+   * Phase 7 Gap 5 decision 1. The resolved artifact, so the candidate row can
+   * record its `family` and `extractionMethod` instead of leaving promotion
+   * eligibility to rediscover metadata that was verified here. Optional so the
+   * many existing callers and fakes keep compiling; when absent, both columns
+   * stay NULL and the promotion read path refuses the candidate rather than
+   * guessing.
+   */
+  artifact?: DefenseBudgetExtractionArtifactV1;
 }
 
 export interface PersistReviewDecisionInputV1 {

@@ -216,6 +216,7 @@ export class ProgramElementReadService {
       if (decision.compare) {
         schedulePeShadowComparisonV1({
           method,
+          slo: this.peSnapshotGate.sloDescriptor(),
           compute: async () => {
             const legacyStart = Date.now();
             const legacy = await legacyThunk();
@@ -232,6 +233,7 @@ export class ProgramElementReadService {
     if (decision.compare) {
       schedulePeShadowComparisonV1({
         method,
+        slo: this.peSnapshotGate.sloDescriptor(),
         compute: async () => {
           const snapshotStart = Date.now();
           const snapshot = await snapshotThunk(activeSnapshot!.snapshotId);

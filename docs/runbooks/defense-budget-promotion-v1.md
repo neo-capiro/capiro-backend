@@ -17,6 +17,88 @@ row by hand outside a rehearsal context — `authorize`'s whole purpose is the
 segregation evidence it derives from a real, persisted eligibility record,
 and a hand-written row makes authorizer-equals-reviewer silently pass.
 
+**Two prerequisite steps added in session 10 (Gap 5).** Both are one-time per
+cycle, both run under the serve role, and neither promotes anything — but a
+promotion cannot be evaluated until they have happened:
+
+- `backfill-budget-candidate-source-metadata-v1 --commit` — fills `family` and
+  `extraction_method` on candidates written before migration
+  `20260907010000`. Dry run by default; it performs the entire verification
+  chain either way and only skips the UPDATE, so a clean dry run is real
+  evidence. Fails closed per candidate: a refused row stays NULL, and a NULL
+  row is refused by eligibility rather than promoted on a default.
+- `persist-defense-budget-projection-plan-v1 --plan <plan.json> --family <f>
+  --producer-version <id> --certification-sha256 <sha> --commit` — files the
+  Phase 4/5/6 projection plan the eligibility record will name. This is a
+  separate operator step **by design**, not a temporary gap: Phase 5's
+  mandatory negative control NC20 forbids its planner from importing Prisma, so
+  the pure-planner / separate-persist-verb split is the architecture, the same
+  shape `file-defense-budget-promotion-plan-v1` uses for promotion plans. Exit
+  code 3 means the plan is `BLOCKED` (it is still filed — a blocked plan is
+  evidence); that blocks promotion by design.
+
+- **For the `committee` family only**, the plan document has to be built first,
+  because Phase 6 emits audit projections rather than a plan:
+
+  ```text
+  build-defense-budget-phase6-projection-plan-v1 --cycle-id <id> --fiscal-year <fy> --out plan.json
+  persist-defense-budget-projection-plan-v1 --plan plan.json --family committee \
+    --producer-version build-defense-budget-phase6-projection-plan-v1@1 \
+    --certification-sha256 <phase6_cycle_certification.content_sha256> \
+    --certification-id <phase6_cycle_certification.id> --commit
+  ```
+
+  The build verb is read-only and has no `--commit`. It reads every
+  non-superseded `phase6_audit_projection` row for the cycle/FY; a `superseded`
+  row is never a candidate, and an unresolved or conflicting binding becomes a
+  retained `no_op`/`conflict` candidate rather than being dropped, so the filed
+  plan can prove it was complete.
+
+- **For `rdte`**, once `build-rdte-cycle` has produced a certified cycle
+  directory (`cycle-bundle.json` + `artifacts/`):
+
+  ```text
+  plan-rdte-canonical-projection --cycle-dir <dir> --out plan.json
+  persist-defense-budget-projection-plan-v1 --plan plan.json --family rdte \
+    --producer-version plan-rdte-canonical-projection@1 \
+    --certification-sha256 <cycle-bundle.json's own contentSha256> --commit
+  ```
+
+  The plan verb is read-only, refuses `--commit` unconditionally, and exits 2
+  (`EXIT_NEEDS_REVIEW`) rather than throwing when the bundle or an artifact
+  fails to parse — that exit code means "look at this before filing," not
+  "retry."
+
+- **For `procurement`, `om`, or `milcon`** (Phase 5, one plan per family):
+
+  ```text
+  plan-defense-budget-non-rdte-projection \
+    --manifest <manifest.json> --bundle <bundle.json> \
+    --family-report <family-report.json> --artifact-map <artifact-map.json> \
+    --verification-results <results.json> --family <procurement|om|milcon> \
+    --out plan.json
+  persist-defense-budget-projection-plan-v1 --plan plan.json --family <procurement|om|milcon> \
+    --producer-version plan-defense-budget-non-rdte-projection@1 \
+    --certification-sha256 <bundle.json's own contentSha256> --commit
+  ```
+
+  Same split as `rdte` and `committee`, for the same reason (NC20): the planner
+  imports no Prisma client and permanently refuses `--commit` via
+  `refuseUnknownFlags`, so persistence can only ever happen through the
+  separate verb.
+
+`persist-defense-budget-projection-plan-v1` is wired into `entrypoint.sh` the
+same way `file-defense-budget-promotion-plan-v1` is, so every line above can
+run as `entrypoint.sh <verb> -- <args>` in a deployed container, not only from
+a developer shell. None of the four family planners above (`build-rdte-cycle`,
+`plan-rdte-canonical-projection`, `plan-defense-budget-non-rdte-projection`,
+`build-defense-budget-phase6-projection-plan-v1`) are wired into any scheduled
+task today — each cycle is planned and filed by an operator running these
+commands by hand. Automating that — on what trigger, at what cadence, from
+what source-document location — is a deployment decision nobody has made, not
+an omission; do not add EventBridge scheduling for any of them without that
+decision being made first.
+
 Background: [`CANONICAL-PROMOTION-V1.md`](../defense-budget/CANONICAL-PROMOTION-V1.md).
 
 ---

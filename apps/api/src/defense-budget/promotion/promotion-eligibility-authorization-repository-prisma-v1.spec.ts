@@ -14,7 +14,7 @@ function eligibility(
   overrides: Partial<DefenseBudgetPromotionEligibilityV1> = {},
 ): DefenseBudgetPromotionEligibilityV1 {
   return {
-    schemaVersion: 'defense_budget_promotion_eligibility_v1',
+    schemaVersion: 'defense_budget_promotion_eligibility_v2',
     eligibilityId: 'elig-1',
     cycleId: 'cycle-fy2027',
     scope: { cycleId: 'cycle-fy2027', fiscalYear: 2027, families: ['om'], stages: [] },
@@ -29,6 +29,8 @@ function eligibility(
         terminalVerificationRunId: 'run-1',
         acceptedAssertionIds: ['assert-1'],
         extractionMethod: 'deterministic_pdfplumber',
+        family: 'committee',
+        sourceProfileSha256: SHA('b'),
         artifactSha256: SHA('3'),
         sourceSha256: SHA('4'),
       },

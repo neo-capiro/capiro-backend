@@ -20,6 +20,14 @@ import { createManualOverrideRepositoryPrismaV1 } from '../defense-budget/promot
 import { SNAPSHOT_READ_PORT_V1 } from '../defense-budget/promotion/snapshot-read-port.tokens.js';
 import { createSnapshotReadPortPrismaV1 } from '../defense-budget/promotion/snapshot-read-repository-prisma-v1.js';
 import { PeSnapshotGateService } from './snapshot/pe-snapshot-gate.service.js';
+import { SLO_METRIC_RECORDER_V1 } from '../defense-budget/promotion/slo-metrics.tokens.js';
+import {
+  ConsoleSloMetricSinkV1,
+  NoopSloMetricSinkV1,
+  SloMetricRecorderV1,
+} from '../defense-budget/promotion/slo-metrics-v1.js';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -58,6 +66,35 @@ import { PeSnapshotGateService } from './snapshot/pe-snapshot-gate.service.js';
       provide: SNAPSHOT_READ_PORT_V1,
       inject: [PrismaService],
       useFactory: (prisma: PrismaService) => createSnapshotReadPortPrismaV1(prisma),
+    },
+    // Phase 7 Gap 5 decision C — the SLO recorder behind the same factory
+    // boundary, for the same reason.
+    //
+    // The sink is chosen from PE_SNAPSHOT_READ_MODE rather than from a config
+    // key of its own. In `legacy` — the default, and what every environment
+    // runs today — this is the no-op sink, so the instrumentation lands exactly
+    // as inert as the rest of Workstream M: no new log volume, nothing emitted,
+    // nothing to cost. The measurements only start once an operator moves the
+    // rollout flag, which is the only point at which anyone would be reading
+    // them. Deliberately not a separate PE_SLO_* switch: a second flag that has
+    // to be remembered alongside the mode is a flag that will be forgotten, and
+    // the failure mode is a shadow/canary rollout running blind.
+    //
+    // ConsoleSloMetricSinkV1 writes one structured line per emission and is
+    // safe everywhere. It is not a production metrics backend; which backend,
+    // namespace, and IAM role receive these is a rollout decision nobody has
+    // made yet, and `SloMetricSinkV1` is the seam it plugs into when they do.
+    {
+      provide: SLO_METRIC_RECORDER_V1,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig, true>) =>
+        new SloMetricRecorderV1({
+          sink:
+            config.get('PE_SNAPSHOT_READ_MODE', { infer: true }) === 'legacy'
+              ? new NoopSloMetricSinkV1()
+              : new ConsoleSloMetricSinkV1(),
+          now: () => new Date(),
+        }),
     },
     PeSnapshotGateService,
   ],

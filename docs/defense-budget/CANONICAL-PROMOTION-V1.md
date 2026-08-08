@@ -13,7 +13,7 @@ Companions:
 - [`docs/runbooks/defense-budget-promotion-v1.md`](../runbooks/defense-budget-promotion-v1.md) — running a promotion
 - [`docs/runbooks/defense-budget-snapshot-rollback-v1.md`](../runbooks/defense-budget-snapshot-rollback-v1.md) — undoing one
 - [`docs/runbooks/defense-budget-legacy-cutover-v1.md`](../runbooks/defense-budget-legacy-cutover-v1.md) — retiring the legacy writers
-- [`PHASE-7-ARCHITECTURE-GAPS.md`](./PHASE-7-ARCHITECTURE-GAPS.md) — remaining gaps (Gaps 2, 3, and 4 closed in session 9; Gap 1 partially closed)
+- [`PHASE-7-ARCHITECTURE-GAPS.md`](./PHASE-7-ARCHITECTURE-GAPS.md) — **all five gaps now closed**; the file is kept as the record of what was decided and why, not as an open-items list
 
 ---
 
@@ -67,7 +67,7 @@ promotion outbox → deltas, caches, alerts   ← replayable, cannot fail the co
 
 ## 3. Schema
 
-Sixteen tables, all additive, in four migrations:
+Seventeen tables, all additive, in six migrations:
 
 | Migration                                                    | Adds                                                                                         |
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -75,6 +75,8 @@ Sixteen tables, all additive, in four migrations:
 | `20260822020000_pe_budget_phase7_manual_override_queue_link` | `defense_budget_manual_override` ↔ reconciliation-queue link                                 |
 | `20260902010000_pe_budget_phase7_outbox_drain`               | `defense_budget_side_effect_drain_pause`                                                     |
 | `20260903010000_pe_budget_phase7_promotion_eligibility`      | `defense_budget_promotion_eligibility`, plus the FK from the plan table's `eligibility_hash` |
+| `20260907010000_pe_budget_phase2_candidate_source_metadata`  | `family` + `extraction_method` on `budget_extraction_candidate_v1` (Gap 5 decision 1)       |
+| `20260907020000_pe_budget_projection_plan_persistence`       | `defense_budget_projection_plan` (Gap 5 decision 3)                                          |
 
 ```text
 defense_budget_canonical_snapshot        one row per annual cycle attempt
@@ -92,6 +94,9 @@ defense_budget_promotion_outbox          downstream effects, created in the
                                          activation transaction
 defense_budget_promotion_audit           append-only attempt log
 defense_budget_rollback_record           forward pointer transitions
+
+defense_budget_projection_plan           the immutable Phase 4/5/6 plan a
+                                         promotion draws from
 
 defense_budget_manual_override           governed human overlay
 defense_budget_compatibility_projection_run
@@ -281,18 +286,50 @@ Stated plainly, because a green test run does not distinguish these from done:
 | Item                                                        | State                                                                                                                                                                                                  |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Promotion engine, planner, mapping, schema, roles, triggers | implemented; proven on disposable PostgreSQL                                                                                                                                                           |
-| Disposable PostgreSQL rehearsal                             | 103 checks (Phase 7's own), plus passing rehearsals for RDT&E, non-RDT&E, and committee/Phase 6 ingestion, exit 0                                                                                      |
+| Disposable PostgreSQL rehearsal                             | **124 checks** (Phase 7's own), plus passing rehearsals for RDT&E, non-RDT&E, and committee/Phase 6 ingestion, exit 0                                                                                  |
 | `authorize` verb                                            | **closed** (Gap 3) — real eligibility storage, real segregation-of-duties evidence, proven against a real database                                                                                     |
 | Filing a plan into the database                             | **closed** (Gap 4) — `file-defense-budget-promotion-plan-v1`, proven against a real database                                                                                                          |
-| Phase 6 → canonical stage positions/actions                 | **partially closed** (Gap 1) — HASC/SASC/HAC-D/SAC-D/NDAA/appropriations-conference positions and identity-scoped actions now flow real; enacted/reprogramming/execution/package-scoped actions do not |
+| Phase 6 → canonical stage positions/actions                 | **closed** (Gap 1) — committee positions, identity-scoped actions, and now enacted (B1), execution (B2), and package/account/transfer-pair actions (B3) all build                                      |
 | `getContractors` / named primes                             | **closed** (Gap 2) — `isNamedCompany` now flows from extraction through to the projection                                                                                                              |
-| `PromotionEligibilityRepositoryV1` (fact-computing side)     | **not built.** An eligibility record must still be assembled by an operator or a script, not derived from live data                                                                                    |
+| `PromotionEligibilityRepositoryV1` (fact-computing side)     | **closed** (Gap 5) — all seven reads implemented against persisted state and proven in the DB rehearsal                                                                                                |
+| Projection plan persistence                                  | **closed** (Gap 5 decision 3) — `defense_budget_projection_plan`, append-only and content-addressed. Filing remains a separate verb by design (NC20), not an omission                                  |
+| Phase 6 committee projection plan                            | **closed** (Gap 5 decisions A1–A4) — `build-defense-budget-phase6-projection-plan-v1` + the pure builder; committee can file a real plan, proven end to end                                            |
+| SLO instrumentation                                          | **measurement implemented, THRESHOLD PENDING ROLLOUT BASELINE.** 9 metrics declared, 8 wired and emitting, 1 specified-not-wired — `promotion_db_connection_saturation_ratio`, blocked on a real pool-statistics source (recorded in `SLO_METRIC_WIRING_STATUS_V1`) |
+| Canary controls                                              | **implemented, disabled by default.** `PE_SNAPSHOT_CANARY_ROLLBACK` kill switch + `CanaryMismatchAggregatorV1`. No live canary enabled; that needs separate authorization                              |
+| Candidate `family` / `extractionMethod`                      | **closed** (Gap 5 decision 1) — denormalized at verification time; a one-time fail-closed backfill repairs existing rows                                                                               |
 | Production-scale rehearsal                                  | **not run.** Requires measured production SLOs; the plan forbids inventing thresholds                                                                                                                  |
 | Canary acceptance matrix                                    | **not run.** Requires a separate authorization and a human operator                                                                                                                                    |
 | Any activation against a real database                      | **never happened, in any environment**                                                                                                                                                                 |
 
-The honest summary: the promotion engine is well-proven, all four
-architecture gaps that were blocking read-side migration, `authorize`, and
-plan-filing are now closed or substantially narrowed, every data family's
-ingestion pipeline has been independently proven against a real disposable
-Postgres, and the cutover has still never run anywhere real.
+The honest summary: the promotion engine is well-proven, **all five architecture
+gaps are now closed** — none is partial any more — every data family's ingestion
+pipeline has been independently proven against a real disposable Postgres, and
+the cutover has still never run anywhere real.
+
+The correct status line for the code, per Neo's 2026-08-08 decision, is:
+
+```text
+IMPLEMENTATION COMPLETE
+LIVE ACCEPTANCE NOT RUN — AUTHORIZATION REQUIRED
+```
+
+Those operational gates — measured SLO thresholds, a live canary, any real
+deployment — are scheduling and authorization states, not incomplete code. The
+release is not production-accepted until they run, but their absence is not a
+reason to treat the deterministic local closeout as unfinished.
+
+Gap 5's two migrations are now proven the same way the rest of Phase 7 is:
+`pe-budget-phase7-migration-rehearsal.sh` covers both on the upgrade path and
+runs at **117 checks** (up from 103). What it demonstrates specifically — a
+candidate written before the migration surviving it with NULL metadata rather
+than a default; the append-only trigger, the status-agrees-with-counts CHECK,
+and the exactly-one-storage-mode CHECK on `defense_budget_projection_plan`;
+content-addressed re-filing as a replay; and the real
+`persist-defense-budget-projection-plan-v1` verb filing a plan under the serve
+role, with a by-design exclusion correctly not blocking.
+
+The remaining honest caveat is narrower: **Phase 6 has no plan-shaped document
+to persist**, so `loadProjectionPlans` returns nothing for family `committee`
+and a committee promotion is refused with `projection_hash_mismatch`. That is a
+visible refusal rather than a silent gap, and closing it needs an owner
+decision — see Gap 5's "Still open under decision 3".

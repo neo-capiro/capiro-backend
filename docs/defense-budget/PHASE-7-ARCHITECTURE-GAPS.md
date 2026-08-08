@@ -1,16 +1,22 @@
 # Phase 7 — open architecture gaps
 
-**Status as of session 9 (2026-08-08):** Gap 3 is **closed**. Gap 2 is
-**closed**. Gap 4 is **closed**. Gap 1 is **partially closed** — see its
-update below for exactly which stages. Gap 4 was found while closing Gap 3
-and closed later in the same session.
-**Owner needed:** none of the four gaps still needs an owner decision before
-code can be written — the decisions this file originally escalated (whether
-Phase 6 persistence was deferred, and going back to the Workstream A/D owner
-for Gap 3) were made in session 9: build the scoped subset for Gap 1, treat
-Gap 3 as ordinary implementation work rather than something requiring a
-separate design review given the plan was already fully specified, and build
-Gap 4 as a ninth verb rather than a flag on `plan`.
+**Status as of session 11 (2026-08-08):** Gaps 1, 2, 3, 4, and 5 are **all
+closed**. Gap 1's three remaining stages — enacted proof linkage, execution
+metric/as-of semantics, and package/account/transfer-pair action identity —
+were decided by Neo and implemented this session, so the "partially closed"
+qualifier this file carried since session 9 is gone.
+
+**Owner needed: none.** Every architecture decision this file ever escalated has
+now been made and implemented, and each one is recorded verbatim in its own
+section so it is not reopened. What remains is not architecture:
+
+- rebuilding and persisting existing Phase 4/5/6 outputs, and chaining the
+  persist verb into the producing pipelines — both pure engineering;
+- the operational acceptance gates (measured SLO thresholds, a live canary, any
+  real deployment), which require separate authorization and were deliberately
+  not performed. Their status is **IMPLEMENTATION COMPLETE / LIVE ACCEPTANCE
+  NOT RUN — AUTHORIZATION REQUIRED**, which is a scheduling state, not an
+  incomplete-code state. See the SLO/canary/deployment section.
 **Why this file exists:** two of these gaps had been rediscovered twice, by
 two different sessions, each time by trying to build the thing they block.
 This is the escalation artifact that stopped the third rediscovery from
@@ -398,10 +404,641 @@ All nine verbs now have real, wired, rehearsed CLIs. What remains open is
 not a missing verb: it is `PromotionEligibilityRepositoryV1`'s fact-computing
 side (Gap 3's note 1 — an eligibility record must still be assembled and
 handed to the persistence repository by an operator or script, nothing yet
-derives one from live Phase 2/4/5/6 data), Gap 1's remaining scope (enacted
-positions, reprogramming/execution, package/account/transfer-pair actions),
-and everything outside this file's scope entirely: measured production SLOs
-and a human-authorized canary.
+derives one from live Phase 2/4/5/6 data; **session 10 attempted this and it
+became Gap 5 below**), Gap 1's remaining scope (enacted positions,
+reprogramming/execution, package/account/transfer-pair actions), and everything
+outside this file's scope entirely: measured production SLOs and a
+human-authorized canary.
+
+---
+
+## Gap 5 — four of the seven eligibility fact reads had no persisted source (CLOSED)
+
+**Found by:** session 10, by attempting the item session 9's handoff listed first
+and classified as needing no owner decision — "`PromotionEligibilityRepositoryV1`
+fact-computing side … **No** — pure engineering. A coding session can pick this
+up directly." Three of its seven reads are exactly that. The other four are not,
+and the reasons are the same species as Gaps 3 and 4: storage that was specified
+but never created, or a semantic choice nobody has made.
+
+**Blocks:** `DefenseBudgetPromotionEligibilityServiceV1.evaluate()` — every path
+that would _derive_ an eligibility record from live Phase 2/4/5/6 data rather
+than having an operator hand-assemble one and hand it to
+`PrismaPromotionEligibilityPersistenceRepositoryV1.insert()`. Gap 3's storage and
+the `authorize` verb are **not** affected: they consume an eligibility document,
+they never compute one. Nothing that shipped in sessions 1–9 regresses.
+
+| Read                          | Persisted source of truth                                              | Status                       |
+| ----------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| `loadCycleCertifications`     | `phase6_cycle_certification`                                           | **implementable** — built    |
+| `loadLatestTerminalRunId`     | `budget_verification_run_v1`                                           | **implementable** — built    |
+| `loadActiveSnapshot`          | `defense_budget_active_snapshot` ⋈ `defense_budget_canonical_snapshot` | **implementable** — built    |
+| `loadCandidates`              | `budget_extraction_candidate_v1` + run + review decision               | **partial** — 3 fields short |
+| `loadProjectionPlans`         | —                                                                      | **no storage exists**        |
+| `countOpenBlockingConflicts`  | — (three disagreeing candidates)                                       | **undecided semantics**      |
+| `countUnsupportedProjections` | — (property of an unpersisted plan)                                    | **no storage exists**        |
+
+### `loadCandidates` — three required facts are not persisted anywhere
+
+`budget_extraction_candidate_v1` supplies `candidateId`, `status`,
+`terminalVerificationRunId` (`current_run_id`), `artifactSha256`, `sourceSha256`,
+`verificationPolicySha256` (`policy_sha256`) and `manifestSha256`
+(`manifest_content_sha256`); `budget_review_decision_v1` supplies
+`reviewDecisionId` and `reviewerActorId`; `result_snapshot_jsonb` supplies
+`acceptedAssertionIds`. What is missing:
+
+- **`extractionMethod`** — required by the contract, and not a display field.
+  `deriveSegregationEvidenceV1` runs it through `isHighRiskExtractionMethodV1`
+  to set `highRiskExtractionPresent`, which is what refuses an authorizer who
+  also extracted on a high-risk method. Defaulting it makes that control
+  vacuous — the identical failure Gap 3 refused when it declined to synthesize
+  an eligibility record.
+- **`sourceProfileSha256`** — required, `min(1)` at the contract level. Source
+  profiles are a Phase 6 `stages/` concept; no Phase 2 candidate has one, in a
+  column or anywhere else.
+- **the budget family itself** — there is no family discriminator on the
+  candidate row, so `families` cannot be honoured. Dropping the filter widens
+  the query past the requested scope, which this port's own doc comment
+  forbids ("scoped by cycle and family so an implementation cannot accidentally
+  widen the query").
+
+Both `family` and `method` do exist — inside the extraction artifact
+(`source.family`, `parserRuns[].method`) and the cycle manifest
+(`documents[].family`). Neither is stored in any table. `result_snapshot_jsonb`
+holds a `DefenseBudgetVerificationResultV1`, whose schema is `.strict()` and
+carries none of the three. The artifact could in principle be fetched by
+`extraction_artifact_locator` and hash-checked against
+`extraction_artifact_sha256` — but **there is no manifest locator column at
+all**, so the manifest cannot be fetched the same way, and an adapter that took
+one from the operator would be taking provenance from the requester, which this
+service exists to prevent.
+
+`extractorActorId` is optional in the contract, so it does not block — but it is
+worth recording that it has no producer anywhere in the repository: the only
+references are the promotion contracts that consume it. Until extraction records
+an actor, `extractorActorIds` is structurally always empty and the
+authorizer-equals-extractor control can only ever fire on
+`highRiskExtractionPresent`.
+
+### `loadProjectionPlans` — the table has never existed
+
+`git log --all -S"projection_plan" -- apps/api/prisma` returns **no commit on
+any branch**. Phase 4/5/6 projection plans are computed in memory by the family
+planners and discarded; `rdte-cycle-pipeline-v1.ts` computes
+`projectionPlanContentSha256` and reports it in its result object without
+writing it down. So there is no `(projectionPlanId, contentSha256)` to load by
+cycle and family.
+
+Note the shape of the prerequisite that let this through: the
+pre-implementation dependency map records "Every Phase 4–6 family has a typed
+projection plan — SATISFIED — projection contracts present." Contracts are
+present. Persisted plans are a different claim, and the prerequisite was
+accepted on the former — the same conflation Gap 1 recorded for Phase 6's
+"merged and green".
+
+### `countOpenBlockingConflicts` — three candidate sources, and they disagree
+
+Not a missing table so much as an unmade decision. The three plausible sources
+mean materially different things:
+
+1. `budget_verification_discrepancy_v1` where `severity = 'blocking'` —
+   cycle-scopeable through the candidate, but per-run with no open/resolved
+   state, and a candidate carrying blocking discrepancies would not be
+   `VERIFICATION_PASSED` anyway, so this mostly re-counts what candidate status
+   already covers.
+2. `reconciliation_review_queue` where `status = 'open'` — genuinely has
+   open/resolved state, but is keyed `peCode`/`fy` rather than cycle/family, and
+   is the legacy surface Workstream K is supposed to migrate, not promote from.
+3. the projection plan's own `conflict` operations and `duplicate_conflict`
+   exclusions — the closest semantic match, and not persisted (see above).
+
+Picking one changes which promotions are refused. `open_blocking_conflict_ignored`
+is a mandatory negative control, so picking wrong is not a degraded answer.
+
+### `countUnsupportedProjections` — derived from a plan that is not stored
+
+Unsupported items are a property of a projection plan. Counting them without one
+means re-running the planners at eligibility-evaluation time, which inverts the
+service's trust model: every fact is supposed to be reloaded from trusted
+persistence, not recomputed by the process asking the question.
+
+### Why a stub would have been worse than a refusal
+
+`countOpenBlockingConflicts` and `countUnsupportedProjections` are the two reads
+whose _safe-looking_ value is `0`. A stub returning `0` does not degrade a
+promotion; it silently satisfies `open_blocking_conflict_ignored` and
+`unsupported_mapping_silently_dropped` while proving nothing. That is the reason
+this gap is written down instead of closed with plausible code.
+
+### Session 10: partially built, and the wall is now enforced in code
+
+`promotion-eligibility-read-repository-prisma-v1.ts` —
+`PrismaPromotionEligibilityReadRepositoryV1` implements the port with the three
+implementable reads real (raw SQL through the narrow-handle pattern every other
+adapter here uses, `::uuid` casts included) and the four blocked ones throwing
+`PromotionEligibilityReadUnavailableErrorV1`, which names the read and carries
+the reason from this section. 19 unit tests; full `verify:pe-budget-phase-7`
+green — typecheck clean, 29 suites / 672 tests, 32/32 negative controls, safety
+scan passed.
+
+Two decisions inside the implemented three, recorded because both had a
+plausible wrong answer:
+
+- **`loadLatestTerminalRunId` does not filter by run status.** Every row in
+  `budget_verification_run_v1` is complete (`completed_at` is NOT NULL), so
+  "terminal" is read as "newest". Restricting to
+  `VERIFICATION_PASSED`/`REJECTED` would exclude the `NEEDS_REVIEW` run that a
+  `REVIEW_ACCEPTED` candidate points at, so `latest` would never equal that
+  candidate's own run and **every review-accepted candidate would be refused as
+  stale**.
+- **`loadActiveSnapshot` throws on a null `snapshot_hash`** rather than
+  returning `null`. `null` means "no active snapshot yet" to the service, which
+  is a legitimate first-promotion state; a broken activation pointer must not be
+  able to impersonate one.
+
+One incidental finding, asserted in the tests so it is not a surprise later:
+`evaluate()` loads its facts in a single `Promise.all` before it can classify
+anything, so a throwing read escapes before `recordAttempt`. **An unbuilt read
+produces no `ELIGIBILITY` audit row at all**, unlike every other refusal, which
+does. An operator seeing no audit row is looking at an unbuilt read, not at a
+request that never arrived.
+
+### The four decisions — MADE 2026-08-08 by Neo. Do not reopen.
+
+Recorded here in full because this file's entire purpose is to stop a decision
+being rediscovered and re-litigated by the next session.
+
+1. **`family` and `extractionMethod` — denormalize at candidate write time.**
+   Both are added to `budget_extraction_candidate_v1` and populated from the
+   already-resolved, already-hash-verified artifact inside
+   `persistCompletedVerification()`. Promotion eligibility must **not** fetch
+   an artifact to rediscover metadata that was known and verified when the
+   candidate was created. Existing rows are repaired by a deterministic
+   one-time backfill that resolves the stored locator, verifies the artifact
+   against the candidate's existing SHA, reads the two values, and updates only
+   those columns — failing closed on an unavailable artifact or a hash
+   mismatch. This is an **inherited prerequisite defect** in Phase 1/2, and is
+   documented as one rather than as a Phase 7 feature.
+2. **`sourceProfileSha256` — do not invent a Phase 1–5 analogue.**
+   `sourceProfileHashes` may be empty. The requirement is family-aware and
+   keyed off the Phase 6 source-profile policy, **not** a
+   `family === 'committee'` check. Phase 6 stage sources must carry the exact
+   persisted profile hash; Phase 1–5 families are valid with none. No parser
+   profile job, verification-policy hash, authority input, or other synthetic
+   stand-in may be substituted. The invariant: *absence is valid when the
+   source family has no profile artifact; a fabricated profile is not.*
+3. **Projection plans must be persisted**, at the Phase 4/5/6 **producer**
+   boundary, in one common immutable substrate. Phase 7 only consumes them and
+   never recomputes a family projection during eligibility or authorization.
+   Phase 7 must be able to independently reload the exact plan and verify
+   `persisted bytes -> content SHA -> certified inputs -> authorized plan hash`.
+   Treated as a missing prerequisite, not intentional ephemerality: an
+   authorization binding to an exact set of proposed canonical mutations cannot
+   rest on a plan that exists only in memory.
+4. **Promotion-level conflicts come from the persisted projection plan.** Not
+   `reconciliation_review_queue` (the legacy mutable PE path Phase 7 retires)
+   and not `budget_verification_discrepancy_v1` (per-run verification evidence,
+   already reflected in candidate/run eligibility). The boundary is:
+   verification discrepancies answer *does this candidate deserve
+   VERIFICATION_PASSED*; projection-plan conflicts answer *can this verified,
+   certified dataset become a canonical promotion plan*. The count is derived
+   from the immutable plan and may be cross-checked against a denormalized
+   summary, never taken from the summary alone.
+
+### Session 10 (continued): all four implemented, Gap 5 closed
+
+| Decision | Shipped                                                                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | migration `20260907010000`, `candidate-source-metadata-v1.ts`, write-path wiring, `backfill-budget-candidate-source-metadata-v1.ts`                             |
+| 2        | `stages/stage-source-profile-coverage-v1.ts`, contract + service changes, eligibility schema version bumped to `_v2`                                            |
+| 3        | migration `20260907020000`, `projection-plan/` substrate + Prisma repository, `persist-defense-budget-projection-plan-v1.ts`                                    |
+| 4        | `summarizeProjectionPlanV1` + the exhaustive exclusion classification, consumed by the two counters                                                             |
+
+`PrismaPromotionEligibilityReadRepositoryV1` now implements **all seven reads**.
+The four that previously threw `PromotionEligibilityReadUnavailableErrorV1` are
+real; that error type survives for one narrower job — a candidate whose Gap 5
+decision-1 metadata was never backfilled is refused by name, with the backfill
+command in the message, rather than promoted on a default.
+
+**Proven against a real disposable Postgres**, matching how Gaps 1–4 were
+closed: `pe-budget-phase7-migration-rehearsal.sh` now runs **117 checks** (up
+from 103), covering both migrations on the upgrade path. Specifically — a
+candidate written *before* the metadata migration survives it and arrives with
+NULL rather than a default; `defense_budget_projection_plan` refuses a
+PROJECTABLE row carrying a nonzero count, a BLOCKED row carrying none, an
+unknown status, a row with neither storage mode and a row with both, and any
+UPDATE or DELETE; a byte-identical re-file is a replay rather than a duplicate;
+and the real `persist-defense-budget-projection-plan-v1` verb files a plan under
+the serve role, with a by-design `contextual_only_value` exclusion correctly not
+blocking while its reason is still recorded.
+
+Details worth not rediscovering:
+
+- **`extractionMethod` for a composed artifact resolves to the riskiest
+  contributing parser method**, via `EXTRACTION_METHOD_RISK_PRECEDENCE_V1`. A
+  single artifact can carry several parser runs and the contract names one
+  method; picking the riskiest can only make the authorizer-equals-extractor
+  control stricter. A test pins the precedence list's first three entries to
+  `HIGH_RISK_EXTRACTION_METHOD_V1_VALUES` so the two cannot drift.
+- **`family: 'unknown'` is refused, not stored.** An unclassified document
+  cannot be scoped into a promotion, and storing `unknown` would make it look
+  scopeable.
+- **The backfill compares *content* SHA, not byte SHA.**
+  `extraction_artifact_sha256` holds
+  `resolution.extractionArtifactContentSha256` — a canonical-JSON hash computed
+  with `artifactId` and `contentSha256` removed — so the obvious-looking
+  `sha256Bytes(bytes)` check would fail for every legitimate artifact.
+- **Exclusion reasons are classified exhaustively** in
+  `PROJECTION_EXCLUSION_BLOCKS_PROMOTION_V1`, with a test asserting every reason
+  from both family vocabularies is present. An unclassified reason **throws**
+  rather than counting as zero — counting every exclusion would block a
+  promotion for a `contextual_only_value` that was supposed to be excluded, and
+  counting none would let a `duplicate_conflict` through.
+- **`reprogramming_action` and `execution_report` are mapped to `null`** in
+  `STAGE_VEHICLE_CLASS_BUDGET_FAMILY_V1`: both are governed by a stage source
+  profile but no `BudgetFamilyV1` member corresponds to their documents, and
+  both are exactly the stages Gap 1 still lists as open. Mapping them to
+  `public_law` or `unknown` to complete the table would put a wrong family on a
+  real document.
+- **One real bug caught by the version bump.**
+  `promotion-eligibility-service-v1.ts` built its record with the literal
+  `'defense_budget_promotion_eligibility_v1'` instead of the exported constant,
+  so bumping the constant surfaced as `projection_hash_mismatch` — a
+  projection-plan refusal for a schema-version problem. Now uses the constant.
+
+### Producer wiring — the separate verb IS the correct boundary, not a shortcut
+
+Recorded because the obvious next step is forbidden, and a session that tries it
+will break a mandatory negative control before understanding why.
+
+A first reading of decision 3's "ownership belongs with the producer" suggests
+`build-rdte-cycle` and `plan-defense-budget-non-rdte-projection` should call the
+persistence themselves. **They must not.** Phase 5's mandatory negative control
+**NC20** (`non-rdte-phase5-audit-gates.spec.ts`, "Phase 5 operators and
+projection execute no Prisma DML") asserts over all five Phase 5 command scripts
+plus their shared lib that:
+
+```text
+imports do not match  /@prisma\/client|prisma\.service/
+source does not match /\b(prisma|tx|db)\s*\.\s*\w+\s*\.\s*(create|update|upsert|delete|...)\(/
+source does not match /\$executeRaw|\$queryRawUnsafe/
+command source does not contain '--commit'
+```
+
+Importing Prisma into that planner — under any flag, however carefully gated —
+fails the first assertion outright. `plan-defense-budget-non-rdte-projection.ts`
+also routes every argument through `refuseUnknownFlags`, which refuses `--commit`
+permanently by design.
+
+So the correct shape is what already exists: **pure planners, a separate persist
+verb.** That is not a compromise — it is the same conclusion three independent
+parts of this codebase already reached, for the same reason:
+
+| Concern                    | Pure producer                                | Separate persist verb                         |
+| -------------------------- | -------------------------------------------- | --------------------------------------------- |
+| Phase 6 audit projections  | `phase6-stage-cycle.ts` (refuses `--commit`) | `persist-phase6-audit-projections-v1`         |
+| Phase 7 promotion plans    | `plan-defense-budget-promotion-v1`           | `file-defense-budget-promotion-plan-v1` (Gap 4) |
+| Phase 4/5 projection plans | `build-rdte-cycle`, `plan-…-non-rdte-…`      | `persist-defense-budget-projection-plan-v1`   |
+
+"Ownership belongs with the producer" is satisfied by the *phase* owning the
+persist step, not by the planner process opening a database connection. Decision
+3's substantive requirement — that Phase 7 never recomputes a family projection
+during eligibility or authorization — is met either way.
+
+What remains is therefore chaining, not wiring: the runbook now documents the
+persist step, and a producing pipeline should call the verb after its planner,
+the way `plan → file → validate → authorize → execute` chains today.
+
+### The Phase 6 plan-document decisions — MADE 2026-08-08 by Neo. Do not reopen.
+
+Session 10 escalated this as needing an owner: Phase 6 had **no plan-shaped
+document to persist**, and manufacturing one required three semantic decisions.
+All three were made, plus a fourth on architecture. Recorded verbatim.
+
+**A1 — one candidate boundary.** One normalized `phase6_audit_projection` row
+is one persisted projection-plan candidate. Do **not** group by source
+document, committee, family, verification candidate, or cycle. The boundary is
+the smallest Phase 6 projection unit that can independently be included,
+excluded, or blocked — so a funding position, action, provision, enactment
+observation, or execution observation is its own candidate per its existing
+`projectionKind`. Each candidate must retain enough identity to deterministically
+reconstruct the exact audit projection row and its proof binding. Artifact
+binding uses the exact artifact hash already bound to that projection; a
+candidate legitimately dependent on multiple artifacts binds to the existing
+deterministic certified artifact-set hash, never to one arbitrarily chosen
+constituent.
+
+**A2 — `operation` is the producer's disposition, not a canonical operation.**
+Do **not** add a canonical-row diff to Phase 6; Phase 7 owns canonical mapping
+and snapshot diff, and Phase 6 must not start reading canonical tables to
+manufacture `insert`/`update`/`no_op` semantics it never had. Semantics:
+
+- `insert` — fully bound, verified/certified, non-conflicting; emit for Phase 7
+  consumption.
+- `no_op` — intentionally not promotable, retained in the plan for
+  completeness/auditability with an explicit `exclusionReason`.
+- `conflict` — two or more candidate facts cannot resolve to one unambiguous
+  promotable projection, including duplicate-natural-key disagreement or
+  conflicting binding.
+- `update` — **unused by Phase 6 v1.** Do not invent one merely because the
+  enum contains it. A future schema version may define it if Phase 6 gains a
+  legitimate producer-local prior-plan comparison.
+
+Most importantly: **`insert` here does not mean "insert a canonical database
+row."** Phase 7 still determines INSERT / SUPERSEDE / UNCHANGED / CORRECTION /
+BLOCKED for itself after loading the immutable family plan and applying its own
+mapping registry. That distinction is documented directly next to the adapter.
+
+**A3 — `bindingStatus` maps by semantic category**, preserving the exact
+existing enum strings. Bound/accepted → `insert`, no exclusion reason.
+Unbound/unresolved/candidate → `no_op` + `unresolved_binding` (or a more
+specific existing shared reason where one already applies — do not collapse a
+precise reason into `unresolved_binding`). Ambiguous/conflicting → `conflict` +
+`binding_conflict`. Unsupported/intentionally non-projectable → `no_op` +
+`unsupported_projection`. Add the minimum precise new Phase 6 reasons rather
+than forcing semantically different states into an inaccurate existing value.
+Two further rules: same natural key + same normalized content may collapse
+deterministically or produce a `no_op` duplicate per the existing composition
+policy; same natural key + **materially different content must be `conflict`,
+never last-wins.** The persisted plan must preserve excluded and conflicting
+candidates rather than dropping them, so eligibility can independently prove the
+plan was complete.
+
+**A4 — persistence stays outside the pure planners.** Confirmed the session-10
+NC20 finding. The architecture is `pure deterministic planner → immutable plan
+object + content hash → separate persistence command → reload + hash
+verification → Phase 7 eligibility`, and the same separation applies to Phase 6.
+Do not import Prisma into any pure planner, do not weaken NC20, and do not add
+`--commit` to an existing planner verb.
+
+### Session 11: A1–A4 implemented, and committee can now file a real plan
+
+- `phase6/phase6-projection-plan-builder-v1.ts` — pure, Prisma-free. One row =
+  one candidate (A1); `superseded` rows are read but never become candidates,
+  since a superseded row is a historical fact whose successor represents current
+  truth and including both would corrupt the duplicate analysis. `operation`
+  per A2, with `update` never emitted and a test asserting so. `bindingStatus`
+  and `projectionStatus` mapped per A3, with `projectionStatus` checked first
+  because `blocked`/`candidate` are producer-level states that pre-empt any
+  binding question. Duplicate resolution mirrors
+  `rdte-projection-planner-v1.ts`'s `dedupeCandidates` deliberately rather than
+  reinventing it: identical content collapses to one candidate merging its
+  sources; differing content splits into one `conflict` candidate per member.
+  A collapsed multi-artifact duplicate binds to the deterministic sorted
+  artifact-set hash, and a single-artifact group keeps its own hash.
+- Four new exclusion reasons in `PROJECTION_EXCLUSION_BLOCKS_PROMOTION_V1`:
+  `unresolved_binding`, `binding_conflict`, `unsupported_projection`,
+  `phase6_projection_blocked` — all blocking. Added minimally, because RDTE's
+  `unresolved_evidence`/`artifact_rejected` describe something more specific
+  than "this audit projection's native binding never resolved."
+  `artifact_needs_review` is **reused**, not duplicated, for a not-yet-verified
+  projection, per A3's instruction to prefer an existing precise reason.
+- `scripts/build-defense-budget-phase6-projection-plan-v1.ts` — the I/O half,
+  read-only, no `--commit` and no write mode. Reads through the MAIN
+  `PrismaClient`'s raw SQL, matching the rationale
+  `phase6-audit-projection-repository-prisma-v1.ts` already records for why it
+  does not open a second client against `.prisma/phase6-projection-client`.
+  Chains into the existing generic `persist-defense-budget-projection-plan-v1`.
+
+**Proven end to end against a real disposable Postgres** — the rehearsal is now
+**124 checks** (from 117). It deploys the `phase6-projection` migrations onto the
+same physical database (proving that shared-database reasoning rather than
+assuming it), seeds two live rows plus one superseded row, runs the real build
+verb, and asserts the superseded row does not become a candidate, that A3's
+mapping produces exactly `insert` + `no_op`, and that the real persist verb
+files the committee plan under the serve role. Exit 3 there is the *correct*
+outcome for a BLOCKED plan and is accepted as such.
+
+**Not done, and not blocked on a decision:**
+
+1. Existing Phase 4/5/6 outputs have not been rebuilt and persisted. Per
+   decision 3 they should be, through their existing deterministic planners,
+   before Phase 7 can proceed against real data.
+2. `composeEnactedStageV1` still produces `EnactedLineCandidateV1` rows from
+   real extraction upstream of B1's builder — B1 closes "given a real candidate
+   and a real proof, build the projection correctly," not "discover the
+   candidate."
+
+**Item 2 from session 11/12's list — "no producing pipeline calls the persist
+verb" — is now addressed, deliberately short of automation.** Two things were
+actually true at once and needed to be separated: `persist-defense-budget-projection-plan-v1`
+had no `entrypoint.sh` case at all — unlike every one of its promotion-chain
+siblings, it could only be run via a raw `tsx` invocation from a shell with
+repo access, not as a deployed one-off task. That was a plain wiring gap with
+no design content, closed the same way Workstream N wired the other nine: a
+case in `entrypoint.sh` mirroring `file-defense-budget-promotion-plan-v1`'s
+shape exactly (serve role, dry run unless `--commit`).
+
+What was *not* closed, on purpose: an automated pipeline that calls the persist
+verb without an operator in between. The runbook now documents the concrete
+two-command chain for all four families (`rdte`, `procurement`/`om`/`milcon`,
+`committee`) — previously only `committee`'s was written down — but each chain
+is still two commands an operator runs, not one. `plan → file → validate →
+authorize → execute` on the promotion side is the same shape: a documented
+sequence of individually-invoked verbs, not a fused script, and Gap 4's own
+history (§ above) is Neo/session-9 choosing to keep `plan` and `file` as two
+separate steps specifically so filing stays a distinct authorized action.
+Automating the family chains would mean deciding a trigger and a cadence for
+each of `build-rdte-cycle`, `plan-rdte-canonical-projection`,
+`plan-defense-budget-non-rdte-projection`, and
+`build-defense-budget-phase6-projection-plan-v1` — none of which are wired
+into any scheduled task today, and none of which this pass invented one for.
+
+---
+
+## Gap 1's remaining stages — DECIDED 2026-08-08 by Neo, and closed
+
+Session 10's narrower reading was accepted: B1 and B2 are plumbing, not new
+semantic design; only B3 was a genuine addition.
+
+**B1 — enacted proof: thread the existing proof through.** The contract already
+exists; do not define a second enactment-proof model. Thread the existing object
+through builder input → audit projection → certification → persisted plan →
+Phase 7 eligibility, preserving the exact source/public-law/incorporation hashes
+and proof type.
+
+*Shipped:* `buildEnactedStagePositionProjectionV1`
+(`phase6-projection-builder-v1.ts`) takes an `EnactedLineCandidateV1` plus the
+existing `DefenseBudgetEnactmentProofV1` and emits a `public_law` /
+`continuing_resolution` `stage_position`. It carries `proofId` into
+`enactmentProofId` and preserves `publicLawNumber`, `proofType`, and **both**
+source SHAs on the payload — "thread the proof through" means a reader of the
+persisted projection sees what governed it without a second lookup. It performs
+the same two checks `assertCandidateAgainstProofV1` already performs in
+`enacted-composer-v1.ts` (accepted binding, fiscal-year match), so a candidate
+that would fail the composer fails here identically rather than slipping through
+a looser second path. Continuing resolutions without `explicitLineAuthority` are
+refused by name rather than surfacing as an opaque ZodError from the
+projection's own schema.
+
+**B2 — execution metric/as-of: thread the existing vocabulary through.** Use the
+existing metric vocabulary and as-of/period semantics, create no synonyms, and
+fail closed if a required execution observation has no explicit metric or as-of
+semantics.
+
+*Shipped:* `buildExecutionStagePositionProjectionV1` takes the whole
+`ExecutionCompositionV1` — not just its `executedPosition` — so the underlying
+`ExecutionRecordV1`'s required, non-empty `evidenceIds` travel with it rather
+than being silently dropped. `metric`/`asOfDate`/`cumulative` go onto the
+payload verbatim from the existing enum. Fail-closed is structural here:
+`executedPosition`'s own type requires all three, so this function cannot
+construct a projection missing them, and
+`phase6NativeProjectionV1Schema`'s matching superRefine is defense-in-depth for
+a hand-built payload elsewhere.
+
+**B3 — a discriminated action-scope identity, not a fake budget-line identity.**
+Define one discriminated native action-scope identity contract with PACKAGE,
+ACCOUNT and TRANSFER_PAIR variants; derive the action's natural identity from
+the scope identity plus action kind, exact vehicle/stage/FY, and a
+source-defined discriminator where genuinely necessary. Requirements: a PACKAGE
+action is not converted into a fake PE/BLIN/SAG; an ACCOUNT action stays account
+scoped; TRANSFER_PAIR preserves both endpoints and **direction matters — A→B is
+not B→A**; do not use titles as identity; do not infer an account; an action
+that cannot be uniquely identified stays excluded or conflicting; implemented
+transfer and transfer authority remain distinct concepts. Add this to the Phase
+6 contract rather than leaking a special-case string through Phase 7.
+
+*Shipped:* `phase6/phase6-action-scope-identity-v1.ts` — a zod
+`discriminatedUnion` over exactly those three kinds, matching the three shapes
+`defense-budget-stage-action-v1.ts`'s own schema already validates as a valid
+primary scope or transfer endpoints. `phase6ActionScopeIdentityKeyV1` produces a
+`TAG:field:field` key in the same shape `nativeIdentityKeyV1` uses for a single
+line, hashed by the same `sha256Hex`, so a promotion trace reads a scope
+identity exactly as it already reads a native line.
+
+Direction sensitivity is structural, not a convention: `from`/`to` are ordered
+fields and are deliberately **not** sorted into a canonical pair order, with a
+test asserting A→B and B→A hash differently. PACKAGE scopes on the action's real
+`vehicleClass` rather than a fabricated per-instance vehicle ID; ACCOUNT is not
+split into component + appropriation-account substructure the upstream data does
+not provide, because inventing that split *is* inferring an account. An action
+naming only one side of a transfer is refused with
+`incomplete_transfer_endpoint` rather than having its missing endpoint guessed.
+Transfer authority stays distinct from an implemented transfer by construction:
+a `general_provision` or `directive` action never reaches the TRANSFER_PAIR
+branch, because it will not carry both endpoint identities.
+
+`buildStageActionProjectionV1` now falls back to this derivation instead of
+refusing every non-identity-scoped action, and records `identityScopeKind`
+(`NATIVE_LINE` | `PACKAGE` | `ACCOUNT` | `TRANSFER_PAIR`) on the payload so a
+reader can tell a scope-derived identity from a single native line without
+re-deriving it.
+
+---
+
+## SLOs, canary, and deployment — DECIDED 2026-08-08 by Neo
+
+The instruction, in one line: **implement the measurement and the controls; do
+not invent the thresholds; do not execute canary or deployment without separate
+authorization.** And critically — do not let the absence of that authorization
+make the deterministic local closeout look like a failure.
+
+### SLOs — MEASUREMENT IMPLEMENTED, THRESHOLD PENDING ROLLOUT BASELINE
+
+Final thresholds come from the measured pre-Phase-7 production baseline and are
+approved during rollout. Nothing in this repository substitutes for that.
+
+*Shipped:* `promotion/slo-metrics-v1.ts` declares all nine metrics Neo named —
+eligibility latency, plan load/hash-verification latency, staging duration,
+activation duration, snapshot-read latency, shadow mismatch, outbox
+backlog/age, rollback duration, DB connection/load — each with a unit and its
+own dimension list. Every emission carries the literal
+`THRESHOLD_PENDING_ROLLOUT_BASELINE`, never a number.
+
+**Wired and emitting today (8 of 9)** — session 12 wired the six that session 11
+had left specified-only:
+
+| Metric | Emission call site |
+| --- | --- |
+| `eligibility_evaluation_latency_ms` | `DefenseBudgetPromotionEligibilityServiceV1.evaluate()` — around the whole evaluation including refusals; a slow refusal is still a latency fact |
+| `projection_plan_load_latency_ms` | `PrismaProjectionPlanRepositoryV1.loadVerified` / `.loadForScope` |
+| `snapshot_staging_duration_ms` | `canonical-promotion-service-v1.ts` — the whole chunked staging phase, not per chunk, so a run that stages in many small chunks cannot look faster than one that stages in few |
+| `snapshot_activation_duration_ms` | same module, around the activation attempt **including its ledger-recovery path** — an ambiguous commit resolved by reading still cost the caller that wall-clock |
+| `rollback_duration_ms` | same module, around `rollback()` from the caller's entry, so the lock wait is inside the number: time queued behind another promoter is time the environment was still on the bad snapshot |
+| `snapshot_read_latency_ms` | `PeSnapshotGateService.loadRows` — every canonical row read on the PE surface. `resolve()`'s pointer lookup is deliberately excluded; folding a pointer lookup and a row read into one metric makes it unreadable exactly when someone is deciding whether to widen the canary |
+| `shadow_read_mismatch_count` | `recordPeShadowComparisonV1`, fed by both `schedulePeShadowComparisonV1` call sites in `program-element-read.service.ts`. One per comparison (1 or 0), not per differing field — §M.10's gate counts reads that disagreed, and a field count would be silently capped by the comparator's `MAX_DETAILS` |
+| `promotion_outbox_backlog_age_ms` | `scripts/status-defense-budget-promotion-v1.ts`. Age of the oldest undrained row, not the count: ten rows four hours old is an incident, ten thousand rows nine seconds old is a healthy burst. `POISON` excluded — it ages forever by design and would peg the metric permanently |
+
+Each is an optional dependency defaulting to a no-op, so every existing caller
+compiles unchanged. On the Nest surface the sink is selected from
+`PE_SNAPSHOT_READ_MODE` rather than a switch of its own: `legacy` (the default,
+and what every environment runs today) gets `NoopSloMetricSinkV1`, so the
+instrumentation lands as inert as the rest of Workstream M and starts measuring
+only when an operator moves the rollout flag. A second flag to remember
+alongside the mode is a flag that gets forgotten, and the failure mode is a
+canary running blind.
+
+**Specified but not wired (1 of 9): `promotion_db_connection_saturation_ratio`.**
+Not an oversight, and not blocked on effort. A saturation *ratio* needs a
+numerator and a denominator that do not exist anywhere in this repository:
+Prisma exposes no pool statistics without the `metrics` preview feature (a
+schema and client-generation change), and the alternative — polling
+`pg_stat_activity` against `max_connections` — is a new recurring query against
+a live database, on a schedule nobody has set, attributing connections to a
+`role` dimension whose values are a deployment fact rather than a code fact.
+Every plausible implementation would also be unfalsifiable here: there is no
+Phase 7 deployment whose pool could be observed to confirm the number means
+anything. **This one needs an operator, not an engineer.**
+
+Recorded as data in `SLO_METRIC_WIRING_STATUS_V1`, not prose, with tests
+asserting both that the map cannot drift from the taxonomy and that the wired
+list plus the unwired one accounts for every declared metric — so a tenth metric
+fails the suite until someone states which side it belongs on, and an emission
+added without updating the map is caught rather than becoming a documentation
+lie the next reader has no way to detect.
+
+No concrete metrics backend is implemented, deliberately — which namespace,
+which IAM role, which service is an infrastructure question nobody has asked
+yet, and there is no deployed Phase 7 to send to. The module stops at the
+`SloMetricSinkV1` port with a console and a no-op implementation.
+
+### Canary — controls implemented, disabled by default, not authorized to run
+
+Most of what Neo asked for already existed from Workstream M and is
+deliberately **not** duplicated: `PE_SNAPSHOT_READ_MODE` (defaults `legacy`),
+`PE_SNAPSHOT_CANARY_TENANTS`, `resolveSnapshotReadModeV1`'s tenant allowlist,
+`compareShadowReadV1`'s comparison and severity classes, and the "no active
+snapshot forces legacy" fail-safe.
+
+Two pieces were genuinely missing, and are now in
+`promotion/canary-controls-v1.ts`:
+
+- **A rollback switch distinct from the mode.** `PE_SNAPSHOT_CANARY_ROLLBACK`
+  (`off` by default) with `resolveCanaryRollbackV1`, checked **first and
+  unconditionally** in `PeSnapshotGateService.resolve()` — the point of a kill
+  switch is that it does not depend on correctly reasoning through the other
+  mode branches. It reports its own distinct reason,
+  `canary_rollback_engaged`, rather than reusing `mode_legacy`: an operator
+  needs to tell "configured to legacy" apart from "an emergency rollback
+  overrode whatever the mode was," and collapsing them hides exactly the signal
+  the switch exists to surface.
+- **Mismatch reporting.** `CanaryMismatchAggregatorV1` — a bounded rolling
+  window over already-computed `ShadowComparisonV1` results, reporting
+  compared/matched/mismatch-rate/worst-severity plus `shouldHaltCanary`. It
+  halts the instant any single observation blocks the canary, never letting an
+  average dilute one P0 back into "mostly fine." An empty window reports a
+  healthy, unblocked canary rather than a division-by-zero alarm.
+
+**No live canary was enabled, and none may be without separate authorization.**
+
+### Deployment — none performed, and that is not a defect
+
+No AWS mutation, no migration applied to a shared environment, no task launch,
+no canonical promotion, no flag enablement, no ALB or EventBridge change, and no
+production traffic. Those remain explicit operational acceptance steps requiring
+separate authorization.
+
+Per Neo's instruction, the correct status line for this work is:
+
+```text
+IMPLEMENTATION COMPLETE
+LIVE ACCEPTANCE NOT RUN — AUTHORIZATION REQUIRED
+```
+
+The overall Phase 7 release is not production-accepted until those operational
+gates are eventually run. They are **not** reasons to block completion of code
+that can be validated locally and against disposable containers, and they should
+not be reported as incomplete code.
 
 ---
 
