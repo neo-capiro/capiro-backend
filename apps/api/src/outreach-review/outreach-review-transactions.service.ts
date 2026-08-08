@@ -55,10 +55,14 @@ export class OutreachReviewTransactionsService {
         throw new NotFoundException('No pending review with that id for this tenant.');
       }
       if (!isExactOutreachVersionReview(review)) {
-        throw new ForbiddenException('This review does not govern an immutable Outreach draft version.');
+        throw new ForbiddenException(
+          'This review does not govern an immutable Outreach draft version.',
+        );
       }
       if (!isTenantAdmin(ctx.role) && review.assignedTo !== ctx.userId) {
-        throw new ForbiddenException('Only an admin or the assigned reviewer may decide this review.');
+        throw new ForbiddenException(
+          'Only an admin or the assigned reviewer may decide this review.',
+        );
       }
 
       const version = await this.drafts.decideWithinTx(
@@ -69,7 +73,7 @@ export class OutreachReviewTransactionsService {
         decision,
       );
 
-      await tx.reviewRequest.updateMany({
+      const stamped = await tx.reviewRequest.updateMany({
         where: {
           id: review.id,
           tenantId: ctx.tenantId,
@@ -81,6 +85,11 @@ export class OutreachReviewTransactionsService {
           decidedAt: new Date(),
         },
       });
+      if (stamped.count !== 1) {
+        // The version update above is in this same transaction, so throwing here
+        // rolls it back and prevents a released version without a review stamp.
+        throw new NotFoundException('The pending review changed before the decision committed.');
+      }
       return version;
     });
   }

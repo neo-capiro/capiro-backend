@@ -8,9 +8,24 @@ const ctx = {
   role: 'standard_user',
 } as TenantContext;
 
+type Tx = {
+  reviewRequest: {
+    findFirst: jest.Mock;
+    updateMany?: jest.Mock;
+  };
+};
+
+function prismaFor(tx: Tx) {
+  return {
+    withTenant: jest.fn(
+      async (_tenantId: string, run: (transaction: Tx) => Promise<unknown>) => run(tx),
+    ),
+  };
+}
+
 describe('OutreachReviewTransactionsService', () => {
   it('decides and stamps the exact immutable version in one transaction', async () => {
-    const tx = {
+    const tx: Tx = {
       reviewRequest: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'review-a',
@@ -22,7 +37,7 @@ describe('OutreachReviewTransactionsService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
-    const prisma = { withTenant: jest.fn((_tenantId, run) => run(tx)) };
+    const prisma = prismaFor(tx);
     const drafts = {
       decideWithinTx: jest.fn().mockResolvedValue({
         id: 'version-a',
@@ -43,13 +58,15 @@ describe('OutreachReviewTransactionsService', () => {
       'approved',
     );
     expect(tx.reviewRequest.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ id: 'review-a', status: 'pending' }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'review-a', status: 'pending' }),
+      }),
     );
     expect(result.id).toBe('version-a');
   });
 
   it('does not let an unassigned requester decide', async () => {
-    const tx = {
+    const tx: Tx = {
       reviewRequest: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'review-a',
@@ -60,9 +77,8 @@ describe('OutreachReviewTransactionsService', () => {
         }),
       },
     };
-    const prisma = { withTenant: jest.fn((_tenantId, run) => run(tx)) };
     const drafts = { decideWithinTx: jest.fn() };
-    const service = new OutreachReviewTransactionsService(prisma as never, drafts as never);
+    const service = new OutreachReviewTransactionsService(prismaFor(tx) as never, drafts as never);
 
     await expect(service.decide(ctx, 'review-a', 'approved')).rejects.toBeInstanceOf(
       ForbiddenException,
@@ -71,7 +87,7 @@ describe('OutreachReviewTransactionsService', () => {
   });
 
   it('cannot use a non-Outreach review to release a draft', async () => {
-    const tx = {
+    const tx: Tx = {
       reviewRequest: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'review-a',
@@ -82,9 +98,8 @@ describe('OutreachReviewTransactionsService', () => {
         }),
       },
     };
-    const prisma = { withTenant: jest.fn((_tenantId, run) => run(tx)) };
     const drafts = { decideWithinTx: jest.fn() };
-    const service = new OutreachReviewTransactionsService(prisma as never, drafts as never);
+    const service = new OutreachReviewTransactionsService(prismaFor(tx) as never, drafts as never);
 
     await expect(service.decide(ctx, 'review-a', 'approved')).rejects.toBeInstanceOf(
       ForbiddenException,
