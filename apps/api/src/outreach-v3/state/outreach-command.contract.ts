@@ -214,10 +214,23 @@ const envelopeShellSchema = z
   })
   .strict();
 
+function commandInvalid(): OutreachCommandError {
+  return new OutreachCommandError(
+    'OUTREACH_COMMAND_INVALID',
+    'The outreach command is invalid.',
+    400,
+  );
+}
+
 export function parseOutreachCommandEnvelope(input: unknown): ParsedOutreachCommandEnvelope {
-  const shell = envelopeShellSchema.parse(input);
-  const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS[shell.type].parse(shell.payload);
-  return { ...shell, payload };
+  try {
+    const shell = envelopeShellSchema.parse(input);
+    const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS[shell.type].parse(shell.payload);
+    return { ...shell, payload };
+  } catch (error) {
+    if (error instanceof OutreachCommandError) throw error;
+    throw commandInvalid();
+  }
 }
 
 export interface ApplyOutreachCommandBatchInput {
@@ -235,7 +248,14 @@ const batchShellSchema = z
   .strict();
 
 export function parseOutreachCommandBatch(input: unknown): ApplyOutreachCommandBatchInput {
-  const shell = batchShellSchema.parse(input);
+  let shell: z.infer<typeof batchShellSchema>;
+  try {
+    shell = batchShellSchema.parse(input);
+  } catch (error) {
+    if (error instanceof OutreachCommandError) throw error;
+    throw commandInvalid();
+  }
+
   const bytes = Buffer.byteLength(canonicalJsonStringify(shell), 'utf8');
   if (bytes > OUTREACH_V3_LIMITS.commandBatchBytes) {
     throw new OutreachCommandError(
@@ -245,11 +265,17 @@ export function parseOutreachCommandBatch(input: unknown): ApplyOutreachCommandB
       { bytes, maxBytes: OUTREACH_V3_LIMITS.commandBatchBytes },
     );
   }
-  return {
-    batchId: shell.batchId,
-    expectedStateVersion: shell.expectedStateVersion,
-    commands: shell.commands.map(parseOutreachCommandEnvelope),
-  };
+
+  try {
+    return {
+      batchId: shell.batchId,
+      expectedStateVersion: shell.expectedStateVersion,
+      commands: shell.commands.map(parseOutreachCommandEnvelope),
+    };
+  } catch (error) {
+    if (error instanceof OutreachCommandError) throw error;
+    throw commandInvalid();
+  }
 }
 
 export function isFutureOutreachCommand(type: OutreachCommandType): type is OutreachFutureCommandType {
