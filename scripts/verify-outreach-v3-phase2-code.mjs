@@ -39,6 +39,8 @@ const steps = [
     { DATABASE_URL: DUMMY_DATABASE_URL },
   ],
   ['Phase 2 DB rehearsal syntax', 'node', ['--check', 'scripts/verify-outreach-v3-phase2-db.mjs']],
+  ['Phase 2 flow-DB orchestrator syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-flow-db.mjs']],
+  ['Phase 2 exact-head runner syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-local.mjs']],
   ['Phase 1 ownership regression', 'node', ['scripts/engagement-runtime-ownership.mjs']],
   ['Phase 1 architecture regression', 'node', ['scripts/verify-outreach-v3-p1-architecture.mjs']],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
