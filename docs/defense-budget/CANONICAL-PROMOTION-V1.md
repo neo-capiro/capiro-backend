@@ -286,13 +286,24 @@ Stated plainly, because a green test run does not distinguish these from done:
 | Filing a plan into the database                             | **closed** (Gap 4) — `file-defense-budget-promotion-plan-v1`, proven against a real database                                                                                                          |
 | Phase 6 → canonical stage positions/actions                 | **partially closed** (Gap 1) — HASC/SASC/HAC-D/SAC-D/NDAA/appropriations-conference positions and identity-scoped actions now flow real; enacted/reprogramming/execution/package-scoped actions do not |
 | `getContractors` / named primes                             | **closed** (Gap 2) — `isNamedCompany` now flows from extraction through to the projection                                                                                                              |
-| `PromotionEligibilityRepositoryV1` (fact-computing side)     | **not built.** An eligibility record must still be assembled by an operator or a script, not derived from live data                                                                                    |
+| `PromotionEligibilityRepositoryV1` (fact-computing side)     | **closed** (Gap 5) — all seven reads implemented against persisted state; eligibility is now derived from live Phase 2/4/5/6 data. Unit-tested only; no DB-backed rehearsal yet                        |
+| Projection plan persistence                                  | **closed** (Gap 5 decision 3) — `defense_budget_projection_plan`, append-only and content-addressed. **Producers do not write through it yet**, so filing a plan is still a separate operator step     |
+| Candidate `family` / `extractionMethod`                      | **closed** (Gap 5 decision 1) — denormalized at verification time; a one-time fail-closed backfill repairs existing rows                                                                               |
 | Production-scale rehearsal                                  | **not run.** Requires measured production SLOs; the plan forbids inventing thresholds                                                                                                                  |
 | Canary acceptance matrix                                    | **not run.** Requires a separate authorization and a human operator                                                                                                                                    |
 | Any activation against a real database                      | **never happened, in any environment**                                                                                                                                                                 |
 
-The honest summary: the promotion engine is well-proven, all four
-architecture gaps that were blocking read-side migration, `authorize`, and
-plan-filing are now closed or substantially narrowed, every data family's
-ingestion pipeline has been independently proven against a real disposable
-Postgres, and the cutover has still never run anywhere real.
+The honest summary: the promotion engine is well-proven, all five architecture
+gaps that were blocking read-side migration, `authorize`, plan-filing, and
+eligibility derivation are now closed or substantially narrowed, every data
+family's ingestion pipeline has been independently proven against a real
+disposable Postgres, and the cutover has still never run anywhere real.
+
+One caveat specific to Gap 5's closure, worth stating next to the claim: the
+two migrations it added and the seven eligibility reads are covered by unit
+tests and typechecks only. Unlike Gaps 1–4, **none of it has run against a real
+disposable Postgres yet** — `pe-budget-phase7-migration-rehearsal.sh` has not
+been extended to `defense_budget_projection_plan` or the new candidate columns.
+"Closed" here means the code and storage exist and the decisions are made, not
+that the schema has been demonstrated the way session 9 demonstrated the
+eligibility table.

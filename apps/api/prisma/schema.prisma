@@ -9090,6 +9090,13 @@ model BudgetExtractionCandidateV1 {
   policySha256              String   @map("policy_sha256") @db.Char(64)
   status                    String   @default("EXTRACTED")
   currentRunId              String?  @map("current_run_id") @db.Uuid
+  /// Phase 7 Gap 5 decision 1. Denormalized from the resolved extraction
+  /// artifact at write time (`source.family` / riskiest contributing
+  /// `parserRuns[].method`). NULL means "written before
+  /// 20260907010000 and not yet backfilled" — a refusal for any reader, never
+  /// a wildcard. Both are re-parsed through their Zod enums on read.
+  family                    String?
+  extractionMethod          String?  @map("extraction_method")
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -9101,6 +9108,7 @@ model BudgetExtractionCandidateV1 {
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
   @@index([status], map: "budget_v1_candidate_status_idx")
   @@index([cycleId], map: "budget_v1_candidate_cycle_idx")
+  @@index([cycleId, family], map: "budget_v1_candidate_cycle_family_idx")
   @@map("budget_extraction_candidate_v1")
 }
 
@@ -9309,6 +9317,40 @@ model DefenseBudgetPromotionPlan {
   @@unique([planId, planHash], map: "defense_budget_promotion_plan_identity_unique")
   @@index([cycleId, fiscalYear], map: "defense_budget_promotion_plan_cycle_idx")
   @@map("defense_budget_promotion_plan")
+}
+
+/// Phase 7 Gap 5 decision 3. Append-only, content-addressed store for the
+/// Phase 4/5/6 projection plans an eligibility record names. Written by the
+/// producing phase, never by Phase 7 — the promotion path reloads and verifies
+/// a plan, and never recomputes a family projection.
+///
+/// `planDocument` (JSONB) and `planLocator` + `planByteSha256` are mutually
+/// exclusive storage modes; a DB CHECK enforces exactly one, so a family whose
+/// plans outgrow a row can move to object storage without a schema change.
+model DefenseBudgetProjectionPlan {
+  id                   String   @id @default(uuid()) @db.Uuid
+  projectionPlanId     String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
+  recordSchemaVersion  String   @map("record_schema_version")
+  schemaVersion        String   @map("schema_version")
+  family               String
+  cycleId              String   @map("cycle_id")
+  fiscalYear           Int      @map("fiscal_year")
+  contentSha256        String   @map("content_sha256") @db.Char(64)
+  producerVersion      String   @map("producer_version")
+  certificationId      String?  @map("certification_id")
+  certificationSha256  String   @map("certification_sha256") @db.Char(64)
+  artifactSetSha256    String   @map("artifact_set_sha256") @db.Char(64)
+  status               String   @db.VarChar(32)
+  conflictCount        Int      @map("conflict_count")
+  unsupportedCount     Int      @map("unsupported_count")
+  planDocument         Json?    @map("plan_document")
+  planLocator          String?  @map("plan_locator")
+  planByteSha256       String?  @map("plan_byte_sha256") @db.Char(64)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([cycleId, family, fiscalYear], map: "defense_budget_projection_plan_scope_idx")
+  @@index([contentSha256], map: "defense_budget_projection_plan_content_idx")
+  @@map("defense_budget_projection_plan")
 }
 
 /// Phase 7 Workstream A / Gap 3 closeout. Append-only record of one eligibility

@@ -97,7 +97,7 @@ function eligibility(
   overrides: Partial<DefenseBudgetPromotionEligibilityV1> = {},
 ): DefenseBudgetPromotionEligibilityV1 {
   return {
-    schemaVersion: 'defense_budget_promotion_eligibility_v1',
+    schemaVersion: 'defense_budget_promotion_eligibility_v2',
     eligibilityId: 'elig-gap3-1',
     cycleId: CYCLE_ID,
     scope: { cycleId: CYCLE_ID, fiscalYear: FISCAL_YEAR, families: ['om'], stages: [] },
@@ -112,6 +112,8 @@ function eligibility(
         terminalVerificationRunId: 'run-gap3-1',
         acceptedAssertionIds: ['assert-gap3-1'],
         extractionMethod: 'deterministic_pdfplumber',
+        family: 'committee',
+        sourceProfileSha256: SHA('8'),
         artifactSha256: SHA('3'),
         sourceSha256: SHA('4'),
       },
@@ -260,6 +262,8 @@ async function main(): Promise<void> {
           terminalVerificationRunId: 'run-gap3-2',
           acceptedAssertionIds: ['assert-gap3-2'],
           extractionMethod: 'deterministic_pdfplumber',
+          family: 'committee',
+          sourceProfileSha256: SHA('8'),
           artifactSha256: SHA('3'),
           sourceSha256: SHA('4'),
           reviewDecisionId: 'review-gap3-2',

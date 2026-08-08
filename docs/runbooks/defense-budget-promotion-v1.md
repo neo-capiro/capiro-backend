@@ -17,6 +17,23 @@ row by hand outside a rehearsal context — `authorize`'s whole purpose is the
 segregation evidence it derives from a real, persisted eligibility record,
 and a hand-written row makes authorizer-equals-reviewer silently pass.
 
+**Two prerequisite steps added in session 10 (Gap 5).** Both are one-time per
+cycle, both run under the serve role, and neither promotes anything — but a
+promotion cannot be evaluated until they have happened:
+
+- `backfill-budget-candidate-source-metadata-v1 --commit` — fills `family` and
+  `extraction_method` on candidates written before migration
+  `20260907010000`. Dry run by default; it performs the entire verification
+  chain either way and only skips the UPDATE, so a clean dry run is real
+  evidence. Fails closed per candidate: a refused row stays NULL, and a NULL
+  row is refused by eligibility rather than promoted on a default.
+- `persist-defense-budget-projection-plan-v1 --plan <plan.json> --family <f>
+  --producer-version <id> --certification-sha256 <sha> --commit` — files the
+  Phase 4/5/6 projection plan the eligibility record will name. Until the
+  producers call this themselves, it is a separate operator step after the
+  family planner runs. Exit code 3 means the plan is `BLOCKED` (it is still
+  filed — a blocked plan is evidence); that blocks promotion by design.
+
 Background: [`CANONICAL-PROMOTION-V1.md`](../defense-budget/CANONICAL-PROMOTION-V1.md).
 
 ---

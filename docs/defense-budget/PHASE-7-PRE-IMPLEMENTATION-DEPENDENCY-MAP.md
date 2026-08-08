@@ -28,11 +28,40 @@ Everything below was verified against the working tree, not inferred from the pl
 | -------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Phases 0–5 merged and green                        | **SATISFIED**                                     | `verify:pe-budget-phase-1`…`-5` present on `main`; closeout PRs #748–#757 merged                   |
 | Phase 6 A–O complete and green                     | **SATISFIED on this base**, pending merge of #777 | `verify:pe-budget-phase-6` PASS — 78 suites / 779 tests, 24/24 negative controls, safety gate PASS |
-| Every Phase 4–6 family has a typed projection plan | SATISFIED                                         | `defense-budget/{rdte,procurement,om,milcon,stages,phase6}` projection contracts present           |
+| Every Phase 4–6 family has a typed projection plan | **SUPERSEDED — see note below**                   | `defense-budget/{rdte,procurement,om,milcon,stages,phase6}` projection contracts present           |
 | Migration chain passes fresh + from baseline       | **NOT YET REHEARSED**                             | Phase 7 Workstream D task; no shared DB touched                                                    |
 | Production-scale disposable dataset                | **NOT PRESENT**                                   | Phase 7 Workstream O task                                                                          |
 | Approved rollback + DB backup procedure            | **NOT VERIFIED**                                  | operator-owned; must exist before any cutover step                                                 |
 | Current AWS/CDK drift documented                   | PARTIAL                                           | drift is referenced in infra runbooks; must be re-confirmed before Workstream N                    |
+
+### Correction (session 10) — "typed projection plan" was accepted for "persisted projection plan"
+
+The row above is accurate about what it says and wrong about what it was taken
+to mean, and the gap that produced is worth recording next to the claim rather
+than only in the gap tracker.
+
+Projection **contracts** are present for every Phase 4–6 family. Persisted
+projection **plans** were not, and never had been: the planners computed a plan
+in memory, reported its `contentSha256`, and discarded it. `git log --all
+-S"projection_plan" -- apps/api/prisma` finds no commit on any branch that ever
+created a table for one. Phase 7 nonetheless binds authorization to
+`projectionPlanIds` / `projectionPlanHashes` and treats them as reloadable
+evidence, which a discarded object cannot be.
+
+This is the same conflation Gap 1 records for Phase 6's "merged and green" —
+green tests over contracts whose production wiring does not exist. Two
+prerequisites in this table were accepted on the presence of a contract rather
+than of a producer.
+
+Closed in session 10 under Gap 5 decision 3: `defense_budget_projection_plan`
+(migration `20260907020000`) plus the `projection-plan/` substrate. The
+prerequisite as originally intended is satisfied **only once the three
+producers write through it** — see Gap 5's "remaining producer wiring".
+
+**The generalizable check, for any future prerequisite in this table:** ask
+whether the thing is *produced and persisted*, not whether a type for it
+exists. A contract, a schema, and a green suite are jointly compatible with
+nothing ever having written a row.
 
 ### Standing blocker — CI cannot run
 

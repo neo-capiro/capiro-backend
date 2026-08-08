@@ -26,6 +26,8 @@ function candidate(overrides: Record<string, unknown> = {}) {
     status: 'VERIFICATION_PASSED',
     terminalVerificationRunId: 'run-1',
     extractionMethod: 'deterministic_pdfplumber',
+    family: 'committee',
+    sourceProfileSha256: SHA('2'),
     extractorActorId: 'actor-extractor',
     acceptedAssertionIds: ['a-2', 'a-1'],
     artifactSha256: SHA('a'),
@@ -36,7 +38,7 @@ function candidate(overrides: Record<string, unknown> = {}) {
 
 function eligibilityRaw(overrides: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 'defense_budget_promotion_eligibility_v1',
+    schemaVersion: 'defense_budget_promotion_eligibility_v2',
     eligibilityId: ELIG_ID,
     cycleId: 'cycle-fy2027',
     scope: { cycleId: 'cycle-fy2027', fiscalYear: FY, families: ['rdte'], stages: ['public_law'] },
@@ -64,6 +66,93 @@ function eligibilityRaw(overrides: Record<string, unknown> = {}) {
 function eligibility(overrides: Record<string, unknown> = {}): DefenseBudgetPromotionEligibilityV1 {
   return defenseBudgetPromotionEligibilityV1Schema.parse(eligibilityRaw(overrides));
 }
+
+/* ------------------------------------------------------------------ */
+/* Gap 5 decision 2 — source profiles are required per family, and     */
+/* absence is valid only where no governed profile artifact exists.    */
+/* ------------------------------------------------------------------ */
+
+describe('source profile requirement is family-aware', () => {
+  it('accepts a Phase 1-5 promotion carrying no source profile at all', () => {
+    // The state `.min(1)` used to make unrepresentable, and the reason earlier
+    // attempts reached for a synthetic stand-in.
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'rdte', sourceProfileSha256: null })],
+        sourceProfileHashes: [],
+      }),
+    ).not.toThrow();
+  });
+
+  it('refuses a governed family that carries no source profile', () => {
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'committee', sourceProfileSha256: null })],
+        sourceProfileHashes: [],
+      }),
+    ).toThrow(/governed by a stage source profile/);
+  });
+
+  it('refuses an ungoverned family that carries one anyway', () => {
+    // The fabrication direction. A stand-in hash for an RDT&E candidate is
+    // exactly what decision 2 exists to prevent, and it is rejected structurally
+    // rather than by review.
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'om', sourceProfileSha256: SHA('2') })],
+        sourceProfileHashes: [SHA('2')],
+      }),
+    ).toThrow(/must carry null rather than a substitute hash/);
+  });
+
+  it('treats public_law as governed, not just committee', () => {
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'public_law', sourceProfileSha256: null })],
+        sourceProfileHashes: [],
+      }),
+    ).toThrow(/governed by a stage source profile/);
+  });
+
+  it('refuses a record-level profile hash no candidate was extracted under', () => {
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'rdte', sourceProfileSha256: null })],
+        sourceProfileHashes: [SHA('9')],
+      }),
+    ).toThrow(/which no candidate was extracted under/);
+  });
+
+  it('refuses a candidate profile the record-level set omits', () => {
+    expect(() =>
+      eligibility({
+        candidates: [candidate({ family: 'committee', sourceProfileSha256: SHA('2') })],
+        sourceProfileHashes: [],
+      }),
+    ).toThrow(/which sourceProfileHashes omits/);
+  });
+
+  it('still hashes deterministically with an empty profile set', () => {
+    const a = eligibility({
+      candidates: [candidate({ family: 'rdte', sourceProfileSha256: null })],
+      sourceProfileHashes: [],
+    });
+    const b = eligibility({
+      candidates: [candidate({ family: 'rdte', sourceProfileSha256: null })],
+      sourceProfileHashes: [],
+    });
+    expect(promotionEligibilityHashV1(a)).toBe(promotionEligibilityHashV1(b));
+  });
+
+  it('hashes a profile-carrying record differently from a profile-free one', () => {
+    const governed = eligibility();
+    const ungoverned = eligibility({
+      candidates: [candidate({ family: 'rdte', sourceProfileSha256: null })],
+      sourceProfileHashes: [],
+    });
+    expect(promotionEligibilityHashV1(governed)).not.toBe(promotionEligibilityHashV1(ungoverned));
+  });
+});
 
 function authorizationRaw(
   elig: DefenseBudgetPromotionEligibilityV1,
@@ -275,6 +364,8 @@ describe('Phase 7 Workstream A — promotion authorization', () => {
       candidates: [
         candidate({
           extractionMethod: 'deterministic_pdfplumber',
+          family: 'committee',
+          sourceProfileSha256: SHA('2'),
           extractorActorId: 'actor-admin',
         }),
       ],
