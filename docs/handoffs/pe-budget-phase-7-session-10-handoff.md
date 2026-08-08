@@ -158,6 +158,12 @@ and each failure looks like a code defect rather than a missing build:
 `src/defense-budget/projection-plan/**/*.ts` as globs, so new source files
 there need no config change — a new *script* must be listed explicitly.
 
+**A new source directory needs adding to `verify:pe-budget-phase-7` separately.**
+That script names its jest paths explicitly, so `src/defense-budget/projection-plan`
+was typechecked but not *run* by the phase gate until it was added there too
+(both the full and `:fast` variants). The phase 7 gate is now 30 suites / 711
+tests. Worth checking whenever a phase grows a directory.
+
 Carried forward and still true: the local `main` ref in these worktrees is
 stale, so compare against `origin/main`; `git push` needs
 `git -c credential.helper='!gh auth git-credential' push`.
