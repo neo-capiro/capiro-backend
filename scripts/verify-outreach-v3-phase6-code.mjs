@@ -132,6 +132,7 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/pages/engagement/outreach/v3/outreach-v3-preview.spec.ts',
   'src/pages/engagement/outreach/v3/OutreachWizardRouter.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
+  'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',
   'src/pages/engagement/outreach/v3/phase6-ui-contract.spec.ts',
   'src/lib/engagement-api-preview.spec.ts',
