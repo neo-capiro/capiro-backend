@@ -9,6 +9,10 @@ import { GetTargetProfileCapability } from './targets/get-target-profile.capabil
 import { AnalyzeRelationshipsCapability } from './targets/analyze-relationships.capability.js';
 import { AnalyzeTargetCoverageCapability } from './targets/analyze-target-coverage.capability.js';
 import { FindSimilarTargetsCapability } from './targets/find-similar-targets.capability.js';
+import { SearchMemoryCapability } from './context/search-memory.capability.js';
+import { ResearchGovernmentCapability } from './context/research-government.capability.js';
+import { GetDocumentCapability } from './context/get-document.capability.js';
+import { RecommendOutreachStrategyCapability } from './context/recommend-outreach-strategy.capability.js';
 
 @Injectable()
 export class CapiroCapabilityCatalogService implements OnModuleInit {
@@ -22,6 +26,10 @@ export class CapiroCapabilityCatalogService implements OnModuleInit {
     private readonly analyzeRelationships: AnalyzeRelationshipsCapability,
     private readonly analyzeTargetCoverage: AnalyzeTargetCoverageCapability,
     private readonly findSimilarTargets: FindSimilarTargetsCapability,
+    private readonly searchMemory: SearchMemoryCapability,
+    private readonly researchGovernment: ResearchGovernmentCapability,
+    private readonly getDocument: GetDocumentCapability,
+    private readonly recommendOutreachStrategy: RecommendOutreachStrategyCapability,
   ) {}
 
   onModuleInit(): void {
@@ -33,6 +41,10 @@ export class CapiroCapabilityCatalogService implements OnModuleInit {
     this.registry.register(this.analyzeRelationships.definition());
     this.registry.register(this.analyzeTargetCoverage.definition());
     this.registry.register(this.findSimilarTargets.definition());
+    this.registry.register(this.searchMemory.definition());
+    this.registry.register(this.researchGovernment.definition());
+    this.registry.register(this.getDocument.definition());
+    this.registry.register(this.recommendOutreachStrategy.definition());
   }
 
   list() {
