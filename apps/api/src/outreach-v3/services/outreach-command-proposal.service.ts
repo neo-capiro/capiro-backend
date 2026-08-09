@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { OutreachStateRepository } from '../persistence/outreach-state.repository.js';
+import {
+  OutreachStateRepository,
+  type OutreachProposalRow,
+} from '../persistence/outreach-state.repository.js';
 import {
   canonicalJsonStringify,
   OUTREACH_V3_LIMITS,
@@ -73,6 +76,83 @@ export class OutreachCommandProposalService {
     });
   }
 
+  /**
+   * Server-only Phase 3 seam. Browser DTOs never expose `source`; the reasoning
+   * gateway calls this method after provider output has been strictly parsed.
+   * It creates a normal pending Phase 2 proposal and never applies commands.
+   */
+  async createModelProposal(
+    ctx: TenantContext,
+    sessionId: string,
+    input: { expectedStateVersion: number; commands: unknown[] },
+  ): Promise<OutreachProposalRow> {
+    const commands = this.parseNormalizeCommands(input.commands);
+    const commandsHash = hashNormalizedOutreachCommands(commands);
+    const commandsJson = JSON.stringify(commands);
+
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
+      if (session.status === 'archived') {
+        throw new OutreachCommandError(
+          'OUTREACH_SESSION_ARCHIVED',
+          'Archived outreach sessions cannot accept new proposals.',
+          409,
+        );
+      }
+      if (session.currentStateVersion !== input.expectedStateVersion) {
+        throw new OutreachCommandError(
+          'OUTREACH_STATE_CONFLICT',
+          'The outreach session changed before the model proposal was created.',
+          409,
+          { currentStateVersion: session.currentStateVersion },
+        );
+      }
+
+      const rows = await tx.$queryRaw<OutreachProposalRow[]>`
+        INSERT INTO outreach_command_proposals (
+          tenant_id, session_id, created_by_user_id, source, expected_state_version,
+          commands_jsonb, commands_hash, status
+        ) VALUES (
+          CAST(${ctx.tenantId} AS uuid), CAST(${session.id} AS uuid),
+          CAST(${ctx.userId} AS uuid), 'future_model', ${input.expectedStateVersion},
+          CAST(${commandsJson} AS jsonb), ${commandsHash}, 'pending'
+        )
+        RETURNING
+          id,
+          tenant_id AS "tenantId",
+          session_id AS "sessionId",
+          created_by_user_id AS "createdByUserId",
+          source,
+          expected_state_version AS "expectedStateVersion",
+          commands_jsonb AS "commandsJsonb",
+          commands_hash AS "commandsHash",
+          status,
+          created_at AS "createdAt",
+          decided_at AS "decidedAt",
+          decided_by_user_id AS "decidedByUserId",
+          applied_state_version AS "appliedStateVersion",
+          rejection_code AS "rejectionCode"
+      `;
+      const proposal = rows[0];
+      if (!proposal) throw new Error('OUTREACH_MODEL_PROPOSAL_CREATE_FAILED');
+
+      await this.repository.appendEvent(tx, ctx, session, {
+        eventType: 'proposal_created',
+        source: 'future_model',
+        stateVersionBefore: session.currentStateVersion,
+        stateVersionAfter: session.currentStateVersion,
+        safeMetadata: {
+          proposalId: proposal.id,
+          expectedStateVersion: proposal.expectedStateVersion,
+          commandCount: commands.length,
+          commandsHash,
+          source: 'future_model',
+        },
+      });
+      return proposal;
+    });
+  }
+
   async listProposals(ctx: TenantContext, sessionId: string, limit = 100) {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       this.repository.listOwnedProposals(tx, ctx, sessionId, Math.min(Math.max(limit, 1), 200)),
@@ -113,10 +193,6 @@ export class OutreachCommandProposalService {
       const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
       const proposal = await this.repository.lockOwnedProposal(tx, ctx, sessionId, proposalId);
 
-      // State-changing command batches proactively terminalize proposals that
-      // target the old version. Keep that eager supersession, but surface the
-      // contract-specific stale error when a user later presses Apply instead of
-      // collapsing it into a generic already-decided response.
       if (proposal.status === 'superseded') {
         throw new OutreachCommandError(
           'OUTREACH_PROPOSAL_STALE',
@@ -141,8 +217,6 @@ export class OutreachCommandProposalService {
       }
 
       if (proposal.expectedStateVersion !== session.currentStateVersion) {
-        // Persist the terminal stale decision before surfacing the 409. Throwing
-        // inside the transaction would roll this audit transition back.
         await tx.$executeRaw`
           UPDATE outreach_command_proposals
           SET status = 'superseded', decided_at = NOW(), rejection_code = 'state_advanced'
@@ -176,12 +250,6 @@ export class OutreachCommandProposalService {
         );
       }
 
-      // Proposal Apply owns its mutation identity. Do not reuse proposal.id as a
-      // public command-batch UUID: direct controls accept caller-chosen batch IDs,
-      // so a caller who knows the proposal UUID could otherwise pre-consume that
-      // idempotency key before pressing Apply. This UUID is generated server-side
-      // inside the same transaction; proposal terminal state prevents a second
-      // committed Apply, while a rollback discards both the state and proposal stamp.
       const commandBatchId = randomUUID();
       const batch = this.commandEngine.parseNormalizeAndValidateBatch({
         batchId: commandBatchId,
