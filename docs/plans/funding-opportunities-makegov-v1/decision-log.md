@@ -2135,3 +2135,65 @@ that was not true before #860.
 **Not resolved, and not an agent's to resolve:** the Tango API key was pasted into a chat transcript on
 2026-08-08 and still needs rotating in Secrets Manager. Until it is, a probe run may report an
 authentication failure that looks like an entitlement problem.
+
+## D-67 · 2026-08-08 · A default branch is a claim about every case you did not name
+
+P41 part 3 wired the DLA bid board into the inbox. Adding one entry to the web's `INBOX_SOURCES`
+broke a detail surface, and the mechanism is worth recording because neither the compiler nor the
+existing tests said a word.
+
+### The bug
+
+`FundingOpportunityDrawer` chose its body like this:
+
+    catalogRef == null ? <ForecastOpportunityDetail/> : <FundingOpportunityDetail/>
+
+That was correct for as long as `agency_forecast` was the only non-catalog rail: "is not a catalog
+record" and "is a forecast" named the same set. `asCatalogRef` returns null for a `dibbs` ref too,
+so the moment the fourth source became legal, opening a bid-board row fetched
+`/api/intelligence/opportunities/forecasts/<solicitation>` and rendered a DLA line item as an
+agency forecast — a record type claiming to be a different record type, which is the exact class of
+failure this program exists to prevent.
+
+**Typecheck passed.** Both branches accept an `OpportunityRef`; `asCatalogRef`'s contract was never
+violated. Nothing was cast. The defect lived entirely in a boolean's *meaning* having quietly
+changed while its *value* stayed correct.
+
+The general form: **a default branch encodes "everything else is X", and that claim expires the
+moment the set grows.** The fix is not a better default but no default: every rail now has to be
+NAMED to get a body, and an unnamed one renders a sentence saying there is no view for it. Wrong in
+a way a reader can see, rather than wrong in a way that looks like data.
+
+Worth noting that `asCatalogRef`'s own doc comment had predicted this — it said a cast at each call
+site "is exactly the thing that stops the compiler noticing when a third record type arrives." The
+third record type arrived and the compiler did not notice, because the hazard was never the cast
+that was avoided; it was the `== null` test downstream that had silently become a source test. **A
+comment that names a future hazard does not defend against it.**
+
+### The second finding: a null that was not neutral
+
+`DibbsOpportunityCard.partProfileGap` treats `null` as "a part-level match was attempted and there
+is no gap". The inbox response carries no scoring breakdown, so `null` was the obvious default —
+and it would have told every reader that this client's parts were compared against the item and
+came up short. No client part store exists in this schema (`scoreDibbsRelevance` documents
+`clientHasRecordedParts` as false for every client), so no comparison has ever run for anyone.
+
+Same shape as the drawer bug one level down: **an absent value is not a neutral value when the
+consumer reads absence as a determination.** The gap is now passed from a named constant,
+`DIBBS_PART_PROFILE_GAP_TODAY`, whose doc carries this reasoning and which is DELETED rather than
+edited when a client part store lands — so the day the fact stops being structural, the constant
+stops compiling instead of silently becoming a lie.
+
+### What this part did NOT do
+
+- **The v2 queue surface (`FoV2Queue.tsx`) still branches only on `isForecastRow`**, so a dibbs row
+  renders there through the generic treatment. Pre-existing since part 2 made the API return these
+  rows to every caller; not introduced here and not fixed here.
+- **Prior-award intelligence is not surfaced in the inbox.** `describeDibbsAwardIntelligence` exists
+  and the card renders awards, but `InboxDibbsFacts` carries none, so the card is passed no awards.
+  Absence renders as no section, not as "no prior awards".
+- **No pursuit control.** No mutation is wired for a dibbs row, so the card's action row is absent
+  rather than inert — which also means its solicitation-document link, nested inside that row, is
+  not reachable from the queue.
+- **Still no live DIBBS response has ever been observed**, so every field mapping here inherits
+  P40's open contract gate unchanged.

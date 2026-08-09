@@ -2215,9 +2215,44 @@ jobs:
       # separators. The card receives only the text, so it is the fallback in both
       # branches now. A gap in the middle of a line reads as a rendering fault,
       # not as a fact about the source — the same confusion P49's em dash caused.
+      #
+      # 117/441 -> 118/454 after P41 part 3. No new FILE; the one added block is
+      # FundingOpportunityInbox.test.tsx's bid-board describe (12 tests), plus 1
+      # test in FundingOpportunityDetail.test.tsx for the route. Measured on this
+      # branch, not computed from the diff.
+      #
+      # What those 13 pin is mostly NOT "the card renders" — part 1 already
+      # covered the card. They pin the two ways wiring a third rail can lie:
+      #
+      #   1. THE DRAWER MISDISPATCH, which this part introduced and closed.
+      #      `asCatalogRef` returns null for a dibbs ref exactly as it does for a
+      #      forecast, and the drawer branched on `catalogRef == null`. Widening
+      #      INBOX_SOURCES therefore routed a DLA solicitation into
+      #      ForecastOpportunityDetail — a bid-board line item rendered as an
+      #      agency forecast, against the forecast endpoint. The dispatch now
+      #      switches on `ref.source`. The test was confirmed to FAIL against the
+      #      old dispatch before being kept; note it failed on the BODY assertion
+      #      while the title already read "Bid-board item", which is why both are
+      #      asserted.
+      #   2. THE FABRICATED PART-PROFILE GAP. The card's `partProfileGap` prop
+      #      treats null as "a part-level match was attempted and there is no
+      #      gap". The inbox response carries no scoring breakdown, so null was
+      #      the tempting default — and it would have told every reader that this
+      #      client's parts were compared and came up short. No client part store
+      #      exists (`scoreDibbsRelevance` documents `clientHasRecordedParts` as
+      #      false for every client), so no comparison has ever run for anyone.
+      #      The gap is passed from DIBBS_PART_PROFILE_GAP_TODAY, which is a
+      #      named structural fact with this reasoning attached, and is DELETED
+      #      rather than edited when a part store lands.
+      #
+      # The 13th test is the route's own version of the same class: `dibbs` is a
+      # legal source, so /intelligence/opportunities/dibbs/:id is reachable, and
+      # the malformed-URL branch would have said “dibbs” is not a source Capiro
+      # holds — false about Capiro's own data, and it sends the reader looking
+      # for a broken import instead of back to the queue where the item is.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 117 441
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 118 454
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
