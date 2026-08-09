@@ -3,7 +3,11 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OutreachReasoningError } from './outreach-reasoning.contract.js';
 
-const TURN_LEASE_MINUTES = 3;
+// The provider currently permits up to six 90-second HTTP rounds, plus bounded
+// Capiro read-tool execution. Fifteen minutes is deliberately longer than that
+// maximum normal turn window so a live turn cannot be reclaimed concurrently;
+// it still gives crashed workers a deterministic recovery path.
+const TURN_LEASE_MINUTES = 15;
 
 @Injectable()
 export class OutreachReasoningTurnClaimService {
