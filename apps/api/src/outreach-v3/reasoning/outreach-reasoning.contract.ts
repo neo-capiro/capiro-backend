@@ -1,5 +1,6 @@
 import type { TenantContext } from '@capiro/shared';
 import { z } from 'zod';
+import type { OutreachTargetCoverageV1 } from '../targets/outreach-target-coverage.service.js';
 import {
   parseOutreachCommandEnvelope,
   type ParsedOutreachCommandEnvelope,
@@ -123,6 +124,7 @@ export interface ReasoningCampaignContext {
   specHash: string;
   spec: unknown;
   readiness: unknown;
+  targetCoverage: OutreachTargetCoverageV1;
   pendingProposalCount: number;
 }
 
