@@ -12,6 +12,8 @@ import { OutreachTargetReferenceService } from './targets/outreach-target-refere
 import { SearchTargetsCapability } from './targets/search-targets.capability.js';
 import { GetTargetProfileCapability } from './targets/get-target-profile.capability.js';
 import { AnalyzeRelationshipsCapability } from './targets/analyze-relationships.capability.js';
+import { AnalyzeTargetCoverageCapability } from './targets/analyze-target-coverage.capability.js';
+import { FindSimilarTargetsCapability } from './targets/find-similar-targets.capability.js';
 
 @Module({
   imports: [PrismaModule, DirectoryModule],
@@ -25,6 +27,8 @@ import { AnalyzeRelationshipsCapability } from './targets/analyze-relationships.
     SearchTargetsCapability,
     GetTargetProfileCapability,
     AnalyzeRelationshipsCapability,
+    AnalyzeTargetCoverageCapability,
+    FindSimilarTargetsCapability,
     CapiroCapabilityCatalogService,
     SharedCapabilityToolAdapter,
   ],
