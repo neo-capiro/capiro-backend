@@ -7224,6 +7224,148 @@ model TangoDibbsAward {
   @@map("tango_dibbs_award")
 }
 
+/// One SBIR/STTR solicitation CYCLE (P42) - the announcement a topic sits in.
+///
+/// `program` is what separates SBIR from STTR; it is a stored discriminator
+/// rather than two tables, because every other field means the same thing for
+/// both and the provider serves them from one endpoint.
+///
+/// Global, no tenant_id, no RLS: a solicitation cycle is a fact about the
+/// federal marketplace, the same reasoning tango_dibbs_solicitation (P40) and
+/// tango_procurement_forecast (P24) already carry.
+///
+/// UNCONFIRMED AGAINST A LIVE RESPONSE. Nothing has ever called /api/sbir/.
+/// Every column is a conservative reading of a published field NAME; types,
+/// null semantics and date formats are not documented. See
+/// dibbs-sbir-rest-contract.md and the migration header.
+model TangoSbirSolicitation {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own `solicitation_id`. The upsert key.
+  ///
+  /// NOT a uuid, and deliberately not named as one: the contract doc records
+  /// that topics key on `topic_id` and solicitations on `solicitation_id`,
+  /// neither of which is the `uuid` DIBBS uses. Assuming a shared identity
+  /// column across these APIs is the mistake this name exists to prevent.
+  tangoSbirId String @unique @map("tango_sbir_id")
+
+  /// The cycle's public number, and the ONLY key a topic carries back here.
+  /// NOT NULL because a cycle nothing can be joined to is not usable; the
+  /// mapper drops such a record rather than storing it unreachable.
+  solicitationNumber String  @map("solicitation_number")
+  title              String?
+
+  /// 'SBIR' | 'STTR' as the provider spells it. NOT constrained by a CHECK:
+  /// the contract documents the field, not its value set, and a bounded
+  /// vocabulary invented here would reject a real value on first contact.
+  program String?
+
+  cycleName String? @map("cycle_name")
+  year      Int?
+
+  startDate DateTime? @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+
+  /// The provider's own flag for a cycle outside the normal schedule.
+  outOfCycle Boolean? @map("out_of_cycle")
+
+  activity String?
+  /// The provider's own lifecycle word, stored as stated. Never rewritten into
+  /// "open"/"closed", and never derived from endDate.
+  solicitationStatus String? @map("solicitation_status")
+
+  solDownloadUrl String? @map("sol_download_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([solicitationNumber], map: "tango_sbir_solicitation_number_idx")
+  @@index([program], map: "tango_sbir_solicitation_program_idx")
+  @@index([year], map: "tango_sbir_solicitation_year_idx")
+  @@index([solicitationStatus], map: "tango_sbir_solicitation_status_idx")
+  @@map("tango_sbir_solicitation")
+}
+
+/// One SBIR/STTR TOPIC (P42) - the unit a small business actually responds to.
+///
+/// WHY THERE IS NO FOREIGN KEY TO tango_sbir_solicitation
+/// -------------------------------------------------------------------
+/// `solicitationNumber` is the stated link to the parent cycle, unenforced -
+/// the same decision, for the same reason, as tango_dibbs_award.solicitation:
+/// a topic can name a cycle this system never synced (different filter,
+/// different window, or simply not fetched yet), and a FK would make a missing
+/// parent silently drop a real topic.
+///
+/// WHAT THE PLAN ASKS FOR THAT THE PROVIDER DOES NOT PUBLISH
+/// -------------------------------------------------------------------
+/// P42's work item names "topic, agency/component, solicitation cycle, phase,
+/// open/close dates, description, source opportunity/grant link, and DSIP
+/// parent". Four of those have NO documented field on either SBIR endpoint:
+///
+///   - PHASE (I/II/III) - a real SBIR concept, absent from the published field
+///     list. No column, because a column nothing can populate reads as "we
+///     have this and it is null" rather than "the source does not state it".
+///   - DESCRIPTION - not published on the list resource.
+///   - DSIP PARENT - `officialSolicitationUrl` may point at DSIP, but a URL is
+///     not a parent key and must not be parsed into one.
+///   - SOURCE OPPORTUNITY / GRANT LINK - no crosswalk field exists.
+///
+/// Recorded here rather than solved, so the next reader does not add a column
+/// and populate it from something adjacent. That is the
+/// AwardHistoryFacts.contractOffices mistake, which fed an office signal the
+/// awarding sub-tier because it was nearby.
+///
+/// UNCONFIRMED AGAINST A LIVE RESPONSE - see the sibling model.
+model TangoSbirTopic {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own `topic_id`. The upsert key, and NOT the same field
+  /// name the sibling table keys on - see TangoSbirSolicitation.tangoSbirId.
+  tangoSbirId String @unique @map("tango_sbir_id")
+
+  /// The public topic number, e.g. an "A24-001" style code. Distinct from
+  /// `tangoSbirId`: the provider's row id is not the number a human cites.
+  topicNumber String? @map("topic_number")
+  title       String?
+
+  /// The provider's single `agency` field. There is no separate component
+  /// field on this resource, so nothing here is split into one.
+  agency String?
+  year   Int?
+
+  /// The parent cycle, as STATED. No FK - see the model doc.
+  solicitationNumber String? @map("solicitation_number")
+
+  releaseDate DateTime? @map("release_date") @db.Date
+  openDate    DateTime? @map("open_date") @db.Date
+  closeDate   DateTime? @map("close_date") @db.Date
+
+  activity String?
+  /// The provider's own lifecycle word for the parent solicitation, stored as
+  /// stated. A closed topic is still stored - P42's acceptance is that it stays
+  /// REFERENCE-ONLY, which is a rule about what may pursue it, not a reason to
+  /// drop it.
+  solicitationStatus String? @map("solicitation_status")
+
+  topicUrl                String? @map("topic_url")
+  officialSolicitationUrl String? @map("official_solicitation_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([solicitationNumber], map: "tango_sbir_topic_solicitation_number_idx")
+  @@index([topicNumber], map: "tango_sbir_topic_topic_number_idx")
+  @@index([agency], map: "tango_sbir_topic_agency_idx")
+  @@index([closeDate], map: "tango_sbir_topic_close_date_idx")
+  @@map("tango_sbir_topic")
+}
+
 /// Per-FIELD agreement between Capiro's first-party SAM.gov row and
 /// MakeGov/Tango's own observation of the same opportunity (P27).
 ///
