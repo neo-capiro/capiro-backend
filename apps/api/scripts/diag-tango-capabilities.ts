@@ -73,6 +73,7 @@ import {
   type CapabilityReport,
 } from '../src/external/tango/tango-capability-probe.service.js';
 import { TangoDibbsClient } from '../src/external/tango/tango-dibbs.client.js';
+import { TangoSbirClient } from '../src/external/tango/tango-sbir.client.js';
 
 dotenvConfig();
 
@@ -164,12 +165,23 @@ async function main(): Promise<void> {
     timeoutMs: args.timeoutMs,
   });
 
+  // The SBIR/STTR REST surface, same reasoning one phase later (P42 part 1).
+  // Until this existed the probe could only ever report `no_rest_client_wired`
+  // — a fact about Capiro's code — while P42's own gate asks for an entitlement
+  // answer. Read-only: the probe issues one `listTopics({ limit: 1 })`.
+  const sbir = new TangoSbirClient({
+    apiKey: args.apiKey,
+    baseUrl: args.baseUrl,
+    timeoutMs: args.timeoutMs,
+  });
+
   const service = new TangoCapabilityProbeService();
   const report = await service.run(client, args.apiKey, {
     uei: args.uei,
     vehicleUuid: args.vehicleUuid,
     requestCeiling: args.requestCeiling,
     dibbs,
+    sbir,
   });
 
   console.error(formatSummary(report));

@@ -50,12 +50,14 @@ despite two superseded rows: editing or clobbering a captured artifact is how
 records stop being evidence. Reports default outside the repo so one is never
 committed by accident.
 
-**A pre-P40 checkout produces a non-answer that reads like an answer.** Without
-`apps/api/src/external/tango/tango-dibbs.client.ts` the probe still runs and
-reports `dibbs: not_attempted / no_rest_client_wired`. That is a fact about
+**A checkout missing a REST client produces a non-answer that reads like an
+answer.** Without `apps/api/src/external/tango/tango-dibbs.client.ts` the probe
+still runs and reports `dibbs: not_attempted / no_rest_client_wired`; without
+`tango-sbir.client.ts` it does the same for `sbir_sttr`. Either is a fact about
 Capiro's code, not about the provider's entitlement — the D-64 confusion, one
-layer out. The script hard-fails instead. Point it at a checkout containing
-merge commit `094daf1d` (PR #857) or later.
+layer out. The script hard-fails on both instead, from one table so a future
+rail is a one-line addition. Point it at a checkout containing merge commit
+`094daf1d` (PR #857, DIBBS) and P42 part 1 (SBIR), or later.
 
 ## Choosing a checkout
 
@@ -73,15 +75,27 @@ cannot check out a branch another worktree already holds, which is why
 
 ## Reading the result
 
-The `dibbs` row is the point. `supported` answers P40's entitlement question,
-and because the probe calls through `TangoDibbsClient` — which throws when a 200
-carries no `results` array — a successful run also confirms the pagination
-envelope against a live response.
+Two rows are the point now: `dibbs` and, since P42 part 1, `sbir_sttr`.
 
-Scope that precisely: the probe captures **no response bodies**, so it confirms
+`dibbs: supported` answered P40's entitlement question on 2026-08-08, and
+because the probe calls through `TangoDibbsClient` — which throws when a 200
+carries no `results` array — that run also confirmed the pagination envelope
+against a live response.
+
+`sbir_sttr` is the same question one dataset over, and it has **never been
+answered**. Until P42 part 1 it could not be: with no SBIR client the probe
+reported `not_attempted / no_rest_client_wired`, a fact about Capiro's code.
+`TangoSbirClient` now backs it, so a run reports `supported`, a real HTTP
+status, or `rate_limited` — all of which are answers. Nothing has ever called
+`/api/sbir/`, so this row is the first observation of that surface, and P42's
+schema work is designed against documentation until it comes back.
+
+Scope both precisely: the probe captures **no response bodies**, so it confirms
 the *envelope* only. Mapper field types, null semantics, and date formats remain
 readings of published names until full contract validation records actual record
-contents. That validation is still the real gate.
+contents. That validation is still the real gate — for DIBBS it has been open
+since P40 despite a `supported` row, which is exactly how much a `supported`
+row is worth.
 
 An envelope mismatch is a contract finding: update `dibbs-sbir-rest-contract.md`
 and capture a fixture. Never widen the client to accept both shapes.

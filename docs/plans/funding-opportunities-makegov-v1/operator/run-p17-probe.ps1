@@ -31,10 +31,10 @@
   contains this script, which is normally what you want.
 
   Do NOT point this at a working checkout that sits on a feature branch. Two
-  separate failure modes: a checkout predating P40 part 3 has no
-  TangoDibbsClient and reports dibbs as not_attempted (see the guard below),
-  and a dirty tree makes the run unreproducible. A detached worktree at a known
-  commit is the reliable shape:
+  separate failure modes: a checkout predating P40 part 3 or P42 part 1 is
+  missing that dataset's REST client and reports it as not_attempted (see the
+  guard below), and a dirty tree makes the run unreproducible. A detached
+  worktree at a known commit is the reliable shape:
 
     git -C <repo> worktree add --detach C:\dev\capiro-p17-wt origin/main
     cd C:\dev\capiro-p17-wt; pnpm install --frozen-lockfile
@@ -85,19 +85,43 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepoPath 'package.json'))) {
   throw "RepoPath is not a repo root (no package.json): $RepoPath"
 }
 
-# A checkout without the DIBBS client still RUNS. It reports dibbs as
-# not_attempted / no_rest_client_wired, which reads exactly like an entitlement
-# answer and is not one -- the D-64 failure mode, one layer out. Fail loudly.
-$dibbsClient = Join-Path $RepoPath 'apps\api\src\external\tango\tango-dibbs.client.ts'
-if (-not (Test-Path -LiteralPath $dibbsClient)) {
-  throw @"
-This checkout predates P40 part 3 -- TangoDibbsClient is missing:
-  $dibbsClient
+# A checkout missing one of these REST clients still RUNS. It reports that
+# dataset as not_attempted / no_rest_client_wired, which reads exactly like an
+# entitlement answer and is not one -- the D-64 failure mode, one layer out.
+# Fail loudly instead.
+#
+# TABLE-DRIVEN ON PURPOSE. This guard was DIBBS-only until P42 part 1 added the
+# SBIR client, at which point a pre-P42 checkout could report sbir_sttr as
+# not_attempted and be read as "no entitlement" -- the identical trap the guard
+# below already existed to prevent, one dataset over. Adding a rail should be a
+# one-line edit here, not a decision about whether to bother.
+$requiredRestClients = @(
+  @{
+    Name  = 'TangoDibbsClient'
+    Path  = 'apps\api\src\external\tango\tango-dibbs.client.ts'
+    Probe = 'dibbs'
+    Since = 'P40 part 3 (merge commit 094daf1d, PR #857)'
+  },
+  @{
+    Name  = 'TangoSbirClient'
+    Path  = 'apps\api\src\external\tango\tango-sbir.client.ts'
+    Probe = 'sbir_sttr'
+    Since = 'P42 part 1'
+  }
+)
 
-The probe would run and report dibbs as not_attempted, which is NOT an
-entitlement answer. Update the checkout to a main containing merge commit
-094daf1d (PR #857), then re-run.
+foreach ($client in $requiredRestClients) {
+  $clientPath = Join-Path $RepoPath $client.Path
+  if (-not (Test-Path -LiteralPath $clientPath)) {
+    throw @"
+This checkout predates $($client.Since) -- $($client.Name) is missing:
+  $clientPath
+
+The probe would run and report $($client.Probe) as not_attempted, which is NOT
+an entitlement answer. Update the checkout to a main containing that change,
+then re-run.
 "@
+  }
 }
 
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {

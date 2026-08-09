@@ -213,6 +213,58 @@ describe('genuinely unsupported probes (a fact about the SDK, not this run)', ()
     expect(listRfqs).toHaveBeenCalledWith({ limit: 1 });
     expect(byKey(report, 'dibbs').status).toBe('supported');
   });
+
+  /**
+   * P42 part 1. The mirror of the DIBBS case above, and the reason the client
+   * was built before any SBIR table: P42's plan gates the phase on "P17 must
+   * show access", and P17 could only ever answer `no_rest_client_wired` — a
+   * fact about Capiro's code (D-64), not an entitlement answer. A gate nothing
+   * can satisfy is not a gate; supplying a client is what makes the question
+   * answerable at all.
+   */
+  test('a supplied SBIR REST client makes the sbir_sttr probe a REAL call', async () => {
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const listTopics = jest.fn(async () => ({
+      items: [],
+      totalCount: 0,
+      nextPage: null,
+      rate: null,
+    }));
+    const report = await service.run(client, TEST_KEY, {
+      requestCeiling: 100,
+      sbir: { configured: true, listTopics, listSolicitations: jest.fn() } as any,
+    });
+
+    expect(listTopics).toHaveBeenCalledTimes(1);
+    expect(listTopics).toHaveBeenCalledWith({ limit: 1 });
+    expect(byKey(report, 'sbir_sttr').status).toBe('supported');
+  });
+
+  test('a supplied SBIR client does not make the probe claim anything about DIBBS', async () => {
+    // The two REST surfaces are independent; wiring one must not change the
+    // other's reported status, which is how a phantom "supported" would appear.
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const report = await service.run(client, TEST_KEY, {
+      requestCeiling: 100,
+      sbir: {
+        configured: true,
+        listTopics: jest.fn(async () => ({
+          items: [],
+          totalCount: 0,
+          nextPage: null,
+          rate: null,
+        })),
+        listSolicitations: jest.fn(),
+      } as any,
+    });
+
+    expect(byKey(report, 'sbir_sttr').status).toBe('supported');
+    const dibbs = byKey(report, 'dibbs');
+    expect(dibbs.status).toBe('not_attempted');
+    expect(dibbs.reason).toMatch(/no DIBBS REST client/i);
+  });
 });
 
 describe('webhook_write_apis: deliberately excluded, not unsupported', () => {
