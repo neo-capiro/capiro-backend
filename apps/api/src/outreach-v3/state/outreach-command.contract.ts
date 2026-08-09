@@ -4,6 +4,10 @@ import {
   OUTREACH_V3_LIMITS,
   targetCriteriaV1Schema,
 } from './outreach-campaign-spec.v1.js';
+import {
+  outreachRejectedTargetRecommendationV1Schema,
+  outreachTargetLocatorV1Schema,
+} from '../../capabilities/targets/outreach-target.contract.js';
 import { OutreachCommandError } from './outreach-command-errors.js';
 
 export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
@@ -16,6 +20,9 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'SET_WHY_NOW',
   'SET_SPONSOR_SCOPE',
   'SET_TARGET_CRITERIA',
+  'ADD_TARGET_REFS',
+  'REMOVE_TARGET_REFS',
+  'REJECT_TARGET_RECOMMENDATION',
   'SET_DELIVERY_PATTERN',
   'SET_PERSONALIZATION',
   'SET_CAMPAIGN_ANGLE',
@@ -25,9 +32,6 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
 ] as const;
 
 export const OUTREACH_FUTURE_COMMAND_TYPES = [
-  'ADD_TARGET_REFS',
-  'REMOVE_TARGET_REFS',
-  'REJECT_TARGET_RECOMMENDATION',
   'ACCEPT_CONTEXT_REFS',
   'EXCLUDE_CONTEXT_REFS',
   'SET_SENDER_REF',
@@ -58,7 +62,7 @@ const boundedString = (max: number, min = 0) =>
     });
 
 const nullableBoundedText = (max: number) => boundedString(max).nullable();
-const boundedRef = boundedString(256, 1);
+const boundedRef = boundedString(384, 1);
 const emptyPayload = z.object({}).strict();
 const futureRefsPayload = z.object({ refs: z.array(boundedRef).min(1).max(500) }).strict();
 
@@ -80,8 +84,6 @@ const sponsorPayloadSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    // Cardinality is evaluated on unique ids so a duplicate input can still be
-    // normalized deterministically instead of being rejected before dedupe.
     const uniqueClientCount = new Set(value.clientRefs.map((ref) => ref.clientId)).size;
     if (
       ['undecided', 'firm', 'internal_team', 'none'].includes(value.kind) &&
@@ -131,11 +133,7 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
     .strict()
     .superRefine((value, ctx) => {
       if (value.mode === 'explicit' && !value.text?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['text'],
-          message: 'Explicit ask needs text.',
-        });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['text'], message: 'Explicit ask needs text.' });
       }
       if (value.mode === 'none' && value.text !== null) {
         ctx.addIssue({
@@ -149,6 +147,20 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
   SET_WHY_NOW: z.object({ value: nullableBoundedText(OUTREACH_V3_LIMITS.whyNow) }).strict(),
   SET_SPONSOR_SCOPE: sponsorPayloadSchema,
   SET_TARGET_CRITERIA: z.object({ value: targetCriteriaV1Schema.nullable() }).strict(),
+  ADD_TARGET_REFS: z
+    .object({
+      refs: z
+        .array(outreachTargetLocatorV1Schema)
+        .min(1)
+        .max(OUTREACH_V3_LIMITS.futureTargetRefs),
+    })
+    .strict(),
+  REMOVE_TARGET_REFS: z
+    .object({
+      targetKeys: z.array(boundedRef).min(1).max(OUTREACH_V3_LIMITS.futureTargetRefs),
+    })
+    .strict(),
+  REJECT_TARGET_RECOMMENDATION: outreachRejectedTargetRecommendationV1Schema,
   SET_DELIVERY_PATTERN: z
     .object({
       value: z.enum(['undecided', 'personalized_separate', 'uniform_separate', 'shared_thread']),
@@ -184,9 +196,6 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
       }
     }),
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),
-  ADD_TARGET_REFS: futureRefsPayload,
-  REMOVE_TARGET_REFS: futureRefsPayload,
-  REJECT_TARGET_RECOMMENDATION: z.object({ recommendationRef: boundedRef }).strict(),
   ACCEPT_CONTEXT_REFS: futureRefsPayload,
   EXCLUDE_CONTEXT_REFS: futureRefsPayload,
   SET_SENDER_REF: z.object({ senderRef: boundedRef }).strict(),
