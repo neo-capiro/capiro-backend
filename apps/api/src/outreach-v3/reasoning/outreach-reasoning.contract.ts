@@ -1,3 +1,4 @@
+import type { TenantContext } from '@capiro/shared';
 import { z } from 'zod';
 import {
   parseOutreachCommandEnvelope,
@@ -94,10 +95,6 @@ export interface ReasoningToolResultRef {
   capability: string;
 }
 
-export interface ReasoningProposedCommandSet {
-  commands: ParsedOutreachCommandEnvelope[];
-}
-
 export interface ReasoningTurnResult {
   assistantMessage: string;
   proposedCommands: ParsedOutreachCommandEnvelope[];
@@ -138,6 +135,7 @@ export interface ReasoningProviderTool {
 }
 
 export interface ReasoningProviderRequest {
+  ctx: TenantContext;
   provider: OutreachReasoningProviderName;
   stateMode: OutreachReasoningStateMode;
   model: string;
