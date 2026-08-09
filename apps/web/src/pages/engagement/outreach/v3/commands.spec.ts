@@ -44,6 +44,20 @@ describe('Outreach V3 command builders', () => {
     ]);
   });
 
+  it('refuses an incomplete goal before it reaches the command engine', () => {
+    expect(() =>
+      goalCommands({
+        goal: 'Protect funding',
+        objective: ' ',
+        topic: 'FY27 Ground Robotics',
+        desiredOutcome: 'Request a meeting',
+        askMode: 'explicit',
+        askText: 'Request a briefing',
+        whyNow: '',
+      }),
+    ).toThrow('Objective is required.');
+  });
+
   it('preserves every supported client-optional sponsor scope', () => {
     expect(sponsorCommand({ kind: 'none' })).toEqual({
       type: 'SET_SPONSOR_SCOPE',
@@ -53,7 +67,10 @@ describe('Outreach V3 command builders', () => {
     expect(
       sponsorCommand({
         kind: 'multi_client',
-        clientIds: ['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'],
+        clientIds: [
+          '11111111-1111-4111-8111-111111111111',
+          '22222222-2222-4222-8222-222222222222',
+        ],
       }),
     ).toEqual({
       type: 'SET_SPONSOR_SCOPE',
@@ -61,9 +78,21 @@ describe('Outreach V3 command builders', () => {
       payload: {
         kind: 'multi_client',
         label: null,
-        clientRefs: [{ clientId: '11111111-1111-4111-8111-111111111111' }],
+        clientRefs: [
+          { clientId: '11111111-1111-4111-8111-111111111111' },
+          { clientId: '22222222-2222-4222-8222-222222222222' },
+        ],
       },
     });
+    expect(() =>
+      sponsorCommand({
+        kind: 'multi_client',
+        clientIds: [
+          '11111111-1111-4111-8111-111111111111',
+          '11111111-1111-4111-8111-111111111111',
+        ],
+      }),
+    ).toThrow('Several-clients sponsor scope requires at least two clients.');
   });
 
   it('selects and rejects targets with server-resolvable contracts', () => {
@@ -111,6 +140,7 @@ describe('Outreach V3 command builders', () => {
         ],
       },
     });
+    expect(() => acceptContextCommand([])).toThrow('Choose at least one context source.');
   });
 
   it('separates delivery and strategy from generation or send authority', () => {
@@ -122,6 +152,9 @@ describe('Outreach V3 command builders', () => {
       },
       { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
     ]);
+    expect(() => deliveryCommands('shared_thread', 'high')).toThrow(
+      'High per-recipient personalization is incompatible with a shared thread.',
+    );
     const commands = strategyCommands({
       campaignAngle: 'Protect funding through staff education',
       tone: 'Direct and professional',
