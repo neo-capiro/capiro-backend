@@ -116,13 +116,7 @@ export class OutreachV3TargetsService {
       tenantSlug: ctx.tenantSlug,
       role: ctx.role,
       clientScope: clientId ? { clientId, reason: 'campaign' } : null,
-      impersonation: ctx.impersonationSessionId
-        ? {
-            sessionId: ctx.impersonationSessionId,
-            actorUserId: ctx.impersonatedByUserId ?? ctx.userId,
-            effectiveTenantId: ctx.tenantId,
-          }
-        : null,
+      impersonation: null,
       requestId: `outreach-v3-targets:${sessionId}`,
       surface: 'outreach',
     };
@@ -160,23 +154,28 @@ function clientIdFromLocator(locator: GetTargetProfileInput['targetRef']): strin
 }
 
 function mapCapabilityError(error: CapabilityError): OutreachCommandError {
-  const status =
-    error.code === 'CAPABILITY_NOT_FOUND'
-      ? 404
-      : error.code === 'CAPABILITY_UNAUTHORIZED' ||
-          error.code === 'CAPABILITY_ETHICAL_WALL' ||
-          error.code === 'CAPABILITY_INVALID_SCOPE'
-        ? 403
-        : error.code === 'CAPABILITY_TIMEOUT' || error.code === 'CAPABILITY_UNAVAILABLE'
-          ? 503
-          : 400;
+  if (
+    error.code === 'CAPABILITY_NOT_FOUND' ||
+    error.code === 'CAPABILITY_UNAUTHORIZED' ||
+    error.code === 'CAPABILITY_ETHICAL_WALL' ||
+    error.code === 'CAPABILITY_INVALID_SCOPE'
+  ) {
+    return new OutreachCommandError(
+      'OUTREACH_TARGET_NOT_FOUND',
+      'The requested target was not found in the authorized campaign scope.',
+      404,
+    );
+  }
+  if (error.code === 'CAPABILITY_TIMEOUT' || error.code === 'CAPABILITY_UNAVAILABLE') {
+    return new OutreachCommandError(
+      'OUTREACH_TARGET_UNAVAILABLE',
+      'Target intelligence is temporarily unavailable.',
+      503,
+    );
+  }
   return new OutreachCommandError(
-    error.code === 'CAPABILITY_NOT_FOUND'
-      ? 'OUTREACH_SESSION_NOT_FOUND'
-      : error.code === 'CAPABILITY_INVALID_INPUT'
-        ? 'OUTREACH_COMMAND_INVALID'
-        : 'OUTREACH_REFERENCE_UNAUTHORIZED',
-    error.message,
-    status,
+    'OUTREACH_COMMAND_INVALID',
+    'The target intelligence request is invalid.',
+    400,
   );
 }
