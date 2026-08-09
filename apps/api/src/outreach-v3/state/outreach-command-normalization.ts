@@ -10,6 +10,12 @@ import {
   targetKeyForLocator,
   type OutreachTargetLocatorV1,
 } from '../../capabilities/targets/outreach-target.contract.js';
+import {
+  contextKeyForSelection,
+  normalizeContextSelectionV1,
+  normalizeExcludedContextRefsV1,
+  type OutreachContextSelectionV1,
+} from '../../capabilities/context/outreach-context.contract.js';
 import type {
   ApplyOutreachCommandBatchInput,
   ParsedOutreachCommandEnvelope,
@@ -50,6 +56,18 @@ function normalizeTargetLocators(values: unknown[]): OutreachTargetLocatorV1[] {
   return [...byKey.entries()]
     .sort(([a], [b]) => compareCanonicalStrings(a, b))
     .map(([, locator]) => locator);
+}
+
+function normalizeContextSelections(values: unknown[]): OutreachContextSelectionV1[] {
+  const byKey = new Map<string, OutreachContextSelectionV1>();
+  for (const value of values) {
+    const selection = normalizeContextSelectionV1(value);
+    const key = contextKeyForSelection(selection);
+    if (!byKey.has(key)) byKey.set(key, selection);
+  }
+  return [...byKey.entries()]
+    .sort(([a], [b]) => compareCanonicalStrings(a, b))
+    .map(([, selection]) => selection);
 }
 
 export function normalizeOutreachCommandEnvelope(
@@ -109,6 +127,20 @@ export function normalizeOutreachCommandEnvelope(
       const parsed = outreachRejectedTargetRecommendationV1Schema.parse(payload);
       return { ...command, payload: parsed };
     }
+    case 'ACCEPT_CONTEXT_REFS':
+      return {
+        ...command,
+        payload: {
+          selections: normalizeContextSelections((payload.selections as unknown[]) ?? []),
+        },
+      };
+    case 'EXCLUDE_CONTEXT_REFS':
+      return {
+        ...command,
+        payload: {
+          refs: normalizeExcludedContextRefsV1((payload.refs as unknown[]) ?? []),
+        },
+      };
     case 'SET_DELIVERY_PATTERN':
     case 'SET_PERSONALIZATION':
       return { ...command, payload: { value: payload.value } };
@@ -125,8 +157,6 @@ export function normalizeOutreachCommandEnvelope(
       };
     case 'RESTORE_STATE_VERSION':
       return { ...command, payload: { version: payload.version } };
-    case 'ACCEPT_CONTEXT_REFS':
-    case 'EXCLUDE_CONTEXT_REFS':
     case 'SET_ATTACHMENT_REFS':
       return {
         ...command,
