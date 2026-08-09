@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CapabilityAuthorizationService } from '../../capabilities/capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../../capabilities/capability-context.js';
 import { CapabilityError } from '../../capabilities/capability-errors.js';
+import { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
 import {
   OutreachStateRepository,
   type OutreachEventSource,
@@ -49,6 +50,7 @@ export class OutreachCommandEngineService {
     private readonly prisma: PrismaService,
     private readonly repository: OutreachStateRepository,
     private readonly authorization: CapabilityAuthorizationService,
+    private readonly targetReferences: OutreachTargetReferenceService,
   ) {}
 
   async applyBatch(ctx: TenantContext, sessionId: string, input: unknown) {
@@ -61,8 +63,6 @@ export class OutreachCommandEngineService {
   parseNormalizeAndValidateBatch(input: unknown): ApplyOutreachCommandBatchInput {
     const parsed = parseOutreachCommandBatch(input);
     const normalized = normalizeOutreachCommandBatch(parsed);
-    // Re-parse normalized output so transformations cannot create a state that
-    // violates the strict command schema (e.g. explicit ask -> empty text).
     return parseOutreachCommandBatch(normalized);
   }
 
@@ -78,8 +78,6 @@ export class OutreachCommandEngineService {
     const session =
       options.prelockedSession ?? (await this.repository.lockOwnedSession(tx, ctx, sessionId));
 
-    // P2-INT-002: Explicit scope assertion for prelocked sessions before
-    // idempotency/state access. Mismatch fails closed as OUTREACH_STATE_CORRUPT.
     if (options.prelockedSession) {
       const locked = options.prelockedSession;
       if (
@@ -95,8 +93,6 @@ export class OutreachCommandEngineService {
       }
     }
 
-    // The session lock serializes both idempotency lookup and expected-version
-    // comparison. A concurrent retry waits, then sees the committed result.
     const prior = await this.repository.findBatchResult(tx, ctx, sessionId, batch.batchId);
     if (prior) {
       if (prior.payloadHash !== batchHash) {
@@ -140,12 +136,9 @@ export class OutreachCommandEngineService {
     );
     const currentSpec = this.parseAndVerifyState(currentRow.specJsonb, currentRow.specHash);
 
-    // Parse + authorize the entire batch before the first persistent mutation.
     const authorizedCommands: AuthorizedOutreachCommand[] = [];
     for (const command of batch.commands) {
-      authorizedCommands.push(
-        await this.authorizeCommandWithinTx(tx, ctx, session, command),
-      );
+      authorizedCommands.push(await this.authorizeCommandWithinTx(tx, ctx, session, command));
     }
 
     let workingSpec = currentSpec;
@@ -223,8 +216,6 @@ export class OutreachCommandEngineService {
       replayed: false,
     };
 
-    // Exactly one event per command batch carries command_batch_id. The partial
-    // unique index turns this event into the durable idempotency result row.
     await this.repository.appendEvent(tx, ctx, session, {
       eventType: 'command_batch_result',
       source,
@@ -250,6 +241,23 @@ export class OutreachCommandEngineService {
       return command;
     }
 
+    if (command.type === 'ADD_TARGET_REFS') {
+      try {
+        const refs = (command.payload as { refs: unknown[] }).refs;
+        const resolvedTargetRefs = await this.targetReferences.resolveManyWithinTx(tx, ctx, refs);
+        return { ...command, resolvedTargetRefs };
+      } catch (error) {
+        if (error instanceof CapabilityError) {
+          throw new OutreachCommandError(
+            'OUTREACH_REFERENCE_UNAUTHORIZED',
+            'One or more target references are not available in the authorized scope.',
+            403,
+          );
+        }
+        throw error;
+      }
+    }
+
     if (command.type === 'RESTORE_STATE_VERSION') {
       const version = (command.payload as { version: number }).version;
       const row = await this.repository.loadStateVersion(tx, ctx, session.id, version);
@@ -260,6 +268,22 @@ export class OutreachCommandEngineService {
         session.id,
         restoreSpec.sponsor.clientRefs.map((ref) => ref.clientId),
       );
+      try {
+        await this.targetReferences.reauthorizeSnapshotsWithinTx(
+          tx,
+          ctx,
+          restoreSpec.targeting.selectedTargetRefs,
+        );
+      } catch (error) {
+        if (error instanceof CapabilityError) {
+          throw new OutreachCommandError(
+            'OUTREACH_REFERENCE_UNAUTHORIZED',
+            'One or more restored target references are no longer available in the authorized scope.',
+            403,
+          );
+        }
+        throw error;
+      }
       return { ...command, restoreSpec };
     }
 
