@@ -11,6 +11,7 @@ import type {
   OutreachV3GovernmentSearchData,
   OutreachV3MemorySearchData,
   OutreachV3Proposal,
+  OutreachV3Readiness,
   OutreachV3SessionEnvelope,
   OutreachV3Stage,
   OutreachV3StrategyData,
@@ -44,6 +45,12 @@ import {
 
 const ACTIVE_SESSION_KEY = 'capiro.outreach-v3.active-session';
 const conversationKey = (sessionId: string) => `capiro.outreach-v3.conversation.${sessionId}`;
+
+const FUTURE_PHASE_BLOCKERS = new Set([
+  'GENERATION_NOT_AVAILABLE',
+  'DRAFTS_NOT_AVAILABLE',
+  'PREFLIGHT_NOT_AVAILABLE',
+]);
 
 function readSessionStorage(key: string): string | null {
   try {
@@ -113,19 +120,63 @@ function normalizeTurns(rows: unknown[]): OutreachV3TranscriptTurn[] {
   return turns;
 }
 
-export function deriveOutreachV3Stage(session: OutreachV3SessionEnvelope | null): OutreachV3Stage {
-  if (!session) return 'goal';
-  const { spec } = session;
-  if (
-    !spec.goal.goal ||
-    !spec.goal.topic ||
-    !spec.goal.desiredOutcome ||
-    spec.goal.ask.mode === 'undecided'
-  ) {
-    return 'goal';
+function readinessCode(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return null;
+  const code = (value as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
+}
+
+/** All blocker codes exactly as returned by the canonical backend readiness engine. */
+export function outreachV3ReadinessBlockerCodes(readiness: OutreachV3Readiness): string[] {
+  return [...new Set((readiness.blockers ?? []).map(readinessCode).filter(Boolean) as string[])];
+}
+
+/**
+ * Planning blockers exclude capabilities deliberately owned by the next phase.
+ * This keeps Phase 6 from claiming generation is available while also avoiding
+ * a permanently red planning brief simply because generation/drafts/preflight
+ * are intentionally dark.
+ */
+export function outreachV3PlanningBlockerCodes(readiness: OutreachV3Readiness): string[] {
+  return outreachV3ReadinessBlockerCodes(readiness).filter(
+    (code) => !FUTURE_PHASE_BLOCKERS.has(code),
+  );
+}
+
+function stageFromCanonicalReadiness(readiness: OutreachV3Readiness): OutreachV3Stage | null {
+  if (!Array.isArray(readiness.blockers)) return null;
+  const blockers = new Set(outreachV3ReadinessBlockerCodes(readiness));
+  if (blockers.has('GOAL_MISSING')) return 'goal';
+  if (blockers.has('SPONSOR_UNDECIDED') || blockers.has('SPONSOR_SCOPE_INVALID')) {
+    return 'sponsor';
   }
+  if (
+    blockers.has('TARGET_CRITERIA_MISSING') ||
+    blockers.has('TARGETS_NOT_IMPLEMENTED_YET') ||
+    blockers.has('TARGETS_MISSING')
+  ) {
+    return 'targets';
+  }
+  if (blockers.has('DELIVERY_UNDECIDED')) return 'delivery';
+  if (
+    blockers.has('CONTEXT_NOT_IMPLEMENTED_YET') ||
+    blockers.has('CONTEXT_NOT_REVIEWED') ||
+    blockers.has('CONTEXT_HAS_UNVERIFIED_EVIDENCE')
+  ) {
+    return 'context';
+  }
+  if (blockers.has('STRATEGY_INCOMPLETE')) return 'strategy';
+  return 'ready_for_generation';
+}
+
+function fallbackStageFromSpec(session: OutreachV3SessionEnvelope): OutreachV3Stage {
+  const { spec } = session;
+  if (!spec.goal.goal || !spec.goal.objective) return 'goal';
   if (spec.sponsor.kind === 'undecided') return 'sponsor';
-  if (spec.targeting.selectedTargetRefs.length === 0) return 'targets';
+  if (spec.targeting.criteria === null || spec.targeting.selectedTargetRefs.length === 0) {
+    return 'targets';
+  }
   if (
     spec.delivery.pattern === 'undecided' ||
     spec.delivery.personalization === 'undecided'
@@ -143,6 +194,16 @@ export function deriveOutreachV3Stage(session: OutreachV3SessionEnvelope | null)
     return 'strategy';
   }
   return 'ready_for_generation';
+}
+
+/**
+ * The server-derived readiness contract selects the required stage. The spec
+ * fallback exists only for an older cached response that predates readiness;
+ * it never overrides a current backend blocker.
+ */
+export function deriveOutreachV3Stage(session: OutreachV3SessionEnvelope | null): OutreachV3Stage {
+  if (!session) return 'goal';
+  return stageFromCanonicalReadiness(session.readiness) ?? fallbackStageFromSpec(session);
 }
 
 export interface UseOutreachV3SessionOptions {
@@ -167,8 +228,9 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   );
   const [transientTurns, setTransientTurns] = useState<OutreachV3TranscriptTurn[]>([]);
 
+  const bootstrapKey = ['outreach-v3', 'bootstrap', options.title ?? 'new'] as const;
   const bootstrap = useQuery({
-    queryKey: ['outreach-v3', 'bootstrap', options.title ?? 'new'],
+    queryKey: bootstrapKey,
     enabled: !sessionId,
     queryFn: () => createOutreachV3Session(api, options.title ?? 'New outreach campaign'),
     staleTime: Number.POSITIVE_INFINITY,
@@ -193,8 +255,12 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     if (!sessionId || !sessionQuery.isError || responseStatus(sessionQuery.error) !== 404) return;
     writeSessionStorage(ACTIVE_SESSION_KEY, null);
     writeSessionStorage(conversationKey(sessionId), null);
+    setTransientTurns([]);
+    queryClient.removeQueries({ queryKey: ['outreach-v3', 'bootstrap'] });
+    queryClient.removeQueries({ queryKey: ['outreach-v3', 'session', sessionId] });
+    queryClient.removeQueries({ queryKey: ['outreach-v3', 'conversation', sessionId] });
     setSessionId(null);
-  }, [sessionId, sessionQuery.error, sessionQuery.isError]);
+  }, [queryClient, sessionId, sessionQuery.error, sessionQuery.isError]);
 
   const conversationQuery = useQuery({
     queryKey: ['outreach-v3', 'conversation', sessionId],
@@ -216,6 +282,23 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     queryFn: () => listOutreachV3Turns(api, conversationId!),
     retry: false,
   });
+
+  useEffect(() => {
+    if (
+      !sessionId ||
+      !conversationId ||
+      !turnsQuery.isError ||
+      responseStatus(turnsQuery.error) !== 404
+    ) {
+      return;
+    }
+    writeSessionStorage(conversationKey(sessionId), null);
+    queryClient.removeQueries({ queryKey: ['outreach-v3', 'turns', conversationId] });
+    void queryClient.resetQueries({
+      queryKey: ['outreach-v3', 'conversation', sessionId],
+      exact: true,
+    });
+  }, [conversationId, queryClient, sessionId, turnsQuery.error, turnsQuery.isError]);
 
   const proposalsQuery = useQuery({
     queryKey: ['outreach-v3', 'proposals', sessionId],
@@ -256,6 +339,13 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     ]);
   }, [queryClient, sessionId]);
 
+  const refreshAfterConflict = useCallback(
+    (error: unknown) => {
+      if (responseStatus(error) === 409) void refreshCanonical();
+    },
+    [refreshCanonical],
+  );
+
   const commandsMutation = useMutation({
     mutationFn: async (commands: OutreachV3Command[]) => {
       const current = sessionQuery.data;
@@ -263,6 +353,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
       return applyOutreachV3Commands(api, sessionId, current.currentStateVersion, commands);
     },
     onSuccess: refreshCanonical,
+    onError: refreshAfterConflict,
   });
 
   const reasoningMutation = useMutation({
@@ -295,7 +386,9 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     },
     onError: (error) => {
       setTransientTurns((current) => [
-        ...current,
+        ...current.map((turn) =>
+          turn.status === 'pending' ? { ...turn, status: 'failed' as const } : turn,
+        ),
         {
           id: `failed:${crypto.randomUUID()}`,
           role: 'system',
@@ -312,6 +405,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
       return applyOutreachV3Proposal(api, sessionId, proposal.id);
     },
     onSuccess: refreshCanonical,
+    onError: refreshAfterConflict,
   });
 
   const rejectProposalMutation = useMutation({
@@ -366,6 +460,20 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     },
   });
 
+  const retryReasoning = useCallback(async () => {
+    if (!sessionId) return;
+    const priorConversationId = conversationId;
+    writeSessionStorage(conversationKey(sessionId), null);
+    setTransientTurns([]);
+    if (priorConversationId) {
+      queryClient.removeQueries({ queryKey: ['outreach-v3', 'turns', priorConversationId] });
+    }
+    await queryClient.resetQueries({
+      queryKey: ['outreach-v3', 'conversation', sessionId],
+      exact: true,
+    });
+  }, [conversationId, queryClient, sessionId]);
+
   const startNewSession = useCallback(async () => {
     const priorId = sessionId;
     if (priorId) await archiveOutreachV3Session(api, priorId).catch(() => undefined);
@@ -381,10 +489,17 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     [turnsQuery.data],
   );
 
-  const pendingProposals = useMemo(
-    () => (proposalsQuery.data ?? []).filter((proposal) => proposal.status === 'pending'),
-    [proposalsQuery.data],
-  );
+  const pendingProposals = useMemo(() => {
+    const currentVersion = sessionQuery.data?.currentStateVersion;
+    return (proposalsQuery.data ?? [])
+      .filter((proposal) => proposal.status === 'pending')
+      .sort((left, right) => {
+        const leftCurrent = left.expectedStateVersion === currentVersion ? 1 : 0;
+        const rightCurrent = right.expectedStateVersion === currentVersion ? 1 : 0;
+        if (leftCurrent !== rightCurrent) return rightCurrent - leftCurrent;
+        return String(left.createdAt ?? '').localeCompare(String(right.createdAt ?? ''));
+      });
+  }, [proposalsQuery.data, sessionQuery.data?.currentStateVersion]);
 
   const contextCandidates = useMemo<OutreachV3ContextCandidate[]>(() => {
     const value = contextSearchMutation.data;
@@ -399,7 +514,8 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
 
   const session = sessionQuery.data ?? bootstrap.data ?? null;
   const stage = deriveOutreachV3Stage(session);
-  const reasoningUnavailable = Boolean(conversationQuery.isError);
+  const reasoningUnavailable = Boolean(conversationQuery.isError || turnsQuery.isError);
+  const reasoningError = conversationQuery.error ?? turnsQuery.error ?? reasoningMutation.error;
   const primaryError =
     bootstrap.error ??
     sessionQuery.error ??
@@ -421,11 +537,8 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     applyingCommands: commandsMutation.isPending,
     conversationId,
     reasoningUnavailable,
-    reasoningErrorMessage: conversationQuery.error
-      ? safeOutreachV3Error(conversationQuery.error)
-      : reasoningMutation.error
-        ? safeOutreachV3Error(reasoningMutation.error)
-        : null,
+    reasoningErrorMessage: reasoningError ? safeOutreachV3Error(reasoningError) : null,
+    retryReasoning,
     turns: [...serverTurns, ...transientTurns],
     sendTurn: reasoningMutation.mutateAsync,
     sendingTurn: reasoningMutation.isPending,
