@@ -7,6 +7,8 @@ export const OUTREACH_REASONING_READ_TOOL_NAMES = [
   'search_targets',
   'get_target_profile',
   'analyze_relationships',
+  'analyze_target_coverage',
+  'find_similar_targets',
 ] as const;
 
 export type OutreachReasoningReadToolName = (typeof OUTREACH_REASONING_READ_TOOL_NAMES)[number];
@@ -172,6 +174,66 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
         clientId: uuidSchema,
       },
       required: ['targetRef', 'clientId'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'analyze_target_coverage',
+    description:
+      'Deterministically analyze a proposed target set for contactability, duplicates and requested chamber, committee, state, staff and principal coverage.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        criteria: {
+          anyOf: [
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                chambers: { type: 'array', maxItems: 20, items: { type: 'string' } },
+                committees: { type: 'array', maxItems: 100, items: { type: 'string' } },
+                states: { type: 'array', maxItems: 100, items: { type: 'string' } },
+                relationshipPreference: {
+                  type: 'string',
+                  enum: ['any', 'existing', 'new', 'mixed'],
+                },
+                includeStaff: { type: 'boolean' },
+                includePrincipals: { type: 'boolean' },
+              },
+              required: [
+                'chambers',
+                'committees',
+                'states',
+                'relationshipPreference',
+                'includeStaff',
+                'includePrincipals',
+              ],
+            },
+            { type: 'null' },
+          ],
+        },
+        targetRefs: { type: 'array', maxItems: 500, items: targetRefSchema },
+      },
+      required: ['criteria', 'targetRefs'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'find_similar_targets',
+    description:
+      'Find authorized current targets similar to one known target by role, chamber, state, committee and issue portfolio.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        targetRef: targetRefSchema,
+        clientId: nullableUuidSchema,
+        limit: { type: 'integer', minimum: 1, maximum: 25 },
+      },
+      required: ['targetRef', 'clientId', 'limit'],
     },
   },
 ]);
