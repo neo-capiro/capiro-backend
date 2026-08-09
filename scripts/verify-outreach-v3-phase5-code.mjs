@@ -87,7 +87,10 @@ assert(
   'langgraph-or-langsmith',
 );
 assert(!/SEND_EMAIL_NOW/.test(productionCombined), 'direct-send-command');
-assert(!/sendMail\(|mailSender\.|createSendIntent\(/.test(productionCombined), 'phase5-send-side-effect');
+assert(
+  !/sendMail\(|mailSender\.|createSendIntent\(/.test(productionCombined),
+  'phase5-send-side-effect',
+);
 
 const reasoning = readFileSync(
   resolve(root, 'apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts'),
@@ -132,10 +135,13 @@ const commandContract = readFileSync(
   resolve(root, 'apps/api/src/outreach-v3/state/outreach-command.contract.ts'),
   'utf8',
 );
+const implementedBlock =
+  commandContract.match(/OUTREACH_IMPLEMENTED_COMMAND_TYPES\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? '';
 for (const type of ['ACCEPT_CONTEXT_REFS', 'EXCLUDE_CONTEXT_REFS']) {
-  const implementedBlock = commandContract.match(/OUTREACH_IMPLEMENTED_COMMAND_TYPES\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? '';
   assert(implementedBlock.includes(`'${type}'`), `context-command-not-implemented:${type}`);
 }
+const futureBlock =
+  commandContract.match(/OUTREACH_FUTURE_COMMAND_TYPES\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? '';
 for (const type of [
   'SET_SENDER_REF',
   'SET_ATTACHMENT_REFS',
@@ -143,7 +149,6 @@ for (const type of [
   'REQUEST_FULL_GENERATION',
   'REQUEST_SEND_REVIEW',
 ]) {
-  const futureBlock = commandContract.match(/OUTREACH_FUTURE_COMMAND_TYPES\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? '';
   assert(futureBlock.includes(`'${type}'`), `future-command-promoted-too-early:${type}`);
 }
 
@@ -161,7 +166,9 @@ run('Phase 5 focused tests', 'pnpm', [
   'exec',
   'jest',
   '--runInBand',
+  'src/capabilities/context/outreach-context.contract.spec.ts',
   'src/outreach-v3/services/outreach-command-engine.service.spec.ts',
+  'src/outreach-v3/context/outreach-context-sponsor-policy.spec.ts',
   'src/outreach-v3/context/outreach-v3-context.guard.spec.ts',
   'src/outreach-v3/context/outreach-v3-phase5-architecture.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
