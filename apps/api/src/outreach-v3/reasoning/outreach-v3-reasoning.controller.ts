@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { OutreachReasoningExceptionFilter } from './outreach-reasoning-exception.filter.js';
+import { OutreachReasoningHistoryService } from './outreach-reasoning-history.service.js';
 import { OutreachReasoningService } from './outreach-reasoning.service.js';
 import { OutreachV3ReasoningGuard } from './outreach-v3-reasoning.guard.js';
 
@@ -21,7 +23,10 @@ import { OutreachV3ReasoningGuard } from './outreach-v3-reasoning.guard.js';
 @UseFilters(OutreachReasoningExceptionFilter)
 @Roles('standard_user')
 export class OutreachV3ReasoningController {
-  constructor(private readonly reasoning: OutreachReasoningService) {}
+  constructor(
+    private readonly reasoning: OutreachReasoningService,
+    private readonly history: OutreachReasoningHistoryService,
+  ) {}
 
   @Post('sessions/:sessionId/reasoning/conversations')
   createConversation(
@@ -37,6 +42,15 @@ export class OutreachV3ReasoningController {
     @Param('conversationId', ParseUUIDPipe) conversationId: string,
   ) {
     return this.reasoning.getConversation(ctx, conversationId);
+  }
+
+  @Get('reasoning/conversations/:conversationId/turns')
+  listTurns(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.history.listTurns(ctx, conversationId, Number(limit));
   }
 
   @Post('reasoning/conversations/:conversationId/turns')
