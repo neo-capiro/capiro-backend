@@ -343,6 +343,14 @@ export function RadarPage() {
                 clientName={selectedClient.name}
                 focusAlertId={alertParam}
                 onFocused={() => setParam('alert', null)}
+                railTop={
+                  <LegiWatchRailWidgets
+                    overview={overview}
+                    watchlist={coldStartQuery.data}
+                    clientName={selectedClient.name}
+                    onOpenTab={(t) => setParam('tab', t)}
+                  />
+                }
               />
             </div>
           </FirstRunGate>
@@ -355,6 +363,13 @@ export function RadarPage() {
               onScopeClient={(id) => setParam('client', id)}
               focusAlertId={alertParam}
               onFocused={() => setParam('alert', null)}
+              railTop={
+                <LegiWatchRailWidgets
+                  overview={overview}
+                  clientName={null}
+                  onOpenTab={(t) => setParam('tab', t)}
+                />
+              }
             />
           </div>
         ))}
@@ -466,12 +481,14 @@ function RadarFeedTab({
   clientName,
   focusAlertId,
   onFocused,
+  railTop,
 }: {
   clientId: string;
   clientName: string;
   /** g-7: `&alert=<id>` from an alert email — scroll to and expand that card. */
   focusAlertId?: string | null;
   onFocused?: () => void;
+  railTop?: ReactNode;
 }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -528,6 +545,7 @@ function RadarFeedTab({
         onOpenBill={(billId) => setDrawerBillId(billId)}
         focusAlertId={focusAlertId}
         onFocused={onFocused}
+        railTop={railTop}
       />
       <BillDrawer
         open={drawerBillId !== null}
@@ -555,7 +573,9 @@ function RadarGlobalFeedTab({
   onScopeClient,
   focusAlertId,
   onFocused,
+  railTop,
 }: {
+  railTop?: ReactNode;
   clientNameById: Map<string, string>;
   /** LegiWatch v2 (L1): scope the whole feature to a client (from a feed card's label). */
   onScopeClient: (clientId: string) => void;
@@ -616,6 +636,7 @@ function RadarGlobalFeedTab({
         onOpenBill={(billId, cId) => setDrawer({ billId, clientId: cId })}
         focusAlertId={focusAlertId}
         onFocused={onFocused}
+        railTop={railTop}
       />
       <BillDrawer
         open={drawer !== null}
@@ -1035,6 +1056,147 @@ function LegiWatchMetrics({ overview }: { overview: LegiWatchOverview }) {
         </div>
       ))}
     </div>
+  );
+}
+
+const STAGE_LABEL: Record<string, string> = {
+  introduced: 'Introduced',
+  committee: 'In committee',
+  passed: 'Passed chamber',
+  enacted: 'Enacted',
+};
+
+const CHANGE_TONE_CLASS: Record<string, string> = {
+  critical: 'chip sev-critical',
+  notable: 'chip sev-notable',
+  info: 'chip sev-info',
+  success: 'chip success',
+};
+
+/**
+ * The v3 feed rail widgets, rendered above the feed's own controls.
+ *
+ * Both data widgets read the queries the header strip already issued, so they
+ * cost no extra requests. Two deliberate departures from the mockup:
+ * per-hearing "N watchlist matches" is not shown (the only such count comes
+ * from live transcription, so it is 0 for any hearing nobody captured), and
+ * watchlist coverage appears only for a selected client — computing it at
+ * all-clients altitude would mean one watchlist request per client.
+ */
+function LegiWatchRailWidgets({
+  overview,
+  watchlist,
+  clientName,
+  onOpenTab,
+}: {
+  overview: LegiWatchOverview;
+  watchlist?: WatchlistPayload;
+  clientName: string | null;
+  onOpenTab: (tab: RadarTab) => void;
+}) {
+  const showHearings = overview.hearingsToday != null || overview.hearingsUnavailable;
+  const bills = overview.movingBills.slice(0, 4);
+  const topics = watchlist?.tags?.length ?? 0;
+  const terms =
+    watchlist?.tags?.reduce(
+      (n, t) =>
+        n + (t.synonyms?.length ?? 0) + (t.relatedEntities?.length ?? 0) + (t.riskTerms?.length ?? 0),
+      0,
+    ) ?? 0;
+
+  if (!showHearings && bills.length === 0 && !watchlist) return null;
+
+  return (
+    <>
+      {showHearings && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Today&rsquo;s hearings</h3>
+            {overview.hearingsToday != null && (
+              <span className="sub">{overview.hearingsToday} scheduled</span>
+            )}
+            <span className="grow" />
+            <button type="button" className="link-btn" onClick={() => onOpenTab('hearings')}>
+              Open Hearings →
+            </button>
+          </div>
+          {overview.hearingsUnavailable ? (
+            <div className="lw-card-note">
+              The hearing schedule could not be loaded, so today may not be empty. Open Hearings to
+              retry.
+            </div>
+          ) : overview.todayHearings.length === 0 ? (
+            <div className="lw-card-note">No hearings scheduled today.</div>
+          ) : (
+            overview.todayHearings.slice(0, 4).map((h) => (
+              <div className="lw-row" key={h.id}>
+                <span className="lw-row-lead">{h.time || '—'}</span>
+                <div className="lw-row-main">
+                  <div className="lw-row-title">{h.committee || h.title}</div>
+                  {h.committee && <div className="lw-row-meta">{h.title}</div>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {bills.length > 0 && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Tracked bills moving</h3>
+            {overview.billsMovingThisWeek != null && (
+              <span className="sub">{overview.billsMovingThisWeek} in 7 days</span>
+            )}
+            <span className="grow" />
+            <button type="button" className="link-btn" onClick={() => onOpenTab('bills')}>
+              Open Bills →
+            </button>
+          </div>
+          {bills.map((b) => (
+            <div className="lw-row" key={b.billId}>
+              <span className="lw-row-lead" style={{ minWidth: 74 }}>
+                {b.displayNum}
+              </span>
+              <div className="lw-row-main">
+                <div className="lw-row-title">
+                  {b.canonicalStatus || STAGE_LABEL[b.stage] || b.stage}
+                </div>
+                {b.latestActionDate && <div className="lw-row-meta">{b.latestActionDate}</div>}
+              </div>
+              {b.change && (
+                <span className={CHANGE_TONE_CLASS[b.change.tone] ?? 'chip'}>{b.change.label}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {watchlist && clientName && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Watchlist coverage</h3>
+            <span className="grow" />
+            <button type="button" className="link-btn" onClick={() => onOpenTab('watchlist')}>
+              Configure →
+            </button>
+          </div>
+          <div className="lw-row">
+            <div className="lw-row-main">
+              <div className="lw-row-title">{clientName}</div>
+            </div>
+            <span className="lw-row-meta">
+              {topics} topics · {terms} terms
+            </span>
+          </div>
+          {topics === 0 && (
+            <div className="lw-card-note">
+              No targeting yet — Configure produces guided setup, not an empty feed.
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

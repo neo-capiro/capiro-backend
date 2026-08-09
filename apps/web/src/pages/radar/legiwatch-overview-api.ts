@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
-import { useUpcomingHearings } from '../../lib/hearing-watch-api.js';
+import { useUpcomingHearings, type UpcomingHearing } from '../../lib/hearing-watch-api.js';
 import { intelFeedPaths, type FeedResponse } from '../clients/tracker/intel-feed-api.js';
 import { intelTrackerPaths } from '../clients/tracker/intel-tracker-api.js';
-import type { BoardResponse } from '../clients/tracker/tracker-api.js';
+import type { BoardBill, BoardResponse } from '../clients/tracker/tracker-api.js';
 
 /**
  * The aggregate counters behind the LegiWatch header strip and tab badges.
@@ -21,6 +21,10 @@ export interface LegiWatchOverview {
   billsMovingThisWeek: number | null;
   hearingsToday: number | null;
   hearingsThisWeek: number | null;
+  /** Rows behind the rail widgets, from the same two queries as the counts. */
+  todayHearings: UpcomingHearing[];
+  movingBills: BoardBill[];
+  hearingsUnavailable: boolean;
 }
 
 const CHANGED_WITHIN_DAYS = 7;
@@ -78,17 +82,27 @@ export function useLegiWatchOverview(opts: {
 
   let hearingsToday: number | null = null;
   let hearingsThisWeek: number | null = null;
+  let todayHearings: UpcomingHearing[] = [];
   if (hearingsEnabled && hearingsQuery.data) {
     const today = new Date();
     const todayKey = localDayKey(today);
     const weekEnd = new Date(today);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEndKey = localDayKey(weekEnd);
-    hearingsToday = hearingsQuery.data.filter((h) => h.scheduledAt === todayKey).length;
+    todayHearings = hearingsQuery.data.filter((h) => h.scheduledAt === todayKey);
+    hearingsToday = todayHearings.length;
     hearingsThisWeek = hearingsQuery.data.filter(
       (h) => h.scheduledAt >= todayKey && h.scheduledAt <= weekEndKey,
     ).length;
   }
+
+  // A legacy or `_all` board response can omit `bills` on a column; flatMap
+  // would then keep the undefined as an element and the rail would crash on the
+  // first field read.
+  const movingBills = (billsMovingQuery.data?.columns ?? [])
+    .flatMap((c) => c?.bills ?? [])
+    .filter((b): b is BoardBill => Boolean(b))
+    .sort((a, b) => (b.latestActionDate ?? '').localeCompare(a.latestActionDate ?? ''));
 
   return {
     needsReview,
@@ -96,5 +110,9 @@ export function useLegiWatchOverview(opts: {
     billsMovingThisWeek: billsMovingQuery.data?.total ?? null,
     hearingsToday,
     hearingsThisWeek,
+    todayHearings,
+    movingBills,
+    // A failed schedule fetch must not read as "no hearings today" (v3 rule 06).
+    hearingsUnavailable: hearingsEnabled && hearingsQuery.isError,
   };
 }

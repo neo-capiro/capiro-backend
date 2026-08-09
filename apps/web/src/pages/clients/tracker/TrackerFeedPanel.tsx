@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from 'react-router-dom';
@@ -866,6 +866,7 @@ export function TrackerFeedPanel({
   global = false,
   focusAlertId,
   onFocused,
+  railTop,
 }: {
   /** Per-client mode: the client to scope to. Omitted/ignored in `global` mode. */
   clientId?: string;
@@ -892,6 +893,14 @@ export function TrackerFeedPanel({
   /** g-7: `&alert=<id>` deep link from an alert email. */
   focusAlertId?: string | null;
   onFocused?: () => void;
+  /**
+   * Rendered at the top of the right rail, above the feed's own controls.
+   * LegiWatch passes its schedule/board/coverage widgets here; the
+   * client-profile embedding passes nothing, so that surface is unchanged.
+   * Kept as a slot rather than built in so this shared panel does not take on
+   * the page's queries.
+   */
+  railTop?: ReactNode;
 }) {
   const api = useApi();
   const navigate = useNavigate();
@@ -1395,6 +1404,7 @@ export function TrackerFeedPanel({
       </div>
 
       <aside className="feed-rail">
+        {railTop}
         {/* P1-10: Newest / Priority. `order` is already part of the query key
             AND the query string, so switching refetches under a distinct cache
             entry with no other change. */}
