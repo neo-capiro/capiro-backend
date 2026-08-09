@@ -12,21 +12,33 @@ function shadowPolicy() {
 }
 
 describe('Outreach V3 reasoning runtime boundary', () => {
-  const original = process.env.OUTREACH_V3_REASONING_ENABLED;
+  const originalReasoning = process.env.OUTREACH_V3_REASONING_ENABLED;
+  const originalState = process.env.OUTREACH_V3_STATE_ENABLED;
 
   afterEach(() => {
-    if (original === undefined) delete process.env.OUTREACH_V3_REASONING_ENABLED;
-    else process.env.OUTREACH_V3_REASONING_ENABLED = original;
+    if (originalReasoning === undefined) delete process.env.OUTREACH_V3_REASONING_ENABLED;
+    else process.env.OUTREACH_V3_REASONING_ENABLED = originalReasoning;
+    if (originalState === undefined) delete process.env.OUTREACH_V3_STATE_ENABLED;
+    else process.env.OUTREACH_V3_STATE_ENABLED = originalState;
   });
 
   it('keeps reasoning denied in engagement-api shadow by default', () => {
+    delete process.env.OUTREACH_V3_STATE_ENABLED;
     delete process.env.OUTREACH_V3_REASONING_ENABLED;
     const policy = shadowPolicy();
     expect(policy.externalActionAllowed('outreach_reasoning')).toBe(false);
     expect(() => policy.assertExternalAction('outreach_reasoning')).toThrow();
   });
 
-  it('allows only the reasoning action when its own feature gate is true', () => {
+  it('does not allow reasoning when state is dark even if the reasoning flag is true', () => {
+    process.env.OUTREACH_V3_STATE_ENABLED = 'false';
+    process.env.OUTREACH_V3_REASONING_ENABLED = 'true';
+    const policy = shadowPolicy();
+    expect(policy.externalActionAllowed('outreach_reasoning')).toBe(false);
+  });
+
+  it('allows only the reasoning action when both Phase 2 state and Phase 3 reasoning gates are true', () => {
+    process.env.OUTREACH_V3_STATE_ENABLED = 'true';
     process.env.OUTREACH_V3_REASONING_ENABLED = 'true';
     const policy = shadowPolicy();
     expect(policy.externalActionAllowed('outreach_reasoning')).toBe(true);
@@ -64,6 +76,7 @@ describe('Outreach V3 reasoning runtime boundary', () => {
   ])(
     'does not grant reasoning authority to the main API in $processMode mode',
     ({ processMode, externalActions }) => {
+      process.env.OUTREACH_V3_STATE_ENABLED = 'true';
       process.env.OUTREACH_V3_REASONING_ENABLED = 'true';
       const policy = new EngagementRuntimePolicyService({
         serviceName: 'api',
