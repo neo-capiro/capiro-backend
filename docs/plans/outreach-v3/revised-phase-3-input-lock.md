@@ -1,10 +1,12 @@
-# Outreach V3 Revised Phase 3 — Provisional Input Lock
+# Outreach V3 Revised Phase 3 — Input Lock
 
 ## Execution status
 
 ```text
 PHASE3_PROVISIONAL_IMPLEMENTATION_AUTHORIZED_BY_OWNER
-FORMAL_PHASE3_ACCEPTANCE: BLOCKED_ON_PHASE2_CLOSEOUT
+PHASE2_DEPLOYED_DARK_BASE: OWNER_ACCEPTED_WITH_CLERK_AUTH_WAIVER
+PHASE2_INDEPENDENT_VALIDATION: PENDING
+FORMAL_PHASE3_ACCEPTANCE: BLOCKED_ON_REMAINING_ASSURANCE_GATES
 DEPLOYMENT: NOT AUTHORIZED
 ```
 
@@ -13,13 +15,22 @@ DEPLOYMENT: NOT AUTHORIZED
 ```text
 repository: neo-capiro/capirov2
 branch: agent/outreach-v3-p3-reasoning-gateway
-provisional Phase 2 base: 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
+Phase 2 code base: 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
 Phase 2 PR: #862
+Phase 2 deployed image SHA: 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
 ```
 
-The owner explicitly authorized productive Revised Phase 3 implementation while the separate Phase 2 internal/dev dark-deployment acceptance and independent closeout continue.
+The owner explicitly authorized productive Revised Phase 3 implementation while Phase 2 acceptance closed in parallel.
 
-This is a sequencing override only. It is **not** a retroactive Phase 2 approval. Phase 3 may not be declared accepted, merged, or deployed until the exact Phase 2 lineage receives `OUTREACH_V3_PHASE2_APPROVED` and any required Phase 2 repair is reconciled into this branch.
+The owner later supplied the Phase 2 deployed-dark acceptance report and explicitly chose to **skip Clerk-authenticated live route verification** rather than continue token recovery. That decision is recorded in:
+
+`docs/plans/outreach-v3/revised-phase-2-deployed-dark-owner-acceptance.md`
+
+The Clerk-dependent scenarios are `WAIVED_BY_OWNER / NOT_EXECUTED`; they must never be rewritten as PASS.
+
+The deployed Phase 2 code SHA exactly matches the SHA this Phase 3 branch was created from. Therefore no Phase 2 code/schema reconciliation is required from the supplied deployment result.
+
+A fresh independent Phase 2 approval marker remains a separate assurance gate unless the owner later explicitly waives it. Phase 3 also retains its own DB-free, disposable-DB, live-model-eval, and independent-review gates.
 
 ## Authoritative scope inputs
 
@@ -29,7 +40,8 @@ No dedicated Revised Phase 3 executable plan was available at branch creation. T
 2. the Revised Thin-Reasoning Master Plan (`outreach-v3-thin-reasoning-revised-master-plan.md`);
 3. Phase 2 Campaign State / command / event contracts;
 4. Phase 1 shared capability and AI-credential boundaries;
-5. the current repository implementation where paths or contracts differ from planning-time assumptions.
+5. the current repository implementation where paths or contracts differ from planning-time assumptions;
+6. the owner-supplied Phase 2 deployed-dark acceptance + Clerk verification waiver recorded above.
 
 ## Phase 3 thesis
 
@@ -122,6 +134,8 @@ Capiro-managed mode stores only user-visible conversation content needed for pro
 
 A future explicitly enabled `provider_state` mode may use OpenAI response continuity and persist provider response references outside Campaign Spec. It must remain nonauthoritative and off by default.
 
+For `store=false` reasoning-model tool loops, encrypted provider reasoning items may be replayed transiently within the same in-flight turn when required by the Responses API contract. They are not persisted, logged, returned to the browser, or treated as Capiro reasoning state.
+
 ## OpenAI contract
 
 Use the existing shared `AiCredentialResolverService`; do not duplicate BYOK/global credential policy.
@@ -130,22 +144,36 @@ Use the Responses API. Provider instructions are supplied on every turn. Provide
 
 No OpenAI SDK dependency is required if the existing repository's raw-fetch provider style remains simpler and testable.
 
-## Phase 2 reconciliation rule
+## Phase 2 reconciliation result
 
-Before Phase 3 closeout:
+The owner-supplied deployed-dark report resolves the Phase 2 code lineage as:
 
-1. resolve the final accepted Phase 2 code SHA and docs/evidence SHA;
-2. compare them with this provisional base;
-3. incorporate every Phase 2 code/schema/security repair that is not already present;
-4. rerun affected Phase 3 tests;
-5. record both SHAs when later Phase 2 changes are documentation/evidence only.
+```text
+final deployed Phase 2 code SHA = 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
+Phase 3 provisional/base SHA     = 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
+code reconciliation required     = NO
+schema reconciliation required   = NO
+Clerk authenticated live gate    = WAIVED_BY_OWNER / NOT_EXECUTED
+```
+
+If Phase 2 receives later code/schema/security repairs, compare those descendants and incorporate them before Phase 3 closeout. Documentation/evidence-only descendants should be recorded separately rather than triggering unrelated expensive reruns.
 
 ## Acceptance posture
 
-Phase 3 implementation may proceed now, but these remain impossible until Phase 2 acceptance:
+The Clerk-authenticated Phase 2 live gate is no longer a blocker because the owner explicitly waived it.
+
+These remain required for formal Phase 3 acceptance unless separately and explicitly waived:
 
 ```text
-OUTREACH_V3_PHASE3_APPROVED
-READY_FOR_REVISED_PHASE4
-Phase 3 deployment
+fresh independent Phase 2 assurance disposition
+Phase 3 DB-free verifier PASS
+Phase 3 disposable DB verifier PASS
+Phase 3 deterministic 100-case eval PASS
+Phase 3 live 100-turn OpenAI eval PASS
+Open P0 = 0
+Open P1 = 0
+Blocking P2 = 0
+fresh independent Phase 3 approval
 ```
+
+Phase 3 implementation does not authorize merge, shared migration, flag enablement, or deployment.
