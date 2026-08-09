@@ -21,6 +21,7 @@ import { RecallWebhookModule } from './webhooks/recall-webhook.module.js';
 import { CapabilitiesModule } from './capabilities/capabilities.module.js';
 import { OutreachV3StateModule } from './outreach-v3/api/outreach-v3-state.module.js';
 import { OutreachV3TargetsModule } from './outreach-v3/targets/outreach-v3-targets.module.js';
+import { OutreachV3ContextModule } from './outreach-v3/context/outreach-v3-context.module.js';
 import { OutreachV3ReasoningModule } from './outreach-v3/reasoning/outreach-v3-reasoning.module.js';
 import { EngagementRuntimeGuard } from './engagement/runtime/engagement-runtime.guard.js';
 import { EngagementApiHealthController } from './engagement-api/engagement-api-health.controller.js';
@@ -47,6 +48,7 @@ import { EngagementApiHealthController } from './engagement-api/engagement-api-h
     CapabilitiesModule,
     OutreachV3StateModule,
     OutreachV3TargetsModule,
+    OutreachV3ContextModule,
     OutreachV3ReasoningModule,
   ],
   controllers: [EngagementApiHealthController],
