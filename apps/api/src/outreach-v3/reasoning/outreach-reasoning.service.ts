@@ -3,9 +3,14 @@ import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-resolver.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  targetKeyForLocator,
+  type OutreachTargetLocatorV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
 import { OUTREACH_COMMAND_REGISTRY } from '../commands/outreach-command-registry.js';
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
 import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
+import type { ParsedOutreachCommandEnvelope } from '../state/outreach-command.contract.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
   OUTREACH_REASONING_LIMITS,
@@ -150,6 +155,7 @@ export class OutreachReasoningService {
       );
       const transcript = boundTranscript(loaded.transcript);
       const instructions = this.campaignContext.buildInstructions(ctx, campaign);
+      const toolEvidence = new Map<string, unknown>();
 
       const providerResult = await this.provider.respond({
         ctx,
@@ -164,8 +170,16 @@ export class OutreachReasoningService {
         userMessage: input.message,
         recentTranscript: transcript,
         tools: this.campaignContext.providerTools(campaign),
-        executeTool: (name, toolInput) =>
-          this.campaignContext.executeReadTool(capabilityCtx, campaign, name, toolInput),
+        executeTool: async (name, toolInput) => {
+          const result = await this.campaignContext.executeReadTool(
+            capabilityCtx,
+            campaign,
+            name,
+            toolInput,
+          );
+          toolEvidence.set(result.resultId, result.output);
+          return result;
+        },
       });
 
       for (const command of providerResult.proposedCommands) {
@@ -177,15 +191,17 @@ export class OutreachReasoningService {
           );
         }
       }
+      assertTargetCommandsGrounded(
+        providerResult.proposedCommands,
+        providerResult.referencedToolResults.map((entry) => entry.resultId),
+        toolEvidence,
+      );
 
       const assistantMessageHash = hashVisibleText(providerResult.assistantMessage);
       const latencyMs = Date.now() - started;
       const proposalIds: string[] = [];
 
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-        // Always recheck the exact canonical state the model inspected, even for
-        // a read-only/no-command answer. Stale advice is rejected rather than
-        // committed/returned as if it described the current campaign.
         await this.stateVersions.assertCurrentWithinTx(
           tx,
           ctx,
@@ -288,6 +304,74 @@ export class OutreachReasoningService {
     );
     return { id: conversationId, status: 'archived' as const };
   }
+}
+
+function assertTargetCommandsGrounded(
+  commands: ParsedOutreachCommandEnvelope[],
+  referencedResultIds: string[],
+  allToolEvidence: Map<string, unknown>,
+): void {
+  const referencedEvidence = referencedResultIds
+    .map((id) => allToolEvidence.get(id))
+    .filter((value): value is unknown => value !== undefined);
+  const availableTargetKeys = new Set<string>();
+  const availableRecommendations = new Map<string, string>();
+
+  for (const output of referencedEvidence) collectTargetEvidence(output, availableTargetKeys, availableRecommendations);
+
+  for (const command of commands) {
+    if (command.type === 'ADD_TARGET_REFS') {
+      const refs = (command.payload as { refs: OutreachTargetLocatorV1[] }).refs;
+      for (const ref of refs) {
+        if (!availableTargetKeys.has(targetKeyForLocator(ref))) {
+          throw invalidTargetProposal();
+        }
+      }
+    }
+    if (command.type === 'REJECT_TARGET_RECOMMENDATION') {
+      const payload = command.payload as { recommendationRef: string; targetKey: string };
+      if (availableRecommendations.get(payload.recommendationRef) !== payload.targetKey) {
+        throw invalidTargetProposal();
+      }
+    }
+  }
+}
+
+function collectTargetEvidence(
+  output: unknown,
+  targetKeys: Set<string>,
+  recommendationRefs: Map<string, string>,
+): void {
+  if (!output || typeof output !== 'object') return;
+  const envelope = output as Record<string, unknown>;
+  const data = envelope.data;
+  if (!data || typeof data !== 'object') return;
+  const value = data as Record<string, unknown>;
+  const candidates = Array.isArray(value.candidates) ? value.candidates : [];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const record = candidate as Record<string, unknown>;
+    if (typeof record.targetKey === 'string') targetKeys.add(record.targetKey);
+    if (
+      typeof record.recommendationRef === 'string' &&
+      typeof record.targetKey === 'string'
+    ) {
+      recommendationRefs.set(record.recommendationRef, record.targetKey);
+    }
+  }
+  const target = value.target;
+  if (target && typeof target === 'object') {
+    const record = target as Record<string, unknown>;
+    if (typeof record.targetKey === 'string') targetKeys.add(record.targetKey);
+  }
+}
+
+function invalidTargetProposal(): OutreachReasoningError {
+  return new OutreachReasoningError(
+    'OUTREACH_REASONING_OUTPUT_INVALID',
+    'The reasoning provider proposed a target change that was not grounded in its referenced Capiro results.',
+    502,
+  );
 }
 
 function configuredStateMode(): OutreachReasoningStateMode {
