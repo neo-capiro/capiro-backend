@@ -270,3 +270,112 @@
     -webkit-line-clamp: 2;
   }
 }
+
+/* ========================================================================
+   Premium dashboard visual QA fixes
+   ------------------------------------------------------------------------
+   These selectors deliberately outrank the older v2 dashboard skin in
+   theme.css. The screenshot review exposed three regressions from the approved
+   Figma layout: a fixed 1072px canvas, legacy 282px Needs Action cards, and a
+   100vw greeting that introduced horizontal overflow. Keep this scoped to
+   capiro-internal through .v2-root.
+   ======================================================================== */
+
+.v2-root .command-page.redesign {
+  width: min(1800px, calc(100% - 40px));
+  max-width: none;
+  grid-template-columns: minmax(0, 2.05fr) minmax(360px, 1fr);
+  justify-content: stretch;
+  margin-inline: auto;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.v2-root .command-page.redesign .home-greet-row {
+  left: auto;
+  width: 100%;
+  margin-left: 0;
+  transform: none;
+}
+
+.v2-root .command-page.redesign .home-attention-head::after {
+  display: none !important;
+  content: none !important;
+}
+
+.v2-root .command-page.redesign .home-attention-scroll {
+  width: 100% !important;
+  gap: 0 !important;
+  background: #fff !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 51px !important;
+  flex: 0 0 auto !important;
+  grid-template-columns: minmax(170px, 0.95fr) minmax(340px, 2.25fr) minmax(170px, 1fr) 72px !important;
+  padding: 7px 14px !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card:has(.ant-skeleton) {
+  display: block !important;
+  min-height: 51px !important;
+  padding: 10px 14px !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card:has(.ant-skeleton)::after {
+  display: none !important;
+  content: none !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card:has(.ant-skeleton)::before {
+  display: none !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card .ant-skeleton {
+  width: min(560px, 54%) !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card .ant-skeleton-paragraph {
+  margin: 0 !important;
+}
+
+.v2-root .command-page.redesign .home-attention-card .ant-skeleton-paragraph > li {
+  height: 8px !important;
+  margin-top: 7px !important;
+}
+
+.v2-root .command-page.redesign .home-news-panel,
+.v2-root .command-page.redesign .home-grid-2 {
+  width: 100%;
+  max-width: none;
+}
+
+.v2-root .command-page.redesign .home-dashboard-customize {
+  z-index: 110;
+  width: auto;
+  right: 14px;
+}
+
+.v2-root .v2-content,
+.v2-root .command-page.redesign {
+  overflow-x: clip;
+}
+
+@media (max-width: 1120px) {
+  .v2-root .command-page.redesign {
+    width: min(100% - 28px, 1800px);
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .v2-root .command-page.redesign {
+    width: min(100% - 20px, 1800px);
+  }
+
+  .v2-root .command-page.redesign .home-attention-card {
+    grid-template-columns: minmax(0, 1fr) 56px !important;
+  }
+}
