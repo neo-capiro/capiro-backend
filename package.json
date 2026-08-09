@@ -47,6 +47,7 @@
     "verify:outreach-v3-phase-4:local": "node scripts/run-outreach-v3-phase4-local.mjs",
     "verify:outreach-v3-phase-5": "node scripts/verify-outreach-v3-phase5-code.mjs",
     "verify:outreach-v3-phase-5:local": "node scripts/run-outreach-v3-phase5-local.mjs",
+    "verify:outreach-v3-phase-6": "node scripts/verify-outreach-v3-phase6-code.mjs",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
     "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
