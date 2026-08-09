@@ -2197,3 +2197,50 @@ stops compiling instead of silently becoming a lie.
   not reachable from the queue.
 - **Still no live DIBBS response has ever been observed**, so every field mapping here inherits
   P40's open contract gate unchanged.
+
+## D-68 · 2026-08-08 · P42's gate could not be satisfied by anything P42's file list contains
+
+P42's plan states **"API key: Required; P17 must show access"** as its gate, and lists six primary
+files: the Prisma schema, a migration, `tango-sbir.mapper.ts`, `sync-tango-sbir.ts`, the entrypoint
+dispatcher and the ingestion schedule. **None of them can make an HTTP call.**
+
+Meanwhile P17 reported `sbir_sttr: not_attempted / no_rest_client_wired` — which D-64 established is
+a fact about CAPIRO'S CODE, not about the provider. Nothing would ever have changed that. Building
+the six named files first would have meant designing a schema, a mapper and a sync against
+documentation, and only discovering at the end that the phase's own stated gate had never been
+answerable.
+
+So part 1 is a file the plan does not name: `tango-sbir.client.ts`, plus its probe wiring. The
+reasoning generalises past this phase: **when a phase's gate names an observation, ship the thing
+that makes the observation first, even when the plan's file list does not mention it.** Same shape
+as P40, whose `tango-dibbs.client.ts` is also absent from its plan's file list and also unavoidable
+— the SDK wraps neither dataset (D-62), so a REST client is a precondition for both phases rather
+than an implementation detail of either.
+
+Recorded as a deviation because this program's matrix elsewhere claims phases "ship exactly the
+file list the plan names, no more" (P25's row), and this one deliberately does not.
+
+### The DIBBS-only guard was one dataset behind
+
+`run-p17-probe.ps1` hard-failed when `tango-dibbs.client.ts` was missing, because a pre-P40 checkout
+would run and report `dibbs: not_attempted` — a non-answer that reads like an answer. Correct, and
+**it would not have covered SBIR**: the moment this phase made `sbir_sttr` answerable, a pre-P42
+checkout gained the identical failure mode one dataset over, and the guard written specifically to
+prevent it would have said nothing.
+
+Now table-driven, so adding a rail is a one-line edit rather than a judgement call about whether to
+bother. **A guard written against one instance of a class tends to stay that narrow unless the
+class is what gets written down.**
+
+### A "no call has been made" note that stopped being true
+
+`dibbs-sbir-rest-contract.md` said flatly that everything in it was transcribed from documentation
+and no call had ever been made. True when written; false for DIBBS from 2026-08-08, when P17's probe
+confirmed the envelope live (D-65). Now a per-dataset table, because the two rows differ in exactly
+the way that matters: DIBBS has one live observation of its ENVELOPE and nothing else, SBIR has
+none.
+
+Worth stating plainly, because a `supported` probe row is easy to over-read: **P40 has had a
+`supported` DIBBS row since 2026-08-08 and its full contract validation is still open.** One live
+call establishes entitlement and the envelope. It establishes no field type, no null semantic and no
+date format. A successful SBIR probe will be worth exactly as much.

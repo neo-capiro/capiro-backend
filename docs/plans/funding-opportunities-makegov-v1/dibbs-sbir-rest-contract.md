@@ -136,11 +136,31 @@ both, so treat it as a discriminator rather than a filter to hardcode.
 
 ## Fixtures
 
-Everything above is transcribed from the published documentation, **not** from a
-live response. No call has been made — no key was available, and per plan §4.6 a
-key must never pass through an agent session. Field *names* are documented;
-field *types*, null semantics, date formats, and the pagination envelope are
-not, and P40's acceptance explicitly requires "quantity/unit/money null
-semantics pass." Capture a real response into fixtures before trusting any
-inferred type, and treat every mapper written against this document as
-provisional until one live response has confirmed the shape.
+Everything above is transcribed from the published documentation. Field *names*
+are documented; field *types*, null semantics and date formats are **not**, and
+P40's acceptance explicitly requires "quantity/unit/money null semantics pass."
+Capture a real response into fixtures before trusting any inferred type, and
+treat every mapper written against this document as provisional until one live
+response has confirmed the shape.
+
+**How much has actually been observed differs by dataset, and the difference
+matters.** An earlier version of this section said flatly that no call had been
+made; that stopped being true for DIBBS on 2026-08-08.
+
+| Dataset | Live calls | What that established |
+|---|---|---|
+| `/api/dibbs/` | **One** — P17's operator probe, 2026-08-08 (decision-log D-65) | The **pagination envelope only**. The probe calls through `TangoDibbsClient`, which throws when a 200 carries no `results` array, so a successful probe proves the envelope is `results`-shaped. It captures **no response bodies**, so field types, null semantics and date formats remain readings of published names. |
+| `/api/sbir/` | **None** | Nothing. Every line in the SBIR section above is a reading of the documentation. |
+
+Until P42 part 1 there was no way to change the SBIR row: the probe reported
+`sbir_sttr: not_attempted / no_rest_client_wired`, which is a fact about
+Capiro's code rather than about the provider (D-64), and P42's own plan gates
+the phase on "P17 must show access". A gate nothing can satisfy is not a gate.
+`TangoSbirClient` and its probe wiring exist so an **operator** run can answer
+it — per plan §4.6 a key must never pass through an agent session, so no agent
+can close this row.
+
+Note the asymmetry that survives even a successful SBIR probe: it would confirm
+the envelope and entitlement, and still tell you nothing about field types. The
+DIBBS row is the precedent — "one live call" is much less than "the contract is
+validated," and P40's full contract validation remains open.

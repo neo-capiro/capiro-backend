@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { classifyStatus, redact, redactWithKnownSecret, type TangoRateMetadata } from './tango.errors.js';
 import type { TangoDibbsGateway } from './tango-dibbs.client.js';
+import type { TangoSbirGateway } from './tango-sbir.client.js';
 
 /**
  * The DIAGNOSTIC-ONLY probe surface — the second and last file in this
@@ -125,6 +126,7 @@ interface ProbeClient {
  */
 export interface ProbeRestClients {
   dibbs: TangoDibbsGateway | null;
+  sbir: TangoSbirGateway | null;
 }
 
 /**
@@ -189,6 +191,7 @@ function probes(
   uei: string | undefined,
   vehicleUuid: string | undefined,
   dibbs: TangoDibbsGateway | null,
+  sbir: TangoSbirGateway | null,
 ): ProbeDef[] {
   return [
     { key: 'version', usedByPhases: [], call: (c) => c.getVersion() },
@@ -286,18 +289,30 @@ function probes(
       skippedReason: dibbs ? undefined : 'no_rest_client_wired',
     },
     {
-      // Same D-62 correction, but P42/P43 have not been built, so there is no
-      // SBIR client to call yet. It stays uncalled — with a reason that says
-      // what is actually true. `unsupported` would repeat the original error.
+      // Same D-62 correction as `dibbs`, and as of P42 part 1 the same
+      // resolution: there IS an SBIR client now, so this is a real call when
+      // one is supplied.
+      //
+      // Why the client came before the schema: P42's plan gates the phase on
+      // "P17 must show access", and P17 reported `no_rest_client_wired` —
+      // a fact about Capiro's code, not the provider (D-64). That gate could
+      // never be satisfied by waiting, because nothing would ever make the
+      // call. Building the client first makes the entitlement question
+      // ANSWERABLE, before any table is designed around an assumption about
+      // the answer.
+      //
+      // The smallest possible shaped call, same policy as every probe here:
+      // one topic list, limit 1, read-only.
       key: 'sbir_sttr',
       usedByPhases: ['P42', 'P43'],
-      call: null,
-      unavailableReason:
-        'Not attempted: the provider DOES document /api/sbir/topics/ and /api/sbir/solicitations/ ' +
-        `(no SBIR/STTR method exists in ${SDK_VERSION_CHECKED}, which is a fact about the SDK only — ` +
-        'see decision-log D-62). Capiro has no SBIR REST client yet; P42/P43 build it. Entitlement ' +
-        'for this dataset is therefore still UNKNOWN, not refused.',
-      skippedReason: 'no_rest_client_wired',
+      call: sbir ? (_c, r) => r.sbir!.listTopics({ limit: 1 }) : null,
+      unavailableReason: sbir
+        ? undefined
+        : 'Not attempted: this run was given no SBIR REST client. The provider DOES document ' +
+          `/api/sbir/topics/ and /api/sbir/solicitations/ (no SBIR/STTR method exists in ${SDK_VERSION_CHECKED}, ` +
+          'which is a fact about the SDK only — see decision-log D-62). This is a fact about how the ' +
+          'probe was invoked, not about provider support.',
+      skippedReason: sbir ? undefined : 'no_rest_client_wired',
     },
     {
       key: 'budget_accounts_flows',
@@ -392,10 +407,11 @@ export class TangoCapabilityProbeService {
        * `unsupported` — see ProbeDef.skippedReason and decision-log D-62.
        */
       dibbs?: TangoDibbsGateway | null;
+      sbir?: TangoSbirGateway | null;
     },
   ): Promise<CapabilityReport> {
-    const rest: ProbeRestClients = { dibbs: options.dibbs ?? null };
-    const defs = probes(options.uei, options.vehicleUuid, rest.dibbs);
+    const rest: ProbeRestClients = { dibbs: options.dibbs ?? null, sbir: options.sbir ?? null };
+    const defs = probes(options.uei, options.vehicleUuid, rest.dibbs, rest.sbir);
     const results: ProbeResult[] = [];
     let issued = 0;
     let authenticationFailed = false;

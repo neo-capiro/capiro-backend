@@ -1984,9 +1984,39 @@ jobs:
       # own test. Widening it would make a bid-board line item requestable as a
       # FundingOpportunity — a shape with money, an eligibility determination and
       # a response deadline, none of which a line item has.
+      #
+      # 83/2615 -> 84/2643 after P42 part 1: one NEW file,
+      # tango-sbir.client.spec.ts (26 tests), plus 2 in
+      # tango-capability-probe.service.spec.ts. No path list change — the new
+      # spec sits under the already-enumerated src/external/tango/ directory.
+      #
+      # The subject is a client for an endpoint NOTHING HAS EVER CALLED, which
+      # shapes what the tests can honestly claim. They weight toward the two
+      # things that stay true whatever the live response turns out to be: the
+      # request the client ISSUES (documented path, X-API-KEY, per-endpoint date
+      # filter spellings, no undocumented `ordering`, limit clamped so the page
+      # asked for is the page reasoned about), and its refusal to read an
+      # unexpected shape as an empty page. Five envelope shapes throw rather
+      # than returning items: [] — a wrong envelope would otherwise end every
+      # run with "0 records, complete", the quietest possible way to be wrong
+      # and the failure mode this program keeps rediscovering. A GENUINELY empty
+      # page is still accepted, because a client that refused both could never
+      # finish a normal walk.
+      #
+      # What they cannot establish is field types, null semantics or date
+      # formats. That needs a captured fixture, and plan §4.6 forbids a key
+      # passing through an agent session — so it needs an operator, and no test
+      # here should be read as covering it.
+      #
+      # The 2 probe tests are why the client was built before any SBIR table:
+      # P42's plan gates the phase on "P17 must show access", and P17 could only
+      # ever answer `no_rest_client_wired` — a fact about Capiro's code (D-64),
+      # not an entitlement answer. A gate nothing can satisfy is not a gate.
+      # The second test pins that wiring SBIR does not change what the report
+      # says about DIBBS, which is how a phantom `supported` would appear.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2615
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 84 2643
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
