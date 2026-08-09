@@ -28,6 +28,8 @@ const TARGET_INTELLIGENCE_TOOLS = new Set([
   'search_targets',
   'get_target_profile',
   'analyze_relationships',
+  'analyze_target_coverage',
+  'find_similar_targets',
 ]);
 const STRICT_SPONSOR_CLIENT_TOOLS = new Set(['get_client_context', 'get_recent_activity']);
 
@@ -133,8 +135,9 @@ export class OutreachReasoningContextService {
       'You are Capiro Outreach reasoning for a government-affairs professional.',
       'Campaign Spec and its current state version are authoritative. The conversation is not campaign state.',
       'You may inspect only the authorized Capiro read tools supplied with this request. Never claim a tool result you did not receive.',
-      'Target search results are recommendations, never selected targets. Use ADD_TARGET_REFS only with exact locators returned by search_targets or get_target_profile.',
+      'Target search results are recommendations, never selected targets. Use ADD_TARGET_REFS only with exact locators returned by search_targets, get_target_profile, or find_similar_targets.',
       'A target recommendation is never added automatically. Proposed target commands remain pending until the user explicitly applies the proposal.',
+      'Coverage analysis is advisory. Gaps are recommendations and never mandatory target additions.',
       'Sponsor scope and target audience are separate. An authorized client-scoped target result is discovery evidence only and does not make that client campaign context or imply representation.',
       'Target profiles identify safe facts and restrictions. Do not treat user notes, relationship note bodies, private meeting notes, or private email bodies as approved personalization context.',
       'You may propose only the implemented command types supplied below. Proposals are suggestions and are not applied automatically.',
@@ -165,7 +168,6 @@ function prepareToolInput(
   input: unknown,
   campaign: ReasoningCampaignContext,
 ): unknown {
-  if (name !== 'search_targets') return input;
   const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
   const spec = campaign.spec as OutreachCampaignSpecV1;
   const criteria = spec.targeting.criteria ?? {
@@ -179,26 +181,45 @@ function prepareToolInput(
     includeStaff: true,
     includePrincipals: true,
   };
-  return {
-    query: typeof raw.query === 'string' ? raw.query : null,
-    clientId: typeof raw.clientId === 'string' ? raw.clientId : null,
-    sources: Array.isArray(raw.sources) ? raw.sources : [],
-    limit: typeof raw.limit === 'number' ? raw.limit : 20,
-    criteria: {
-      governmentLevels: criteria.governmentLevels,
-      chambers: criteria.chambers,
-      committees: criteria.committees,
-      agencies: criteria.agencies,
-      states: criteria.states,
-      relationshipPreference: criteria.relationshipPreference,
-      includeStaff: criteria.includeStaff,
-      includePrincipals: criteria.includePrincipals,
-    },
-    excludeTargetKeys: spec.targeting.selectedTargetRefs.map((target) => target.targetKey),
-    rejectedRecommendationRefs: spec.targeting.rejectedRecommendationRefs.map(
-      (entry) => entry.recommendationRef,
-    ),
-  };
+
+  if (name === 'search_targets') {
+    return {
+      query: typeof raw.query === 'string' ? raw.query : null,
+      clientId: typeof raw.clientId === 'string' ? raw.clientId : null,
+      sources: Array.isArray(raw.sources) ? raw.sources : [],
+      limit: typeof raw.limit === 'number' ? raw.limit : 20,
+      criteria: {
+        governmentLevels: criteria.governmentLevels,
+        chambers: criteria.chambers,
+        committees: criteria.committees,
+        agencies: criteria.agencies,
+        states: criteria.states,
+        relationshipPreference: criteria.relationshipPreference,
+        includeStaff: criteria.includeStaff,
+        includePrincipals: criteria.includePrincipals,
+      },
+      excludeTargetKeys: spec.targeting.selectedTargetRefs.map((target) => target.targetKey),
+      rejectedRecommendationRefs: spec.targeting.rejectedRecommendationRefs.map(
+        (entry) => entry.recommendationRef,
+      ),
+    };
+  }
+
+  if (name === 'analyze_target_coverage') {
+    return {
+      criteria: {
+        chambers: criteria.chambers,
+        committees: criteria.committees,
+        states: criteria.states,
+        relationshipPreference: criteria.relationshipPreference,
+        includeStaff: criteria.includeStaff,
+        includePrincipals: criteria.includePrincipals,
+      },
+      targetRefs: spec.targeting.selectedTargetRefs.map((target) => target.locator),
+    };
+  }
+
+  return input;
 }
 
 function assertRequestedScopeWithinCampaign(
