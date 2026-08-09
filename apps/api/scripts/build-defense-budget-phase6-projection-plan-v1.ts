@@ -2,46 +2,47 @@
  * build-defense-budget-phase6-projection-plan-v1 (Phase 7 Gap 5, decisions
  * A1-A4) — the I/O half of the Phase 6 projection-plan builder.
  *
- * Phase 6 Gap 5 decision A4 keeps the builder pure: `buildPhase6Projection
- * PlanDocumentV1` (`phase6-projection-plan-builder-v1.ts`) never imports
- * Prisma and never reads a database. This script is the one place that does —
- * read-only, through the MAIN application `PrismaClient`'s raw SQL, the same
- * pattern `phase6-audit-projection-repository-prisma-v1.ts` and
- * `promotion-projection-source-prisma-v1.ts` already use for this exact table.
- * No second `PrismaClient` against `.prisma/phase6-projection-client` — that
- * generated client's only job is `prisma generate`/`validate` and migration
- * history for this schema, matching the rationale already recorded on the
- * audit-projection repository. It loads every non-superseded audit projection
- * for a cycle and fiscal year, reconstructs the exact `Phase6NativeProjectionV1`
- * rows, calls the pure builder, and prints the resulting plan document.
+ * The pure builder remains Prisma-free. This command loads the EXACT projection
+ * set bound to one persisted Phase 6 certification, independently re-validates
+ * and re-hashes those rows, and only then produces the committee-family plan.
+ * It never reconstructs a cycle from "all rows for this fiscal year".
  *
  *   build-defense-budget-phase6-projection-plan-v1 \
- *     --cycle-id <id> --fiscal-year <fy> [--out <plan.json>]
+ *     --cycle-id <id> --fiscal-year <fy> \
+ *     --certification-sha256 <sha256> [--out <plan.json>]
  *
- * No `--commit`, no write mode, no flag that could ever add one — this reads
- * one table and prints JSON. Filing the result is a separate step:
+ * Filing remains a separate action:
  *
- *   build-defense-budget-phase6-projection-plan-v1 --cycle-id c --fiscal-year 2027 \
- *     > plan.json
  *   persist-defense-budget-projection-plan-v1 --plan plan.json --family committee \
- *     --producer-version build-defense-budget-phase6-projection-plan-v1@1 \
- *     --certification-sha256 <phase6_cycle_certification.content_sha256> \
+ *     --producer-version build-defense-budget-phase6-projection-plan-v1@2 \
+ *     --certification-sha256 <same sha256> \
  *     --certification-id <phase6_cycle_certification.id> \
  *     --commit
+ *
+ * Historical Phase 6 certifications created before exact projection-set
+ * binding have NULL projection_set_sha256/projection_count and are deliberately
+ * refused. Rebuild and persist the deterministic Phase 6 cycle instead of
+ * guessing which old rows belonged to it.
  *
  * Money is read back through `parseCanonicalDecimalString`: Postgres pads
  * `NUMERIC(24,9)` to full scale (`125` reads back as `125.000000000`), which is
  * not canonical decimal form, and `moneyValueV1Schema` refuses it uncorrected.
  *
- * Exit codes: 0 built (even an empty plan — an empty cycle is a legitimate
- * state, not an error), 2 usage, 1 error.
+ * Exit codes: 0 built (including a legitimately certified empty projection
+ * set), 2 usage, 1 integrity/error.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'node:fs';
 import { parseCanonicalDecimalString } from '../src/defense-budget/contracts/decimal-string.js';
+import {
+  phase6ProjectionSetSha256V1,
+} from '../src/defense-budget/phase6/phase6-cycle-certification-v1.js';
 import { buildPhase6ProjectionPlanDocumentV1 } from '../src/defense-budget/phase6/phase6-projection-plan-builder-v1.js';
-import type { Phase6NativeProjectionV1 } from '../src/defense-budget/phase6/phase6-native-projection-v1.js';
+import {
+  phase6NativeProjectionV1Schema,
+  type Phase6NativeProjectionV1,
+} from '../src/defense-budget/phase6/phase6-native-projection-v1.js';
 import type { MoneyUnitV1 } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
 
 dotenvConfig();
@@ -49,6 +50,15 @@ dotenvConfig();
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
   return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+interface CertificationRowV1 {
+  certificationId: string;
+  cycleId: string;
+  fiscalYear: number;
+  contentSha256: string;
+  projectionSetSha256: string | null;
+  projectionCount: number | null;
 }
 
 interface AuditProjectionRowV1 {
@@ -75,18 +85,19 @@ interface AuditProjectionRowV1 {
   bindingStatus: string;
   projectionStatus: string;
   enactmentProofId: string | null;
+  supersedesProjectionId: string | null;
   payload: unknown;
 }
 
 function toNativeProjectionV1(row: AuditProjectionRowV1): Phase6NativeProjectionV1 {
   const hasMoney =
     row.originalValue != null && row.originalUnit != null && row.amountMillions != null;
-  return {
+  return phase6NativeProjectionV1Schema.parse({
     schemaVersion: 'phase6_native_projection_v1',
     projectionId: row.projectionId,
     naturalKey: row.naturalKey,
     idempotencyKey: row.idempotencyKey,
-    projectionKind: row.projectionKind as Phase6NativeProjectionV1['projectionKind'],
+    projectionKind: row.projectionKind,
     verificationCandidateId: row.verificationCandidateId,
     verificationRunId: row.verificationRunId,
     artifactId: row.artifactId,
@@ -95,11 +106,9 @@ function toNativeProjectionV1(row: AuditProjectionRowV1): Phase6NativeProjection
     sourcePdfSha256: row.sourcePdfSha256,
     sourceProfileHash: row.sourceProfileHash,
     nativeIdentityHash: row.nativeIdentityHash,
-    track: row.track as Phase6NativeProjectionV1['track'],
-    stage: row.stage as Phase6NativeProjectionV1['stage'],
-    ...(row.fundingField != null
-      ? { fundingField: row.fundingField as Phase6NativeProjectionV1['fundingField'] }
-      : {}),
+    track: row.track,
+    stage: row.stage,
+    ...(row.fundingField != null ? { fundingField: row.fundingField } : {}),
     ...(hasMoney
       ? {
           money: {
@@ -109,65 +118,116 @@ function toNativeProjectionV1(row: AuditProjectionRowV1): Phase6NativeProjection
           },
         }
       : {}),
-    directOrDerived: row.directOrDerived as Phase6NativeProjectionV1['directOrDerived'],
+    directOrDerived: row.directOrDerived,
     evidenceIds: (row.evidenceIds as string[] | null) ?? [],
-    bindingStatus: row.bindingStatus as Phase6NativeProjectionV1['bindingStatus'],
-    projectionStatus: row.projectionStatus as Phase6NativeProjectionV1['projectionStatus'],
+    bindingStatus: row.bindingStatus,
+    projectionStatus: row.projectionStatus,
     ...(row.enactmentProofId != null ? { enactmentProofId: row.enactmentProofId } : {}),
+    ...(row.supersedesProjectionId != null
+      ? { supersedesProjectionId: row.supersedesProjectionId }
+      : {}),
     payload: (row.payload as Phase6NativeProjectionV1['payload'] | null) ?? {},
     canonicalWriteAllowed: false,
-  };
+  });
 }
 
 async function main(): Promise<number> {
   const cycleId = arg('cycle-id');
   const fiscalYearRaw = arg('fiscal-year');
+  const certificationSha256 = arg('certification-sha256');
   if (cycleId == null) throw new Error('--cycle-id <id> is required');
   if (fiscalYearRaw == null) throw new Error('--fiscal-year <year> is required');
+  if (certificationSha256 == null || !/^[0-9a-f]{64}$/.test(certificationSha256)) {
+    throw new Error('--certification-sha256 must be 64 lowercase hex characters');
+  }
   const fiscalYear = Number.parseInt(fiscalYearRaw, 10);
   if (!Number.isInteger(fiscalYear)) throw new Error('--fiscal-year must be an integer');
   const outPath = arg('out');
 
   const prisma = new PrismaClient();
   try {
-    // Read-only: no create/update/delete anywhere in this script. Every row
-    // that is not superseded is read — the pure builder, not this query,
-    // decides what becomes a candidate and how.
-    const rows = await prisma.$queryRawUnsafe<AuditProjectionRowV1[]>(
-      `SELECT "projection_id"             AS "projectionId",
-              "natural_key"               AS "naturalKey",
-              "idempotency_key"           AS "idempotencyKey",
-              "projection_kind"           AS "projectionKind",
-              "verification_candidate_id" AS "verificationCandidateId",
-              "verification_run_id"       AS "verificationRunId",
-              "artifact_id"               AS "artifactId",
-              "artifact_content_sha256"   AS "artifactContentSha256",
-              "source_document_id"        AS "sourceDocumentId",
-              "source_pdf_sha256"         AS "sourcePdfSha256",
-              "source_profile_hash"       AS "sourceProfileHash",
-              "native_identity_hash"      AS "nativeIdentityHash",
-              "track", "stage",
-              "funding_field"             AS "fundingField",
-              "original_value"            AS "originalValue",
-              "original_unit"             AS "originalUnit",
-              "amount_millions"::text     AS "amountMillions",
-              "direct_or_derived"         AS "directOrDerived",
-              "evidence_ids_jsonb"        AS "evidenceIds",
-              "binding_status"            AS "bindingStatus",
-              "projection_status"         AS "projectionStatus",
-              "enactment_proof_id"        AS "enactmentProofId",
-              "payload_jsonb"             AS "payload"
-         FROM "phase6_audit_projection"
-        WHERE "projection_status" != 'superseded'
-          AND ("payload_jsonb"->>'fiscalYear')::int = $1
-        ORDER BY "natural_key", "projection_id"`,
-      fiscalYear,
+    const certifications = await prisma.$queryRawUnsafe<CertificationRowV1[]>(
+      `SELECT "id"::text AS "certificationId",
+              "cycle_id" AS "cycleId",
+              "fiscal_year" AS "fiscalYear",
+              "content_sha256" AS "contentSha256",
+              "projection_set_sha256" AS "projectionSetSha256",
+              "projection_count" AS "projectionCount"
+         FROM "phase6_cycle_certification"
+        WHERE "content_sha256" = $1`,
+      certificationSha256,
     );
+    const certification = certifications[0];
+    if (certification == null) {
+      throw new Error(`Phase 6 certification ${certificationSha256} was not found`);
+    }
+    if (certification.cycleId !== cycleId || certification.fiscalYear !== fiscalYear) {
+      throw new Error(
+        `certification scope mismatch: expected ${cycleId}/FY${fiscalYear}, got ${certification.cycleId}/FY${certification.fiscalYear}`,
+      );
+    }
+    if (
+      certification.projectionSetSha256 == null ||
+      certification.projectionCount == null
+    ) {
+      throw new Error(
+        'certification predates exact projection-set binding; rebuild and persist the Phase 6 cycle',
+      );
+    }
+
+    // No status filter: the certification signed the exact rows as they existed.
+    // If one is later superseded/changed, the recomputed set hash below changes
+    // and this command refuses the stale certification instead of silently
+    // dropping the row.
+    const rows = await prisma.$queryRawUnsafe<AuditProjectionRowV1[]>(
+      `SELECT p."projection_id"             AS "projectionId",
+              p."natural_key"               AS "naturalKey",
+              p."idempotency_key"           AS "idempotencyKey",
+              p."projection_kind"           AS "projectionKind",
+              p."verification_candidate_id" AS "verificationCandidateId",
+              p."verification_run_id"       AS "verificationRunId",
+              p."artifact_id"               AS "artifactId",
+              p."artifact_content_sha256"   AS "artifactContentSha256",
+              p."source_document_id"        AS "sourceDocumentId",
+              p."source_pdf_sha256"         AS "sourcePdfSha256",
+              p."source_profile_hash"       AS "sourceProfileHash",
+              p."native_identity_hash"      AS "nativeIdentityHash",
+              p."track", p."stage",
+              p."funding_field"             AS "fundingField",
+              p."original_value"            AS "originalValue",
+              p."original_unit"             AS "originalUnit",
+              p."amount_millions"::text     AS "amountMillions",
+              p."direct_or_derived"         AS "directOrDerived",
+              p."evidence_ids_jsonb"        AS "evidenceIds",
+              p."binding_status"            AS "bindingStatus",
+              p."projection_status"         AS "projectionStatus",
+              p."enactment_proof_id"        AS "enactmentProofId",
+              p."supersedes_projection_id"  AS "supersedesProjectionId",
+              p."payload_jsonb"             AS "payload"
+         FROM "phase6_cycle_certification_projection" cp
+         JOIN "phase6_audit_projection" p
+           ON p."projection_id" = cp."projection_id"
+        WHERE cp."certification_content_sha256" = $1
+        ORDER BY cp."projection_ordinal", p."projection_id"`,
+      certificationSha256,
+    );
+    const projections = rows.map(toNativeProjectionV1);
+    if (projections.length !== certification.projectionCount) {
+      throw new Error(
+        `certification projection count mismatch: expected ${certification.projectionCount}, loaded ${projections.length}`,
+      );
+    }
+    const actualProjectionSetSha256 = phase6ProjectionSetSha256V1(projections);
+    if (actualProjectionSetSha256 !== certification.projectionSetSha256) {
+      throw new Error(
+        `certification projection hash mismatch: expected ${certification.projectionSetSha256}, got ${actualProjectionSetSha256}`,
+      );
+    }
 
     const document = buildPhase6ProjectionPlanDocumentV1({
       cycleId,
       fiscalYear,
-      rows: rows.map(toNativeProjectionV1),
+      rows: projections,
     });
 
     const json = `${JSON.stringify(document, null, 2)}\n`;
