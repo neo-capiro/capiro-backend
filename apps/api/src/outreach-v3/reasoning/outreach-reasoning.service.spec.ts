@@ -1,5 +1,7 @@
 import type { TenantContext } from '@capiro/shared';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
+import { createBlankCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
+import { deriveOutreachTargetCoverage } from '../targets/outreach-target-coverage.service.js';
 import { OutreachReasoningService } from './outreach-reasoning.service.js';
 
 const ctx = {
@@ -39,6 +41,7 @@ function providerResult(commands: unknown[] = []) {
 
 function harness(result = providerResult()) {
   const tx = { id: 'tx' };
+  const spec = createBlankCampaignSpecV1();
   const prisma = {
     withTenantUser: jest.fn(async (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) =>
       fn(tx),
@@ -71,11 +74,12 @@ function harness(result = providerResult()) {
       sessionId: conversation.sessionId,
       currentStateVersion: 7,
       specHash: 'a'.repeat(64),
-      spec: {
-        schemaVersion: 'outreach_campaign_spec_v1',
-        sponsor: { kind: 'none', label: null, clientRefs: [] },
-      },
+      spec,
       readiness: { blockers: [] },
+      targetCoverage: deriveOutreachTargetCoverage(
+        spec.targeting.criteria,
+        spec.targeting.selectedTargetRefs,
+      ),
       pendingProposalCount: 0,
     })),
     capabilityContext: jest.fn(() => ({ tenantId: ctx.tenantId })),
@@ -122,6 +126,13 @@ const setGoal = {
   payload: { value: 'Protect the program' },
 };
 
+const targetLocator = { source: 'directory_member' as const, id: 'member-123' };
+const addTarget = {
+  type: 'ADD_TARGET_REFS' as const,
+  schemaVersion: 1 as const,
+  payload: { refs: [targetLocator] },
+};
+
 describe('OutreachReasoningService', () => {
   it('does not create or apply campaign mutations when the model returns no commands', async () => {
     const h = harness(providerResult([]));
@@ -163,9 +174,109 @@ describe('OutreachReasoningService', () => {
       }),
     );
 
-    // The service has no Apply dependency at all; mutation authority stays with
-    // the later explicit-user Phase 2 proposal Apply route.
     expect('applyProposal' in h.proposals).toBe(false);
+  });
+
+  it('permits a target proposal only when the exact locator is in a referenced tool result', async () => {
+    const h = harness();
+    h.campaignContext.executeReadTool.mockResolvedValue({
+      resultId: 'cap_targets',
+      output: {
+        capability: 'search_targets',
+        data: {
+          candidates: [
+            {
+              targetKey: 'directory_member:member-123',
+              recommendationRef: `orec_${'a'.repeat(64)}`,
+              locator: targetLocator,
+            },
+          ],
+        },
+      },
+    });
+    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+      const result = await request.executeTool('search_targets', {
+        query: 'HASC',
+        clientId: null,
+        sources: ['directory_member'],
+        limit: 10,
+      });
+      return {
+        ...providerResult([addTarget]),
+        referencedToolResults: [{ resultId: result.resultId, capability: 'search_targets' }],
+      };
+    });
+
+    await expect(
+      h.service.respond(ctx, conversation.id, { message: 'Add the recommended member.' }),
+    ).resolves.toMatchObject({ proposedCommands: [addTarget] });
+    expect(h.proposals.createModelProposalWithinTx).toHaveBeenCalledWith(
+      h.tx,
+      ctx,
+      conversation.sessionId,
+      { expectedStateVersion: 7, commands: [addTarget] },
+    );
+  });
+
+  it('rejects an invented target locator before proposal persistence', async () => {
+    const h = harness();
+    h.campaignContext.executeReadTool.mockResolvedValue({
+      resultId: 'cap_targets',
+      output: {
+        capability: 'search_targets',
+        data: {
+          candidates: [
+            {
+              targetKey: 'directory_member:member-999',
+              recommendationRef: `orec_${'b'.repeat(64)}`,
+              locator: { source: 'directory_member', id: 'member-999' },
+            },
+          ],
+        },
+      },
+    });
+    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+      const result = await request.executeTool('search_targets', {
+        query: 'HASC',
+        clientId: null,
+        sources: ['directory_member'],
+        limit: 10,
+      });
+      return {
+        ...providerResult([addTarget]),
+        referencedToolResults: [{ resultId: result.resultId, capability: 'search_targets' }],
+      };
+    });
+
+    await expect(
+      h.service.respond(ctx, conversation.id, { message: 'Add a target.' }),
+    ).rejects.toMatchObject({ code: 'OUTREACH_REASONING_OUTPUT_INVALID', httpStatus: 502 });
+    expect(h.proposals.createModelProposalWithinTx).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unreferenced target result even if the provider called the tool', async () => {
+    const h = harness();
+    h.campaignContext.executeReadTool.mockResolvedValue({
+      resultId: 'cap_targets',
+      output: {
+        capability: 'search_targets',
+        data: { candidates: [{ targetKey: 'directory_member:member-123', locator: targetLocator }] },
+      },
+    });
+    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+      await request.executeTool('search_targets', {
+        query: 'HASC',
+        clientId: null,
+        sources: ['directory_member'],
+        limit: 10,
+      });
+      return providerResult([addTarget]);
+    });
+
+    await expect(
+      h.service.respond(ctx, conversation.id, { message: 'Add the result.' }),
+    ).rejects.toMatchObject({ code: 'OUTREACH_REASONING_OUTPUT_INVALID', httpStatus: 502 });
+    expect(h.proposals.createModelProposalWithinTx).not.toHaveBeenCalled();
   });
 
   it('rejects future-phase commands before any proposal is persisted', async () => {
