@@ -1,11 +1,12 @@
-import { CanActivate, Injectable, NotFoundException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
 import { parseOutreachV3StateEnabled } from '../api/outreach-v3-state.guard.js';
 
 export function parseOutreachV3ReasoningEnabled(value: string | undefined): boolean {
   if (value === undefined || value === '') return false;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  throw new Error('OUTREACH_V3_REASONING_ENABLED must be exactly true or false when set');
+  const lower = value.toLowerCase();
+  if (lower === 'true' || lower === '1' || lower === 'on' || lower === 'yes') return true;
+  if (lower === 'false' || lower === '0' || lower === 'off' || lower === 'no') return false;
+  throw new Error('Invalid OUTREACH_V3_REASONING_ENABLED value');
 }
 
 @Injectable()
@@ -17,7 +18,7 @@ export class OutreachV3ReasoningGuard implements CanActivate {
     process.env.OUTREACH_V3_STATE_ENABLED,
   );
 
-  canActivate(): boolean {
+  canActivate(_context: ExecutionContext): boolean {
     if (!this.reasoningEnabled || !this.stateEnabled) throw new NotFoundException();
     return true;
   }

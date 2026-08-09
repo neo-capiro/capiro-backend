@@ -101,7 +101,8 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     expect(migration).toContain('outreach_reasoning_conversations');
     expect(migration).toContain('outreach_reasoning_turns');
     expect(migration).not.toMatch(/spec_jsonb|spec_hash|current_state_version|wizard_step|current_stage/i);
-    expect(migration).not.toMatch(/chain.?of.?thought|scratchpad|hidden_reasoning|reasoning_text/i);
+    const stripped = migration.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+    expect(stripped).not.toMatch(/chain.?of.?thought|scratchpad|hidden_reasoning|reasoning_text/i);
     expect(migration).toContain('outreach_reasoning_turns_append_only');
     expect(migration).toContain('FORCE ROW LEVEL SECURITY');
   });

@@ -21,6 +21,12 @@ function campaign(spec = createBlankCampaignSpecV1()) {
   };
 }
 
+function campaignWithClient() {
+  const spec = createBlankCampaignSpecV1();
+  spec.sponsor = { kind: 'client', label: null, clientRefs: [{ clientId: '00000000-0000-4000-8000-000000000030' }] };
+  return campaign(spec);
+}
+
 function harness(registered = ['get_capiro_record', 'get_client_context', 'get_recent_activity']) {
   const sessions = { getSession: jest.fn() };
   const capabilities = {
@@ -76,7 +82,7 @@ describe('OutreachReasoningContextService', () => {
       kind: 'multi_client',
       label: null,
       clientRefs: [
-        { clientId: '00000000-0000-4000-8000-000000000020' },
+        { clientId: '00000000-0000-4000-8000-000000000030' },
         { clientId: '00000000-0000-4000-8000-000000000021' },
       ],
     };
@@ -87,7 +93,7 @@ describe('OutreachReasoningContextService', () => {
 
   it('exposes only allowlisted capabilities that are actually registered for outreach', () => {
     const h = harness(['get_capiro_record', 'get_recent_activity']);
-    expect(h.service.providerTools().map((tool) => tool.name)).toEqual([
+    expect(h.service.providerTools(campaignWithClient()).map((tool) => tool.name)).toEqual([
       'get_capiro_record',
       'get_recent_activity',
     ]);
@@ -98,6 +104,7 @@ describe('OutreachReasoningContextService', () => {
     await expect(
       h.service.executeReadTool(
         h.service.capabilityContext(ctx, campaign().sessionId, campaign()),
+        campaign(),
         'search_targets',
         {},
       ),
@@ -111,9 +118,10 @@ describe('OutreachReasoningContextService', () => {
 
     await expect(
       h.service.executeReadTool(
-        h.service.capabilityContext(ctx, campaign().sessionId, campaign()),
+        h.service.capabilityContext(ctx, campaignWithClient().sessionId, campaignWithClient()),
+        campaignWithClient(),
         'get_client_context',
-        { clientId: '00000000-0000-4000-8000-000000000020' },
+        { clientId: '00000000-0000-4000-8000-000000000030' },
       ),
     ).rejects.toMatchObject({
       code: 'OUTREACH_REASONING_TOOL_FAILED',

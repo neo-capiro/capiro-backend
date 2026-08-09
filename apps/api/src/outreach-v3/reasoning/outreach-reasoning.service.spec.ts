@@ -90,6 +90,9 @@ function harness(result = providerResult()) {
     })),
   };
 
+  const stateVersions = {
+    assertCurrentWithinTx: jest.fn(async () => {}),
+  };
   return {
     service: new OutreachReasoningService(
       prisma as never,
@@ -99,6 +102,7 @@ function harness(result = providerResult()) {
       campaignContext as never,
       provider as never,
       proposals as never,
+      stateVersions as never,
     ),
     tx,
     prisma,
@@ -108,6 +112,7 @@ function harness(result = providerResult()) {
     campaignContext,
     provider,
     proposals,
+    stateVersions,
   };
 }
 
@@ -227,7 +232,7 @@ describe('OutreachReasoningService', () => {
     await h.service.respond(ctx, conversation.id, { message: 'One turn' });
     expect(h.claims.claim).toHaveBeenCalledTimes(1);
     expect(h.claims.release).toHaveBeenCalledTimes(1);
-    expect(h.claims.release.mock.calls[0]?.[0]).toBe(ctx);
-    expect(h.claims.release.mock.calls[0]?.[1]).toBe(conversation.id);
+    expect((h.claims.release.mock.calls[0] as unknown[] | undefined)?.[0]).toBe(ctx);
+    expect((h.claims.release.mock.calls[0] as unknown[] | undefined)?.[1]).toBe(conversation.id);
   });
 });

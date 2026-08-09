@@ -50,8 +50,12 @@ describe('Outreach V3 Revised Phase 3 migration contract', () => {
   });
 
   it('contains no Campaign Spec copy or hidden-reasoning storage', () => {
-    expect(combined).not.toMatch(/spec_jsonb|spec_hash|current_state_version|wizard_step|current_stage/i);
-    expect(combined).not.toMatch(/chain.?of.?thought|scratchpad|hidden.?reasoning|reasoning_text|private_reasoning/i);
+    // Strip SQL comments before checking — the migration explicitly states
+    // "No hidden reasoning/chain-of-thought field exists" as a comment, which
+    // should not trigger the forbidden-pattern check.
+    const stripped = combined.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+    expect(stripped).not.toMatch(/spec_jsonb|spec_hash|current_state_version|wizard_step|current_stage/i);
+    expect(stripped).not.toMatch(/chain.?of.?thought|scratchpad|hidden.?reasoning|reasoning_text|private_reasoning/i);
   });
 
   it('forces tenant RLS and owner/session binding', () => {
