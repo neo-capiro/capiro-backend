@@ -61,10 +61,7 @@
  * producer-level states that pre-empt any binding question:
  *
  *   projectionStatus 'blocked'   -> no_op / phase6_projection_blocked
- *   projectionStatus 'candidate' -> no_op / artifact_needs_review (reusing the
- *                                   existing RDTE/non-RDTE reason for "not yet
- *                                   verified", per A3's instruction to prefer
- *                                   a precise existing reason over a new one)
+ *   projectionStatus 'candidate' -> no_op / artifact_needs_review
  *   projectionStatus 'verified'  -> mapped from bindingStatus:
  *     accepted        -> insert / (none)
  *     candidate        -> no_op / unresolved_binding
@@ -72,25 +69,10 @@
  *     conflicting      -> conflict / binding_conflict
  *     not_applicable   -> no_op / unsupported_projection
  *
- * Same-natural-key duplicates are resolved exactly the way
- * `rdte-projection-planner-v1.ts`'s `dedupeCandidates` already resolves them —
- * mirrored deliberately, per A4's "existing composition policy" reference,
- * not reinvented:
- *
- *   - a group of size 1 maps straight through the table above;
- *   - same natural key + byte-identical normalized content (money + payload)
- *     collapses into ONE candidate, merging evidence, using the most-resolved
- *     member's mapping;
- *   - same natural key + differing content means every member of the group
- *     becomes its own `conflict` / `binding_conflict` candidate — never
- *     last-wins, and never silently dropped.
- *
- * Artifact binding follows A1's rule: a single-row candidate binds to that
- * row's own `artifactContentSha256`; a collapsed multi-artifact duplicate
- * binds to the deterministic hash of the sorted set of contributing artifact
- * hashes (the same `artifactSetSha256` computation
- * `projection-plan-record-v1.ts`'s own summary already performs), never to one
- * arbitrarily chosen constituent.
+ * Same-natural-key duplicates are resolved deterministically. Equality is
+ * based on canonical JSON, never JavaScript object insertion order: two rows
+ * carrying the same money/payload/funding field collapse even when equivalent
+ * payload objects were constructed with their keys in a different order.
  */
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
 import type { Phase6NativeProjectionV1 } from './phase6-native-projection-v1.js';
@@ -103,9 +85,6 @@ export interface Phase6PlanCandidateV1 {
   operation: Phase6PlanOperationV1;
   exclusionReason?: string;
   artifactContentSha256: string;
-  /** Every row this candidate represents — one, unless a same-content
-   *  duplicate group collapsed into it. Lets a reader reconstruct the exact
-   *  audit projection row(s) and their proof binding without a second query. */
   sourceProjectionIds: string[];
   naturalKey: string;
   projectionKind: Phase6NativeProjectionV1['projectionKind'];
@@ -131,12 +110,17 @@ function sortedUniqueHashSetV1(hashes: readonly string[]): string {
   );
 }
 
-/** Deep-enough equality for money + payload: both are plain records of
- *  primitive values, so key/value comparison is exact. */
+/** Canonical semantic identity for duplicate-content comparison. */
+function comparableContentHashV1(row: Phase6NativeProjectionV1): string {
+  return sha256CanonicalJson({
+    fundingField: row.fundingField ?? null,
+    money: row.money ?? null,
+    payload: row.payload,
+  } as unknown as JsonValue);
+}
+
 function contentEqualV1(a: Phase6NativeProjectionV1, b: Phase6NativeProjectionV1): boolean {
-  const moneyEqual = JSON.stringify(a.money ?? null) === JSON.stringify(b.money ?? null);
-  const payloadEqual = JSON.stringify(a.payload) === JSON.stringify(b.payload);
-  return moneyEqual && payloadEqual && a.fundingField === b.fundingField;
+  return comparableContentHashV1(a) === comparableContentHashV1(b);
 }
 
 function mapVerifiedRowV1(row: Phase6NativeProjectionV1): {
@@ -156,7 +140,6 @@ function mapVerifiedRowV1(row: Phase6NativeProjectionV1): {
   }
 }
 
-/** A3's producer-level dispatch, checked before the bindingStatus table. */
 function mapRowV1(row: Phase6NativeProjectionV1): {
   operation: Phase6PlanOperationV1;
   exclusionReason?: string;
@@ -188,12 +171,6 @@ function toCandidateV1(row: Phase6NativeProjectionV1): Phase6PlanCandidateV1 {
   };
 }
 
-/**
- * Collapse or split one natural-key group into its final candidate(s),
- * mirroring `rdte-projection-planner-v1.ts`'s `dedupeCandidates`: identical
- * content collapses to one candidate; differing content becomes a `conflict`
- * candidate per member, never last-wins.
- */
 function resolveGroupV1(group: Phase6NativeProjectionV1[]): Phase6PlanCandidateV1[] {
   const only = group[0];
   if (only == null) return [];
@@ -204,10 +181,6 @@ function resolveGroupV1(group: Phase6NativeProjectionV1[]): Phase6PlanCandidateV
   const allEqual = sorted.every((row) => contentEqualV1(row, first));
 
   if (allEqual) {
-    // Prefer the most-resolved member's mapping: an 'accepted'/'verified' row
-    // in the group should win over a 'candidate'/'unresolved' duplicate of the
-    // exact same content, since they agree on the fact and one of them has
-    // already been resolved.
     const resolved =
       sorted.find(
         (row) => row.projectionStatus === 'verified' && row.bindingStatus === 'accepted',
@@ -239,8 +212,6 @@ function resolveGroupV1(group: Phase6NativeProjectionV1[]): Phase6PlanCandidateV
     ];
   }
 
-  // Genuine disagreement: every member becomes its own conflict candidate.
-  // Never last-wins, never dropped.
   return sorted.map((row) => ({
     ...toCandidateV1(row),
     operation: 'conflict' as const,
@@ -248,12 +219,6 @@ function resolveGroupV1(group: Phase6NativeProjectionV1[]): Phase6PlanCandidateV
   }));
 }
 
-/**
- * Build the Phase 6 committee-family projection-plan document from already-
- * loaded native projection rows. `rows` should already be scoped to the
- * cycle/fiscal-year the caller intends to file a plan for — this function does
- * not filter by them, it only records them on the resulting document.
- */
 export function buildPhase6ProjectionPlanDocumentV1(input: {
   cycleId: string;
   fiscalYear: number;
