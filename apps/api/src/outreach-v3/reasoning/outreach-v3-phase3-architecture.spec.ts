@@ -69,14 +69,19 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     expect(reasoningSource).not.toContain('.applyProposal(');
   });
 
-  it('keeps the provider tool surface read-only and free of later-phase authority', () => {
+  it('keeps the provider tool surface read-only while allowing Phase 4 target intelligence', () => {
     const tools = readApi('src/outreach-v3/reasoning/outreach-reasoning-tools.ts');
-    for (const allowed of ['get_capiro_record', 'get_client_context', 'get_recent_activity']) {
+    for (const allowed of [
+      'get_capiro_record',
+      'get_client_context',
+      'get_recent_activity',
+      'search_targets',
+      'get_target_profile',
+      'analyze_relationships',
+    ]) {
       expect(tools).toContain(`'${allowed}'`);
     }
     for (const forbidden of [
-      'search_targets',
-      'get_target_profile',
       'search_memory',
       'research_government',
       'SEND_EMAIL_NOW',
@@ -84,6 +89,7 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     ]) {
       expect(tools).not.toContain(`'${forbidden}'`);
     }
+    expect(tools).toContain('assertOutreachReasoningToolContract');
   });
 
   it('defaults to Capiro-managed provider storage and gates provider state separately', () => {
