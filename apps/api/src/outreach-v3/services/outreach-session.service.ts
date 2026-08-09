@@ -14,7 +14,7 @@ import {
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
   deriveOutreachReadiness,
-  PHASE4_OUTREACH_FEATURE_AVAILABILITY,
+  PHASE5_OUTREACH_FEATURE_AVAILABILITY,
 } from '../state/outreach-readiness.contract.js';
 
 @Injectable()
@@ -48,7 +48,7 @@ export class OutreachSessionService {
         currentStateVersion: 1,
         spec,
         specHash,
-        readiness: deriveOutreachReadiness(spec, PHASE4_OUTREACH_FEATURE_AVAILABILITY),
+        readiness: deriveOutreachReadiness(spec, PHASE5_OUTREACH_FEATURE_AVAILABILITY),
         pendingProposalCount: 0,
       };
     });
@@ -89,7 +89,7 @@ export class OutreachSessionService {
         currentStateVersion: version.version,
         spec,
         specHash: version.specHash,
-        readiness: deriveOutreachReadiness(spec, PHASE4_OUTREACH_FEATURE_AVAILABILITY),
+        readiness: deriveOutreachReadiness(spec, PHASE5_OUTREACH_FEATURE_AVAILABILITY),
         pendingProposalCount,
       };
     });
