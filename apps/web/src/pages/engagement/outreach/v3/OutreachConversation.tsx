@@ -1,5 +1,12 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertTriangle, ArrowUp, Loader2, Plus, Sparkles } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUp,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-react';
 import type { OutreachV3Stage, OutreachV3TranscriptTurn } from './contracts.js';
 
 const STAGE_PROMPTS: Partial<Record<OutreachV3Stage, string[]>> = {
@@ -37,6 +44,7 @@ export interface OutreachConversationProps {
   unavailableMessage?: string | null;
   sending: boolean;
   onSend: (message: string) => Promise<unknown>;
+  onRetry: () => void;
 }
 
 export function OutreachConversation({
@@ -47,6 +55,7 @@ export function OutreachConversation({
   unavailableMessage,
   sending,
   onSend,
+  onRetry,
 }: OutreachConversationProps) {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -135,6 +144,10 @@ export function OutreachConversation({
                 {unavailableMessage ??
                   'Campaign state is safe. Use the deterministic controls to continue.'}
               </p>
+              <button type="button" className="ov3-button is-secondary" onClick={onRetry}>
+                <RotateCcw size={15} aria-hidden="true" />
+                Retry reasoning
+              </button>
             </div>
           </div>
         ) : null}
