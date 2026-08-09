@@ -81,6 +81,7 @@ function forecastRow(partial: Partial<InboxRow> = {}): InboxRow {
     agency: 'Department of the Navy',
     forecast: facts(),
     dibbs: null,
+    sbir: null,
     // A forecast has no response deadline. The API sends null; the card must not
     // render a deadline slot at all.
     responseDeadline: null,

@@ -73,7 +73,7 @@ export type InboxFilter = (typeof INBOX_FILTERS)[number];
  * That was a real, if dormant, defect — a UI switching on `row.source` had no
  * legal value to switch to.
  */
-export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs'] as const;
+export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs', 'sbir_sttr'] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 
 /** `INBOX_SOURCES` entries that are not also an `OpportunitySource`. */
@@ -100,6 +100,34 @@ export const FORECAST_INBOX_SOURCE = 'agency_forecast' as const;
  * the two look identical from a distance and only one of them is a blocker.
  */
 export const DIBBS_INBOX_SOURCE = 'dibbs' as const;
+
+/**
+ * The SBIR/STTR topic rail (P43 part 3).
+ *
+ * Added here and NOT to `OPPORTUNITY_SOURCES`, for the reason the DIBBS block
+ * above gives: a topic is not a `FundingOpportunity`. It has no eligibility
+ * determination (P43's own acceptance keeps eligibility at `needs_review`
+ * permanently, because nothing in this schema establishes it), no estimated
+ * value, and its "deadline" is a topic close date on a cycle rather than a
+ * response deadline on a competition.
+ *
+ * Nothing new was needed in the database, and that was checked rather than
+ * assumed: `client_funding_opportunity_source_chk` has admitted `'sbir_sttr'`
+ * since P13's generic identity bridge
+ * (`20260820010000_funding_opportunity_generic_source`), and
+ * `SOURCE_RECORD_TYPES.sbir_sttr` is already `'sbir_topic'`. Same finding as
+ * P41 part 2 made for `'dibbs'`.
+ *
+ * ── THIS IS THE LAST PLANNED SOURCE ─────────────────────────────────────────
+ *
+ * `PLANNED_OPPORTUNITY_SOURCES` is now empty of unreached entries. That matters
+ * to one specific test: the inbox spec's "unknown source is refused" case has
+ * had to move TWICE, first off `'dibbs'` and now off `'sbir_sttr'`, each time
+ * because the phase that made it legal arrived. There is no next planned source
+ * to move it to, and that is the correct end state — the example should never
+ * have been a planned source at all. See that spec's own comment.
+ */
+export const SBIR_INBOX_SOURCE = 'sbir_sttr' as const;
 
 export const INBOX_PAGE_SIZE = 50;
 export const INBOX_MAX_PAGE_SIZE = 200;
@@ -209,6 +237,74 @@ export interface InboxDibbsFacts {
   lastSyncedAt: string | null;
 }
 
+/**
+ * The parent solicitation CYCLE for an SBIR topic, when Capiro holds it (P43).
+ *
+ * Nested inside {@link InboxSbirFacts} rather than flattened onto it, because
+ * "Capiro does not hold the cycle" and "the topic states no cycle" are different
+ * facts and a UI has to tell a reader which. Flattening would make both look
+ * like a row of nulls.
+ *
+ * `program` is the ONLY place the SBIR/STTR distinction lives. A topic does not
+ * carry it, so a topic whose cycle is absent cannot be labelled either — and
+ * must not be, since STTR is the one requiring a research partner.
+ */
+export interface InboxSbirCycleFacts {
+  solicitationNumber: string;
+  cycleName: string | null;
+  /** `'SBIR' | 'STTR'` as the provider spells it. Never normalised. */
+  program: string | null;
+  year: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  solicitationStatus: string | null;
+  solDownloadUrl: string | null;
+}
+
+/**
+ * The source-stated facts an SBIR/STTR TOPIC row carries and no other rail does
+ * (P43 part 3). Null on every other rail.
+ *
+ * Holds no `estimatedValue` and no eligibility: `tango_sbir_topic` states
+ * neither, and P43's own acceptance keeps eligibility at `needs_review`
+ * permanently because nothing in this schema establishes it.
+ *
+ * There is deliberately NO `phase` field. The published SBIR contract carries
+ * none on either endpoint (P42's migration header records this), so a phase
+ * here would be a column nothing could ever populate — which reads as "we hold
+ * this and it is empty" rather than "the source does not state it".
+ */
+export interface InboxSbirFacts {
+  /** The public topic number a human cites, e.g. `A26-001`. */
+  topicNumber: string | null;
+  title: string | null;
+  /** The provider's single `agency` field. Never split into agency/component. */
+  agency: string | null;
+  year: number | null;
+  /** The parent cycle as STATED by the source. Null means the source named none. */
+  solicitationNumber: string | null;
+  releaseDate: string | null;
+  openDate: string | null;
+  /** Calendar day, no time component — the column is a DATE. */
+  closeDate: string | null;
+  /** The provider's own lifecycle word. Never rewritten, never derived from closeDate. */
+  solicitationStatus: string | null;
+  topicUrl: string | null;
+  /** May point at DSIP. Carried as a URL; never parsed for an identifier. */
+  officialSolicitationUrl: string | null;
+  /** When Capiro last observed this topic. Freshness, not a source fact. */
+  lastSyncedAt: string | null;
+  /**
+   * The parent cycle when Capiro HOLDS it.
+   *
+   * Null means NOT HELD, which is a fact about Capiro's sync — distinct from
+   * `solicitationNumber` being null, which is a fact about the source. P42
+   * deliberately has no FK between the two tables, so an orphan topic is legal
+   * and expected.
+   */
+  cycle: InboxSbirCycleFacts | null;
+}
+
 export interface InboxRow {
   /** The workflow row id — the stable identity of this decision context. */
   id: string;
@@ -227,6 +323,8 @@ export interface InboxRow {
   forecast: InboxForecastFacts | null;
   /** Populated ONLY for `dibbs` rows. Null on every other rail. */
   dibbs: InboxDibbsFacts | null;
+  /** Populated ONLY for `sbir_sttr` rows. Null on every other rail. */
+  sbir: InboxSbirFacts | null;
   /** From the snapshot, so the inbox never blocks on a catalog join to sort. */
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
@@ -534,6 +632,105 @@ export function dibbsInboxTitle(row: { nomenclature: string | null; solicitation
   return nomenclature && nomenclature.length > 0 ? nomenclature : row.solicitation;
 }
 
+/** The `tango_sbir_topic` columns {@link toInboxSbirFacts} reads. */
+export interface SbirTopicFactRow {
+  tangoSbirId: string;
+  topicNumber: string | null;
+  title: string | null;
+  agency: string | null;
+  year: number | null;
+  solicitationNumber: string | null;
+  releaseDate: Date | null;
+  openDate: Date | null;
+  closeDate: Date | null;
+  solicitationStatus: string | null;
+  topicUrl: string | null;
+  officialSolicitationUrl: string | null;
+  lastSyncedAt: Date | null;
+}
+
+/** The `tango_sbir_solicitation` columns a cycle lookup reads. */
+export interface SbirCycleFactRow {
+  solicitationNumber: string;
+  cycleName: string | null;
+  program: string | null;
+  year: number | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  solicitationStatus: string | null;
+  solDownloadUrl: string | null;
+}
+
+/**
+ * `tango_sbir_topic` (+ its cycle, when held) to the shape the inbox serves.
+ *
+ * Dates become calendar days rather than instants: all three are DATE columns,
+ * and serialising them as full timestamps is what lets a client formatting in
+ * local time show a topic opening on the 6th as the 5th.
+ *
+ * `cycle` is passed in rather than looked up here so this function stays pure
+ * and the caller can batch the lookup — the same shape `titlesFor` already uses
+ * for the other rails.
+ */
+export function toInboxSbirFacts(
+  row: SbirTopicFactRow,
+  cycle: SbirCycleFactRow | null,
+): InboxSbirFacts {
+  return {
+    topicNumber: row.topicNumber ?? null,
+    title: row.title ?? null,
+    agency: row.agency ?? null,
+    year: row.year ?? null,
+    solicitationNumber: row.solicitationNumber ?? null,
+    releaseDate: row.releaseDate ? row.releaseDate.toISOString().slice(0, 10) : null,
+    openDate: row.openDate ? row.openDate.toISOString().slice(0, 10) : null,
+    closeDate: row.closeDate ? row.closeDate.toISOString().slice(0, 10) : null,
+    solicitationStatus: row.solicitationStatus ?? null,
+    topicUrl: row.topicUrl ?? null,
+    officialSolicitationUrl: row.officialSolicitationUrl ?? null,
+    lastSyncedAt: row.lastSyncedAt ? row.lastSyncedAt.toISOString() : null,
+    cycle:
+      cycle == null
+        ? null
+        : {
+            solicitationNumber: cycle.solicitationNumber,
+            cycleName: cycle.cycleName ?? null,
+            program: cycle.program ?? null,
+            year: cycle.year ?? null,
+            startDate: cycle.startDate ? cycle.startDate.toISOString().slice(0, 10) : null,
+            endDate: cycle.endDate ? cycle.endDate.toISOString().slice(0, 10) : null,
+            solicitationStatus: cycle.solicitationStatus ?? null,
+            solDownloadUrl: cycle.solDownloadUrl ?? null,
+          },
+  };
+}
+
+/**
+ * The title and agency an inbox row shows for an SBIR topic.
+ *
+ * Unlike DIBBS, the AGENCY here IS a column — `tango_sbir_topic.agency` — so
+ * there is no rail-wide constant to state and a null stays null. That asymmetry
+ * is deliberate and worth noting: DIBBS is one agency's own bid board, while
+ * SBIR/STTR spans every participating agency, so a constant would be wrong
+ * rather than merely unhelpful.
+ *
+ * The TITLE falls back to the topic number, which is what a human cites anyway.
+ * Both can be null on the row, so the last fallback is the provider's own id —
+ * a topic must never render as "Source record no longer in the catalog" merely
+ * for lacking a name.
+ */
+export function sbirInboxTitle(row: {
+  title: string | null;
+  topicNumber: string | null;
+  tangoSbirId: string;
+}): string {
+  const title = row.title?.trim();
+  if (title && title.length > 0) return title;
+  const number = row.topicNumber?.trim();
+  if (number && number.length > 0) return number;
+  return row.tangoSbirId;
+}
+
 /**
  * The compound keyset predicate: `(sort, id) > (cursorSort, cursorId)`.
  *
@@ -711,6 +908,12 @@ export class FundingOpportunityInboxService {
           // fabricated empty block that would read as "the provider stated
           // nothing" instead of "we no longer hold it".
           dibbs: rowSource === DIBBS_INBOX_SOURCE ? (meta?.dibbs ?? null) : null,
+          // P43. Same rule again, and it matters most on this rail: a topic's
+          // facts block carries the parent CYCLE, and a fabricated empty block
+          // would render "the source states no solicitation cycle" for a topic
+          // whose cycle Capiro simply no longer holds — two different facts the
+          // card is specifically built to keep apart.
+          sbir: rowSource === SBIR_INBOX_SOURCE ? (meta?.sbir ?? null) : null,
           responseDeadline: deadline ? deadline.toISOString() : null,
           daysUntilDeadline: deadline
             ? Math.floor((deadline.getTime() - now.getTime()) / 86_400_000)
@@ -916,6 +1119,7 @@ export class FundingOpportunityInboxService {
         agency: string | null;
         forecast?: InboxForecastFacts;
         dibbs?: InboxDibbsFacts;
+        sbir?: InboxSbirFacts;
       }
     >
   > {
@@ -932,7 +1136,15 @@ export class FundingOpportunityInboxService {
       .filter((r) => r.source === DIBBS_INBOX_SOURCE)
       .map((r) => readSourceRecordId(r))
       .filter((v): v is string => v != null);
-    const [grants, sam, forecasts, dibbs] = await Promise.all([
+    // P43. Keyed on `tango_sbir_topic.tangoSbirId` — the provider's own
+    // `topic_id`, which is the sync's upsert key and unique. NOT `uuid`: these
+    // APIs share no identity column, and reaching for one would silently match
+    // nothing.
+    const sbirIds = rows
+      .filter((r) => r.source === SBIR_INBOX_SOURCE)
+      .map((r) => readSourceRecordId(r))
+      .filter((v): v is string => v != null);
+    const [grants, sam, forecasts, dibbs, sbirTopics] = await Promise.all([
       grantIds.length
         ? tx.federalGrant.findMany({
             where: { id: { in: [...new Set(grantIds)] } },
@@ -991,10 +1203,73 @@ export class FundingOpportunityInboxService {
             },
           })
         : Promise.resolve([]),
+      // P43. One more batched query, same shape again.
+      sbirIds.length
+        ? tx.tangoSbirTopic.findMany({
+            where: { tangoSbirId: { in: [...new Set(sbirIds)] } },
+            select: {
+              tangoSbirId: true,
+              topicNumber: true,
+              title: true,
+              agency: true,
+              year: true,
+              solicitationNumber: true,
+              releaseDate: true,
+              openDate: true,
+              closeDate: true,
+              solicitationStatus: true,
+              topicUrl: true,
+              officialSolicitationUrl: true,
+              lastSyncedAt: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
+
+    /*
+      The parent cycles, in ONE more batched query keyed on the numbers the
+      topics actually stated.
+
+      Deliberately a second round trip rather than a join: P42 has no FK between
+      the two tables, so this is a lookup that may legitimately find nothing —
+      an ORPHAN topic naming a cycle never synced. A join would have to be a LEFT
+      join anyway, and doing it separately keeps "not held" representable as an
+      absent map entry rather than a row of nulls indistinguishable from a cycle
+      that exists with every column empty.
+    */
+    const cycleNumbers = [
+      ...new Set(
+        sbirTopics
+          .map((t) => t.solicitationNumber)
+          .filter((v): v is string => v != null && v.trim() !== ''),
+      ),
+    ];
+    const sbirCycles = cycleNumbers.length
+      ? await tx.tangoSbirSolicitation.findMany({
+          where: { solicitationNumber: { in: cycleNumbers } },
+          select: {
+            solicitationNumber: true,
+            cycleName: true,
+            program: true,
+            year: true,
+            startDate: true,
+            endDate: true,
+            solicitationStatus: true,
+            solDownloadUrl: true,
+          },
+        })
+      : [];
+    const cycleByNumber = new Map(sbirCycles.map((c) => [c.solicitationNumber, c]));
+
     const out = new Map<
       string,
-      { title: string; agency: string | null; forecast?: InboxForecastFacts; dibbs?: InboxDibbsFacts }
+      {
+        title: string;
+        agency: string | null;
+        forecast?: InboxForecastFacts;
+        dibbs?: InboxDibbsFacts;
+        sbir?: InboxSbirFacts;
+      }
     >();
     for (const g of grants) out.set(`grants_gov:${g.id}`, { title: g.title, agency: g.agency });
     for (const s of sam) out.set(`sam_gov:${s.id}`, { title: s.title, agency: s.agency });
@@ -1011,6 +1286,18 @@ export class FundingOpportunityInboxService {
         title: dibbsInboxTitle(d),
         agency: DIBBS_AGENCY,
         dibbs: toInboxDibbsFacts(d),
+      });
+    }
+    for (const t of sbirTopics) {
+      const cycle =
+        t.solicitationNumber != null ? (cycleByNumber.get(t.solicitationNumber) ?? null) : null;
+      out.set(`${SBIR_INBOX_SOURCE}:${t.tangoSbirId}`, {
+        title: sbirInboxTitle(t),
+        // Unlike DIBBS, agency IS a column here — SBIR/STTR spans every
+        // participating agency, so a rail-wide constant would be wrong rather
+        // than merely unhelpful. A null stays null.
+        agency: t.agency,
+        sbir: toInboxSbirFacts(t, cycle),
       });
     }
     return out;

@@ -2128,9 +2128,26 @@ jobs:
       # T00:00:00.000Z — the one value that makes instant arithmetic
       # accidentally agree with calendar arithmetic. A topic closing today is
       # proven open at 00:00, 09:15, 14:37 and 23:59.
+      #
+      # 87/2738 -> 87/2750 after P43 part 3: no new FILE (the suite count is
+      # unchanged), 12 tests added to funding-opportunity-inbox.spec.ts for the
+      # fifth and LAST planned rail.
+      #
+      # Two of those tests are the rail's whole point: an ORPHAN topic keeps its
+      # stated cycle NUMBER while `cycle` is null, and a topic stating no cycle
+      # has both null. Those are different facts — one about the source, one
+      # about Capiro's sync — and P42 has no FK precisely so the first is
+      # representable. Flattening the cycle onto the facts block would make both
+      # look like a row of nulls, and the card renders two different sentences.
+      #
+      # Note what did NOT change: `OPPORTUNITY_SOURCES` is still exactly two
+      # entries wide. With `sbir_sttr` live, every planned source is now an inbox
+      # rail, so that width is the only thing left separating the two
+      # vocabularies — which is why the identity spec now asserts it in the same
+      # test as the INBOX_SOURCES literal.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 87 2738
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 87 2750
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -2429,9 +2446,25 @@ jobs:
       # eligibility reason's own wording. The claim is narrower than the scan
       # was — no TAG may assert a program — so it is scoped to the tags. A
       # too-broad assertion fails on correct output and teaches nothing.
+      #
+      # 125/472 -> 126/484 after P43 part 3: no new FILE, one new describe block
+      # in FundingOpportunityInbox.test.tsx (12 tests) plus 1 in
+      # FundingOpportunityDetail.test.tsx for the route.
+      #
+      # The rail's central assertion is that the parent CYCLE stays nested:
+      # "Capiro does not hold the cycle" and "the topic states no cycle" are
+      # different facts — P42 has no FK precisely so the first is representable
+      # — and flattening would make both look like a row of nulls. An orphan
+      # topic is proven to say so rather than guessing a program, which matters
+      # because SBIR vs STTR lives on the cycle and STTR is the one requiring a
+      # research partner.
+      #
+      # Withheld counts are PER RAIL. Two flagged rails can be off at once, and
+      # a pooled number would leave a reader unable to tell which capability to
+      # ask for; a test turns both off and asserts two separate notices.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 125 472
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 126 484
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

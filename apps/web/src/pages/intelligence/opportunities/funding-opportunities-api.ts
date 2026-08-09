@@ -370,7 +370,13 @@ export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
  * `FundingOpportunity` shape with holes where those three go reads as "closed",
  * "not eligible" and "$0".
  */
-export const INBOX_SOURCES = ['grants_gov', 'sam_gov', 'agency_forecast', 'dibbs'] as const;
+export const INBOX_SOURCES = [
+  'grants_gov',
+  'sam_gov',
+  'agency_forecast',
+  'dibbs',
+  'sbir_sttr',
+] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 
 export const FORECAST_SOURCE = 'agency_forecast' as const;
@@ -394,6 +400,23 @@ export const DIBBS_SOURCE = 'dibbs' as const;
 export function isDibbsRow(row: { source: string }): boolean {
   return row.source === DIBBS_SOURCE;
 }
+
+/**
+ * The SBIR/STTR topic rail (P43), and the LAST planned source.
+ *
+ * Also not in {@link OpportunitySource}: P43's own acceptance keeps a topic's
+ * eligibility at `needs_review` permanently, because nothing in the schema
+ * establishes it — so a topic can never be a `FundingOpportunity`, which
+ * carries an eligibility determination.
+ */
+export const SBIR_SOURCE = 'sbir_sttr' as const;
+
+export function isSbirRow(row: { source: string }): boolean {
+  return row.source === SBIR_SOURCE;
+}
+
+/** The SBIR capability, per tenant. Mirrors P43's `funding_opportunities_sbir`. */
+export const FUNDING_OPPORTUNITIES_SBIR_FEATURE = 'funding_opportunities_sbir';
 
 /**
  * Mirrors InboxForecastFacts in apps/api.
@@ -522,6 +545,57 @@ export function asPursuableDibbsFacts(
  */
 export const DIBBS_PART_PROFILE_GAP_TODAY = 'no_client_parts_recorded' as const;
 
+/**
+ * Mirrors InboxSbirCycleFacts in apps/api — the parent solicitation cycle for
+ * an SBIR topic, when Capiro HOLDS it.
+ *
+ * `program` is the only place the SBIR/STTR distinction lives. A topic does not
+ * carry it, so a topic whose cycle is absent cannot be labelled either — and
+ * must not be, since STTR is the one requiring a research partner.
+ */
+export interface InboxSbirCycleFacts {
+  solicitationNumber: string;
+  cycleName: string | null;
+  /** `'SBIR' | 'STTR'` as the provider spells it. Never normalised. */
+  program: string | null;
+  year: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  solicitationStatus: string | null;
+  solDownloadUrl: string | null;
+}
+
+/**
+ * Mirrors InboxSbirFacts in apps/api — the field list is COPIED from it.
+ *
+ * There is deliberately NO `phase`: the published SBIR contract carries none on
+ * either endpoint, so a field here would be one nothing could ever populate.
+ */
+export interface InboxSbirFacts {
+  topicNumber: string | null;
+  title: string | null;
+  agency: string | null;
+  year: number | null;
+  /** The parent cycle as STATED by the source. Null means the source named none. */
+  solicitationNumber: string | null;
+  releaseDate: string | null;
+  openDate: string | null;
+  /** `YYYY-MM-DD`. Format with {@link formatSourceDate}, never `new Date()` locally. */
+  closeDate: string | null;
+  solicitationStatus: string | null;
+  topicUrl: string | null;
+  officialSolicitationUrl: string | null;
+  lastSyncedAt: string | null;
+  /**
+   * The parent cycle when Capiro HOLDS it.
+   *
+   * Null means NOT HELD — a fact about Capiro's sync — which is distinct from
+   * `solicitationNumber` being null, a fact about the source. The card renders
+   * two different sentences for the two, so they must stay distinguishable.
+   */
+  cycle: InboxSbirCycleFacts | null;
+}
+
 /** Mirrors InboxRow in apps/api. One CLIENT-OPPORTUNITY decision context. */
 export interface InboxRow {
   id: string;
@@ -535,6 +609,8 @@ export interface InboxRow {
   forecast: InboxForecastFacts | null;
   /** Populated ONLY on a `dibbs` row. Null on every other rail. */
   dibbs: InboxDibbsFacts | null;
+  /** Populated ONLY on a `sbir_sttr` row. Null on every other rail. */
+  sbir: InboxSbirFacts | null;
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
   workflowStatus: string;
@@ -1617,6 +1693,14 @@ export const INBOX_SOURCE_LABELS: Record<InboxSource, string> = {
     tooltip a reader has to hover to find.
   */
   dibbs: 'DLA bid board · line item',
+  /*
+    Two facts again. "SBIR/STTR" says where it came from; "topic" says what one
+    row IS — the unit a small business responds to, not a solicitation to bid.
+    The slash is deliberate: which of the two programs a topic belongs to lives
+    on its parent CYCLE, and Capiro does not always hold that, so the rail label
+    must not commit to either.
+  */
+  sbir_sttr: 'SBIR/STTR · topic',
 };
 
 /**
@@ -1639,7 +1723,40 @@ export const INBOX_SOURCE_SHORT_LABELS: Record<InboxSource, string> = {
   sam_gov: 'SAM.gov',
   agency_forecast: 'Agency forecast',
   dibbs: 'DLA bid board',
+  sbir_sttr: 'SBIR/STTR',
 };
+
+/**
+ * What both detail frames say about an SBIR topic ref, in ONE place.
+ *
+ * Same reasoning as {@link DIBBS_NO_DETAIL_MESSAGE}: there is no shared body to
+ * render for this rail, so the next best guarantee against the drawer and the
+ * full page drifting is one copy of the sentence.
+ */
+/**
+ * The two sentences an SBIR topic card shows that do NOT vary by topic.
+ *
+ * Both are byte-copies of `sbir-relevance.ts`'s constants in apps/api. They are
+ * duplicated rather than fetched because neither is a per-topic scoring output:
+ *
+ *   - the phase gap is a fact about the SOURCE — there is no phase field on
+ *     either SBIR endpoint — so it is true for every topic and will stay true
+ *     until the provider publishes one;
+ *   - eligibility is a constant `needs_review` by P43's own acceptance, since
+ *     nothing in this schema establishes it.
+ *
+ * When a producer wires the scorer to real rows, these come from the scored
+ * result and these constants are DELETED rather than edited — the same posture
+ * as {@link DIBBS_PART_PROFILE_GAP_TODAY}.
+ */
+export const SBIR_PHASE_GAP_EXPLANATION =
+  'The source publishes no phase for this topic, so none is shown. This is a gap in the published contract, not a judgement about the topic.';
+export const SBIR_ELIGIBILITY_REASON =
+  'SBIR eligibility is not evaluated. It turns on US ownership, employee count and — for STTR — a research-institution partner, none of which Capiro holds as a structured fact. A small-business certification is not the same question as the SBIR size standard for this topic.';
+
+export const SBIR_NO_DETAIL_MESSAGE = 'Topics do not have a detail page yet';
+export const SBIR_NO_DETAIL_DESCRIPTION =
+  'This is an SBIR/STTR topic. Capiro holds it and shows it in the opportunities queue, but the detail view for this rail has not been built. This says nothing about whether the topic exists.';
 
 /**
  * The common recommendation vocabulary as a reader sees it.
