@@ -3,28 +3,41 @@
 ## Current status
 
 ```text
-PROVISIONAL_IMPLEMENTATION: PRESENT
-FORMAL_PHASE3_ACCEPTANCE: BLOCKED_ON_PHASE2_APPROVAL + EXECUTABLE GATES
+SOURCE_IMPLEMENTATION: PRESENT
+SOURCE_REVIEW_OPEN_P0: 0
+SOURCE_REVIEW_OPEN_P1: 0
+SOURCE_REVIEW_BLOCKING_P2: 0
+PHASE2_DEPLOYED_DARK_BASE: OWNER_ACCEPTED_WITH_CLERK_AUTH_WAIVER
+PHASE2_INDEPENDENT_REVIEW: PENDING
+PHASE3_EXECUTABLE_GATES: PENDING
 DEPLOYMENT: NOT AUTHORIZED / NOT PERFORMED
 PR: NOT CREATED
 MERGE: NOT PERFORMED
 ```
 
-## Branch
+## Branch and Phase 2 lineage
 
 ```text
+Phase 3 branch:
 agent/outreach-v3-p3-reasoning-gateway
-```
 
-Provisional Phase 2 base:
+Phase 2 code base:
+89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
 
-```text
+Owner-reported deployed Phase 2 SHA:
 89b0a8e08e1cfcc7210a8684335faf6f8405bdf2
 ```
 
-Phase 2 remained in deployed dark acceptance/independent closeout when the owner explicitly authorized productive Phase 3 implementation to begin in parallel.
+The deployed Phase 2 SHA exactly equals the SHA this Phase 3 branch was created from. No Phase 2 code/schema reconciliation is required from the supplied deployed-dark result.
 
-See `revised-phase-3-input-lock.md` for the sequencing override.
+The owner explicitly waived Clerk-authenticated live Phase 2 route verification after token acquisition remained blocked. Those Clerk-dependent scenarios are **WAIVED / NOT EXECUTED**, not PASS.
+
+See:
+
+- `revised-phase-2-deployed-dark-owner-acceptance.md`;
+- `revised-phase-3-input-lock.md`.
+
+A fresh independent Phase 2 assurance marker remains pending unless separately waived.
 
 ## Thesis
 
@@ -55,7 +68,24 @@ The reasoning service does not inject or call the Phase 2 command engine.
 - reasoning effort configuration;
 - structured visible result parsing;
 - retryable provider errors;
-- no SDK dependency required.
+- no OpenAI SDK dependency required.
+
+For the default `store=false` reasoning path, the adapter explicitly requests:
+
+```text
+include = [reasoning.encrypted_content]
+```
+
+When a reasoning-model turn calls a Capiro function, the opaque encrypted reasoning item returned by OpenAI is replayed with the provider's output and `function_call_output` for the next Responses call in that **same in-flight turn only**.
+
+Encrypted reasoning is never:
+
+- written to Capiro persistence;
+- logged;
+- returned to the browser;
+- used as Campaign Spec or state-version authority.
+
+Provider-state mode uses `previous_response_id` and does not request this stateless replay field.
 
 ### Conversation continuity
 
@@ -83,6 +113,8 @@ Every turn reloads:
 
 The model never supplies these values as trusted authority.
 
+Before **every** successful turn commit, including a no-command/advice-only turn, Phase 3 rechecks the exact Phase 2 state version the model inspected. State drift produces a retryable 409 instead of returning stale advice.
+
 ### Shared Capiro read tools
 
 Executable Phase 3 tools are deliberately limited to currently implemented Outreach capabilities:
@@ -95,9 +127,13 @@ get_recent_activity
 
 Tool execution goes through `CapabilityRegistry` with a server-created `AuthorizedCapabilityContext`.
 
-Single-client campaigns narrow capability scope to that client.
+Campaign scoping is server-owned:
 
-Multi-client/coalition/no-client campaigns do not fabricate a primary client; client-specific requests are individually reauthorized.
+- exact one-client sponsor → capability context narrowed to that client;
+- no-client sponsor → no client-oriented tool surface;
+- multi-client / coalition → no invented primary client; returned client-linked records must resolve to an explicit sponsor client ref.
+
+The model cannot widen tenant/client scope.
 
 ### Structured command proposals
 
@@ -118,13 +154,14 @@ It never applies commands.
 After provider/tool work completes, one short DB transaction performs:
 
 ```text
+exact Phase 2 state-version recheck
 optional model proposal create
 proposal-created event
 visible reasoning turn audit
 provider-response continuity update
 ```
 
-If campaign state moved while the model was reasoning, Phase 2 optimistic concurrency rejects proposal creation and the success audit rolls back with it.
+If campaign state moved while the model was reasoning, the transaction does not create a proposal or success-turn audit.
 
 ### Turn serialization
 
@@ -134,23 +171,28 @@ Lease duration is 15 minutes, intentionally longer than the bounded provider/too
 
 ### Visible history
 
-Owner-scoped history route lets the future product reconstruct Capiro-managed visible conversations after reload.
+Owner-scoped history lets the future product reconstruct Capiro-managed visible conversations after reload.
 
 Provider-state rows return null bodies when Capiro did not store those bodies.
 
 ### Runtime containment
 
-Added external action:
+Added one narrow external action:
 
 ```text
 outreach_reasoning
 ```
 
-It is allowed only in `engagement-api` when `OUTREACH_V3_REASONING_ENABLED=true`.
+It is allowed only in `engagement-api` when **both** are true:
+
+```text
+OUTREACH_V3_STATE_ENABLED=true
+OUTREACH_V3_REASONING_ENABLED=true
+```
 
 Even a globally active main API is denied `outreach_reasoning`.
 
-No other shadow external action is enabled by this flag.
+No other shadow external action is enabled by these flags.
 
 ### Dark API
 
@@ -192,7 +234,8 @@ apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.js
 ## Feature/config flags
 
 ```text
-OUTREACH_V3_REASONING_ENABLED=false             # default
+OUTREACH_V3_STATE_ENABLED=false                 # Phase 2 prerequisite
+OUTREACH_V3_REASONING_ENABLED=false             # Phase 3 default
 OUTREACH_V3_REASONING_STATE_MODE=capiro_managed # default
 OUTREACH_V3_REASONING_PROVIDER_STATE_ENABLED=false
 OUTREACH_V3_REASONING_MODEL=<optional override>
@@ -291,30 +334,39 @@ Outreach v2 replacement
 production deployment
 ```
 
-## Prerequisite blocker
+## Remaining assurance gates
 
-Formal Phase 3 acceptance remains blocked until the exact Phase 2 lineage receives:
+The Phase 2 Clerk-authenticated live gate is no longer pending; it was explicitly waived by the owner and remains recorded as NOT EXECUTED.
+
+Unless separately waived, these remain for formal Phase 3 acceptance:
 
 ```text
-OUTREACH_V3_PHASE2_APPROVED
+fresh independent Phase 2 assurance disposition
+Phase 3 DB-free verifier PASS
+Phase 3 disposable DB verifier PASS
+100-case deterministic contract eval PASS
+100-turn live OpenAI eval PASS
+Open P0 = 0
+Open P1 = 0
+Blocking P2 = 0
+fresh independent Phase 3 approval
 ```
-
-Before Phase 3 closeout, reconcile this branch against that accepted Phase 2 code SHA. Documentation/evidence-only Phase 2 SHA movement is recorded separately rather than forcing unrelated code churn.
 
 ## Current execution status
 
-At the time this status was written:
-
 ```text
 Source implementation: PRESENT
+Source review open P0: 0
+Source review open P1: 0
+Source review blocking P2: 0
+Phase 2 code reconciliation: NOT REQUIRED — exact deployed/base SHA match
+Phase 2 Clerk live acceptance: WAIVED_BY_OWNER / NOT EXECUTED
 DB-free gate: NOT YET EXECUTED SUCCESSFULLY IN THIS CONNECTOR SESSION
-Disposable DB gate: NOT YET EXECUTED SUCCESSFULLY
+Disposable DB gate: NOT YET EXECUTED SUCCESSFULLY IN THIS CONNECTOR SESSION
 100-case contract eval: IMPLEMENTED, NOT YET EXECUTED SUCCESSFULLY
 100-turn live OpenAI eval: IMPLEMENTED, NOT YET EXECUTED
-Phase 2 regression: NOT YET EXECUTED SUCCESSFULLY
-Engagement Phase 3 regression: NOT YET EXECUTED SUCCESSFULLY
 Independent Phase 3 validation: PENDING
 Deployment: NONE
 ```
 
-Do not reinterpret source completeness as acceptance.
+Do not reinterpret source completeness as executable acceptance.
