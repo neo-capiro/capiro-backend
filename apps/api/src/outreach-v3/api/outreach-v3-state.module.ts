@@ -6,6 +6,7 @@ import { OutreachStateRepository } from '../persistence/outreach-state.repositor
 import { OutreachSessionService } from '../services/outreach-session.service.js';
 import { OutreachCommandEngineService } from '../services/outreach-command-engine.service.js';
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
+import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
@@ -22,12 +23,17 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
     OutreachSessionService,
     OutreachCommandEngineService,
     OutreachCommandProposalService,
+    OutreachStateVersionGuardService,
     OutreachV3StateGuard,
     OutreachV3ExceptionFilter,
   ],
-  // Phase 3 deliberately receives only read/session + proposal creation/apply
-  // seams. The command engine is not exported, so the reasoning module cannot
-  // gain hidden direct mutation authority through Nest injection.
-  exports: [OutreachSessionService, OutreachCommandProposalService],
+  // Later reasoning receives only bounded session/proposal/version-check seams.
+  // The command engine is not exported, so no model layer can gain direct
+  // mutation authority through Nest injection.
+  exports: [
+    OutreachSessionService,
+    OutreachCommandProposalService,
+    OutreachStateVersionGuardService,
+  ],
 })
 export class OutreachV3StateModule {}
