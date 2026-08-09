@@ -11,21 +11,24 @@ datasource db {
 // Focused validation projection only. Campaign state remains in the Phase 2
 // tables and this schema intentionally contains no Campaign Spec/state pointer.
 model OutreachReasoningConversation {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  sessionId       String   @map("session_id") @db.Uuid
-  createdByUserId String   @map("created_by_user_id") @db.Uuid
-  provider        String   @db.VarChar(32)
-  stateMode       String   @map("state_mode") @db.VarChar(32)
-  model           String   @db.VarChar(160)
-  reasoningEffort String   @map("reasoning_effort") @db.VarChar(16)
-  lastResponseId  String?  @map("last_response_id") @db.VarChar(255)
-  status          String   @default("active") @db.VarChar(16)
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  lastUsedAt      DateTime @default(now()) @map("last_used_at") @db.Timestamptz(6)
-  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  sessionId         String    @map("session_id") @db.Uuid
+  createdByUserId   String    @map("created_by_user_id") @db.Uuid
+  provider          String    @db.VarChar(32)
+  stateMode         String    @map("state_mode") @db.VarChar(32)
+  model             String    @db.VarChar(160)
+  reasoningEffort   String    @map("reasoning_effort") @db.VarChar(16)
+  lastResponseId    String?   @map("last_response_id") @db.VarChar(255)
+  inFlightTurnId    String?   @map("in_flight_turn_id") @db.Uuid
+  inFlightStartedAt DateTime? @map("in_flight_started_at") @db.Timestamptz(6)
+  status            String    @default("active") @db.VarChar(16)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt        DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
 
   @@index([tenantId, createdByUserId, sessionId, lastUsedAt(sort: Desc)], map: "outreach_reasoning_conversations_owner_session_used_idx")
+  @@index([tenantId, inFlightStartedAt], map: "outreach_reasoning_conversations_in_flight_idx")
   @@map("outreach_reasoning_conversations")
 }
 
