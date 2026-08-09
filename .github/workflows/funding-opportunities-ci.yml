@@ -1951,9 +1951,42 @@ jobs:
       # skips, zero todo. The api typecheck baseline did NOT move — still 12
       # pre-existing errors (defense-budget, memory, meri), none in
       # funding-opportunities code.
+      #
+      # 2598 -> 2615 after P41 part 2: NO new suite. The DLA bid-board inbox rail
+      # grew funding-opportunity-inbox.spec.ts from 71 to 88 tests in place.
+      #
+      # NO MIGRATION WAS NEEDED, and that is worth stating because it looks like
+      # it should have been. P13's generic identity bridge already anticipated
+      # this rail: client_funding_opportunity_source_chk has admitted 'dibbs'
+      # since 20260820010000_funding_opportunity_generic_source, whose own header
+      # says it widened the vocabulary precisely so the generic branch would be
+      # reachable and therefore testable, and SOURCE_RECORD_TYPES.dibbs is
+      # already 'dibbs_solicitation'. This is the INVERSE of D-63's
+      # tango_sync_checkpoint.resource_type, which had to be worked around
+      # because no migration ever widened it. The two are indistinguishable from
+      # a distance; check the migration before assuming either.
+      #
+      # Two pre-existing tests changed, both correctly:
+      #
+      #  - funding-opportunity-identity.spec.ts SCANS the inbox service's source
+      #    text and pinned the literal INBOX_SOURCES line. That tripwire is the
+      #    point: a new rail must be a visible edit in the file guarding the
+      #    catalog boundary. Updated, with a note that the load-bearing half of
+      #    the assertion is the SPREAD (`[...OPPORTUNITY_SOURCES, ...]`), which
+      #    is what makes the inbox vocabulary a strict superset of the catalog's
+      #    rather than a copy that can drift.
+      #  - the inbox spec used 'dibbs' as its unknown-source example. It now uses
+      #    'sbir_sttr', the better boundary: storable in the database, still not
+      #    an inbox rail, which proves INBOX_SOURCES is its own vocabulary and
+      #    not a mirror of what the schema can hold.
+      #
+      # OPPORTUNITY_SOURCES stays exactly two entries wide, newly pinned by its
+      # own test. Widening it would make a bid-board line item requestable as a
+      # FundingOpportunity — a shape with money, an eligibility determination and
+      # a response deadline, none of which a line item has.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2598
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2615
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

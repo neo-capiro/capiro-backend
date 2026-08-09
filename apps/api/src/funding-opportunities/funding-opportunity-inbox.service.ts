@@ -73,11 +73,33 @@ export type InboxFilter = (typeof INBOX_FILTERS)[number];
  * That was a real, if dormant, defect — a UI switching on `row.source` had no
  * legal value to switch to.
  */
-export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast'] as const;
+export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs'] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 
-/** The one `INBOX_SOURCES` entry that is not also an `OpportunitySource`. */
+/** `INBOX_SOURCES` entries that are not also an `OpportunitySource`. */
 export const FORECAST_INBOX_SOURCE = 'agency_forecast' as const;
+
+/**
+ * The DLA bid-board rail (P41 part 2).
+ *
+ * Added here and NOT to `OPPORTUNITY_SOURCES`, for the reason the block above
+ * gives: widening that list would make a DIBBS row requestable as a
+ * `FundingOpportunity` — a scored record with money, an eligibility
+ * determination and a response deadline. A bid-board line item has none of
+ * those three. It has a quantity, a unit of issue and a closing date, and its
+ * recommendation comes from `dibbs-relevance.ts`, which is a different function
+ * with a different vocabulary. `funding-opportunity-identity.spec.ts` pins
+ * `OPPORTUNITY_SOURCES` at two entries and must keep passing.
+ *
+ * Nothing new was needed in the database for this. P13's generic identity
+ * bridge already anticipated it: `client_funding_opportunity_source_chk` has
+ * admitted `'dibbs'` since `20260820010000_funding_opportunity_generic_source`,
+ * and `SOURCE_RECORD_TYPES.dibbs` is already `'dibbs_solicitation'`. This is
+ * the opposite of D-63's `tango_sync_checkpoint.resource_type`, which had to be
+ * worked around because no migration ever widened it — worth noting, because
+ * the two look identical from a distance and only one of them is a blocker.
+ */
+export const DIBBS_INBOX_SOURCE = 'dibbs' as const;
 
 export const INBOX_PAGE_SIZE = 50;
 export const INBOX_MAX_PAGE_SIZE = 200;
@@ -145,6 +167,48 @@ export interface InboxForecastFacts {
   providerModifiedAt: string | null;
 }
 
+/**
+ * The source-stated facts a DIBBS bid-board row carries and no other rail does
+ * (P41 part 2). Null on every other rail.
+ *
+ * Holds no `estimatedValue` and no `eligibility`: `tango_dibbs_solicitation`
+ * states neither, and a bid-board item's money is whatever the supplier quotes.
+ * Every field is verbatim from that table, and null means the provider stated
+ * nothing — never zero, and never "no".
+ *
+ * `quantity` is a STRING because the column is NUMERIC(18,4) and a value near
+ * the top of that range exceeds 2^53. P40's mapper takes the provider's exact
+ * digits precisely to avoid a float round-trip, and turning it into a JS number
+ * here would undo that on the last step before the screen.
+ */
+export interface InboxDibbsFacts {
+  /** `'rfq' | 'rfp'`. An award is never a workflow row — awards are informational and live in their own table. */
+  documentType: string;
+  solicitation: string;
+  /** The provider's own display spelling, when it gave one. Never parsed. */
+  solicitationFormatted: string | null;
+  nsn: string | null;
+  partNumber: string | null;
+  nomenclature: string | null;
+  /** RFQ only, as an exact decimal string. Null on an RFP, which states none. */
+  quantity: string | null;
+  /** RFQ only. A quantity without its unit is meaningless, so P40 drops the pair rather than inventing a unit. */
+  unitOfIssue: string | null;
+  /** RFQ only. */
+  setAside: string | null;
+  /** RFP only. */
+  buyerCode: string | null;
+  /** Calendar day, no time component — the column is a DATE. */
+  closesDate: string | null;
+  /** The provider's own open/closed judgement. `null` = never stated, and never rewritten into "open". */
+  isOpen: boolean | null;
+  documentUrl: string | null;
+  /** RFP only. */
+  techDocsUrl: string | null;
+  /** When Capiro last observed this item. Freshness, not a source fact. */
+  lastSyncedAt: string | null;
+}
+
 export interface InboxRow {
   /** The workflow row id — the stable identity of this decision context. */
   id: string;
@@ -161,6 +225,8 @@ export interface InboxRow {
   agency: string | null;
   /** Populated ONLY for `agency_forecast` rows. Null on every other rail. */
   forecast: InboxForecastFacts | null;
+  /** Populated ONLY for `dibbs` rows. Null on every other rail. */
+  dibbs: InboxDibbsFacts | null;
   /** From the snapshot, so the inbox never blocks on a catalog join to sort. */
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
@@ -389,6 +455,85 @@ export function toInboxForecastFacts(row: ForecastFactRow): InboxForecastFacts {
   };
 }
 
+/** The `tango_dibbs_solicitation` columns {@link toInboxDibbsFacts} reads. */
+export interface DibbsFactRow {
+  documentType: string;
+  solicitation: string;
+  solicitationFormatted: string | null;
+  nsn: string | null;
+  partNumber: string | null;
+  nomenclature: string | null;
+  quantity: Prisma.Decimal | null;
+  unitOfIssue: string | null;
+  setAside: string | null;
+  buyerCode: string | null;
+  closesDate: Date | null;
+  isOpen: boolean | null;
+  documentUrl: string | null;
+  techDocsUrl: string | null;
+  lastSyncedAt: Date | null;
+}
+
+/**
+ * One bid-board row's source facts, for an inbox card (P41 part 2).
+ *
+ * `closesDate` is a Postgres DATE and is serialized as `YYYY-MM-DD`, for exactly
+ * the reason `toInboxForecastFacts` gives: `toISOString()` on a UTC-midnight
+ * Date renders a full timestamp that a browser west of Greenwich displays as the
+ * previous day. On a forecast that shifts an agency's estimated award month; on
+ * a bid board it moves a QUOTE DEADLINE a day earlier for every user in a
+ * negative-offset timezone, which is the one field a supplier acts on.
+ *
+ * `quantity` is stringified via `toString()`, never `Number()`. The column is
+ * NUMERIC(18,4) and P40's mapper deliberately passes the provider's exact digits
+ * through as a string to avoid a float round-trip; coercing to a JS number here
+ * would reintroduce that loss on the last hop before the screen.
+ */
+export function toInboxDibbsFacts(row: DibbsFactRow): InboxDibbsFacts {
+  return {
+    documentType: row.documentType,
+    solicitation: row.solicitation,
+    solicitationFormatted: row.solicitationFormatted ?? null,
+    nsn: row.nsn ?? null,
+    partNumber: row.partNumber ?? null,
+    nomenclature: row.nomenclature ?? null,
+    // Exact digits, not a float. See the function doc.
+    quantity: row.quantity != null ? row.quantity.toString() : null,
+    unitOfIssue: row.unitOfIssue ?? null,
+    setAside: row.setAside ?? null,
+    buyerCode: row.buyerCode ?? null,
+    closesDate: row.closesDate ? row.closesDate.toISOString().slice(0, 10) : null,
+    isOpen: row.isOpen ?? null,
+    documentUrl: row.documentUrl ?? null,
+    techDocsUrl: row.techDocsUrl ?? null,
+    lastSyncedAt: row.lastSyncedAt ? row.lastSyncedAt.toISOString() : null,
+  };
+}
+
+/**
+ * The title and agency an inbox row shows for a bid-board item.
+ *
+ * NEITHER IS A COLUMN, which is why this is a named function rather than two
+ * inline expressions:
+ *
+ *   - `tango_dibbs_solicitation` has no title. The useful label is the item's
+ *     `nomenclature` ("BRACKET, ANGLE"); the solicitation number is the
+ *     fallback, and it is NOT NULL, so a DIBBS row can never render as
+ *     "Source record no longer in the catalog" merely for lacking a name.
+ *   - the table has no agency column either, and `'Defense Logistics Agency'` is
+ *     a fact about the RAIL, not an observation about the row: DIBBS is DLA's
+ *     own bid board, so every record on it is a DLA solicitation. Stated as a
+ *     constant here, in one place, with that reasoning — rather than left null,
+ *     which would render "Agency not stated" for something whose agency is
+ *     definitional. If a reviewer disagrees, this is the one line to change.
+ */
+export const DIBBS_AGENCY = 'Defense Logistics Agency' as const;
+
+export function dibbsInboxTitle(row: { nomenclature: string | null; solicitation: string }): string {
+  const nomenclature = row.nomenclature?.trim();
+  return nomenclature && nomenclature.length > 0 ? nomenclature : row.solicitation;
+}
+
 /**
  * The compound keyset predicate: `(sort, id) > (cursorSort, cursorId)`.
  *
@@ -560,6 +705,12 @@ export class FundingOpportunityInboxService {
           // and fabricating an empty facts block alongside it would read as
           // "the agency stated nothing" rather than "we no longer hold it".
           forecast: rowSource === FORECAST_INBOX_SOURCE ? (meta?.forecast ?? null) : null,
+          // Same rule as `forecast` above: gated on the row's OWN rail, so a
+          // facts block never appears on a row that is not a bid-board item, and
+          // a bid-board row whose source record is gone gets null rather than a
+          // fabricated empty block that would read as "the provider stated
+          // nothing" instead of "we no longer hold it".
+          dibbs: rowSource === DIBBS_INBOX_SOURCE ? (meta?.dibbs ?? null) : null,
           responseDeadline: deadline ? deadline.toISOString() : null,
           daysUntilDeadline: deadline
             ? Math.floor((deadline.getTime() - now.getTime()) / 86_400_000)
@@ -757,14 +908,31 @@ export class FundingOpportunityInboxService {
       samOpportunityId: string | null;
       sourceRecordKey: string | null;
     }>,
-  ): Promise<Map<string, { title: string; agency: string | null; forecast?: InboxForecastFacts }>> {
+  ): Promise<
+    Map<
+      string,
+      {
+        title: string;
+        agency: string | null;
+        forecast?: InboxForecastFacts;
+        dibbs?: InboxDibbsFacts;
+      }
+    >
+  > {
     const grantIds = rows.map((r) => r.grantOpportunityId).filter((v): v is string => v != null);
     const samIds = rows.map((r) => r.samOpportunityId).filter((v): v is string => v != null);
     const forecastIds = rows
       .filter((r) => r.source === FORECAST_INBOX_SOURCE)
       .map((r) => readSourceRecordId(r))
       .filter((v): v is string => v != null);
-    const [grants, sam, forecasts] = await Promise.all([
+    // Keyed on the provider's own uuid, same as the forecast rail: P13's generic
+    // identity holds `tango_dibbs_solicitation.tangoDibbsId`, which is the
+    // sync's upsert key and unique.
+    const dibbsIds = rows
+      .filter((r) => r.source === DIBBS_INBOX_SOURCE)
+      .map((r) => readSourceRecordId(r))
+      .filter((v): v is string => v != null);
+    const [grants, sam, forecasts, dibbs] = await Promise.all([
       grantIds.length
         ? tx.federalGrant.findMany({
             where: { id: { in: [...new Set(grantIds)] } },
@@ -798,8 +966,36 @@ export class FundingOpportunityInboxService {
             },
           })
         : Promise.resolve([]),
+      // P41 part 2. One more batched query for the whole page, same shape as the
+      // three above — the rail count grew, the per-row query count did not.
+      dibbsIds.length
+        ? tx.tangoDibbsSolicitation.findMany({
+            where: { tangoDibbsId: { in: [...new Set(dibbsIds)] } },
+            select: {
+              tangoDibbsId: true,
+              documentType: true,
+              solicitation: true,
+              solicitationFormatted: true,
+              nsn: true,
+              partNumber: true,
+              nomenclature: true,
+              quantity: true,
+              unitOfIssue: true,
+              setAside: true,
+              buyerCode: true,
+              closesDate: true,
+              isOpen: true,
+              documentUrl: true,
+              techDocsUrl: true,
+              lastSyncedAt: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
-    const out = new Map<string, { title: string; agency: string | null; forecast?: InboxForecastFacts }>();
+    const out = new Map<
+      string,
+      { title: string; agency: string | null; forecast?: InboxForecastFacts; dibbs?: InboxDibbsFacts }
+    >();
     for (const g of grants) out.set(`grants_gov:${g.id}`, { title: g.title, agency: g.agency });
     for (const s of sam) out.set(`sam_gov:${s.id}`, { title: s.title, agency: s.agency });
     for (const f of forecasts) {
@@ -807,6 +1003,14 @@ export class FundingOpportunityInboxService {
         title: f.title,
         agency: f.agency,
         forecast: toInboxForecastFacts(f),
+      });
+    }
+    for (const d of dibbs) {
+      out.set(`${DIBBS_INBOX_SOURCE}:${d.tangoDibbsId}`, {
+        // Neither is a column — see dibbsInboxTitle / DIBBS_AGENCY.
+        title: dibbsInboxTitle(d),
+        agency: DIBBS_AGENCY,
+        dibbs: toInboxDibbsFacts(d),
       });
     }
     return out;
