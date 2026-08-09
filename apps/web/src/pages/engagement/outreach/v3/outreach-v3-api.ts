@@ -36,6 +36,11 @@ interface OutreachV3StrategyWireData {
   safetyNotes: string[];
 }
 
+interface OutreachV3ProposalWire extends Omit<OutreachV3Proposal, 'commands'> {
+  commands?: unknown;
+  commandsJsonb?: unknown;
+}
+
 export function outreachV3SessionPath(sessionId: string): string {
   return `${ROOT}/sessions/${encodeURIComponent(sessionId)}`;
 }
@@ -86,11 +91,12 @@ export async function listOutreachV3Proposals(
   sessionId: string,
 ): Promise<OutreachV3Proposal[]> {
   const data = (
-    await api.get<OutreachV3Proposal[] | { items?: OutreachV3Proposal[] }>(
+    await api.get<OutreachV3ProposalWire[] | { items?: OutreachV3ProposalWire[] }>(
       `${outreachV3SessionPath(sessionId)}/proposals?limit=100`,
     )
   ).data;
-  return Array.isArray(data) ? data : (data.items ?? []);
+  const rows = Array.isArray(data) ? data : (data.items ?? []);
+  return rows.map(normalizeProposal);
 }
 
 export async function applyOutreachV3Proposal(
@@ -98,11 +104,11 @@ export async function applyOutreachV3Proposal(
   sessionId: string,
   proposalId: string,
 ): Promise<OutreachV3CommandBatchResult> {
-  return (
-    await api.post<OutreachV3CommandBatchResult>(
-      `${outreachV3SessionPath(sessionId)}/proposals/${encodeURIComponent(proposalId)}/apply`,
-    )
-  ).data;
+  const response = await api.post<{
+    proposalId: string;
+    result: OutreachV3CommandBatchResult;
+  }>(`${outreachV3SessionPath(sessionId)}/proposals/${encodeURIComponent(proposalId)}/apply`);
+  return response.data.result;
 }
 
 export async function rejectOutreachV3Proposal(
@@ -322,6 +328,30 @@ export function safeOutreachV3Error(error: unknown): string {
   return typeof message === 'string' && message.trim()
     ? message
     : 'Outreach could not complete that action.';
+}
+
+function normalizeProposal(row: OutreachV3ProposalWire): OutreachV3Proposal {
+  const rawCommands = Array.isArray(row.commands)
+    ? row.commands
+    : Array.isArray(row.commandsJsonb)
+      ? row.commandsJsonb
+      : [];
+  const commands = rawCommands.filter(isCommand);
+  return {
+    ...row,
+    commands,
+  };
+}
+
+function isCommand(value: unknown): value is OutreachV3Command {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<OutreachV3Command>;
+  return (
+    typeof candidate.type === 'string' &&
+    candidate.schemaVersion === 1 &&
+    Boolean(candidate.payload) &&
+    typeof candidate.payload === 'object'
+  );
 }
 
 function sentence(value: string): string {
