@@ -213,16 +213,9 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
         message: 'Selected target keys must be unique.',
       });
     }
-    const targetEmails = spec.targeting.selectedTargetRefs
-      .map((target) => target.email?.toLowerCase() ?? null)
-      .filter((email): email is string => Boolean(email));
-    if (new Set(targetEmails).size !== targetEmails.length) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['targeting', 'selectedTargetRefs'],
-        message: 'Selected targets cannot share the same email address.',
-      });
-    }
+    // Email is a delivery attribute, not canonical identity. Distinct source
+    // identities may share an address; deterministic target health surfaces
+    // that collision and blocks send-readiness without corrupting selection state.
 
     if (spec.goal.ask.mode === 'explicit' && !spec.goal.ask.text) {
       ctx.addIssue({
