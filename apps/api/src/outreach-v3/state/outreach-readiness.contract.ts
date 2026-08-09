@@ -34,6 +34,14 @@ export const PHASE2_OUTREACH_FEATURE_AVAILABILITY: OutreachFeatureAvailability =
   preflight: false,
 });
 
+export const PHASE4_OUTREACH_FEATURE_AVAILABILITY: OutreachFeatureAvailability = Object.freeze({
+  targets: true,
+  context: false,
+  generation: false,
+  drafts: false,
+  preflight: false,
+});
+
 export interface OutreachCampaignReadiness {
   goalReady: boolean;
   sponsorResolved: boolean;
