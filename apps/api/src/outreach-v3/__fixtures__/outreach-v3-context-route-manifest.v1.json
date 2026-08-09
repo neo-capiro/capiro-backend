@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "runtime": "engagement-api",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
+  "featureFlag": "OUTREACH_V3_CONTEXT_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/context/memory/search",
+      "handler": "searchMemory"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/context/government/search",
+      "handler": "researchGovernment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/context/document",
+      "handler": "getDocument"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/context/review",
+      "handler": "review"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/context/strategy",
+      "handler": "strategy"
+    }
+  ]
+}
