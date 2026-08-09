@@ -7,6 +7,9 @@ import {
   DIBBS_NO_DETAIL_MESSAGE,
   DIBBS_SOURCE,
   FORECAST_SOURCE,
+  SBIR_NO_DETAIL_DESCRIPTION,
+  SBIR_NO_DETAIL_MESSAGE,
+  SBIR_SOURCE,
   asCatalogRef,
   opportunityDetailPath,
   type OpportunityRef,
@@ -57,6 +60,11 @@ export function FundingOpportunityDrawer({
   const catalogRef = refValue ? asCatalogRef(refValue) : null;
   const isDibbs = refValue?.source === DIBBS_SOURCE;
   /**
+   * Rails with no detail body. Both render an honest sentence rather than
+   * borrowing another record type's body — see the dispatch comment below.
+   */
+  const hasNoDetailBody = isDibbs || refValue?.source === SBIR_SOURCE;
+  /**
    * Full width below the `md` breakpoint. A 720px drawer on a phone renders as a
    * sliver of content under a mask, which is worse than no drawer at all.
    */
@@ -72,7 +80,7 @@ export function FundingOpportunityDrawer({
       rootClassName="fo-detail__drawer"
       data-testid="fo-detail-drawer"
       extra={
-        refValue && !isDibbs ? (
+        refValue && !hasNoDetailBody ? (
           <Space>
             {/*
               The same body at its own URL. Offered because a drawer is a poor
@@ -123,6 +131,14 @@ export function FundingOpportunityDrawer({
           message={DIBBS_NO_DETAIL_MESSAGE}
           description={DIBBS_NO_DETAIL_DESCRIPTION}
         />
+      ) : refValue.source === SBIR_SOURCE ? (
+        <Alert
+          type="info"
+          showIcon
+          data-testid="fo-drawer-sbir-no-detail"
+          message={SBIR_NO_DETAIL_MESSAGE}
+          description={SBIR_NO_DETAIL_DESCRIPTION}
+        />
       ) : (
         <Alert
           type="info"
@@ -146,5 +162,6 @@ export function FundingOpportunityDrawer({
 function drawerTitle(refValue: OpportunityRef | null): string {
   if (refValue?.source === FORECAST_SOURCE) return 'Agency forecast detail';
   if (refValue?.source === DIBBS_SOURCE) return 'Bid-board item';
+  if (refValue?.source === SBIR_SOURCE) return 'SBIR/STTR topic';
   return 'Opportunity detail';
 }

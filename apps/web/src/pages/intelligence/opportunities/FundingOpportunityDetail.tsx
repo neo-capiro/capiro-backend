@@ -22,6 +22,9 @@ import {
   DIBBS_NO_DETAIL_DESCRIPTION,
   DIBBS_NO_DETAIL_MESSAGE,
   DIBBS_SOURCE,
+  SBIR_NO_DETAIL_DESCRIPTION,
+  SBIR_NO_DETAIL_MESSAGE,
+  SBIR_SOURCE,
   ELIGIBILITY_LABELS,
   FORECAST_SOURCE,
   FUNDING_OPPORTUNITIES_FEATURE,
@@ -625,6 +628,23 @@ export function FundingOpportunityDetailPage() {
     );
   }
 
+  // P43. Same shape, same reason: `sbir_sttr` is a legal inbox source, so this
+  // route is reachable with one, and the malformed-URL branch below would say
+  // Capiro does not hold that source — false about Capiro's own data.
+  if (source === SBIR_SOURCE && sourceRecordId) {
+    return (
+      <div className="fo-page" data-testid="fo-sbir-no-detail">
+        <Alert
+          type="info"
+          showIcon
+          message={SBIR_NO_DETAIL_MESSAGE}
+          description={SBIR_NO_DETAIL_DESCRIPTION}
+          action={back}
+        />
+      </div>
+    );
+  }
+
   // A malformed URL is a NAMED state, not a blank page and not a request. There is
   // no point asking the API about a source rail that does not exist.
   if (!isOpportunitySource(source) || !sourceRecordId) {
@@ -634,7 +654,7 @@ export function FundingOpportunityDetailPage() {
           type="warning"
           showIcon
           message="That is not a valid opportunity link"
-          description={`“${source || 'nothing'}” is not a source Capiro holds. Valid sources are grants_gov, sam_gov, agency_forecast and dibbs.`}
+          description={`“${source || 'nothing'}” is not a source Capiro holds. Valid sources are grants_gov, sam_gov, agency_forecast, dibbs and sbir_sttr.`}
           action={
             <Button size="small" onClick={() => navigate('/intelligence/opportunities')}>
               Back to Funding Opportunities

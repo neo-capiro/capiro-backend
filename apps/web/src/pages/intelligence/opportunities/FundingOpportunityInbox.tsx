@@ -19,6 +19,7 @@ import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
 import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
 import { ForecastOpportunityCard } from './ForecastOpportunityCard.js';
 import { DibbsOpportunityCard } from './DibbsOpportunityCard.js';
+import { SbirOpportunityCard } from './SbirOpportunityCard.js';
 import { readEnum, useUrlState } from './funding-opportunities-url-state.js';
 import {
   DIBBS_PART_PROFILE_GAP_TODAY,
@@ -26,6 +27,10 @@ import {
   ELIGIBILITY_LABELS,
   FORECAST_SOURCE,
   FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
+  FUNDING_OPPORTUNITIES_SBIR_FEATURE,
+  SBIR_ELIGIBILITY_REASON,
+  SBIR_PHASE_GAP_EXPLANATION,
+  SBIR_SOURCE,
   asPursuableDibbsFacts,
   decodeOpportunityRef,
   encodeOpportunityRef,
@@ -39,6 +44,7 @@ import {
   formatInboxCount,
   isDibbsRow,
   isForecastRow,
+  isSbirRow,
   type EligibilityState,
   type FundingOpportunityListResponse,
   type InboxFilter,
@@ -70,13 +76,23 @@ const BASE_SOURCE_OPTIONS = [
   { label: INBOX_SOURCE_SHORT_LABELS.dibbs, value: DIBBS_SOURCE },
 ];
 
-function forecastSourceOptions(forecastsEnabled: boolean) {
-  return forecastsEnabled
-    ? [
-        ...BASE_SOURCE_OPTIONS,
-        { label: INBOX_SOURCE_SHORT_LABELS.agency_forecast, value: FORECAST_SOURCE },
-      ]
-    : BASE_SOURCE_OPTIONS;
+/**
+ * The source options, with each flagged rail appended only when its capability
+ * is on.
+ *
+ * Both flags follow the same rule and for the same reason: offering a filter
+ * that returns nothing because the capability is off reads as "this client has
+ * none of those", which is a claim about the client.
+ */
+function sourceOptions(forecastsEnabled: boolean, sbirEnabled: boolean) {
+  const options = [...BASE_SOURCE_OPTIONS];
+  if (forecastsEnabled) {
+    options.push({ label: INBOX_SOURCE_SHORT_LABELS.agency_forecast, value: FORECAST_SOURCE });
+  }
+  if (sbirEnabled) {
+    options.push({ label: INBOX_SOURCE_SHORT_LABELS.sbir_sttr, value: SBIR_SOURCE });
+  }
+  return options;
 }
 
 /** The rails a `?source=` deep link is honoured for with no capability check. */
@@ -140,17 +156,25 @@ export function FundingOpportunityInbox({
    */
   const forecasts = useIntelFeature(FUNDING_OPPORTUNITIES_FORECASTS_FEATURE);
   const forecastsEnabled = forecasts.ready && forecasts.enabled;
+  /** The SBIR capability (P43). Same posture as the forecast flag above. */
+  const sbir = useIntelFeature(FUNDING_OPPORTUNITIES_SBIR_FEATURE);
+  const sbirEnabled = sbir.ready && sbir.enabled;
 
   const filter = readEnum<InboxFilter>(url.get('filter'), INBOX_FILTERS, 'needs_review');
   /**
-   * A `source=agency_forecast` in the URL is honoured only when the flag is on.
-   * With it off the value is not in the accepted set, so `readEnum` falls back to
-   * "all sources" — a stale deep link degrades to the wider view rather than to
-   * an empty one.
+   * A flagged rail in the URL is honoured only when its flag is on. With it off
+   * the value is not in the accepted set, so `readEnum` falls back to "all
+   * sources" — a stale deep link degrades to the wider view rather than to an
+   * empty one.
    */
   const source = readEnum<InboxSource | ''>(
     url.get('source'),
-    forecastsEnabled ? [...UNFLAGGED_SOURCES, FORECAST_SOURCE, ''] : [...UNFLAGGED_SOURCES, ''],
+    [
+      ...UNFLAGGED_SOURCES,
+      ...(forecastsEnabled ? [FORECAST_SOURCE] : []),
+      ...(sbirEnabled ? [SBIR_SOURCE] : []),
+      '',
+    ],
     '',
   );
   const cursor = url.get('cursor');
@@ -240,8 +264,17 @@ export function FundingOpportunityInbox({
    * has regardless of what this page can display.
    */
   const allRows = data?.rows ?? [];
-  const visibleRows = forecastsEnabled ? allRows : allRows.filter((r) => !isForecastRow(r));
-  const withheldForecasts = allRows.length - visibleRows.length;
+  const visibleRows = allRows.filter(
+    (r) => (forecastsEnabled || !isForecastRow(r)) && (sbirEnabled || !isSbirRow(r)),
+  );
+  /*
+    Counted PER RAIL rather than as one "rows withheld" total. Two flagged rails
+    can be off at once, and a pooled number would leave a reader unable to tell
+    which capability to ask for — the same reason the API's drop counters are
+    per endpoint.
+  */
+  const withheldForecasts = forecastsEnabled ? 0 : allRows.filter((r) => isForecastRow(r)).length;
+  const withheldSbir = sbirEnabled ? 0 : allRows.filter((r) => isSbirRow(r)).length;
 
   return (
     <div className="fo-inbox" data-testid="fo-inbox">
@@ -273,7 +306,7 @@ export function FundingOpportunityInbox({
           style={{ width: 220 }}
           value={source}
           onChange={goToSource}
-          options={forecastSourceOptions(forecastsEnabled)}
+          options={sourceOptions(forecastsEnabled, sbirEnabled)}
           aria-label="Source rail"
         />
         {data?.clientId ? (
@@ -322,6 +355,7 @@ export function FundingOpportunityInbox({
       ) : visibleRows.length === 0 ? (
         <>
           {withheldForecasts > 0 ? <WithheldForecastNotice count={withheldForecasts} /> : null}
+          {withheldSbir > 0 ? <WithheldSbirNotice count={withheldSbir} /> : null}
           <InboxEmptyState
             data={data!}
             filter={filter}
@@ -335,6 +369,7 @@ export function FundingOpportunityInbox({
       ) : (
         <>
           {withheldForecasts > 0 ? <WithheldForecastNotice count={withheldForecasts} /> : null}
+          {withheldSbir > 0 ? <WithheldSbirNotice count={withheldSbir} /> : null}
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             {visibleRows.map((row) => {
               const openDetail = () =>
@@ -376,6 +411,22 @@ export function FundingOpportunityInbox({
               if (isDibbsRow(row)) {
                 return (
                   <DibbsInboxRow
+                    key={row.id}
+                    row={row}
+                    onSelectClient={onSelectClient}
+                    onOpenDetail={openDetail}
+                  />
+                );
+              }
+              /*
+                And a topic gets its own, for the third time and the same
+                reason: it has no eligibility determination that will ever be
+                made (P43 keeps it at needs_review permanently), no money, and
+                its dates belong to a cycle rather than to a competition.
+              */
+              if (isSbirRow(row)) {
+                return (
+                  <SbirInboxRow
                     key={row.id}
                     row={row}
                     onSelectClient={onSelectClient}
@@ -464,6 +515,82 @@ function WithheldForecastNotice({ count }: { count: number }) {
 }
 
 /**
+ * Rows this page is not showing because the SBIR capability is off.
+ *
+ * A second, separate notice rather than a pooled "rows withheld" count: two
+ * flagged rails can be off at once, and a reader needs to know WHICH capability
+ * to ask for.
+ */
+function WithheldSbirNotice({ count }: { count: number }) {
+  return (
+    <Alert
+      type="info"
+      showIcon
+      style={{ marginBottom: 12 }}
+      data-testid="fo-inbox-sbir-withheld"
+      message={`${count} SBIR/STTR topic row${count === 1 ? '' : 's'} not shown`}
+      description="SBIR/STTR topics are a separate capability and are not enabled for this workspace, so those rows are not displayed here. The queue counts above still include them."
+    />
+  );
+}
+
+/**
+ * One SBIR/STTR topic row.
+ *
+ * The scorer is NOT called here. `sbir-relevance.ts` is an apps/api module and
+ * ships dark — nothing has wired a producer to it — so the two fields a scored
+ * topic would supply are passed as what they honestly are today:
+ *
+ *   - `phaseGapExplanation` is the constant sentence, because the gap is a fact
+ *     about the SOURCE (no phase field on either endpoint) rather than a
+ *     per-topic scoring output. It is true for every topic and will stay true
+ *     until the provider publishes a phase.
+ *   - `eligibilityReason` likewise: P43's acceptance makes it a constant
+ *     `needs_review`, so the sentence does not vary by topic either.
+ *
+ * `actions` is EMPTY and no `onAction` is passed, which renders no action row.
+ * That is not a placeholder: no workflow mutation is wired for a topic, and the
+ * card's rule is that an absent handler removes the control rather than
+ * disabling it. When a producer lands, both fields come from the scorer.
+ */
+function SbirInboxRow({
+  row,
+  onSelectClient,
+  onOpenDetail,
+}: {
+  row: InboxRow;
+  onSelectClient: (id: string) => void;
+  onOpenDetail: () => void;
+}) {
+  const facts = row.sbir;
+  if (!facts) {
+    return (
+      <SourceFactsMissingCard
+        row={row}
+        label={INBOX_SOURCE_SHORT_LABELS.sbir_sttr}
+        testIdPrefix="fo-sbir-unrenderable"
+        reason="Capiro no longer holds the topic record for this row, so no source facts can be shown."
+        onSelectClient={onSelectClient}
+        onOpenDetail={onOpenDetail}
+      />
+    );
+  }
+
+  return (
+    <SbirOpportunityCard
+      facts={facts}
+      cycle={facts.cycle}
+      clientName={row.client.name}
+      relevanceScore={row.relevanceScore}
+      phaseGapExplanation={SBIR_PHASE_GAP_EXPLANATION}
+      eligibilityReason={SBIR_ELIGIBILITY_REASON}
+      onSelectClient={() => onSelectClient(row.client.id)}
+      onOpenDetail={onOpenDetail}
+    />
+  );
+}
+
+/**
  * One DLA bid-board row.
  *
  * ── Why the part-profile gap is passed as a constant ────────────────────────
@@ -506,8 +633,10 @@ function DibbsInboxRow({
 
   if (!facts) {
     return (
-      <DibbsUnrenderableCard
+      <SourceFactsMissingCard
         row={row}
+        label={INBOX_SOURCE_SHORT_LABELS.dibbs}
+        testIdPrefix="fo-dibbs-unrenderable"
         reason={
           row.dibbs
             ? `Capiro holds this item as a “${row.dibbs.documentType}” document, which this rail does not render.`
@@ -532,23 +661,31 @@ function DibbsInboxRow({
 }
 
 /**
- * A bid-board row whose source facts cannot be rendered.
+ * A row whose source facts cannot be rendered, on any non-catalog rail.
  *
- * Stays on the BID-BOARD rail and states the absence, rather than falling back
- * to the generic opportunity card. The generic card leads with a response
- * deadline and an eligibility state, and a DLA line item has neither — so the
- * fallback that looks harmless would render "No deadline stated" and "Not
- * evaluated" against two questions that were never asked of this record. That
- * is the same reasoning the forecast rail follows, where a row whose forecast
- * record is gone still renders as a forecast and says so.
+ * Stays on the ROW'S OWN rail and states the absence, rather than falling back
+ * to the generic opportunity card. That card leads with a response deadline and
+ * an eligibility state; a DLA line item has neither, and an SBIR topic has
+ * neither either — so the fallback that looks harmless would render "No
+ * deadline stated" and "Not evaluated" against two questions that were never
+ * asked of the record. Same reasoning the forecast rail follows, where a row
+ * whose forecast record is gone still renders as a forecast and says so.
+ *
+ * Parameterised on the LABEL and the test id rather than hard-coded to one
+ * rail: it was DIBBS-only until P43 needed the identical thing for topics, and
+ * a copy would have been free to drift.
  */
-function DibbsUnrenderableCard({
+function SourceFactsMissingCard({
   row,
+  label,
+  testIdPrefix,
   reason,
   onSelectClient,
   onOpenDetail,
 }: {
   row: InboxRow;
+  label: string;
+  testIdPrefix: string;
   reason: string;
   onSelectClient: (id: string) => void;
   onOpenDetail: () => void;
@@ -557,7 +694,7 @@ function DibbsUnrenderableCard({
     <Card
       size="small"
       className="fo-card fo-card--dibbs"
-      data-testid={`fo-dibbs-unrenderable-${row.id}`}
+      data-testid={`${testIdPrefix}-${row.id}`}
     >
       <div className="fo-inbox-row__head">
         <Space size={6} wrap>
@@ -570,7 +707,7 @@ function DibbsUnrenderableCard({
           >
             {row.client.name}
           </Button>
-          <Tag color="geekblue">{INBOX_SOURCE_SHORT_LABELS.dibbs}</Tag>
+          <Tag color="geekblue">{label}</Tag>
         </Space>
       </div>
       <div className="fo-card__title">

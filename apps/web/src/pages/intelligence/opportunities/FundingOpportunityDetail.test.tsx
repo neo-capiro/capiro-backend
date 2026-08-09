@@ -525,11 +525,19 @@ describe('the same route serves agency forecasts, as a different record type (P2
     expect(apiGetMock).not.toHaveBeenCalled();
   });
 
-  test('the bad-ref message names all four rails the route accepts', async () => {
+  test('the bad-ref message names all five rails the route accepts', async () => {
     renderRoute('/intelligence/opportunities/fpds/notice-1');
     expect(await screen.findByTestId('fo-detail-bad-ref')).toHaveTextContent(
-      /grants_gov, sam_gov, agency_forecast and dibbs/,
+      /grants_gov, sam_gov, agency_forecast, dibbs and sbir_sttr/,
     );
+  });
+
+  test('an sbir_sttr link says the DETAIL PAGE is missing, never that the source is unknown', async () => {
+    renderRoute('/intelligence/opportunities/sbir_sttr/TOPIC-9001');
+    const panel = await screen.findByTestId('fo-sbir-no-detail');
+    expect(panel).toHaveTextContent('do not have a detail page yet');
+    expect(screen.queryByTestId('fo-detail-bad-ref')).not.toBeInTheDocument();
+    expect(apiGetMock).not.toHaveBeenCalled();
   });
 
   /**
