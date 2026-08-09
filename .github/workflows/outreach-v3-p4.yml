@@ -1,0 +1,59 @@
+name: outreach-v3-p4
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p4-target-intelligence
+  pull_request:
+    paths:
+      - 'apps/api/src/capabilities/**'
+      - 'apps/api/src/outreach-v3/**'
+      - 'apps/api/src/engagement-api.app.module.ts'
+      - 'apps/api/tsconfig.outreach-v3-phase4.json'
+      - 'scripts/verify-outreach-v3-phase4-code.mjs'
+      - 'scripts/run-outreach-v3-phase4-local.mjs'
+      - '.github/workflows/outreach-v3-p4.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase4-target-intelligence:
+    name: Phase 4 target intelligence
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Exact execution head
+        run: |
+          git rev-parse HEAD
+          test -z "$(git status --short)"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Execute Phase 4 DB-free closeout
+        run: pnpm verify:outreach-v3-phase-4
+
+      - name: Verify clean result
+        run: |
+          git diff --check
+          test -z "$(git status --short)"
+          echo OUTREACH_V3_PHASE4_CI_COMPLETE
