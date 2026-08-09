@@ -2,10 +2,12 @@
  * Phase 7 Workstream O — permanent architecture and closeout safety scan.
  *
  * Runs the scoped gates from `phase7-closeout-gates-v1.ts` over the real tree,
- * then checks three things a source scan cannot see:
+ * then checks things a source scan cannot see:
  *
- *   * the promoter credential is confined to the two verbs that may promote;
+ *   * the promoter credential is confined to the verbs that may promote;
  *   * `execute` and `rollback` never fall back to the composed serve DSN;
+ *   * every direct legacy dollar loader is independently guarded against a
+ *     dispatcher bypass;
  *   * the five closeout documents exist.
  *
  * The document check belongs in a gate rather than a checklist because
@@ -21,6 +23,7 @@ import {
   scanPhase7ArchitectureSourceV1,
   type Phase7GateScopeV1,
 } from '../src/defense-budget/promotion/phase7-closeout-gates-v1.js';
+import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
 
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');
@@ -35,21 +38,14 @@ const SCOPE_ROOTS: Array<{ scope: Phase7GateScopeV1; roots: string[] }> = [
 ];
 
 /**
- * The legacy budget loaders, by the dispatcher verb that invokes them. Listed
- * explicitly rather than globbed: a glob over `scripts/` would silently start
- * policing new scripts under rules written for the old ones, and the point of
- * this scope is a frozen inventory.
+ * Legacy budget loaders are an explicit frozen inventory. The exact-SHA dollar
+ * list is authoritative for direct money/enrichment entrypoints; provisions are
+ * added because they are part of Phase 6's legacy report-language path even
+ * though they do not write a dollar field.
  */
 const LEGACY_LOADER_SCRIPTS = [
-  'scripts/sync-comptroller-jbooks.ts',
-  'scripts/sync-jbook-r2.ts',
-  'scripts/sync-jbook-performers.ts',
+  ...PE_EXACT_SHA_DOLLAR_LOADERS.map((file) => `scripts/${file}`),
   'scripts/sync-report-provisions.ts',
-  'scripts/load-defense-budget-package.ts',
-  'scripts/parse-hasc-sasc-reports.ts',
-  'scripts/parse-defense-approps-reports.ts',
-  'scripts/parse-ndaa-conference.ts',
-  'scripts/parse-defense-approps-public-law.ts',
 ];
 
 /** Only these may read the promoter credential. */
@@ -150,6 +146,57 @@ function checkPromoterCredentialContainment(): void {
 }
 
 /**
+ * A dispatcher guard is not enough: `pnpm parse:*` and raw `tsx` invocation can
+ * reach the scripts directly. Every exact-SHA legacy dollar loader must carry a
+ * guard at its own posture boundary, or permanently reject commit.
+ */
+function checkDirectLegacyCommitContainment(): void {
+  const generalizedModePath = path.join(API_ROOT, 'scripts/lib/defense-budget-ingest-mode.ts');
+  const generalizedMode = fs.existsSync(generalizedModePath)
+    ? fs.readFileSync(generalizedModePath, 'utf8')
+    : '';
+  if (!/assertLegacyBudgetWriteGateForLoaderV1\s*\(/.test(generalizedMode)) {
+    fail(
+      'scripts/lib/defense-budget-ingest-mode.ts does not invoke the Phase 7 legacy-write gate',
+    );
+  }
+
+  for (const fileName of PE_EXACT_SHA_DOLLAR_LOADERS) {
+    const relative = `scripts/${fileName}`;
+    const absolute = path.join(API_ROOT, relative);
+    if (!fs.existsSync(absolute)) {
+      fail(`legacy dollar-loader inventory points at a missing file: ${relative}`);
+      continue;
+    }
+    const source = fs.readFileSync(absolute, 'utf8');
+
+    if (fileName === 'parse-defense-approps-public-law.ts') {
+      if (
+        !/process\.argv\.includes\(['"]--commit['"]\)/.test(source) ||
+        !/canonical enacted commit is disabled/i.test(source)
+      ) {
+        fail(`${relative} no longer permanently refuses its legacy enacted --commit path`);
+      }
+      continue;
+    }
+
+    if (fileName === 'ingest-defense-budget-pdf.ts') {
+      if (!/resolveDefenseBudgetIngestPosture\s*\(\s*process\.argv\s*\)/.test(source)) {
+        fail(`${relative} does not route commit intent through the guarded generalized posture`);
+      }
+      continue;
+    }
+
+    if (!/resolvePeDollarLoaderPosture\s*\(\s*process\.argv\s*\)/.test(source)) {
+      fail(`${relative} can bypass the Phase 7 legacy-write gate on direct invocation`);
+    }
+  }
+  console.log(
+    `legacy direct commits: ${PE_EXACT_SHA_DOLLAR_LOADERS.length} dollar loaders checked for in-script containment`,
+  );
+}
+
+/**
  * `execute` and `rollback` must NOT call `compose_database_url` in the
  * entrypoint — falling back to the serve DSN is precisely the boundary
  * Workstream D exists to enforce, and it would fail as an opaque permission
@@ -208,6 +255,7 @@ function main(): void {
   checkNegativeControlRegistry();
   scanScopes();
   checkPromoterCredentialContainment();
+  checkDirectLegacyCommitContainment();
   checkEntrypointPromoterIsolation();
   checkRequiredDocs();
 
