@@ -32,7 +32,9 @@ import {
 } from '../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../clients/clientTypes.js';
 import { useMe, type MeResponse } from '../../lib/me.js';
+import { useLegiWatchOverview, type LegiWatchOverview } from './legiwatch-overview-api.js';
 import './legiwatch.css';
+import './legiwatch-v3.css';
 
 type RadarTab = 'feed' | 'bills' | 'hearings' | 'watchlist';
 const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist'];
@@ -184,6 +186,12 @@ export function RadarPage() {
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
   const { enabled: hearingWatch, ready: hearingReady } = useIntelFeature('hearing_watch');
 
+  const overview = useLegiWatchOverview({
+    clientId: selectedClient?.id ?? null,
+    feedEnabled: trackerReady && trackerV2,
+    hearingsEnabled: hearingReady && hearingWatch,
+  });
+
   // ── First-run cold-start (P6) ──────────────────────────────────────────────
   // A client is "cold" when it has NO watchlist configured: 0 issue areas AND 0
   // topics/terms. Feed and Bills lead with a single-CTA guided empty state that
@@ -278,6 +286,9 @@ export function RadarPage() {
       }}
     >
       <div className="pg-head">
+        <p className="pg-eyebrow">
+          Policy action center · {selectedClient ? selectedClient.name : 'All clients'}
+        </p>
         <div className="pg-top">
           <h1 className="pg-title">
             <AimOutlined /> LegiWatch
@@ -307,6 +318,8 @@ export function RadarPage() {
           </button>
         ))}
       </div>
+
+      {tab === 'feed' && <LegiWatchMetrics overview={overview} />}
 
       {tab === 'feed' &&
         (!trackerReady ? (
@@ -967,6 +980,60 @@ function ClientGate({
       <h4>Choose a client</h4>
       <p>Select a client to view {what}. Feed, Bills, and Configure are scoped to one client.</p>
       <div className="row">{picker}</div>
+    </div>
+  );
+}
+
+/**
+ * The v3 header strip.
+ *
+ * A tile renders only once its figure has actually loaded — a count is either a
+ * real server-side total or the tile is absent. The mockup also carried
+ * "comment deadlines" and "source gaps" tiles; intel-api has no aggregate
+ * behind either, so they are not built rather than filled with a placeholder.
+ */
+function LegiWatchMetrics({ overview }: { overview: LegiWatchOverview }) {
+  const tiles: Array<{ label: string; value: number; sub: string; attention?: boolean }> = [];
+
+  if (overview.needsReview != null) {
+    tiles.push({
+      label: 'Needs review',
+      value: overview.needsReview,
+      sub:
+        overview.needsReviewCritical != null
+          ? `${overview.needsReviewCritical} critical`
+          : 'unread alerts',
+      attention: overview.needsReview > 0,
+    });
+  }
+  if (overview.billsMovingThisWeek != null) {
+    tiles.push({
+      label: 'Bills moving',
+      value: overview.billsMovingThisWeek,
+      sub: 'last 7 days',
+    });
+  }
+  if (overview.hearingsToday != null) {
+    tiles.push({
+      label: 'Hearings today',
+      value: overview.hearingsToday,
+      sub: overview.hearingsThisWeek != null ? `${overview.hearingsThisWeek} within 7 days` : '',
+    });
+  }
+
+  if (tiles.length === 0) return null;
+
+  return (
+    <div className="lw-metrics">
+      {tiles.map((t) => (
+        <div key={t.label} className={t.attention ? 'lw-metric attention' : 'lw-metric'}>
+          <div className="lw-metric-label">{t.label}</div>
+          <div className="lw-metric-row">
+            <span className="lw-metric-value">{t.value}</span>
+            {t.sub && <span className="lw-metric-sub">{t.sub}</span>}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

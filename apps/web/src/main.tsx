@@ -8,6 +8,7 @@ import { App } from './App.js';
 import { config } from './env.js';
 import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
 import './theme.css';
+import './capiro-v3-tokens.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

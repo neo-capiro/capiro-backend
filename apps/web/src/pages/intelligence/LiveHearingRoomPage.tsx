@@ -23,6 +23,7 @@ import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icon
 import { useApi } from '../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import '../radar/legiwatch.css';
+import '../radar/legiwatch-v3.css';
 import {
   briefToMarkdown,
   isMediaUrl,

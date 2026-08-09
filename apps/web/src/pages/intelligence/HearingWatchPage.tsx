@@ -16,6 +16,7 @@ import { AudioOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import '../radar/legiwatch.css';
+import '../radar/legiwatch-v3.css';
 import {
   isMediaUrl,
   useBrowseHearings,

@@ -1,0 +1,354 @@
+/* ============================================================
+   Capiro Design System v3 — LegiWatch component layer
+   Figma: "Capiro Design System v3 — Premium Intelligence
+   Platform", page 25 · Canonical App · 08 LegiWatch (node 363:45).
+
+   Kept separate from legiwatch.css on purpose: that file is
+   generated from the v2 prototype and its header asks for
+   regeneration rather than hand-edits. This layer must load
+   AFTER it, so every module that imports legiwatch.css imports
+   this immediately after.
+
+   Only components whose v3 form differs STRUCTURALLY from the v2
+   calm design are restated here (badges, tabs, panels, feed
+   rows). Everything else is already handled by the token remap
+   at the top of legiwatch.css.
+   ============================================================ */
+
+/* ── Page header ─────────────────────────────────────────── */
+.lw-root .pg-title {
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-heading-page);
+  line-height: var(--capiro-type-line-heading-page);
+  font-weight: 600;
+  letter-spacing: -0.26px;
+}
+
+.lw-root .pg-desc {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .pg-eyebrow {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+  margin: 0 0 10px;
+}
+
+/* ── Tabs: v3 is a flat underlined row, not a pill group ──── */
+.lw-root .tabs {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+  border-radius: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.lw-root .tabs button {
+  position: relative;
+  height: 44px;
+  min-width: 110px;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: var(--capiro-radius-technical) var(--capiro-radius-technical) 0 0;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .tabs button.active {
+  background: var(--capiro-color-bg-selected);
+  color: var(--capiro-color-text-accent);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.lw-root .tabs button.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--capiro-color-border-review);
+}
+
+/* ── Status badge ────────────────────────────────────────────
+   v3 separates tone from emphasis: the surface stays quiet and
+   tone is carried by a 6px dot plus the label colour, replacing
+   the v2 filled-tint chips. */
+.lw-root .chip {
+  height: var(--capiro-status-badge-height);
+  gap: 6px;
+  padding: 0 var(--capiro-space-02);
+  border-radius: var(--capiro-radius-technical);
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .chip.sev-critical,
+.lw-root .chip.tag.oppose {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .chip.sev-notable,
+.lw-root .chip.warn {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-warning);
+}
+
+.lw-root .chip.sev-info,
+.lw-root .chip.tag.monitor {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-information);
+}
+
+.lw-root .chip.success,
+.lw-root .chip.tag.support {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-success);
+}
+
+.lw-root .chip.issue {
+  background: var(--capiro-color-shell-nav-current-bg);
+  border-color: transparent;
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.lw-root .chip.band,
+.lw-root .chip.muted {
+  background: var(--capiro-color-bg-subtle);
+  border-color: transparent;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Widget panels ───────────────────────────────────────── */
+.lw-root .card {
+  border-radius: var(--capiro-radius-widget);
+  border-color: var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-widget);
+}
+
+.lw-root .card-head {
+  min-height: 42px;
+  padding: 0 13px;
+  border-bottom-color: var(--capiro-color-border-default);
+}
+
+.lw-root .card-head h3 {
+  font-size: var(--capiro-type-size-heading-sub);
+  line-height: var(--capiro-type-line-heading-sub);
+  font-weight: 600;
+}
+
+.lw-root .card-head .sub {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Metric tiles ────────────────────────────────────────── */
+.lw-root .lw-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.lw-root .lw-metric {
+  min-height: 78px;
+  padding: 9px 11px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+}
+
+.lw-root .lw-metric.attention {
+  background: var(--capiro-color-bg-review);
+  border-color: var(--capiro-color-border-destructive);
+}
+
+.lw-root .lw-metric-label {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-metric.attention .lw-metric-label {
+  color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.lw-root .lw-metric-value {
+  font-size: var(--capiro-type-size-heading-section);
+  line-height: var(--capiro-type-line-heading-section);
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-metric-sub {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Rail rows (schedule / tracked bills / coverage) ──────── */
+.lw-root .lw-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-row:last-child { border-bottom: 0; }
+.lw-root .lw-row.current { background: var(--capiro-color-bg-selected); }
+.lw-root .lw-row.attention { background: var(--capiro-color-bg-review); }
+
+.lw-root .lw-row-lead {
+  flex: none;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-row-main { flex: 1; min-width: 0; }
+
+.lw-root .lw-row-title {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-row-meta {
+  margin-top: 2px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-row-action {
+  white-space: nowrap;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+
+.lw-root .lw-card-note {
+  padding: 10px 13px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Feed: v3 groups rows into one panel instead of loose cards ─ */
+.lw-root .feed {
+  gap: 0;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  box-shadow: var(--capiro-elevation-widget-emphasis);
+  overflow: hidden;
+}
+
+.lw-root .feed-virtual .acard { margin-bottom: 0; }
+
+.lw-root .acard {
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  background: var(--capiro-color-bg-surface);
+}
+
+.lw-root .acard:last-child { border-bottom: 0; }
+
+.lw-root .acard:hover {
+  box-shadow: none;
+  background: var(--capiro-color-bg-review);
+}
+
+.lw-root .acard.open {
+  background: var(--capiro-color-bg-selected);
+  border-left-color: var(--capiro-color-border-review);
+  box-shadow: none;
+}
+
+.lw-root .acard-title {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+}
+
+.lw-root .acard-date {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .acard-why {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .acard-body,
+.lw-root .acard-actions { border-top-color: var(--capiro-color-border-quiet); }
+
+/* ── Board ───────────────────────────────────────────────── */
+.lw-root .bcol {
+  background: var(--capiro-color-shell-sidebar-bg);
+  border-color: var(--capiro-color-border-default);
+}
+
+/* --ink-4 is the faint mark colour; keep empty-state copy readable. */
+.lw-root .bcol-empty { color: var(--capiro-color-text-muted); }
+
+.lw-root .bcard {
+  border-radius: var(--capiro-radius-navigation);
+  border-color: var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-control);
+}
