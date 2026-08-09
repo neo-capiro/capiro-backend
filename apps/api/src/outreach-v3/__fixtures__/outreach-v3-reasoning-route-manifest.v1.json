@@ -4,6 +4,7 @@
   "controllerPrefix": "/engagement/outreach-v3",
   "runtime": "engagement-api",
   "featureFlag": "OUTREACH_V3_REASONING_ENABLED",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
   "disabledBehavior": 404,
   "routes": [
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations", "handler": "createConversation" },
