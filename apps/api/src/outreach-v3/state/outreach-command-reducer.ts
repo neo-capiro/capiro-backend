@@ -9,10 +9,17 @@ import {
   parseCampaignSpecV1,
   type OutreachCampaignSpecV1,
 } from './outreach-campaign-spec.v1.js';
+import {
+  normalizeResolvedTargetRefsV1,
+  targetKeyForLocator,
+  type OutreachResolvedTargetRefV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
 
 export interface AuthorizedOutreachCommand extends ParsedOutreachCommandEnvelope {
   /** Populated by the persistence/authorization layer for RESTORE_STATE_VERSION. */
   restoreSpec?: OutreachCampaignSpecV1;
+  /** Populated only after every ADD_TARGET_REFS locator is reauthorized. */
+  resolvedTargetRefs?: OutreachResolvedTargetRefV1[];
 }
 
 export interface OutreachCommandReduction {
@@ -56,9 +63,29 @@ function assertDeliveryCompatibility(
   }
 }
 
+function authorizedTargetRefs(
+  command: AuthorizedOutreachCommand,
+  expectedKeys: readonly string[],
+): OutreachResolvedTargetRefV1[] {
+  const resolved = normalizeResolvedTargetRefsV1(command.resolvedTargetRefs ?? []);
+  const resolvedKeys = resolved.map((target) => target.targetKey);
+  if (
+    resolvedKeys.length !== expectedKeys.length ||
+    resolvedKeys.some((key, index) => key !== expectedKeys[index])
+  ) {
+    throw new OutreachCommandError(
+      'OUTREACH_REFERENCE_UNAUTHORIZED',
+      'The target references were not resolved in the authorized scope.',
+      403,
+    );
+  }
+  return resolved;
+}
+
 /**
- * Pure Phase 2 state transition. This function must remain free of Prisma,
- * capabilities, clocks, random IDs, logging, network providers and side effects.
+ * Pure Campaign Spec transition. It remains free of Prisma, capabilities,
+ * clocks, random IDs, logging, network providers and side effects. Target
+ * snapshots are supplied only after the command engine has reauthorized them.
  */
 export function reduceOutreachCommand(
   currentInput: OutreachCampaignSpecV1,
@@ -73,14 +100,8 @@ export function reduceOutreachCommand(
       422,
       {
         commandType: command.type,
-        futureOwner: [
-          'ADD_TARGET_REFS',
-          'REMOVE_TARGET_REFS',
-          'REJECT_TARGET_RECOMMENDATION',
-          'ACCEPT_CONTEXT_REFS',
-          'EXCLUDE_CONTEXT_REFS',
-        ].includes(command.type)
-          ? 'target_context'
+        futureOwner: ['ACCEPT_CONTEXT_REFS', 'EXCLUDE_CONTEXT_REFS'].includes(command.type)
+          ? 'context_strategy'
           : 'generation_send',
       },
     );
@@ -112,9 +133,7 @@ export function reduceOutreachCommand(
       );
     }
     case 'SET_DESIRED_OUTCOME': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_DESIRED_OUTCOME.parse(
-        command.payload,
-      );
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_DESIRED_OUTCOME.parse(command.payload);
       return withValidatedSpec(
         current,
         (spec) => ({ ...spec, goal: { ...spec.goal, desiredOutcome: payload.value } }),
@@ -152,29 +171,81 @@ export function reduceOutreachCommand(
       );
     }
     case 'SET_SPONSOR_SCOPE': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_SPONSOR_SCOPE.parse(
-        command.payload,
-      );
-      return withValidatedSpec(
-        current,
-        (spec) => ({ ...spec, sponsor: payload }),
-        command,
-      );
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_SPONSOR_SCOPE.parse(command.payload);
+      return withValidatedSpec(current, (spec) => ({ ...spec, sponsor: payload }), command);
     }
     case 'SET_TARGET_CRITERIA': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_TARGET_CRITERIA.parse(
-        command.payload,
-      );
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_TARGET_CRITERIA.parse(command.payload);
       return withValidatedSpec(
         current,
         (spec) => ({ ...spec, targeting: { ...spec.targeting, criteria: payload.value } }),
         command,
       );
     }
-    case 'SET_DELIVERY_PATTERN': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_DELIVERY_PATTERN.parse(
+    case 'ADD_TARGET_REFS': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.ADD_TARGET_REFS.parse(command.payload);
+      const expectedKeys = payload.refs
+        .map((locator) => targetKeyForLocator(locator))
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      const resolved = authorizedTargetRefs(command, expectedKeys);
+      return withValidatedSpec(
+        current,
+        (spec) => ({
+          ...spec,
+          targeting: {
+            ...spec.targeting,
+            selectedTargetRefs: normalizeResolvedTargetRefsV1([
+              ...spec.targeting.selectedTargetRefs,
+              ...resolved,
+            ]),
+            rejectedRecommendationRefs: spec.targeting.rejectedRecommendationRefs.filter(
+              (rejection) => !expectedKeys.includes(rejection.targetKey),
+            ),
+          },
+        }),
+        command,
+      );
+    }
+    case 'REMOVE_TARGET_REFS': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.REMOVE_TARGET_REFS.parse(command.payload);
+      const removed = new Set(payload.targetKeys);
+      return withValidatedSpec(
+        current,
+        (spec) => ({
+          ...spec,
+          targeting: {
+            ...spec.targeting,
+            selectedTargetRefs: spec.targeting.selectedTargetRefs.filter(
+              (target) => !removed.has(target.targetKey),
+            ),
+          },
+        }),
+        command,
+      );
+    }
+    case 'REJECT_TARGET_RECOMMENDATION': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.REJECT_TARGET_RECOMMENDATION.parse(
         command.payload,
       );
+      return withValidatedSpec(
+        current,
+        (spec) => ({
+          ...spec,
+          targeting: {
+            ...spec.targeting,
+            rejectedRecommendationRefs: [
+              ...spec.targeting.rejectedRecommendationRefs.filter(
+                (entry) => entry.recommendationRef !== payload.recommendationRef,
+              ),
+              payload,
+            ],
+          },
+        }),
+        command,
+      );
+    }
+    case 'SET_DELIVERY_PATTERN': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_DELIVERY_PATTERN.parse(command.payload);
       assertDeliveryCompatibility(payload.value, current.delivery.personalization);
       return withValidatedSpec(
         current,
@@ -183,9 +254,7 @@ export function reduceOutreachCommand(
       );
     }
     case 'SET_PERSONALIZATION': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_PERSONALIZATION.parse(
-        command.payload,
-      );
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_PERSONALIZATION.parse(command.payload);
       assertDeliveryCompatibility(current.delivery.pattern, payload.value);
       return withValidatedSpec(
         current,
@@ -194,9 +263,7 @@ export function reduceOutreachCommand(
       );
     }
     case 'SET_CAMPAIGN_ANGLE': {
-      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_CAMPAIGN_ANGLE.parse(
-        command.payload,
-      );
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_CAMPAIGN_ANGLE.parse(command.payload);
       return withValidatedSpec(
         current,
         (spec) => ({ ...spec, strategy: { ...spec.strategy, campaignAngle: payload.value } }),
