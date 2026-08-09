@@ -597,9 +597,12 @@ export function AppShellV2({ me }: { me: MeResponse }) {
           <ContextChip label="JURISDICTION" value="Federal" />
           <ContextChip label="BUDGET YEAR" value={requestFy ? `FY${requestFy}` : '—'} />
           <span className="qa-context-spacer" />
-          <span className="qa-context-refreshed">
-            {section === 'dashboard' ? refreshedLabel : 'LIVE CONTEXT'}
-          </span>
+          {/* The context bar renders only when showContextBar is true, i.e. section
+              is 'portfolio' or 'engagement' — never 'dashboard' — so the old
+              `section === 'dashboard' ? refreshedLabel : ...` ternary was dead and
+              tripped noUnusedChecks with TS2367, failing `pnpm build` on main.
+              Collapsed to the branch that actually rendered; output is unchanged. */}
+          <span className="qa-context-refreshed">LIVE CONTEXT</span>
         </div>
       ) : null}
 
