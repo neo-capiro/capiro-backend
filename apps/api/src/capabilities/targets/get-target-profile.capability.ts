@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DirectoryService } from '../../directory/directory.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
@@ -102,8 +103,7 @@ export class GetTargetProfileCapability {
     ctx: AuthorizedCapabilityContext,
     input: GetTargetProfileInput,
   ): Promise<CapabilityResult<TargetProfileDataV1>> {
-    const tenantCtx = toTenantContext(ctx);
-    const target = await this.targetResolver.resolveOne(tenantCtx, input.targetRef);
+    const target = await this.targetResolver.resolveOne(toTenantContext(ctx), input.targetRef);
     if (ctx.clientScope && target.clientId && ctx.clientScope.clientId !== target.clientId) {
       throw new CapabilityError(
         'CAPABILITY_INVALID_SCOPE',
@@ -114,7 +114,7 @@ export class GetTargetProfileCapability {
     }
 
     const metadata = await this.loadRelationshipMetadata(ctx, target.locator);
-    const facts = await this.safeFacts(target);
+    const facts = safeFacts(target);
     const warnings: TargetProfileDataV1['warnings'] = [];
     if (target.roleStatus === 'historical') {
       warnings.push({ code: 'ROLE_HISTORICAL', message: 'The source indicates this role is historical.' });
@@ -190,63 +190,11 @@ export class GetTargetProfileCapability {
         degraded: warnings.length > 0,
         reasons: warnings.map((warning) => warning.code),
       },
-      authorization: { filtered: metadata.notesAvailable, restrictedCount: metadata.notesAvailable ? 1 : 0 },
+      authorization: {
+        filtered: metadata.notesAvailable,
+        restrictedCount: metadata.notesAvailable ? 1 : 0,
+      },
     };
-  }
-
-  private async safeFacts(target: OutreachResolvedTargetRefV1): Promise<TargetProfileFactV1[]> {
-    const sourceStatus: TargetProfileFactV1['status'] =
-      target.locator.source === 'manual'
-        ? 'user_supplied'
-        : target.roleStatus === 'current'
-          ? 'verified'
-          : target.roleStatus === 'historical'
-            ? 'historical'
-            : 'needs_confirmation';
-    const facts: TargetProfileFactV1[] = [
-      {
-        code: 'current_role',
-        label: 'Role',
-        value: [target.title, target.organization].filter(Boolean).join(' — ') || null,
-        status: sourceStatus,
-        usableForPersonalization: target.roleStatus === 'current',
-      },
-      {
-        code: 'jurisdiction',
-        label: 'Jurisdiction',
-        value: [target.jurisdiction.chamber, target.jurisdiction.state, target.jurisdiction.district]
-          .filter(Boolean)
-          .join(' · ') || null,
-        status: sourceStatus,
-        usableForPersonalization: target.roleStatus === 'current',
-      },
-      {
-        code: 'committees',
-        label: 'Committees',
-        value: target.jurisdiction.committees,
-        status: sourceStatus,
-        usableForPersonalization: target.roleStatus === 'current',
-      },
-      {
-        code: 'issue_areas',
-        label: 'Issue areas',
-        value: target.jurisdiction.issueAreas,
-        status: sourceStatus,
-        usableForPersonalization: target.roleStatus === 'current',
-      },
-    ];
-    if (target.locator.source === 'manual' && target.locator.note) {
-      facts.push({
-        code: 'user_note',
-        label: 'User-provided target note',
-        value: target.locator.note,
-        status: 'user_supplied',
-        usableForPersonalization: false,
-      });
-    }
-    return facts.filter((fact) =>
-      Array.isArray(fact.value) ? fact.value.length > 0 : fact.value !== null && fact.value !== '',
-    );
   }
 
   private async loadRelationshipMetadata(
@@ -291,14 +239,67 @@ export class GetTargetProfileCapability {
   }
 }
 
-function toTenantContext(ctx: AuthorizedCapabilityContext) {
+function safeFacts(target: OutreachResolvedTargetRefV1): TargetProfileFactV1[] {
+  const sourceStatus: TargetProfileFactV1['status'] =
+    target.locator.source === 'manual'
+      ? 'user_supplied'
+      : target.roleStatus === 'current'
+        ? 'verified'
+        : target.roleStatus === 'historical'
+          ? 'historical'
+          : 'needs_confirmation';
+  const facts: TargetProfileFactV1[] = [
+    {
+      code: 'current_role',
+      label: 'Role',
+      value: [target.title, target.organization].filter(Boolean).join(' — ') || null,
+      status: sourceStatus,
+      usableForPersonalization: target.roleStatus === 'current',
+    },
+    {
+      code: 'jurisdiction',
+      label: 'Jurisdiction',
+      value: [target.jurisdiction.chamber, target.jurisdiction.state, target.jurisdiction.district]
+        .filter(Boolean)
+        .join(' · ') || null,
+      status: sourceStatus,
+      usableForPersonalization: target.roleStatus === 'current',
+    },
+    {
+      code: 'committees',
+      label: 'Committees',
+      value: target.jurisdiction.committees,
+      status: sourceStatus,
+      usableForPersonalization: target.roleStatus === 'current',
+    },
+    {
+      code: 'issue_areas',
+      label: 'Issue areas',
+      value: target.jurisdiction.issueAreas,
+      status: sourceStatus,
+      usableForPersonalization: target.roleStatus === 'current',
+    },
+  ];
+  if (target.locator.source === 'manual' && target.locator.note) {
+    facts.push({
+      code: 'user_note',
+      label: 'User-provided target note',
+      value: target.locator.note,
+      status: 'user_supplied',
+      usableForPersonalization: false,
+    });
+  }
+  return facts.filter((fact) =>
+    Array.isArray(fact.value) ? fact.value.length > 0 : fact.value !== null && fact.value !== '',
+  );
+}
+
+function toTenantContext(ctx: AuthorizedCapabilityContext): TenantContext {
   return {
     tenantId: ctx.tenantId,
     tenantSlug: ctx.tenantSlug ?? '',
-    clerkOrgId: '',
     userId: ctx.actorUserId,
     clerkUserId: ctx.clerkUserId ?? '',
-    role: ctx.role as never,
-    impersonation: ctx.impersonation ?? undefined,
+    role: ctx.role as TenantContext['role'],
   };
 }
