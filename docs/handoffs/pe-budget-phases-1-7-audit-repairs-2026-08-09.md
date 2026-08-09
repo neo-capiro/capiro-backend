@@ -1,8 +1,8 @@
 # Defense Budget Phases 1–7 Audit Repairs — Handoff
 
-**Date:** 2026-08-09  
-**Branch:** `agent/pe-budget-phase7-eligibility-read-repo`  
-**Scope:** Repairs from the independent Phase 1–7 design-vs-main audit.  
+**Date:** 2026-08-09
+**Branch:** `agent/pe-budget-phase7-eligibility-read-repo`
+**Scope:** Repairs from the independent Phase 1–7 design-vs-main audit.
 **Release posture:** **CODE REPAIRS ONLY — NOT DEPLOYED, NOT LIVE-ACCEPTED.**
 
 No AWS mutation, shared-database migration, production/staging data write, paid parser call, canonical promotion, snapshot activation, rollback, canary enablement, merge, or deployment was performed while making these repairs.
