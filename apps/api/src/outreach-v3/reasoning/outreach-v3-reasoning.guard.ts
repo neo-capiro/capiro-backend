@@ -1,4 +1,5 @@
 import { CanActivate, Injectable, NotFoundException } from '@nestjs/common';
+import { parseOutreachV3StateEnabled } from '../api/outreach-v3-state.guard.js';
 
 export function parseOutreachV3ReasoningEnabled(value: string | undefined): boolean {
   if (value === undefined || value === '') return false;
@@ -9,12 +10,15 @@ export function parseOutreachV3ReasoningEnabled(value: string | undefined): bool
 
 @Injectable()
 export class OutreachV3ReasoningGuard implements CanActivate {
-  private readonly enabled = parseOutreachV3ReasoningEnabled(
+  private readonly reasoningEnabled = parseOutreachV3ReasoningEnabled(
     process.env.OUTREACH_V3_REASONING_ENABLED,
+  );
+  private readonly stateEnabled = parseOutreachV3StateEnabled(
+    process.env.OUTREACH_V3_STATE_ENABLED,
   );
 
   canActivate(): boolean {
-    if (!this.enabled) throw new NotFoundException();
+    if (!this.reasoningEnabled || !this.stateEnabled) throw new NotFoundException();
     return true;
   }
 }
