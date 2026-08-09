@@ -72,6 +72,7 @@ function run(bin, args, options = {}) {
     input: options.input,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
+    shell: process.platform === 'win32',
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -85,21 +86,29 @@ function run(bin, args, options = {}) {
   return String(result.stdout || '').trim();
 }
 function psql(db, sql, options = {}) {
-  return run(
-    PSQL,
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', options.user || PGUSER, '-d', db, '-c', sql],
-    { env: { PGPASSWORD: options.password ?? PGPASSWORD } },
-  );
+  return psqlInput(db, sql, options);
 }
-function psqlInput(db, sql) {
+function psqlInput(db, sql, options = {}) {
+  // On Windows, use docker exec to run psql inside the container to avoid
+  // native psql binary and shell quoting issues.
+  if (process.platform === 'win32') {
+    const user = options.user || PGUSER;
+    const password = options.password ?? PGPASSWORD;
+    return run(
+      'docker',
+      ['exec', '-i', 'outreach-v3-p3-pg', 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-qAt',
+       '-U', user, '-d', db],
+      { env: { PGPASSWORD: password }, input: sql },
+    );
+  }
   return run(
     PSQL,
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', PGUSER, '-d', db],
-    { env: { PGPASSWORD }, input: sql },
+    ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', options.user || PGUSER, '-d', db],
+    { env: { PGPASSWORD: options.password ?? PGPASSWORD }, input: sql },
   );
 }
 function admin(sql) {
-  return psql('postgres', sql);
+  return psqlInput('postgres', sql);
 }
 function dropDb(db) {
   try {
@@ -303,8 +312,12 @@ function checkDb(db, labelPrefix) {
 
 let exitCode = 0;
 try {
-  run(PSQL, ['--version']);
-  run('pnpm', ['--version']);
+  if (process.platform === 'win32') {
+    run('docker', ['exec', '-i', 'outreach-v3-p3-pg', 'psql', '--version']);
+  } else {
+    run(PSQL, ['--version']);
+  }
+  run(process.env.PNPM_BIN || 'pnpm', ['--version']);
   createProbe();
 
   console.log('== Revised Outreach Phase 3 DB rehearsal: fresh path ==');
