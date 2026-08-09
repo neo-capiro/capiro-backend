@@ -605,6 +605,26 @@ case "${1:-serve}" in
   # incremental with a periodic --full reconciliation (the upsert keys on the
   # provider's uuid, so a full run is idempotent).
   sync-tango-dibbs) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-dibbs.ts "$@" ;;
+  # Funding Opportunities P42 part 3: SBIR/STTR sync — solicitation cycles and
+  # topics. Dry-run by default; a dispatched task passes --commit. NOT resumable
+  # via tango_sync_checkpoint for the same two reasons as the DIBBS verb above:
+  # that table's resource_type CHECK does not admit an SBIR type (verified — it
+  # is set in 20260821010000 and no migration has ever widened it), and the SBIR
+  # endpoints publish no modified_after filter either.
+  #
+  # THE WINDOW IS A PUBLICATION-DATE WINDOW: release_date_after for topics,
+  # start_date_after for cycles. A topic amended after release — a changed close
+  # date, a status moving to Closed — does NOT re-enter it. Pair a frequent
+  # incremental with a periodic --full reconciliation (the upserts key on the
+  # provider's own topic_id/solicitation_id, so a full run is idempotent).
+  #
+  # Cycles are walked before topics, so an interrupted run leaves parents
+  # present rather than children pointing at cycles never fetched.
+  #
+  # NOTHING HAS EVER CALLED /api/sbir/. The shipped schedule is DISABLED and
+  # must stay that way until a live contract validation run has confirmed the
+  # response shape.
+  sync-tango-sbir) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-sbir.ts "$@" ;;
   # Funding Opportunities P47: reconcile provider-side webhook ALERT
   # subscriptions against the desired set held in reviewed code. DRY-RUN BY
   # DEFAULT and read-only in that mode. `--commit` additionally demands

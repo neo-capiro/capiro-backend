@@ -886,6 +886,7 @@ jobs:
           scripts/diag-funding-opportunities-makegov.spec.ts
           scripts/diag-tango-webhook-contract.spec.ts
           scripts/sync-tango-dibbs.spec.ts
+          scripts/sync-tango-sbir.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -2071,9 +2072,37 @@ jobs:
       #    documentation, the trap P49's "never calls the provider" test hit.
       #    A second assertion allows only documented raw keys, so a future edit
       #    cannot quietly start reading an undocumented one.
+      #
+      # 85/2672 -> 86/2704 after P42 part 3: one NEW file,
+      # scripts/sync-tango-sbir.spec.ts (31 tests), plus 1 in
+      # funding-opportunities-entrypoint.spec.ts for the new dispatcher verb.
+      # The new spec IS a path-list change — script specs are enumerated
+      # individually, unlike src/external/tango/ which is a directory.
+      #
+      # The walk runs entirely against fakes, which is the only honest option:
+      # nothing has ever called /api/sbir/, so a test that pretended to exercise
+      # the provider would assert a fiction. What they pin is the walk's own
+      # behaviour, and two of them are the ones worth keeping:
+      #
+      #  - IDENTITY. A record carrying only `uuid` is dropped, and a cycle
+      #    carrying `topic_id` is dropped. Topics key on topic_id and
+      #    solicitations on solicitation_id; NEITHER is the DIBBS `uuid`. A walk
+      #    that reached for it would drop every record and still report
+      #    "complete" — a clean, wrong, green run.
+      #  - THE WINDOW SPELLINGS. A cycle sends start_date_after and a topic
+      #    sends release_date_after, and each test asserts the OTHER endpoint's
+      #    parameter is absent. Sending one endpoint's spelling to the other is a
+      #    400 at best and a silent full walk at worst.
+      #
+      # A note on the rate-limit tests, because the first draft was wrong in a
+      # way that would have gone green: they throw the REAL TangoSbirHttpError,
+      # not a lookalike. `fetchWithRateLimitRetry` branches on `instanceof`, so a
+      # hand-rolled error with the same `name` and an `isRateLimited` getter is
+      # never retried — the test would have passed while never entering the path
+      # it claims to cover.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 85 2672
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 86 2704
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
