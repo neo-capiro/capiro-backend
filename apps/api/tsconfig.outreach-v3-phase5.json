@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "src/capabilities/**/*.ts",
+    "src/search/**/*.ts",
+    "src/outreach-v3/state/**/*.ts",
+    "src/outreach-v3/commands/**/*.ts",
+    "src/outreach-v3/persistence/**/*.ts",
+    "src/outreach-v3/services/**/*.ts",
+    "src/outreach-v3/api/**/*.ts",
+    "src/outreach-v3/reasoning/**/*.ts",
+    "src/outreach-v3/targets/**/*.ts",
+    "src/outreach-v3/context/**/*.ts",
+    "src/engagement-api.app.module.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
