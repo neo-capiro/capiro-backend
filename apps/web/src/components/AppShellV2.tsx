@@ -1,15 +1,31 @@
-// Premium global app shell for capiro-internal.
+// Capiro internal application shell — Quiet Authority v3.
 //
-// The visual source of truth is the Capiro Figma master Shell/Premium. This
-// component intentionally stays tenant-gated by AppShell.tsx so legacy tenants
-// retain the existing sidebar shell. Real navigation, search, notifications,
-// Meri-window launch, profile actions, client scope, and data context remain
-// wired to production behavior.
-import { useEffect, useMemo, useState } from 'react';
+// The visual source of truth is the latest Capiro Design System v3 shell:
+// 64px porcelain top bar, 232px expanded / 72px collapsed mist navigation,
+// centered global search, restrained elevation, and Instrument Sans product UI.
+// This remains tenant-gated by AppShell.tsx; legacy tenants keep the existing
+// Ant Design sidebar shell. Navigation, search, notifications, Meri, profile,
+// feature gates, client scope, and data context remain wired to production data.
+
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+import {
+  ApartmentOutlined,
+  CalendarOutlined,
+  DashboardOutlined,
+  DeploymentUnitOutlined,
+  FileSearchOutlined,
+  FolderOpenOutlined,
+  FundOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  MoreOutlined,
+  RadarChartOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 import { ROLE_RANK, type TenantRole } from '@capiro/shared';
 import type { MeResponse } from '../lib/me.js';
 import { useApi } from '../lib/use-api.js';
@@ -20,8 +36,7 @@ import { useNotifications } from '../pages/workspace/api.js';
 import { getProgramElementSummary } from '../pages/program-element/api.js';
 import type { Client } from '../pages/clients/clientTypes.js';
 import './app-shell-premium.css';
-
-/* ── Types ─────────────────────────────────────────────────────────────── */
+import './app-shell-quiet-authority.css';
 
 type V2Section =
   | 'dashboard'
@@ -40,7 +55,6 @@ interface V2NavLeaf {
   minRole?: TenantRole;
   featureFlag?: string;
   meFeature?: keyof MeResponse['features'];
-  tourId?: string;
 }
 
 interface DashboardSignal {
@@ -54,8 +68,6 @@ interface ProfileItem {
   action?: 'signout' | 'profile';
 }
 
-/* ── Navigation model ──────────────────────────────────────────────────── */
-
 const INTELLIGENCE: V2NavLeaf[] = [
   { key: 'legiwatch', label: 'LegiWatch', path: '/legiwatch' },
   { key: 'explorer', label: 'Data Explorer', path: '/explorer' },
@@ -67,14 +79,7 @@ const INTELLIGENCE: V2NavLeaf[] = [
     tag: 'FLAG',
     featureFlag: 'district_nexus_v2',
   },
-  {
-    key: 'funding-opportunities',
-    label: 'Funding Opportunities',
-    path: '/intelligence/opportunities',
-    featureFlag: 'funding_opportunities',
-  },
   { key: 'knowledge-graph', label: 'Knowledge Graph', path: '/intelligence/graph' },
-  { key: 'program-elements', label: 'Program Elements', path: '/program-elements' },
 ];
 
 const MORE: V2NavLeaf[] = [
@@ -107,7 +112,7 @@ const PROFILE_ITEMS: ProfileItem[] = [
   { label: 'Sign out', action: 'signout' },
 ];
 
-/* ── Component ─────────────────────────────────────────────────────────── */
+const NAV_COLLAPSE_KEY = 'capiro:quiet-authority-nav-collapsed';
 
 export function AppShellV2({ me }: { me: MeResponse }) {
   const api = useApi();
@@ -120,19 +125,45 @@ export function AppShellV2({ me }: { me: MeResponse }) {
   const { selectedClientId, setSelectedClientId } = useClientFilter();
   const notifications = useNotifications();
 
+  const section = sectionFor(location.pathname);
+  const role = me.role;
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
-
-  const role = me.role;
-  const section = sectionFor(location.pathname);
+  const [navCollapsed, setNavCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const persisted = window.localStorage.getItem(NAV_COLLAPSE_KEY);
+    if (persisted != null) return persisted === 'true';
+    return window.location.pathname === '/';
+  });
 
   const closeAll = () => {
     setOpenMenu(null);
     setSearchOpen(false);
   };
 
-  // Ctrl+J opens/focuses Meri; Ctrl/Cmd+K opens global search; Esc closes menus.
+  const showContextBar = section === 'portfolio' || section === 'engagement';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.localStorage.getItem(NAV_COLLAPSE_KEY) == null) {
+      setNavCollapsed(section === 'dashboard');
+    }
+  }, [section]);
+
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.v2-root');
+    if (!root) return undefined;
+    root.dataset.shellVersion = '3';
+    root.dataset.navCollapsed = String(navCollapsed);
+    root.dataset.shellContext = String(showContextBar);
+    return () => {
+      delete root.dataset.shellVersion;
+      delete root.dataset.navCollapsed;
+      delete root.dataset.shellContext;
+    };
+  }, [navCollapsed, showContextBar]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const key = (event.key || '').toLowerCase();
@@ -145,10 +176,7 @@ export function AppShellV2({ me }: { me: MeResponse }) {
         setOpenMenu(null);
         setSearchOpen(true);
       }
-      if (key === 'escape') {
-        setOpenMenu(null);
-        setSearchOpen(false);
-      }
+      if (key === 'escape') closeAll();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -174,8 +202,6 @@ export function AppShellV2({ me }: { me: MeResponse }) {
     staleTime: 300_000,
   });
 
-  // Reuse the HomePage query key so the shell's SIGNALS chip and dashboard share
-  // one cache entry rather than introducing another source of truth.
   const dashboardSignals = useQuery<DashboardSignal[]>({
     queryKey: ['intel-changes-tracked'],
     queryFn: async () => {
@@ -214,7 +240,6 @@ export function AppShellV2({ me }: { me: MeResponse }) {
   const profileImageUrl = user?.imageUrl || null;
   const requestFy = peSummary.data?.latestRequestFy ?? null;
   const initialsText = initials(displayName);
-  const clientMark = selectedClient ? initials(selectedClient.name) : 'AC';
 
   const isVisible = (item: V2NavLeaf) =>
     (!item.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[item.minRole])) &&
@@ -223,22 +248,39 @@ export function AppShellV2({ me }: { me: MeResponse }) {
 
   const intelligenceItems = INTELLIGENCE.filter(isVisible);
   const moreItems = MORE.filter(isVisible);
-  const fundingEnabled = intelligenceItems.some((item) => item.key === 'funding-opportunities');
+  const fundingEnabled = Boolean(intelFlags.data?.funding_opportunities);
 
   const go = (path?: string) => {
     closeAll();
     if (path) navigate(path);
   };
 
+  const toggleNav = () => {
+    const next = !navCollapsed;
+    setNavCollapsed(next);
+    try {
+      window.localStorage.setItem(NAV_COLLAPSE_KEY, String(next));
+    } catch {
+      // Navigation remains usable even when storage is unavailable.
+    }
+  };
+
   const searchResults = useMemo(() => {
     const query = q.trim().toLowerCase();
-    const pool: { kind: string; title: string; href: string }[] = visibleClients.map((client) => ({
-      kind: 'CLIENT',
-      title: client.name,
-      href: `/clients/${client.id}`,
-    }));
-    if (!query) return pool.slice(0, 6);
-    return pool.filter((result) => result.title.toLowerCase().includes(query)).slice(0, 8);
+    const pool: { kind: string; title: string; href: string }[] = [
+      ...visibleClients.map((client) => ({
+        kind: 'CLIENT',
+        title: client.name,
+        href: `/clients/${client.id}`,
+      })),
+      { kind: 'WORKSPACE', title: 'LegiWatch', href: '/legiwatch' },
+      { kind: 'WORKSPACE', title: 'Program Elements', href: '/program-elements' },
+      { kind: 'WORKSPACE', title: 'Funding Opportunities', href: '/intelligence/opportunities' },
+      { kind: 'WORKSPACE', title: 'Engagement', href: '/engagement' },
+      { kind: 'WORKSPACE', title: 'Workspace', href: '/workspace' },
+    ];
+    if (!query) return pool.slice(0, 8);
+    return pool.filter((result) => result.title.toLowerCase().includes(query)).slice(0, 10);
   }, [q, visibleClients]);
 
   const refreshedLabel = dashboardSignals.dataUpdatedAt
@@ -247,83 +289,34 @@ export function AppShellV2({ me }: { me: MeResponse }) {
       ? 'REFRESHING…'
       : 'REFRESHED —';
 
+  const intelligenceActive = isIntelligenceActive(location.pathname);
+  const settingsActive =
+    location.pathname.startsWith('/settings') && !location.pathname.startsWith('/settings/memory');
+  const moreActive =
+    location.pathname.startsWith('/directory') ||
+    location.pathname.startsWith('/strategies') ||
+    location.pathname.startsWith('/actions') ||
+    location.pathname.startsWith('/portal') ||
+    location.pathname.startsWith('/admin/analyst-console');
+
   return (
-    <div className={`v2-shell premium-shell${section === 'dashboard' ? ' is-dashboard' : ''}`}>
-      {/* ── Band 1 · premium global navigation ─────────────────────────── */}
-      <header className="v2-band1">
-        <div className="v2-band1-left">
-          <button type="button" className="v2-brand" aria-label="Capiro home" onClick={() => go('/')}>
-            <span className="v2-brand-wordmark">CAPIRO</span>
-            <span className="v2-brand-environment">INTERNAL</span>
-          </button>
+    <div
+      className={`v2-shell quiet-authority-shell${
+        navCollapsed ? ' is-collapsed' : ''
+      }${section === 'dashboard' ? ' is-dashboard' : ''}${showContextBar ? ' has-context' : ''}`}
+    >
+      <header className="qa-topbar">
+        <div className="qa-topbar-anchor" aria-hidden />
+        <button type="button" className="qa-home-hit" aria-label="Capiro home" onClick={() => go('/')}>
+          <span className="qa-visually-hidden">Capiro</span>
+        </button>
 
-          <nav className="v2-nav" aria-label="Primary navigation">
-            <TopNavButton
-              label="Home"
-              active={location.pathname === '/'}
-              onClick={() => go('/')}
-              tourId="Dashboard"
-            />
-            <TopNavButton
-              label="Clients"
-              active={location.pathname.startsWith('/clients')}
-              onClick={() => go('/clients')}
-              tourId="Portfolio"
-            />
-            <NavMenu
-              id="intel"
-              label="Intelligence"
-              active={isIntelligenceActive(location.pathname)}
-              open={openMenu === 'intel'}
-              onToggle={() => setOpenMenu(openMenu === 'intel' ? null : 'intel')}
-              items={intelligenceItems}
-              onPick={go}
-              activePath={location.pathname}
-            />
-            <TopNavButton
-              label="Program Elements"
-              active={location.pathname.startsWith('/program-elements')}
-              onClick={() => go('/program-elements')}
-            />
-            {fundingEnabled ? (
-              <TopNavButton
-                label="Funding"
-                active={location.pathname.startsWith('/intelligence/opportunities')}
-                onClick={() => go('/intelligence/opportunities')}
-              />
-            ) : null}
-            <TopNavButton
-              label="Engagement"
-              active={location.pathname.startsWith('/engagement')}
-              onClick={() => go('/engagement')}
-              tourId="Engagement"
-            />
-            <TopNavButton
-              label="Workspace"
-              active={location.pathname.startsWith('/workspace')}
-              onClick={() => go('/workspace')}
-              tourId="Workspace"
-            />
-            <NavMenu
-              id="more"
-              label="More"
-              active={section === 'directory' || section === 'more'}
-              open={openMenu === 'more'}
-              onToggle={() => setOpenMenu(openMenu === 'more' ? null : 'more')}
-              items={moreItems}
-              onPick={go}
-              activePath={location.pathname}
-              quiet
-            />
-          </nav>
-        </div>
-
-        <div className="v2-band1-right">
-          <div className="v2-search-wrap">
-            <span className="v2-search-label">GLOBAL SEARCH</span>
+        <div className="qa-topbar-main">
+          <div className="qa-search-wrap">
+            <span className="qa-search-label">GLOBAL SEARCH</span>
             <button
               type="button"
-              className={`v2-search${searchOpen ? ' is-open' : ''}`}
+              className={`qa-search${searchOpen ? ' is-open' : ''}`}
               onClick={() => {
                 setOpenMenu(null);
                 setSearchOpen((value) => !value);
@@ -331,12 +324,12 @@ export function AppShellV2({ me }: { me: MeResponse }) {
               aria-label="Global search"
             >
               <SearchIcon />
-              <span className="v2-search-text">Search clients, issues, programs, people…</span>
-              <span className="v2-search-shortcut">⌘K</span>
+              <span className="qa-search-text">Search clients, issues, programs, people…</span>
+              <span className="qa-search-shortcut">⌘K</span>
             </button>
             {searchOpen ? (
-              <div className="v2-pop v2-search-pop" role="dialog" aria-label="Search">
-                <div className="v2-search-pop-head">
+              <div className="qa-pop qa-search-pop" role="dialog" aria-label="Search">
+                <div className="qa-search-pop-head">
                   <SearchIcon muted />
                   <input
                     autoFocus
@@ -344,280 +337,362 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                     onChange={(event) => setQ(event.target.value)}
                     placeholder="Search clients, issues, programs, people…"
                     aria-label="Global search"
-                    className="v2-search-input"
+                    className="qa-search-input"
                   />
                 </div>
                 {searchResults.map((result) => (
                   <button
-                    key={result.href + result.title}
+                    key={`${result.kind}-${result.href}-${result.title}`}
                     type="button"
-                    className="v2-search-row"
+                    className="qa-pop-row"
                     onClick={() => go(result.href)}
                   >
-                    <span className="v2-search-kind">{result.kind}</span>
-                    <span className="v2-search-title">{result.title}</span>
+                    <span className="qa-search-result-kind">{result.kind}</span>
+                    <span className="qa-pop-label">{result.title}</span>
                   </button>
                 ))}
                 {searchResults.length === 0 ? (
-                  <div className="v2-menu-empty">No matching clients found.</div>
+                  <div className="qa-pop-row" aria-disabled>
+                    No matching results.
+                  </div>
                 ) : null}
-                <div className="v2-search-foot">
+                <div className="qa-search-foot">
                   {section === 'dashboard'
-                    ? 'ALL-CLIENT SEARCH · ENTER TO OPEN'
-                    : `SCOPED TO ${(selectedClient?.name ?? 'All clients').toUpperCase()} · ENTER TO OPEN`}
+                    ? `ALL-CLIENT SEARCH · ${overnightSignals} OVERNIGHT SIGNALS`
+                    : `SCOPED TO ${(selectedClient?.name ?? 'All clients').toUpperCase()}`}
                 </div>
               </div>
             ) : null}
           </div>
 
-          <button
-            type="button"
-            className="v2-meri"
-            title="Open Meri in its own window — Ctrl+J"
-            aria-label="Open the Meri window"
-            onClick={() => openMeriWorkspaceWindow()}
-            data-tour="Meri"
-          >
-            <span className="v2-meri-signature" aria-hidden />
-            <span className="v2-meri-label">Open Meri</span>
-            <ExtIcon />
-          </button>
-
-          <button
-            type="button"
-            className="v2-icon-btn"
-            aria-label="Notifications"
-            onClick={() => navigate('/?notifications=1')}
-          >
-            <BellIcon />
-            {unread > 0 ? <span className="v2-bell-count">{unread > 99 ? '99+' : unread}</span> : null}
-          </button>
-
-          <div className="v2-profile-wrap">
-            <button
-              type="button"
-              className="v2-profile"
-              onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')}
-              aria-label={`Open account menu for ${displayName}`}
-            >
-              <span className="v2-profile-avatar" aria-hidden>
-                {profileImageUrl ? (
-                  <img src={profileImageUrl} alt="" className="v2-profile-avatar-img" />
-                ) : (
-                  initialsText
-                )}
-              </span>
-              <span className="v2-profile-copy">
-                <span className="v2-profile-name">{profileName}</span>
-                {displayTitle ? <span className="v2-profile-title">{displayTitle}</span> : null}
-              </span>
-            </button>
-            {openMenu === 'profile' ? (
-              <div className="v2-pop v2-profile-pop" role="menu">
-                <div className="v2-profile-head">
-                  <div className="v2-profile-head-name">{displayName}</div>
-                  {displayTitle ? <div className="v2-profile-head-title">{displayTitle}</div> : null}
-                </div>
-                {PROFILE_ITEMS.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    role="menuitem"
-                    className={`v2-menu-row${item.action === 'signout' ? ' is-signout' : ''}`}
-                    onClick={() => {
-                      closeAll();
-                      if (item.action === 'signout') void signOut({ redirectUrl: '/sign-in' });
-                      else if (item.action === 'profile') openUserProfile();
-                      else if (item.path) navigate(item.path);
-                      else message.info('Keyboard shortcuts: Ctrl+J Meri · Ctrl+K search · Esc close');
-                    }}
-                  >
-                    <span className="v2-menu-label">{item.label}</span>
-                    {item.tag ? <span className="v2-menu-tag">{item.tag}</span> : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-        <span className="v2-signature-rail" aria-hidden />
-      </header>
-
-      {/* ── Band 2 · contextual operating rail ─────────────────────────── */}
-      <div className="v2-band2">
-        {section === 'dashboard' ? (
-          <>
-            <ContextChip label="JURISDICTION" value="Federal" />
-            <ContextChip label="BUDGET YEAR" value={requestFy ? `FY${requestFy}` : '—'} />
-            <ContextChip
-              label="SIGNALS"
-              value={
-                dashboardSignals.isError
-                  ? 'Unavailable'
-                  : dashboardSignals.isLoading
-                    ? 'Checking…'
-                    : `${overnightSignals} overnight`
-              }
-            />
-            <span className="v2-band2-flex" />
-            <span className="v2-dashboard-refreshed">{refreshedLabel}</span>
-            <span className="v2-dashboard-customize-space" aria-hidden />
-          </>
-        ) : (
-          <>
-            <span className="v2-band2-eyebrow">TENANT</span>
-            <span className="v2-band2-tenant">{me.tenant.name}</span>
-            <span className="v2-band2-sep" aria-hidden />
-            <span className="v2-band2-eyebrow">CLIENT</span>
-
-            <div className="v2-client-wrap">
+          <div className="qa-topbar-actions">
+            {section !== 'dashboard' ? (
               <button
                 type="button"
-                className="v2-client"
-                aria-haspopup="listbox"
-                onClick={() => setOpenMenu(openMenu === 'client' ? null : 'client')}
+                className="qa-meri"
+                title="Open Meri in its own window — Ctrl+J"
+                aria-label="Open the Meri window"
+                onClick={() => openMeriWorkspaceWindow()}
+                data-tour="Meri"
               >
-                <span className="v2-client-mark">{clientMark}</span>
-                <span className="v2-client-name">{selectedClient?.name ?? 'All clients'}</span>
-                <CaretIcon />
+                <span className="qa-meri-dot" aria-hidden />
+                <span>Meri</span>
               </button>
-              {openMenu === 'client' ? (
-                <div className="v2-pop v2-client-pop" role="listbox">
-                  <button
-                    type="button"
-                    className={`v2-menu-row${!selectedClient ? ' is-current' : ''}`}
-                    onClick={() => {
-                      setSelectedClientId(null);
-                      closeAll();
-                    }}
-                  >
-                    <span className="v2-menu-label">All clients</span>
-                    {!selectedClient ? <span className="v2-menu-check">✓</span> : null}
-                  </button>
-                  {visibleClients.map((client) => (
+            ) : null}
+
+            <button
+              type="button"
+              className="qa-icon-btn"
+              aria-label="Notifications"
+              onClick={() => navigate('/?notifications=1')}
+            >
+              <BellIcon />
+              {unread > 0 ? <span className="qa-bell-count">{unread > 99 ? '99+' : unread}</span> : null}
+            </button>
+
+            <div className="qa-profile-wrap">
+              <button
+                type="button"
+                className="qa-profile"
+                onClick={() => setOpenMenu(openMenu === 'profile' ? null : 'profile')}
+                aria-label={`Open account menu for ${displayName}`}
+              >
+                <span className="qa-profile-avatar" aria-hidden>
+                  {profileImageUrl ? <img src={profileImageUrl} alt="" /> : initialsText}
+                </span>
+                <span className="qa-profile-copy">
+                  <span className="qa-profile-name">{profileName}</span>
+                  {displayTitle ? <span className="qa-profile-title">{displayTitle}</span> : null}
+                </span>
+              </button>
+              {openMenu === 'profile' ? (
+                <div className="qa-pop qa-profile-pop" role="menu">
+                  <div className="qa-profile-head">
+                    <div className="qa-profile-head-name">{displayName}</div>
+                    {displayTitle ? <div className="qa-profile-head-title">{displayTitle}</div> : null}
+                  </div>
+                  {PROFILE_ITEMS.map((item) => (
                     <button
-                      key={client.id}
+                      key={item.label}
                       type="button"
-                      role="option"
-                      aria-selected={selectedClientId === client.id}
-                      className={`v2-menu-row${selectedClientId === client.id ? ' is-current' : ''}`}
+                      role="menuitem"
+                      className={`qa-pop-row${item.action === 'signout' ? ' is-signout' : ''}`}
                       onClick={() => {
-                        setSelectedClientId(client.id);
                         closeAll();
+                        if (item.action === 'signout') void signOut({ redirectUrl: '/sign-in' });
+                        else if (item.action === 'profile') openUserProfile();
+                        else if (item.path) navigate(item.path);
+                        else message.info('Keyboard shortcuts: Ctrl+J Meri · Ctrl+K search · Esc close');
                       }}
                     >
-                      <span className="v2-menu-label">{client.name}</span>
-                      {selectedClientId === client.id ? <span className="v2-menu-check">✓</span> : null}
+                      <span className="qa-pop-label">{item.label}</span>
+                      {item.tag ? <span className="qa-pop-tag">{item.tag}</span> : null}
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
+          </div>
+        </div>
+      </header>
 
-            <span className="v2-band2-flex" />
-            <div className="v2-data-wrap">
-              <button
-                type="button"
-                className={`v2-data${openMenu === 'data' ? ' is-open' : ''}`}
-                onClick={() => setOpenMenu(openMenu === 'data' ? null : 'data')}
-              >
-                {requestFy ? `FY${requestFy} · ACTIVE` : 'DATA CONTEXT'}
-              </button>
-              {openMenu === 'data' ? (
-                <div className="v2-pop v2-data-pop" role="dialog" aria-label="Active data context">
-                  <div className="v2-data-head">ACTIVE DATA CONTEXT</div>
-                  <DataRow k="FISCAL YEAR" v={requestFy ? `FY${requestFy}` : '—'} strong />
-                  <DataRow
-                    k="TRACKED PES"
-                    v={peSummary.data ? String(peSummary.data.tracked) : '—'}
-                    strong
-                  />
-                  <DataRow k="WATCHED" v={peSummary.data ? String(peSummary.data.watched) : '—'} />
-                  <button type="button" className="v2-data-link" onClick={() => go('/program-elements')}>
-                    Open Program Elements →
+      <aside className="qa-sidebar" aria-label="Primary navigation">
+        <div className="qa-sidebar-label">WORKSPACE</div>
+        <nav className="qa-nav" aria-label="Primary navigation">
+          <ShellNavLink
+            label="Home"
+            icon={<DashboardOutlined />}
+            active={location.pathname === '/'}
+            collapsed={navCollapsed}
+            onClick={() => go('/')}
+            tourId="Dashboard"
+          />
+          <ShellNavLink
+            label="Clients"
+            icon={<ApartmentOutlined />}
+            active={location.pathname.startsWith('/clients')}
+            collapsed={navCollapsed}
+            onClick={() => go('/clients')}
+            tourId="Portfolio"
+          />
+          <ShellNavMenu
+            id="intel"
+            label="Intelligence"
+            icon={<RadarChartOutlined />}
+            active={intelligenceActive}
+            collapsed={navCollapsed}
+            open={openMenu === 'intel'}
+            onToggle={() => {
+              setSearchOpen(false);
+              setOpenMenu(openMenu === 'intel' ? null : 'intel');
+            }}
+            items={intelligenceItems}
+            activePath={location.pathname}
+            onPick={go}
+            tourId="Intelligence"
+          />
+          <ShellNavLink
+            label="Program Elements"
+            icon={<FundOutlined />}
+            active={location.pathname.startsWith('/program-elements')}
+            collapsed={navCollapsed}
+            onClick={() => go('/program-elements')}
+          />
+          {fundingEnabled ? (
+            <ShellNavLink
+              label="Funding Opportunities"
+              icon={<FileSearchOutlined />}
+              active={location.pathname.startsWith('/intelligence/opportunities')}
+              collapsed={navCollapsed}
+              onClick={() => go('/intelligence/opportunities')}
+            />
+          ) : null}
+          <ShellNavLink
+            label="Engagement"
+            icon={<CalendarOutlined />}
+            active={location.pathname.startsWith('/engagement')}
+            collapsed={navCollapsed}
+            onClick={() => go('/engagement')}
+            tourId="Engagement"
+          />
+          <ShellNavLink
+            label="Workspace"
+            icon={<FolderOpenOutlined />}
+            active={location.pathname.startsWith('/workspace')}
+            collapsed={navCollapsed}
+            onClick={() => go('/workspace')}
+            tourId="Workspace"
+          />
+          <ShellNavLink
+            label="Knowledge & Memory"
+            icon={<DeploymentUnitOutlined />}
+            active={location.pathname.startsWith('/settings/memory')}
+            collapsed={navCollapsed}
+            onClick={() => go('/settings/memory')}
+          />
+        </nav>
+
+        <div className="qa-sidebar-footer">
+          {moreItems.length ? (
+            <ShellNavMenu
+              id="more"
+              label="More"
+              icon={<MoreOutlined />}
+              active={moreActive}
+              collapsed={navCollapsed}
+              open={openMenu === 'more'}
+              onToggle={() => {
+                setSearchOpen(false);
+                setOpenMenu(openMenu === 'more' ? null : 'more');
+              }}
+              items={moreItems}
+              activePath={location.pathname}
+              onPick={go}
+            />
+          ) : null}
+          <ShellNavLink
+            label="Settings"
+            icon={<SettingOutlined />}
+            active={settingsActive}
+            collapsed={navCollapsed}
+            onClick={() => go('/settings')}
+          />
+          <button
+            type="button"
+            className="qa-collapse"
+            onClick={toggleNav}
+            aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+            title={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+          >
+            {navCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </button>
+        </div>
+      </aside>
+
+      {showContextBar ? (
+        <div className="qa-contextbar">
+          <div className="qa-profile-wrap">
+            <button
+              type="button"
+              className="qa-context-client"
+              onClick={() => setOpenMenu(openMenu === 'client' ? null : 'client')}
+              aria-label={`Client scope: ${selectedClient?.name ?? 'All clients'}`}
+            >
+              <span className="qa-context-k">CLIENT</span>
+              <span className="qa-context-v">{selectedClient?.name ?? 'All clients'}</span>
+              <CaretIcon />
+            </button>
+            {openMenu === 'client' ? (
+              <div className="qa-pop qa-client-pop" role="listbox">
+                <button
+                  type="button"
+                  className={`qa-pop-row${!selectedClient ? ' is-current' : ''}`}
+                  onClick={() => {
+                    setSelectedClientId(null);
+                    closeAll();
+                  }}
+                >
+                  <span className="qa-pop-label">All clients</span>
+                  {!selectedClient ? <span className="qa-pop-check">✓</span> : null}
+                </button>
+                {visibleClients.map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedClientId === client.id}
+                    className={`qa-pop-row${selectedClientId === client.id ? ' is-current' : ''}`}
+                    onClick={() => {
+                      setSelectedClientId(client.id);
+                      closeAll();
+                    }}
+                  >
+                    <span className="qa-pop-label">{client.name}</span>
+                    {selectedClientId === client.id ? <span className="qa-pop-check">✓</span> : null}
                   </button>
-                </div>
-              ) : null}
-            </div>
-          </>
-        )}
-      </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <ContextChip label="JURISDICTION" value="Federal" />
+          <ContextChip label="BUDGET YEAR" value={requestFy ? `FY${requestFy}` : '—'} />
+          <span className="qa-context-spacer" />
+          <span className="qa-context-refreshed">
+            {section === 'dashboard' ? refreshedLabel : 'LIVE CONTEXT'}
+          </span>
+        </div>
+      ) : null}
 
-      {openMenu || searchOpen ? <div className="v2-scrim" onClick={closeAll} aria-hidden /> : null}
+      {openMenu || searchOpen ? <div className="qa-scrim" onClick={closeAll} aria-hidden /> : null}
     </div>
   );
 }
 
-/* ── Sub-components ────────────────────────────────────────────────────── */
-
-function TopNavButton({
+function ShellNavLink({
   label,
+  icon,
   active,
+  collapsed,
   onClick,
   tourId,
 }: {
   label: string;
+  icon: ReactNode;
   active: boolean;
+  collapsed: boolean;
   onClick: () => void;
   tourId?: string;
 }) {
   return (
-    <button
-      type="button"
-      className={`v2-nav-item${active ? ' is-active' : ''}`}
-      onClick={onClick}
-    >
-      <span data-tour={tourId}>{label}</span>
-    </button>
+    <div className="qa-nav-wrap">
+      <button
+        type="button"
+        className={`qa-nav-item${active ? ' is-active' : ''}`}
+        onClick={onClick}
+        aria-current={active ? 'page' : undefined}
+        aria-label={collapsed ? label : undefined}
+        title={collapsed ? label : undefined}
+      >
+        <span className="qa-nav-icon" aria-hidden>{icon}</span>
+        <span className="qa-nav-label" data-tour={tourId}>{label}</span>
+      </button>
+    </div>
   );
 }
 
-function NavMenu({
+function ShellNavMenu({
   id,
   label,
+  icon,
   active,
+  collapsed,
   open,
   onToggle,
   items,
-  onPick,
   activePath,
-  quiet = false,
+  onPick,
+  tourId,
 }: {
   id: string;
   label: string;
+  icon: ReactNode;
   active: boolean;
+  collapsed: boolean;
   open: boolean;
   onToggle: () => void;
   items: V2NavLeaf[];
-  onPick: (path?: string) => void;
   activePath: string;
-  quiet?: boolean;
+  onPick: (path?: string) => void;
+  tourId?: string;
 }) {
   if (!items.length) return null;
   return (
-    <div className="v2-nav-menu-wrap">
+    <div className="qa-nav-wrap">
       <button
         type="button"
-        className={`v2-nav-item${active ? ' is-active' : ''}${quiet ? ' is-quiet' : ''}`}
+        className={`qa-nav-item${active ? ' is-active' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={collapsed ? label : undefined}
+        title={collapsed ? label : undefined}
         onClick={onToggle}
       >
-        <span>{label}</span>
-        <CaretIcon />
+        <span className="qa-nav-icon" aria-hidden>{icon}</span>
+        <span className="qa-nav-label" data-tour={tourId}>{label}</span>
+        <span className="qa-nav-caret" aria-hidden><CaretIcon /></span>
       </button>
       {open ? (
-        <div className="v2-pop v2-nav-pop" role="menu">
+        <div className="qa-pop qa-nav-pop" role="menu" aria-label={`${label} navigation`}>
           {items.map((item) => (
             <button
-              key={item.key}
+              key={`${id}-${item.key}`}
               type="button"
               role="menuitem"
-              className={`v2-menu-row${item.path && activePath.startsWith(item.path) ? ' is-current' : ''}`}
+              className={`qa-pop-row${item.path && activePath.startsWith(item.path) ? ' is-current' : ''}`}
               onClick={() => onPick(item.path)}
             >
-              <span className="v2-menu-label">{item.label}</span>
-              {item.tag ? <span className="v2-menu-tag">{item.tag}</span> : null}
+              <span className="qa-pop-label">{item.label}</span>
+              {item.tag ? <span className="qa-pop-tag">{item.tag}</span> : null}
             </button>
           ))}
         </div>
@@ -628,23 +703,12 @@ function NavMenu({
 
 function ContextChip({ label, value }: { label: string; value: string }) {
   return (
-    <span className="v2-context-chip">
-      <span className="v2-context-label">{label}</span>
-      <span className="v2-context-value">{value}</span>
+    <span className="qa-context-chip">
+      <span className="qa-context-k">{label}</span>
+      <span className="qa-context-v">{value}</span>
     </span>
   );
 }
-
-function DataRow({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
-  return (
-    <div className="v2-data-row">
-      <span className="v2-data-k">{k}</span>
-      <span className={strong ? 'v2-data-v is-strong' : 'v2-data-v'}>{v}</span>
-    </div>
-  );
-}
-
-/* ── Route helpers ─────────────────────────────────────────────────────── */
 
 export function sectionFor(pathname: string): V2Section {
   if (pathname === '/') return 'dashboard';
@@ -684,8 +748,6 @@ function formatRefreshTime(timestamp: number): string {
     .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     .toUpperCase();
 }
-
-/* ── Inline icons ──────────────────────────────────────────────────────── */
 
 function SearchIcon({ muted }: { muted?: boolean }) {
   return (
@@ -739,26 +801,6 @@ function CaretIcon() {
       aria-hidden
     >
       <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function ExtIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M15 3h6v6" />
-      <path d="M10 14 21 3" />
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     </svg>
   );
 }

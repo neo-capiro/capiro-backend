@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MeResponse } from '../lib/me.js';
 import { AppShellV2, sectionFor } from './AppShellV2.js';
@@ -105,51 +105,63 @@ const me = {
   features: { strategyPlanner: true },
 } as unknown as MeResponse;
 
-describe('premium AppShellV2 contract', () => {
+describe('Quiet Authority AppShellV2 contract', () => {
   beforeEach(() => {
     mocks.pathname = '/';
     mocks.navigate.mockReset();
     mocks.setSelectedClientId.mockReset();
     mocks.openMeriWorkspaceWindow.mockReset();
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/');
   });
 
-  it('renders the premium top navigation and colored Meri launcher affordance', () => {
+  it('renders the latest left navigation and porcelain top-bar controls', () => {
     render(<AppShellV2 me={me} />);
 
-    expect(screen.getByText('CAPIRO')).toBeInTheDocument();
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Clients')).toBeInTheDocument();
     expect(screen.getByText('Intelligence')).toBeInTheDocument();
     expect(screen.getByText('Program Elements')).toBeInTheDocument();
-    expect(screen.getByText('Funding')).toBeInTheDocument();
+    expect(screen.getByText('Funding Opportunities')).toBeInTheDocument();
     expect(screen.getByText('Engagement')).toBeInTheDocument();
     expect(screen.getByText('Workspace')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open the Meri window' })).toHaveTextContent(
-      'Open Meri',
-    );
+    expect(screen.getByText('Knowledge & Memory')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Global search' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
   });
 
-  it('uses dashboard context chips and never renders the client picker on Home', async () => {
+  it('defaults the dashboard to the collapsed rail and allows an explicit expand', () => {
     render(<AppShellV2 me={me} />);
 
-    expect(screen.getByText('JURISDICTION')).toBeInTheDocument();
-    expect(screen.getByText('Federal')).toBeInTheDocument();
-    expect(screen.getByText('BUDGET YEAR')).toBeInTheDocument();
-    expect(screen.getByText('FY2027')).toBeInTheDocument();
-    expect(screen.getByText('SIGNALS')).toBeInTheDocument();
-    expect(screen.getByText('1 overnight')).toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: 'Expand navigation' });
+    expect(toggle).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Collapse navigation' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('capiro:quiet-authority-nav-collapsed')).toBe('false');
+  });
+
+  it('never renders a client picker on the all-client dashboard and clears hidden scope', async () => {
+    render(<AppShellV2 me={me} />);
+
     expect(screen.queryByText('CLIENT')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Client scope:/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open the Meri window' })).not.toBeInTheDocument();
 
     await waitFor(() => expect(mocks.setSelectedClientId).toHaveBeenCalledWith(null));
   });
 
-  it('keeps the real client scope control on client-specific workflows', () => {
+  it('keeps client context and Meri on client-specific workflows', () => {
     mocks.pathname = '/engagement';
+    window.history.replaceState({}, '', '/engagement');
     render(<AppShellV2 me={me} />);
 
     expect(screen.getByText('CLIENT')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Overland AI/i })).toBeInTheDocument();
-    expect(screen.queryByText('JURISDICTION')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Client scope: Overland AI/i })).toBeInTheDocument();
+    expect(screen.getByText('JURISDICTION')).toBeInTheDocument();
+    expect(screen.getByText('BUDGET YEAR')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open the Meri window' })).toHaveTextContent('Meri');
   });
 
   it('keeps route classification stable for existing shell behavior', () => {
