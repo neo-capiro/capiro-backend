@@ -8,7 +8,10 @@ import { App } from './App.js';
 import { config } from './env.js';
 import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
 import './theme.css';
+// v3 tokens load before the Quiet Authority shell layer so shell rules can
+// resolve --capiro-* if they reference it.
 import './capiro-v3-tokens.css';
+import './components/app-shell-quiet-authority-brand.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

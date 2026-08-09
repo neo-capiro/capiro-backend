@@ -2147,6 +2147,26 @@ jobs:
       # vocabularies — which is why the identity spec now asserts it in the same
       # test as the INBOX_SOURCES literal.
       #
+      # 87/2750 -> 88/2765 -> 88/2782 (2026-08-09, D-71): the contract was
+      # validated against a real capture. No new file this time — 17 tests
+      # ADDED to tango-dibbs.mapper.spec.ts and tango-sbir.mapper.spec.ts,
+      # which run every record an operator captured live (5 per endpoint, all
+      # 5 endpoints) through the actual mappers. This is the first genuine
+      # confirmation these mappers survive contact with the provider, not
+      # merely with our own assumptions about it — see the real fixtures at
+      # src/external/tango/__fixtures__/real-captures/.
+      #
+      # That subdirectory exists because the SIBLING test
+      # ("the fixtures are synthetic" in tango.client.spec.ts) requires every
+      # .json directly under __fixtures__/ to be marked SYNTHETIC, for a real
+      # reason: a captured TENANT'S fixture would freeze private data into the
+      # repo. These captures are public federal procurement data with no
+      # tenant and no secret, so marking them synthetic would itself be a lie
+      # — they live one level deeper instead, which is what keeps that
+      # sibling test's directory scan from ever seeing them. First attempt at
+      # this PR broke that test by dropping the files at the wrong level;
+      # fixed by moving them, not by loosening the assertion.
+      #
       # 87/2750 -> 88/2765: one NEW file,
       # scripts/diag-tango-contract-capture.spec.ts (15 tests), and a path-list
       # entry for it.
@@ -2170,7 +2190,7 @@ jobs:
       # report it MISSING and invite someone to "fix" a mapper that is correct.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2765
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2782
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

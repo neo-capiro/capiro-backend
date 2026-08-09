@@ -1,4 +1,4 @@
-# DIBBS and SBIR/STTR — the REST contract P40–P43 were said to be blocked on
+# DIBBS and SBIR/STTR — the REST contract P40–P43 were said to be blocked on, now CONTRACT-VALIDATED
 
 **Status: P40–P43 are NOT blocked on the provider.** This document exists because
 this program recorded the opposite, in three places, for a day.
@@ -149,18 +149,76 @@ made; that stopped being true for DIBBS on 2026-08-08.
 
 | Dataset | Live calls | What that established |
 |---|---|---|
-| `/api/dibbs/` | **One** — P17's operator probe, 2026-08-08 (decision-log D-65) | The **pagination envelope only**. The probe calls through `TangoDibbsClient`, which throws when a 200 carries no `results` array, so a successful probe proves the envelope is `results`-shaped. It captures **no response bodies**, so field types, null semantics and date formats remain readings of published names. |
-| `/api/sbir/` | **None** | Nothing. Every line in the SBIR section above is a reading of the documentation. |
+| `/api/dibbs/` | Entitlement probe (2026-08-08, D-65) **+ a 5-record-per-endpoint content capture (2026-08-09, D-71)** | Entitlement, envelope, **and now real field types, null semantics and date formats** — see Findings below. |
+| `/api/sbir/` | Entitlement probe (2026-08-09) **+ a 5-record-per-endpoint content capture (2026-08-09, D-71)**, both first-ever | Same as DIBBS. This dataset had **never been called at all** before 2026-08-09. |
 
-Until P42 part 1 there was no way to change the SBIR row: the probe reported
-`sbir_sttr: not_attempted / no_rest_client_wired`, which is a fact about
-Capiro's code rather than about the provider (D-64), and P42's own plan gates
-the phase on "P17 must show access". A gate nothing can satisfy is not a gate.
-`TangoSbirClient` and its probe wiring exist so an **operator** run can answer
-it — per plan §4.6 a key must never pass through an agent session, so no agent
-can close this row.
+Both rows moved the same way: an entitlement probe answered "can we reach it,"
+then a separate **contract-capture** run (`scripts/diag-tango-contract-capture.ts`,
+operator-only per plan §4.6) fetched five real records per endpoint and recorded
+their actual shape. See decision-log D-71 for the full account, and
+`apps/api/src/external/tango/__fixtures__/real-captures/*-contract-capture-2026-08-09.json`
+for the verbatim captures — both mapper spec files now run every record in
+those fixtures through the real mappers.
 
-Note the asymmetry that survives even a successful SBIR probe: it would confirm
-the envelope and entitlement, and still tell you nothing about field types. The
-DIBBS row is the precedent — "one live call" is much less than "the contract is
-validated," and P40's full contract validation remains open.
+**What this validation does NOT claim.** Five records is not exhaustive: no
+observed value approached DIBBS's NUMERIC(18,4)/(18,2) ceiling, no RFQ detail
+endpoint was called (only list), and a five-record sample cannot rule out a
+rare field combination. Treat this as "the common shape is confirmed," not "every
+edge case is covered."
+
+## Findings from the 2026-08-09 capture
+
+Two of the automated capture's five flags were **false positives in the capture
+tool itself**, not contract gaps — recorded here so the correction is not lost:
+`solicitation_formatted` reported "missing" because the tool's field list
+incorrectly included a field this very document already marks
+"Detail adds" (i.e. list-endpoint absence is the CORRECT behaviour), and
+`total_contract_price_text` reported "undocumented" because the tool's list
+omitted a field this document already lists on line 82-83. Both fixed in the
+capture script.
+
+The findings that are real, none of which required a code change — every one
+was already handled correctly by existing coercions:
+
+1. **`delivery_order_counter` arrives as a STRING** (`"53883"`), not a JSON
+   number, despite backing an `INTEGER` column. `int()` already coerces a
+   numeric string via `Number()`, so this was a confirmation, not a bug — but
+   it is now pinned as a fixture-based regression test specifically so nobody
+   "simplifies" `int()` into a bare type check and silently starts dropping
+   every real delivery-order counter this provider sends.
+2. **`total_contract_price` and RFQ `quantity` arrive as native JSON numbers**,
+   never as the exact-digit strings `decimalString()`'s own doc comment is
+   written to protect. That protection is real for a string input; nothing in
+   this capture exercised it, because the provider's own JSON encoder had
+   already round-tripped the value through a float before this code saw it.
+   Nothing downstream of a JSON parse can recover a digit the provider's own
+   encoder already lost — recorded, not fixed.
+3. **`sol_download_url` (SBIR cycles) arrives as an empty string `""`**, never
+   null, when the provider has none. `str()` already collapses `''` to `null`;
+   without that, a card would render `<a href="">Download</a>` — a link to
+   nowhere that still looks like a working one.
+4. **`solicitation_status` is NOT one vocabulary shared between the two SBIR
+   endpoints.** Topics report `"Open"` (title case, `26.BZ`'s five topics all
+   agreed); solicitations/cycles report `"active"` / `"archived"` (lower case).
+   `isTopicClosed()` in `sbir-relevance.ts` already lowercases before
+   comparing against `{closed, archived, expired}`, so it is robust to either
+   spelling, and `"archived"` being a real value in the wild confirms that word
+   belonged in the closed-set rather than being a guess. But the two fields
+   sharing a name across endpoints does **not** mean they share a value set —
+   a future comparison against a cycle's own status must not assume "Open"/
+   "Closed" casing.
+5. **Neither `topic_id` nor `solicitation_id` is a uuid** — confirmed, not
+   assumed (`sbir-topic-f98a90b4...`, `dsip-solicitation-7c695157...`). This
+   is exactly what every "never reach for `uuid`" comment in the SBIR mapper
+   and client was written to anticipate.
+6. **`document_url` was null on all 5 captured RFPs, populated on all 5
+   captured RFQs.** Consistent with RFPs carrying their document under
+   `tech_docs_url` instead — five records cannot prove this is never
+   populated, so the mapper still reads it unconditionally for both.
+7. **No envelope mismatch on any of the five endpoints.** Every response was
+   `count`/`next`/`results`-shaped. First confirmation of the SBIR envelope
+   against a real response; the DIBBS envelope had already been confirmed by
+   P17's probe.
+8. **Every date field observed was a bare `YYYY-MM-DD` string**, on both
+   datasets, across all five endpoints — the exact branch `dateOnly()`'s
+   date-only regex was written for.
