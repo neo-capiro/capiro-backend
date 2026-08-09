@@ -195,14 +195,41 @@ jobs:
             20260904010000_outcome_event_funding_opportunity \
             20260905010000_tango_webhook_deliveries \
             20260906010000_tango_event_outbox \
-            20260907010000_tango_event_outbox_per_event
+            20260907010000_tango_event_outbox_per_event \
+            20260908010000_tango_dibbs \
+            20260909010000_tango_sbir_sttr
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
-              echo "A migration stamped earlier than an already-applied one is never run."
+              echo "Most likely it is absent from apps/api/prisma/migrations, or its"
+              echo "directory name does not match the name asserted here."
               exit 1
             fi
           done
+
+      # TWO CORRECTIONS TO THE STEP ABOVE, both made in P42 and both measured.
+      #
+      # 1. 20260908010000_tango_dibbs was missing from the list. P40 shipped a
+      #    migration and did not add it here, so the one gate that proves a
+      #    migration actually ran did not cover it. Added, along with P42's.
+      #
+      # 2. The old failure message said "A migration stamped earlier than an
+      #    already-applied one is never run." THAT IS NOT TRUE of
+      #    `prisma migrate deploy` (5.22.0), and it matters because it would
+      #    push someone into renumbering a correct migration.
+      #
+      #    Measured rather than reasoned about: a clean database was migrated
+      #    with 20260909010000_tango_sbir_sttr REMOVED from the directory,
+      #    reaching 20261001011000_tango_subaward_reobservation_freshness. The
+      #    migration was then restored and `migrate deploy` run again. It
+      #    applied, created both tables, and landed in _prisma_migrations with a
+      #    finished_at LATER than the 20261001 row. deploy applies whatever is
+      #    in the directory and not in the ledger; name order decides sequence
+      #    among pending migrations, not eligibility.
+      #
+      #    The guard is still worth having — `migrate deploy` exits 0 on a
+      #    no-op, so a migration missing from the directory entirely would pass
+      #    the step above unnoticed. Only the explanation was wrong.
 
       # Schema-vs-database agreement, SCOPED TO THIS FEATURE'S OBJECTS.
       #
@@ -2014,9 +2041,39 @@ jobs:
       # not an entitlement answer. A gate nothing can satisfy is not a gate.
       # The second test pins that wiring SBIR does not change what the report
       # says about DIBBS, which is how a phantom `supported` would appear.
+      #
+      # 84/2643 -> 85/2672 after P42 part 2: one NEW file,
+      # tango-sbir.mapper.spec.ts (29 tests). Again no path-list change — the
+      # spec sits under the already-enumerated src/external/tango/.
+      #
+      # The mappers are written against DOCUMENTATION, not a response, so the
+      # tests pin the READING rather than the provider. What they do carry is
+      # the rules that stay true whatever the live shape turns out to be:
+      #
+      #  - Neither mapper reaches for `uuid`. Topics key on `topic_id` and
+      #    solicitations on `solicitation_id`; a mapper that reached for the
+      #    DIBBS key would return null for EVERY record and report a clean
+      #    "0 mapped", which is the quiet failure this program keeps meeting.
+      #    Asserted directly: a record carrying only `uuid` maps to null.
+      #  - `program` keeps the provider's spelling. It is the SBIR/STTR
+      #    discriminator, and the contract documents the field but NOT its value
+      #    set — so normalising would invent a vocabulary and silently rewrite a
+      #    real value on first contact. The column carries no CHECK for the same
+      #    reason, which is the opposite call from DIBBS `document_type` where
+      #    the documentation does enumerate the two values.
+      #  - Absence is null, never a default, and `out_of_cycle` missing is
+      #    UNKNOWN rather than false.
+      #  - A SOURCE SCAN pins the rule the type system cannot express: P42's
+      #    plan names phase, description, DSIP parent and a source
+      #    opportunity/grant link, and NONE has a documented field on either
+      #    endpoint. The scan strips comments first — those comments explain
+      #    exactly these absences, so a naive substring match would hit its own
+      #    documentation, the trap P49's "never calls the provider" test hit.
+      #    A second assertion allows only documented raw keys, so a future edit
+      #    cannot quietly start reading an undocumented one.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 84 2643
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 85 2672
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

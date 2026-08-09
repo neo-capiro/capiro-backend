@@ -2244,3 +2244,58 @@ Worth stating plainly, because a `supported` probe row is easy to over-read: **P
 `supported` DIBBS row since 2026-08-08 and its full contract validation is still open.** One live
 call establishes entitlement and the envelope. It establishes no field type, no null semantic and no
 date format. A successful SBIR probe will be worth exactly as much.
+
+## D-69 · 2026-08-08 · A false claim living in an error message nobody ever sees
+
+`funding-opportunities-ci.yml` asserts that each of this program's migrations appears in the
+`migrate deploy` log. When one does not, it printed:
+
+> A migration stamped earlier than an already-applied one is never run.
+
+**That is not true of `prisma migrate deploy` (5.22.0)**, and P42's migration is stamped
+`20260909010000` while `main` already carries `20261001010000_tango_subaward_intelligence` and
+`20261001011000_tango_subaward_reobservation_freshness` — so if the claim held, this phase's tables
+would never appear on any environment already past that point.
+
+### Measured, not reasoned about
+
+A disposable Postgres was migrated with `20260909010000_tango_sbir_sttr` REMOVED from the migrations
+directory, reaching `20261001011000_tango_subaward_reobservation_freshness`; `to_regclass` confirmed
+both `tango_sbir_*` tables absent. The migration was then restored and `migrate deploy` run again:
+
+```
+The following migration(s) have been applied:
+  └─ 20260909010000_tango_sbir_sttr/
+
+20261001011000_tango_subaward_reobservation_freshness  applied_at=2026-08-09 02:37:21+00
+20260909010000_tango_sbir_sttr                         applied_at=2026-08-09 02:37:37+00
+```
+
+Both tables were created. `deploy` applies whatever is in the directory and not in the ledger; name
+order decides SEQUENCE among pending migrations, not ELIGIBILITY.
+
+### Why a wrong sentence survived here specifically
+
+**It lives on the failure path.** The assertion loop passes on every green run, so the message is
+printed approximately never — and an explanation that is never displayed is never questioned. Tests
+get run; error text gets read once, when it is written.
+
+Same family as D-62 and D-64, one layer further out: not a claim wider than its evidence, but a
+claim with no evidence at all, parked somewhere the repo's own feedback loops cannot reach. Worth
+looking for elsewhere — this repo puts a lot of reasoning in strings.
+
+The guard itself is kept, with a corrected message: `migrate deploy` exits 0 on a no-op, so a
+migration missing from the directory entirely would still pass unnoticed. Only the explanation was
+wrong.
+
+### The list had also stopped covering the newest thing
+
+`20260908010000_tango_dibbs` was absent from that assertion list. P40 shipped a migration and did
+not add it, so the one gate that proves a migration actually ran did not cover the most recent one —
+and nothing failed, because the gate's coverage is a hand-maintained list rather than a derivation.
+Both it and P42's are added.
+
+**A hand-maintained list of things to check silently stops covering the newest thing**, which is the
+one most likely to be wrong. The durable fix is deriving the list from the directory; that is a
+bigger change than this phase should make to a shared workflow, so it is recorded here rather than
+done.
