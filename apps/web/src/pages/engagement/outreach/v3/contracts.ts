@@ -67,6 +67,12 @@ export interface OutreachV3ContextLocator {
   [key: string]: unknown;
 }
 
+export interface OutreachV3ContextSelection {
+  locator: OutreachV3ContextLocator;
+  contextClass: OutreachV3ContextClass;
+  scope: OutreachV3ContextScope;
+}
+
 export interface OutreachV3ResolvedContextRef {
   contextKey: string;
   locator: OutreachV3ContextLocator;
@@ -159,7 +165,7 @@ export interface OutreachV3SessionRecord {
   id: string;
   title: string | null;
   status: 'active' | 'archived' | string;
-  currentStateVersion: number;
+  currentStateVersion?: number;
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
@@ -204,11 +210,11 @@ export interface OutreachV3Proposal {
 export interface OutreachV3Conversation {
   id: string;
   sessionId: string;
-  provider: string;
-  stateMode: string;
-  model: string;
-  reasoningEffort: string;
-  status: string;
+  provider?: string;
+  stateMode?: string;
+  model?: string;
+  reasoningEffort?: string;
+  status?: string;
   currentStateVersion?: number;
   createdAt?: string;
 }
@@ -238,9 +244,14 @@ export interface OutreachV3ReasoningTurnResult {
 
 export interface CapabilityResult<T> {
   capability: string;
-  version: number;
+  schemaVersion?: number;
+  version?: number;
   data: T;
   provenance: Array<Record<string, unknown>>;
+  exclusions?: Array<Record<string, unknown>>;
+  scope?: Record<string, unknown>;
+  freshness?: Record<string, unknown>;
+  authorization?: Record<string, unknown>;
   generatedAt?: string;
   [key: string]: unknown;
 }
@@ -302,6 +313,42 @@ export interface OutreachV3TargetProfileResponse {
   };
   [key: string]: unknown;
 }
+
+export interface OutreachV3MemoryCandidate {
+  title: string;
+  summary: string;
+  memoryType: string;
+  clientId: string | null;
+  verificationClass: 'authoritative' | 'first_party' | 'derived' | 'unverified';
+  sensitivity: 'normal' | 'confidential' | 'restricted';
+  instructionsAllowed: boolean;
+  lastVerifiedAt: string;
+  selection: OutreachV3ContextSelection;
+}
+
+export interface OutreachV3MemorySearchData {
+  candidates: OutreachV3MemoryCandidate[];
+  totalConsidered: number;
+}
+
+export interface OutreachV3GovernmentCandidate {
+  category: string;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  date: string | null;
+  href: string | null;
+  selection: OutreachV3ContextSelection;
+}
+
+export interface OutreachV3GovernmentSearchData {
+  candidates: OutreachV3GovernmentCandidate[];
+  byCategory: Record<string, number>;
+}
+
+export type OutreachV3ContextCandidate =
+  | ({ sourceKind: 'memory' } & OutreachV3MemoryCandidate)
+  | ({ sourceKind: 'government' } & OutreachV3GovernmentCandidate);
 
 export interface OutreachV3ContextReviewResponse {
   sessionId: string;
