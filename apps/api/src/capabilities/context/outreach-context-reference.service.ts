@@ -191,7 +191,9 @@ export class OutreachContextReferenceService {
     if (!row || (row.visibility === 'user' && row.owner_user_id !== ctx.userId)) {
       throw contextNotFound();
     }
-    if (locator.clientId !== null && row.client_id !== locator.clientId) throw contextNotFound();
+    // clientId is an exact scope locator, never a wildcard. null means the
+    // memory item itself must be tenant-neutral.
+    if (row.client_id !== locator.clientId) throw contextNotFound();
     if (row.client_id && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.client_id))) {
       throw contextNotFound();
     }
@@ -219,7 +221,7 @@ export class OutreachContextReferenceService {
   ): Promise<ResolvedSourceContext> {
     if (locator.recordType === 'client') {
       const client = await this.authorizeClient(tx, ctx, locator.id);
-      if (locator.clientId !== null && locator.clientId !== client.id) throw contextNotFound();
+      if (locator.clientId !== client.id) throw contextNotFound();
       return {
         title: client.name,
         summary: boundedSummary([client.description, client.website, client.sectorTag]),
@@ -252,9 +254,7 @@ export class OutreachContextReferenceService {
           updatedAt: true,
         },
       });
-      if (!row || (locator.clientId !== null && row.clientId !== locator.clientId)) {
-        throw contextNotFound();
-      }
+      if (!row || row.clientId !== locator.clientId) throw contextNotFound();
       if (row.clientId) await this.authorizeClient(tx, ctx, row.clientId);
       return {
         title: row.subject,
@@ -286,9 +286,7 @@ export class OutreachContextReferenceService {
         updatedAt: true,
       },
     });
-    if (!row || (locator.clientId !== null && row.clientId !== locator.clientId)) {
-      throw contextNotFound();
-    }
+    if (!row || row.clientId !== locator.clientId) throw contextNotFound();
     if (row.clientId) await this.authorizeClient(tx, ctx, row.clientId);
     return {
       title: row.title,
@@ -322,6 +320,7 @@ export class OutreachContextReferenceService {
       },
       select: {
         clientId: true,
+        meetingId: true,
         fileName: true,
         contentType: true,
         source: true,
@@ -335,10 +334,19 @@ export class OutreachContextReferenceService {
         createdAt: true,
       },
     });
-    if (!row || (locator.clientId !== null && row.clientId !== locator.clientId)) {
-      throw contextNotFound();
-    }
+    if (!row || row.clientId !== locator.clientId) throw contextNotFound();
     if (row.clientId) await this.authorizeClient(tx, ctx, row.clientId);
+    if (row.meetingId) {
+      const visibleMeeting = await tx.meeting.findFirst({
+        where: {
+          id: row.meetingId,
+          tenantId: ctx.tenantId,
+          OR: [{ visibility: 'shared' }, { createdByUserId: ctx.userId }],
+        },
+        select: { id: true },
+      });
+      if (!visibleMeeting) throw contextNotFound();
+    }
     return {
       title: row.fileName,
       summary: boundedSummary([
@@ -636,7 +644,12 @@ async function governmentRecord(
         select: { title: true, postedDate: true },
       });
       return row
-        ? gov(row.title, ['Regulatory docket', dateLabel(row.postedDate)], 'regulations.gov', row.postedDate)
+        ? gov(
+            row.title,
+            ['Regulatory docket', dateLabel(row.postedDate)],
+            'regulations.gov',
+            row.postedDate,
+          )
         : null;
     }
     case 'intel_article': {
