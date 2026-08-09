@@ -1,5 +1,6 @@
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import type { TenantContext } from '@capiro/shared';
 import { OUTREACH_IMPLEMENTED_COMMAND_TYPES } from '../src/outreach-v3/state/outreach-command.contract.js';
 import { OpenAiOutreachReasoningProvider } from '../src/outreach-v3/reasoning/openai-outreach-reasoning.provider.js';
@@ -123,7 +124,7 @@ for (const testCase of buildCases()) {
 
     if (testCase.expectedCommand) {
       explicitTotal += 1;
-      if (commandTypes.includes(testCase.expectedCommand as never)) explicitCorrect += 1;
+      if (commandTypes.some((type) => type === testCase.expectedCommand)) explicitCorrect += 1;
     }
     if (testCase.kind === 'ambiguous') {
       if (result.openQuestions.length > 0 || result.proposedCommands.length === 0) ambiguousSafe += 1;
@@ -152,7 +153,10 @@ for (const testCase of buildCases()) {
       id: testCase.id,
       kind: testCase.kind,
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      errorCode:
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code: unknown }).code)
+          : 'unknown_error',
     });
   }
 }
@@ -202,7 +206,11 @@ const artifact = {
 };
 
 const outputPath = process.env.OUTREACH_V3_PHASE3_EVAL_OUTPUT;
-if (outputPath) writeFileSync(resolve(outputPath), `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+if (outputPath) {
+  const absolute = resolve(outputPath);
+  mkdirSync(dirname(absolute), { recursive: true });
+  writeFileSync(absolute, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+}
 console.log(JSON.stringify({ thresholds, scores, pass }, null, 2));
 if (!pass) {
   console.error('OUTREACH_V3_PHASE3_LIVE_EVAL_REJECTED');
@@ -211,11 +219,5 @@ if (!pass) {
 console.log('OUTREACH_V3_PHASE3_LIVE_EVAL_APPROVED');
 
 function hashText(text: string): string {
-  // Keep the eval artifact free of full model-visible campaign/advice bodies.
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `fnv1a_${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return createHash('sha256').update(text, 'utf8').digest('hex');
 }
