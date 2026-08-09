@@ -729,24 +729,62 @@ export function LiveHearingRoomPage() {
       className="lw-root redesign"
       style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
     >
-      <Space style={{ marginBottom: 12 }} wrap>
-        <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => void goBack()}>
-          Back
-        </Button>
-        <Title level={4} style={{ margin: 0 }}>
-          <AudioOutlined /> Live Hearing Room
-        </Title>
-        <Badge
-          status={
-            phase === 'capturing'
-              ? 'processing'
-              : phase === 'idle' || phase === 'ended'
-                ? 'default'
-                : 'warning'
-          }
-          text={phase === 'capturing' ? 'Transcribing' : phase.replace('_', ' ')}
-        />
-      </Space>
+      <div className="lw-room-head">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            size="small"
+            onClick={() => void goBack()}
+            style={{ marginBottom: 8 }}
+          >
+            Back
+          </Button>
+          <p className="pg-eyebrow" style={{ marginBottom: 6 }}>
+            {[session.data?.sourceType, session.data?.status].filter(Boolean).join(' · ') ||
+              'Live session'}
+          </p>
+          <h1 className="pg-title" style={{ fontSize: 22, lineHeight: '28px' }}>
+            <AudioOutlined /> {session.data?.title ?? 'Live Hearing Room'}
+          </h1>
+        </div>
+        <span className={captureActive ? 'lw-room-live' : 'lw-room-live off'}>
+          <span className="pdot" />
+          {phase === 'capturing' ? 'Transcribing' : phase.replace('_', ' ')}
+        </span>
+      </div>
+
+      {/* Only signals the client actually observes. The mockup also showed audio
+          health and a transcript-latency figure; neither is measured anywhere. */}
+      <div className="lw-health">
+        <div className="lw-health-cell">
+          <div className="lw-health-k">Source</div>
+          <div className="lw-health-v">
+            {phase === 'idle' || phase === 'ended' ? 'Disconnected' : 'Connected'}
+          </div>
+        </div>
+        <div className="lw-health-cell">
+          <div className="lw-health-k">Capture</div>
+          <div className="lw-health-v">{captureActive ? 'This tab' : 'Not capturing'}</div>
+        </div>
+        <div className="lw-health-cell">
+          <div className="lw-health-k">Uploaded</div>
+          <div className="lw-health-v">{(bytesSent / 1024 / 1024).toFixed(2)} MB</div>
+        </div>
+        <div className="lw-health-cell">
+          <div className="lw-health-k">Last final</div>
+          <div className="lw-health-v">
+            {lastTranscriptAt
+              ? `${Math.max(0, Math.round((Date.now() - lastTranscriptAt) / 1000))}s ago`
+              : 'None yet'}
+          </div>
+        </div>
+        {session.data?.watchlistMatchCount != null && (
+          <div className="lw-health-cell">
+            <div className="lw-health-k">Watchlist hits</div>
+            <div className="lw-health-v">{session.data.watchlistMatchCount}</div>
+          </div>
+        )}
+      </div>
 
       {error ? (
         <Alert
@@ -803,8 +841,10 @@ export function LiveHearingRoomPage() {
         </Space>
       )}
 
+      <div className="lw-room-grid">
+        <div className="lw-room-col">
       {(embeddableUrl || referenceUrl) && (
-        <Card size="small" title="Hearing source" style={{ marginBottom: 12, maxWidth: 760 }}>
+        <Card size="small" title="Hearing source">
           {embeddableUrl ? (
             <>
               <MediaPlayer src={embeddableUrl} />
@@ -853,7 +893,7 @@ export function LiveHearingRoomPage() {
         </Card>
       )}
 
-      <Card size="small" title="Capture" style={{ marginBottom: 12, maxWidth: 760 }}>
+      <Card size="small" title="Capture">
         <Space direction="vertical" size={6}>
           <Tooltip title={phase !== 'connected' ? 'Connect first.' : undefined}>
             <span>
@@ -881,8 +921,10 @@ export function LiveHearingRoomPage() {
         </Space>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16 }}>
-        <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
+        </div>
+
+        <div className="lw-room-col">
+        <Card title="Live transcript" size="small" style={{ minHeight: 420 }}>
           {transcript.isLoading && segments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Spin />
@@ -909,28 +951,28 @@ export function LiveHearingRoomPage() {
           )}
         </Card>
 
-        <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
+        </div>
+
+        <div className="lw-room-col intel">
+        <Card title="Live intelligence" size="small" style={{ minHeight: 420 }}>
           {cards.length === 0 ? (
             <Empty description="Relevant moments will appear here." />
           ) : (
-            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 560, overflowY: 'auto', margin: '-12px -12px -12px' }}>
               {cards.map((c) => (
-                <Card key={c.id} size="small" style={{ marginBottom: 8 }}>
-                  <Space direction="vertical" size={2}>
-                    <Tag color={cardColor[c.cardType] ?? 'default'}>{c.cardType}</Tag>
-                    <Text strong>{c.title}</Text>
-                    {c.body && <Text type="secondary">{c.body}</Text>}
-                    {c.startMs != null && (
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        [{Math.floor(c.startMs / 1000)}s]
-                      </Text>
-                    )}
-                  </Space>
-                </Card>
+                <div className="lw-icard" key={c.id}>
+                  <Tag color={cardColor[c.cardType] ?? 'default'}>{c.cardType}</Tag>
+                  <div className="lw-icard-title">{c.title}</div>
+                  {c.body && <div className="lw-icard-body">{c.body}</div>}
+                  {c.startMs != null && (
+                    <div className="lw-icard-at">[{Math.floor(c.startMs / 1000)}s]</div>
+                  )}
+                </div>
               ))}
             </div>
           )}
         </Card>
+        </div>
       </div>
 
       {recapOpen && (

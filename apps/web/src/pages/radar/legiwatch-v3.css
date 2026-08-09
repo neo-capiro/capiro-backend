@@ -416,3 +416,146 @@
     margin-inline: -16px;
   }
 }
+
+/* ── Live hearing room (cockpit) ─────────────────────────────
+   Figma node 395:29. Three columns: source+capture, transcript,
+   live intelligence.
+
+   Deliberately NOT built, for want of any backing data: the moment
+   waveform (no amplitude series exists), the matched-clients panel
+   (a session is scoped to one client and the watchlist-match card
+   carries a count with no client identity), the ACTIONS/ENTITIES
+   tabs (no live action-rule or entity-extraction path), per-segment
+   watchlist-term chips (matches are stored with a startMs but no
+   endpoint returns them per segment), and the audio-health and
+   transcript-latency readouts (neither is measured). */
+.lw-root .lw-room-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lw-root .lw-room-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--capiro-control-height-compact);
+  padding: 0 12px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-control);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+
+.lw-root .lw-room-live .pdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-room-live.off .pdot { background: var(--capiro-color-border-strong); }
+
+/* Health strip: only signals the client actually observes. */
+.lw-root .lw-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+  overflow: hidden;
+}
+
+.lw-root .lw-health-cell {
+  flex: 1 1 auto;
+  min-width: 150px;
+  padding: 9px 13px;
+  border-right: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-health-cell:last-child { border-right: 0; }
+
+.lw-root .lw-health-k {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-health-v {
+  margin-top: 3px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-room-grid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.lw-root .lw-room-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Intelligence card: the card taxonomy is an LLM free-text cardType, so the
+   tone comes from a lookup that must degrade to neutral on an unknown value. */
+.lw-root .lw-icard {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-icard:last-child { border-bottom: 0; }
+
+.lw-root .lw-icard-title {
+  margin-top: 7px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-icard-body {
+  margin-top: 4px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .lw-icard-at {
+  margin-top: 5px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  color: var(--capiro-color-text-muted);
+}
+
+@media (max-width: 1240px) {
+  .lw-root .lw-room-grid { grid-template-columns: 300px minmax(0, 1fr); }
+  .lw-root .lw-room-col.intel { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .lw-root .lw-room-grid { grid-template-columns: 1fr; }
+  .lw-root .lw-room-col.intel { grid-column: auto; }
+}
