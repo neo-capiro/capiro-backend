@@ -25,6 +25,12 @@ export interface TargetProfileFactV1 {
   usableForPersonalization: boolean;
 }
 
+export interface TargetProfileUnavailableSectionV1 {
+  status: 'available' | 'limited' | 'not_loaded' | 'not_available' | 'restricted';
+  reason: string | null;
+  values: string[];
+}
+
 export interface TargetProfileDataV1 {
   target: OutreachResolvedTargetRefV1;
   identity: {
@@ -47,10 +53,41 @@ export interface TargetProfileDataV1 {
     lastContactAt: string | null;
     notesAvailable: boolean;
     ownerLabel: string | null;
+    openAsks: TargetProfileUnavailableSectionV1;
+    commitments: TargetProfileUnavailableSectionV1;
+  };
+  positioning: {
+    knownInterests: TargetProfileUnavailableSectionV1;
+    knownObjections: TargetProfileUnavailableSectionV1;
+    preferredApproach: TargetProfileUnavailableSectionV1;
+    publicPositions: TargetProfileUnavailableSectionV1;
+  };
+  governmentNexus: {
+    districtState: TargetProfileUnavailableSectionV1;
+    relevantBills: TargetProfileUnavailableSectionV1;
+    relevantProgramElements: TargetProfileUnavailableSectionV1;
+    fundingInterests: TargetProfileUnavailableSectionV1;
   };
   personalizationFacts: TargetProfileFactV1[];
+  personalizationPolicy: {
+    approvedFactCodes: string[];
+    prohibitedCategories: string[];
+  };
+  dataQuality: {
+    sourceSystem: string;
+    sourceVersion: string | null;
+    lastVerifiedAt: string | null;
+    staleFields: string[];
+    disputedFields: string[];
+    conflictingFields: string[];
+  };
   warnings: Array<{
-    code: 'ROLE_HISTORICAL' | 'ROLE_UNKNOWN' | 'EMAIL_MISSING' | 'PROFILE_LIMITED';
+    code:
+      | 'ROLE_HISTORICAL'
+      | 'ROLE_UNKNOWN'
+      | 'EMAIL_MISSING'
+      | 'EMAIL_INVALID'
+      | 'PROFILE_LIMITED';
     message: string;
   }>;
   restrictedCategories: string[];
@@ -82,7 +119,7 @@ export class GetTargetProfileCapability {
     return {
       name: 'get_target_profile',
       description:
-        'Read a source-aware target profile with safe personalization facts and explicit freshness warnings.',
+        'Read a source-aware government-affairs target profile with safe personalization facts, explicit unavailable sections and freshness warnings.',
       version: 1,
       readOnly: true,
       riskClass: 'read',
@@ -113,16 +150,25 @@ export class GetTargetProfileCapability {
       );
     }
 
-    const metadata = await this.loadRelationshipMetadata(ctx, target.locator);
+    const relationship = await this.loadRelationshipMetadata(ctx, target.locator);
     const facts = safeFacts(target);
+    const prohibitedCategories = [
+      'unscoped relationship note bodies',
+      'private meeting-note bodies',
+      'private email bodies',
+      'sensitive biographical attributes',
+      'unverified user-supplied notes',
+    ];
     const warnings: TargetProfileDataV1['warnings'] = [];
     if (target.roleStatus === 'historical') {
       warnings.push({ code: 'ROLE_HISTORICAL', message: 'The source indicates this role is historical.' });
     } else if (target.roleStatus === 'unknown') {
       warnings.push({ code: 'ROLE_UNKNOWN', message: 'The current role has not been independently verified.' });
     }
-    if (target.emailStatus !== 'available') {
+    if (target.emailStatus === 'missing') {
       warnings.push({ code: 'EMAIL_MISSING', message: 'No usable direct email is currently available.' });
+    } else if (target.emailStatus === 'invalid') {
+      warnings.push({ code: 'EMAIL_INVALID', message: 'The available email does not pass address validation.' });
     }
     if (target.profileStatus !== 'complete') {
       warnings.push({ code: 'PROFILE_LIMITED', message: 'Only a limited target profile is available.' });
@@ -150,15 +196,67 @@ export class GetTargetProfileCapability {
           emailStatus: target.emailStatus,
         },
         jurisdiction: target.jurisdiction,
-        relationshipMetadata: metadata,
+        relationshipMetadata: {
+          ...relationship,
+          openAsks: unavailable(
+            'not_loaded',
+            'Use analyze_relationships with an authorized client scope to inspect open asks.',
+          ),
+          commitments: unavailable(
+            'not_loaded',
+            'Use analyze_relationships with an authorized client scope to inspect commitments.',
+          ),
+        },
+        positioning: {
+          knownInterests: target.jurisdiction.issueAreas.length
+            ? available(target.jurisdiction.issueAreas)
+            : unavailable('not_available', 'No verified issue portfolio is present in the target source.'),
+          knownObjections: unavailable(
+            'not_loaded',
+            'Known objections require governed target-specific context and are not inferred from role data.',
+          ),
+          preferredApproach: unavailable(
+            'not_loaded',
+            'Preferred approach requires governed relationship context and is not inferred.',
+          ),
+          publicPositions: unavailable(
+            'not_loaded',
+            'Public-position research is a separate government-research capability.',
+          ),
+        },
+        governmentNexus: {
+          districtState: districtStateSection(target),
+          relevantBills: unavailable(
+            'not_loaded',
+            'Relevant bills require a source-backed government-research query.',
+          ),
+          relevantProgramElements: unavailable(
+            'not_loaded',
+            'Program Element relevance requires a source-backed intelligence query.',
+          ),
+          fundingInterests: unavailable(
+            'not_loaded',
+            'Funding interests require source-backed appropriations, grants or program evidence.',
+          ),
+        },
         personalizationFacts: facts,
+        personalizationPolicy: {
+          approvedFactCodes: facts
+            .filter((fact) => fact.usableForPersonalization)
+            .map((fact) => fact.code)
+            .sort(compare),
+          prohibitedCategories,
+        },
+        dataQuality: {
+          sourceSystem: target.sourceSnapshot.system,
+          sourceVersion: target.sourceSnapshot.version,
+          lastVerifiedAt: target.sourceSnapshot.lastVerifiedAt,
+          staleFields: target.roleStatus === 'historical' ? ['role', 'title', 'organization'] : [],
+          disputedFields: [],
+          conflictingFields: [],
+        },
         warnings,
-        restrictedCategories: [
-          'unscoped relationship note bodies',
-          'private meeting-note bodies',
-          'private email bodies',
-          'sensitive biographical attributes',
-        ],
+        restrictedCategories: prohibitedCategories,
       },
       provenance: [
         {
@@ -181,7 +279,12 @@ export class GetTargetProfileCapability {
         {
           category: 'relationship_content',
           reasonCode: 'requires_governed_context_phase',
-          count: metadata.notesAvailable ? 1 : 0,
+          count: relationship.notesAvailable ? 1 : 0,
+        },
+        {
+          category: 'government_research',
+          reasonCode: 'requires_explicit_source_backed_query',
+          count: 4,
         },
       ],
       scope: { tenantId: ctx.tenantId, clientId: target.clientId },
@@ -191,8 +294,8 @@ export class GetTargetProfileCapability {
         reasons: warnings.map((warning) => warning.code),
       },
       authorization: {
-        filtered: metadata.notesAvailable,
-        restrictedCount: metadata.notesAvailable ? 1 : 0,
+        filtered: relationship.notesAvailable,
+        restrictedCount: relationship.notesAvailable ? 1 : 0,
       },
     };
   }
@@ -200,7 +303,7 @@ export class GetTargetProfileCapability {
   private async loadRelationshipMetadata(
     ctx: AuthorizedCapabilityContext,
     locator: OutreachTargetLocatorV1,
-  ): Promise<TargetProfileDataV1['relationshipMetadata']> {
+  ): Promise<Pick<TargetProfileDataV1['relationshipMetadata'], 'lastContactAt' | 'notesAvailable' | 'ownerLabel'>> {
     if (locator.source === 'directory_member') {
       const contact = (await this.directory.getAllContacts()).find((entry) => entry.id === locator.id);
       const noteCount = await this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
@@ -292,6 +395,29 @@ function safeFacts(target: OutreachResolvedTargetRefV1): TargetProfileFactV1[] {
   return facts.filter((fact) =>
     Array.isArray(fact.value) ? fact.value.length > 0 : fact.value !== null && fact.value !== '',
   );
+}
+
+function districtStateSection(target: OutreachResolvedTargetRefV1): TargetProfileUnavailableSectionV1 {
+  const values = [target.jurisdiction.state, target.jurisdiction.district]
+    .filter((value): value is string => Boolean(value));
+  return values.length
+    ? available(values)
+    : unavailable('not_available', 'No verified state or district nexus is present in the target source.');
+}
+
+function available(values: readonly string[]): TargetProfileUnavailableSectionV1 {
+  return { status: 'available', reason: null, values: [...new Set(values)].sort(compare) };
+}
+
+function unavailable(
+  status: Exclude<TargetProfileUnavailableSectionV1['status'], 'available'>,
+  reason: string,
+): TargetProfileUnavailableSectionV1 {
+  return { status, reason, values: [] };
+}
+
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function toTenantContext(ctx: AuthorizedCapabilityContext): TenantContext {
