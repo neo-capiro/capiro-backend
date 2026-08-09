@@ -197,15 +197,19 @@
 }
 
 /* ── Metric tiles ────────────────────────────────────────── */
+/* Fixed-width tiles, left aligned — the design's tiles are 202x78 and do not
+   stretch. auto-fit/1fr blew them across the full surface, which read nothing
+   like the reference. */
 .lw-root .lw-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 22px;
 }
 
 .lw-root .lw-metric {
-  min-height: 78px;
+  flex: 0 0 202px;
+  height: 78px;
   padding: 9px 11px;
   background: var(--capiro-color-bg-surface);
   border: 1px solid var(--capiro-color-border-default);
@@ -385,10 +389,11 @@
    those blocks, so nothing is added there. */
 @media (max-width: 768px) {
   .lw-root .lw-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 16px;
   }
+
+  .lw-root .lw-metric { flex: 1 1 calc(50% - 5px); }
 
   .lw-root .tabs {
     overflow-x: auto;
@@ -405,7 +410,7 @@
 }
 
 @media (max-width: 560px) {
-  .lw-root .lw-metrics { grid-template-columns: 1fr; }
+  .lw-root .lw-metric { flex: 1 1 100%; }
 
   /* Edge-to-edge feed: a 12px radius inside a 16px gutter wastes the
      narrowest viewports without adding legibility. */
