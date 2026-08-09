@@ -3,14 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MeResponse } from '../lib/me.js';
 import { AppShellV2, sectionFor } from './AppShellV2.js';
 
-let pathname = '/';
-const navigate = vi.fn();
-const setSelectedClientId = vi.fn();
-const openMeriWorkspaceWindow = vi.fn();
+const mocks = vi.hoisted(() => ({
+  pathname: '/',
+  navigate: vi.fn(),
+  setSelectedClientId: vi.fn(),
+  openMeriWorkspaceWindow: vi.fn(),
+}));
 
 vi.mock('react-router-dom', () => ({
-  useLocation: () => ({ pathname }),
-  useNavigate: () => navigate,
+  useLocation: () => ({ pathname: mocks.pathname }),
+  useNavigate: () => mocks.navigate,
 }));
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -78,7 +80,7 @@ vi.mock('../lib/intel-feature-flags.js', () => ({
 vi.mock('../state/client-filter.js', () => ({
   useClientFilter: () => ({
     selectedClientId: 'client-1',
-    setSelectedClientId,
+    setSelectedClientId: mocks.setSelectedClientId,
   }),
 }));
 vi.mock('../pages/workspace/api.js', () => ({
@@ -88,7 +90,7 @@ vi.mock('../pages/program-element/api.js', () => ({
   getProgramElementSummary: vi.fn(),
 }));
 vi.mock('./chat/meri-window.js', () => ({
-  openMeriWorkspaceWindow: () => openMeriWorkspaceWindow(),
+  openMeriWorkspaceWindow: () => mocks.openMeriWorkspaceWindow(),
 }));
 
 const me = {
@@ -105,10 +107,10 @@ const me = {
 
 describe('premium AppShellV2 contract', () => {
   beforeEach(() => {
-    pathname = '/';
-    navigate.mockReset();
-    setSelectedClientId.mockReset();
-    openMeriWorkspaceWindow.mockReset();
+    mocks.pathname = '/';
+    mocks.navigate.mockReset();
+    mocks.setSelectedClientId.mockReset();
+    mocks.openMeriWorkspaceWindow.mockReset();
   });
 
   it('renders the premium top navigation and colored Meri launcher affordance', () => {
@@ -138,11 +140,11 @@ describe('premium AppShellV2 contract', () => {
     expect(screen.getByText('1 overnight')).toBeInTheDocument();
     expect(screen.queryByText('CLIENT')).not.toBeInTheDocument();
 
-    await waitFor(() => expect(setSelectedClientId).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(mocks.setSelectedClientId).toHaveBeenCalledWith(null));
   });
 
   it('keeps the real client scope control on client-specific workflows', () => {
-    pathname = '/engagement';
+    mocks.pathname = '/engagement';
     render(<AppShellV2 me={me} />);
 
     expect(screen.getByText('CLIENT')).toBeInTheDocument();
