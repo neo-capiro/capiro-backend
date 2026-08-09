@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "globalPrefix": "/api",
+  "controllerPrefix": "/engagement/outreach-v3",
+  "runtime": "engagement-api",
+  "featureFlag": "OUTREACH_V3_REASONING_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations", "handler": "createConversation" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId", "handler": "getConversation" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns", "handler": "respond" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive", "handler": "archiveConversation" }
+  ]
+}
