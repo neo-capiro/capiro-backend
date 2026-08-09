@@ -6,7 +6,7 @@ Date: 2026-08-08
 
 ### P3-PROVIDER-001 — Blocking P2 — stateless reasoning tool loop must request encrypted reasoning content
 
-**Classification:** provider/API contract defect  
+**Classification:** provider/API contract defect
 **Status:** OPEN / BLOCKING
 
 Phase 3 defaults to:

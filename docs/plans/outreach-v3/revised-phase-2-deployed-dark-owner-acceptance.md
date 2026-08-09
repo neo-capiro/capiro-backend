@@ -1,9 +1,9 @@
 # Outreach V3 Revised Phase 2 — Deployed Dark Owner Acceptance Record
 
-**Recorded from owner-supplied acceptance results:** 2026-08-08 America/New_York  
-**Phase 2 branch:** `agent/outreach-v3-p2-campaign-state-command-engine`  
-**Exact deployed / accepted code SHA:** `89b0a8e08e1cfcc7210a8684335faf6f8405bdf2`  
-**PR:** #862  
+**Recorded from owner-supplied acceptance results:** 2026-08-08 America/New_York
+**Phase 2 branch:** `agent/outreach-v3-p2-campaign-state-command-engine`
+**Exact deployed / accepted code SHA:** `89b0a8e08e1cfcc7210a8684335faf6f8405bdf2`
+**PR:** #862
 **Phase 3 branch consuming this record:** `agent/outreach-v3-p3-reasoning-gateway`
 
 ## Owner decision
