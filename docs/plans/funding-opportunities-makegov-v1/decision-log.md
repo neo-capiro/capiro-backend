@@ -2315,6 +2315,92 @@ Deliberately NOT used: `scripts/deploy-dev.sh`, whose migrate path targets
 `prisma migrate resolve --rolled-back <name> || true` before every deploy, auto-resolving the ledger,
 which is precisely the behaviour the entrypoint's Phase A hardening removed. No service was rolled.
 
+## D-71 · 2026-08-09 · The contract is validated — a real capture, and two false positives in the tool that took it
+
+The last open question this program carried since P40: every mapper, schema and
+scorer in P40–P43 was written against a published field LIST, never against an
+observed response. An operator ran `scripts/diag-tango-contract-capture.ts`
+against the live provider — five records from each of `dibbs/rfqs`, `dibbs/rfps`,
+`dibbs/awards`, `sbir/topics`, `sbir/solicitations`. **`/api/sbir/` had never
+been called by anyone, for any reason, before this run.**
+
+### The headline: nothing was wrong
+
+Every mapper, every coercion helper, and the one comparison the SBIR scorer
+makes against a status string handled every record in the capture correctly,
+with zero code changes. `str()` already collapsed an empty string to null.
+`int()` already coerced a numeric string. `decimalString()`'s number branch
+already handled a JSON-number price. `isTopicClosed()`'s lowercase comparison
+already matched a real `"archived"` value it had only ever guessed at. The
+"written against documentation, expect it to be wrong" posture this program
+has repeated since P40 held up — not because nothing could go wrong, but
+because the code was written defensively enough that what actually showed up
+didn't find a gap.
+
+### Two false positives, and they were in the NEW tool, not the old contract
+
+The capture's own field-report flagged two problems. Neither was real:
+
+- **`solicitation_formatted` "missing" on `dibbs/rfqs`.** The contract doc
+  already says, in its own words, "List fields: ... Detail adds:
+  `solicitation_formatted`, `organization(*)`" — it is a DETAIL-endpoint field
+  and its absence from a LIST response is exactly correct. The capture
+  script's `DOCUMENTED_FIELDS['dibbs/rfqs']` list included it anyway.
+- **`total_contract_price_text` "undocumented" on `dibbs/awards`.** The
+  contract doc already lists it, on the very line naming
+  `total_contract_price`. The capture script's list for that endpoint simply
+  omitted it.
+
+Both are bugs in `diag-tango-contract-capture.ts`'s transcription of the
+contract doc into its own `DOCUMENTED_FIELDS` constant — not in the doc, and
+not in any mapper. Caught by reading the actual mapper and the actual contract
+doc before writing up the operator's summary as findings, rather than
+reporting the tool's raw flags as contract facts. Fixed in the same commit as
+this entry, with the reasoning left in the script as a comment at each site —
+this is the second time in this program a "does the code match the doc"
+tripwire itself needed the same scrutiny it was built to apply to something
+else.
+
+### What the capture actually found, worth carrying forward
+
+Recorded in full in `dibbs-sbir-rest-contract.md`'s new Findings section;
+summarised here:
+
+- `delivery_order_counter` (DIBBS award) arrives as a STRING despite backing an
+  INTEGER column. Already coerced correctly by `int()`.
+- `total_contract_price` and RFQ `quantity` arrive as native JSON numbers,
+  never as the exact-digit strings `decimalString()` was written to protect —
+  the provider's own encoder already round-trips them through a float before
+  this code sees anything. Nothing downstream can recover a digit already lost
+  upstream; not a defect, a limit.
+- `sol_download_url` (SBIR cycle) arrives as `""`, never `null`, when absent.
+  `str()` already collapses it, which is what stopped this from ever
+  rendering as a link to nowhere.
+- **`solicitation_status` is two different vocabularies wearing one field
+  name.** SBIR topics say `"Open"`; SBIR cycles say `"active"`/`"archived"`.
+  `isTopicClosed()` already lowercases before comparing, so it survives both —
+  but the shared field name across two endpoints is not a shared value set,
+  and the next person to compare a CYCLE's status against `"Closed"` needs to
+  know that.
+- Neither `topic_id` nor `solicitation_id` is a uuid — confirmed the thing
+  every "never reach for `uuid`" comment in this program's SBIR code was
+  written to prevent.
+- No envelope mismatch on any of the five endpoints. First confirmation of the
+  SBIR envelope against a real response.
+
+### What this does not close
+
+Five records per endpoint, one point in time, no detail-endpoint calls, no
+value anywhere near DIBBS's NUMERIC(18,4)/(18,2) ceiling. This confirms the
+COMMON shape; it is not exhaustive. The captures are preserved as fixtures
+(`apps/api/src/external/tango/__fixtures__/real-captures/*-contract-capture-2026-08-09.json` —
+a subdirectory, deliberately: the parent `__fixtures__/` has its own rule that every direct
+child must be synthetic, for tenant-privacy reasons that do not apply to this public federal
+procurement data, and the subdirectory is what keeps that sibling rule's scan from ever seeing
+these files)
+and run through the real mappers in both mapper spec files, so this observation
+is a permanent regression test, not a one-time note in a doc.
+
 ## D-69 · 2026-08-08 · A false claim living in an error message nobody ever sees
 
 `funding-opportunities-ci.yml` asserts that each of this program's migrations appears in the

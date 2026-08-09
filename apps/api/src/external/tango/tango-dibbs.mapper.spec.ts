@@ -10,15 +10,16 @@ import {
 /**
  * Funding Opportunities P40 — the DIBBS mappers.
  *
- * These tests pin CAPIRO'S READING of a published field list, not the
- * provider's behaviour: no live DIBBS call has ever been made (no key was
- * available, and per plan §4.6 one must never pass through an agent session).
- * They are therefore worth exactly what a contract test is worth before the
- * contract is confirmed — they catch a regression in our own coercions, and
- * they will NOT catch the provider disagreeing with the docs.
+ * Most of this file pins CAPIRO'S READING of a published field list, not
+ * observed provider behaviour — these tests catch a regression in our own
+ * coercions, and were written before any live call was possible.
  *
- * Written that way on purpose. A test that asserted "the provider sends
- * `issue_date`" would be asserting something nobody has observed.
+ * THAT CHANGED 2026-08-09. An operator captured five real records per
+ * endpoint (decision-log D-71); `__fixtures__/dibbs-contract-capture-2026-08-09.json`
+ * holds them verbatim, and the `real capture` describe block below runs every
+ * one of them through the actual mapper. Nothing in it was hand-written to
+ * pass — it is the first genuine confirmation that these mappers survive
+ * contact with the provider, not merely with our own assumptions about it.
  */
 
 describe('dateOnly', () => {
@@ -366,5 +367,123 @@ describe('no alias-fallback logic — enforced structurally, not by convention',
     // pattern, so a regex that silently stopped matching would be caught.
     const synthetic = "issuedDate: dateOnly(raw['issue_date'] ?? raw['issued_date']),";
     expect(/raw\[[^\]]+\]\s*(\?\?|\|\|)/.test(synthetic)).toBe(true);
+  });
+});
+
+// ── Real capture, 2026-08-09 (D-71) ─────────────────────────────────────────
+
+describe('real capture — every mapper against records the provider actually sent', () => {
+  const { readFileSync } = require('node:fs') as typeof import('node:fs');
+  const { join } = require('node:path') as typeof import('node:path');
+  const capture = JSON.parse(
+    readFileSync(
+      join(__dirname, '__fixtures__/real-captures/dibbs-contract-capture-2026-08-09.json'),
+      'utf8',
+    ),
+  );
+
+  test('every RFQ maps without dropping a required field', () => {
+    for (const raw of capture.rfqs) {
+      const row = mapDibbsRfq(raw);
+      expect(row).not.toBeNull();
+      expect(row!.tangoDibbsId).toBe(raw.uuid);
+      expect(row!.solicitation).toBe(raw.solicitation);
+    }
+  });
+
+  test('every RFP maps without dropping a required field', () => {
+    for (const raw of capture.rfps) {
+      const row = mapDibbsRfp(raw);
+      expect(row).not.toBeNull();
+      expect(row!.tangoDibbsId).toBe(raw.uuid);
+    }
+  });
+
+  test('every award maps without dropping a required field', () => {
+    for (const raw of capture.awards) {
+      const row = mapDibbsAward(raw);
+      expect(row).not.toBeNull();
+      expect(row!.tangoDibbsId).toBe(raw.uuid);
+    }
+  });
+
+  /**
+   * `delivery_order_counter` arrived as a STRING ("53883"), not the JSON
+   * number the column's INTEGER type might suggest. `int()` already coerces a
+   * numeric string, so this is a confirmation, not a fix — but it is the exact
+   * kind of thing a fixture is for: the next person who "simplifies" `int()`
+   * to a bare `typeof value === 'number' ? value : null` would silently start
+   * dropping every real delivery-order counter this provider sends.
+   */
+  test('a string-typed delivery_order_counter still maps to a number', () => {
+    const withCounter = capture.awards.find((a: { delivery_order_counter: unknown }) =>
+      typeof a.delivery_order_counter === 'string',
+    );
+    expect(withCounter).toBeDefined();
+    const row = mapDibbsAward(withCounter)!;
+    expect(row.deliveryOrderCounter).toBe(Number(withCounter.delivery_order_counter));
+  });
+
+  /**
+   * `total_contract_price` arrives as a native JSON NUMBER when present
+   * (2500, 16093.28), never as the exact-digit string `decimalString`'s own
+   * doc comment is written to protect. That protection is real for a string
+   * input; it is not exercised by anything this capture observed, because the
+   * provider's own JSON encoding already round-tripped the value through a
+   * float before this code ever sees it. Recorded rather than "fixed" — there
+   * is nothing downstream of a JSON parse that could recover a digit the
+   * provider's own encoder already lost.
+   */
+  test('a numeric total_contract_price round-trips through decimalString', () => {
+    const priced = capture.awards.find(
+      (a: { total_contract_price: unknown }) => typeof a.total_contract_price === 'number',
+    );
+    expect(priced).toBeDefined();
+    expect(decimalString(priced.total_contract_price)).toBe(String(priced.total_contract_price));
+  });
+
+  /** `total_contract_price_text` carries the source's own rendering when the numeric field is null — exactly the case the schema comment anticipated. */
+  test('a null price with a text fallback maps both fields correctly', () => {
+    const noPrice = capture.awards.find(
+      (a: { total_contract_price: unknown }) => a.total_contract_price === null,
+    );
+    expect(noPrice).toBeDefined();
+    const row = mapDibbsAward(noPrice)!;
+    expect(row.totalContractPrice).toBeNull();
+    expect(row.totalContractPriceText).toBe(noPrice.total_contract_price_text);
+  });
+
+  /**
+   * Every RFP in this sample had `document_url: null` while every RFQ had one
+   * populated — five records is not proof RFPs never carry one, but the
+   * mapper must not assume either way. Confirmed: `mapDibbsRfp` reads it
+   * exactly like RFQ does, via `str()`, which returns null for null input
+   * without complaint.
+   */
+  test('an RFP with no document_url maps to null, not to a crash or a default', () => {
+    const noDoc = capture.rfps.find((r: { document_url: unknown }) => r.document_url === null);
+    expect(noDoc).toBeDefined();
+    expect(mapDibbsRfp(noDoc)!.documentUrl).toBeNull();
+  });
+
+  test('every date field in the capture parses as the calendar day it names', () => {
+    for (const raw of capture.rfqs) {
+      expect(dateOnly(raw.issue_date)?.toISOString().slice(0, 10)).toBe(raw.issue_date);
+      expect(dateOnly(raw.return_by_date)?.toISOString().slice(0, 10)).toBe(raw.return_by_date);
+    }
+  });
+
+  test('no captured RFQ needed reconcileQuantity to drop a quantity', () => {
+    // Every RFQ in this sample carried BOTH quantity and unit_of_issue, so the
+    // gap this function guards against did not occur here. Asserted anyway, so
+    // a future capture that DOES trigger it is a visible change in this test,
+    // not a silent pass.
+    for (const raw of capture.rfqs) {
+      const { quantityDropped } = reconcileQuantity(
+        decimalString(raw.quantity),
+        raw.unit_of_issue,
+      );
+      expect(quantityDropped).toBe(false);
+    }
   });
 });

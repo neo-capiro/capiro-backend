@@ -84,8 +84,15 @@ const SAMPLE_SIZE = 5;
  * prove the mappers agree with themselves.
  */
 const DOCUMENTED_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // `solicitation_formatted` is deliberately ABSENT from this list. The
+  // contract doc's own words are "List fields: ... Detail adds:
+  // solicitation_formatted, organization(*)" — it is a DETAIL-endpoint field,
+  // never present on a list response. Including it here was a bug in the
+  // first version of this script (2026-08-09 capture): it made a field the
+  // doc never promised on this endpoint report as "MISSING", which is not a
+  // contract finding — it is this script disagreeing with its own source.
   'dibbs/rfqs': [
-    'uuid', 'solicitation', 'solicitation_formatted', 'purchase_request', 'nsn', 'part_number',
+    'uuid', 'solicitation', 'purchase_request', 'nsn', 'part_number',
     'nomenclature', 'quantity', 'unit_of_issue', 'set_aside', 'status_code', 'issue_date',
     'return_by_date', 'is_open', 'document_url',
   ],
@@ -93,10 +100,16 @@ const DOCUMENTED_FIELDS: Readonly<Record<string, readonly string[]>> = Object.fr
     'uuid', 'solicitation', 'nsn', 'part_number', 'nomenclature', 'buyer_code', 'issued_date',
     'closes_date', 'is_open', 'document_url', 'tech_docs_url',
   ],
+  // `total_contract_price_text` was MISSING from this list in the first
+  // version of this script, despite the contract doc listing it explicitly
+  // ("total_contract_price, total_contract_price_text, ..."). That produced a
+  // false "UNDOCUMENTED present" finding on the 2026-08-09 capture — the field
+  // was documented all along; this script's transcription was incomplete.
   'dibbs/awards': [
     'uuid', 'award_number', 'delivery_order_number', 'delivery_order_counter', 'solicitation',
     'purchase_request', 'nsn', 'part_number', 'nomenclature', 'total_contract_price',
-    'awardee_cage', 'awardee', 'award_date', 'posted_date', 'last_mod_posting_date',
+    'total_contract_price_text', 'awardee_cage', 'awardee', 'award_date', 'posted_date',
+    'last_mod_posting_date',
   ],
   'sbir/topics': [
     'topic_id', 'title', 'agency', 'year', 'topic_number', 'solicitation_number', 'release_date',
