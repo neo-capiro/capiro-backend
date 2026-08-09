@@ -7,9 +7,18 @@ import {
   targetKeyForLocator,
   type OutreachTargetLocatorV1,
 } from '../../capabilities/targets/outreach-target.contract.js';
+import {
+  contextKeyForSelection,
+  normalizeContextSelectionV1,
+  type OutreachContextSelectionV1,
+} from '../../capabilities/context/outreach-context.contract.js';
 import { OUTREACH_COMMAND_REGISTRY } from '../commands/outreach-command-registry.js';
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
 import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
+import {
+  allAcceptedContextRefs,
+  type OutreachCampaignSpecV1,
+} from '../state/outreach-campaign-spec.v1.js';
 import type { ParsedOutreachCommandEnvelope } from '../state/outreach-command.contract.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
@@ -191,10 +200,11 @@ export class OutreachReasoningService {
           );
         }
       }
-      assertTargetCommandsGrounded(
+      assertCommandsGrounded(
         providerResult.proposedCommands,
         providerResult.referencedToolResults.map((entry) => entry.resultId),
         toolEvidence,
+        campaign.spec as OutreachCampaignSpecV1,
       );
 
       const assistantMessageHash = hashVisibleText(providerResult.assistantMessage);
@@ -306,32 +316,55 @@ export class OutreachReasoningService {
   }
 }
 
-function assertTargetCommandsGrounded(
+function assertCommandsGrounded(
   commands: ParsedOutreachCommandEnvelope[],
   referencedResultIds: string[],
   allToolEvidence: Map<string, unknown>,
+  spec: OutreachCampaignSpecV1,
 ): void {
   const referencedEvidence = referencedResultIds
     .map((id) => allToolEvidence.get(id))
     .filter((value): value is unknown => value !== undefined);
   const availableTargetKeys = new Set<string>();
   const availableRecommendations = new Map<string, string>();
+  const availableContextKeys = new Set<string>();
 
-  for (const output of referencedEvidence) collectTargetEvidence(output, availableTargetKeys, availableRecommendations);
+  for (const output of referencedEvidence) {
+    collectTargetEvidence(output, availableTargetKeys, availableRecommendations);
+    collectContextEvidence(output, availableContextKeys);
+  }
+  const currentContextKeys = new Set([
+    ...allAcceptedContextRefs(spec).map((entry) => entry.contextKey),
+    ...spec.context.excludedRefs.map((entry) => entry.contextKey),
+  ]);
 
   for (const command of commands) {
     if (command.type === 'ADD_TARGET_REFS') {
       const refs = (command.payload as { refs: OutreachTargetLocatorV1[] }).refs;
       for (const ref of refs) {
-        if (!availableTargetKeys.has(targetKeyForLocator(ref))) {
-          throw invalidTargetProposal();
-        }
+        if (!availableTargetKeys.has(targetKeyForLocator(ref))) throw invalidTargetProposal();
       }
     }
     if (command.type === 'REJECT_TARGET_RECOMMENDATION') {
       const payload = command.payload as { recommendationRef: string; targetKey: string };
       if (availableRecommendations.get(payload.recommendationRef) !== payload.targetKey) {
         throw invalidTargetProposal();
+      }
+    }
+    if (command.type === 'ACCEPT_CONTEXT_REFS') {
+      const selections = (command.payload as { selections: OutreachContextSelectionV1[] })
+        .selections;
+      for (const selection of selections) {
+        const key = contextKeyForSelection(normalizeContextSelectionV1(selection));
+        if (!availableContextKeys.has(key)) throw invalidContextProposal();
+      }
+    }
+    if (command.type === 'EXCLUDE_CONTEXT_REFS') {
+      const refs = (command.payload as { refs: Array<{ contextKey: string }> }).refs;
+      for (const ref of refs) {
+        if (!currentContextKeys.has(ref.contextKey) && !availableContextKeys.has(ref.contextKey)) {
+          throw invalidContextProposal();
+        }
       }
     }
   }
@@ -343,8 +376,7 @@ function collectTargetEvidence(
   recommendationRefs: Map<string, string>,
 ): void {
   if (!output || typeof output !== 'object') return;
-  const envelope = output as Record<string, unknown>;
-  const data = envelope.data;
+  const data = (output as Record<string, unknown>).data;
   if (!data || typeof data !== 'object') return;
   const value = data as Record<string, unknown>;
   const candidates = Array.isArray(value.candidates) ? value.candidates : [];
@@ -366,10 +398,39 @@ function collectTargetEvidence(
   }
 }
 
+function collectContextEvidence(output: unknown, contextKeys: Set<string>): void {
+  if (!output || typeof output !== 'object') return;
+  const data = (output as Record<string, unknown>).data;
+  if (!data || typeof data !== 'object') return;
+  const value = data as Record<string, unknown>;
+  const selections: unknown[] = [];
+  if (value.selection) selections.push(value.selection);
+  for (const candidate of Array.isArray(value.candidates) ? value.candidates : []) {
+    if (candidate && typeof candidate === 'object' && 'selection' in candidate) {
+      selections.push((candidate as Record<string, unknown>).selection);
+    }
+  }
+  for (const selection of selections) {
+    try {
+      contextKeys.add(contextKeyForSelection(normalizeContextSelectionV1(selection)));
+    } catch {
+      // Ignore malformed evidence; the proposal cannot be grounded by it.
+    }
+  }
+}
+
 function invalidTargetProposal(): OutreachReasoningError {
   return new OutreachReasoningError(
     'OUTREACH_REASONING_OUTPUT_INVALID',
     'The reasoning provider proposed a target change that was not grounded in its referenced Capiro results.',
+    502,
+  );
+}
+
+function invalidContextProposal(): OutreachReasoningError {
+  return new OutreachReasoningError(
+    'OUTREACH_REASONING_OUTPUT_INVALID',
+    'The reasoning provider proposed a context change that was not grounded in its referenced Capiro results or current Campaign Spec.',
     502,
   );
 }
