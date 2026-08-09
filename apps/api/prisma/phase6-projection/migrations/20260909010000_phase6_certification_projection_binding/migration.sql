@@ -104,14 +104,19 @@ CREATE TRIGGER phase6_cert_projection_immutable_truncate_trg
 BEFORE TRUNCATE ON phase6_cycle_certification_projection
 FOR EACH STATEMENT EXECUTE FUNCTION phase6_certification_projection_immutable();
 
--- Phase 7 execution reloads the exact association under capiro_pe_promoter.
--- This migration belongs to the separate Phase 6 chain, so the promoter role
--- may or may not exist yet depending on migration order. Grant SELECT only when
--- it does; the main Phase 7 forward migration repeats the grant for the inverse
--- ordering. No INSERT/UPDATE/DELETE privilege is granted to the promoter.
+-- Phase 7 execution reloads all three Phase 6 evidence tables under the
+-- dedicated promoter role. This migration belongs to the separate Phase 6
+-- chain, so capiro_pe_promoter may or may not exist yet depending on migration
+-- order. Grant SELECT only when it does; the main Phase 7 migration already
+-- handles the inverse ordering for the two older tables, and its later exact-
+-- plan grant migration handles the association when that table already exists.
+-- Never grant INSERT/UPDATE/DELETE to the promoter: Phase 6 remains producer-
+-- owned evidence and Phase 7 may only read it.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_pe_promoter') THEN
+    GRANT SELECT ON phase6_audit_projection TO capiro_pe_promoter;
+    GRANT SELECT ON phase6_cycle_certification TO capiro_pe_promoter;
     GRANT SELECT ON phase6_cycle_certification_projection TO capiro_pe_promoter;
   END IF;
 END $$;
