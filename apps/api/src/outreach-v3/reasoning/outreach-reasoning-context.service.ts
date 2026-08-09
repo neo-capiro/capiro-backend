@@ -24,12 +24,12 @@ const IMPLEMENTED_COMMANDS = OUTREACH_COMMAND_REGISTRY.filter(
   phaseOwner: entry.phaseOwner,
 }));
 
-const PUBLIC_TARGET_TOOLS = new Set(['search_targets', 'get_target_profile']);
-const STRICT_CLIENT_TOOLS = new Set([
-  'get_client_context',
-  'get_recent_activity',
+const TARGET_INTELLIGENCE_TOOLS = new Set([
+  'search_targets',
+  'get_target_profile',
   'analyze_relationships',
 ]);
+const STRICT_SPONSOR_CLIENT_TOOLS = new Set(['get_client_context', 'get_recent_activity']);
 
 @Injectable()
 export class OutreachReasoningContextService {
@@ -75,27 +75,21 @@ export class OutreachReasoningContextService {
       tenantSlug: ctx.tenantSlug,
       role: ctx.role,
       clientScope: singleClient ? { clientId: singleClient, reason: 'campaign' } : null,
-      impersonation: ctx.impersonationSessionId
-        ? {
-            sessionId: ctx.impersonationSessionId,
-            actorUserId: ctx.impersonatedByUserId ?? ctx.userId,
-            effectiveTenantId: ctx.tenantId,
-          }
-        : null,
+      impersonation: null,
       requestId: `outreach-reasoning:${sessionId}`,
       surface: 'outreach',
     };
   }
 
   providerTools(campaign: ReasoningCampaignContext) {
-    const allowedClientIds = campaignClientIds(campaign);
+    const allowedSponsorClientIds = campaignClientIds(campaign);
     const registered = new Set(
       this.capabilities.listForSurface('outreach').map((definition) => definition.name),
     );
     return OUTREACH_REASONING_READ_TOOLS.filter((tool) => {
       if (!registered.has(tool.name)) return false;
-      if (allowedClientIds.size > 0) return true;
-      return PUBLIC_TARGET_TOOLS.has(tool.name);
+      if (allowedSponsorClientIds.size > 0) return true;
+      return TARGET_INTELLIGENCE_TOOLS.has(tool.name);
     });
   }
 
@@ -111,13 +105,13 @@ export class OutreachReasoningContextService {
     const definition = this.capabilities.get(name);
     if (!definition || !definition.surfaces.includes('outreach')) throw toolNotAllowed();
 
-    const allowedClientIds = campaignClientIds(campaign);
+    const allowedSponsorClientIds = campaignClientIds(campaign);
     const preparedInput = prepareToolInput(name, input, campaign);
-    assertRequestedScopeWithinCampaign(name, preparedInput, allowedClientIds);
+    assertRequestedScopeWithinCampaign(name, preparedInput, allowedSponsorClientIds);
 
     try {
       const output = await this.capabilities.execute(name, capabilityCtx, preparedInput);
-      assertResultScopeWithinCampaign(name, output, allowedClientIds);
+      assertResultScopeWithinCampaign(name, output, allowedSponsorClientIds);
       const encoded = JSON.stringify(output);
       const resultId = `cap_${createHash('sha256').update(encoded, 'utf8').digest('hex').slice(0, 32)}`;
       return { resultId, output };
@@ -141,6 +135,7 @@ export class OutreachReasoningContextService {
       'You may inspect only the authorized Capiro read tools supplied with this request. Never claim a tool result you did not receive.',
       'Target search results are recommendations, never selected targets. Use ADD_TARGET_REFS only with exact locators returned by search_targets or get_target_profile.',
       'A target recommendation is never added automatically. Proposed target commands remain pending until the user explicitly applies the proposal.',
+      'Sponsor scope and target audience are separate. An authorized client-scoped target result is discovery evidence only and does not make that client campaign context or imply representation.',
       'Target profiles identify safe facts and restrictions. Do not treat user notes, relationship note bodies, private meeting notes, or private email bodies as approved personalization context.',
       'You may propose only the implemented command types supplied below. Proposals are suggestions and are not applied automatically.',
       'Never ask for or claim send authority, generation authority, approval authority, tenant authority, or hidden system access.',
@@ -209,46 +204,31 @@ function prepareToolInput(
 function assertRequestedScopeWithinCampaign(
   name: string,
   input: unknown,
-  allowedClientIds: Set<string>,
+  allowedSponsorClientIds: Set<string>,
 ): void {
   const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
-  if (name === 'get_client_context' || name === 'get_recent_activity' || name === 'analyze_relationships') {
+  if (STRICT_SPONSOR_CLIENT_TOOLS.has(name)) {
     const clientId = typeof raw.clientId === 'string' ? raw.clientId : null;
-    if (!clientId || !allowedClientIds.has(clientId)) throw toolNotAllowed();
-  }
-  if (name === 'search_targets') {
-    const clientId = typeof raw.clientId === 'string' ? raw.clientId : null;
-    if (clientId && !allowedClientIds.has(clientId)) throw toolNotAllowed();
+    if (!clientId || !allowedSponsorClientIds.has(clientId)) throw toolNotAllowed();
   }
   if (name === 'get_capiro_record' && raw.recordType === 'client') {
     const recordId = typeof raw.recordId === 'string' ? raw.recordId : null;
-    if (!recordId || !allowedClientIds.has(recordId)) throw toolNotAllowed();
+    if (!recordId || !allowedSponsorClientIds.has(recordId)) throw toolNotAllowed();
   }
-  if (name === 'get_target_profile' || name === 'analyze_relationships') {
-    const targetRef = raw.targetRef;
-    if (targetRef && typeof targetRef === 'object') {
-      const locator = targetRef as Record<string, unknown>;
-      const clientId = typeof locator.clientId === 'string' ? locator.clientId : null;
-      if (clientId && !allowedClientIds.has(clientId)) throw toolNotAllowed();
-      if (!allowedClientIds.size && ['client_person', 'engagement_contact'].includes(String(locator.source))) {
-        throw toolNotAllowed();
-      }
-    }
-  }
+  // Target discovery is intentionally separate from sponsor context. The
+  // capability layer reauthorizes any client/target reference and returns its
+  // explicit scope. It does not promote that result into campaign context.
 }
 
 function assertResultScopeWithinCampaign(
   name: string,
   output: unknown,
-  allowedClientIds: Set<string>,
+  allowedSponsorClientIds: Set<string>,
 ): void {
+  if (TARGET_INTELLIGENCE_TOOLS.has(name)) return;
   const scopedClientId = capabilityResultClientId(output);
-  if (PUBLIC_TARGET_TOOLS.has(name)) {
-    if (scopedClientId && !allowedClientIds.has(scopedClientId)) throw toolNotAllowed();
-    return;
-  }
-  if (STRICT_CLIENT_TOOLS.has(name) || name === 'get_capiro_record') {
-    if (!scopedClientId || !allowedClientIds.has(scopedClientId)) throw toolNotAllowed();
+  if (STRICT_SPONSOR_CLIENT_TOOLS.has(name) || name === 'get_capiro_record') {
+    if (!scopedClientId || !allowedSponsorClientIds.has(scopedClientId)) throw toolNotAllowed();
   }
 }
 
