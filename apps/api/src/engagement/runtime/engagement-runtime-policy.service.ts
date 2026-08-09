@@ -16,11 +16,10 @@ import type {
  *
  * In shadow mode (engagement-api) the policy fails closed:
  *   - no background timers start;
- *   - no external actions execute;
+ *   - no external actions execute, except the separately feature-gated
+ *     Outreach V3 reasoning provider boundary;
  *   - no OAuth callbacks or notifications are processed;
  *   - no Recall webhooks are handled.
- *
- * In active mode (main API) the policy permits current behavior.
  */
 @Injectable()
 export class EngagementRuntimePolicyService {
@@ -49,10 +48,6 @@ export class EngagementRuntimePolicyService {
     this.recallWebhookEnabled = config.recallWebhookEnabled;
   }
 
-  /**
-   * Return a sanitized snapshot of the current runtime posture.
-   * Must never include secrets, tokens, or tenant data.
-   */
   snapshot(): EngagementRuntimeSnapshot {
     return {
       serviceName: this.serviceName,
@@ -64,20 +59,11 @@ export class EngagementRuntimePolicyService {
     };
   }
 
-  /**
-   * Background workers (timers, schedulers) are enabled only when
-   * ENGAGEMENT_BACKGROUND_OWNER === CAPIRO_SERVICE_NAME.
-   * `disabled` never runs workers.
-   */
   backgroundWorkersEnabled(): boolean {
     if (this.backgroundOwner === 'disabled') return false;
     return this.backgroundOwner === this.serviceName;
   }
 
-  /**
-   * Assert that background workers are enabled for this service.
-   * Throws a sanitized 503 when the worker is not allowed.
-   */
   assertBackgroundOwner(workerName: string): void {
     if (!this.backgroundWorkersEnabled()) {
       this.logger.log(
@@ -98,24 +84,31 @@ export class EngagementRuntimePolicyService {
    *
    * Rules:
    *   enabled    → all registered actions
-   *   disabled   → none
-   *   test_only  → only outreach_test_send with testMode=true
+   *   disabled   → none, except outreach_reasoning on engagement-api when its
+   *                own strict feature gate is explicitly true
+   *   test_only  → outreach_test_send with testMode=true, plus the same narrow
+   *                reasoning exception
+   *
+   * The reasoning exception is intentionally NOT a general external-actions
+   * override: mail, OAuth, Recall, generation and send remain fail-closed.
    */
   externalActionAllowed(
     action: EngagementExternalAction,
     opts?: { testMode?: boolean },
   ): boolean {
     if (this.externalActionsMode === 'enabled') return true;
+    if (
+      action === 'outreach_reasoning' &&
+      this.serviceName === 'engagement-api' &&
+      process.env.OUTREACH_V3_REASONING_ENABLED === 'true'
+    ) {
+      return true;
+    }
     if (this.externalActionsMode === 'disabled') return false;
-    // test_only
     if (action === 'outreach_test_send' && opts?.testMode === true) return true;
     return false;
   }
 
-  /**
-   * Assert that an external action is allowed. Throws a sanitized 503
-   * with a stable error shape before any adapter or provider is called.
-   */
   assertExternalAction(
     action: EngagementExternalAction,
     opts?: { testMode?: boolean },
@@ -130,7 +123,6 @@ export class EngagementRuntimePolicyService {
     }
   }
 
-  /** Assert that OAuth callbacks / Microsoft notifications are enabled. */
   assertCallbacksEnabled(action: string): void {
     if (!this.callbacksEnabled) {
       throw new ServiceUnavailableException({
@@ -142,11 +134,6 @@ export class EngagementRuntimePolicyService {
     }
   }
 
-  /**
-   * Assert the independently movable Recall-webhook ownership boundary.
-   * Callback ownership alone is insufficient: a transfer rehearsal may enable
-   * OAuth callbacks while intentionally keeping Recall on the current owner.
-   */
   assertRecallWebhookEnabled(action = 'recall_webhook'): void {
     if (!this.recallWebhookEnabled) {
       throw new ServiceUnavailableException({
@@ -158,7 +145,6 @@ export class EngagementRuntimePolicyService {
     }
   }
 
-  /** Whether Recall webhook processing is enabled. */
   isRecallWebhookEnabled(): boolean {
     return this.recallWebhookEnabled;
   }
