@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import {
+  normalizeRejectedTargetRecommendationsV1,
+  normalizeResolvedTargetRefsV1,
+  outreachRejectedTargetRecommendationV1Schema,
+  outreachResolvedTargetRefV1Schema,
+  type OutreachRejectedTargetRecommendationV1,
+  type OutreachResolvedTargetRefV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
 
 export const OUTREACH_CAMPAIGN_SPEC_SCHEMA_VERSION = 'outreach_campaign_spec_v1' as const;
 
@@ -71,10 +79,9 @@ export const targetCriteriaV1Schema = z
   })
   .strict();
 
-// Phase 2 preserves the final schema locations for target/context references but
-// deliberately owns no target/context identity vocabulary. The arrays must remain
-// empty until their owning phases introduce and authorize those reference types.
-const reservedFutureRefsSchema = z.array(z.never()).max(0);
+// Phase 4 owns the target identity vocabulary. Context references remain
+// reserved until their governed-context phase and therefore still must be empty.
+const reservedFutureContextRefsSchema = z.array(z.never()).max(0);
 
 const outreachCampaignSpecV1BaseSchema = z
   .object({
@@ -112,8 +119,12 @@ const outreachCampaignSpecV1BaseSchema = z
     targeting: z
       .object({
         criteria: targetCriteriaV1Schema.nullable(),
-        selectedTargetRefs: reservedFutureRefsSchema,
-        rejectedRecommendationRefs: reservedFutureRefsSchema,
+        selectedTargetRefs: z
+          .array(outreachResolvedTargetRefV1Schema)
+          .max(OUTREACH_V3_LIMITS.futureTargetRefs),
+        rejectedRecommendationRefs: z
+          .array(outreachRejectedTargetRecommendationV1Schema)
+          .max(OUTREACH_V3_LIMITS.futureTargetRefs),
       })
       .strict(),
     delivery: z
@@ -129,12 +140,12 @@ const outreachCampaignSpecV1BaseSchema = z
       .strict(),
     context: z
       .object({
-        requiredPolicyRefs: reservedFutureRefsSchema,
-        writingGuidanceRefs: reservedFutureRefsSchema,
-        campaignFactRefs: reservedFutureRefsSchema,
-        targetSpecificRefs: reservedFutureRefsSchema,
-        groupSafeRefs: reservedFutureRefsSchema,
-        excludedRefs: reservedFutureRefsSchema,
+        requiredPolicyRefs: reservedFutureContextRefsSchema,
+        writingGuidanceRefs: reservedFutureContextRefsSchema,
+        campaignFactRefs: reservedFutureContextRefsSchema,
+        targetSpecificRefs: reservedFutureContextRefsSchema,
+        groupSafeRefs: reservedFutureContextRefsSchema,
+        excludedRefs: reservedFutureContextRefsSchema,
       })
       .strict(),
     strategy: z
@@ -194,6 +205,25 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
       });
     }
 
+    const targetKeys = spec.targeting.selectedTargetRefs.map((target) => target.targetKey);
+    if (new Set(targetKeys).size !== targetKeys.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['targeting', 'selectedTargetRefs'],
+        message: 'Selected target keys must be unique.',
+      });
+    }
+    const targetEmails = spec.targeting.selectedTargetRefs
+      .map((target) => target.email?.toLowerCase() ?? null)
+      .filter((email): email is string => Boolean(email));
+    if (new Set(targetEmails).size !== targetEmails.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['targeting', 'selectedTargetRefs'],
+        message: 'Selected targets cannot share the same email address.',
+      });
+    }
+
     if (spec.goal.ask.mode === 'explicit' && !spec.goal.ask.text) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -232,6 +262,8 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
 export type OutreachCampaignSpecV1 = z.infer<typeof outreachCampaignSpecV1BaseSchema>;
 export type TargetCriteriaV1 = z.infer<typeof targetCriteriaV1Schema>;
 export type OutreachSponsorScopeV1 = OutreachCampaignSpecV1['sponsor'];
+export type OutreachSelectedTargetRefV1 = OutreachResolvedTargetRefV1;
+export type OutreachRejectedRecommendationV1 = OutreachRejectedTargetRecommendationV1;
 
 export function createBlankCampaignSpecV1(): OutreachCampaignSpecV1 {
   return {
@@ -327,8 +359,10 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
             states: normalizeSet(spec.targeting.criteria.states),
           }
         : null,
-      selectedTargetRefs: [],
-      rejectedRecommendationRefs: [],
+      selectedTargetRefs: normalizeResolvedTargetRefsV1(spec.targeting.selectedTargetRefs),
+      rejectedRecommendationRefs: normalizeRejectedTargetRecommendationsV1(
+        spec.targeting.rejectedRecommendationRefs,
+      ),
     },
     delivery: { ...spec.delivery },
     context: {
@@ -350,8 +384,6 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
 }
 
 export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
-  // Structural parsing intentionally precedes invariant validation so set-like
-  // fields can canonicalize first (e.g. duplicate sponsor/client inputs).
   const structurallyValid = outreachCampaignSpecV1BaseSchema.parse(input);
   const normalized = normalizeCampaignSpecV1(structurallyValid);
   const bytes = Buffer.byteLength(canonicalJsonStringify(normalized), 'utf8');
