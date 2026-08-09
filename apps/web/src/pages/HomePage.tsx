@@ -436,7 +436,7 @@ function useDashboardVisibility(
 
 /* ── Needs Action: preserve the existing horizontal signal strip ───────── */
 
-interface BannerItem {
+interface BannerItemRaw {
   id: string;
   sev: 'critical' | 'notable' | 'info';
   eyebrow: string;
@@ -444,6 +444,55 @@ interface BannerItem {
   context: string;
   href: string;
   rank: number;
+}
+
+interface BannerItem extends BannerItemRaw {
+  dueLabel: string | null;
+  actionLabel: string;
+}
+
+/* Map a BannerItem to the Figma status badge pill.
+ * Badge kind is derived from severity + eyebrow content so the dashboard
+ * surfaces the same CRITICAL / APPROVAL / DEADLINE / HEARING pills the
+ * reference shows, without touching any upstream data shape. */
+type AttentionBadge = 'critical' | 'approval' | 'deadline' | 'hearing';
+
+function badgeFor(item: BannerItemRaw): { kind: AttentionBadge; label: string } {
+  const eyebrow = item.eyebrow.toLowerCase();
+  if (item.sev === 'critical') return { kind: 'critical', label: 'CRITICAL' };
+  if (eyebrow.includes('hearing') || eyebrow.includes('markup'))
+    return { kind: 'hearing', label: 'HEARING' };
+  if (eyebrow.includes('review') || eyebrow.includes('approv') || eyebrow.includes('artifact'))
+    return { kind: 'approval', label: 'APPROVAL' };
+  return { kind: 'deadline', label: 'DEADLINE' };
+}
+
+/* Default per-row action verb. Keeps the row action compact + scannable. */
+function actionFor(item: BannerItemRaw): string {
+  const eyebrow = item.eyebrow.toLowerCase();
+  if (eyebrow.includes('hearing') || eyebrow.includes('markup')) return 'Prepare';
+  if (eyebrow.includes('review') || eyebrow.includes('approv')) return 'Review';
+  if (eyebrow.includes('budget')) return 'Build brief';
+  if (eyebrow.includes('comment') || eyebrow.includes('federal register') || eyebrow.includes('docket'))
+    return 'Open docket';
+  return 'Open';
+}
+
+/* Pull a short "DUE AUG 14" / "DUE TODAY" / "10:00 AM" string from the eyebrow
+ * when the underlying event carries timing. Returns null when nothing useful
+ * is available so the cell collapses cleanly. */
+function dueLabelFor(item: BannerItemRaw): string | null {
+  const m = item.eyebrow.match(/(?:·|^)\s*([^·]+?)\s*$/);
+  if (!m) return null;
+  const tail = (m[1] ?? '').trim();
+  if (!tail) return null;
+  if (/^\d+\s*(day|days|hr|hrs|hour|hours|min|mins|minute|minutes)\b/i.test(tail))
+    return `DUE ${tail.toUpperCase()}`;
+  if (/^(today|tomorrow)\b/i.test(tail)) return `DUE ${tail.toUpperCase()}`;
+  if (/^\d{1,2}:\d{2}\s*(am|pm)?/i.test(tail)) return tail.toUpperCase();
+  if (/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(tail))
+    return `DUE ${tail.toUpperCase()}`;
+  return null;
 }
 
 function NeedsAction({
@@ -464,11 +513,11 @@ function NeedsAction({
   someSourcesUnavailable: boolean;
 }) {
   const items = useMemo<BannerItem[]>(() => {
-    const out: BannerItem[] = [];
+    const out: BannerItemRaw[] = [];
     const hasPortfolio = portfolioAlerts.length > 0;
 
     for (const alert of portfolioAlerts) {
-      const sev: BannerItem['sev'] =
+      const sev: BannerItemRaw['sev'] =
         alert.severity === 'critical' || alert.severity === 'notable'
           ? alert.severity
           : 'info';
@@ -590,25 +639,27 @@ function NeedsAction({
     const severityRank = { critical: 0, notable: 1, info: 2 } as const;
     return out
       .sort((a, b) => severityRank[a.sev] - severityRank[b.sev] || a.rank - b.rank)
-      .slice(0, 10);
+      .slice(0, 4)
+      .map((item) => ({
+        ...item,
+        dueLabel: dueLabelFor(item),
+        actionLabel: actionFor(item),
+      }));
   }, [alerts, clientNameById, comingUp, changes, portfolioAlerts]);
 
   return (
-    <div className="home-attention">
-      <div className="home-attention-head">
+    <section className="home-attention" aria-label="Needs Action">
+      <header className="home-attention-head">
         <span className="home-attention-title">Needs Action</span>
-        <span className="meta">
-          {items.length} item{items.length === 1 ? '' : 's'} ·{' '}
-          <Link
-            to="/intelligence/changes"
-            style={{ color: 'var(--ink-2)', textDecoration: 'underline' }}
-          >
-            see all →
-          </Link>
+        <span className="home-attention-count">
+          {items.length} PRIORITIZED ITEM{items.length === 1 ? '' : 'S'}
         </span>
-      </div>
+        <Link to="/intelligence/changes" className="home-attention-viewall">
+          View all →
+        </Link>
+      </header>
       {loading ? (
-        <div className="home-attention-scroll">
+        <div className="home-attention-scroll" role="status" aria-label="Loading">
           {[0, 1, 2, 3].map((i) => (
             <div className="home-attention-card" key={i}>
               <Skeleton active paragraph={{ rows: 2 }} title={false} />
@@ -627,20 +678,36 @@ function NeedsAction({
           />
         </div>
       ) : (
-        <div className="home-attention-scroll">
-          {items.map((item) => (
-            <Link key={item.id} to={item.href} className="home-attention-card is-link">
-              <span className="home-attention-eyebrow">
-                <span className={`dot ${item.sev}`} aria-hidden />
-                {item.eyebrow}
-              </span>
-              <span className="home-attention-title-row home-clamp-2">{item.title}</span>
-              <span className="home-attention-dek">{item.context}</span>
-            </Link>
-          ))}
-        </div>
+        <ul className="home-attention-scroll">
+          {items.map((item, idx) => {
+            const badge = badgeFor(item);
+            return (
+              <li key={item.id} className={`home-attention-card${idx === 0 ? ' is-first' : ''}`}>
+                <span className={`home-attention-badge is-${badge.kind}`}>
+                  <span className="home-attention-badge-dot" aria-hidden />
+                  {badge.label}
+                </span>
+                <span className="home-attention-body">
+                  <span className="home-attention-eyebrow">{item.eyebrow}</span>
+                  <Link to={item.href} className="home-attention-title-row home-clamp-2">
+                    {item.title}
+                  </Link>
+                </span>
+                <span className="home-attention-context home-clamp-1">{item.context}</span>
+                {item.dueLabel ? (
+                  <span className="home-attention-due">{item.dueLabel}</span>
+                ) : (
+                  <span className="home-attention-due is-empty" aria-hidden />
+                )}
+                <Link to={item.href} className="home-attention-action">
+                  {item.actionLabel}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 

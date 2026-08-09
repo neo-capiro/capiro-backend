@@ -35,7 +35,7 @@ describe('P0 — Meri workspace popup bypasses the app shell', () => {
 
 describe('P1 — Dashboard client selector', () => {
   it('AppShellV2 hides the CLIENT control on the dashboard section only', () => {
-    expect(v2).toContain("section !== 'dashboard'");
+    expect(v2).toContain("section === 'dashboard'");
     // The clear-on-entry effect that strips an invisible client scope.
     expect(v2).toContain("section === 'dashboard' && selectedClientId");
     expect(v2).toContain('setSelectedClientId(null)');
