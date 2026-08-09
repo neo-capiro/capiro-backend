@@ -29,6 +29,7 @@ import {
 } from '../state/outreach-campaign-spec.v1.js';
 import { reduceOutreachCommand, type AuthorizedOutreachCommand } from '../state/outreach-command-reducer.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
+import { assertOutreachContextSponsorIsolation } from '../context/outreach-context-sponsor-policy.js';
 
 export interface OutreachCommandBatchResult {
   status: 'applied' | 'no_change';
@@ -160,6 +161,15 @@ export class OutreachCommandEngineService {
     }
 
     const finalSpec = parseCampaignSpecV1(workingSpec);
+    try {
+      assertOutreachContextSponsorIsolation(finalSpec);
+    } catch {
+      throw new OutreachCommandError(
+        'OUTREACH_COMMAND_BLOCKED',
+        'Client-specific context is not compatible with the campaign sponsor scope.',
+        422,
+      );
+    }
     const finalHash = hashCampaignSpecV1(finalSpec);
     const restoreRequested = authorizedCommands.some(
       (command) => command.type === 'RESTORE_STATE_VERSION',
@@ -339,6 +349,7 @@ export class OutreachCommandEngineService {
     let spec: OutreachCampaignSpecV1;
     try {
       spec = parseCampaignSpecV1(specJsonb);
+      assertOutreachContextSponsorIsolation(spec);
     } catch {
       throw new OutreachCommandError(
         'OUTREACH_STATE_CORRUPT',
