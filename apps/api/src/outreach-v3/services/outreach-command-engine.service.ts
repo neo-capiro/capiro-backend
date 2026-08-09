@@ -6,6 +6,7 @@ import { CapabilityAuthorizationService } from '../../capabilities/capability-au
 import type { AuthorizedCapabilityContext } from '../../capabilities/capability-context.js';
 import { CapabilityError } from '../../capabilities/capability-errors.js';
 import { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
+import { OutreachContextReferenceService } from '../../capabilities/context/outreach-context-reference.service.js';
 import {
   OutreachStateRepository,
   type OutreachEventSource,
@@ -21,6 +22,7 @@ import {
   normalizeOutreachCommandBatch,
 } from '../state/outreach-command-normalization.js';
 import {
+  allAcceptedContextRefs,
   hashCampaignSpecV1,
   parseCampaignSpecV1,
   type OutreachCampaignSpecV1,
@@ -51,6 +53,7 @@ export class OutreachCommandEngineService {
     private readonly repository: OutreachStateRepository,
     private readonly authorization: CapabilityAuthorizationService,
     private readonly targetReferences: OutreachTargetReferenceService,
+    private readonly contextReferences: OutreachContextReferenceService,
   ) {}
 
   async applyBatch(ctx: TenantContext, sessionId: string, input: unknown) {
@@ -247,13 +250,22 @@ export class OutreachCommandEngineService {
         const resolvedTargetRefs = await this.targetReferences.resolveManyWithinTx(tx, ctx, refs);
         return { ...command, resolvedTargetRefs };
       } catch (error) {
-        if (error instanceof CapabilityError) {
-          throw new OutreachCommandError(
-            'OUTREACH_REFERENCE_UNAUTHORIZED',
-            'One or more target references are not available in the authorized scope.',
-            403,
-          );
-        }
+        if (error instanceof CapabilityError) throw unauthorizedReference('target');
+        throw error;
+      }
+    }
+
+    if (command.type === 'ACCEPT_CONTEXT_REFS') {
+      try {
+        const selections = (command.payload as { selections: unknown[] }).selections;
+        const resolvedContextRefs = await this.contextReferences.resolveManyWithinTx(
+          tx,
+          ctx,
+          selections,
+        );
+        return { ...command, resolvedContextRefs };
+      } catch (error) {
+        if (error instanceof CapabilityError) throw unauthorizedReference('context');
         throw error;
       }
     }
@@ -274,14 +286,13 @@ export class OutreachCommandEngineService {
           ctx,
           restoreSpec.targeting.selectedTargetRefs,
         );
+        await this.contextReferences.reauthorizeSnapshotsWithinTx(
+          tx,
+          ctx,
+          allAcceptedContextRefs(restoreSpec),
+        );
       } catch (error) {
-        if (error instanceof CapabilityError) {
-          throw new OutreachCommandError(
-            'OUTREACH_REFERENCE_UNAUTHORIZED',
-            'One or more restored target references are no longer available in the authorized scope.',
-            403,
-          );
-        }
+        if (error instanceof CapabilityError) throw unauthorizedReference('restored');
         throw error;
       }
       return { ...command, restoreSpec };
@@ -377,4 +388,12 @@ export class OutreachCommandEngineService {
       replayed: true,
     };
   }
+}
+
+function unauthorizedReference(kind: string): OutreachCommandError {
+  return new OutreachCommandError(
+    'OUTREACH_REFERENCE_UNAUTHORIZED',
+    `One or more ${kind} references are not available in the authorized scope.`,
+    403,
+  );
 }
