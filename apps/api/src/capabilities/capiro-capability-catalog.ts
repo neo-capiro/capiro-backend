@@ -25,6 +25,8 @@ export const CAPIRO_CAPABILITY_CATALOG: readonly CapabilityCatalogEntry[] = ([
   ['search_memory', 'contract_only', 'memory'],
   ['research_government', 'contract_only', 'government-research'],
   ['analyze_relationships', 'implemented', 'capabilities/targets'],
+  ['analyze_target_coverage', 'implemented', 'capabilities/targets'],
+  ['find_similar_targets', 'implemented', 'capabilities/targets'],
   ['get_recent_activity', 'implemented', 'capabilities/activity'],
   ['search_targets', 'implemented', 'capabilities/targets'],
   ['get_target_profile', 'implemented', 'capabilities/targets'],
