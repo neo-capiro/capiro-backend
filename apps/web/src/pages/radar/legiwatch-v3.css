@@ -15,8 +15,24 @@
    at the top of legiwatch.css.
    ============================================================ */
 
+/* ── Surface base ────────────────────────────────────────────
+   .lw-root never declared a font-family of its own; it inherited
+   one from .redesign, which is still Hanken Grotesk. Without this
+   only the elements that name var(--font-sans) would move to
+   Instrument Sans and the rest of the surface would silently stay
+   on the v2 typeface. The .redesign compound keeps this ahead of
+   theme.css regardless of stylesheet order.
+   'ss01'/'cv11' are Hanken stylistic sets and mean nothing here. */
+.lw-root,
+.lw-root.redesign {
+  font-family: var(--capiro-type-family-sans);
+  font-feature-settings: normal;
+  color: var(--capiro-color-text-primary);
+}
+
 /* ── Page header ─────────────────────────────────────────── */
 .lw-root .pg-title {
+  color: var(--capiro-color-text-primary);
   font-family: var(--capiro-type-family-sans);
   font-size: var(--capiro-type-size-heading-page);
   line-height: var(--capiro-type-line-heading-page);
@@ -100,6 +116,15 @@
   letter-spacing: var(--capiro-type-tracking-meta-label);
   text-transform: uppercase;
   color: var(--capiro-color-text-secondary);
+}
+
+/* The v2 severity chips set `text-transform: capitalize` at a higher
+   specificity than the base .chip rule above, so v3's uppercase has to be
+   restated here or the badges render as "Critical" instead of "CRITICAL". */
+.lw-root .chip.sev-critical,
+.lw-root .chip.sev-notable,
+.lw-root .chip.sev-info {
+  text-transform: uppercase;
 }
 
 .lw-root .chip.sev-critical,
@@ -351,4 +376,43 @@
   border-radius: var(--capiro-radius-navigation);
   border-color: var(--capiro-color-border-default);
   box-shadow: var(--capiro-elevation-control);
+}
+
+/* ── Responsive ──────────────────────────────────────────────
+   Only the components introduced by this layer. The v2 breakpoints in
+   legiwatch.css already collapse .feed-layout (1040px) and the board
+   (1100px/768px), and legiwatch-responsive.test.tsx pins the order of
+   those blocks, so nothing is added there. */
+@media (max-width: 768px) {
+  .lw-root .lw-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .lw-root .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .lw-root .tabs::-webkit-scrollbar { display: none; }
+
+  .lw-root .tabs button {
+    min-width: 0;
+    flex: 1 0 auto;
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .lw-root .lw-metrics { grid-template-columns: 1fr; }
+
+  /* Edge-to-edge feed: a 12px radius inside a 16px gutter wastes the
+     narrowest viewports without adding legibility. */
+  .lw-root .feed {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    margin-inline: -16px;
+  }
 }
