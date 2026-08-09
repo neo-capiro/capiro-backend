@@ -82,28 +82,26 @@ export class EngagementRuntimePolicyService {
   /**
    * Check whether an external action is allowed without throwing.
    *
-   * Rules:
-   *   enabled    → all registered actions
-   *   disabled   → none, except outreach_reasoning on engagement-api when its
-   *                own strict feature gate is explicitly true
-   *   test_only  → outreach_test_send with testMode=true, plus the same narrow
-   *                reasoning exception
+   * `outreach_reasoning` is special in every mode: it can run only in the
+   * existing engagement-api process and only when its own strict feature gate
+   * is true. A globally-active main API must never gain reasoning authority.
    *
-   * The reasoning exception is intentionally NOT a general external-actions
-   * override: mail, OAuth, Recall, generation and send remain fail-closed.
+   * Other rules:
+   *   enabled    → all other registered actions
+   *   disabled   → no other action
+   *   test_only  → only outreach_test_send with testMode=true
    */
   externalActionAllowed(
     action: EngagementExternalAction,
     opts?: { testMode?: boolean },
   ): boolean {
-    if (this.externalActionsMode === 'enabled') return true;
-    if (
-      action === 'outreach_reasoning' &&
-      this.serviceName === 'engagement-api' &&
-      process.env.OUTREACH_V3_REASONING_ENABLED === 'true'
-    ) {
-      return true;
+    if (action === 'outreach_reasoning') {
+      return (
+        this.serviceName === 'engagement-api' &&
+        process.env.OUTREACH_V3_REASONING_ENABLED === 'true'
+      );
     }
+    if (this.externalActionsMode === 'enabled') return true;
     if (this.externalActionsMode === 'disabled') return false;
     if (action === 'outreach_test_send' && opts?.testMode === true) return true;
     return false;
