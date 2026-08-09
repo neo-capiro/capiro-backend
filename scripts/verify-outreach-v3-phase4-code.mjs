@@ -40,6 +40,17 @@ function assert(condition, message) {
   }
 }
 
+function isProductionSource(path) {
+  return (
+    (path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.json')) &&
+    !path.endsWith('.spec.ts') &&
+    !path.endsWith('.spec.tsx') &&
+    !path.endsWith('.test.ts') &&
+    !path.endsWith('.test.tsx') &&
+    !path.includes('/__fixtures__/')
+  );
+}
+
 const required = [
   'apps/api/src/capabilities/targets/outreach-target.contract.ts',
   'apps/api/src/capabilities/targets/outreach-target-reference.service.ts',
@@ -65,13 +76,24 @@ for (const path of changed) {
   assert(!path.startsWith('apps/outreach-api/'), `new-outreach-service:${path}`);
 }
 
-const combined = changed
-  .filter((path) => path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.json'))
+const productionCombined = changed
+  .filter(isProductionSource)
   .map((path) => readFileSync(resolve(root, path), 'utf8'))
   .join('\n');
-assert(!/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/.test(combined), 'langgraph-or-langsmith');
-assert(!/SEND_EMAIL_NOW/.test(combined), 'direct-send-command');
-assert(!/OutreachCommandEngineService/.test(readFileSync(resolve(root, 'apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts'), 'utf8')), 'reasoning-direct-engine');
+assert(
+  !/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/.test(productionCombined),
+  'langgraph-or-langsmith',
+);
+assert(!/SEND_EMAIL_NOW/.test(productionCombined), 'direct-send-command');
+assert(
+  !/OutreachCommandEngineService/.test(
+    readFileSync(
+      resolve(root, 'apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts'),
+      'utf8',
+    ),
+  ),
+  'reasoning-direct-engine',
+);
 
 const catalog = JSON.parse(
   readFileSync(
@@ -82,7 +104,10 @@ const catalog = JSON.parse(
 for (const name of ['search_targets', 'get_target_profile', 'analyze_relationships']) {
   const entry = catalog.find((candidate) => candidate.name === name);
   assert(entry?.status === 'implemented', `target-capability-not-implemented:${name}`);
-  assert(entry?.meriConsumer === true && entry?.outreachConsumer === true, `shared-capability-consumers:${name}`);
+  assert(
+    entry?.meriConsumer === true && entry?.outreachConsumer === true,
+    `shared-capability-consumers:${name}`,
+  );
 }
 
 const manifest = JSON.parse(
