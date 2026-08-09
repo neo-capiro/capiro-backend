@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { SearchModule } from '../search/search.module.js';
 import { CapabilityAuthorizationService } from './capability-authorization.service.js';
 import { CapabilityRegistry } from './capability-registry.js';
 import { CapiroCapabilityCatalogService } from './capiro-capability-catalog.service.js';
@@ -14,9 +15,14 @@ import { GetTargetProfileCapability } from './targets/get-target-profile.capabil
 import { AnalyzeRelationshipsCapability } from './targets/analyze-relationships.capability.js';
 import { AnalyzeTargetCoverageCapability } from './targets/analyze-target-coverage.capability.js';
 import { FindSimilarTargetsCapability } from './targets/find-similar-targets.capability.js';
+import { OutreachContextReferenceService } from './context/outreach-context-reference.service.js';
+import { SearchMemoryCapability } from './context/search-memory.capability.js';
+import { ResearchGovernmentCapability } from './context/research-government.capability.js';
+import { GetDocumentCapability } from './context/get-document.capability.js';
+import { RecommendOutreachStrategyCapability } from './context/recommend-outreach-strategy.capability.js';
 
 @Module({
-  imports: [PrismaModule, DirectoryModule],
+  imports: [PrismaModule, DirectoryModule, SearchModule],
   providers: [
     CapabilityAuthorizationService,
     CapabilityRegistry,
@@ -29,6 +35,11 @@ import { FindSimilarTargetsCapability } from './targets/find-similar-targets.cap
     AnalyzeRelationshipsCapability,
     AnalyzeTargetCoverageCapability,
     FindSimilarTargetsCapability,
+    OutreachContextReferenceService,
+    SearchMemoryCapability,
+    ResearchGovernmentCapability,
+    GetDocumentCapability,
+    RecommendOutreachStrategyCapability,
     CapiroCapabilityCatalogService,
     SharedCapabilityToolAdapter,
   ],
@@ -38,6 +49,7 @@ import { FindSimilarTargetsCapability } from './targets/find-similar-targets.cap
     CapiroCapabilityCatalogService,
     SharedCapabilityToolAdapter,
     OutreachTargetReferenceService,
+    OutreachContextReferenceService,
   ],
 })
 export class CapabilitiesModule {}
