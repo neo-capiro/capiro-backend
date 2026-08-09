@@ -8,6 +8,14 @@ import {
   type OutreachRejectedTargetRecommendationV1,
   type OutreachResolvedTargetRefV1,
 } from '../../capabilities/targets/outreach-target.contract.js';
+import {
+  normalizeExcludedContextRefsV1,
+  normalizeResolvedContextRefsV1,
+  outreachExcludedContextRefV1Schema,
+  outreachResolvedContextRefV1Schema,
+  type OutreachExcludedContextRefV1,
+  type OutreachResolvedContextRefV1,
+} from '../../capabilities/context/outreach-context.contract.js';
 
 export const OUTREACH_CAMPAIGN_SPEC_SCHEMA_VERSION = 'outreach_campaign_spec_v1' as const;
 
@@ -53,12 +61,7 @@ function boundedNullableText(max: number) {
   return boundedText(max).nullable();
 }
 
-const clientRefSchema = z
-  .object({
-    clientId: z.string().uuid(),
-  })
-  .strict();
-
+const clientRefSchema = z.object({ clientId: z.string().uuid() }).strict();
 const targetCriteriaText = boundedText(OUTREACH_V3_LIMITS.targetCriteriaStrings, 1);
 
 export const targetCriteriaV1Schema = z
@@ -79,9 +82,12 @@ export const targetCriteriaV1Schema = z
   })
   .strict();
 
-// Phase 4 owns the target identity vocabulary. Context references remain
-// reserved until their governed-context phase and therefore still must be empty.
-const reservedFutureContextRefsSchema = z.array(z.never()).max(0);
+const contextArray = z
+  .array(outreachResolvedContextRefV1Schema)
+  .max(OUTREACH_V3_LIMITS.futureContextRefs);
+const excludedContextArray = z
+  .array(outreachExcludedContextRefV1Schema)
+  .max(OUTREACH_V3_LIMITS.futureContextRefs);
 
 const outreachCampaignSpecV1BaseSchema = z
   .object({
@@ -140,12 +146,12 @@ const outreachCampaignSpecV1BaseSchema = z
       .strict(),
     context: z
       .object({
-        requiredPolicyRefs: reservedFutureContextRefsSchema,
-        writingGuidanceRefs: reservedFutureContextRefsSchema,
-        campaignFactRefs: reservedFutureContextRefsSchema,
-        targetSpecificRefs: reservedFutureContextRefsSchema,
-        groupSafeRefs: reservedFutureContextRefsSchema,
-        excludedRefs: reservedFutureContextRefsSchema,
+        requiredPolicyRefs: contextArray,
+        writingGuidanceRefs: contextArray,
+        campaignFactRefs: contextArray,
+        targetSpecificRefs: contextArray,
+        groupSafeRefs: contextArray,
+        excludedRefs: excludedContextArray,
       })
       .strict(),
     strategy: z
@@ -213,9 +219,43 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
         message: 'Selected target keys must be unique.',
       });
     }
-    // Email is a delivery attribute, not canonical identity. Distinct source
-    // identities may share an address; deterministic target health surfaces
-    // that collision and blocks send-readiness without corrupting selection state.
+
+    validateContextClass(spec.context.requiredPolicyRefs, 'required_policy', 'requiredPolicyRefs', ctx);
+    validateContextClass(spec.context.writingGuidanceRefs, 'writing_guidance', 'writingGuidanceRefs', ctx);
+    validateContextClass(spec.context.campaignFactRefs, 'campaign_fact', 'campaignFactRefs', ctx);
+    validateContextClass(spec.context.targetSpecificRefs, 'target_specific', 'targetSpecificRefs', ctx);
+    validateContextClass(spec.context.groupSafeRefs, 'group_safe', 'groupSafeRefs', ctx);
+
+    const accepted = allAcceptedContextRefs(spec);
+    const acceptedKeys = accepted.map((entry) => entry.contextKey);
+    if (new Set(acceptedKeys).size !== acceptedKeys.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['context'],
+        message: 'A context reference may appear in only one accepted context class.',
+      });
+    }
+    const excludedKeys = new Set(spec.context.excludedRefs.map((entry) => entry.contextKey));
+    if (acceptedKeys.some((key) => excludedKeys.has(key))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['context', 'excludedRefs'],
+        message: 'Accepted and excluded context references cannot overlap.',
+      });
+    }
+    const selectedTargetKeys = new Set(targetKeys);
+    for (const entry of spec.context.targetSpecificRefs) {
+      if (
+        entry.scope.kind !== 'target' ||
+        !selectedTargetKeys.has(entry.scope.targetKey)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['context', 'targetSpecificRefs'],
+          message: 'Target-specific context must reference a selected campaign target.',
+        });
+      }
+    }
 
     if (spec.goal.ask.mode === 'explicit' && !spec.goal.ask.text) {
       ctx.addIssue({
@@ -257,6 +297,8 @@ export type TargetCriteriaV1 = z.infer<typeof targetCriteriaV1Schema>;
 export type OutreachSponsorScopeV1 = OutreachCampaignSpecV1['sponsor'];
 export type OutreachSelectedTargetRefV1 = OutreachResolvedTargetRefV1;
 export type OutreachRejectedRecommendationV1 = OutreachRejectedTargetRecommendationV1;
+export type OutreachSelectedContextRefV1 = OutreachResolvedContextRefV1;
+export type OutreachExcludedContextV1 = OutreachExcludedContextRefV1;
 
 export function createBlankCampaignSpecV1(): OutreachCampaignSpecV1 {
   return {
@@ -359,12 +401,21 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
     },
     delivery: { ...spec.delivery },
     context: {
-      requiredPolicyRefs: [],
-      writingGuidanceRefs: [],
-      campaignFactRefs: [],
-      targetSpecificRefs: [],
-      groupSafeRefs: [],
-      excludedRefs: [],
+      requiredPolicyRefs: normalizeContextClass(
+        spec.context.requiredPolicyRefs,
+        'required_policy',
+      ),
+      writingGuidanceRefs: normalizeContextClass(
+        spec.context.writingGuidanceRefs,
+        'writing_guidance',
+      ),
+      campaignFactRefs: normalizeContextClass(spec.context.campaignFactRefs, 'campaign_fact'),
+      targetSpecificRefs: normalizeContextClass(
+        spec.context.targetSpecificRefs,
+        'target_specific',
+      ),
+      groupSafeRefs: normalizeContextClass(spec.context.groupSafeRefs, 'group_safe'),
+      excludedRefs: normalizeExcludedContextRefsV1(spec.context.excludedRefs),
     },
     strategy: {
       campaignAngle: normalizeNullableText(spec.strategy.campaignAngle),
@@ -374,6 +425,18 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
     },
   };
   return outreachCampaignSpecV1Schema.parse(normalized);
+}
+
+export function allAcceptedContextRefs(
+  spec: Pick<OutreachCampaignSpecV1, 'context'>,
+): OutreachResolvedContextRefV1[] {
+  return [
+    ...spec.context.requiredPolicyRefs,
+    ...spec.context.writingGuidanceRefs,
+    ...spec.context.campaignFactRefs,
+    ...spec.context.targetSpecificRefs,
+    ...spec.context.groupSafeRefs,
+  ];
 }
 
 export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
@@ -409,4 +472,26 @@ export function canonicalizeCampaignSpecV1(input: unknown): string {
 
 export function hashCampaignSpecV1(input: unknown): string {
   return createHash('sha256').update(canonicalizeCampaignSpecV1(input), 'utf8').digest('hex');
+}
+
+function normalizeContextClass(
+  refs: readonly OutreachResolvedContextRefV1[],
+  contextClass: OutreachResolvedContextRefV1['contextClass'],
+): OutreachResolvedContextRefV1[] {
+  return normalizeResolvedContextRefsV1(refs).filter((entry) => entry.contextClass === contextClass);
+}
+
+function validateContextClass(
+  refs: readonly OutreachResolvedContextRefV1[],
+  expected: OutreachResolvedContextRefV1['contextClass'],
+  field: string,
+  ctx: z.RefinementCtx,
+): void {
+  if (refs.some((entry) => entry.contextClass !== expected)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['context', field],
+      message: `${field} contains a context reference owned by another class.`,
+    });
+  }
 }
