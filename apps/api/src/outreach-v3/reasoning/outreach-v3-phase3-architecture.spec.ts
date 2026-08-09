@@ -106,13 +106,14 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     expect(migration).toContain('FORCE ROW LEVEL SECURITY');
   });
 
-  it('freezes the exact dark reasoning route manifest', () => {
+  it('freezes the exact dark reasoning route manifest and Phase 2 state prerequisite', () => {
     const controller = readApi('src/outreach-v3/reasoning/outreach-v3-reasoning.controller.ts');
     const manifest = JSON.parse(
       readApi('src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json'),
     ) as {
       runtime: string;
       featureFlag: string;
+      requiresStateFlag: string;
       disabledBehavior: number;
       routes: Array<{ method: string; path: string; handler: string }>;
     };
@@ -122,6 +123,7 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     expect(controllerRoutes(controller)).toEqual(expected);
     expect(manifest.runtime).toBe('engagement-api');
     expect(manifest.featureFlag).toBe('OUTREACH_V3_REASONING_ENABLED');
+    expect(manifest.requiresStateFlag).toBe('OUTREACH_V3_STATE_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
   });
 
