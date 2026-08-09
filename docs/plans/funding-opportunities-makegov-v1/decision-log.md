@@ -2245,6 +2245,76 @@ Worth stating plainly, because a `supported` probe row is easy to over-read: **P
 call establishes entitlement and the envelope. It establishes no field type, no null semantic and no
 date format. A successful SBIR probe will be worth exactly as much.
 
+## D-70 · 2026-08-09 · The migrate image was pruned, 16+ scheduled rules were dead, and the migration debt was already paid
+
+Three findings from one operation. The instruction was "apply the four pending migrations to
+`capiro-dev`". None of the three things it uncovered were the migrations.
+
+### The task definition pointed at an image that no longer exists
+
+`capiro-dev-api-migrate` rev 54 pinned
+`capiro/dev/api:9b23dc8906f633d5c245fb1f3351874997273351`. That tag is **gone from ECR** — pruned by
+a lifecycle policy. Running the task produced `CannotPullContainerError: ... not found`.
+
+So the family could not run at all, and had not been able to for some time.
+
+### Which means 16+ unpinned EventBridge rules were silently failing
+
+This program has carried a documented hazard since P40: *"23 of the 27 EventBridge rules targeting
+`capiro-dev-api-migrate` are revision-unpinned, and 16 are enabled, so registering a migrate revision
+is a de facto deploy of 16 scheduled jobs."* True when written. **It was inverted in practice.**
+
+Of the recently-stopped tasks in the cluster, **65 of 79 died with `CannotPullContainerError`**, and
+the migrate family's own history shows the rules firing and failing by name:
+
+```
+events-rule/capiro-dev-run-clio-scheduled-tasks   02:15  CannotPullContainerError
+events-rule/capiro-dev-detect-tracker-alerts      02:00  CannotPullContainerError
+events-rule/capiro-dev-emit-clio-alerts           02:00  CannotPullContainerError
+```
+
+Those jobs were not "about to be deployed by a new revision" — they were **already dead**, and had
+been failing every time they fired. Registering rev 55 against a valid image RESTORED them.
+
+Generalisable, and the reason this is written down rather than just fixed: **a documented hazard
+describes the system on the day it was written.** This one had quietly become its own opposite, and
+every session since had been carefully steering around a danger that had already turned into an
+outage. A hazard worth avoiding for weeks is worth re-verifying before the weeks are up.
+
+### And the migrations were already applied
+
+The whole point of the exercise. Rev 55 ran clean (exit 0), and the log reads:
+
+```
+256 migrations found in prisma/migrations
+No pending migrations to apply.
+```
+
+`prisma migrate deploy` names every migration it applies. It applied none, because the ledger
+already held all 256 — including `20260909010000_tango_sbir_sttr`, which merged the same day.
+
+**The completion matrix was wrong.** Its Deploy cells said "NOT applied to `capiro-dev`" for P36, P40
+and P42, and this session's memory said "four unapplied migrations". Both were reading the same
+stale document. ECS retains stopped tasks for roughly an hour and shows no successful migrate run, so
+WHEN they were applied cannot now be established — only that they are applied.
+
+The error is the same shape as D-69's, one layer out: **a claim about the live system was carried
+forward from a document instead of being checked against the system.** The check costs one task run.
+The matrix cells are corrected to say "applied — verified 2026-08-09 by a clean `migrate deploy`
+reporting 0 pending", which is a claim with a method attached rather than a status somebody typed.
+
+### What was actually changed
+
+Nothing in the database. `capiro-dev-api-migrate` now has rev 55 pinned to
+`capiro/dev/api:90f01afaa440aad1e3b7f15a2b4c077a225849c2` (current `main`, built arm64 and pushed
+because repo-wide CI has been `startup_failure` since 2026-07-31 and cannot build one). `:latest`
+was moved to the same image.
+
+Deliberately NOT used: `scripts/deploy-dev.sh`, whose migrate path targets
+`capiro-dev-api-admin-migrate` — a different family whose rev 9 runs
+`prisma migrate resolve --rolled-back <name> || true` before every deploy, auto-resolving the ledger,
+which is precisely the behaviour the entrypoint's Phase A hardening removed. No service was rolled.
+
 ## D-69 · 2026-08-08 · A false claim living in an error message nobody ever sees
 
 `funding-opportunities-ci.yml` asserts that each of this program's migrations appears in the
