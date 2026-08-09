@@ -1,4 +1,8 @@
-import { parseCampaignSpecV1, type OutreachCampaignSpecV1 } from './outreach-campaign-spec.v1.js';
+import {
+  allAcceptedContextRefs,
+  parseCampaignSpecV1,
+  type OutreachCampaignSpecV1,
+} from './outreach-campaign-spec.v1.js';
 
 export const OUTREACH_READINESS_BLOCKER_CODES = [
   'GOAL_MISSING',
@@ -10,6 +14,7 @@ export const OUTREACH_READINESS_BLOCKER_CODES = [
   'DELIVERY_UNDECIDED',
   'CONTEXT_NOT_IMPLEMENTED_YET',
   'CONTEXT_NOT_REVIEWED',
+  'CONTEXT_HAS_UNVERIFIED_EVIDENCE',
   'STRATEGY_INCOMPLETE',
   'GENERATION_NOT_AVAILABLE',
   'DRAFTS_NOT_AVAILABLE',
@@ -42,6 +47,14 @@ export const PHASE4_OUTREACH_FEATURE_AVAILABILITY: OutreachFeatureAvailability =
   preflight: false,
 });
 
+export const PHASE5_OUTREACH_FEATURE_AVAILABILITY: OutreachFeatureAvailability = Object.freeze({
+  targets: true,
+  context: true,
+  generation: false,
+  drafts: false,
+  preflight: false,
+});
+
 export interface OutreachCampaignReadiness {
   goalReady: boolean;
   sponsorResolved: boolean;
@@ -49,6 +62,7 @@ export interface OutreachCampaignReadiness {
   targetsReady: boolean;
   deliveryReady: boolean;
   contextReady: boolean;
+  contextEvidenceReady: boolean;
   strategyReady: boolean;
   sampleGenerationEligible: boolean;
   fullGenerationEligible: boolean;
@@ -91,13 +105,17 @@ export function deriveOutreachReadiness(
     spec.delivery.pattern !== 'undecided' && spec.delivery.personalization !== 'undecided';
   if (!deliveryReady) blockers.push('DELIVERY_UNDECIDED');
 
-  const contextReady =
-    availability.context &&
-    (spec.context.requiredPolicyRefs.length > 0 ||
-      spec.context.writingGuidanceRefs.length > 0 ||
-      spec.context.campaignFactRefs.length > 0);
+  const acceptedContext = allAcceptedContextRefs(spec);
+  const contextReady = availability.context && acceptedContext.length > 0;
+  const evidenceRefs = acceptedContext.filter((entry) => entry.contextClass !== 'writing_guidance');
+  const contextEvidenceReady = evidenceRefs.every(
+    (entry) =>
+      entry.usableAsEvidence ||
+      (entry.verificationClass === 'user_supplied' && entry.contextClass === 'target_specific'),
+  );
   if (!availability.context) blockers.push('CONTEXT_NOT_IMPLEMENTED_YET');
   else if (!contextReady) blockers.push('CONTEXT_NOT_REVIEWED');
+  else if (!contextEvidenceReady) blockers.push('CONTEXT_HAS_UNVERIFIED_EVIDENCE');
 
   const strategyReady = Boolean(
     spec.strategy.campaignAngle && spec.strategy.tone && spec.strategy.length !== 'undecided',
@@ -111,6 +129,7 @@ export function deriveOutreachReadiness(
     targetsReady &&
     deliveryReady &&
     contextReady &&
+    contextEvidenceReady &&
     strategyReady;
 
   const sampleGenerationEligible = stateReadyForGeneration && availability.generation;
@@ -129,6 +148,7 @@ export function deriveOutreachReadiness(
     targetsReady,
     deliveryReady,
     contextReady,
+    contextEvidenceReady,
     strategyReady,
     sampleGenerationEligible,
     fullGenerationEligible,
