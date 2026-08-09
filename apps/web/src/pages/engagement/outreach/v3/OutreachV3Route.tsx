@@ -14,7 +14,12 @@ import type { Client } from '../../../clients/clientTypes.js';
 import { CampaignBrief } from './CampaignBrief.js';
 import { DecisionSurfaces } from './DecisionSurfaces.js';
 import { OutreachConversation } from './OutreachConversation.js';
-import type { OutreachV3Stage } from './contracts.js';
+import type {
+  OutreachV3DeliveryPattern,
+  OutreachV3Personalization,
+  OutreachV3Stage,
+  OutreachV3StrategyData,
+} from './contracts.js';
 import { useOutreachV3Session } from './useOutreachV3Session.js';
 import './outreach-v3.css';
 
@@ -45,6 +50,11 @@ const STAGE_INDEX: Record<OutreachV3Stage, number> = {
   ready_for_generation: 6,
 };
 
+type StrategyProjection = OutreachV3StrategyData & {
+  recommendedPattern?: OutreachV3DeliveryPattern;
+  recommendedPersonalization?: OutreachV3Personalization;
+};
+
 function campaignTitle(topic: string | null | undefined, fallback: string | null | undefined): string {
   return topic?.trim() || fallback?.trim() || 'New outreach campaign';
 }
@@ -68,6 +78,34 @@ export function OutreachV3Route({
     () => campaignTitle(session?.spec.goal.topic, session?.session.title),
     [session?.session.title, session?.spec.goal.topic],
   );
+  const decisionSession = useMemo(() => {
+    if (!session || viewStage !== 'delivery') return session;
+    const projection = controller.strategy?.data as StrategyProjection | undefined;
+    const recommendedPattern = projection?.recommendedPattern;
+    const recommendedPersonalization = projection?.recommendedPersonalization;
+    if (!recommendedPattern && !recommendedPersonalization) return session;
+    const pattern =
+      session.spec.delivery.pattern === 'undecided' && recommendedPattern
+        ? recommendedPattern
+        : session.spec.delivery.pattern;
+    const personalization =
+      session.spec.delivery.personalization === 'undecided' && recommendedPersonalization
+        ? recommendedPersonalization
+        : session.spec.delivery.personalization;
+    if (
+      pattern === session.spec.delivery.pattern &&
+      personalization === session.spec.delivery.personalization
+    ) {
+      return session;
+    }
+    return {
+      ...session,
+      spec: {
+        ...session.spec,
+        delivery: { pattern, personalization },
+      },
+    };
+  }, [controller.strategy?.data, session, viewStage]);
 
   if (controller.isBootstrapping) {
     return (
@@ -221,7 +259,7 @@ export function OutreachV3Route({
 
         <div className="ov3-workspace__decision">
           <DecisionSurfaces
-            session={session}
+            session={decisionSession ?? session}
             stage={viewStage}
             clients={clients}
             selectedClientId={selectedClientId}
