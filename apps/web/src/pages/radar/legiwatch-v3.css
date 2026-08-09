@@ -1,0 +1,717 @@
+/* ============================================================
+   Capiro Design System v3 — LegiWatch component layer
+   Figma: "Capiro Design System v3 — Premium Intelligence
+   Platform", page 25 · Canonical App · 08 LegiWatch (node 363:45).
+
+   Kept separate from legiwatch.css on purpose: that file is
+   generated from the v2 prototype and its header asks for
+   regeneration rather than hand-edits. This layer must load
+   AFTER it, so every module that imports legiwatch.css imports
+   this immediately after.
+
+   Only components whose v3 form differs STRUCTURALLY from the v2
+   calm design are restated here (badges, tabs, panels, feed
+   rows). Everything else is already handled by the token remap
+   at the top of legiwatch.css.
+   ============================================================ */
+
+/* ── Surface base ────────────────────────────────────────────
+   .lw-root never declared a font-family of its own; it inherited
+   one from .redesign, which is still Hanken Grotesk. Without this
+   only the elements that name var(--font-sans) would move to
+   Instrument Sans and the rest of the surface would silently stay
+   on the v2 typeface. The .redesign compound keeps this ahead of
+   theme.css regardless of stylesheet order.
+   'ss01'/'cv11' are Hanken stylistic sets and mean nothing here. */
+.lw-root,
+.lw-root.redesign {
+  font-family: var(--capiro-type-family-sans);
+  font-feature-settings: normal;
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── Page header ─────────────────────────────────────────── */
+.lw-root .pg-title {
+  color: var(--capiro-color-text-primary);
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-heading-page);
+  line-height: var(--capiro-type-line-heading-page);
+  font-weight: 600;
+  letter-spacing: -0.26px;
+}
+
+.lw-root .pg-desc {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .pg-eyebrow {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+  margin: 0 0 10px;
+}
+
+/* ── Tabs: v3 is a flat underlined row, not a pill group ──── */
+.lw-root .tabs {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+  border-radius: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.lw-root .tabs button {
+  position: relative;
+  height: 44px;
+  min-width: 110px;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: var(--capiro-radius-technical) var(--capiro-radius-technical) 0 0;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .tabs button.active {
+  background: var(--capiro-color-bg-selected);
+  color: var(--capiro-color-text-accent);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.lw-root .tabs button.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--capiro-color-border-review);
+}
+
+/* ── Status badge ────────────────────────────────────────────
+   v3 separates tone from emphasis: the surface stays quiet and
+   tone is carried by a 6px dot plus the label colour, replacing
+   the v2 filled-tint chips. */
+.lw-root .chip {
+  height: var(--capiro-status-badge-height);
+  gap: 6px;
+  padding: 0 var(--capiro-space-02);
+  border-radius: var(--capiro-radius-technical);
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* The v2 severity chips set `text-transform: capitalize` at a higher
+   specificity than the base .chip rule above, so v3's uppercase has to be
+   restated here or the badges render as "Critical" instead of "CRITICAL". */
+.lw-root .chip.sev-critical,
+.lw-root .chip.sev-notable,
+.lw-root .chip.sev-info {
+  text-transform: uppercase;
+}
+
+.lw-root .chip.sev-critical,
+.lw-root .chip.tag.oppose {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .chip.sev-notable,
+.lw-root .chip.warn {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-warning);
+}
+
+.lw-root .chip.sev-info,
+.lw-root .chip.tag.monitor {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-information);
+}
+
+.lw-root .chip.success,
+.lw-root .chip.tag.support {
+  background: var(--capiro-color-bg-surface);
+  border-color: var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-success);
+}
+
+.lw-root .chip.issue {
+  background: var(--capiro-color-shell-nav-current-bg);
+  border-color: transparent;
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.lw-root .chip.band,
+.lw-root .chip.muted {
+  background: var(--capiro-color-bg-subtle);
+  border-color: transparent;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Widget panels ───────────────────────────────────────── */
+.lw-root .card {
+  border-radius: var(--capiro-radius-widget);
+  border-color: var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-widget);
+}
+
+.lw-root .card-head {
+  min-height: 42px;
+  padding: 0 13px;
+  border-bottom-color: var(--capiro-color-border-default);
+}
+
+.lw-root .card-head h3 {
+  font-size: var(--capiro-type-size-heading-sub);
+  line-height: var(--capiro-type-line-heading-sub);
+  font-weight: 600;
+}
+
+.lw-root .card-head .sub {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Metric tiles ────────────────────────────────────────── */
+/* Fixed-width tiles, left aligned — the design's tiles are 202x78 and do not
+   stretch. auto-fit/1fr blew them across the full surface, which read nothing
+   like the reference. */
+.lw-root .lw-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.lw-root .lw-metric {
+  flex: 0 0 202px;
+  height: 78px;
+  padding: 9px 11px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+}
+
+.lw-root .lw-metric.attention {
+  background: var(--capiro-color-bg-review);
+  border-color: var(--capiro-color-border-destructive);
+}
+
+.lw-root .lw-metric-label {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-metric.attention .lw-metric-label {
+  color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.lw-root .lw-metric-value {
+  font-size: var(--capiro-type-size-heading-section);
+  line-height: var(--capiro-type-line-heading-section);
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-metric-sub {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Rail rows (schedule / tracked bills / coverage) ──────── */
+.lw-root .lw-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-row:last-child { border-bottom: 0; }
+.lw-root .lw-row.current { background: var(--capiro-color-bg-selected); }
+.lw-root .lw-row.attention { background: var(--capiro-color-bg-review); }
+
+.lw-root .lw-row-lead {
+  flex: none;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-row-main { flex: 1; min-width: 0; }
+
+.lw-root .lw-row-title {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-row-meta {
+  margin-top: 2px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-row-action {
+  white-space: nowrap;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+
+.lw-root .lw-card-note {
+  padding: 10px 13px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Feed: v3 groups rows into one panel instead of loose cards ─ */
+.lw-root .feed {
+  gap: 0;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  box-shadow: var(--capiro-elevation-widget-emphasis);
+  overflow: hidden;
+}
+
+.lw-root .feed-virtual .acard { margin-bottom: 0; }
+
+.lw-root .acard {
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  background: var(--capiro-color-bg-surface);
+}
+
+.lw-root .acard:last-child { border-bottom: 0; }
+
+.lw-root .acard:hover {
+  box-shadow: none;
+  background: var(--capiro-color-bg-review);
+}
+
+.lw-root .acard.open {
+  background: var(--capiro-color-bg-selected);
+  border-left-color: var(--capiro-color-border-review);
+  box-shadow: none;
+}
+
+.lw-root .acard-title {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+}
+
+.lw-root .acard-date {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .acard-why {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .acard-body,
+.lw-root .acard-actions { border-top-color: var(--capiro-color-border-quiet); }
+
+/* ── Board ───────────────────────────────────────────────── */
+.lw-root .bcol {
+  background: var(--capiro-color-shell-sidebar-bg);
+  border-color: var(--capiro-color-border-default);
+}
+
+/* --ink-4 is the faint mark colour; keep empty-state copy readable. */
+.lw-root .bcol-empty { color: var(--capiro-color-text-muted); }
+
+.lw-root .bcard {
+  border-radius: var(--capiro-radius-navigation);
+  border-color: var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-control);
+}
+
+/* ── Responsive ──────────────────────────────────────────────
+   Only the components introduced by this layer. The v2 breakpoints in
+   legiwatch.css already collapse .feed-layout (1040px) and the board
+   (1100px/768px), and legiwatch-responsive.test.tsx pins the order of
+   those blocks, so nothing is added there. */
+@media (max-width: 768px) {
+  .lw-root .lw-metrics {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .lw-root .lw-metric { flex: 1 1 calc(50% - 5px); }
+
+  .lw-root .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .lw-root .tabs::-webkit-scrollbar { display: none; }
+
+  .lw-root .tabs button {
+    min-width: 0;
+    flex: 1 0 auto;
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .lw-root .lw-metric { flex: 1 1 100%; }
+
+  /* Edge-to-edge feed: a 12px radius inside a 16px gutter wastes the
+     narrowest viewports without adding legibility. */
+  .lw-root .feed {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    margin-inline: -16px;
+  }
+}
+
+/* ── Live hearing room (cockpit) ─────────────────────────────
+   Figma node 395:29. Three columns: source+capture, transcript,
+   live intelligence.
+
+   Deliberately NOT built, for want of any backing data: the moment
+   waveform (no amplitude series exists), the matched-clients panel
+   (a session is scoped to one client and the watchlist-match card
+   carries a count with no client identity), the ACTIONS/ENTITIES
+   tabs (no live action-rule or entity-extraction path), per-segment
+   watchlist-term chips (matches are stored with a startMs but no
+   endpoint returns them per segment), and the audio-health and
+   transcript-latency readouts (neither is measured). */
+.lw-root .lw-room-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lw-root .lw-room-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--capiro-control-height-compact);
+  padding: 0 12px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-control);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+
+.lw-root .lw-room-live .pdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-room-live.off .pdot { background: var(--capiro-color-border-strong); }
+
+/* Health strip: only signals the client actually observes. */
+.lw-root .lw-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+  overflow: hidden;
+}
+
+.lw-root .lw-health-cell {
+  flex: 1 1 auto;
+  min-width: 150px;
+  padding: 9px 13px;
+  border-right: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-health-cell:last-child { border-right: 0; }
+
+.lw-root .lw-health-k {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-health-v {
+  margin-top: 3px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-room-grid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.lw-root .lw-room-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Intelligence card: the card taxonomy is an LLM free-text cardType, so the
+   tone comes from a lookup that must degrade to neutral on an unknown value. */
+.lw-root .lw-icard {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+.lw-root .lw-icard:last-child { border-bottom: 0; }
+
+.lw-root .lw-icard-title {
+  margin-top: 7px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-icard-body {
+  margin-top: 4px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.lw-root .lw-icard-at {
+  margin-top: 5px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  color: var(--capiro-color-text-muted);
+}
+
+@media (max-width: 1240px) {
+  .lw-root .lw-room-grid { grid-template-columns: 300px minmax(0, 1fr); }
+  .lw-root .lw-room-col.intel { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .lw-root .lw-room-grid { grid-template-columns: 1fr; }
+  .lw-root .lw-room-col.intel { grid-column: auto; }
+}
+
+/* ── Room: panels, pills, transcript segments, intel cards ───
+   Custom markup replacing antd Card so the room matches node 395:2.
+   Panels are 12px widget surfaces with a 42px head. */
+.lw-root .lw-panel {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  box-shadow: var(--capiro-elevation-widget);
+  overflow: hidden;
+}
+
+.lw-root .lw-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+}
+
+.lw-root .lw-panel-head h3 {
+  margin: 0;
+  font-size: var(--capiro-type-size-heading-sub);
+  line-height: var(--capiro-type-line-heading-sub);
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-panel-meta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-panel-body { padding: 13px; }
+.lw-root .lw-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-top: 1px solid var(--capiro-color-border-default);
+}
+
+/* Pills in the room header. */
+.lw-root .lw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--capiro-status-badge-height);
+  padding: 0 9px;
+  border-radius: var(--capiro-radius-technical);
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+  white-space: nowrap;
+}
+
+.lw-root .lw-pill .pdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lw-root .lw-pill.live {
+  background: var(--capiro-color-text-destructive);
+  border-color: var(--capiro-color-text-destructive);
+  color: #fff;
+}
+.lw-root .lw-pill.ok { color: var(--capiro-color-text-success); }
+
+/* Transcript segment. */
+.lw-root .lw-seg {
+  display: flex;
+  gap: 12px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-left: 2px solid transparent;
+}
+
+.lw-root .lw-seg:last-child { border-bottom: 0; }
+.lw-root .lw-seg.hit {
+  background: var(--capiro-color-bg-review);
+  border-left-color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-seg-time {
+  flex: none;
+  width: 44px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-seg-main { flex: 1; min-width: 0; }
+
+.lw-root .lw-seg-speaker {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-seg-role {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-seg-text {
+  margin-top: 6px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-seg.interim .lw-seg-text { color: var(--capiro-color-text-muted); font-style: italic; }
+
+/* Intelligence card detail. */
+.lw-root .lw-icard-top { display: flex; align-items: center; gap: 8px; }
+.lw-root .lw-icard-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+.lw-root .lw-icard-kind .pdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lw-root .lw-icard.match { background: var(--capiro-color-bg-review); border-left: 2px solid var(--capiro-color-text-destructive); }
+.lw-root .lw-icard.match .lw-icard-kind { color: var(--capiro-color-text-destructive); }
+
+/* Empty state that keeps a panel at the mockup shape without inventing data. */
+.lw-root .lw-empty {
+  padding: 18px 13px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-muted);
+  text-align: center;
+}

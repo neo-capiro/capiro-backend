@@ -1,0 +1,123 @@
+/* ============================================================
+   Capiro Design System v3 — "Premium Intelligence Platform"
+   Token layer, transcribed from the Figma library variables
+   (file 2aa9ipR2qOfumaixZErCfU). Values are the published
+   variable values, not the stale literal fallbacks that appear
+   in Figma's generated code.
+
+   These are additive: nothing in the app referenced --capiro-*
+   before this file, so defining them on :root cannot regress an
+   existing surface. Surfaces opt in by aliasing their local
+   token names to these (see .lw-root in pages/radar/legiwatch.css).
+   ============================================================ */
+
+:root {
+  /* ── Primitives ─────────────────────────────────────────── */
+  --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
+  --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);
+  --capiro-primitive-shadow-widget-strong: rgba(7, 16, 29, 0.12);
+  --capiro-primitive-highlight-white-72: rgba(255, 255, 255, 0.72);
+
+  /* ── Background ─────────────────────────────────────────── */
+  --capiro-color-bg-canvas: #f1f2f5;
+  --capiro-color-bg-surface: #ffffff;
+  --capiro-color-bg-subtle: #eceef2;
+  --capiro-color-bg-selected: #e6e9ef;
+  --capiro-color-bg-review: #fbfaf7;
+  --capiro-color-bg-inverse: #0c1018;
+
+  /* ── Border ─────────────────────────────────────────────── */
+  --capiro-color-border-default: #e2e5eb;
+  --capiro-color-border-quiet: #eceef2;
+  --capiro-color-border-strong: #c3cbd7;
+  --capiro-color-border-review: #3d6b8a;
+  --capiro-color-border-destructive: #a32b23;
+
+  /* ── Text ───────────────────────────────────────────────── */
+  --capiro-color-text-primary: #121722;
+  --capiro-color-text-secondary: #4a5260;
+  --capiro-color-text-muted: #636c7a;
+  --capiro-color-text-accent: #294e68;
+  --capiro-color-text-destructive: #a32b23;
+  --capiro-color-text-success: #2f6b4f;
+  --capiro-color-text-warning: #8a6218;
+  --capiro-color-text-information: #1c4e7a;
+
+  /* ── Icon ───────────────────────────────────────────────── */
+  --capiro-color-icon-primary: #121722;
+  --capiro-color-icon-accent: #294e68;
+  --capiro-color-icon-success: #2f6b4f;
+  --capiro-color-icon-warning: #8a6218;
+  --capiro-color-icon-destructive: #a32b23;
+  --capiro-color-icon-information: #1c4e7a;
+
+  /* ── Shell ──────────────────────────────────────────────── */
+  --capiro-color-shell-sidebar-bg: #f3f6fa;
+  --capiro-color-shell-sidebar-raised: #ffffff;
+  --capiro-color-shell-separator: #d7e0eb;
+  --capiro-color-shell-search-border: #d7e0eb;
+  --capiro-color-shell-search-text: #636c7a;
+  --capiro-color-shell-nav-default: #4a5260;
+  --capiro-color-shell-nav-current-text: #1d48c9;
+  --capiro-color-shell-nav-current-bg: #e7eefd;
+
+  /* ── Action ─────────────────────────────────────────────── */
+  --capiro-color-action-secondary-default: #ffffff;
+  --capiro-context-color-content-current: #121722;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --capiro-radius-technical: 2px;
+  --capiro-radius-control: 8px;
+  --capiro-radius-navigation: 10px;
+  --capiro-radius-widget: 12px;
+
+  /* ── Space ──────────────────────────────────────────────── */
+  --capiro-space-01: 4px;
+  --capiro-space-02: 8px;
+  --capiro-space-03: 12px;
+
+  /* ── Sizing ─────────────────────────────────────────────── */
+  --capiro-stroke-hairline: 1px;
+  --capiro-control-height-compact: 32px;
+  --capiro-control-min-width-button: 120px;
+  --capiro-field-control-height: 44px;
+  --capiro-status-badge-height: 24px;
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --capiro-type-family-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --capiro-type-family-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --capiro-type-size-body-sm: 13px;
+  --capiro-type-line-body-sm: 20.15px;
+  --capiro-type-size-heading-sub: 15px;
+  --capiro-type-line-heading-sub: 19.5px;
+  --capiro-type-size-heading-section: 20px;
+  --capiro-type-line-heading-section: 22px;
+  --capiro-type-size-heading-page: 26px;
+  --capiro-type-line-heading-page: 31.2px;
+
+  /* Product/Meta/Code — IBM Plex Mono Medium 12/17.4 */
+  --capiro-type-size-meta-code: 12px;
+  --capiro-type-line-meta-code: 17.4px;
+  /* Product/Meta/Label — IBM Plex Mono Medium 11/15.4, 6% tracking */
+  --capiro-type-size-meta-label: 11px;
+  --capiro-type-line-meta-label: 15.4px;
+  --capiro-type-tracking-meta-label: 0.66px;
+
+  /* ── Elevation ──────────────────────────────────────────── */
+  --capiro-elevation-shell:
+    0 1px 2px 0 var(--capiro-primitive-shadow-shell),
+    0 10px 24px -18px var(--capiro-primitive-shadow-widget);
+  --capiro-elevation-control:
+    inset 0 1px 0 0 var(--capiro-primitive-highlight-white-72),
+    0 1px 2px 0 var(--capiro-primitive-shadow-shell),
+    0 6px 16px -12px var(--capiro-primitive-shadow-widget);
+  --capiro-elevation-widget:
+    inset 0 1px 0 0 var(--capiro-primitive-highlight-white-72),
+    0 1px 3px 0 var(--capiro-primitive-shadow-shell),
+    0 14px 34px -16px var(--capiro-primitive-shadow-widget);
+  --capiro-elevation-widget-emphasis:
+    inset 0 1px 0 0 var(--capiro-primitive-highlight-white-72),
+    0 2px 5px 0 var(--capiro-primitive-shadow-shell),
+    0 22px 52px -20px var(--capiro-primitive-shadow-widget-strong);
+}
