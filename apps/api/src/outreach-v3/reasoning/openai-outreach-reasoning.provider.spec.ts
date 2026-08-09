@@ -58,20 +58,29 @@ function responseJson(body: unknown, status = 200) {
   } as unknown as Response;
 }
 
+function outputMessage(text: string) {
+  return {
+    type: 'message',
+    role: 'assistant',
+    content: [{ type: 'output_text', text }],
+  };
+}
+
 function finalResponse(id = 'resp_final') {
+  const payload = JSON.stringify({
+    assistantMessage: 'I can update the goal after you confirm.',
+    proposedCommands: [
+      {
+        type: 'SET_GOAL',
+        schemaVersion: 1,
+        payload: { value: 'Protect the program' },
+      },
+    ],
+    openQuestions: [],
+  });
   return {
     id,
-    output_text: JSON.stringify({
-      assistantMessage: 'I can update the goal after you confirm.',
-      proposedCommands: [
-        {
-          type: 'SET_GOAL',
-          schemaVersion: 1,
-          payload: { value: 'Protect the program' },
-        },
-      ],
-      openQuestions: [],
-    }),
+    output: [outputMessage(payload)],
     usage: {
       input_tokens: 100,
       output_tokens: 20,
@@ -214,7 +223,7 @@ describe('OpenAiOutreachReasoningProvider', () => {
 
   it('rejects malformed structured final output instead of fabricating a proposal', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(
-      responseJson({ id: 'resp_invalid', output_text: '{"assistantMessage":42}' }),
+      responseJson({ id: 'resp_invalid', output: [outputMessage('{"assistantMessage":42}')] }),
     );
     const provider = new OpenAiOutreachReasoningProvider(credentialResolver() as never);
 
