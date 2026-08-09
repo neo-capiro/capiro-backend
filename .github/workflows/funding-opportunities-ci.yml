@@ -887,6 +887,7 @@ jobs:
           scripts/diag-tango-webhook-contract.spec.ts
           scripts/sync-tango-dibbs.spec.ts
           scripts/sync-tango-sbir.spec.ts
+          scripts/diag-tango-contract-capture.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -2145,9 +2146,31 @@ jobs:
       # rail, so that width is the only thing left separating the two
       # vocabularies — which is why the identity spec now asserts it in the same
       # test as the INBOX_SOURCES literal.
+      #
+      # 87/2750 -> 88/2765: one NEW file,
+      # scripts/diag-tango-contract-capture.spec.ts (15 tests), and a path-list
+      # entry for it.
+      #
+      # Its subject is a diagnostic whose OUTPUT cannot be tested here — that
+      # needs the live provider and an operator's key (plan 4.6). So the tests
+      # are its SAFETY properties instead: no Prisma import and no write-shaped
+      # call anywhere; each of the five list methods invoked EXACTLY ONCE, which
+      # is what bounds the run to five requests inside a 25-per-31s budget;
+      # every error string passed through both redactors, because a provider
+      # echoing the request back is the one way a key reaches an artifact; and
+      # it refuses to overwrite an existing capture, because a capture is
+      # evidence.
+      #
+      # One test pins the thing most likely to be "helpfully" broken later: the
+      # documented-field lists are transcribed from dibbs-sbir-rest-contract.md
+      # and the script imports NO mapper. Deriving them from the mappers would
+      # only prove the mappers agree with themselves — the run exists to check
+      # the DOCUMENT against reality. Relatedly, the SBIR list carries no
+      # `phase`, because the contract publishes none; looking for one would
+      # report it MISSING and invite someone to "fix" a mapper that is correct.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 87 2750
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2765
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
