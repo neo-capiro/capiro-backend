@@ -117,11 +117,11 @@ class FakePrisma {
   async $queryRawUnsafe<T>(query: string, ...values: unknown[]): Promise<T> {
     this.calls.push({ query, values });
     if (query.includes('defense_budget_promotion_eligibility')) {
-      return [{ document: this.eligibilityDocument }] as T;
+      return [{ document: this.eligibilityDocument }] as unknown as T;
     }
     if (query.includes('defense_budget_projection_plan')) {
       const requested = new Set(values.map(String));
-      return this.rows.filter((row) => requested.has(row.projectionPlanId)) as T;
+      return this.rows.filter((row) => requested.has(row.projectionPlanId)) as unknown as T;
     }
     throw new Error(`unexpected query in fake: ${query}`);
   }
