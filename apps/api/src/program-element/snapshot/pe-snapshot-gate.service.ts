@@ -20,13 +20,12 @@
  * rows are assembled for why a second resolution inside one response is the
  * failure mode this whole module exists to prevent).
  *
- * `environment` has no established runtime convention yet — nothing has been
- * promoted anywhere, dev or production, as of this writing. This resolves it
- * from `NODE_ENV`, the same signal `tool-service-secret.guard.ts` already
- * treats as "the environment" for a security-relevant decision. Revisit this
- * the first time a real promotion activates a snapshot outside a disposable
- * rehearsal container, to confirm the activation's `environment` column
- * actually matches what this resolves to.
+ * The environment currently falls back to NODE_ENV. A dedicated
+ * PE_SNAPSHOT_ENVIRONMENT override is accepted directly from process.env so an
+ * activation and the serving task can share one exact environment key even
+ * when deployment naming (for example "dev") intentionally differs from
+ * NODE_ENV (for example "production"). The fallback preserves today's inert
+ * behavior until rollout explicitly sets the override.
  */
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -47,6 +46,7 @@ import {
   NOOP_SLO_METRIC_RECORDER_V1,
   type SloMetricRecorderV1,
 } from '../../defense-budget/promotion/slo-metrics-v1.js';
+import { TenantContextStore } from '../../tenant/tenant-context.store.js';
 
 const DEFENSE_BUDGET_DOMAIN = 'defense_budget';
 
@@ -63,18 +63,33 @@ export class PeSnapshotGateService {
     @Optional()
     @Inject(SLO_METRIC_RECORDER_V1)
     private readonly sloMetrics: SloMetricRecorderV1 = NOOP_SLO_METRIC_RECORDER_V1,
+    // TenantModule is global. Optional keeps direct-construction unit tests and
+    // non-request/system callers working, but authenticated HTTP requests get
+    // the already-verified tenant resolved by TenantContextMiddleware via ALS.
+    @Optional() private readonly tenantContextStore?: TenantContextStore,
   ) {}
 
   private environment(): string {
-    return this.config.get('NODE_ENV', { infer: true }) ?? 'development';
+    const explicit = process.env.PE_SNAPSHOT_ENVIRONMENT?.trim();
+    return explicit && explicit.length > 0
+      ? explicit
+      : (this.config.get('NODE_ENV', { infer: true }) ?? 'development');
   }
 
   /**
    * Resolve the mode/pointer for one method invocation. Call this exactly once
    * per invocation and thread the result through every `loadRows` call that
    * invocation makes.
+   *
+   * Older Workstream-M callers pass `null` because they predate tenant-aware
+   * canary routing. That must not mean "this authenticated request has no
+   * tenant": use the request-scoped TenantContextStore as the fallback. An
+   * explicit argument always wins, which keeps system/test callers
+   * deterministic and prevents ambient context from overriding deliberate
+   * scope.
    */
   async resolve(tenantId: string | null): Promise<PeSnapshotGateResultV1> {
+    const effectiveTenantId = tenantId ?? this.tenantContextStore?.get()?.tenantId ?? null;
     const resolver = createActiveSnapshotResolverV1(
       this.port,
       DEFENSE_BUDGET_DOMAIN,
@@ -104,7 +119,7 @@ export class PeSnapshotGateService {
 
     const decision = resolveSnapshotReadModeV1({
       configuredMode,
-      tenantId,
+      tenantId: effectiveTenantId,
       canaryTenantIds,
       hasActiveSnapshot: activeSnapshot != null,
     });
