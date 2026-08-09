@@ -93,7 +93,7 @@ export class SearchMemoryCapability {
     return {
       name: 'search_memory',
       description:
-        'Search active governed institutional memory with owner, client-wall, freshness, instruction and evidence boundaries preserved.',
+        'Search active governed institutional memory with owner, client-wall, freshness, instruction and evidence boundaries preserved. A null client scope means tenant-neutral memory only.',
       version: 1,
       readOnly: true,
       riskClass: 'read',
@@ -134,7 +134,9 @@ export class SearchMemoryCapability {
                updated_at
         FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
-          ${effectiveClientId ? Prisma.sql`AND client_id = ${effectiveClientId}::uuid` : Prisma.empty}
+          ${effectiveClientId
+            ? Prisma.sql`AND client_id = ${effectiveClientId}::uuid`
+            : Prisma.sql`AND client_id IS NULL`}
           AND status NOT IN ('revoked', 'rejected', 'withdrawn')
           AND (expires_at IS NULL OR expires_at > now())
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.actorUserId}::uuid)
