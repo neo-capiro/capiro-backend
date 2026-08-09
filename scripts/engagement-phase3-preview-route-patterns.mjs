@@ -1,31 +1,16 @@
 #!/usr/bin/env node
 /**
- * Phase 3 micro-session 3.3 — preview route-pattern generator and drift gate.
+ * Engagement API preview route-pattern generator and drift gate.
  *
- * The preview activation contract requires EXACT route-manifest matching, not
- * substring matching: a `startsWith('/api/engagement')` test would happily send
- * the header to `/api/engagement-something-else` (a path the ALB preview rule
- * does not cover) and, worse, would keep passing after someone renames a real
- * route out from under it. So the web matches a closed list of patterns derived
- * from the accepted Phase 0 route manifest.
- *
- * Importing the manifest itself into apps/web is the obvious alternative and is
- * rejected on purpose: it ships a 110-route, ~40KB JSON blob describing
- * controllers, guards, DTOs and source line numbers into the production bundle
- * for a feature that is off by default. This script emits only what the browser
- * needs — the path patterns — and then FAILS when that list diverges from the
- * manifest, which is the same friction 3.1 established for the consumer
- * inventory.
- *
- * Two manifest paths are deliberately excluded; see EXCLUSIONS below. The
- * exclusion list is part of the generated output so the omission is visible in
- * the diff rather than implied by a count.
+ * The browser must attach the preview header only to exact routes owned by the
+ * engagement-api runtime. The original Phase 3 manifest remains the primary
+ * parity manifest; additive Outreach V3 state, reasoning, target, and context
+ * manifests are merged here so the final V3 customer UI can reach the dark
+ * runtime without widening the header to an unsafe prefix match.
  *
  * Usage:
  *   node scripts/engagement-phase3-preview-route-patterns.mjs --check
  *   node scripts/engagement-phase3-preview-route-patterns.mjs --write
- *
- * Exit: 0 the generated module matches the manifest · 1 it has drifted
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -34,10 +19,25 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const ROUTE_MANIFEST_PATH = path.join(
+const PRIMARY_ROUTE_MANIFEST_PATH = path.join(
   ROOT,
   'apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json',
 );
+const ADDITIVE_ROUTE_MANIFEST_PATHS = [
+  path.join(ROOT, 'apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json'),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json',
+  ),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json',
+  ),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json',
+  ),
+];
 const GENERATED_PATH = path.join(
   ROOT,
   'apps/web/src/lib/engagement-api-preview-routes.generated.ts',
@@ -47,25 +47,20 @@ const GENERATED_PATH = path.join(
 export const PREVIEW_PREFIX = '/api/engagement';
 
 /**
- * Manifest paths intentionally NOT given a preview pattern, each with the
- * reason. A manifest path that is neither patterned nor listed here is a hard
- * failure — silence is the failure mode this table exists to prevent.
- *
- * Both entries are outside `/api/engagement/*`, which is the ALB preview rule's
- * path condition. Sending the header to them could not route anywhere new; it
- * would only leak an internal routing decision to services that never asked for
- * one.
+ * Primary-manifest paths deliberately excluded from browser preview routing.
+ * Additive Outreach V3 manifests are required to contain only engagement-api
+ * browser routes and therefore do not have a separate exclusion table.
  */
 export const EXCLUSIONS = [
   {
     path: '/api/internal/ai-credentials/resolve',
     reason:
-      'Service-to-service credential resolve. Not called from the browser (no web consumer in the 3.1 inventory) and outside the ALB preview rule path condition. Phase 4 owns this boundary.',
+      'Service-to-service credential resolve. Not called from the browser and outside the ALB preview rule path condition.',
   },
   {
     path: '/webhooks/recall',
     reason:
-      'Recall.ai inbound webhook. Called by Recall, never by the SPA, and Phase 3 explicitly does not move callback traffic.',
+      'Recall.ai inbound webhook. Called by Recall, never by the SPA, and not owned by preview routing.',
   },
 ];
 
@@ -97,37 +92,41 @@ export function buildPatterns(manifest) {
   };
 }
 
-export function renderModule(manifest, manifestSha256, built) {
+export function renderModule(primaryManifest, primaryManifestSha256, built) {
   const patternLines = built.patterns.map((pattern) => `  '${pattern}',`).join('\n');
   const exclusionLines = EXCLUSIONS.map(
     (entry) => ` *   ${entry.path}\n *     ${entry.reason}`,
+  ).join('\n');
+  const additiveSources = ADDITIVE_ROUTE_MANIFEST_PATHS.map(
+    (manifestPath) => ` *   ${path.relative(ROOT, manifestPath)}`,
   ).join('\n');
 
   return `/**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Source:    apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json
+ * Primary source:
+ *   apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json
+ * Additive Outreach V3 sources:
+${additiveSources}
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
- * Anchored path patterns for every accepted Engagement route the browser may
- * send the Engagement API preview header to. (The header name itself lives in
- * engagement-api-preview.ts — the one module allowed to spell it.) Anchored on
- * purpose: substring matching would send the header to look-alike paths the ALB
- * preview rule does not cover, and would not notice a renamed route.
+ * Anchored path patterns for every accepted browser route owned by the
+ * engagement-api runtime. The preview header name remains isolated in
+ * engagement-api-preview.ts. Prefix or substring matching is prohibited.
  *
- * Deliberately excluded manifest paths:
+ * Deliberately excluded primary-manifest paths:
 ${exclusionLines}
  */
 
-/** sha256 of the route manifest these patterns were generated from. */
+/** sha256 of the primary Engagement parity manifest. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
-  '${manifestSha256}';
+  '${primaryManifestSha256}';
 
-/** Manifest schema version these patterns were generated from. */
-export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = ${manifest.schemaVersion};
+/** Primary manifest schema version. */
+export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = ${primaryManifest.schemaVersion};
 
-/** Distinct manifest paths covered by the patterns below. */
+/** Distinct primary + additive manifest paths covered below. */
 export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = ${built.patterns.length};
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
@@ -136,13 +135,27 @@ ${patternLines}
 `;
 }
 
+function readManifest(manifestPath) {
+  const raw = readFileSync(manifestPath, 'utf8');
+  return { raw, manifest: JSON.parse(raw) };
+}
+
 function main() {
   const mode = process.argv.includes('--write') ? 'write' : 'check';
-  const raw = readFileSync(ROUTE_MANIFEST_PATH, 'utf8');
-  const manifest = JSON.parse(raw);
-  const manifestSha256 = createHash('sha256').update(raw, 'utf8').digest('hex');
+  const primary = readManifest(PRIMARY_ROUTE_MANIFEST_PATH);
+  const additive = ADDITIVE_ROUTE_MANIFEST_PATHS.map(readManifest);
+  const primaryManifestSha256 = createHash('sha256')
+    .update(primary.raw, 'utf8')
+    .digest('hex');
 
-  const built = buildPatterns(manifest);
+  const combinedManifest = {
+    ...primary.manifest,
+    routes: [
+      ...primary.manifest.routes,
+      ...additive.flatMap((entry) => entry.manifest.routes),
+    ],
+  };
+  const built = buildPatterns(combinedManifest);
 
   const problems = [];
   for (const routePath of built.unaccounted) {
@@ -151,11 +164,9 @@ function main() {
     );
   }
   for (const routePath of built.staleExclusions) {
-    problems.push(`EXCLUSIONS names ${routePath}, which is no longer in the route manifest`);
+    problems.push(`EXCLUSIONS names ${routePath}, which is no longer in the route manifests`);
   }
-  if (built.patterns.length === 0) {
-    problems.push('no preview route patterns were derived from the manifest');
-  }
+  if (built.patterns.length === 0) problems.push('no preview route patterns were derived');
 
   if (problems.length > 0) {
     for (const problem of problems) console.error(`FAIL  ${problem}`);
@@ -163,7 +174,7 @@ function main() {
     process.exit(1);
   }
 
-  const rendered = renderModule(manifest, manifestSha256, built);
+  const rendered = renderModule(primary.manifest, primaryManifestSha256, built);
 
   if (mode === 'write') {
     writeFileSync(GENERATED_PATH, rendered, 'utf8');
@@ -184,7 +195,7 @@ function main() {
 
   if (current !== rendered) {
     console.error(
-      `FAIL  ${path.relative(ROOT, GENERATED_PATH)} has drifted from the route manifest`,
+      `FAIL  ${path.relative(ROOT, GENERATED_PATH)} has drifted from the route manifests`,
     );
     console.error('      run: node scripts/engagement-phase3-preview-route-patterns.mjs --write');
     console.error('\nENGAGEMENT_PREVIEW_ROUTE_PATTERNS_DRIFTED');
