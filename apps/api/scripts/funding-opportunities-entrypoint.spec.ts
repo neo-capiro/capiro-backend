@@ -33,6 +33,11 @@ describe('Funding Opportunities container commands', () => {
     // already-issued solicitations permanently unsynced, and the run would
     // still report itself complete.
     ['sync-tango-dibbs', 'sync-tango-dibbs.ts'],
+    // P42 part 3. Identical reasoning one source over, and --full matters MORE
+    // here: a topic amended after release (a moved close date, a status turning
+    // Closed) never re-enters a publication-date window, so without --full the
+    // catalog would keep serving a stale close date while reporting complete.
+    ['sync-tango-sbir', 'sync-tango-sbir.ts'],
   ])('%s dispatches to %s and forwards all arguments', (verb, script) => {
     if (verb === 'sync-sam-opportunities-all-federal') {
       expect(dispatcher).toContain(

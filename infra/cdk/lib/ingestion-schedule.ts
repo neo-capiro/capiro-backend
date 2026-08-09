@@ -650,6 +650,44 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
     enabled: false,
   },
+  // Funding Opportunities P42 part 3: SBIR/STTR. DISABLED, and with a STRONGER
+  // reason than the DIBBS pair above.
+  //
+  // P17 confirmed the DIBBS envelope against a live response on 2026-08-08.
+  // NOTHING HAS EVER CALLED /api/sbir/ — not once. The client, the schema, the
+  // mappers and the walk are all written against a published field list, so
+  // enabling this would write a whole catalog shaped by a contract that has
+  // never been observed at all, not merely one only partly verified.
+  //
+  // Order of operations when the time comes: run the P17 probe to answer
+  // entitlement and the envelope, then a live contract validation capturing
+  // real record contents, then the incremental ALONE, then read one run's
+  // summary — especially `topicsWithNoStatedCycle` and the per-endpoint
+  // droppedNoId / droppedNoRequiredField counts, which are the fields that say
+  // the reading of an identifier or the parent key is wrong — and only then
+  // enable the full reconciliation.
+  //
+  // Offset 20 minutes from the DIBBS pair: both hit the same account, and P17
+  // measured it at 25 requests per ~31s, which a page-complete walk reaches
+  // routinely. Overlapping two catalog walks would make each throttle the other.
+  {
+    id: 'SyncTangoSbir',
+    command: ['sync-tango-sbir', '--commit'],
+    cron: { minute: '30', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: SBIR/STTR incremental sync (daily 13:30 UTC, publication-date window + 7d overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileTangoSbirFull',
+    command: ['sync-tango-sbir', '--commit', '--full'],
+    cron: { minute: '30', hour: '13', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Funding Opportunities: SBIR/STTR full reconciliation (Sun 13:30 UTC) — catches topic amendments the publication-date window cannot',
+    enabled: false,
+  },
   // Funding Opportunities P48: drain verified webhook deliveries into client
   // alerts. DISABLED, and it must stay that way until P50's controlled
   // enablement — P48's own ship note requires a manual two-pass quiet test
