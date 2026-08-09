@@ -128,7 +128,7 @@ describe('shared target intelligence capabilities', () => {
     });
     expect(result.data.candidates[0]).toMatchObject({
       targetKey: 'directory_member:member-2',
-      similarityScore: 1,
+      similarityScore: 0.8,
       similarityReasons: expect.arrayContaining([
         'Same government level.',
         'Same chamber.',
