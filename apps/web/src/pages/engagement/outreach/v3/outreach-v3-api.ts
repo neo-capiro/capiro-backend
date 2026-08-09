@@ -8,6 +8,7 @@ import type {
   OutreachV3ContextScope,
   OutreachV3Conversation,
   OutreachV3GovernmentSearchData,
+  OutreachV3Length,
   OutreachV3MemorySearchData,
   OutreachV3Proposal,
   OutreachV3ReasoningTurnResult,
@@ -21,6 +22,19 @@ import type {
 } from './contracts.js';
 
 const ROOT = '/api/engagement/outreach-v3';
+
+interface OutreachV3StrategyWireData {
+  recommendedPattern:
+    | 'personalized_separate'
+    | 'uniform_separate'
+    | 'shared_thread';
+  recommendedPersonalization: 'high' | 'light' | 'none';
+  recommendedTone: 'professional' | 'collaborative' | 'direct';
+  recommendedLength: 'short' | 'medium';
+  rationale: string[];
+  unresolvedDecisions: string[];
+  safetyNotes: string[];
+}
 
 export function outreachV3SessionPath(sessionId: string): string {
   return `${ROOT}/sessions/${encodeURIComponent(sessionId)}`;
@@ -251,11 +265,34 @@ export async function getOutreachV3Strategy(
   api: AxiosInstance,
   sessionId: string,
 ): Promise<CapabilityResult<OutreachV3StrategyData>> {
-  return (
-    await api.get<CapabilityResult<OutreachV3StrategyData>>(
-      `${outreachV3SessionPath(sessionId)}/context/strategy`,
-    )
-  ).data;
+  const response = await api.get<CapabilityResult<OutreachV3StrategyWireData>>(
+    `${outreachV3SessionPath(sessionId)}/context/strategy`,
+  );
+  const wire = response.data;
+  const tone = sentence(wire.data.recommendedTone);
+  const length = wire.data.recommendedLength as OutreachV3Length;
+  const warnings = [...wire.data.unresolvedDecisions, ...wire.data.safetyNotes];
+  const recommendation = {
+    campaignAngle: null,
+    tone,
+    length,
+    rationale: wire.data.rationale,
+    warnings,
+    recommendedPattern: wire.data.recommendedPattern,
+    recommendedPersonalization: wire.data.recommendedPersonalization,
+  };
+  return {
+    ...wire,
+    data: {
+      tone,
+      length,
+      rationale: wire.data.rationale,
+      warnings,
+      recommendedPattern: wire.data.recommendedPattern,
+      recommendedPersonalization: wire.data.recommendedPersonalization,
+      recommendation,
+    },
+  };
 }
 
 export function targetCandidateToLocator(
@@ -285,4 +322,8 @@ export function safeOutreachV3Error(error: unknown): string {
   return typeof message === 'string' && message.trim()
     ? message
     : 'Outreach could not complete that action.';
+}
+
+function sentence(value: string): string {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
