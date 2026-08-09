@@ -19,6 +19,7 @@ const reasoningSpecs = [
   'src/outreach-v3/reasoning/openai-outreach-reasoning.provider.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning-turn-claim.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-history.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning-contract-eval.spec.ts',
 ];
