@@ -44,6 +44,27 @@ describe('Outreach V3 Phase 6 UI contract', () => {
     for (const pattern of expected) expect(ENGAGEMENT_PREVIEW_ROUTE_PATTERNS).toContain(pattern);
   });
 
+  it('uses backend readiness as the stage authority and ignores only intentional future blockers', () => {
+    const hook = source('useOutreachV3Session.ts');
+    const brief = source('CampaignBrief.tsx');
+    expect(hook).toContain('stageFromCanonicalReadiness');
+    expect(hook).toContain("blockers.has('TARGET_CRITERIA_MISSING')");
+    expect(hook).toContain("blockers.has('CONTEXT_HAS_UNVERIFIED_EVIDENCE')");
+    expect(hook).toContain("'GENERATION_NOT_AVAILABLE'");
+    expect(hook).toContain('outreachV3PlanningBlockerCodes');
+    expect(brief).toContain('outreachV3PlanningBlockerCodes(readiness)');
+  });
+
+  it('recovers reasoning continuity without reloading or replacing canonical campaign state', () => {
+    const hook = source('useOutreachV3Session.ts');
+    const conversation = source('OutreachConversation.tsx');
+    const route = source('OutreachV3Route.tsx');
+    expect(hook).toContain('retryReasoning');
+    expect(hook).toContain('resetQueries');
+    expect(conversation).not.toContain('window.location.reload');
+    expect(route).toContain('controller.retryReasoning()');
+  });
+
   it('archives the exact accepted Figma implementation nodes', () => {
     const manifest = readFileSync(
       path.join(ROOT, 'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md'),
