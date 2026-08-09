@@ -9,7 +9,7 @@
     "openP1": 0,
     "blockingP2": 0,
     "fixedP1": 3,
-    "fixedP2": 3,
+    "fixedP2": 4,
     "fixedTestDefects": 2
   },
   "findings": [
@@ -66,6 +66,15 @@
       "summary": "Reasoning needed OpenAI access in engagement-api shadow mode but enabling the global external-action switch would also enable send/OAuth/other unsafe actions.",
       "repair": "Added a narrow outreach_reasoning runtime action and reasoning-specific credential resolver method; every unrelated external action remains blocked in shadow mode.",
       "regression": "outreach-reasoning-runtime-boundary.spec.ts + outreach-reasoning-credential-boundary.spec.ts"
+    },
+    {
+      "id": "P3-ROLLOUT-001",
+      "severity": "P2",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "The first reasoning gate could be enabled independently of the Phase 2 canonical state API, allowing a rollout to expose the model while the state substrate remained dark.",
+      "repair": "The reasoning HTTP guard and the reasoning-only outbound runtime permission now both require OUTREACH_V3_STATE_ENABLED=true and OUTREACH_V3_REASONING_ENABLED=true. The route manifest records the Phase 2 state prerequisite.",
+      "regression": "outreach-v3-reasoning.guard.spec.ts + outreach-reasoning-runtime-boundary.spec.ts + outreach-v3-phase3-architecture.spec.ts"
     },
     {
       "id": "P3-TEST-001",
