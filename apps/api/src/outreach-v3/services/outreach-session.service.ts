@@ -16,6 +16,7 @@ import {
   deriveOutreachReadiness,
   PHASE5_OUTREACH_FEATURE_AVAILABILITY,
 } from '../state/outreach-readiness.contract.js';
+import { assertOutreachContextSponsorIsolation } from '../context/outreach-context-sponsor-policy.js';
 
 @Injectable()
 export class OutreachSessionService {
@@ -144,6 +145,7 @@ export class OutreachSessionService {
     let spec;
     try {
       spec = parseCampaignSpecV1(row.specJsonb);
+      assertOutreachContextSponsorIsolation(spec);
     } catch {
       throw new OutreachCommandError(
         'OUTREACH_STATE_CORRUPT',
