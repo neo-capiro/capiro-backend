@@ -5,6 +5,7 @@ import type {
   ActiveSnapshotV1,
   SnapshotReadPortV1,
 } from '../../defense-budget/promotion/snapshot-read-repository-v1.js';
+import type { TenantContextStore } from '../../tenant/tenant-context.store.js';
 
 function activeSnapshot(overrides: Partial<ActiveSnapshotV1> = {}): ActiveSnapshotV1 {
   return {
@@ -31,7 +32,26 @@ function config(values: Partial<Record<string, unknown>>): ConfigService<AppConf
   } as unknown as ConfigService<AppConfig, true>;
 }
 
+function tenantStore(tenantId: string): TenantContextStore {
+  return {
+    get: () => ({
+      tenantId,
+      tenantSlug: 'test-tenant',
+      userId: 'user-1',
+      clerkUserId: 'clerk-1',
+      role: 'standard_user',
+    }),
+  } as unknown as TenantContextStore;
+}
+
 describe('PeSnapshotGateService', () => {
+  const originalSnapshotEnvironment = process.env.PE_SNAPSHOT_ENVIRONMENT;
+
+  afterEach(() => {
+    if (originalSnapshotEnvironment == null) delete process.env.PE_SNAPSHOT_ENVIRONMENT;
+    else process.env.PE_SNAPSHOT_ENVIRONMENT = originalSnapshotEnvironment;
+  });
+
   it('forces legacy with no active snapshot, regardless of configured mode', async () => {
     const gate = new PeSnapshotGateService(
       portReturning(null),
@@ -81,6 +101,57 @@ describe('PeSnapshotGateService', () => {
       compare: true,
       reason: 'canary_non_tenant',
     });
+  });
+
+  it('uses the verified request tenant when a legacy caller passes null', async () => {
+    const gate = new PeSnapshotGateService(
+      portReturning(activeSnapshot()),
+      config({
+        PE_SNAPSHOT_READ_MODE: 'snapshot_canary',
+        PE_SNAPSHOT_CANARY_TENANTS: 'tenant-a',
+        NODE_ENV: 'test',
+      }),
+      undefined,
+      tenantStore('tenant-a'),
+    );
+
+    expect((await gate.resolve(null)).decision).toEqual({
+      serve: 'snapshot',
+      compare: true,
+      reason: 'canary_tenant',
+    });
+  });
+
+  it('prefers an explicit tenant argument over ambient request context', async () => {
+    const gate = new PeSnapshotGateService(
+      portReturning(activeSnapshot()),
+      config({
+        PE_SNAPSHOT_READ_MODE: 'snapshot_canary',
+        PE_SNAPSHOT_CANARY_TENANTS: 'tenant-a',
+        NODE_ENV: 'test',
+      }),
+      undefined,
+      tenantStore('tenant-a'),
+    );
+
+    expect((await gate.resolve('tenant-z')).decision).toEqual({
+      serve: 'legacy',
+      compare: true,
+      reason: 'canary_non_tenant',
+    });
+  });
+
+  it('uses the explicit snapshot environment key for pointer reads and SLO dimensions', async () => {
+    process.env.PE_SNAPSHOT_ENVIRONMENT = 'capiro-dev';
+    const port = portReturning(activeSnapshot({ environment: 'capiro-dev' }));
+    const gate = new PeSnapshotGateService(
+      port,
+      config({ PE_SNAPSHOT_READ_MODE: 'snapshot', NODE_ENV: 'production' }),
+    );
+
+    await gate.resolve('tenant-1');
+    expect(port.loadActiveSnapshot).toHaveBeenCalledWith('defense_budget', 'capiro-dev');
+    expect(gate.sloDescriptor().environment).toBe('capiro-dev');
   });
 
   it('resolves a fresh pointer on every call rather than caching across calls', async () => {
