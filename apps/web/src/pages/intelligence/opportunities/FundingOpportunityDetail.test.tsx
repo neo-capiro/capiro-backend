@@ -525,11 +525,28 @@ describe('the same route serves agency forecasts, as a different record type (P2
     expect(apiGetMock).not.toHaveBeenCalled();
   });
 
-  test('the bad-ref message names all three rails the route accepts', async () => {
+  test('the bad-ref message names all four rails the route accepts', async () => {
     renderRoute('/intelligence/opportunities/fpds/notice-1');
     expect(await screen.findByTestId('fo-detail-bad-ref')).toHaveTextContent(
-      /grants_gov, sam_gov and agency_forecast/,
+      /grants_gov, sam_gov, agency_forecast and dibbs/,
     );
+  });
+
+  /**
+   * P41. `dibbs` is a legal inbox source, so this route WILL be reached with one
+   * — and the malformed-URL branch above would have told the reader that “dibbs”
+   * is not a source Capiro holds, which is false about Capiro's own data. The
+   * two errors send a reader to different places: "no such source" to a broken
+   * import, "no detail page yet" back to the queue where the item actually is.
+   */
+  test('a dibbs link says the DETAIL PAGE is missing, never that the source is unknown', async () => {
+    renderRoute('/intelligence/opportunities/dibbs/SPE4A625T1234');
+    const panel = await screen.findByTestId('fo-dibbs-no-detail');
+    expect(panel).toHaveTextContent('do not have a detail page yet');
+    expect(panel).toHaveTextContent('says nothing about whether the item exists');
+    expect(screen.queryByTestId('fo-detail-bad-ref')).not.toBeInTheDocument();
+    // A rail with no detail body has nothing to ask the API about.
+    expect(apiGetMock).not.toHaveBeenCalled();
   });
 });
 

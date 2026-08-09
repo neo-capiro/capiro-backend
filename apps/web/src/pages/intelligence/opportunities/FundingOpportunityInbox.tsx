@@ -18,11 +18,15 @@ import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
 import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
 import { ForecastOpportunityCard } from './ForecastOpportunityCard.js';
+import { DibbsOpportunityCard } from './DibbsOpportunityCard.js';
 import { readEnum, useUrlState } from './funding-opportunities-url-state.js';
 import {
+  DIBBS_PART_PROFILE_GAP_TODAY,
+  DIBBS_SOURCE,
   ELIGIBILITY_LABELS,
   FORECAST_SOURCE,
   FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
+  asPursuableDibbsFacts,
   decodeOpportunityRef,
   encodeOpportunityRef,
   INBOX_FILTERS,
@@ -33,6 +37,7 @@ import {
   WORKFLOW_LABELS,
   formatDeadline,
   formatInboxCount,
+  isDibbsRow,
   isForecastRow,
   type EligibilityState,
   type FundingOpportunityListResponse,
@@ -45,17 +50,24 @@ import {
 const { Text } = Typography;
 
 /**
- * The catalog rails, always offered.
+ * The rails offered unconditionally: the two catalog rails, plus the DLA bid
+ * board.
  *
  * The forecast option is appended only when the tenant has the forecast flag —
  * see {@link forecastSourceOptions}. Offering a filter that returns nothing
  * because the capability is off is worse than not offering it: an empty result
  * reads as "this client has no forecasts", which is a claim about the client.
+ *
+ * `dibbs` is in the unconditional list because it has NO capability flag —
+ * neither the API nor the web defines one, and the inbox has returned bid-board
+ * rows to every tenant since P41 part 2. Inventing a flag here would not gate
+ * anything; it would only hide a filter for rows the page is already showing.
  */
 const BASE_SOURCE_OPTIONS = [
   { label: 'All sources', value: '' },
   { label: SOURCE_LABELS.grants_gov, value: 'grants_gov' },
   { label: SOURCE_LABELS.sam_gov, value: 'sam_gov' },
+  { label: INBOX_SOURCE_SHORT_LABELS.dibbs, value: DIBBS_SOURCE },
 ];
 
 function forecastSourceOptions(forecastsEnabled: boolean) {
@@ -67,7 +79,8 @@ function forecastSourceOptions(forecastsEnabled: boolean) {
     : BASE_SOURCE_OPTIONS;
 }
 
-const CATALOG_SOURCES: InboxSource[] = ['grants_gov', 'sam_gov'];
+/** The rails a `?source=` deep link is honoured for with no capability check. */
+const UNFLAGGED_SOURCES: InboxSource[] = ['grants_gov', 'sam_gov', DIBBS_SOURCE];
 
 const DECISION_LABELS: Record<string, string> = {
   pursue: 'Decided: pursue',
@@ -137,7 +150,7 @@ export function FundingOpportunityInbox({
    */
   const source = readEnum<InboxSource | ''>(
     url.get('source'),
-    forecastsEnabled ? [...CATALOG_SOURCES, FORECAST_SOURCE, ''] : [...CATALOG_SOURCES, ''],
+    forecastsEnabled ? [...UNFLAGGED_SOURCES, FORECAST_SOURCE, ''] : [...UNFLAGGED_SOURCES, ''],
     '',
   );
   const cursor = url.get('cursor');
@@ -341,14 +354,36 @@ export function FundingOpportunityInbox({
                 mean rendering "No deadline stated" and "Not evaluated" against
                 two questions that do not apply to an agency's buying plan.
               */
-              return isForecastRow(row) ? (
-                <ForecastOpportunityCard
-                  key={row.id}
-                  row={row}
-                  onSelectClient={onSelectClient}
-                  onOpenDetail={openDetail}
-                />
-              ) : (
+              if (isForecastRow(row)) {
+                return (
+                  <ForecastOpportunityCard
+                    key={row.id}
+                    row={row}
+                    onSelectClient={onSelectClient}
+                    onOpenDetail={openDetail}
+                  />
+                );
+              }
+              /*
+                And a bid-board item gets its own, for the same reason one step
+                further: it has no eligibility determination and no estimated
+                value at all, and its "deadline" is a quote-return date on a
+                line item rather than a response deadline on a competition.
+                Rendering it through the opportunity card would put a quantity
+                and a unit of issue into a layout built around money and
+                eligibility.
+              */
+              if (isDibbsRow(row)) {
+                return (
+                  <DibbsInboxRow
+                    key={row.id}
+                    row={row}
+                    onSelectClient={onSelectClient}
+                    onOpenDetail={openDetail}
+                  />
+                );
+              }
+              return (
                 <InboxRowCard
                   key={row.id}
                   row={row}
@@ -425,6 +460,135 @@ function WithheldForecastNotice({ count }: { count: number }) {
       message={`${count} agency forecast row${count === 1 ? '' : 's'} not shown`}
       description="Agency forecasts are a separate capability and are not enabled for this workspace, so those rows are not displayed here. The queue counts above still include them."
     />
+  );
+}
+
+/**
+ * One DLA bid-board row.
+ *
+ * ── Why the part-profile gap is passed as a constant ────────────────────────
+ *
+ * `DibbsOpportunityCard` reads `partProfileGap` to decide whether to say "no
+ * part-level match was attempted". The inbox response carries no scoring
+ * breakdown, so there is no field to read it from — but `null` is not a neutral
+ * default here: it asserts that a part-level comparison HAPPENED and found no
+ * gap, which would tell the reader this client's parts were compared and came
+ * up short. Nothing stores a client's parts, so no comparison has ever run for
+ * anyone. See {@link DIBBS_PART_PROFILE_GAP_TODAY}, which holds that reasoning
+ * and is what gets deleted when a client part store lands.
+ *
+ * `onReviewClientParts` is deliberately NOT passed: there is no surface to
+ * record a client's parts on yet, so the gap is stated without offering a
+ * control that would lead nowhere. The card's own prop doc describes exactly
+ * this posture.
+ *
+ * `onPursue` is likewise absent, which means the card renders no action row at
+ * all rather than an inert one. A DIBBS row has no pursuit mutation wired to it
+ * — that is P42/P43 work, not part 3 — and the card's design is that an absent
+ * handler removes the control instead of disabling it.
+ */
+function DibbsInboxRow({
+  row,
+  onSelectClient,
+  onOpenDetail,
+}: {
+  row: InboxRow;
+  onSelectClient: (id: string) => void;
+  onOpenDetail: () => void;
+}) {
+  /*
+    `documentType` is a plain string on the wire, and the card renders only the
+    two a client can bid. Narrowed rather than cast, so a third document type
+    arriving from the provider degrades to a stated absence instead of being
+    coerced into "rfq" and rendered with a quote button.
+  */
+  const facts = row.dibbs ? asPursuableDibbsFacts(row.dibbs) : null;
+
+  if (!facts) {
+    return (
+      <DibbsUnrenderableCard
+        row={row}
+        reason={
+          row.dibbs
+            ? `Capiro holds this item as a “${row.dibbs.documentType}” document, which this rail does not render.`
+            : 'Capiro no longer holds the bid-board record for this row, so no source facts can be shown.'
+        }
+        onSelectClient={onSelectClient}
+        onOpenDetail={onOpenDetail}
+      />
+    );
+  }
+
+  return (
+    <DibbsOpportunityCard
+      facts={facts}
+      clientName={row.client.name}
+      relevanceScore={row.relevanceScore}
+      partProfileGap={DIBBS_PART_PROFILE_GAP_TODAY}
+      onSelectClient={() => onSelectClient(row.client.id)}
+      onOpenDetail={onOpenDetail}
+    />
+  );
+}
+
+/**
+ * A bid-board row whose source facts cannot be rendered.
+ *
+ * Stays on the BID-BOARD rail and states the absence, rather than falling back
+ * to the generic opportunity card. The generic card leads with a response
+ * deadline and an eligibility state, and a DLA line item has neither — so the
+ * fallback that looks harmless would render "No deadline stated" and "Not
+ * evaluated" against two questions that were never asked of this record. That
+ * is the same reasoning the forecast rail follows, where a row whose forecast
+ * record is gone still renders as a forecast and says so.
+ */
+function DibbsUnrenderableCard({
+  row,
+  reason,
+  onSelectClient,
+  onOpenDetail,
+}: {
+  row: InboxRow;
+  reason: string;
+  onSelectClient: (id: string) => void;
+  onOpenDetail: () => void;
+}) {
+  return (
+    <Card
+      size="small"
+      className="fo-card fo-card--dibbs"
+      data-testid={`fo-dibbs-unrenderable-${row.id}`}
+    >
+      <div className="fo-inbox-row__head">
+        <Space size={6} wrap>
+          <Button
+            type="link"
+            size="small"
+            className="fo-inbox-row__client"
+            onClick={() => onSelectClient(row.client.id)}
+            aria-label={`Show only ${row.client.name}`}
+          >
+            {row.client.name}
+          </Button>
+          <Tag color="geekblue">{INBOX_SOURCE_SHORT_LABELS.dibbs}</Tag>
+        </Space>
+      </div>
+      <div className="fo-card__title">
+        <Button
+          type="link"
+          className="fo-inbox-row__title"
+          onClick={onOpenDetail}
+          aria-label={`Open bid-board detail for ${row.title}`}
+        >
+          {row.title}
+        </Button>
+      </div>
+      <div className="fo-card__meta">
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {reason}
+        </Text>
+      </div>
+    </Card>
   );
 }
 
