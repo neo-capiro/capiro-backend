@@ -8,6 +8,10 @@ import {
   outreachRejectedTargetRecommendationV1Schema,
   outreachTargetLocatorV1Schema,
 } from '../../capabilities/targets/outreach-target.contract.js';
+import {
+  outreachContextSelectionV1Schema,
+  outreachExcludedContextRefV1Schema,
+} from '../../capabilities/context/outreach-context.contract.js';
 import { OutreachCommandError } from './outreach-command-errors.js';
 
 export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
@@ -23,6 +27,8 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'ADD_TARGET_REFS',
   'REMOVE_TARGET_REFS',
   'REJECT_TARGET_RECOMMENDATION',
+  'ACCEPT_CONTEXT_REFS',
+  'EXCLUDE_CONTEXT_REFS',
   'SET_DELIVERY_PATTERN',
   'SET_PERSONALIZATION',
   'SET_CAMPAIGN_ANGLE',
@@ -32,8 +38,6 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
 ] as const;
 
 export const OUTREACH_FUTURE_COMMAND_TYPES = [
-  'ACCEPT_CONTEXT_REFS',
-  'EXCLUDE_CONTEXT_REFS',
   'SET_SENDER_REF',
   'SET_ATTACHMENT_REFS',
   'REQUEST_SAMPLE_GENERATION',
@@ -62,7 +66,7 @@ const boundedString = (max: number, min = 0) =>
     });
 
 const nullableBoundedText = (max: number) => boundedString(max).nullable();
-const boundedRef = boundedString(384, 1);
+const boundedRef = boundedString(512, 1);
 const emptyPayload = z.object({}).strict();
 const futureRefsPayload = z.object({ refs: z.array(boundedRef).min(1).max(500) }).strict();
 
@@ -161,6 +165,22 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
     })
     .strict(),
   REJECT_TARGET_RECOMMENDATION: outreachRejectedTargetRecommendationV1Schema,
+  ACCEPT_CONTEXT_REFS: z
+    .object({
+      selections: z
+        .array(outreachContextSelectionV1Schema)
+        .min(1)
+        .max(OUTREACH_V3_LIMITS.futureContextRefs),
+    })
+    .strict(),
+  EXCLUDE_CONTEXT_REFS: z
+    .object({
+      refs: z
+        .array(outreachExcludedContextRefV1Schema)
+        .min(1)
+        .max(OUTREACH_V3_LIMITS.futureContextRefs),
+    })
+    .strict(),
   SET_DELIVERY_PATTERN: z
     .object({
       value: z.enum(['undecided', 'personalized_separate', 'uniform_separate', 'shared_thread']),
@@ -196,8 +216,6 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
       }
     }),
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),
-  ACCEPT_CONTEXT_REFS: futureRefsPayload,
-  EXCLUDE_CONTEXT_REFS: futureRefsPayload,
   SET_SENDER_REF: z.object({ senderRef: boundedRef }).strict(),
   SET_ATTACHMENT_REFS: futureRefsPayload,
   REQUEST_SAMPLE_GENERATION: emptyPayload,
