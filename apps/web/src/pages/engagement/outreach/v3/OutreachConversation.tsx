@@ -44,7 +44,7 @@ export interface OutreachConversationProps {
   unavailableMessage?: string | null;
   sending: boolean;
   onSend: (message: string) => Promise<unknown>;
-  onRetry: () => void;
+  onRetry?: () => void;
 }
 
 export function OutreachConversation({
@@ -55,7 +55,7 @@ export function OutreachConversation({
   unavailableMessage,
   sending,
   onSend,
-  onRetry,
+  onRetry = () => window.location.reload(),
 }: OutreachConversationProps) {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
