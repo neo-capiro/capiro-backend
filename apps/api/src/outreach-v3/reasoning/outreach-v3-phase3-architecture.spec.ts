@@ -16,7 +16,15 @@ function productionFiles(root: string): string[] {
   for (const entry of readdirSync(root)) {
     const path = resolve(root, entry);
     if (statSync(path).isDirectory()) out.push(...productionFiles(path));
-    else if (entry.endsWith('.ts') && !entry.endsWith('.spec.ts')) out.push(path);
+    else if (
+      (entry.endsWith('.ts') || entry.endsWith('.tsx')) &&
+      !entry.endsWith('.spec.ts') &&
+      !entry.endsWith('.spec.tsx') &&
+      !entry.endsWith('.test.ts') &&
+      !entry.endsWith('.test.tsx')
+    ) {
+      out.push(path);
+    }
   }
   return out;
 }
