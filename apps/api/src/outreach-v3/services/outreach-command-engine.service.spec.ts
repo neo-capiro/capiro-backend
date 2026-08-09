@@ -6,6 +6,12 @@ import {
   createResolvedTargetRefV1,
 } from '../../capabilities/targets/outreach-target.contract.js';
 import type { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
+import {
+  createManualContextLocator,
+  createResolvedContextRefV1,
+  type OutreachContextSelectionV1,
+} from '../../capabilities/context/outreach-context.contract.js';
+import type { OutreachContextReferenceService } from '../../capabilities/context/outreach-context-reference.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   OutreachEventRow,
@@ -27,6 +33,7 @@ const ctx = {
 } as TenantContext;
 
 const sessionId = '00000000-0000-4000-8000-000000000010';
+const clientId = '00000000-0000-4000-8000-000000000030';
 const blank = createBlankCampaignSpecV1();
 const blankHash = hashCampaignSpecV1(blank);
 const manualLocator = createManualTargetLocator({
@@ -54,6 +61,56 @@ const resolvedManualTarget = createResolvedTargetRefV1({
   emailStatus: 'available',
   profileStatus: 'limited',
   sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
+});
+
+const manualContextLocator = createManualContextLocator({
+  id: '00000000-0000-4000-8000-000000000120',
+  title: 'Campaign fact supplied by user',
+  text: 'Use this as an unverified campaign fact.',
+  sourceLabel: 'user',
+});
+const manualContextSelection: OutreachContextSelectionV1 = {
+  locator: manualContextLocator,
+  contextClass: 'campaign_fact',
+  scope: { kind: 'campaign' },
+};
+const resolvedManualContext = createResolvedContextRefV1({
+  ...manualContextSelection,
+  title: manualContextLocator.title,
+  summary: manualContextLocator.text,
+  clientId: null,
+  verificationClass: 'user_supplied',
+  sensitivity: 'normal',
+  instructionsAllowed: false,
+  usableAsEvidence: false,
+  usableAsWritingGuidance: false,
+  sourceSnapshot: { system: 'user', version: null, lastVerifiedAt: null },
+});
+
+const clientMemorySelection: OutreachContextSelectionV1 = {
+  locator: {
+    source: 'memory_item',
+    id: '00000000-0000-4000-8000-000000000121',
+    clientId,
+  },
+  contextClass: 'campaign_fact',
+  scope: { kind: 'campaign' },
+};
+const resolvedClientMemory = createResolvedContextRefV1({
+  ...clientMemorySelection,
+  title: 'Client fact',
+  summary: 'Approved client-specific fact.',
+  clientId,
+  verificationClass: 'first_party',
+  sensitivity: 'confidential',
+  instructionsAllowed: false,
+  usableAsEvidence: true,
+  usableAsWritingGuidance: false,
+  sourceSnapshot: {
+    system: 'capiro_memory',
+    version: 'v1',
+    lastVerifiedAt: '2026-08-09T00:00:00.000Z',
+  },
 });
 
 function session(version = 1): OutreachSessionRow {
@@ -91,6 +148,8 @@ function harness(input?: {
   authorize?: jest.Mock;
   resolveTargets?: jest.Mock;
   reauthorizeTargets?: jest.Mock;
+  resolveContexts?: jest.Mock;
+  reauthorizeContexts?: jest.Mock;
   currentSpec?: ReturnType<typeof createBlankCampaignSpecV1>;
 }) {
   const tx = {};
@@ -115,7 +174,7 @@ function harness(input?: {
   const repository = repositoryMethods as unknown as OutreachStateRepository;
 
   const authorizeClientWithinTx =
-    input?.authorize ?? jest.fn(async () => ({ id: 'client', name: 'Client' }));
+    input?.authorize ?? jest.fn(async () => ({ id: clientId, name: 'Client' }));
   const authorization = { authorizeClientWithinTx } as unknown as CapabilityAuthorizationService;
   const resolveManyWithinTx =
     input?.resolveTargets ?? jest.fn(async () => [resolvedManualTarget]);
@@ -125,18 +184,30 @@ function harness(input?: {
     reauthorizeSnapshotsWithinTx,
   } as unknown as OutreachTargetReferenceService;
 
+  const resolveContextManyWithinTx =
+    input?.resolveContexts ?? jest.fn(async () => [resolvedManualContext]);
+  const reauthorizeContextSnapshotsWithinTx =
+    input?.reauthorizeContexts ?? jest.fn(async () => undefined);
+  const contextReferences = {
+    resolveManyWithinTx: resolveContextManyWithinTx,
+    reauthorizeSnapshotsWithinTx: reauthorizeContextSnapshotsWithinTx,
+  } as unknown as OutreachContextReferenceService;
+
   return {
     service: new OutreachCommandEngineService(
       prisma,
       repository,
       authorization,
       targetReferences,
+      contextReferences,
     ),
     tx,
     repository: repositoryMethods,
     authorizeClientWithinTx,
     resolveManyWithinTx,
     reauthorizeSnapshotsWithinTx,
+    resolveContextManyWithinTx,
+    reauthorizeContextSnapshotsWithinTx,
   };
 }
 
@@ -240,6 +311,7 @@ describe('OutreachCommandEngineService', () => {
       h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
     ).resolves.toMatchObject({ status: 'applied', stateVersion: 2, changed: true });
     expect(h.reauthorizeSnapshotsWithinTx).toHaveBeenCalledWith(h.tx, ctx, []);
+    expect(h.reauthorizeContextSnapshotsWithinTx).toHaveBeenCalledWith(h.tx, ctx, []);
     expect(h.repository.insertStateVersion).toHaveBeenCalledWith(
       expect.anything(),
       ctx,
@@ -324,6 +396,95 @@ describe('OutreachCommandEngineService', () => {
     await expect(
       h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
     ).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED', httpStatus: 403 });
+    expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
+    expect(h.repository.appendEvent).not.toHaveBeenCalled();
+  });
+
+  it('resolves ACCEPT_CONTEXT_REFS server-side before persisting the governed snapshot', async () => {
+    const h = harness();
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000108',
+        commands: [
+          {
+            type: 'ACCEPT_CONTEXT_REFS',
+            schemaVersion: 1,
+            payload: { selections: [manualContextSelection] },
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ status: 'applied', stateVersion: 2, changed: true });
+    expect(h.resolveContextManyWithinTx).toHaveBeenCalledWith(
+      h.tx,
+      ctx,
+      [manualContextSelection],
+    );
+    expect(h.repository.insertStateVersion).toHaveBeenCalledWith(
+      h.tx,
+      ctx,
+      expect.objectContaining({
+        specJsonb: expect.objectContaining({
+          context: expect.objectContaining({ campaignFactRefs: [resolvedManualContext] }),
+        }),
+      }),
+    );
+  });
+
+  it('fails context acceptance before persistence when resolution is not authorized', async () => {
+    const resolveContexts = jest.fn().mockRejectedValue(
+      new CapabilityError('CAPABILITY_ETHICAL_WALL', 'secret context id'),
+    );
+    const h = harness({ resolveContexts });
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000109',
+        commands: [
+          {
+            type: 'ACCEPT_CONTEXT_REFS',
+            schemaVersion: 1,
+            payload: { selections: [manualContextSelection] },
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED', httpStatus: 403 });
+    expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
+    expect(h.repository.appendEvent).not.toHaveBeenCalled();
+  });
+
+  it('blocks changing away from a sole sponsor while client-specific context is accepted', async () => {
+    const currentSpec = {
+      ...createBlankCampaignSpecV1(),
+      sponsor: { kind: 'client' as const, label: null, clientRefs: [{ clientId }] },
+      context: {
+        ...createBlankCampaignSpecV1().context,
+        campaignFactRefs: [resolvedClientMemory],
+      },
+    };
+    const h = harness({ currentSpec });
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000110',
+        commands: [
+          {
+            type: 'SET_SPONSOR_SCOPE',
+            schemaVersion: 1,
+            payload: { kind: 'firm', label: null, clientRefs: [] },
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({ code: 'OUTREACH_COMMAND_BLOCKED', httpStatus: 422 });
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).not.toHaveBeenCalled();
   });
