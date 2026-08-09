@@ -4,7 +4,12 @@ import { useApi } from '../../../../lib/use-api.js';
 import type {
   CapabilityResult,
   OutreachV3Command,
+  OutreachV3ContextCandidate,
+  OutreachV3ContextClass,
   OutreachV3ContextReviewResponse,
+  OutreachV3ContextScope,
+  OutreachV3GovernmentSearchData,
+  OutreachV3MemorySearchData,
   OutreachV3Proposal,
   OutreachV3SessionEnvelope,
   OutreachV3Stage,
@@ -31,6 +36,8 @@ import {
   listOutreachV3Turns,
   rejectOutreachV3Proposal,
   safeOutreachV3Error,
+  searchOutreachV3Government,
+  searchOutreachV3Memory,
   searchOutreachV3Targets,
   sendOutreachV3Turn,
 } from './outreach-v3-api.js';
@@ -140,6 +147,16 @@ export function deriveOutreachV3Stage(session: OutreachV3SessionEnvelope | null)
 
 export interface UseOutreachV3SessionOptions {
   title?: string;
+}
+
+export interface OutreachV3ContextSearchInput {
+  source: 'memory' | 'government';
+  query: string;
+  clientId?: string | null;
+  intendedClass: OutreachV3ContextClass;
+  scope: OutreachV3ContextScope;
+  categories?: string[];
+  limit?: number;
 }
 
 export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) {
@@ -324,6 +341,31 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     },
   });
 
+  const contextSearchMutation = useMutation({
+    mutationFn: (input: OutreachV3ContextSearchInput) => {
+      if (!sessionId) throw new Error('The Outreach session is not ready.');
+      if (input.source === 'memory') {
+        return searchOutreachV3Memory(api, sessionId, {
+          query: input.query,
+          clientId: input.clientId ?? null,
+          intendedClass: input.intendedClass,
+          scope: input.scope,
+          limit: input.limit,
+        }).then((result) => ({ source: 'memory' as const, result }));
+      }
+      if (input.intendedClass === 'writing_guidance') {
+        throw new Error('Government records cannot be used as writing-guidance memory.');
+      }
+      return searchOutreachV3Government(api, sessionId, {
+        query: input.query,
+        categories: input.categories,
+        intendedClass: input.intendedClass,
+        scope: input.scope,
+        limit: input.limit,
+      }).then((result) => ({ source: 'government' as const, result }));
+    },
+  });
+
   const startNewSession = useCallback(async () => {
     const priorId = sessionId;
     if (priorId) await archiveOutreachV3Session(api, priorId).catch(() => undefined);
@@ -335,7 +377,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   }, [api, queryClient, sessionId]);
 
   const serverTurns = useMemo(
-    () => normalizeTurns((turnsQuery.data ?? []) as unknown[]),
+    () => normalizeTurns(turnsQuery.data ?? []),
     [turnsQuery.data],
   );
 
@@ -343,6 +385,17 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     () => (proposalsQuery.data ?? []).filter((proposal) => proposal.status === 'pending'),
     [proposalsQuery.data],
   );
+
+  const contextCandidates = useMemo<OutreachV3ContextCandidate[]>(() => {
+    const value = contextSearchMutation.data;
+    if (!value) return [];
+    if (value.source === 'memory') {
+      const data = value.result as CapabilityResult<OutreachV3MemorySearchData>;
+      return data.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'memory' }));
+    }
+    const data = value.result as CapabilityResult<OutreachV3GovernmentSearchData>;
+    return data.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'government' }));
+  }, [contextSearchMutation.data]);
 
   const session = sessionQuery.data ?? bootstrap.data ?? null;
   const stage = deriveOutreachV3Stage(session);
@@ -394,6 +447,12 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     targetProfilePending: targetProfileMutation.isPending,
     coverage: coverageQuery.data as OutreachV3TargetCoverageResponse | undefined,
     coveragePending: coverageQuery.isFetching,
+    searchContext: contextSearchMutation.mutateAsync,
+    contextCandidates,
+    contextSearchPending: contextSearchMutation.isPending,
+    contextSearchError: contextSearchMutation.error
+      ? safeOutreachV3Error(contextSearchMutation.error)
+      : null,
     contextReview: contextReviewQuery.data as OutreachV3ContextReviewResponse | undefined,
     contextReviewPending: contextReviewQuery.isFetching,
     contextReviewError: contextReviewQuery.error
