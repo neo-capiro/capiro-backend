@@ -75,7 +75,7 @@ export class OutreachTargetReferenceService {
       case 'directory_staff':
         return this.resolveDirectoryStaff(locator);
       case 'state_legislator':
-        return this.resolveStateLegislator(tx, ctx, locator);
+        return this.resolveStateLegislator(tx, locator);
       case 'client_person':
         return this.resolveClientPerson(tx, ctx, locator);
       case 'engagement_contact':
@@ -193,7 +193,8 @@ export class OutreachTargetReferenceService {
       },
       roleStatus: current?.isCurrent ? 'current' : current ? 'historical' : 'unknown',
       emailStatus: emailStatusFor(email),
-      profileStatus: detail.positions.length || detail.committeeAssociations.length ? 'complete' : 'limited',
+      profileStatus:
+        detail.positions.length || detail.committeeAssociations.length ? 'complete' : 'limited',
       sourceSnapshot: {
         system: 'capiro_directory',
         version: detail.source.snapshotId,
@@ -204,7 +205,6 @@ export class OutreachTargetReferenceService {
 
   private async resolveStateLegislator(
     tx: Prisma.TransactionClient,
-    _ctx: TenantContext,
     locator: Extract<OutreachTargetLocatorV1, { source: 'state_legislator' }>,
   ): Promise<OutreachResolvedTargetRefV1> {
     const row = await tx.stateLegislator.findUnique({
@@ -212,14 +212,13 @@ export class OutreachTargetReferenceService {
       select: {
         id: true,
         name: true,
-        party: true,
         state: true,
         chamber: true,
         district: true,
         committees: true,
         email: true,
-        phone: true,
-        updatedAt: true,
+        active: true,
+        syncedAt: true,
       },
     });
     if (!row) throw targetNotFound();
@@ -237,8 +236,8 @@ export class OutreachTargetReferenceService {
       locator,
       displayName: row.name,
       email,
-      phone: row.phone,
-      title: `${row.state ?? ''} ${row.chamber ?? ''} legislator`.trim() || null,
+      phone: null,
+      title: `${row.state} ${row.chamber ?? ''} legislator`.trim(),
       organization: null,
       clientId: null,
       jurisdiction: {
@@ -249,13 +248,13 @@ export class OutreachTargetReferenceService {
         committees: committeeNames,
         issueAreas: [],
       },
-      roleStatus: 'current',
+      roleStatus: row.active ? 'current' : 'historical',
       emailStatus: emailStatusFor(email),
       profileStatus: 'limited',
       sourceSnapshot: {
         system: 'openstates',
-        version: row.updatedAt.toISOString(),
-        lastVerifiedAt: row.updatedAt.toISOString(),
+        version: row.syncedAt.toISOString(),
+        lastVerifiedAt: row.syncedAt.toISOString(),
       },
     });
   }
