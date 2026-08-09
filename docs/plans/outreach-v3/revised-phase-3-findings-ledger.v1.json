@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "phase": "Revised Outreach Phase 3",
+  "branch": "agent/outreach-v3-p3-reasoning-gateway",
+  "provisionalBaseSha": "89b0a8e08e1cfcc7210a8684335faf6f8405bdf2",
+  "status": "PROVISIONAL_IMPLEMENTATION_IN_PROGRESS",
+  "counts": {
+    "openP0": 0,
+    "openP1": 0,
+    "blockingP2": 0,
+    "fixedP1": 3,
+    "fixedP2": 3,
+    "fixedTestDefects": 2
+  },
+  "findings": [
+    {
+      "id": "P3-ATOMIC-001",
+      "severity": "P1",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "Initial orchestration persisted a future_model proposal and visible reasoning-turn audit in separate transactions, so an audit write failure could leave an orphan pending model proposal.",
+      "repair": "Added createModelProposalWithinTx and made proposal creation, proposal-created event, reasoning-turn audit and provider-reference update one short post-provider transaction.",
+      "regression": "outreach-reasoning.service.spec.ts"
+    },
+    {
+      "id": "P3-RUNTIME-001",
+      "severity": "P1",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "The first runtime-policy exception checked globally enabled external actions before the reasoning special case, so an accidental main-API caller could have obtained outreach_reasoning permission in active mode.",
+      "repair": "outreach_reasoning is now evaluated first and is allowed only for serviceName=engagement-api with OUTREACH_V3_REASONING_ENABLED=true, regardless of global external-action mode.",
+      "regression": "outreach-reasoning-runtime-boundary.spec.ts"
+    },
+    {
+      "id": "P3-CONC-001",
+      "severity": "P1",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "Initial reasoning turn lease was 3 minutes, shorter than the bounded maximum multi-round provider window, allowing a still-live turn to be reclaimed concurrently.",
+      "repair": "Turn lease increased to 15 minutes, beyond six 90-second provider rounds plus bounded tool execution; stale crashed turns still recover deterministically.",
+      "regression": "outreach-reasoning-turn-claim.service.spec.ts + source contract"
+    },
+    {
+      "id": "P3-LIFE-001",
+      "severity": "P2",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "Archiving a conversation during an in-flight provider call could leave the server turn claim uncleared because archived conversation rows were fully immutable.",
+      "repair": "A follow-up migration allows archived rows only the narrow claim-clearing update while retaining identity/provider/state immutability.",
+      "regression": "outreach-v3-phase3-migration.spec.ts + disposable DB rehearsal"
+    },
+    {
+      "id": "P3-PRODUCT-001",
+      "severity": "P2",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "Capiro-managed continuity could feed prior turns back to the model but had no owner-scoped read route for reconstructing visible conversation history after product reload.",
+      "repair": "Added bounded owner-scoped visible turn history service and GET route; provider-state mode returns null for message bodies Capiro did not retain.",
+      "regression": "outreach-reasoning-history.service.spec.ts + route manifest"
+    },
+    {
+      "id": "P3-SCOPE-001",
+      "severity": "P2",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "Reasoning needed OpenAI access in engagement-api shadow mode but enabling the global external-action switch would also enable send/OAuth/other unsafe actions.",
+      "repair": "Added a narrow outreach_reasoning runtime action and reasoning-specific credential resolver method; every unrelated external action remains blocked in shadow mode.",
+      "regression": "outreach-reasoning-runtime-boundary.spec.ts + outreach-reasoning-credential-boundary.spec.ts"
+    },
+    {
+      "id": "P3-TEST-001",
+      "severity": "P2",
+      "classification": "test_defect",
+      "status": "FIXED",
+      "summary": "Initial web-isolation architecture verifier scanned .ts but not React .tsx files, where a premature reasoning UI dependency would most likely appear.",
+      "repair": "Production-source scan now includes .ts and .tsx while excluding tests/specs.",
+      "regression": "outreach-v3-phase3-architecture.spec.ts"
+    },
+    {
+      "id": "P3-TEST-002",
+      "severity": "P2",
+      "classification": "test_defect",
+      "status": "FIXED",
+      "summary": "Initial raw-HTTP provider tests used the SDK-only output_text convenience property rather than the raw Responses API output message shape.",
+      "repair": "Provider tests now parse output[].message.content[].output_text, matching the raw HTTPS API response contract.",
+      "regression": "openai-outreach-reasoning.provider.spec.ts"
+    }
+  ],
+  "prerequisiteBlockers": [
+    {
+      "id": "P3-PREREQ-001",
+      "classification": "prerequisite_blocker",
+      "status": "OPEN",
+      "summary": "Phase 3 was owner-authorized to start provisionally while Phase 2 deployed dark acceptance and independent validation close in parallel. Formal Phase 3 acceptance/deployment remains blocked until the exact Phase 2 lineage receives OUTREACH_V3_PHASE2_APPROVED."
+    }
+  ],
+  "executionGates": {
+    "dbFree": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
+    "disposableDatabase": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
+    "deterministic100CaseEval": "IMPLEMENTED_NOT_EXECUTED",
+    "live100TurnOpenAiEval": "IMPLEMENTED_NOT_EXECUTED",
+    "phase2Regression": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
+    "engagementPhase3Regression": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
+    "independentValidation": "PENDING"
+  },
+  "notes": [
+    "No Phase 3 deployment, shared-database migration, UI change, merge, or PR creation has been performed.",
+    "No finding was closed by granting direct model state mutation or broadening the external-action switch.",
+    "OpenAI provider state is off by default; capiro_managed + store=false is the default retention posture.",
+    "No hidden chain-of-thought field exists in Phase 3 persistence or API contracts."
+  ]
+}
