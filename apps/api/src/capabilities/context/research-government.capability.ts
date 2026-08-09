@@ -72,11 +72,14 @@ export class ResearchGovernmentCapability {
       provenanceRequired: true,
       inputSchema,
       outputSchema,
-      execute: (_ctx, input) => this.execute(input),
+      execute: (ctx, input) => this.execute(ctx, input),
     };
   }
 
-  async execute(rawInput: ResearchGovernmentInput): Promise<CapabilityResult<ResearchGovernmentDataV1>> {
+  async execute(
+    ctx: AuthorizedCapabilityContext,
+    rawInput: ResearchGovernmentInput,
+  ): Promise<CapabilityResult<ResearchGovernmentDataV1>> {
     const input = inputSchemaZod.parse(rawInput);
     const response = await this.search.search(input.query, Math.min(20, input.limit));
     const allowed = new Set<SearchCategory>(
@@ -124,7 +127,7 @@ export class ResearchGovernmentCapability {
         classification: 'fact',
       })),
       exclusions: [],
-      scope: { tenantId: null, clientId: null },
+      scope: { tenantId: ctx.tenantId, clientId: null },
       freshness: {
         asOf: retrievedAt,
         degraded: false,
