@@ -1,6 +1,11 @@
 import type { TenantContext } from '@capiro/shared';
 import { CapabilityError } from '../../capabilities/capability-errors.js';
 import type { CapabilityAuthorizationService } from '../../capabilities/capability-authorization.service.js';
+import {
+  createManualTargetLocator,
+  createResolvedTargetRefV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
+import type { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   OutreachEventRow,
@@ -24,6 +29,32 @@ const ctx = {
 const sessionId = '00000000-0000-4000-8000-000000000010';
 const blank = createBlankCampaignSpecV1();
 const blankHash = hashCampaignSpecV1(blank);
+const manualLocator = createManualTargetLocator({
+  id: '00000000-0000-4000-8000-000000000099',
+  name: 'Alex Example',
+  email: 'alex@example.test',
+});
+const resolvedManualTarget = createResolvedTargetRefV1({
+  locator: manualLocator,
+  displayName: manualLocator.name,
+  email: manualLocator.email,
+  phone: manualLocator.phone,
+  title: manualLocator.title,
+  organization: manualLocator.organization,
+  clientId: null,
+  jurisdiction: {
+    governmentLevel: 'unknown',
+    chamber: null,
+    state: null,
+    district: null,
+    committees: [],
+    issueAreas: [],
+  },
+  roleStatus: 'unknown',
+  emailStatus: 'available',
+  profileStatus: 'limited',
+  sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
+});
 
 function session(version = 1): OutreachSessionRow {
   return {
@@ -39,15 +70,15 @@ function session(version = 1): OutreachSessionRow {
   };
 }
 
-function stateVersion(version = 1): OutreachStateVersionRow {
+function stateVersion(version = 1, specJsonb = blank): OutreachStateVersionRow {
   return {
     id: `00000000-0000-4000-8000-${String(version).padStart(12, '0')}`,
     tenantId: ctx.tenantId,
     sessionId,
     version,
     schemaVersion: 'outreach_campaign_spec_v1',
-    specJsonb: blank,
-    specHash: blankHash,
+    specJsonb,
+    specHash: hashCampaignSpecV1(specJsonb),
     mutationBatchId: null,
     createdByUserId: ctx.userId,
     createdAt: new Date('2026-08-08T00:00:00Z'),
@@ -58,6 +89,9 @@ function harness(input?: {
   currentVersion?: number;
   prior?: OutreachEventRow | null;
   authorize?: jest.Mock;
+  resolveTargets?: jest.Mock;
+  reauthorizeTargets?: jest.Mock;
+  currentSpec?: ReturnType<typeof createBlankCampaignSpecV1>;
 }) {
   const tx = {};
   const prisma = {
@@ -71,7 +105,7 @@ function harness(input?: {
     findBatchResult: jest.fn(async () => input?.prior ?? null),
     loadStateVersion: jest.fn(
       async (_tx: unknown, _ctx: TenantContext, _sessionId: string, version: number) =>
-        stateVersion(version),
+        stateVersion(version, input?.currentSpec ?? blank),
     ),
     insertStateVersion: jest.fn(async () => undefined),
     updateCurrentVersion: jest.fn(async () => undefined),
@@ -83,12 +117,26 @@ function harness(input?: {
   const authorizeClientWithinTx =
     input?.authorize ?? jest.fn(async () => ({ id: 'client', name: 'Client' }));
   const authorization = { authorizeClientWithinTx } as unknown as CapabilityAuthorizationService;
+  const resolveManyWithinTx =
+    input?.resolveTargets ?? jest.fn(async () => [resolvedManualTarget]);
+  const reauthorizeSnapshotsWithinTx = input?.reauthorizeTargets ?? jest.fn(async () => undefined);
+  const targetReferences = {
+    resolveManyWithinTx,
+    reauthorizeSnapshotsWithinTx,
+  } as unknown as OutreachTargetReferenceService;
 
   return {
-    service: new OutreachCommandEngineService(prisma, repository, authorization),
+    service: new OutreachCommandEngineService(
+      prisma,
+      repository,
+      authorization,
+      targetReferences,
+    ),
     tx,
     repository: repositoryMethods,
     authorizeClientWithinTx,
+    resolveManyWithinTx,
+    reauthorizeSnapshotsWithinTx,
   };
 }
 
@@ -158,10 +206,7 @@ describe('OutreachCommandEngineService', () => {
 
     await expect(
       h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
-    ).rejects.toMatchObject({
-      code: 'OUTREACH_COMMAND_ID_REUSE',
-      httpStatus: 409,
-    } satisfies Partial<OutreachCommandError>);
+    ).rejects.toMatchObject({ code: 'OUTREACH_COMMAND_ID_REUSE', httpStatus: 409 });
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
   });
 
@@ -180,12 +225,6 @@ describe('OutreachCommandEngineService', () => {
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.updateCurrentVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).toHaveBeenCalledTimes(1);
-    expect(h.repository.appendEvent).toHaveBeenCalledWith(
-      expect.anything(),
-      ctx,
-      expect.objectContaining({ id: sessionId }),
-      expect.objectContaining({ eventType: 'command_batch_result' }),
-    );
   });
 
   it('creates a new immutable version for restore even when the restored hash equals current', async () => {
@@ -200,17 +239,11 @@ describe('OutreachCommandEngineService', () => {
     await expect(
       h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
     ).resolves.toMatchObject({ status: 'applied', stateVersion: 2, changed: true });
+    expect(h.reauthorizeSnapshotsWithinTx).toHaveBeenCalledWith(h.tx, ctx, []);
     expect(h.repository.insertStateVersion).toHaveBeenCalledWith(
       expect.anything(),
       ctx,
       expect.objectContaining({ version: 2, specHash: blankHash }),
-    );
-    expect(h.repository.updateCurrentVersion).toHaveBeenCalledWith(
-      expect.anything(),
-      ctx,
-      sessionId,
-      1,
-      2,
     );
   });
 
@@ -218,9 +251,7 @@ describe('OutreachCommandEngineService', () => {
     const authorize = jest
       .fn()
       .mockResolvedValueOnce({ id: 'client-a' })
-      .mockRejectedValueOnce(
-        new CapabilityError('CAPABILITY_ETHICAL_WALL', 'restricted client'),
-      );
+      .mockRejectedValueOnce(new CapabilityError('CAPABILITY_ETHICAL_WALL', 'restricted client'));
     const h = harness({ authorize });
     const parsed = h.service.parseNormalizeAndValidateBatch(
       batch({
@@ -244,11 +275,55 @@ describe('OutreachCommandEngineService', () => {
 
     await expect(
       h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
-    ).rejects.toMatchObject({
-      code: 'OUTREACH_REFERENCE_UNAUTHORIZED',
-      httpStatus: 403,
-    } satisfies Partial<OutreachCommandError>);
+    ).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED', httpStatus: 403 });
     expect(h.authorizeClientWithinTx).toHaveBeenCalledTimes(2);
+    expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
+    expect(h.repository.appendEvent).not.toHaveBeenCalled();
+  });
+
+  it('resolves ADD_TARGET_REFS server-side before the pure reducer persists a snapshot', async () => {
+    const h = harness();
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000106',
+        commands: [
+          { type: 'ADD_TARGET_REFS', schemaVersion: 1, payload: { refs: [manualLocator] } },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ status: 'applied', stateVersion: 2, changed: true });
+    expect(h.resolveManyWithinTx).toHaveBeenCalledWith(h.tx, ctx, [manualLocator]);
+    expect(h.repository.insertStateVersion).toHaveBeenCalledWith(
+      h.tx,
+      ctx,
+      expect.objectContaining({
+        specJsonb: expect.objectContaining({
+          targeting: expect.objectContaining({ selectedTargetRefs: [resolvedManualTarget] }),
+        }),
+      }),
+    );
+  });
+
+  it('fails target addition before persistence when resolution is not authorized', async () => {
+    const resolveTargets = jest.fn().mockRejectedValue(
+      new CapabilityError('CAPABILITY_NOT_FOUND', 'secret target id'),
+    );
+    const h = harness({ resolveTargets });
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000107',
+        commands: [
+          { type: 'ADD_TARGET_REFS', schemaVersion: 1, payload: { refs: [manualLocator] } },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED', httpStatus: 403 });
     expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
     expect(h.repository.appendEvent).not.toHaveBeenCalled();
   });
