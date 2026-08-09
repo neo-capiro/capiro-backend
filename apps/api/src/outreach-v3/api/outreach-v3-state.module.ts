@@ -25,5 +25,9 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
     OutreachV3StateGuard,
     OutreachV3ExceptionFilter,
   ],
+  // Phase 3 deliberately receives only read/session + proposal creation/apply
+  // seams. The command engine is not exported, so the reasoning module cannot
+  // gain hidden direct mutation authority through Nest injection.
+  exports: [OutreachSessionService, OutreachCommandProposalService],
 })
 export class OutreachV3StateModule {}
