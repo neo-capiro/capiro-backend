@@ -58,16 +58,23 @@ describe('Outreach V3 reasoning runtime boundary', () => {
     expect(() => policy.assertCallbacksEnabled('oauth')).toThrow();
   });
 
-  it('does not grant the reasoning exception to the main API merely because the flag is true', () => {
-    process.env.OUTREACH_V3_REASONING_ENABLED = 'true';
-    const policy = new EngagementRuntimePolicyService({
-      serviceName: 'api',
-      processMode: 'shadow',
-      backgroundOwner: 'disabled',
-      externalActions: 'disabled',
-      callbacksEnabled: false,
-      recallWebhookEnabled: false,
-    });
-    expect(policy.externalActionAllowed('outreach_reasoning')).toBe(false);
-  });
+  it.each([
+    { processMode: 'shadow' as const, externalActions: 'disabled' as const },
+    { processMode: 'active' as const, externalActions: 'enabled' as const },
+  ])(
+    'does not grant reasoning authority to the main API in $processMode mode',
+    ({ processMode, externalActions }) => {
+      process.env.OUTREACH_V3_REASONING_ENABLED = 'true';
+      const policy = new EngagementRuntimePolicyService({
+        serviceName: 'api',
+        processMode,
+        backgroundOwner: processMode === 'active' ? 'api' : 'disabled',
+        externalActions,
+        callbacksEnabled: processMode === 'active',
+        recallWebhookEnabled: processMode === 'active',
+      });
+      expect(policy.externalActionAllowed('outreach_reasoning')).toBe(false);
+      expect(() => policy.assertExternalAction('outreach_reasoning')).toThrow();
+    },
+  );
 });
