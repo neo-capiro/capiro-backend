@@ -91,8 +91,13 @@ export function removeTargetCommand(targetKey: string): OutreachV3Command {
 export function rejectTargetRecommendationCommand(input: {
   recommendationRef: string;
   targetKey: string;
+  reason?: 'not_relevant' | 'wrong_jurisdiction' | 'wrong_role' | 'already_covered' | 'other';
 }): OutreachV3Command {
-  return command('REJECT_TARGET_RECOMMENDATION', input);
+  return command('REJECT_TARGET_RECOMMENDATION', {
+    recommendationRef: input.recommendationRef,
+    targetKey: input.targetKey,
+    reason: input.reason ?? 'not_relevant',
+  });
 }
 
 export function deliveryCommands(
@@ -118,9 +123,24 @@ export function acceptContextCommand(
 }
 
 export function excludeContextCommand(
-  refs: Array<{ contextKey: string; reasonCode?: string | null }>,
+  refs: Array<{
+    contextKey: string;
+    reason?:
+      | 'user_excluded'
+      | 'out_of_scope'
+      | 'stale'
+      | 'conflicting'
+      | 'sensitive'
+      | 'not_relevant'
+      | 'superseded';
+  }>,
 ): OutreachV3Command {
-  return command('EXCLUDE_CONTEXT_REFS', { refs });
+  return command('EXCLUDE_CONTEXT_REFS', {
+    refs: refs.map((ref) => ({
+      contextKey: ref.contextKey,
+      reason: ref.reason ?? 'user_excluded',
+    })),
+  });
 }
 
 export function strategyCommands(input: {
