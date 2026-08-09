@@ -25,7 +25,15 @@ export type OutreachV3ContextClass =
 export interface OutreachV3TargetLocator {
   source: string;
   id: string;
-  clientId?: string;
+  clientId?: string | null;
+  [key: string]: unknown;
+}
+
+export interface OutreachV3SourceSnapshot {
+  system?: string;
+  version?: string | null;
+  lastVerifiedAt?: string | null;
+  asOf?: string | null;
   [key: string]: unknown;
 }
 
@@ -40,7 +48,8 @@ export interface OutreachV3ResolvedTargetRef {
   phone?: string | null;
   clientId: string | null;
   roleStatus: 'current' | 'historical' | 'unknown';
-  profileStatus?: string;
+  emailStatus?: 'available' | 'missing' | 'invalid';
+  profileStatus?: 'complete' | 'limited' | 'unavailable' | string;
   snapshotHash: string;
   jurisdiction: {
     governmentLevel: string;
@@ -50,20 +59,20 @@ export interface OutreachV3ResolvedTargetRef {
     committees: string[];
     issueAreas: string[];
   };
-  sourceSnapshot?: { version?: string | null; asOf?: string | null };
+  sourceSnapshot?: OutreachV3SourceSnapshot;
   [key: string]: unknown;
 }
 
 export interface OutreachV3ContextScope {
   kind: 'campaign' | 'target' | 'group';
   targetKey?: string;
-  groupKey?: string;
+  groupRef?: string;
   [key: string]: unknown;
 }
 
 export interface OutreachV3ContextLocator {
   source: string;
-  id: string;
+  id?: string;
   [key: string]: unknown;
 }
 
@@ -80,18 +89,20 @@ export interface OutreachV3ResolvedContextRef {
   scope: OutreachV3ContextScope;
   title: string;
   summary: string;
+  clientId?: string | null;
   verificationClass: string;
   sensitivity: string;
   instructionsAllowed: boolean;
   usableAsEvidence: boolean;
   usableAsWritingGuidance: boolean;
   snapshotHash: string;
-  sourceSnapshot?: { version?: string | null; asOf?: string | null };
+  sourceSnapshot?: OutreachV3SourceSnapshot;
   [key: string]: unknown;
 }
 
 export interface OutreachV3ExcludedContextRef {
   contextKey: string;
+  reason?: string | null;
   reasonCode?: string | null;
   [key: string]: unknown;
 }
@@ -146,16 +157,29 @@ export interface OutreachV3CampaignSpec {
   };
 }
 
-export interface OutreachV3ReadinessBlocker {
-  code: string;
-  message?: string;
-  stage?: string;
-  [key: string]: unknown;
-}
+export type OutreachV3ReadinessBlocker =
+  | string
+  | {
+      code: string;
+      message?: string;
+      stage?: string;
+      [key: string]: unknown;
+    };
 
 export interface OutreachV3Readiness {
   ready?: boolean;
   status?: string;
+  goalReady?: boolean;
+  sponsorResolved?: boolean;
+  targetCriteriaReady?: boolean;
+  targetsReady?: boolean;
+  deliveryReady?: boolean;
+  contextReady?: boolean;
+  contextEvidenceReady?: boolean;
+  strategyReady?: boolean;
+  sampleGenerationEligible?: boolean;
+  fullGenerationEligible?: boolean;
+  sendReviewEligible?: boolean;
   blockers?: OutreachV3ReadinessBlocker[];
   warnings?: OutreachV3ReadinessBlocker[];
   [key: string]: unknown;
