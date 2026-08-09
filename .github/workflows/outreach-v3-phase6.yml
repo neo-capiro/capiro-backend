@@ -1,0 +1,50 @@
+name: Outreach V3 Phase 6
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p6-conversational-ui
+  pull_request:
+    paths:
+      - 'apps/web/src/pages/engagement/outreach/v2/index.ts'
+      - 'apps/web/src/pages/engagement/outreach/v3/**'
+      - 'apps/web/src/lib/engagement-api-preview-routes.generated.ts'
+      - 'scripts/engagement-phase3-preview-route-patterns.mjs'
+      - 'scripts/verify-outreach-v3-phase6-code.mjs'
+      - 'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md'
+      - 'package.json'
+      - '.github/workflows/outreach-v3-phase6.yml'
+
+permissions:
+  contents: read
+
+env:
+  CI: 'true'
+
+jobs:
+  verify:
+    name: Verify conversational planning UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout stacked branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Outreach V3 Phase 6
+        run: pnpm verify:outreach-v3-phase-6
