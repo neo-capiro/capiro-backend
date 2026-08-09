@@ -50,6 +50,8 @@ const STAGE_INDEX: Record<OutreachV3Stage, number> = {
   ready_for_generation: 6,
 };
 
+const REVIEW_BEFORE_CONTINUE = new Set<OutreachV3Stage>(['targets', 'context']);
+
 type StrategyProjection = OutreachV3StrategyData & {
   recommendedPattern?: OutreachV3DeliveryPattern;
   recommendedPersonalization?: OutreachV3Personalization;
@@ -57,6 +59,11 @@ type StrategyProjection = OutreachV3StrategyData & {
 
 function campaignTitle(topic: string | null | undefined, fallback: string | null | undefined): string {
   return topic?.trim() || fallback?.trim() || 'New outreach campaign';
+}
+
+function stageLabel(stage: OutreachV3Stage): string {
+  if (stage === 'ready_for_generation') return 'Planning complete';
+  return STAGES.find((entry) => entry.key === stage)?.label ?? stage;
 }
 
 export function OutreachV3Route({
@@ -70,7 +77,13 @@ export function OutreachV3Route({
   const [viewStage, setViewStage] = useState<OutreachV3Stage>('goal');
 
   useEffect(() => {
-    setViewStage(controller.stage);
+    setViewStage((current) => {
+      const currentIndex = STAGE_INDEX[current];
+      const canonicalIndex = STAGE_INDEX[controller.stage];
+      if (currentIndex > canonicalIndex) return controller.stage;
+      if (REVIEW_BEFORE_CONTINUE.has(current) && canonicalIndex > currentIndex) return current;
+      return controller.stage;
+    });
   }, [controller.stage]);
 
   const session = controller.session;
@@ -149,6 +162,8 @@ export function OutreachV3Route({
   const selectedIndex = STAGE_INDEX[viewStage];
   const canOpenStage = (stage: OutreachV3Stage) => STAGE_INDEX[stage] <= canonicalIndex;
   const hasUnsavedMutation = controller.applyingCommands || controller.proposalBusy;
+  const reviewCanContinue = selectedIndex < canonicalIndex;
+  const deliberateReviewHold = REVIEW_BEFORE_CONTINUE.has(viewStage) && reviewCanContinue;
 
   return (
     <div className="ov3-root" aria-busy={hasUnsavedMutation || controller.isRefreshing}>
@@ -234,14 +249,16 @@ export function OutreachV3Route({
         ) : null}
       </nav>
 
-      {selectedIndex < canonicalIndex && viewStage !== 'ready_for_generation' ? (
+      {reviewCanContinue && viewStage !== 'ready_for_generation' ? (
         <div className="ov3-review-banner" role="status">
           <span>
-            Reviewing a completed stage. Saving a change creates a new Campaign Spec version and
-            may invalidate downstream readiness.
+            {deliberateReviewHold
+              ? `${stageLabel(viewStage)} changes are saved. Keep reviewing here or continue when you are ready.`
+              : 'Reviewing a completed stage. Saving a change creates a new Campaign Spec version and may invalidate downstream readiness.'}
           </span>
           <button type="button" onClick={() => setViewStage(controller.stage)}>
-            Return to current decision <ChevronRight size={14} />
+            {deliberateReviewHold ? 'Continue to' : 'Return to'} {stageLabel(controller.stage)}{' '}
+            <ChevronRight size={14} />
           </button>
         </div>
       ) : null}
