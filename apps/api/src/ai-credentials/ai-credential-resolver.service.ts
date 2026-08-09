@@ -2,7 +2,7 @@
  * Provider-neutral, per-call AI credential resolution.
  *
  * This service intentionally lives outside Engagement so Meri, Engagement,
- * and later Outreach V3 can share one tenant-first credential policy without
+ * and Outreach V3 can share one tenant-first credential policy without
  * importing the broad Engagement module.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -123,6 +123,19 @@ export class AiCredentialResolverService implements OnModuleInit {
     return this.resolveForProvider(ctx, provider);
   }
 
+  /**
+   * Outreach V3 Phase 3 gets one narrow shadow-runtime exception. This does not
+   * enable generation/send/OAuth/etc.; the runtime policy independently checks
+   * only the `outreach_reasoning` action before tenant/global credential lookup.
+   */
+  async resolveProviderForOutreachReasoning(
+    ctx: TenantContext,
+    provider: AiProvider,
+  ): Promise<ResolvedAiCredential | null> {
+    this.runtimePolicy?.assertExternalAction('outreach_reasoning');
+    return this.resolveForProvider(ctx, provider);
+  }
+
   async resolveProviderByTenantId(
     tenantId: string,
     provider: AiProvider,
@@ -157,7 +170,6 @@ export class AiCredentialResolverService implements OnModuleInit {
           };
         }
       } catch (err) {
-        // Do not log provider bodies, keys, ciphertext, IVs, or auth tags.
         this.logger.warn(
           `Tenant AI credential resolve failed for ${provider}; falling back to the platform key`,
         );
@@ -216,7 +228,6 @@ export class AiCredentialResolverService implements OnModuleInit {
               signal: controller.signal,
             });
       if (response.ok) return { ok: true };
-      // Provider bodies can echo submitted values. Return only a bounded status.
       return { ok: false, error: `Provider rejected the credential (HTTP ${response.status})` };
     } catch (err) {
       const message =
