@@ -156,9 +156,16 @@ const commands: Command[] = [
 ];
 
 if (includeContainers) {
+  const importsByTarget: Record<string, string> = {
+    table: 'import pdfplumber, camelot',
+    layout: 'import pdfplumber, camelot, docling',
+    ocr: 'import pdfplumber, camelot, docling, paddleocr',
+  };
+
   for (const target of ['table', 'layout', 'ocr']) {
+    const image = `capiro-defense-budget-parser-phase3-${target}:closeout`;
     commands.push({
-      name: `Docker ${target} target`,
+      name: `Docker ${target} target build`,
       command: 'docker',
       args: [
         'build',
@@ -166,12 +173,55 @@ if (includeContainers) {
         'linux/amd64',
         '--target',
         target,
+        '--tag',
+        image,
         '-f',
         'apps/defense-budget-parser/Dockerfile',
         // The build context must be the parser package, not the repo root: the
         // Dockerfile copies `pyproject.toml`, `uv.lock`, `src/`, and `tests/`
         // by context-relative path, and none of those exist at the repo root.
         'apps/defense-budget-parser',
+      ],
+      cwd: REPO_ROOT,
+    });
+
+    // A successful docker build is not a runtime proof. This exact class of
+    // defect shipped before: the image built while uv could not write the venv
+    // and optional parser imports were absent. Exercise the image as the
+    // configured non-root runtime user and through its production ENTRYPOINT.
+    commands.push({
+      name: `Docker ${target} production entrypoint smoke`,
+      command: 'docker',
+      args: ['run', '--rm', image, 'version', '--json'],
+      cwd: REPO_ROOT,
+    });
+    commands.push({
+      name: `Docker ${target} non-root writable-runtime smoke`,
+      command: 'docker',
+      args: [
+        'run',
+        '--rm',
+        '--entrypoint',
+        '/bin/sh',
+        image,
+        '-c',
+        target === 'ocr'
+          ? 'test "$(id -u)" = "1001" && test -w /app/.venv && test -w /home/parser/.paddleocr'
+          : 'test "$(id -u)" = "1001" && test -w /app/.venv',
+      ],
+      cwd: REPO_ROOT,
+    });
+    commands.push({
+      name: `Docker ${target} parser import smoke`,
+      command: 'docker',
+      args: [
+        'run',
+        '--rm',
+        '--entrypoint',
+        '/app/.venv/bin/python',
+        image,
+        '-c',
+        importsByTarget[target]!,
       ],
       cwd: REPO_ROOT,
     });
