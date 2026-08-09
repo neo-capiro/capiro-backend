@@ -5,10 +5,16 @@ import { mapSbirSolicitation, mapSbirTopic, solicitationYear } from './tango-sbi
 /**
  * P42 — the SBIR/STTR mappers.
  *
- * These pin a READING of published field names, not the provider's behaviour.
- * Nothing has ever called `/api/sbir/`, so a green suite here means "the
- * mapper does what we decided", never "the mapper matches the API". The
- * distinction is the whole reason the file header calls itself provisional.
+ * Most of this file pins a READING of published field names, not the
+ * provider's behaviour — written when nothing had ever called `/api/sbir/`,
+ * so a green suite here meant "the mapper does what we decided," never "the
+ * mapper matches the API."
+ *
+ * THAT CHANGED 2026-08-09 (decision-log D-71): an operator captured five real
+ * records per endpoint — the FIRST-EVER observation of this API's contents.
+ * `__fixtures__/sbir-contract-capture-2026-08-09.json` holds them verbatim,
+ * and the `real capture` describe block runs every one through the actual
+ * mappers. Everything else in this file is still a reading; that block is not.
  */
 
 /**
@@ -297,5 +303,100 @@ describe('the mapper does not invent what the provider does not publish', () => 
     const read = [...code.matchAll(/raw\['([a-z_]+)'\]/g)].map((m) => m[1]!);
     expect(read.length).toBeGreaterThan(0);
     expect([...new Set(read)].filter((key) => !documented.has(key))).toEqual([]);
+  });
+});
+
+// ── Real capture, 2026-08-09 (D-71) ─────────────────────────────────────────
+
+describe('real capture — every mapper against records the provider actually sent', () => {
+  const capture = JSON.parse(
+    readFileSync(
+      join(__dirname, '__fixtures__/real-captures/sbir-contract-capture-2026-08-09.json'),
+      'utf8',
+    ),
+  );
+
+  test('every topic maps without dropping a required field', () => {
+    for (const raw of capture.topics) {
+      const row = mapSbirTopic(raw);
+      expect(row).not.toBeNull();
+      expect(row!.tangoSbirId).toBe(raw.topic_id);
+    }
+  });
+
+  test('every solicitation maps without dropping a required field', () => {
+    for (const raw of capture.solicitations) {
+      const row = mapSbirSolicitation(raw);
+      expect(row).not.toBeNull();
+      expect(row!.tangoSbirId).toBe(raw.solicitation_id);
+      expect(row!.solicitationNumber).toBe(raw.solicitation_number);
+    }
+  });
+
+  /**
+   * NEITHER id in the real capture is a uuid — confirmed, not assumed.
+   * `topic_id` arrives as `sbir-topic-<hex>` and `solicitation_id` as
+   * `dsip-solicitation-<hex>`. The mapper never reached for `uuid` in the
+   * first place (see the "never reaches for uuid" tests above); this is what
+   * that caution was protecting against actually looking like.
+   */
+  test('the real topic and solicitation ids are not uuids', () => {
+    const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const raw of capture.topics) expect(uuidLike.test(raw.topic_id)).toBe(false);
+    for (const raw of capture.solicitations) expect(uuidLike.test(raw.solicitation_id)).toBe(false);
+  });
+
+  /**
+   * THE FINDING WORTH KEEPING. `solicitation_status` is NOT one vocabulary
+   * shared across both endpoints — topics say "Open" (title case); cycles say
+   * "active" / "archived" (lower case). `isTopicClosed` in sbir-relevance.ts
+   * already lowercases before comparing against `{closed, archived, expired}`,
+   * so it is robust to either spelling — but a future reader comparing a
+   * cycle's own status against a hardcoded "Closed" would silently never match.
+   * Never assume the two fields share a value set merely because they share a
+   * name.
+   */
+  test('topics and cycles do not share a status vocabulary', () => {
+    const topicStatuses = new Set(capture.topics.map((t: { solicitation_status: string }) => t.solicitation_status));
+    const cycleStatuses = new Set(
+      capture.solicitations.map((s: { solicitation_status: string }) => s.solicitation_status),
+    );
+    expect(topicStatuses).toEqual(new Set(['Open']));
+    expect(cycleStatuses).toEqual(new Set(['active', 'archived']));
+    // 'archived' really is a real value in the wild — confirming why it was
+    // already in isTopicClosed's closed-word set, not merely a guess.
+    expect(cycleStatuses.has('archived')).toBe(true);
+  });
+
+  /**
+   * `sol_download_url` arrives as an EMPTY STRING when the provider has none —
+   * never absent, never null. `str()` already collapses `''` to null; without
+   * that, a card would have rendered `<a href="">Download</a>`, a link to
+   * nowhere that still looks like a working one.
+   */
+  test('an empty-string sol_download_url maps to null, not to a dead link', () => {
+    const blank = capture.solicitations.find((s: { sol_download_url: unknown }) => s.sol_download_url === '');
+    expect(blank).toBeDefined();
+    expect(mapSbirSolicitation(blank)!.solDownloadUrl).toBeNull();
+  });
+
+  test('out_of_cycle, never observed non-null in this sample, still maps to null cleanly', () => {
+    for (const raw of capture.solicitations) {
+      expect(mapSbirSolicitation(raw)!.outOfCycle).toBeNull();
+    }
+  });
+
+  test('every date field in the capture parses as the calendar day it names', () => {
+    for (const raw of capture.topics) {
+      const row = mapSbirTopic(raw)!;
+      expect(new Date(row.openDate as string).toISOString().slice(0, 10)).toBe(raw.open_date);
+      expect(new Date(row.closeDate as string).toISOString().slice(0, 10)).toBe(raw.close_date);
+    }
+  });
+
+  test('year arrives as a plain JSON number and maps straight through', () => {
+    for (const raw of capture.topics) {
+      expect(mapSbirTopic(raw)!.year).toBe(raw.year);
+    }
   });
 });
