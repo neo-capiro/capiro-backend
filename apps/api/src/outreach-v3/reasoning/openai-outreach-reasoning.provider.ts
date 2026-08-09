@@ -145,6 +145,15 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
         body.reasoning = { effort: input.reasoningEffort };
       }
 
+      // Capiro-managed continuity intentionally runs with provider storage off.
+      // For reasoning models, request encrypted reasoning items so the exact
+      // provider output can be replayed transiently across function-call rounds.
+      // Those items remain in process memory only; Capiro never persists or
+      // exposes them as visible reasoning.
+      if (!input.store && supportsReasoningEffort(model)) {
+        body.include = ['reasoning.encrypted_content'];
+      }
+
       if (input.stateMode === 'provider_state' && previousResponseId) {
         body.previous_response_id = previousResponseId;
         body.input = round === 0 ? input.userMessage : capiroManagedInput;
@@ -225,6 +234,10 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
         previousResponseId = finalResponseId;
         capiroManagedInput = toolOutputs;
       } else {
+        // For store=false/manual continuity, replay every output item from the
+        // provider plus our tool results. For reasoning models this includes the
+        // encrypted reasoning item requested above. It is never persisted by the
+        // reasoning repository; it exists only for this in-flight turn.
         capiroManagedInput = [
           ...capiroManagedInput,
           ...(response.output ?? []),
