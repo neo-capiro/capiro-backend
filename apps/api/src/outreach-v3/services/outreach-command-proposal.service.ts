@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -76,12 +77,25 @@ export class OutreachCommandProposalService {
     });
   }
 
-  /**
-   * Server-only Phase 3 seam. Browser DTOs never expose `source`; the reasoning
-   * gateway calls this method after provider output has been strictly parsed.
-   * It creates a normal pending Phase 2 proposal and never applies commands.
-   */
+  /** Server-only Phase 3 seam. Browser DTOs never expose `source`. */
   async createModelProposal(
+    ctx: TenantContext,
+    sessionId: string,
+    input: { expectedStateVersion: number; commands: unknown[] },
+  ): Promise<OutreachProposalRow> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      this.createModelProposalWithinTx(tx, ctx, sessionId, input),
+    );
+  }
+
+  /**
+   * Transaction-composable variant used by the reasoning gateway so model
+   * proposal creation, proposal audit, visible turn audit, and provider-ref
+   * update commit or roll back together. This still creates a pending proposal
+   * only; it never invokes the command engine.
+   */
+  async createModelProposalWithinTx(
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     sessionId: string,
     input: { expectedStateVersion: number; commands: unknown[] },
@@ -89,68 +103,66 @@ export class OutreachCommandProposalService {
     const commands = this.parseNormalizeCommands(input.commands);
     const commandsHash = hashNormalizedOutreachCommands(commands);
     const commandsJson = JSON.stringify(commands);
+    const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
-      if (session.status === 'archived') {
-        throw new OutreachCommandError(
-          'OUTREACH_SESSION_ARCHIVED',
-          'Archived outreach sessions cannot accept new proposals.',
-          409,
-        );
-      }
-      if (session.currentStateVersion !== input.expectedStateVersion) {
-        throw new OutreachCommandError(
-          'OUTREACH_STATE_CONFLICT',
-          'The outreach session changed before the model proposal was created.',
-          409,
-          { currentStateVersion: session.currentStateVersion },
-        );
-      }
+    if (session.status === 'archived') {
+      throw new OutreachCommandError(
+        'OUTREACH_SESSION_ARCHIVED',
+        'Archived outreach sessions cannot accept new proposals.',
+        409,
+      );
+    }
+    if (session.currentStateVersion !== input.expectedStateVersion) {
+      throw new OutreachCommandError(
+        'OUTREACH_STATE_CONFLICT',
+        'The outreach session changed before the model proposal was created.',
+        409,
+        { currentStateVersion: session.currentStateVersion },
+      );
+    }
 
-      const rows = await tx.$queryRaw<OutreachProposalRow[]>`
-        INSERT INTO outreach_command_proposals (
-          tenant_id, session_id, created_by_user_id, source, expected_state_version,
-          commands_jsonb, commands_hash, status
-        ) VALUES (
-          CAST(${ctx.tenantId} AS uuid), CAST(${session.id} AS uuid),
-          CAST(${ctx.userId} AS uuid), 'future_model', ${input.expectedStateVersion},
-          CAST(${commandsJson} AS jsonb), ${commandsHash}, 'pending'
-        )
-        RETURNING
-          id,
-          tenant_id AS "tenantId",
-          session_id AS "sessionId",
-          created_by_user_id AS "createdByUserId",
-          source,
-          expected_state_version AS "expectedStateVersion",
-          commands_jsonb AS "commandsJsonb",
-          commands_hash AS "commandsHash",
-          status,
-          created_at AS "createdAt",
-          decided_at AS "decidedAt",
-          decided_by_user_id AS "decidedByUserId",
-          applied_state_version AS "appliedStateVersion",
-          rejection_code AS "rejectionCode"
-      `;
-      const proposal = rows[0];
-      if (!proposal) throw new Error('OUTREACH_MODEL_PROPOSAL_CREATE_FAILED');
+    const rows = await tx.$queryRaw<OutreachProposalRow[]>`
+      INSERT INTO outreach_command_proposals (
+        tenant_id, session_id, created_by_user_id, source, expected_state_version,
+        commands_jsonb, commands_hash, status
+      ) VALUES (
+        CAST(${ctx.tenantId} AS uuid), CAST(${session.id} AS uuid),
+        CAST(${ctx.userId} AS uuid), 'future_model', ${input.expectedStateVersion},
+        CAST(${commandsJson} AS jsonb), ${commandsHash}, 'pending'
+      )
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        session_id AS "sessionId",
+        created_by_user_id AS "createdByUserId",
+        source,
+        expected_state_version AS "expectedStateVersion",
+        commands_jsonb AS "commandsJsonb",
+        commands_hash AS "commandsHash",
+        status,
+        created_at AS "createdAt",
+        decided_at AS "decidedAt",
+        decided_by_user_id AS "decidedByUserId",
+        applied_state_version AS "appliedStateVersion",
+        rejection_code AS "rejectionCode"
+    `;
+    const proposal = rows[0];
+    if (!proposal) throw new Error('OUTREACH_MODEL_PROPOSAL_CREATE_FAILED');
 
-      await this.repository.appendEvent(tx, ctx, session, {
-        eventType: 'proposal_created',
+    await this.repository.appendEvent(tx, ctx, session, {
+      eventType: 'proposal_created',
+      source: 'future_model',
+      stateVersionBefore: session.currentStateVersion,
+      stateVersionAfter: session.currentStateVersion,
+      safeMetadata: {
+        proposalId: proposal.id,
+        expectedStateVersion: proposal.expectedStateVersion,
+        commandCount: commands.length,
+        commandsHash,
         source: 'future_model',
-        stateVersionBefore: session.currentStateVersion,
-        stateVersionAfter: session.currentStateVersion,
-        safeMetadata: {
-          proposalId: proposal.id,
-          expectedStateVersion: proposal.expectedStateVersion,
-          commandCount: commands.length,
-          commandsHash,
-          source: 'future_model',
-        },
-      });
-      return proposal;
+      },
     });
+    return proposal;
   }
 
   async listProposals(ctx: TenantContext, sessionId: string, limit = 100) {
