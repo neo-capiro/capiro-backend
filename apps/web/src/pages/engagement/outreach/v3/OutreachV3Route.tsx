@@ -255,6 +255,7 @@ export function OutreachV3Route({
           unavailableMessage={controller.reasoningErrorMessage}
           sending={controller.sendingTurn}
           onSend={controller.sendTurn}
+          onRetry={() => controller.retryReasoning()}
         />
 
         <div className="ov3-workspace__decision">
