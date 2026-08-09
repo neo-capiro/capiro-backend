@@ -22,6 +22,12 @@
  *     authorizer who reviewed or (for high-risk extraction) extracted the same
  *     scope. A caller that forgets the first check still cannot bypass the
  *     second.
+ *   * The persisted eligibility record is not trusted merely because its hash
+ *     is real. Authorization reruns the deterministic eligibility policy and
+ *     refuses a record that now evaluates blocked. This matters because the
+ *     file-plan verb is intentionally a narrow persistence primitive: without
+ *     this second check, a hand-authored plan could point at a genuine but
+ *     ineligible record and understate its own blocked count.
  *
  * An authorization is issued against a plan that already exists in persistence
  * and is reloaded here. The requester supplies a plan ID, a reason, and an
@@ -33,8 +39,11 @@ import {
   promotionAuthorizationHashV1,
   type DefenseBudgetPromotionAuthorizationV1,
 } from './promotion-authorization-v1.js';
-import { promotionEligibilityHashV1 } from './promotion-eligibility-v1.js';
-import type { DefenseBudgetPromotionEligibilityV1 } from './promotion-eligibility-v1.js';
+import {
+  evaluatePromotionEligibilityV1,
+  promotionEligibilityHashV1,
+  type DefenseBudgetPromotionEligibilityV1,
+} from './promotion-eligibility-v1.js';
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
 import type { PromotionAuditSinkV1 } from './promotion-eligibility-service-v1.js';
 
@@ -89,6 +98,7 @@ export const AUTHORIZATION_ISSUE_REFUSAL_V1_VALUES = [
   'authorizer_not_admin',
   'plan_not_found',
   'plan_has_blocked_items',
+  'eligibility_not_eligible',
   'authorization_already_exists',
   'expiry_not_in_future',
   'segregation_violation',
@@ -144,6 +154,21 @@ export class DefenseBudgetPromotionAuthorizationServiceV1 {
       });
     }
 
+    // A persisted eligibility document is evidence, not an authorization token.
+    // Re-evaluate the pure policy rather than assuming a caller-created plan was
+    // honest about whether that record was promotable.
+    const eligibilityDecision = evaluatePromotionEligibilityV1(plan.eligibility);
+    if (!eligibilityDecision.eligible) {
+      refusals.push({
+        reason: 'eligibility_not_eligible',
+        detail:
+          `eligibility ${plan.eligibilityHash} is blocked: ` +
+          eligibilityDecision.blocks
+            .map((block) => `${block.reason}:${block.detail}`)
+            .join('; '),
+      });
+    }
+
     const existing = await this.repository.findAuthorizationById(request.authorizationId);
     if (existing != null) {
       refusals.push({
@@ -195,8 +220,6 @@ export class DefenseBudgetPromotionAuthorizationServiceV1 {
     });
 
     if (!parsed.success) {
-      // The contract enforces segregation of duties, so a reviewer or high-risk
-      // extractor authorizing their own scope lands here.
       const messages = parsed.error.issues.map((issue) => issue.message);
       const isSegregation = messages.some((message) => message.includes('authorizer may not'));
       refusals.push({
