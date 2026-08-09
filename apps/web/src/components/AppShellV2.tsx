@@ -1,22 +1,25 @@
-// Global app shell v2 — a faithful build of "Capiro App Shell v2 (standalone).html"
-// gated to the capiro-internal tenant only. Two persistent bands (54px global nav
-// + 40px tenant/client/data context) replace the legacy left sider. The page
-// region below scrolls. All controls wire to real app behaviour; decorative
-// mockup-only affordances are omitted, never faked.
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+// Premium global app shell for capiro-internal.
+//
+// The visual source of truth is the Capiro Figma master Shell/Premium. This
+// component intentionally stays tenant-gated by AppShell.tsx so legacy tenants
+// retain the existing sidebar shell. Real navigation, search, notifications,
+// Meri-window launch, profile actions, client scope, and data context remain
+// wired to production behavior.
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+import { ROLE_RANK, type TenantRole } from '@capiro/shared';
 import type { MeResponse } from '../lib/me.js';
 import { useApi } from '../lib/use-api.js';
 import { useIntelFeatureFlags } from '../lib/intel-feature-flags.js';
-import { ROLE_RANK, type TenantRole } from '@capiro/shared';
 import { openMeriWorkspaceWindow } from './chat/meri-window.js';
 import { useClientFilter } from '../state/client-filter.js';
 import { useNotifications } from '../pages/workspace/api.js';
 import { getProgramElementSummary } from '../pages/program-element/api.js';
 import type { Client } from '../pages/clients/clientTypes.js';
+import './app-shell-premium.css';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -37,32 +40,26 @@ interface V2NavLeaf {
   minRole?: TenantRole;
   featureFlag?: string;
   meFeature?: keyof MeResponse['features'];
-  children?: V2NavLeaf[];
   tourId?: string;
 }
 
-interface BrandingResponse {
-  name: string;
-  logoUrl?: string | null;
+interface DashboardSignal {
+  detectedAt: string;
 }
 
-/* ── Nav model (mirrors the production NAV sections, mockup ordering) ──── */
+interface ProfileItem {
+  label: string;
+  tag?: string;
+  path?: string;
+  action?: 'signout' | 'profile';
+}
 
-const PRIMARY: V2NavLeaf[] = [
-  { key: 'dashboard', label: 'Dashboard', path: '/', tourId: 'Dashboard' },
-  { key: 'engagement', label: 'Engagement', path: '/engagement', tourId: 'Engagement' },
-  { key: 'portfolio', label: 'Portfolio', path: '/clients', tourId: 'Portfolio' },
-  { key: 'workspace', label: 'Workspace', path: '/workspace', tourId: 'Workspace' },
-];
+/* ── Navigation model ──────────────────────────────────────────────────── */
 
 const INTELLIGENCE: V2NavLeaf[] = [
-  { key: 'radar', label: 'LegiWatch', path: '/legiwatch' },
-  { key: 'intelligence', label: 'Data Explorer', path: '/explorer' },
-  {
-    key: 'federal-spending',
-    label: 'Federal Spending',
-    path: '/intelligence/federal-spending',
-  },
+  { key: 'legiwatch', label: 'LegiWatch', path: '/legiwatch' },
+  { key: 'explorer', label: 'Data Explorer', path: '/explorer' },
+  { key: 'federal-spending', label: 'Federal Spending', path: '/intelligence/federal-spending' },
   {
     key: 'district-nexus',
     label: 'District Nexus',
@@ -74,7 +71,6 @@ const INTELLIGENCE: V2NavLeaf[] = [
     key: 'funding-opportunities',
     label: 'Funding Opportunities',
     path: '/intelligence/opportunities',
-    tag: 'FLAG',
     featureFlag: 'funding_opportunities',
   },
   { key: 'knowledge-graph', label: 'Knowledge Graph', path: '/intelligence/graph' },
@@ -82,6 +78,7 @@ const INTELLIGENCE: V2NavLeaf[] = [
 ];
 
 const MORE: V2NavLeaf[] = [
+  { key: 'directory', label: 'Directory', path: '/directory' },
   {
     key: 'strategies',
     label: 'Strategies',
@@ -91,10 +88,16 @@ const MORE: V2NavLeaf[] = [
   },
   { key: 'actions', label: 'Action Board', path: '/actions' },
   { key: 'portal', label: 'Client Portal', path: '/portal' },
-  { key: 'analyst-console', label: 'Analyst Console', path: '/admin/analyst-console', tag: 'ADMIN', minRole: 'capiro_admin' as TenantRole },
+  {
+    key: 'analyst-console',
+    label: 'Analyst Console',
+    path: '/admin/analyst-console',
+    tag: 'ADMIN',
+    minRole: 'capiro_admin' as TenantRole,
+  },
 ];
 
-const PROFILE_ITEMS: { label: string; tag?: string; path?: string; action?: 'signout' | 'profile' }[] = [
+const PROFILE_ITEMS: ProfileItem[] = [
   { label: 'Profile', action: 'profile' },
   { label: 'Preferences', path: '/settings' },
   { label: 'Settings', path: '/settings' },
@@ -120,28 +123,32 @@ export function AppShellV2({ me }: { me: MeResponse }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
-  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const role = me.role;
+  const section = sectionFor(location.pathname);
+
   const closeAll = () => {
     setOpenMenu(null);
     setSearchOpen(false);
   };
 
-  // Ctrl+J opens/focuses the Meri window; Ctrl+K opens search; Esc closes menus.
+  // Ctrl+J opens/focuses Meri; Ctrl/Cmd+K opens global search; Esc closes menus.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const k = (e.key || '').toLowerCase();
-      if ((e.metaKey || e.ctrlKey) && k === 'j') {
-        e.preventDefault();
+    const onKey = (event: KeyboardEvent) => {
+      const key = (event.key || '').toLowerCase();
+      if ((event.metaKey || event.ctrlKey) && key === 'j') {
+        event.preventDefault();
         openMeriWorkspaceWindow();
       }
-      if ((e.metaKey || e.ctrlKey) && k === 'k') {
-        e.preventDefault();
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault();
         setOpenMenu(null);
         setSearchOpen(true);
       }
-      if (k === 'escape') closeAll();
+      if (key === 'escape') {
+        setOpenMenu(null);
+        setSearchOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -155,17 +162,11 @@ export function AppShellV2({ me }: { me: MeResponse }) {
   const visibleClients = useMemo(
     () =>
       (clients.data ?? [])
-        .filter((c) => c.status !== 'archived')
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .filter((client) => client.status !== 'archived')
+        .sort((left, right) => left.name.localeCompare(right.name)),
     [clients.data],
   );
-  const selectedClient = visibleClients.find((c) => c.id === selectedClientId) ?? null;
-
-  const branding = useQuery<BrandingResponse | null>({
-    queryKey: ['branding'],
-    queryFn: async () => (await api.get<BrandingResponse | null>('/api/tenant-admin/branding')).data,
-    staleTime: 240_000,
-  });
+  const selectedClient = visibleClients.find((client) => client.id === selectedClientId) ?? null;
 
   const peSummary = useQuery({
     queryKey: ['program-element-summary'],
@@ -173,116 +174,165 @@ export function AppShellV2({ me }: { me: MeResponse }) {
     staleTime: 300_000,
   });
 
-  const unread = notifications.data?.unread ?? 0;
-  const tenantName = branding.data?.name ?? me.tenant.name;
-  const displayName =
-    user?.fullName ||
-    [me.user.firstName, me.user.lastName].filter(Boolean).join(' ') ||
-    me.user.email ||
-    'Account';
-  const displayTitle = me.user.title ?? null;
-  const requestFy = peSummary.data?.latestRequestFy ?? null;
+  // Reuse the HomePage query key so the shell's SIGNALS chip and dashboard share
+  // one cache entry rather than introducing another source of truth.
+  const dashboardSignals = useQuery<DashboardSignal[]>({
+    queryKey: ['intel-changes-tracked'],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      return (
+        await api.get<DashboardSignal[]>('/api/intelligence/changes', { params: { since } })
+      ).data;
+    },
+    enabled: section === 'dashboard',
+    staleTime: 2 * 60 * 1000,
+  });
 
-  const isVisible = (n: V2NavLeaf) =>
-    (!n.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[n.minRole])) &&
-    (!n.featureFlag || Boolean(intelFlags.data?.[n.featureFlag])) &&
-    (!n.meFeature || Boolean(me.features?.[n.meFeature]));
+  const overnightSignals = useMemo(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return (dashboardSignals.data ?? []).filter(
+      (signal) => new Date(signal.detectedAt).getTime() >= cutoff,
+    ).length;
+  }, [dashboardSignals.data]);
 
-  const section = sectionFor(location.pathname);
-
-  // The all-client Dashboard must never carry an invisible client scope. Clear
-  // any persisted selection on entry so a hidden filter can't affect the data.
+  // Dashboard is an all-client command view. Never allow a persisted hidden
+  // client filter to affect the data while the client picker is absent.
   useEffect(() => {
     if (section === 'dashboard' && selectedClientId) {
       setSelectedClientId(null);
     }
   }, [section, selectedClientId, setSelectedClientId]);
 
+  const unread = notifications.data?.unread ?? 0;
+  const displayName =
+    user?.fullName ||
+    [me.user.firstName, me.user.lastName].filter(Boolean).join(' ') ||
+    me.user.email ||
+    'Account';
+  const profileName = user?.firstName || me.user.firstName || displayName.split(/\s+/)[0] || 'Account';
+  const displayTitle = me.user.title ?? null;
+  const profileImageUrl = user?.imageUrl || null;
+  const requestFy = peSummary.data?.latestRequestFy ?? null;
+  const initialsText = initials(displayName);
+  const clientMark = selectedClient ? initials(selectedClient.name) : 'AC';
+
+  const isVisible = (item: V2NavLeaf) =>
+    (!item.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[item.minRole])) &&
+    (!item.featureFlag || Boolean(intelFlags.data?.[item.featureFlag])) &&
+    (!item.meFeature || Boolean(me.features?.[item.meFeature]));
+
+  const intelligenceItems = INTELLIGENCE.filter(isVisible);
+  const moreItems = MORE.filter(isVisible);
+  const fundingEnabled = intelligenceItems.some((item) => item.key === 'funding-opportunities');
+
   const go = (path?: string) => {
     closeAll();
     if (path) navigate(path);
   };
 
-  const initialsText = initials(displayName);
-  // The profile chip shows the user's real photo when one is available (Clerk
-  // avatar), falling back to initials — same source as the legacy shell.
-  const profileImageUrl = user?.imageUrl || null;
-  const clientMark = selectedClient
-    ? initials(selectedClient.name)
-    : 'AC';
-
   const searchResults = useMemo(() => {
     const query = q.trim().toLowerCase();
-    const pool: { kind: string; title: string; href: string }[] = visibleClients.map((c) => ({
+    const pool: { kind: string; title: string; href: string }[] = visibleClients.map((client) => ({
       kind: 'CLIENT',
-      title: c.name,
-      href: `/clients/${c.id}`,
+      title: client.name,
+      href: `/clients/${client.id}`,
     }));
     if (!query) return pool.slice(0, 6);
-    return pool.filter((r) => r.title.toLowerCase().includes(query)).slice(0, 8);
+    return pool.filter((result) => result.title.toLowerCase().includes(query)).slice(0, 8);
   }, [q, visibleClients]);
 
+  const refreshedLabel = dashboardSignals.dataUpdatedAt
+    ? `REFRESHED ${formatRefreshTime(dashboardSignals.dataUpdatedAt)}`
+    : dashboardSignals.isLoading
+      ? 'REFRESHING…'
+      : 'REFRESHED —';
+
   return (
-    <div className="v2-shell" ref={rootRef}>
-      {/* ── Band 1 · global product navigation (54px) ─────────────────── */}
+    <div className={`v2-shell premium-shell${section === 'dashboard' ? ' is-dashboard' : ''}`}>
+      {/* ── Band 1 · premium global navigation ─────────────────────────── */}
       <header className="v2-band1">
         <div className="v2-band1-left">
-          <Link to="/" className="v2-brand" aria-label="Capiro home" onClick={closeAll}>
-            <img src="/logo.png" alt="Capiro" className="v2-brand-logo" />
-          </Link>
+          <button type="button" className="v2-brand" aria-label="Capiro home" onClick={() => go('/')}>
+            <span className="v2-brand-wordmark">CAPIRO</span>
+            <span className="v2-brand-environment">INTERNAL</span>
+          </button>
 
-          <nav className="v2-nav" aria-label="Primary">
-            {PRIMARY.map((n) => (
-              <button
-                key={n.key}
-                type="button"
-                className={`v2-nav-item${section === n.key ? ' is-active' : ''}`}
-                onClick={() => go(n.path)}
-              >
-                <span data-tour={n.tourId}>{n.label}</span>
-                {n.key === 'portfolio' && visibleClients.length > 0 ? (
-                  <span className="v2-nav-count">{visibleClients.length}</span>
-                ) : null}
-              </button>
-            ))}
-
+          <nav className="v2-nav" aria-label="Primary navigation">
+            <TopNavButton
+              label="Home"
+              active={location.pathname === '/'}
+              onClick={() => go('/')}
+              tourId="Dashboard"
+            />
+            <TopNavButton
+              label="Clients"
+              active={location.pathname.startsWith('/clients')}
+              onClick={() => go('/clients')}
+              tourId="Portfolio"
+            />
             <NavMenu
               id="intel"
               label="Intelligence"
-              active={section === 'intelligence'}
+              active={isIntelligenceActive(location.pathname)}
               open={openMenu === 'intel'}
               onToggle={() => setOpenMenu(openMenu === 'intel' ? null : 'intel')}
-              items={INTELLIGENCE.filter(isVisible)}
+              items={intelligenceItems}
               onPick={go}
               activePath={location.pathname}
+            />
+            <TopNavButton
+              label="Program Elements"
+              active={location.pathname.startsWith('/program-elements')}
+              onClick={() => go('/program-elements')}
+            />
+            {fundingEnabled ? (
+              <TopNavButton
+                label="Funding"
+                active={location.pathname.startsWith('/intelligence/opportunities')}
+                onClick={() => go('/intelligence/opportunities')}
+              />
+            ) : null}
+            <TopNavButton
+              label="Engagement"
+              active={location.pathname.startsWith('/engagement')}
+              onClick={() => go('/engagement')}
+              tourId="Engagement"
+            />
+            <TopNavButton
+              label="Workspace"
+              active={location.pathname.startsWith('/workspace')}
+              onClick={() => go('/workspace')}
+              tourId="Workspace"
             />
             <NavMenu
               id="more"
               label="More"
-              active={false}
+              active={section === 'directory' || section === 'more'}
               open={openMenu === 'more'}
               onToggle={() => setOpenMenu(openMenu === 'more' ? null : 'more')}
-              items={MORE.filter(isVisible)}
+              items={moreItems}
               onPick={go}
               activePath={location.pathname}
+              quiet
             />
           </nav>
         </div>
 
         <div className="v2-band1-right">
-          {/* Global search */}
           <div className="v2-search-wrap">
+            <span className="v2-search-label">GLOBAL SEARCH</span>
             <button
               type="button"
               className={`v2-search${searchOpen ? ' is-open' : ''}`}
               onClick={() => {
                 setOpenMenu(null);
-                setSearchOpen((v) => !v);
+                setSearchOpen((value) => !value);
               }}
               aria-label="Global search"
             >
               <SearchIcon />
-              <span className="v2-search-text">Search bills, agencies, stakeholders</span>
+              <span className="v2-search-text">Search clients, issues, programs, people…</span>
+              <span className="v2-search-shortcut">⌘K</span>
             </button>
             {searchOpen ? (
               <div className="v2-pop v2-search-pop" role="dialog" aria-label="Search">
@@ -291,42 +341,35 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                   <input
                     autoFocus
                     value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search bills, agencies, stakeholders"
+                    onChange={(event) => setQ(event.target.value)}
+                    placeholder="Search clients, issues, programs, people…"
                     aria-label="Global search"
                     className="v2-search-input"
                   />
                 </div>
-                {searchResults.map((r) => (
+                {searchResults.map((result) => (
                   <button
-                    key={r.href + r.title}
+                    key={result.href + result.title}
                     type="button"
                     className="v2-search-row"
-                    onClick={() => go(r.href)}
+                    onClick={() => go(result.href)}
                   >
-                    <span className="v2-search-kind">{r.kind}</span>
-                    <span className="v2-search-title">{r.title}</span>
+                    <span className="v2-search-kind">{result.kind}</span>
+                    <span className="v2-search-title">{result.title}</span>
                   </button>
                 ))}
+                {searchResults.length === 0 ? (
+                  <div className="v2-menu-empty">No matching clients found.</div>
+                ) : null}
                 <div className="v2-search-foot">
-                  SCOPED TO {(selectedClient?.name ?? 'All clients').toUpperCase()} · ENTER TO OPEN
+                  {section === 'dashboard'
+                    ? 'ALL-CLIENT SEARCH · ENTER TO OPEN'
+                    : `SCOPED TO ${(selectedClient?.name ?? 'All clients').toUpperCase()} · ENTER TO OPEN`}
                 </div>
               </div>
             ) : null}
           </div>
 
-          {/* Notifications */}
-          <button
-            type="button"
-            className="v2-icon-btn"
-            aria-label="Notifications"
-            onClick={() => navigate('/?notifications=1')}
-          >
-            <BellIcon />
-            {unread > 0 ? <span className="v2-bell-count">{unread}</span> : null}
-          </button>
-
-          {/* Meri launcher — opens/focuses the separate Meri window */}
           <button
             type="button"
             className="v2-meri"
@@ -335,12 +378,21 @@ export function AppShellV2({ me }: { me: MeResponse }) {
             onClick={() => openMeriWorkspaceWindow()}
             data-tour="Meri"
           >
-            <span className="v2-meri-glyph" aria-hidden />
-            <span className="v2-meri-label">MERI</span>
+            <span className="v2-meri-signature" aria-hidden />
+            <span className="v2-meri-label">Open Meri</span>
             <ExtIcon />
           </button>
 
-          {/* Profile */}
+          <button
+            type="button"
+            className="v2-icon-btn"
+            aria-label="Notifications"
+            onClick={() => navigate('/?notifications=1')}
+          >
+            <BellIcon />
+            {unread > 0 ? <span className="v2-bell-count">{unread > 99 ? '99+' : unread}</span> : null}
+          </button>
+
           <div className="v2-profile-wrap">
             <button
               type="button"
@@ -355,8 +407,10 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                   initialsText
                 )}
               </span>
-              <span className="v2-profile-name">{displayName}</span>
-              <CaretIcon />
+              <span className="v2-profile-copy">
+                <span className="v2-profile-name">{profileName}</span>
+                {displayTitle ? <span className="v2-profile-title">{displayTitle}</span> : null}
+              </span>
             </button>
             {openMenu === 'profile' ? (
               <div className="v2-pop v2-profile-pop" role="menu">
@@ -364,39 +418,55 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                   <div className="v2-profile-head-name">{displayName}</div>
                   {displayTitle ? <div className="v2-profile-head-title">{displayTitle}</div> : null}
                 </div>
-                {PROFILE_ITEMS.map((p) => (
+                {PROFILE_ITEMS.map((item) => (
                   <button
-                    key={p.label}
+                    key={item.label}
                     type="button"
                     role="menuitem"
-                    className={`v2-menu-row${p.action === 'signout' ? ' is-signout' : ''}`}
+                    className={`v2-menu-row${item.action === 'signout' ? ' is-signout' : ''}`}
                     onClick={() => {
                       closeAll();
-                      if (p.action === 'signout') void signOut({ redirectUrl: '/sign-in' });
-                      else if (p.action === 'profile') openUserProfile();
-                      else if (p.path) navigate(p.path);
+                      if (item.action === 'signout') void signOut({ redirectUrl: '/sign-in' });
+                      else if (item.action === 'profile') openUserProfile();
+                      else if (item.path) navigate(item.path);
                       else message.info('Keyboard shortcuts: Ctrl+J Meri · Ctrl+K search · Esc close');
                     }}
                   >
-                    <span className="v2-menu-label">{p.label}</span>
-                    {p.tag ? <span className="v2-menu-tag">{p.tag}</span> : null}
+                    <span className="v2-menu-label">{item.label}</span>
+                    {item.tag ? <span className="v2-menu-tag">{item.tag}</span> : null}
                   </button>
                 ))}
               </div>
             ) : null}
           </div>
         </div>
+        <span className="v2-signature-rail" aria-hidden />
       </header>
 
-      {/* ── Band 2 · tenant · client · data context (40px) ────────────── */}
+      {/* ── Band 2 · contextual operating rail ─────────────────────────── */}
       <div className="v2-band2">
-        <span className="v2-band2-eyebrow">TENANT</span>
-        <span className="v2-band2-tenant">{tenantName}</span>
-
-        {/* Dashboard is an all-client command view: no client scope control,
-            and no separator introducing one. Other sections keep it. */}
-        {section !== 'dashboard' ? (
+        {section === 'dashboard' ? (
           <>
+            <ContextChip label="JURISDICTION" value="Federal" />
+            <ContextChip label="BUDGET YEAR" value={requestFy ? `FY${requestFy}` : '—'} />
+            <ContextChip
+              label="SIGNALS"
+              value={
+                dashboardSignals.isError
+                  ? 'Unavailable'
+                  : dashboardSignals.isLoading
+                    ? 'Checking…'
+                    : `${overnightSignals} overnight`
+              }
+            />
+            <span className="v2-band2-flex" />
+            <span className="v2-dashboard-refreshed">{refreshedLabel}</span>
+            <span className="v2-dashboard-customize-space" aria-hidden />
+          </>
+        ) : (
+          <>
+            <span className="v2-band2-eyebrow">TENANT</span>
+            <span className="v2-band2-tenant">{me.tenant.name}</span>
             <span className="v2-band2-sep" aria-hidden />
             <span className="v2-band2-eyebrow">CLIENT</span>
 
@@ -424,66 +494,83 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                     <span className="v2-menu-label">All clients</span>
                     {!selectedClient ? <span className="v2-menu-check">✓</span> : null}
                   </button>
-                  {visibleClients.map((c) => (
+                  {visibleClients.map((client) => (
                     <button
-                      key={c.id}
+                      key={client.id}
                       type="button"
                       role="option"
-                      aria-selected={selectedClientId === c.id}
-                      className={`v2-menu-row${selectedClientId === c.id ? ' is-current' : ''}`}
+                      aria-selected={selectedClientId === client.id}
+                      className={`v2-menu-row${selectedClientId === client.id ? ' is-current' : ''}`}
                       onClick={() => {
-                        setSelectedClientId(c.id);
+                        setSelectedClientId(client.id);
                         closeAll();
                       }}
                     >
-                      <span className="v2-menu-label">{c.name}</span>
-                      {selectedClientId === c.id ? <span className="v2-menu-check">✓</span> : null}
+                      <span className="v2-menu-label">{client.name}</span>
+                      {selectedClientId === client.id ? <span className="v2-menu-check">✓</span> : null}
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
-          </>
-        ) : null}
 
-        <span className="v2-band2-flex" />
-
-        <div className="v2-data-wrap">
-          <button
-            type="button"
-            className={`v2-data${openMenu === 'data' ? ' is-open' : ''}`}
-            onClick={() => setOpenMenu(openMenu === 'data' ? null : 'data')}
-          >
-            {requestFy ? `FY${requestFy} · ACTIVE` : 'DATA CONTEXT'}
-          </button>
-          {openMenu === 'data' ? (
-            <div className="v2-pop v2-data-pop" role="dialog" aria-label="Active data context">
-              <div className="v2-data-head">ACTIVE DATA CONTEXT</div>
-              <DataRow k="FISCAL YEAR" v={requestFy ? `FY${requestFy}` : '—'} strong />
-              <DataRow
-                k="TRACKED PES"
-                v={peSummary.data ? String(peSummary.data.tracked) : '—'}
-                strong
-              />
-              <DataRow
-                k="WATCHED"
-                v={peSummary.data ? String(peSummary.data.watched) : '—'}
-              />
-              <button type="button" className="v2-data-link" onClick={() => go('/program-elements')}>
-                Open Program Elements →
+            <span className="v2-band2-flex" />
+            <div className="v2-data-wrap">
+              <button
+                type="button"
+                className={`v2-data${openMenu === 'data' ? ' is-open' : ''}`}
+                onClick={() => setOpenMenu(openMenu === 'data' ? null : 'data')}
+              >
+                {requestFy ? `FY${requestFy} · ACTIVE` : 'DATA CONTEXT'}
               </button>
+              {openMenu === 'data' ? (
+                <div className="v2-pop v2-data-pop" role="dialog" aria-label="Active data context">
+                  <div className="v2-data-head">ACTIVE DATA CONTEXT</div>
+                  <DataRow k="FISCAL YEAR" v={requestFy ? `FY${requestFy}` : '—'} strong />
+                  <DataRow
+                    k="TRACKED PES"
+                    v={peSummary.data ? String(peSummary.data.tracked) : '—'}
+                    strong
+                  />
+                  <DataRow k="WATCHED" v={peSummary.data ? String(peSummary.data.watched) : '—'} />
+                  <button type="button" className="v2-data-link" onClick={() => go('/program-elements')}>
+                    Open Program Elements →
+                  </button>
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Click-catcher to close any open menu */}
       {openMenu || searchOpen ? <div className="v2-scrim" onClick={closeAll} aria-hidden /> : null}
     </div>
   );
 }
 
 /* ── Sub-components ────────────────────────────────────────────────────── */
+
+function TopNavButton({
+  label,
+  active,
+  onClick,
+  tourId,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  tourId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`v2-nav-item${active ? ' is-active' : ''}`}
+      onClick={onClick}
+    >
+      <span data-tour={tourId}>{label}</span>
+    </button>
+  );
+}
 
 function NavMenu({
   id,
@@ -494,6 +581,7 @@ function NavMenu({
   items,
   onPick,
   activePath,
+  quiet = false,
 }: {
   id: string;
   label: string;
@@ -503,13 +591,14 @@ function NavMenu({
   items: V2NavLeaf[];
   onPick: (path?: string) => void;
   activePath: string;
+  quiet?: boolean;
 }) {
-  if (!items.length && id === 'intel') return null;
+  if (!items.length) return null;
   return (
     <div className="v2-nav-menu-wrap">
       <button
         type="button"
-        className={`v2-nav-item${active ? ' is-active' : ''}`}
+        className={`v2-nav-item${active ? ' is-active' : ''}${quiet ? ' is-quiet' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={onToggle}
@@ -519,24 +608,30 @@ function NavMenu({
       </button>
       {open ? (
         <div className="v2-pop v2-nav-pop" role="menu">
-          {items.map((it) => (
+          {items.map((item) => (
             <button
-              key={it.key}
+              key={item.key}
               type="button"
               role="menuitem"
-              className={`v2-menu-row${it.path && activePath.startsWith(it.path) ? ' is-current' : ''}`}
-              onClick={() => onPick(it.path)}
+              className={`v2-menu-row${item.path && activePath.startsWith(item.path) ? ' is-current' : ''}`}
+              onClick={() => onPick(item.path)}
             >
-              <span className="v2-menu-label">{it.label}</span>
-              {it.tag ? <span className="v2-menu-tag">{it.tag}</span> : null}
+              <span className="v2-menu-label">{item.label}</span>
+              {item.tag ? <span className="v2-menu-tag">{item.tag}</span> : null}
             </button>
           ))}
-          {items.length === 0 ? (
-            <div className="v2-menu-empty">No items available for your role.</div>
-          ) : null}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ContextChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="v2-context-chip">
+      <span className="v2-context-label">{label}</span>
+      <span className="v2-context-value">{value}</span>
+    </span>
   );
 }
 
@@ -549,7 +644,7 @@ function DataRow({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   );
 }
 
-/* ── Route → section mapping ───────────────────────────────────────────── */
+/* ── Route helpers ─────────────────────────────────────────────────────── */
 
 export function sectionFor(pathname: string): V2Section {
   if (pathname === '/') return 'dashboard';
@@ -563,9 +658,18 @@ export function sectionFor(pathname: string): V2Section {
     pathname.startsWith('/explorer') ||
     pathname.startsWith('/intelligence') ||
     pathname.startsWith('/program-elements')
-  )
+  ) {
     return 'intelligence';
+  }
   return 'more';
+}
+
+function isIntelligenceActive(pathname: string): boolean {
+  return (
+    sectionFor(pathname) === 'intelligence' &&
+    !pathname.startsWith('/program-elements') &&
+    !pathname.startsWith('/intelligence/opportunities')
+  );
 }
 
 function initials(value: string): string {
@@ -575,7 +679,13 @@ function initials(value: string): string {
   return `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || 'C';
 }
 
-/* ── Inline icons (mockup strokes) ─────────────────────────────────────── */
+function formatRefreshTime(timestamp: number): string {
+  return new Date(timestamp)
+    .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    .toUpperCase();
+}
+
+/* ── Inline icons ──────────────────────────────────────────────────────── */
 
 function SearchIcon({ muted }: { muted?: boolean }) {
   return (
@@ -584,7 +694,7 @@ function SearchIcon({ muted }: { muted?: boolean }) {
       height="12"
       viewBox="0 0 24 24"
       fill="none"
-      stroke={muted ? '#8792A3' : 'currentColor'}
+      stroke={muted ? '#8792a3' : 'currentColor'}
       strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -618,15 +728,14 @@ function BellIcon() {
 function CaretIcon() {
   return (
     <svg
-      width="10"
-      height="10"
+      width="9"
+      height="9"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ opacity: 0.65 }}
       aria-hidden
     >
       <path d="m6 9 6 6 6-6" />
@@ -645,7 +754,6 @@ function ExtIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ opacity: 0.5 }}
       aria-hidden
     >
       <path d="M15 3h6v6" />
