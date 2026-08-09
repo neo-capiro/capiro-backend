@@ -95,7 +95,7 @@ describe('OpenAiOutreachReasoningProvider', () => {
     jest.restoreAllMocks();
   });
 
-  it('uses store=false and explicit visible transcript in Capiro-managed mode', async () => {
+  it('uses store=false, requests encrypted reasoning, and sends explicit visible transcript in Capiro-managed mode', async () => {
     const fetchMock = jest
       .spyOn(global, 'fetch')
       .mockResolvedValue(responseJson(finalResponse()));
@@ -111,6 +111,7 @@ describe('OpenAiOutreachReasoningProvider', () => {
     const [, init] = fetchMock.mock.calls[0]!;
     const body = JSON.parse(String(init?.body));
     expect(body.store).toBe(false);
+    expect(body.include).toEqual(['reasoning.encrypted_content']);
     expect(body.previous_response_id).toBeUndefined();
     expect(body.instructions).toBe('rules every turn');
     expect(body.input).toEqual([
@@ -137,18 +138,26 @@ describe('OpenAiOutreachReasoningProvider', () => {
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.store).toBe(true);
+    expect(body.include).toBeUndefined();
     expect(body.previous_response_id).toBe('resp_prev');
     expect(body.instructions).toBe('rules every turn');
     expect(body.input).toBe('Help me set the campaign goal.');
   });
 
-  it('executes function calls through the server callback then supplies function_call_output', async () => {
+  it('replays encrypted reasoning plus function-call output across a store=false tool loop', async () => {
+    const encryptedReasoning = {
+      type: 'reasoning',
+      id: 'rs_1',
+      encrypted_content: 'encrypted-reasoning-opaque-value',
+      summary: [],
+    };
     const fetchMock = jest
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(
         responseJson({
           id: 'resp_tools',
           output: [
+            encryptedReasoning,
             {
               type: 'function_call',
               name: 'get_client_context',
@@ -172,9 +181,13 @@ describe('OpenAiOutreachReasoningProvider', () => {
     expect(executeTool).toHaveBeenCalledWith('get_client_context', {
       clientId: '00000000-0000-4000-8000-000000000010',
     });
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(firstBody.include).toEqual(['reasoning.encrypted_content']);
+    expect(secondBody.include).toEqual(['reasoning.encrypted_content']);
     expect(secondBody.input).toEqual(
       expect.arrayContaining([
+        encryptedReasoning,
         expect.objectContaining({
           type: 'function_call_output',
           call_id: 'call_1',
