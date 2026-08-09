@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type Prisma as PrismaNamespace } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
@@ -32,7 +32,6 @@ interface MemoryContextRow {
   sensitivity: string | null;
   instructions_allowed: boolean | null;
   source_type: string | null;
-  source_id: string | null;
   source_version: string | null;
   source_excerpt: string | null;
   governed_status: string | null;
@@ -74,7 +73,7 @@ export class OutreachContextReferenceService {
   }
 
   async resolveManyWithinTx(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     rawSelections: readonly unknown[],
   ): Promise<OutreachResolvedContextRefV1[]> {
@@ -95,7 +94,7 @@ export class OutreachContextReferenceService {
   }
 
   async reauthorizeSnapshotsWithinTx(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     snapshots: readonly OutreachResolvedContextRefV1[],
   ): Promise<void> {
@@ -109,7 +108,7 @@ export class OutreachContextReferenceService {
   }
 
   async resolveOneWithinTx(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     selection: OutreachContextSelectionV1,
   ): Promise<OutreachResolvedContextRefV1> {
@@ -139,7 +138,7 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveSource(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     locator: OutreachContextLocatorV1,
     scope: OutreachContextScopeV1,
@@ -172,13 +171,13 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveMemory(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'memory_item' }>,
   ): Promise<ResolvedSourceContext> {
     const rows = await tx.$queryRaw<MemoryContextRow[]>`
       SELECT id, client_id, owner_user_id, visibility, title, type, sections_jsonb,
-             status, sensitivity, instructions_allowed, source_type, source_id,
+             status, sensitivity, instructions_allowed, source_type,
              source_version, source_excerpt, governed_status, memory_authority,
              conflict_status, as_of, valid_until, updated_at
       FROM memory_items
@@ -197,7 +196,7 @@ export class OutreachContextReferenceService {
       throw contextNotFound();
     }
     const approved = ['approved', 'active'].includes(row.governed_status ?? row.status);
-    const conflicted = row.conflict_status && row.conflict_status !== 'none';
+    const conflicted = Boolean(row.conflict_status && row.conflict_status !== 'none');
     const expired = row.valid_until ? row.valid_until.getTime() < Date.now() : false;
     return {
       title: row.title,
@@ -214,7 +213,7 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveCapiroRecord(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'capiro_record' }>,
   ): Promise<ResolvedSourceContext> {
@@ -223,9 +222,7 @@ export class OutreachContextReferenceService {
       if (locator.clientId !== null && locator.clientId !== client.id) throw contextNotFound();
       return {
         title: client.name,
-        summary: [client.description, client.website, client.sectorTag]
-          .filter(Boolean)
-          .join('\n'),
+        summary: boundedSummary([client.description, client.website, client.sectorTag]),
         clientId: client.id,
         verificationClass: 'first_party',
         sensitivity: 'confidential',
@@ -236,6 +233,7 @@ export class OutreachContextReferenceService {
         lastVerifiedAt: client.updatedAt.toISOString(),
       };
     }
+
     if (locator.recordType === 'meeting') {
       const row = await tx.meeting.findFirst({
         where: {
@@ -244,7 +242,6 @@ export class OutreachContextReferenceService {
           OR: [{ visibility: 'shared' }, { createdByUserId: ctx.userId }],
         },
         select: {
-          id: true,
           clientId: true,
           subject: true,
           description: true,
@@ -277,10 +274,10 @@ export class OutreachContextReferenceService {
         lastVerifiedAt: row.updatedAt.toISOString(),
       };
     }
+
     const row = await tx.engagementTask.findFirst({
       where: { id: locator.id, tenantId: ctx.tenantId },
       select: {
-        id: true,
         clientId: true,
         title: true,
         description: true,
@@ -312,7 +309,7 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveDocument(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'document' }>,
   ): Promise<ResolvedSourceContext> {
@@ -324,9 +321,7 @@ export class OutreachContextReferenceService {
         supersededByAttachmentId: null,
       },
       select: {
-        id: true,
         clientId: true,
-        meetingId: true,
         fileName: true,
         contentType: true,
         source: true,
@@ -366,7 +361,7 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveGovernmentRecord(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     locator: Extract<OutreachContextLocatorV1, { source: 'government_record' }>,
   ): Promise<ResolvedSourceContext> {
     const record = await governmentRecord(tx, locator.category, locator.id);
@@ -386,7 +381,7 @@ export class OutreachContextReferenceService {
   }
 
   private async resolveTargetFact(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'target_profile_fact' }>,
     scope: OutreachContextScopeV1,
@@ -453,7 +448,7 @@ export class OutreachContextReferenceService {
   }
 
   private async authorizeClient(
-    tx: PrismaNamespace.TransactionClient,
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     clientId: string,
   ) {
@@ -528,7 +523,7 @@ interface GovernmentRecordSnapshot {
 }
 
 async function governmentRecord(
-  tx: PrismaNamespace.TransactionClient,
+  tx: Prisma.TransactionClient,
   category: Extract<OutreachContextLocatorV1, { source: 'government_record' }>['category'],
   id: string,
 ): Promise<GovernmentRecordSnapshot | null> {
@@ -536,92 +531,155 @@ async function governmentRecord(
     case 'bill': {
       const row = await tx.congressBill.findUnique({
         where: { id },
-        select: { billNumber: true, title: true, sponsorName: true, latestActionDate: true, syncedAt: true },
+        select: {
+          billNumber: true,
+          title: true,
+          sponsorName: true,
+          latestActionDate: true,
+        },
       });
       return row
-        ? gov(`${row.billNumber} — ${row.title}`, [row.sponsorName, dateLabel(row.latestActionDate)], 'congress.gov', row.syncedAt)
+        ? gov(
+            `${row.billNumber} — ${row.title}`,
+            [row.sponsorName, dateLabel(row.latestActionDate)],
+            'congress.gov',
+            row.latestActionDate,
+          )
         : null;
     }
     case 'award': {
       const row = await tx.federalAward.findUnique({
         where: { id },
-        select: { contractorName: true, awardingAgency: true, fundingTasTitle: true, awardedAt: true, lastSyncedAt: true },
+        select: { contractorName: true, awardingAgency: true, awardedAt: true },
       });
       return row
-        ? gov(row.contractorName ?? 'Federal award', [row.awardingAgency, row.fundingTasTitle, dateLabel(row.awardedAt)], 'usaspending.gov', row.lastSyncedAt)
+        ? gov(
+            row.contractorName ?? 'Federal award',
+            [row.awardingAgency, dateLabel(row.awardedAt)],
+            'usaspending.gov',
+            row.awardedAt,
+          )
         : null;
     }
     case 'lda_filing': {
       const row = await tx.ldaFiling.findUnique({
         where: { id },
-        select: { clientName: true, registrantName: true, filingType: true, filingPeriod: true, dtPosted: true, lastSyncedAt: true },
+        select: { clientName: true, registrantName: true, dtPosted: true },
       });
       return row
-        ? gov(row.clientName || row.registrantName || 'LDA filing', [row.registrantName, row.filingType, row.filingPeriod, dateLabel(row.dtPosted)], 'lda.senate.gov', row.lastSyncedAt)
+        ? gov(
+            row.clientName || row.registrantName || 'LDA filing',
+            [row.registrantName, dateLabel(row.dtPosted)],
+            'lda.senate.gov',
+            row.dtPosted,
+          )
         : null;
     }
     case 'hearing': {
       const row = await tx.committeeHearing.findUnique({
         where: { id },
-        select: { title: true, committeeName: true, date: true, updatedAt: true },
+        select: { title: true, committeeName: true, date: true },
       });
-      return row ? gov(row.title, [row.committeeName, dateLabel(row.date)], 'congress.gov', row.updatedAt) : null;
+      return row
+        ? gov(row.title, [row.committeeName, dateLabel(row.date)], 'congress.gov', row.date)
+        : null;
     }
     case 'sec_filing': {
       const row = await tx.secFiling.findUnique({
         where: { id },
-        select: { companyName: true, formType: true, filingDate: true, lastSyncedAt: true },
+        select: { companyName: true, filingDate: true },
       });
-      return row ? gov(row.companyName, [row.formType, dateLabel(row.filingDate)], 'sec.gov', row.lastSyncedAt) : null;
+      return row
+        ? gov(row.companyName, ['SEC filing', dateLabel(row.filingDate)], 'sec.gov', row.filingDate)
+        : null;
     }
     case 'fara_registration': {
       const row = await tx.faraRegistration.findUnique({
         where: { id },
-        select: { registrantName: true, foreignPrincipalName: true, registrationDate: true, lastSyncedAt: true },
+        select: { registrantName: true, registrationDate: true },
       });
-      return row ? gov(row.registrantName, [row.foreignPrincipalName, dateLabel(row.registrationDate)], 'justice.gov/fara', row.lastSyncedAt) : null;
+      return row
+        ? gov(
+            row.registrantName,
+            ['FARA registration', dateLabel(row.registrationDate)],
+            'justice.gov/fara',
+            row.registrationDate,
+          )
+        : null;
     }
     case 'gao_report': {
       const row = await tx.gaoReport.findUnique({
         where: { id },
-        select: { id: true, title: true, publishDate: true, lastSyncedAt: true },
+        select: { id: true, title: true, publishDate: true },
       });
-      return row ? gov(`${row.id} — ${row.title}`, [dateLabel(row.publishDate)], 'gao.gov', row.lastSyncedAt) : null;
+      return row
+        ? gov(`${row.id} — ${row.title}`, [dateLabel(row.publishDate)], 'gao.gov', row.publishDate)
+        : null;
     }
     case 'crs_report': {
       const row = await tx.crsReport.findUnique({
         where: { id },
-        select: { id: true, title: true, date: true, lastSyncedAt: true },
+        select: { id: true, title: true, date: true },
       });
-      return row ? gov(`${row.id} — ${row.title}`, [dateLabel(row.date)], 'crsreports.congress.gov', row.lastSyncedAt) : null;
+      return row
+        ? gov(
+            `${row.id} — ${row.title}`,
+            [dateLabel(row.date)],
+            'crsreports.congress.gov',
+            row.date,
+          )
+        : null;
     }
     case 'regulatory_docket': {
       const row = await tx.regulatoryDocket.findUnique({
         where: { id },
-        select: { title: true, agency: true, postedDate: true, lastSyncedAt: true },
+        select: { title: true, postedDate: true },
       });
-      return row ? gov(row.title, [row.agency, dateLabel(row.postedDate)], 'regulations.gov', row.lastSyncedAt) : null;
+      return row
+        ? gov(row.title, ['Regulatory docket', dateLabel(row.postedDate)], 'regulations.gov', row.postedDate)
+        : null;
     }
     case 'intel_article': {
       const row = await tx.intelArticle.findUnique({
         where: { id },
-        select: { title: true, summary: true, publishedAt: true, updatedAt: true, source: true },
+        select: { title: true, summary: true, publishedAt: true },
       });
-      return row ? gov(row.title, [row.summary, dateLabel(row.publishedAt)], row.source || 'capiro_intelligence', row.updatedAt) : null;
+      return row
+        ? gov(
+            row.title,
+            [row.summary, dateLabel(row.publishedAt)],
+            'capiro_intelligence',
+            row.publishedAt,
+          )
+        : null;
     }
     case 'state_bill': {
       const row = await tx.stateBill.findUnique({
         where: { id },
-        select: { identifier: true, title: true, sponsorName: true, latestActionDate: true, syncedAt: true, state: true },
+        select: { title: true, sponsorName: true, latestActionDate: true },
       });
-      return row ? gov(`${row.state} ${row.identifier} — ${row.title}`, [row.sponsorName, dateLabel(row.latestActionDate)], 'legiscan', row.syncedAt) : null;
+      return row
+        ? gov(
+            row.title,
+            [row.sponsorName, dateLabel(row.latestActionDate)],
+            'legiscan',
+            row.latestActionDate,
+          )
+        : null;
     }
     case 'federal_register': {
       const row = await tx.federalRegisterDocument.findUnique({
         where: { id },
-        select: { documentNumber: true, title: true, publicationDate: true, lastSyncedAt: true, agencies: true },
+        select: { documentNumber: true, title: true, publicationDate: true },
       });
-      return row ? gov(row.title, [row.documentNumber, jsonText(row.agencies), dateLabel(row.publicationDate)], 'federalregister.gov', row.lastSyncedAt) : null;
+      return row
+        ? gov(
+            row.title,
+            [row.documentNumber, dateLabel(row.publicationDate)],
+            'federalregister.gov',
+            row.publicationDate,
+          )
+        : null;
     }
   }
 }
@@ -630,14 +688,15 @@ function gov(
   title: string,
   summary: Array<string | null | undefined>,
   sourceSystem: string,
-  updatedAt: Date | null,
+  sourceDate: Date | null,
 ): GovernmentRecordSnapshot {
+  const timestamp = sourceDate?.toISOString() ?? null;
   return {
     title: title.slice(0, 320),
     summary: boundedSummary(summary),
     sourceSystem,
-    version: updatedAt?.toISOString() ?? null,
-    lastVerifiedAt: updatedAt?.toISOString() ?? null,
+    version: timestamp,
+    lastVerifiedAt: timestamp,
   };
 }
 
@@ -667,11 +726,17 @@ function targetFact(
       };
     case 'committees':
       return target.jurisdiction.committees.length
-        ? { title: `${target.displayName} — committees`, summary: target.jurisdiction.committees.join(', ') }
+        ? {
+            title: `${target.displayName} — committees`,
+            summary: target.jurisdiction.committees.join(', '),
+          }
         : null;
     case 'issue_areas':
       return target.jurisdiction.issueAreas.length
-        ? { title: `${target.displayName} — issue areas`, summary: target.jurisdiction.issueAreas.join(', ') }
+        ? {
+            title: `${target.displayName} — issue areas`,
+            summary: target.jurisdiction.issueAreas.join(', '),
+          }
         : null;
     default:
       return null;
