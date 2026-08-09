@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/outreach-v3/reasoning/**/*.ts",
+    "src/outreach-v3/services/outreach-command-proposal.service.ts",
+    "src/outreach-v3/api/outreach-v3-state.module.ts",
+    "src/ai-credentials/ai-credential-resolver.service.ts",
+    "src/engagement/runtime/engagement-runtime-policy.service.ts",
+    "src/engagement/runtime/engagement-runtime.types.ts",
+    "src/engagement-api.app.module.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
