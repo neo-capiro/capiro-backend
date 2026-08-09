@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Disposable PostgreSQL 16 proof that the exact-plan execution path is usable
-# under the real least-privilege role regardless of main/Phase6 migration order.
+# under the real least-privilege roles regardless of main/Phase6 migration order.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,8 +58,7 @@ for table in \
 done
 
 # Exact-plan evidence is read-only to the promoter. Canonical write authority
-# does not imply authority to rewrite the verification/projection evidence it
-# is authorizing.
+# does not imply authority to rewrite verification/projection evidence.
 for table in \
   defense_budget_promotion_eligibility \
   defense_budget_projection_plan \
@@ -68,9 +67,25 @@ for table in \
   phase6_cycle_certification_projection; do
   require_false "promoter INSERT $table" \
     "SELECT has_table_privilege('capiro_pe_promoter','$table','INSERT');"
+  require_false "promoter UPDATE $table" \
+    "SELECT has_table_privilege('capiro_pe_promoter','$table','UPDATE');"
   require_false "promoter DELETE $table" \
     "SELECT has_table_privilege('capiro_pe_promoter','$table','DELETE');"
 done
+
+# Phase 6 audit persistence needs exactly SELECT+INSERT on the new association
+# under the serve role. Existing bindings are immutable and cannot be rewritten
+# or removed by capiro_app.
+require_true "serve SELECT phase6 binding" \
+  "SELECT has_table_privilege('capiro_app','phase6_cycle_certification_projection','SELECT');"
+require_true "serve INSERT phase6 binding" \
+  "SELECT has_table_privilege('capiro_app','phase6_cycle_certification_projection','INSERT');"
+require_false "serve UPDATE phase6 binding" \
+  "SELECT has_table_privilege('capiro_app','phase6_cycle_certification_projection','UPDATE');"
+require_false "serve DELETE phase6 binding" \
+  "SELECT has_table_privilege('capiro_app','phase6_cycle_certification_projection','DELETE');"
+require_false "serve TRUNCATE phase6 binding" \
+  "SELECT has_table_privilege('capiro_app','phase6_cycle_certification_projection','TRUNCATE');"
 
 # Prove the SELECTs execute under SET ROLE rather than merely trusting ACL
 # introspection. Empty tables are expected and still prove privilege reach.
@@ -83,5 +98,62 @@ SELECT count(*) FROM phase6_cycle_certification;
 SELECT count(*) FROM phase6_cycle_certification_projection;
 RESET ROLE;
 SQL
+
+# Prove the serve role can INSERT a real immutable binding and then cannot
+# mutate it. Seed the parent rows as postgres so this block tests permissions,
+# not unrelated Phase 6 write grants.
+docker exec -i "$NAME" psql -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" <<'SQL' >/dev/null
+INSERT INTO phase6_audit_projection(
+  projection_id,natural_key,idempotency_key,projection_kind,
+  verification_candidate_id,verification_run_id,artifact_id,
+  artifact_content_sha256,source_document_id,source_pdf_sha256,
+  source_profile_hash,native_identity_hash,track,stage,funding_field,
+  original_value,original_unit,amount_millions,direct_or_derived,
+  evidence_ids_jsonb,binding_status,projection_status,payload_jsonb
+) VALUES (
+  'grant-p1','grant-nk1','grant-idem1','stage_position',
+  'vc','vr','artifact',repeat('a',64),'doc',repeat('b',64),
+  repeat('c',64),repeat('d',64),'appropriations','hac_d','hacDMark',
+  '1','millions',1,'direct','[]','accepted','verified','{}'
+);
+INSERT INTO phase6_cycle_certification(
+  cycle_id,fiscal_year,manifest_hash,content_sha256,status,
+  projection_set_sha256,projection_count,report_jsonb
+) VALUES (
+  'grant-cycle',2027,repeat('a',64),repeat('e',64),'CERTIFIED',
+  repeat('f',64),1,
+  jsonb_build_object('projectionSetSha256',repeat('f',64),'projectionCount',1)
+);
+SET ROLE capiro_app;
+INSERT INTO phase6_cycle_certification_projection(
+  certification_content_sha256,projection_id,projection_ordinal
+) VALUES (repeat('e',64),'grant-p1',0);
+RESET ROLE;
+SQL
+
+if docker exec -i "$NAME" psql -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" <<'SQL' >/dev/null 2>&1
+SET ROLE capiro_app;
+UPDATE phase6_cycle_certification_projection
+SET projection_ordinal=1
+WHERE projection_id='grant-p1';
+SQL
+then
+  echo "FAILED: capiro_app updated immutable Phase 6 binding" >&2
+  exit 1
+fi
+
+if docker exec -i "$NAME" psql -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" <<'SQL' >/dev/null 2>&1
+SET ROLE capiro_app;
+DELETE FROM phase6_cycle_certification_projection WHERE projection_id='grant-p1';
+SQL
+then
+  echo "FAILED: capiro_app deleted immutable Phase 6 binding" >&2
+  exit 1
+fi
+
+[ "$(q "SELECT count(*) FROM phase6_cycle_certification_projection WHERE projection_id='grant-p1'")" = "1" ] || {
+  echo "FAILED: immutable Phase 6 binding did not survive denied mutations" >&2
+  exit 1
+}
 
 echo "Phase 7 exact-plan grant rehearsal PASS"
