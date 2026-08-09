@@ -27,6 +27,15 @@ P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
 P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
 P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
 P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
+# Gap 5 / exact-plan grants land after Phase 7's function + eligibility tables.
+# Path B builds a pre-Phase-5 baseline by also omitting Phase 7 itself (P7 FKs
+# Phase 5 tables), so these later migrations cannot replay in that baseline:
+# 20260907020000 attaches enforce_promotion_ledger_append_only(), which only
+# exists once P7_MIGRATION has run. Mirror pe-budget-phase7-migration-rehearsal.sh
+# and rdte-phase-4-migration-rehearsal.sh exclusions.
+P7_MIGRATION_GAP5_CANDIDATE="20260907010000_pe_budget_phase2_candidate_source_metadata"
+P7_MIGRATION_GAP5_PLANS="20260907020000_pe_budget_projection_plan_persistence"
+P7_MIGRATION_EXACT_PLAN_GRANTS="20260909020000_pe_budget_phase7_exact_plan_read_grants"
 TMP_REL=".p5-rehearsal-migrations"
 
 log() { echo "[p5-rehearsal] $*"; }
@@ -89,7 +98,10 @@ for dir in "$MIGRATIONS_DIR"/*/; do
      [ "$migration" = "$P7_MIGRATION" ] || \
      [ "$migration" = "$P7_MIGRATION_K" ] || \
      [ "$migration" = "$P7_MIGRATION_L" ] || \
-     [ "$migration" = "$P7_MIGRATION_GAP3" ]; then
+     [ "$migration" = "$P7_MIGRATION_GAP3" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP5_CANDIDATE" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP5_PLANS" ] || \
+     [ "$migration" = "$P7_MIGRATION_EXACT_PLAN_GRANTS" ]; then
     continue
   fi
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
