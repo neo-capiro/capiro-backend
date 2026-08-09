@@ -176,10 +176,15 @@ function sameStringSet(left: readonly string[], right: readonly string[]): boole
 }
 
 function sameScope(left: PromotionScopeV1, right: PromotionScopeV1): boolean {
-  return sha256CanonicalJson(left as unknown as JsonValue) === sha256CanonicalJson(right as unknown as JsonValue);
+  return (
+    sha256CanonicalJson(left as unknown as JsonValue) ===
+    sha256CanonicalJson(right as unknown as JsonValue)
+  );
 }
 
-function verifyRdtePlanContentV1(document: unknown): ReturnType<typeof proofBoundRdteCanonicalProjectionPlanV1Schema.parse> {
+function verifyRdtePlanContentV1(
+  document: unknown,
+): ReturnType<typeof proofBoundRdteCanonicalProjectionPlanV1Schema.parse> {
   const parsed = proofBoundRdteCanonicalProjectionPlanV1Schema.parse(document);
   const { contentSha256, ...withoutHash } = parsed;
   const actual = computeProjectionPlanContentSha256(withoutHash);
@@ -262,19 +267,19 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
 
   /** Planning path: exact persisted eligibility is the source of producer-plan IDs. */
   async loadForEligibilityHash(eligibilityHash: string): Promise<EligibilityBoundProjectionLoadV1> {
-    const eligibility = await this.loadEligibilityV1(eligibilityHash);
-    return this.loadEligibilityV1(eligibility);
+    const eligibility = await this.loadEligibilityByHashV1(eligibilityHash);
+    return this.projectEligibilityV1(eligibility);
   }
 
   /** Execution path: the authorized plan's eligibility hash and scope must still agree. */
   async loadForPlan(plan: StoredExecutionPlanV1): Promise<PromotionProjectionInputV1[]> {
-    const eligibility = await this.loadEligibilityV1(plan.eligibilityHash);
+    const eligibility = await this.loadEligibilityByHashV1(plan.eligibilityHash);
     if (!sameScope(eligibility.scope, plan.plan.scope)) {
       throw new Error(
         `promotion plan ${plan.planId} scope does not match its persisted eligibility scope`,
       );
     }
-    const loaded = await this.loadEligibilityV1(eligibility);
+    const loaded = await this.projectEligibilityV1(eligibility);
     if (loaded.refusals.length > 0) {
       throw new Error(
         `exact producer-plan reload produced ${loaded.refusals.length} projector refusal(s): ` +
@@ -284,24 +289,25 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
     return loaded.projections;
   }
 
-  private async loadEligibilityV1(
-    input: string | DefenseBudgetPromotionEligibilityV1,
-  ): Promise<DefenseBudgetPromotionEligibilityV1 | EligibilityBoundProjectionLoadV1> {
-    if (typeof input === 'string') {
-      const rows = await this.prisma.$queryRawUnsafe<Array<{ document: unknown }>>(
-        `SELECT "document" FROM "defense_budget_promotion_eligibility" WHERE "eligibility_hash" = $1`,
-        input,
-      );
-      const row = rows[0];
-      if (row == null) throw new Error(`promotion eligibility ${input} was not found`);
-      const eligibility = defenseBudgetPromotionEligibilityV1Schema.parse(row.document);
-      if (promotionEligibilityHashV1(eligibility) !== input) {
-        throw new Error(`promotion eligibility ${input} no longer hashes to its storage key`);
-      }
-      return eligibility;
+  private async loadEligibilityByHashV1(
+    eligibilityHash: string,
+  ): Promise<DefenseBudgetPromotionEligibilityV1> {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ document: unknown }>>(
+      `SELECT "document" FROM "defense_budget_promotion_eligibility" WHERE "eligibility_hash" = $1`,
+      eligibilityHash,
+    );
+    const row = rows[0];
+    if (row == null) throw new Error(`promotion eligibility ${eligibilityHash} was not found`);
+    const eligibility = defenseBudgetPromotionEligibilityV1Schema.parse(row.document);
+    if (promotionEligibilityHashV1(eligibility) !== eligibilityHash) {
+      throw new Error(`promotion eligibility ${eligibilityHash} no longer hashes to its storage key`);
     }
+    return eligibility;
+  }
 
-    const eligibility = input;
+  private async projectEligibilityV1(
+    eligibility: DefenseBudgetPromotionEligibilityV1,
+  ): Promise<EligibilityBoundProjectionLoadV1> {
     const records = await this.loadExactProjectionPlansV1(eligibility);
     const projections: PromotionProjectionInputV1[] = [];
     const refusals: ProjectorRefusalRecordV1[] = [];
@@ -319,7 +325,11 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
         refusals.push(...projected.refusals);
         continue;
       }
-      if (record.family === 'procurement' || record.family === 'om' || record.family === 'milcon') {
+      if (
+        record.family === 'procurement' ||
+        record.family === 'om' ||
+        record.family === 'milcon'
+      ) {
         const document = verifyNonRdtePlanContentV1(record.planDocument);
         if (document.family !== record.family) {
           throw new Error(
@@ -342,15 +352,18 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
         refusals.push(...projected.refusals);
         continue;
       }
-      const exhaustive: never = record.family;
-      throw new Error(`unsupported persisted producer-plan family ${String(exhaustive)}`);
+      throw new Error(
+        `promotion source has no governed projector for persisted producer-plan family ${record.family}`,
+      );
     }
 
     projections.sort(
-      (a, b) => a.naturalKey.localeCompare(b.naturalKey) || a.projectionId.localeCompare(b.projectionId),
+      (a, b) =>
+        a.naturalKey.localeCompare(b.naturalKey) || a.projectionId.localeCompare(b.projectionId),
     );
     refusals.sort(
-      (a, b) => a.naturalKey.localeCompare(b.naturalKey) || a.candidateId.localeCompare(b.candidateId),
+      (a, b) =>
+        a.naturalKey.localeCompare(b.naturalKey) || a.candidateId.localeCompare(b.candidateId),
     );
     return { eligibility, projections, refusals, projectionPlans: records };
   }
@@ -387,14 +400,22 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
     }
 
     const records = rows.map((row) => this.verifyProjectionPlanRowV1(row));
-    if (!sameStringSet(records.map((record) => record.contentSha256), eligibility.projectionPlanHashes)) {
+    if (
+      !sameStringSet(
+        records.map((record) => record.contentSha256),
+        eligibility.projectionPlanHashes,
+      )
+    ) {
       throw new Error(
         `eligibility ${eligibility.eligibilityId} producer plan hashes do not match reloaded plan contents`,
       );
     }
 
     for (const record of records) {
-      if (record.cycleId !== eligibility.scope.cycleId || record.fiscalYear !== eligibility.scope.fiscalYear) {
+      if (
+        record.cycleId !== eligibility.scope.cycleId ||
+        record.fiscalYear !== eligibility.scope.fiscalYear
+      ) {
         throw new Error(
           `producer plan ${record.projectionPlanId} scope ${record.cycleId}/FY${record.fiscalYear} ` +
             `does not match eligibility ${eligibility.scope.cycleId}/FY${eligibility.scope.fiscalYear}`,
@@ -445,7 +466,11 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
     // that the document repeats the hash under which the row was filed.
     if (family === 'rdte') verifyRdtePlanContentV1(row.planDocument);
     else if (family === 'committee') verifyPhase6PlanContentV1(row.planDocument);
-    else verifyNonRdtePlanContentV1(row.planDocument);
+    else if (family === 'procurement' || family === 'om' || family === 'milcon') {
+      verifyNonRdtePlanContentV1(row.planDocument);
+    } else {
+      throw new Error(`no persisted projection-plan contract exists for family ${family}`);
+    }
     return rebuilt;
   }
 
@@ -478,7 +503,9 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
       certification.projectionSetSha256 == null ||
       certification.projectionCount == null
     ) {
-      throw new Error(`committee producer plan ${record.projectionPlanId} certification binding is stale or incomplete`);
+      throw new Error(
+        `committee producer plan ${record.projectionPlanId} certification binding is stale or incomplete`,
+      );
     }
 
     const rows = await this.prisma.$queryRawUnsafe<Phase6ProjectionRowV1[]>(
@@ -509,11 +536,15 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
       reconstructed.length !== certification.projectionCount ||
       phase6ProjectionSetSha256V1(reconstructed) !== certification.projectionSetSha256
     ) {
-      throw new Error(`committee producer plan ${record.projectionPlanId} certification projection set no longer verifies`);
+      throw new Error(
+        `committee producer plan ${record.projectionPlanId} certification projection set no longer verifies`,
+      );
     }
 
     const boundIds = sortedUnique(reconstructed.map((projection) => projection.projectionId));
-    const planIds = sortedUnique(document.candidates.flatMap((candidate) => candidate.sourceProjectionIds));
+    const planIds = sortedUnique(
+      document.candidates.flatMap((candidate) => candidate.sourceProjectionIds),
+    );
     if (!sameStringSet(boundIds, planIds)) {
       throw new Error(
         `committee producer plan ${record.projectionPlanId} does not account for the exact certified projection set`,
@@ -528,7 +559,7 @@ export class PrismaEligibilityBoundProjectionSourceV1 {
   }
 }
 
-/** Kept explicit so a future family addition is a compile/test event. */
+/** Only these families have a governed persisted producer-plan contract in MVP. */
 export const ELIGIBILITY_BOUND_PROJECTION_FAMILIES_V1: readonly BudgetFamilyV1[] = [
   'rdte',
   'procurement',
