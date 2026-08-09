@@ -4,6 +4,12 @@ import {
   compareCanonicalStrings,
   type TargetCriteriaV1,
 } from './outreach-campaign-spec.v1.js';
+import {
+  normalizeTargetLocatorV1,
+  outreachRejectedTargetRecommendationV1Schema,
+  targetKeyForLocator,
+  type OutreachTargetLocatorV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
 import type {
   ApplyOutreachCommandBatchInput,
   ParsedOutreachCommandEnvelope,
@@ -32,6 +38,18 @@ function normalizeCriteria(value: TargetCriteriaV1 | null): TargetCriteriaV1 | n
     agencies: normalizeSet(value.agencies),
     states: normalizeSet(value.states),
   };
+}
+
+function normalizeTargetLocators(values: unknown[]): OutreachTargetLocatorV1[] {
+  const byKey = new Map<string, OutreachTargetLocatorV1>();
+  for (const value of values) {
+    const locator = normalizeTargetLocatorV1(value);
+    const key = targetKeyForLocator(locator);
+    if (!byKey.has(key)) byKey.set(key, locator);
+  }
+  return [...byKey.entries()]
+    .sort(([a], [b]) => compareCanonicalStrings(a, b))
+    .map(([, locator]) => locator);
 }
 
 export function normalizeOutreachCommandEnvelope(
@@ -77,6 +95,20 @@ export function normalizeOutreachCommandEnvelope(
         ...command,
         payload: { value: normalizeCriteria(payload.value as TargetCriteriaV1 | null) },
       };
+    case 'ADD_TARGET_REFS':
+      return {
+        ...command,
+        payload: { refs: normalizeTargetLocators((payload.refs as unknown[]) ?? []) },
+      };
+    case 'REMOVE_TARGET_REFS':
+      return {
+        ...command,
+        payload: { targetKeys: normalizeSet((payload.targetKeys as string[]) ?? []) },
+      };
+    case 'REJECT_TARGET_RECOMMENDATION': {
+      const parsed = outreachRejectedTargetRecommendationV1Schema.parse(payload);
+      return { ...command, payload: parsed };
+    }
     case 'SET_DELIVERY_PATTERN':
     case 'SET_PERSONALIZATION':
       return { ...command, payload: { value: payload.value } };
@@ -93,19 +125,12 @@ export function normalizeOutreachCommandEnvelope(
       };
     case 'RESTORE_STATE_VERSION':
       return { ...command, payload: { version: payload.version } };
-    case 'ADD_TARGET_REFS':
-    case 'REMOVE_TARGET_REFS':
     case 'ACCEPT_CONTEXT_REFS':
     case 'EXCLUDE_CONTEXT_REFS':
     case 'SET_ATTACHMENT_REFS':
       return {
         ...command,
         payload: { refs: normalizeSet((payload.refs as string[]) ?? []) },
-      };
-    case 'REJECT_TARGET_RECOMMENDATION':
-      return {
-        ...command,
-        payload: { recommendationRef: String(payload.recommendationRef ?? '').trim() },
       };
     case 'SET_SENDER_REF':
       return { ...command, payload: { senderRef: String(payload.senderRef ?? '').trim() } };
