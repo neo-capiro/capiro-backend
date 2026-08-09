@@ -3,8 +3,12 @@ import type {
   CapabilityResult,
   OutreachV3Command,
   OutreachV3CommandBatchResult,
+  OutreachV3ContextClass,
   OutreachV3ContextReviewResponse,
+  OutreachV3ContextScope,
   OutreachV3Conversation,
+  OutreachV3GovernmentSearchData,
+  OutreachV3MemorySearchData,
   OutreachV3Proposal,
   OutreachV3ReasoningTurnResult,
   OutreachV3SessionEnvelope,
@@ -14,7 +18,6 @@ import type {
   OutreachV3TargetLocator,
   OutreachV3TargetProfileResponse,
   OutreachV3TargetSearchData,
-  OutreachV3TranscriptTurn,
 } from './contracts.js';
 
 const ROOT = '/api/engagement/outreach-v3';
@@ -114,9 +117,9 @@ export async function createOutreachV3Conversation(
 export async function listOutreachV3Turns(
   api: AxiosInstance,
   conversationId: string,
-): Promise<OutreachV3TranscriptTurn[]> {
+): Promise<unknown[]> {
   const data = (
-    await api.get<OutreachV3TranscriptTurn[] | { items?: OutreachV3TranscriptTurn[] }>(
+    await api.get<unknown[] | { items?: unknown[] }>(
       `${ROOT}/reasoning/conversations/${encodeURIComponent(conversationId)}/turns?limit=100`,
     )
   ).data;
@@ -179,6 +182,56 @@ export async function getOutreachV3TargetCoverage(
   return (
     await api.get<OutreachV3TargetCoverageResponse>(
       `${outreachV3SessionPath(sessionId)}/targets/coverage`,
+    )
+  ).data;
+}
+
+export async function searchOutreachV3Memory(
+  api: AxiosInstance,
+  sessionId: string,
+  input: {
+    query: string;
+    clientId?: string | null;
+    intendedClass: OutreachV3ContextClass;
+    scope: OutreachV3ContextScope;
+    limit?: number;
+  },
+): Promise<CapabilityResult<OutreachV3MemorySearchData>> {
+  return (
+    await api.post<CapabilityResult<OutreachV3MemorySearchData>>(
+      `${outreachV3SessionPath(sessionId)}/context/memory/search`,
+      {
+        query: input.query.trim(),
+        clientId: input.clientId ?? null,
+        intendedClass: input.intendedClass,
+        scope: input.scope,
+        limit: input.limit ?? 20,
+      },
+    )
+  ).data;
+}
+
+export async function searchOutreachV3Government(
+  api: AxiosInstance,
+  sessionId: string,
+  input: {
+    query: string;
+    categories?: string[];
+    intendedClass: Exclude<OutreachV3ContextClass, 'writing_guidance'>;
+    scope: OutreachV3ContextScope;
+    limit?: number;
+  },
+): Promise<CapabilityResult<OutreachV3GovernmentSearchData>> {
+  return (
+    await api.post<CapabilityResult<OutreachV3GovernmentSearchData>>(
+      `${outreachV3SessionPath(sessionId)}/context/government/search`,
+      {
+        query: input.query.trim(),
+        categories: input.categories ?? [],
+        intendedClass: input.intendedClass,
+        scope: input.scope,
+        limit: input.limit ?? 20,
+      },
     )
   ).data;
 }
