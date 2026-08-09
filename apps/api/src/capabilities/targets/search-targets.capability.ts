@@ -161,7 +161,7 @@ export class SearchTargetsCapability {
     }
     if (clientId) await this.authorization.authorizeClient(ctx, clientId);
 
-    const sources = new Set(
+    const sources = new Set<(typeof TARGET_SEARCH_SOURCES)[number]>(
       input.sources.length
         ? input.sources
         : [
@@ -178,18 +178,8 @@ export class SearchTargetsCapability {
     const rejectedRefs = new Set(input.rejectedRecommendationRefs);
     const candidates = new Map<string, TargetCandidateV1>();
     const provenance: CapabilityResult<SearchTargetsData>['provenance'] = [];
-    const unsupportedCriteria: string[] = [];
+    const unsupportedCriteria = unsupportedCriteriaFor(input);
     let directorySnapshot = 'current';
-
-    if (input.criteria.governmentLevels.includes('agency')) {
-      unsupportedCriteria.push('Agency personnel are not available in the current target directory.');
-    }
-    if (input.criteria.governmentLevels.includes('local')) {
-      unsupportedCriteria.push('Local-government personnel are not available in the current target directory.');
-    }
-    if (input.criteria.agencies.length) {
-      unsupportedCriteria.push('Agency filters are preserved but cannot be resolved by Phase 4 target sources.');
-    }
 
     if (sources.has('directory_member') && input.criteria.includePrincipals) {
       const payload = await this.directory.getContacts({
@@ -201,17 +191,14 @@ export class SearchTargetsCapability {
       });
       directorySnapshot = payload.sourceId;
       for (const contact of payload.contacts) {
-        if (contact.chamber === 'Governor') continue;
+        if (contact.chamber === 'Governor' || contact.outgoingStatus) continue;
         if (!matchesChamber(contact.chamber, input.criteria.chambers)) continue;
-        const locator: OutreachTargetLocatorV1 = {
-          source: 'directory_member',
-          id: contact.id,
-        };
-        const targetKey = targetKeyForLocator(locator);
+        const locator: OutreachTargetLocatorV1 = { source: 'directory_member', id: contact.id };
         const signals: TargetRecommendationSignal[] = [
           { code: 'directory_match', label: 'Matches the current Directory search.' },
+          { code: 'current_role', label: 'Current role is present in the Directory.' },
         ];
-        let score = 0.42;
+        let score = 0.47;
         const committeeMatches = intersectText(contact.committees, input.criteria.committees);
         if (committeeMatches.length) {
           score += 0.24;
@@ -229,17 +216,12 @@ export class SearchTargetsCapability {
           score += 0.04;
           signals.push({ code: 'leadership', label: 'Holds a current leadership position.' });
         }
-        if (!contact.outgoingStatus) {
-          score += 0.05;
-          signals.push({ code: 'current_role', label: 'Current role is present in the Directory.' });
-        }
         if (contact.lastTouchpoint) {
           score += 0.08;
           signals.push({ code: 'recent_relationship', label: 'Capiro has prior relationship activity.' });
         }
-        this.addCandidate(candidates, {
+        addCandidate(candidates, {
           locator,
-          targetKey,
           displayName: contact.fullName || contact.memberName,
           title: contact.title || null,
           organization: contact.office || null,
@@ -247,7 +229,7 @@ export class SearchTargetsCapability {
           clientId: null,
           score,
           signals,
-          roleStatus: contact.outgoingStatus ? 'historical' : 'current',
+          roleStatus: 'current',
           jurisdiction: {
             governmentLevel: 'federal',
             chamber: contact.chamber,
@@ -273,7 +255,6 @@ export class SearchTargetsCapability {
       for (const staff of payload.staffers) {
         if (!matchesChamber(staff.member.chamber, input.criteria.chambers)) continue;
         const locator: OutreachTargetLocatorV1 = { source: 'directory_staff', id: staff.id };
-        const targetKey = targetKeyForLocator(locator);
         const issueMatches = intersectText(staff.issueAreas, input.criteria.committees);
         const signals: TargetRecommendationSignal[] = [
           { code: 'directory_match', label: 'Current staff match from the Directory.' },
@@ -284,9 +265,8 @@ export class SearchTargetsCapability {
           score += 0.14;
           signals.push({ code: 'issue_match', label: 'Staff issue portfolio overlaps the target criteria.' });
         }
-        this.addCandidate(candidates, {
+        addCandidate(candidates, {
           locator,
-          targetKey,
           displayName: staff.fullName,
           title: staff.title || null,
           organization: staff.member.fullName,
@@ -315,24 +295,23 @@ export class SearchTargetsCapability {
       (input.criteria.governmentLevels.length === 0 ||
         input.criteria.governmentLevels.some((level) => level === 'state' || level === 'mixed'))
     ) {
+      const stateChamberFilters = stateChambers(input.criteria.chambers);
       const rows = await this.prisma.stateLegislator.findMany({
         where: {
-          ...(input.query
-            ? { name: { contains: input.query, mode: 'insensitive' as const } }
-            : {}),
+          active: true,
+          ...(input.query ? { name: { contains: input.query, mode: 'insensitive' as const } } : {}),
           ...(input.criteria.states.length ? { state: { in: input.criteria.states } } : {}),
-          ...(stateChambers(input.criteria.chambers).length
-            ? { chamber: { in: stateChambers(input.criteria.chambers) } }
-            : {}),
+          ...(stateChamberFilters.length ? { chamber: { in: stateChamberFilters } } : {}),
         },
         select: {
           id: true,
           name: true,
-          party: true,
           state: true,
           chamber: true,
           district: true,
           committees: true,
+          email: true,
+          syncedAt: true,
         },
         orderBy: [{ state: 'asc' }, { name: 'asc' }],
         take: Math.min(input.limit * 3, 100),
@@ -340,24 +319,25 @@ export class SearchTargetsCapability {
       for (const row of rows) {
         const committees = committeeNames(row.committees);
         const locator: OutreachTargetLocatorV1 = { source: 'state_legislator', id: row.id };
-        const targetKey = targetKeyForLocator(locator);
         const matches = intersectText(committees, input.criteria.committees);
         const signals: TargetRecommendationSignal[] = [
           { code: 'directory_match', label: 'Matches current state-legislator data.' },
           { code: 'current_role', label: 'Current state legislative record.' },
         ];
-        let score = 0.4;
+        let score = 0.45;
         if (matches.length) {
           score += 0.22;
-          signals.push({ code: 'committee_match', label: `Committee match: ${matches.slice(0, 2).join(', ')}` });
+          signals.push({
+            code: 'committee_match',
+            label: `Committee match: ${matches.slice(0, 2).join(', ')}`,
+          });
         }
-        this.addCandidate(candidates, {
+        addCandidate(candidates, {
           locator,
-          targetKey,
           displayName: row.name,
-          title: `${row.state ?? ''} ${row.chamber ?? ''} legislator`.trim() || null,
+          title: `${row.state} ${row.chamber ?? ''} legislator`.trim(),
           organization: null,
-          email: null,
+          email: normalizeEmail(row.email),
           clientId: null,
           score,
           signals,
@@ -404,18 +384,19 @@ export class SearchTargetsCapability {
               id: person.id,
               clientId,
             };
-            const targetKey = targetKeyForLocator(locator);
             const signals: TargetRecommendationSignal[] = [
               { code: 'client_contact', label: 'Saved client contact.' },
             ];
             let score = 0.66;
             if (person.lastContact) {
               score += 0.15;
-              signals.push({ code: 'recent_relationship', label: 'Has recorded client relationship history.' });
+              signals.push({
+                code: 'recent_relationship',
+                label: 'Has recorded client relationship history.',
+              });
             }
-            this.addCandidate(candidates, {
+            addCandidate(candidates, {
               locator,
-              targetKey,
               displayName: person.name,
               title: person.title ?? person.role,
               organization: null,
@@ -464,10 +445,8 @@ export class SearchTargetsCapability {
               id: contact.id,
               clientId,
             };
-            const targetKey = targetKeyForLocator(locator);
-            this.addCandidate(candidates, {
+            addCandidate(candidates, {
               locator,
-              targetKey,
               displayName: contact.fullName || contact.email || 'Unnamed contact',
               title: contact.title,
               organization: contact.organization,
@@ -497,18 +476,14 @@ export class SearchTargetsCapability {
             select: { recommendations: true, computedAt: true },
           });
           const recommendations = Array.isArray(cached?.recommendations)
-            ? cached!.recommendations
+            ? cached.recommendations
             : [];
           for (const raw of recommendations) {
             if (!raw || typeof raw !== 'object') continue;
             const value = raw as Record<string, unknown>;
             const memberId = typeof value.memberId === 'string' ? value.memberId : '';
             if (!memberId) continue;
-            const locator: OutreachTargetLocatorV1 = {
-              source: 'directory_member',
-              id: memberId,
-            };
-            const targetKey = targetKeyForLocator(locator);
+            const locator: OutreachTargetLocatorV1 = { source: 'directory_member', id: memberId };
             const signals: TargetRecommendationSignal[] = [
               { code: 'client_recommendation', label: 'Existing client-specific office recommendation.' },
             ];
@@ -518,9 +493,8 @@ export class SearchTargetsCapability {
               if (tag === 'issue') signals.push({ code: 'issue_match', label: 'Client issue overlap.' });
               if (tag === 'leadership') signals.push({ code: 'leadership', label: 'Leadership position.' });
             }
-            this.addCandidate(candidates, {
+            addCandidate(candidates, {
               locator,
-              targetKey,
               displayName: String(value.office ?? memberId),
               title: null,
               organization: String(value.office ?? '') || null,
@@ -593,41 +567,55 @@ export class SearchTargetsCapability {
       authorization: { filtered: false, restrictedCount: 0 },
     };
   }
+}
 
-  private addCandidate(
-    candidates: Map<string, TargetCandidateV1>,
-    input: Omit<TargetCandidateV1, 'recommendationRef' | 'emailStatus'> & {
-      criteriaHash: string;
-      rejectedRefs: Set<string>;
-      excludedKeys: Set<string>;
-    },
-  ): void {
-    if (input.excludedKeys.has(input.targetKey)) return;
-    const recommendationRef = recommendationRefForTarget({
-      targetKey: input.targetKey,
-      criteriaHash: input.criteriaHash,
-      clientId: input.clientId,
-    });
-    if (input.rejectedRefs.has(recommendationRef)) return;
-    const candidate: TargetCandidateV1 = {
-      recommendationRef,
-      targetKey: input.targetKey,
-      locator: input.locator,
-      displayName: input.displayName,
-      title: input.title,
-      organization: input.organization,
-      email: input.email,
-      clientId: input.clientId,
-      score: Math.round(Math.max(0, Math.min(1, input.score)) * 1000) / 1000,
-      signals: dedupeSignals(input.signals),
-      roleStatus: input.roleStatus,
-      emailStatus: input.email ? 'available' : 'missing',
-      jurisdiction: input.jurisdiction,
-    };
-    const existing = candidates.get(candidate.targetKey);
-    if (!existing || candidate.score > existing.score) candidates.set(candidate.targetKey, candidate);
-    else if (existing) existing.signals = dedupeSignals([...existing.signals, ...candidate.signals]);
+interface CandidateInput extends Omit<TargetCandidateV1, 'recommendationRef' | 'targetKey' | 'emailStatus'> {
+  criteriaHash: string;
+  rejectedRefs: Set<string>;
+  excludedKeys: Set<string>;
+}
+
+function addCandidate(candidates: Map<string, TargetCandidateV1>, input: CandidateInput): void {
+  const targetKey = targetKeyForLocator(input.locator);
+  if (input.excludedKeys.has(targetKey)) return;
+  const recommendationRef = recommendationRefForTarget({
+    targetKey,
+    criteriaHash: input.criteriaHash,
+    clientId: input.clientId,
+  });
+  if (input.rejectedRefs.has(recommendationRef)) return;
+  const candidate: TargetCandidateV1 = {
+    recommendationRef,
+    targetKey,
+    locator: input.locator,
+    displayName: input.displayName,
+    title: input.title,
+    organization: input.organization,
+    email: input.email,
+    clientId: input.clientId,
+    score: Math.round(Math.max(0, Math.min(1, input.score)) * 1000) / 1000,
+    signals: dedupeSignals(input.signals),
+    roleStatus: input.roleStatus,
+    emailStatus: input.email ? 'available' : 'missing',
+    jurisdiction: input.jurisdiction,
+  };
+  const existing = candidates.get(targetKey);
+  if (!existing || candidate.score > existing.score) candidates.set(targetKey, candidate);
+  else existing.signals = dedupeSignals([...existing.signals, ...candidate.signals]);
+}
+
+function unsupportedCriteriaFor(input: SearchTargetsInput): string[] {
+  const result: string[] = [];
+  if (input.criteria.governmentLevels.includes('agency')) {
+    result.push('Agency personnel are not available in the current target directory.');
   }
+  if (input.criteria.governmentLevels.includes('local')) {
+    result.push('Local-government personnel are not available in the current target directory.');
+  }
+  if (input.criteria.agencies.length) {
+    result.push('Agency filters are preserved but cannot be resolved by Phase 4 target sources.');
+  }
+  return result;
 }
 
 function normalizeEmail(value: string | null | undefined): string | null {
