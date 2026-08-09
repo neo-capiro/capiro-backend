@@ -9,6 +9,10 @@ export const OUTREACH_REASONING_READ_TOOL_NAMES = [
   'analyze_relationships',
   'analyze_target_coverage',
   'find_similar_targets',
+  'search_memory',
+  'research_government',
+  'get_document',
+  'recommend_outreach_strategy',
 ] as const;
 
 export type OutreachReasoningReadToolName = (typeof OUTREACH_REASONING_READ_TOOL_NAMES)[number];
@@ -16,6 +20,44 @@ export type OutreachReasoningReadToolName = (typeof OUTREACH_REASONING_READ_TOOL
 const uuidSchema = { type: 'string', format: 'uuid' } as const;
 const nullableUuidSchema = { anyOf: [uuidSchema, { type: 'null' }] } as const;
 const nullableStringSchema = { anyOf: [{ type: 'string' }, { type: 'null' }] } as const;
+const contextClassSchema = {
+  type: 'string',
+  enum: [
+    'required_policy',
+    'writing_guidance',
+    'campaign_fact',
+    'target_specific',
+    'group_safe',
+  ],
+} as const;
+const contextScopeSchema = {
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: { kind: { type: 'string', enum: ['campaign'] } },
+      required: ['kind'],
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['target'] },
+        targetKey: { type: 'string', minLength: 1, maxLength: 384 },
+      },
+      required: ['kind', 'targetKey'],
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        kind: { type: 'string', enum: ['group'] },
+        groupRef: { type: 'string', minLength: 1, maxLength: 160 },
+      },
+      required: ['kind', 'groupRef'],
+    },
+  ],
+} as const;
 
 const targetRefSchema = {
   oneOf: [
@@ -119,7 +161,7 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
     type: 'function',
     name: 'search_targets',
     description:
-      'Search explainable government-affairs targets in the current Capiro Directory and authorized client-contact sources. Campaign target criteria, selected targets and rejected recommendations are supplied by Capiro.',
+      'Search explainable government-affairs targets. Campaign criteria, selected targets and rejected recommendations are supplied by Capiro.',
     strict: true,
     parameters: {
       type: 'object',
@@ -151,7 +193,7 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
     type: 'function',
     name: 'get_target_profile',
     description:
-      'Read the current source-aware profile for one target reference. The result explicitly identifies stale, limited, missing-email and restricted-context conditions.',
+      'Read the current source-aware profile for one target reference with explicit unavailable, stale and restricted sections.',
     strict: true,
     parameters: {
       type: 'object',
@@ -164,15 +206,12 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
     type: 'function',
     name: 'analyze_relationships',
     description:
-      'Analyze client-scoped meeting, email-envelope and task metadata for one target. It does not return private note or message bodies.',
+      'Analyze client-scoped meeting, email-envelope and task metadata for one target. It never returns private note or message bodies.',
     strict: true,
     parameters: {
       type: 'object',
       additionalProperties: false,
-      properties: {
-        targetRef: targetRefSchema,
-        clientId: uuidSchema,
-      },
+      properties: { targetRef: targetRefSchema, clientId: uuidSchema },
       required: ['targetRef', 'clientId'],
     },
   },
@@ -180,50 +219,15 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
     type: 'function',
     name: 'analyze_target_coverage',
     description:
-      'Deterministically analyze a proposed target set for contactability, duplicates and requested chamber, committee, state, staff and principal coverage.',
+      'Analyze the canonical selected target set for contactability and requested audience coverage. Capiro supplies the target set and criteria.',
     strict: true,
-    parameters: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        criteria: {
-          anyOf: [
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                chambers: { type: 'array', maxItems: 20, items: { type: 'string' } },
-                committees: { type: 'array', maxItems: 100, items: { type: 'string' } },
-                states: { type: 'array', maxItems: 100, items: { type: 'string' } },
-                relationshipPreference: {
-                  type: 'string',
-                  enum: ['any', 'existing', 'new', 'mixed'],
-                },
-                includeStaff: { type: 'boolean' },
-                includePrincipals: { type: 'boolean' },
-              },
-              required: [
-                'chambers',
-                'committees',
-                'states',
-                'relationshipPreference',
-                'includeStaff',
-                'includePrincipals',
-              ],
-            },
-            { type: 'null' },
-          ],
-        },
-        targetRefs: { type: 'array', maxItems: 500, items: targetRefSchema },
-      },
-      required: ['criteria', 'targetRefs'],
-    },
+    parameters: { type: 'object', additionalProperties: false, properties: {}, required: [] },
   },
   {
     type: 'function',
     name: 'find_similar_targets',
     description:
-      'Find authorized current targets similar to one known target by role, chamber, state, committee and issue portfolio.',
+      'Find authorized targets similar to one known target by role, chamber, state, committee and issue portfolio.',
     strict: true,
     parameters: {
       type: 'object',
@@ -235,6 +239,93 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
       },
       required: ['targetRef', 'clientId', 'limit'],
     },
+  },
+  {
+    type: 'function',
+    name: 'search_memory',
+    description:
+      'Search active governed institutional memory. Results include exact context selections and whether they may be used as evidence or writing guidance.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        query: { type: 'string', minLength: 2, maxLength: 500 },
+        clientId: nullableUuidSchema,
+        intendedClass: contextClassSchema,
+        scope: contextScopeSchema,
+        limit: { type: 'integer', minimum: 1, maximum: 50 },
+      },
+      required: ['query', 'clientId', 'intendedClass', 'scope', 'limit'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'research_government',
+    description:
+      'Search source-backed government datasets and return exact references for context review. It does not create policy or infer facts.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        query: { type: 'string', minLength: 2, maxLength: 500 },
+        categories: {
+          type: 'array',
+          maxItems: 12,
+          items: {
+            type: 'string',
+            enum: [
+              'bill',
+              'award',
+              'lda_filing',
+              'hearing',
+              'sec_filing',
+              'fara_registration',
+              'gao_report',
+              'crs_report',
+              'regulatory_docket',
+              'intel_article',
+              'state_bill',
+              'federal_register',
+            ],
+          },
+        },
+        intendedClass: {
+          type: 'string',
+          enum: ['required_policy', 'campaign_fact', 'target_specific', 'group_safe'],
+        },
+        scope: contextScopeSchema,
+        limit: { type: 'integer', minimum: 1, maximum: 50 },
+      },
+      required: ['query', 'categories', 'intendedClass', 'scope', 'limit'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_document',
+    description:
+      'Inspect one authorized Capiro document as bounded context metadata; raw file bytes and storage credentials are never returned.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        documentId: uuidSchema,
+        clientId: nullableUuidSchema,
+        intendedClass: contextClassSchema,
+        scope: contextScopeSchema,
+      },
+      required: ['documentId', 'clientId', 'intendedClass', 'scope'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'recommend_outreach_strategy',
+    description:
+      'Recommend delivery pattern, personalization, tone and length from canonical Campaign Spec, target health and accepted-context counts supplied by Capiro.',
+    strict: true,
+    parameters: { type: 'object', additionalProperties: false, properties: {}, required: [] },
   },
 ]);
 
@@ -255,7 +346,6 @@ export function assertOutreachReasoningToolContract(): void {
     }
     seen.add(tool.name);
   }
-
   if (seen.size !== OUTREACH_REASONING_READ_TOOL_NAMES.length) {
     throw new Error('Outreach reasoning read-tool contract is incomplete.');
   }
