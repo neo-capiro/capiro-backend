@@ -144,6 +144,79 @@ describe('P41 closed items', () => {
 
     expect(result.machineRecommendation).toBe('pursue');
   });
+
+  /**
+   * REGRESSION — a bid closing TODAY was reported closed on every real call.
+   *
+   * `closesDate` is a DATE anchored at UTC midnight; `asOf` is a real clock and
+   * so is essentially never midnight. The original instant arithmetic gave a
+   * same-day close `floor(-0.5) = -1` at any time past midnight, which closed
+   * the item on its final biddable day. Every case below uses a MID-DAY clock,
+   * because midnight is the one value that made the old code accidentally right.
+   */
+  describe('the closing comparison is by calendar day, not by instant', () => {
+    const MIDDAY = new Date('2026-08-08T12:00:00.000Z');
+    const LATE = new Date('2026-08-08T23:59:59.000Z');
+
+    test('a bid closing TODAY is still open, at midday and at one second to midnight', () => {
+      for (const asOf of [MIDDAY, LATE]) {
+        const result = scoreDibbsRelevance(
+          input({ closesDate: '2026-08-08T00:00:00.000Z', priorCageAwardHistory: true, asOf }),
+        );
+
+        expect(result.machineRecommendation).toBe('pursue');
+        expect(result.reasonCodes).not.toContain('solicitation_closed');
+      }
+    });
+
+    test('a bid closing today counts as imminent, not as expired', () => {
+      const result = scoreDibbsRelevance(input({ closesDate: '2026-08-08T00:00:00.000Z', asOf: MIDDAY }));
+
+      expect(result.reasonCodes).toContain('closing_imminent');
+    });
+
+    test('a bid that closed YESTERDAY is closed', () => {
+      const result = scoreDibbsRelevance(
+        input({ closesDate: '2026-08-07T00:00:00.000Z', priorCageAwardHistory: true, asOf: MIDDAY }),
+      );
+
+      expect(result.machineRecommendation).toBe('pass');
+      expect(result.reasonCodes).toEqual(['solicitation_closed']);
+    });
+
+    test('a bid closing tomorrow is open regardless of the time of day', () => {
+      for (const asOf of [MIDDAY, LATE]) {
+        const result = scoreDibbsRelevance(
+          input({ closesDate: '2026-08-09T00:00:00.000Z', priorCageAwardHistory: true, asOf }),
+        );
+
+        expect(result.machineRecommendation).toBe('pursue');
+      }
+    });
+
+    test('the imminent boundary is a calendar-day count, unaffected by the clock', () => {
+      // Exactly DIBBS_IMMINENT_CLOSING_DAYS calendar days out is inside;
+      // one more is outside. Asserted from a mid-day clock.
+      const inside = `2026-08-${String(8 + DIBBS_IMMINENT_CLOSING_DAYS).padStart(2, '0')}T00:00:00.000Z`;
+      const outside = `2026-08-${String(9 + DIBBS_IMMINENT_CLOSING_DAYS).padStart(2, '0')}T00:00:00.000Z`;
+
+      expect(scoreDibbsRelevance(input({ closesDate: inside, asOf: MIDDAY })).reasonCodes).toContain(
+        'closing_imminent',
+      );
+      expect(scoreDibbsRelevance(input({ closesDate: outside, asOf: MIDDAY })).reasonCodes).not.toContain(
+        'closing_imminent',
+      );
+    });
+
+    test('the day count reported to the reader is never negative on an open item', () => {
+      const result = scoreDibbsRelevance(
+        input({ closesDate: '2026-08-08T00:00:00.000Z', priorCageAwardHistory: true, asOf: MIDDAY }),
+      );
+
+      expect(result.primaryRisk).not.toMatch(/-\d/);
+      expect(result.recommendedNextAction).not.toMatch(/-\d/);
+    });
+  });
 });
 
 describe('P41 the part/NSN profile gap is reported, not scored as a failed match', () => {

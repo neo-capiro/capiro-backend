@@ -1906,9 +1906,23 @@ jobs:
       # already 2528, because P40's alias guard (PR #854) added 3 tests after
       # that prose was written. The floor was right; the prose was stale.
       #
-      # 82/2564 -> 83/2592 after P41 part 1: one NEW file, dibbs-relevance.spec.ts
-      # (28 tests), picked up by the existing src/funding-opportunities/ glob — no
+      # 82/2564 -> 83/2598 after P41 part 1: one NEW file, dibbs-relevance.spec.ts
+      # (34 tests), picked up by the existing src/funding-opportunities/ glob — no
       # new path needed here, same as forecast-relevance.spec.ts at P25.
+      #
+      # SIX of those 34 are a review regression worth naming, because the bug was
+      # invisible to the other 28. `closesDate` is a DATE anchored at UTC midnight
+      # and `asOf` is a real clock, so differencing the raw INSTANTS made a bid
+      # closing TODAY come out at floor(-0.5) = -1 at any time past midnight:
+      # isClosed returned true and the item was passed on its final biddable day.
+      # Production passes new Date(), which is essentially never midnight, so this
+      # would have fired on every same-day close. The original tests missed it
+      # because their asOf was exactly midnight — the one clock value that makes
+      # the instant arithmetic accidentally correct. The comparison is now by
+      # calendar day, and the regression cases all use a MID-DAY clock.
+      #
+      # Generalisable, and the reason this is spelled out: a fixture whose clock
+      # is midnight cannot test date arithmetic. Pick an awkward time on purpose.
       #
       # What it proves, and the part worth not re-deriving: THREE OF P41'S FIVE
       # SPECIFIED SIGNALS CANNOT FIRE, for structural reasons on one side or the
@@ -1933,13 +1947,13 @@ jobs:
       # path returns an object with no field a Pursue could occupy — asserted by
       # its exact key set, not by checking a value.
       #
-      # Measured on this branch: 83 suites / 2592 passed, zero failures, zero
+      # Measured on this branch: 83 suites / 2598 passed, zero failures, zero
       # skips, zero todo. The api typecheck baseline did NOT move — still 12
       # pre-existing errors (defense-budget, memory, meri), none in
       # funding-opportunities code.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2592
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2598
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -2157,14 +2171,20 @@ jobs:
       # names the document type rather than reporting a source gap.
       #
       # PART OF THIS RAISE IS PRE-EXISTING SLACK, and saying so is the point.
-      # Measured on this branch: 117/440. This file contributes 5 blocks and 26
+      # Measured on this branch: 117/441. This file contributes 5 blocks and 27
       # tests, so the actual on main was already 112/414 — above the 109/412
       # floor it was carrying. The floor is a MINIMUM, so that drift was silent
       # and legal. It is closed here rather than left, because a floor sitting
       # below the actual cannot detect the next deletion.
+      #
+      # The 27th test is a review regression: an award whose numeric price exists
+      # but whose display text is null rendered an EMPTY slot between two
+      # separators. The card receives only the text, so it is the fallback in both
+      # branches now. A gap in the middle of a line reads as a rendering fault,
+      # not as a fact about the source — the same confusion P49's em dash caused.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 117 440
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 117 441
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

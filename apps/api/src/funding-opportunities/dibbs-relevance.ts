@@ -165,11 +165,34 @@ export interface DibbsRelevanceResult {
  */
 export const DIBBS_IMMINENT_CLOSING_DAYS = 7;
 
+/** UTC midnight of whatever instant this is. */
+function startOfUtcDay(at: number): number {
+  const on = new Date(at);
+  return Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate());
+}
+
+/**
+ * CALENDAR days between two dates, not the instant delta — and the difference
+ * is load-bearing.
+ *
+ * `closesDate` comes from a DATE column that P40 anchors at UTC midnight,
+ * precisely so "a bid closing on the 30th is the 30th everywhere". `asOf` is a
+ * real clock, so in production it is essentially never midnight. Differencing
+ * the raw instants therefore made a bid closing TODAY come out at
+ * `floor(-0.5) = -1` any time of day past midnight, `isClosed` returned true,
+ * and the item was passed on its final biddable day.
+ *
+ * Flooring both sides to their UTC day makes today `0`, yesterday `-1`, and the
+ * comparison mean what the column means. The unit tests did not catch this
+ * because their `asOf` was exactly midnight — which is the one clock value that
+ * makes the instant arithmetic accidentally correct.
+ */
 function daysUntil(date: string | null, asOf: Date): number | null {
   if (!date) return null;
   const at = new Date(date).getTime();
   if (Number.isNaN(at)) return null;
-  return Math.floor((at - asOf.getTime()) / 86_400_000);
+  // Both operands are exact UTC midnights, so this division is exact.
+  return Math.round((startOfUtcDay(at) - startOfUtcDay(asOf.getTime())) / 86_400_000);
 }
 
 /**

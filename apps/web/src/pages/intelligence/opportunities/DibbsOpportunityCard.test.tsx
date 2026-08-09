@@ -164,6 +164,22 @@ describe('P41 awards never offer Pursue', () => {
     expect(row.textContent).not.toMatch(/\$\s?0/);
   });
 
+  test('REGRESSION: a numeric price with no display text does not render an empty slot', () => {
+    render(
+      <AntApp>
+        <DibbsAwardIntelligenceRow
+          award={award({ priceIsUnknown: false, totalContractPriceText: null })}
+        />
+      </AntApp>,
+    );
+
+    const row = screen.getByTestId('fo-dibbs-award-SPE4A624P0001');
+    // Previously rendered nothing between two separators, which reads as a
+    // rendering fault rather than as a fact about the source.
+    expect(row).toHaveTextContent('No award price stated');
+    expect(row.textContent).not.toMatch(/·\s*·/);
+  });
+
   test("the provider's own display text is kept when the numeric price is absent", () => {
     render(
       <AntApp>

@@ -330,10 +330,13 @@ export function DibbsAwardIntelligenceRow({ award }: { award: DibbsAwardContext 
           A null numeric price is never rendered as $0. The provider's own
           display text is shown when it exists, because it is the only evidence
           of what the source displayed; otherwise the absence is stated.
+
+          The text is the ONLY price this component receives, so it is the
+          fallback in both branches. A numeric price with no display text used to
+          render an empty slot between two separators — a gap that reads as a
+          rendering fault rather than as a fact about the source.
         */}
-        {award.priceIsUnknown
-          ? (award.totalContractPriceText ?? 'No award price stated')
-          : award.totalContractPriceText}
+        {award.totalContractPriceText ?? 'No award price stated'}
         {' · '}
         {formatSourceDate(award.awardDate, 'No award date stated')}
       </Text>
