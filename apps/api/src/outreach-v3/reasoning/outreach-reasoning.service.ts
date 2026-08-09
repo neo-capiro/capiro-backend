@@ -55,7 +55,7 @@ export class OutreachReasoningService {
 
     let credential;
     try {
-      credential = await this.credentials.resolveProvider(ctx, 'openai');
+      credential = await this.credentials.resolveProviderForOutreachReasoning(ctx, 'openai');
     } catch {
       throw providerUnavailable();
     }
@@ -180,9 +180,6 @@ export class OutreachReasoningService {
       const latencyMs = Date.now() - started;
       const proposalIds: string[] = [];
 
-      // This is the only post-provider write transaction. If campaign state moved
-      // while the model was thinking, model proposal creation throws a Phase 2
-      // version conflict and the visible turn/proposal/event all roll back together.
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         if (providerResult.proposedCommands.length > 0) {
           const proposal = await this.proposals.createModelProposalWithinTx(
