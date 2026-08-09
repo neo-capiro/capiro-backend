@@ -55,6 +55,7 @@ const steps = [
     ],
     { DATABASE_URL: DUMMY_DATABASE_URL },
   ],
+  ['Phase 3 DB rehearsal syntax', 'node', ['--check', 'scripts/verify-outreach-v3-phase3-db.mjs']],
   ['Phase 2 state-substrate regression', 'pnpm', ['verify:outreach-v3-phase-2']],
   ['Engagement Phase 3 current-product regression', 'pnpm', ['verify:engagement-phase-3']],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
