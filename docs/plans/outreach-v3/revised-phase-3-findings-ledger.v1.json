@@ -3,13 +3,14 @@
   "phase": "Revised Outreach Phase 3",
   "branch": "agent/outreach-v3-p3-reasoning-gateway",
   "provisionalBaseSha": "89b0a8e08e1cfcc7210a8684335faf6f8405bdf2",
-  "status": "PROVISIONAL_IMPLEMENTATION_IN_PROGRESS",
+  "deployedPhase2BaseSha": "89b0a8e08e1cfcc7210a8684335faf6f8405bdf2",
+  "status": "SOURCE_HARDENING_COMPLETE_EXECUTION_GATES_PENDING",
   "counts": {
     "openP0": 0,
     "openP1": 0,
     "blockingP2": 0,
-    "fixedP1": 3,
-    "fixedP2": 4,
+    "fixedP1": 4,
+    "fixedP2": 6,
     "fixedTestDefects": 2
   },
   "findings": [
@@ -28,7 +29,7 @@
       "classification": "phase_3_defect",
       "status": "FIXED",
       "summary": "The first runtime-policy exception checked globally enabled external actions before the reasoning special case, so an accidental main-API caller could have obtained outreach_reasoning permission in active mode.",
-      "repair": "outreach_reasoning is now evaluated first and is allowed only for serviceName=engagement-api with OUTREACH_V3_REASONING_ENABLED=true, regardless of global external-action mode.",
+      "repair": "outreach_reasoning is now evaluated first and is allowed only for serviceName=engagement-api with both Phase 2 state and Phase 3 reasoning flags enabled, regardless of global external-action mode.",
       "regression": "outreach-reasoning-runtime-boundary.spec.ts"
     },
     {
@@ -39,6 +40,15 @@
       "summary": "Initial reasoning turn lease was 3 minutes, shorter than the bounded maximum multi-round provider window, allowing a still-live turn to be reclaimed concurrently.",
       "repair": "Turn lease increased to 15 minutes, beyond six 90-second provider rounds plus bounded tool execution; stale crashed turns still recover deterministically.",
       "regression": "outreach-reasoning-turn-claim.service.spec.ts + source contract"
+    },
+    {
+      "id": "P3-CAMPAIGN-SCOPE-001",
+      "severity": "P1",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "A multi-client or no-client Campaign Spec initially produced no single clientScope, which could let client-oriented read tools request other otherwise-authorized tenant clients unrelated to the campaign.",
+      "repair": "The reasoning context now derives the explicit sponsor-client allowlist from Campaign Spec. No-client campaigns receive no client-tool surface; multi-client/coalition tool results must resolve to one of the explicit sponsor client refs. No primary client is invented.",
+      "regression": "outreach-reasoning-context.service.spec.ts"
     },
     {
       "id": "P3-LIFE-001",
@@ -77,6 +87,25 @@
       "regression": "outreach-v3-reasoning.guard.spec.ts + outreach-reasoning-runtime-boundary.spec.ts + outreach-v3-phase3-architecture.spec.ts"
     },
     {
+      "id": "P3-STALE-001",
+      "severity": "P2",
+      "classification": "phase_3_defect",
+      "status": "FIXED",
+      "summary": "A model turn returning no commands could initially commit and return visible advice even if Campaign Spec changed while the provider call was running, because only proposal creation enforced expectedStateVersion.",
+      "repair": "Added a read-only Phase 2 state-version guard and require the exact inspected version before every successful reasoning-turn commit, including no-command responses. State drift becomes a retryable 409 with no success audit.",
+      "regression": "outreach-reasoning.service.spec.ts + outreach-state-version-guard.service.ts"
+    },
+    {
+      "id": "P3-PROVIDER-001",
+      "severity": "P2",
+      "classification": "provider_contract_defect",
+      "status": "FIXED",
+      "summary": "The stateless store=false Responses tool loop replayed provider output items but did not explicitly request encrypted reasoning content, creating a continuity gap for reasoning-model tool rounds under manual context management.",
+      "repair": "For reasoning models with store=false, the provider now requests include=[reasoning.encrypted_content] and replays the returned opaque reasoning item with provider output plus function_call_output only within the same in-flight turn. Encrypted reasoning is never persisted, logged, returned, or used as Campaign State.",
+      "regression": "openai-outreach-reasoning.provider.spec.ts",
+      "reference": "Current OpenAI Responses guidance for store=false/manual context reasoning continuity"
+    },
+    {
       "id": "P3-TEST-001",
       "severity": "P2",
       "classification": "test_defect",
@@ -95,12 +124,22 @@
       "regression": "openai-outreach-reasoning.provider.spec.ts"
     }
   ],
+  "ownerWaivers": [
+    {
+      "id": "P2-CLERK-LIVE-001",
+      "phase": "Revised Outreach Phase 2",
+      "status": "WAIVED_BY_OWNER",
+      "date": "2026-08-08",
+      "summary": "Owner chose to skip Clerk-authenticated live Phase 2 route verification after JWT acquisition remained blocked. The affected scenarios are NOT_EXECUTED and must not be represented as PASS.",
+      "record": "docs/plans/outreach-v3/revised-phase-2-deployed-dark-owner-acceptance.md"
+    }
+  ],
   "prerequisiteBlockers": [
     {
       "id": "P3-PREREQ-001",
-      "classification": "prerequisite_blocker",
-      "status": "OPEN",
-      "summary": "Phase 3 was owner-authorized to start provisionally while Phase 2 deployed dark acceptance and independent validation close in parallel. Formal Phase 3 acceptance/deployment remains blocked until the exact Phase 2 lineage receives OUTREACH_V3_PHASE2_APPROVED."
+      "classification": "prerequisite_assurance_gate",
+      "status": "OPEN_INDEPENDENT_REVIEW_ONLY",
+      "summary": "The exact Phase 2 code SHA consumed by this branch was deployed dark and owner-accepted with Clerk-authenticated live acceptance explicitly waived. No Phase 2 code/schema reconciliation is required. A fresh independent Phase 2 approval marker remains pending unless separately waived."
     }
   ],
   "executionGates": {
@@ -108,7 +147,8 @@
     "disposableDatabase": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
     "deterministic100CaseEval": "IMPLEMENTED_NOT_EXECUTED",
     "live100TurnOpenAiEval": "IMPLEMENTED_NOT_EXECUTED",
-    "phase2Regression": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
+    "phase2Regression": "OWNER_REPORTED_DB_FREE_COMPLETE_WITH_DOCUMENTED_INHERITED_FAILURES",
+    "phase2DeployedDark": "OWNER_ACCEPTED_WITH_CLERK_AUTH_WAIVER",
     "engagementPhase3Regression": "NOT_RUN_SUCCESSFULLY_IN_THIS_CONNECTOR_SESSION",
     "independentValidation": "PENDING"
   },
@@ -116,6 +156,8 @@
     "No Phase 3 deployment, shared-database migration, UI change, merge, or PR creation has been performed.",
     "No finding was closed by granting direct model state mutation or broadening the external-action switch.",
     "OpenAI provider state is off by default; capiro_managed + store=false is the default retention posture.",
-    "No hidden chain-of-thought field exists in Phase 3 persistence or API contracts."
+    "Encrypted provider reasoning used for store=false tool-loop continuity is transient only and never persisted or returned.",
+    "No hidden chain-of-thought field exists in Phase 3 persistence or API contracts.",
+    "The deployed Phase 2 SHA exactly equals this branch's Phase 2 base SHA."
   ]
 }
