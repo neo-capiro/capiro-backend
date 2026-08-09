@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "phase": "revised_phase_4_target_intelligence",
+  "baseSha": "b043a995928314f7085b7f9df94bdba02cee9640",
+  "status": "IMPLEMENTATION_COMPLETE_VERIFICATION_DEFERRED_BY_OWNER",
+  "open": {
+    "p0": 0,
+    "p1": 0,
+    "blockingP2": 0,
+    "verification": [
+      "DB-free verifier not executed to completion",
+      "authoritative local acceptance not executed",
+      "independent validation not executed",
+      "GitHub Actions run ended in startup_failure before jobs"
+    ]
+  },
+  "fixedFindings": [
+    {
+      "id": "P4-F-001",
+      "severity": "P1",
+      "title": "Target locators could enter state without server resolution",
+      "resolution": "ADD_TARGET_REFS now resolves and authorizes locators inside the locked command transaction; the pure reducer receives canonical snapshots only."
+    },
+    {
+      "id": "P4-F-002",
+      "severity": "P1",
+      "title": "Reasoning could propose an invented target locator",
+      "resolution": "Target proposals must match a target key returned by a Capiro target tool in the same turn before a pending proposal is persisted."
+    },
+    {
+      "id": "P4-F-003",
+      "severity": "P1",
+      "title": "Restore did not reauthorize selected targets",
+      "resolution": "RESTORE_STATE_VERSION reauthorizes every selected target locator before creating the restored state version."
+    },
+    {
+      "id": "P4-F-004",
+      "severity": "P2",
+      "title": "Duplicate emails were treated as invalid campaign state",
+      "resolution": "Email is no longer canonical identity. Distinct target identities remain selected and deterministic health marks the collision non-sendable."
+    },
+    {
+      "id": "P4-F-005",
+      "severity": "P2",
+      "title": "Selected target snapshots could become stale invisibly",
+      "resolution": "Profile and coverage APIs report current, changed, or unavailable source snapshots and list safe changed fields without silent mutation."
+    },
+    {
+      "id": "P4-F-006",
+      "severity": "P2",
+      "title": "Target capability set omitted coverage and similar-target analysis",
+      "resolution": "Added shared analyze_target_coverage and find_similar_targets capabilities for both Meri and Outreach."
+    },
+    {
+      "id": "P4-F-007",
+      "severity": "P2",
+      "title": "Target profiles silently omitted unavailable government-affairs sections",
+      "resolution": "Profiles now expose role, relationship, interests, objections, preferred approach, public positions, district/state nexus, bills, Program Elements, funding interests, personalization policy, and data-quality sections with explicit availability states."
+    },
+    {
+      "id": "P4-F-008",
+      "severity": "P2",
+      "title": "Phase 4 verifier matched forbidden strings inside its own tests",
+      "resolution": "Static forbidden-runtime scans now exclude specs, tests and fixtures."
+    }
+  ],
+  "nonChanges": [
+    "No current Outreach V2 change",
+    "No final Outreach V3 UI",
+    "No context-reference activation",
+    "No generation, approval, preflight or send authority",
+    "No Prisma migration",
+    "No new service or infrastructure",
+    "No production flag enablement or deployment"
+  ]
+}
