@@ -2100,9 +2100,37 @@ jobs:
       # hand-rolled error with the same `name` and an `isRateLimited` getter is
       # never retried — the test would have passed while never entering the path
       # it claims to cover.
+      #
+      # 86/2704 -> 87/2738 after P43 part 1: one NEW file,
+      # src/funding-opportunities/sbir-relevance.spec.ts (34 tests). No
+      # path-list change — src/funding-opportunities/ is enumerated as a
+      # DIRECTORY, unlike scripts/*.spec.ts which are listed individually.
+      #
+      # The scorer ships DARK, like forecast-relevance.ts did: no producer, no
+      # service, no DI wiring, nothing calls it. What the tests pin is the rule
+      # order and, more importantly, three refusals:
+      #
+      #  - PHASE IS NEVER INFERRED. P43's spec asks to distinguish Phase
+      #    I/II/Direct-to-Phase-II, and there is no phase field on either SBIR
+      #    endpoint. A test asserts no output field and no composed sentence
+      #    carries a phase value, because "Direct to Phase II" in a title is the
+      #    provider describing a topic, not a structured field — a regex over it
+      #    would be the lookalike this program keeps refusing.
+      #  - ELIGIBILITY IS NEVER ESTABLISHED. Constant needs_review on every
+      #    branch, with a reason saying a small-business certification is not the
+      #    same question as the SBIR size standard.
+      #  - "CLOSING SOON" IS NOT "CLOSED". The status check compares against a
+      #    closed SET rather than by substring, which would read the first as the
+      #    second and pass on a topic that is still open.
+      #
+      # Every clock in that spec is MID-DAY, deliberately. P41 part 1 shipped a
+      # date bug that survived 28 tests because every fixture used
+      # T00:00:00.000Z — the one value that makes instant arithmetic
+      # accidentally agree with calendar arithmetic. A topic closing today is
+      # proven open at 00:00, 09:15, 14:37 and 23:59.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 86 2704
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 87 2738
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
