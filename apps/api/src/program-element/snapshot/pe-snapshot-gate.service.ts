@@ -3,40 +3,26 @@
  * whether a given call is served from legacy tables or the active canonical
  * snapshot.
  *
- * Wraps three already-built, Nest-free primitives from
- * `defense-budget/promotion/` behind one Nest-injectable surface:
- * `resolveSnapshotReadModeV1` (the mode decision), a **fresh-per-call**
- * `createActiveSnapshotResolverV1` (the pointer resolution), and the
- * `PE_SNAPSHOT_READ_MODE` / `PE_SNAPSHOT_CANARY_TENANTS` config.
- *
- * `resolve()` is deliberately not cached on `this` across calls. The resolver
- * module's own docstring is explicit about why: a process-lifetime cache would
- * keep serving a superseded snapshot after an activation, trading "mixed" for
- * "stale," which is quieter and just as wrong. Every call to `resolve()`
- * constructs its own resolver and therefore does its own round trip — callers
- * that need more than one lookup inside a single method invocation must call
- * `resolve()` once and reuse the returned `activeSnapshot`/`decision`, not call
- * `resolve()` again partway through (see `assertOneSnapshotV1` at the point
- * rows are assembled for why a second resolution inside one response is the
- * failure mode this whole module exists to prevent).
- *
- * The environment currently falls back to NODE_ENV. A dedicated
- * PE_SNAPSHOT_ENVIRONMENT override is accepted directly from process.env so an
- * activation and the serving task can share one exact environment key even
- * when deployment naming (for example "dev") intentionally differs from
- * NODE_ENV (for example "production"). The fallback preserves today's inert
- * behavior until rollout explicitly sets the override.
+ * The gate also owns the read-time manual-override overlay. Canonical rows stay
+ * immutable; an independently approved correction is loaded beside the exact
+ * selected rows and applied only to the returned read model, with the official
+ * value preserved as provenance.
  */
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import {
+  assertOneSnapshotV1,
   createActiveSnapshotResolverV1,
   type ActiveSnapshotV1,
   type SnapshotReadPortV1,
   type SnapshotRowQueryV1,
-  type SnapshotCanonicalRowV1,
 } from '../../defense-budget/promotion/snapshot-read-repository-v1.js';
+import {
+  applyOverrideOverlayV1,
+  inForceOverridesV1,
+  type SnapshotReadRowV1,
+} from '../../defense-budget/promotion/manual-override-overlay-v1.js';
 import { resolveSnapshotReadModeV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import type { SnapshotReadDecisionV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import { SNAPSHOT_READ_PORT_V1 } from '../../defense-budget/promotion/snapshot-read-port.tokens.js';
@@ -63,9 +49,6 @@ export class PeSnapshotGateService {
     @Optional()
     @Inject(SLO_METRIC_RECORDER_V1)
     private readonly sloMetrics: SloMetricRecorderV1 = NOOP_SLO_METRIC_RECORDER_V1,
-    // TenantModule is global. Optional keeps direct-construction unit tests and
-    // non-request/system callers working, but authenticated HTTP requests get
-    // the already-verified tenant resolved by TenantContextMiddleware via ALS.
     @Optional() private readonly tenantContextStore?: TenantContextStore,
   ) {}
 
@@ -76,18 +59,6 @@ export class PeSnapshotGateService {
       : (this.config.get('NODE_ENV', { infer: true }) ?? 'development');
   }
 
-  /**
-   * Resolve the mode/pointer for one method invocation. Call this exactly once
-   * per invocation and thread the result through every `loadRows` call that
-   * invocation makes.
-   *
-   * Older Workstream-M callers pass `null` because they predate tenant-aware
-   * canary routing. That must not mean "this authenticated request has no
-   * tenant": use the request-scoped TenantContextStore as the fallback. An
-   * explicit argument always wins, which keeps system/test callers
-   * deterministic and prevents ambient context from overriding deliberate
-   * scope.
-   */
   async resolve(tenantId: string | null): Promise<PeSnapshotGateResultV1> {
     const effectiveTenantId = tenantId ?? this.tenantContextStore?.get()?.tenantId ?? null;
     const resolver = createActiveSnapshotResolverV1(
@@ -97,10 +68,6 @@ export class PeSnapshotGateService {
     );
     const activeSnapshot = await resolver.resolve();
 
-    // Phase 7 Gap 5 decision C. Checked first and unconditionally: the whole
-    // point of a rollback switch is that it does not depend on correctly
-    // reasoning through resolveSnapshotReadModeV1's other branches to take
-    // effect.
     const rollback = resolveCanaryRollbackV1({
       rollbackEngaged: this.config.get('PE_SNAPSHOT_CANARY_ROLLBACK', { infer: true }) === 'on',
     });
@@ -127,16 +94,6 @@ export class PeSnapshotGateService {
     return { decision, activeSnapshot };
   }
 
-  /**
-   * The recorder plus the dimensions a *detached* emission needs.
-   *
-   * `schedulePeShadowComparisonV1` runs its comparison after the request that
-   * scheduled it has already been answered, so by the time it emits there is no
-   * ambient request to read a domain or environment off. Resolving them here
-   * keeps one definition of both — the same `environment()` the pointer lookup
-   * and the activation row use — instead of a second copy in the read service
-   * that could drift from it.
-   */
   sloDescriptor(): { recorder: SloMetricRecorderV1; domain: string; environment: string } {
     return {
       recorder: this.sloMetrics,
@@ -146,26 +103,37 @@ export class PeSnapshotGateService {
   }
 
   /**
-   * Thin passthrough so call sites don't need their own port injection.
+   * Load one snapshot-scoped row set and apply every in-force governed override
+   * whose target exactly matches those rows.
    *
-   * Phase 7 Gap 5 decision C: this is where `snapshot_read_latency_ms` is
-   * measured. Every canonical row read on the PE surface goes through here, and
-   * `resolve()`'s pointer lookup deliberately does not — a pointer lookup and a
-   * row read have different shapes and different costs, and folding both into
-   * one metric with no dimension to separate them would make the number
-   * unreadable exactly when someone is using it to decide whether to widen the
-   * canary.
-   *
-   * `mode` is the *configured* read mode, not the per-call resolved decision:
-   * the resolved decision varies by tenant within `snapshot_canary`, and the
-   * question this metric answers is "how does the snapshot read path perform at
-   * this stage of the rollout". Timed in a finally, so a read that throws still
-   * reports the latency it burned before failing.
+   * The production Prisma port implements `loadManualOverridesForRows`; narrow
+   * test/Phase8 adapters may omit it, in which case the returned rows still get
+   * the explicit `override:null` / `officialMoney:null` shape rather than an
+   * ambiguous partial read model.
    */
-  async loadRows(query: SnapshotRowQueryV1): Promise<SnapshotCanonicalRowV1[]> {
+  async loadRows(query: SnapshotRowQueryV1): Promise<SnapshotReadRowV1[]> {
     const startedAtMs = Date.now();
     try {
-      return await this.port.loadRows(query);
+      const canonical = await this.port.loadRows(query);
+      assertOneSnapshotV1(canonical, query.snapshotId);
+
+      const allOverrides = this.port.loadManualOverridesForRows
+        ? await this.port.loadManualOverridesForRows(canonical)
+        : [];
+      const inForce = inForceOverridesV1(allOverrides, new Date());
+      const overlaid = applyOverrideOverlayV1(canonical, inForce);
+
+      // The repository only asks for exact targets from `canonical`, so an
+      // unmatched result means the target identity changed between loading the
+      // rows and loading the override, or an adapter violated the port contract.
+      // Serving the uncorrected value would hide that governance drift.
+      if (overlaid.unmatched.length > 0) {
+        const ids = overlaid.unmatched.map((entry) => entry.provenance.overrideId).sort();
+        throw new Error(
+          `governed override target mismatch for snapshot ${query.snapshotId}: ${ids.join(', ')}`,
+        );
+      }
+      return overlaid.rows;
     } finally {
       this.sloMetrics.record('snapshot_read_latency_ms', Date.now() - startedAtMs, {
         domain: DEFENSE_BUDGET_DOMAIN,
