@@ -2394,9 +2394,44 @@ jobs:
       # the malformed-URL branch would have said “dibbs” is not a source Capiro
       # holds — false about Capiro's own data, and it sends the reader looking
       # for a broken import instead of back to the queue where the item is.
+      #
+      # 118/454 -> 125/472 after P43 part 2: one NEW file,
+      # SbirOpportunityCard.test.tsx (18 tests). No path-list change —
+      # src/pages/intelligence/opportunities/ is enumerated as a directory.
+      #
+      # P43's acceptance is "UI labels source, phase, cycle, and deadlines
+      # honestly", and three of those four have a specific dishonest version
+      # reachable by accident. Each is asserted on RENDERED TEXT:
+      #
+      #  - SOURCE. SBIR vs STTR is NOT a property of the topic — `program` lives
+      #    on the parent CYCLE. With no cycle held the card says "Program not
+      #    stated" rather than "SBIR". The rail being named SBIR/STTR makes the
+      #    guess the easy mistake, and STTR is the one requiring a research
+      #    partner, so guessing asserts the absence of a requirement.
+      #  - PHASE. A ROW, not an omission. A test feeds a topic titled "Direct to
+      #    Phase II ..." and proves the title renders as the provider's text
+      #    while no field labelled as a phase exists — the title is the provider
+      #    describing a topic, not a structured field to parse.
+      #  - CYCLE. Three states, three sentences: the source stated no cycle; the
+      #    topic names one Capiro does not hold (an ORPHAN, which P42
+      #    deliberately allows by having no FK); or it is held and named.
+      #    Collapsing the first two into "Unknown" merges a fact about the SOURCE
+      #    with a fact about CAPIRO'S SYNC, and they send a reader elsewhere.
+      #
+      # Eligibility renders VERBATIM from the scorer. The summary anyone would
+      # write — "eligibility unknown" — drops which facts are missing and that a
+      # small-business certification is a different question; a test asserts the
+      # card never contains the word "eligible".
+      #
+      # One of these tests was wrong on its first pass, in the direction worth
+      # recording: it banned the substring "SBIR" anywhere on the card, which
+      # also banned the provider's own cycle identifier (`DoD-SBIR-26.A`) and the
+      # eligibility reason's own wording. The claim is narrower than the scan
+      # was — no TAG may assert a program — so it is scoped to the tags. A
+      # too-broad assertion fails on correct output and teaches nothing.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 118 454
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 125 472
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
