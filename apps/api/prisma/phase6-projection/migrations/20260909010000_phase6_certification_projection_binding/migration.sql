@@ -103,3 +103,15 @@ DROP TRIGGER IF EXISTS phase6_cert_projection_immutable_truncate_trg
 CREATE TRIGGER phase6_cert_projection_immutable_truncate_trg
 BEFORE TRUNCATE ON phase6_cycle_certification_projection
 FOR EACH STATEMENT EXECUTE FUNCTION phase6_certification_projection_immutable();
+
+-- Phase 7 execution reloads the exact association under capiro_pe_promoter.
+-- This migration belongs to the separate Phase 6 chain, so the promoter role
+-- may or may not exist yet depending on migration order. Grant SELECT only when
+-- it does; the main Phase 7 forward migration repeats the grant for the inverse
+-- ordering. No INSERT/UPDATE/DELETE privilege is granted to the promoter.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_pe_promoter') THEN
+    GRANT SELECT ON phase6_cycle_certification_projection TO capiro_pe_promoter;
+  END IF;
+END $$;
