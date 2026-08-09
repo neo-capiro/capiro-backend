@@ -14,6 +14,12 @@ function command<T>(type: string, payload: T): OutreachV3Command<T> {
   return { type, schemaVersion: 1, payload };
 }
 
+function required(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new Error(`${label} is required.`);
+  return normalized;
+}
+
 export interface GoalDraft {
   goal: string;
   objective: string;
@@ -25,15 +31,22 @@ export interface GoalDraft {
 }
 
 export function goalCommands(draft: GoalDraft): OutreachV3Command[] {
+  const goal = required(draft.goal, 'Campaign goal');
+  const objective = required(draft.objective, 'Objective');
+  const topic = required(draft.topic, 'Topic');
+  const desiredOutcome = required(draft.desiredOutcome, 'Desired outcome');
   const ask =
     draft.askMode === 'none'
       ? command('SET_ASK', { mode: 'none', text: null })
-      : command('SET_ASK', { mode: 'explicit', text: nullable(draft.askText) });
+      : command('SET_ASK', {
+          mode: 'explicit',
+          text: required(draft.askText, 'Explicit ask'),
+        });
   return [
-    command('SET_GOAL', { value: nullable(draft.goal) }),
-    command('SET_OBJECTIVE', { value: nullable(draft.objective) }),
-    command('SET_TOPIC', { value: nullable(draft.topic) }),
-    command('SET_DESIRED_OUTCOME', { value: nullable(draft.desiredOutcome) }),
+    command('SET_GOAL', { value: goal }),
+    command('SET_OBJECTIVE', { value: objective }),
+    command('SET_TOPIC', { value: topic }),
+    command('SET_DESIRED_OUTCOME', { value: desiredOutcome }),
     ask,
     command('SET_WHY_NOW', { value: nullable(draft.whyNow) }),
   ];
@@ -44,10 +57,26 @@ export function sponsorCommand(input: {
   label?: string | null;
   clientIds?: string[];
 }): OutreachV3Command {
+  const label = nullable(input.label ?? '');
+  const uniqueClientIds = [...new Set(input.clientIds ?? [])];
+  const clientIds =
+    input.kind === 'client' || input.kind === 'multi_client' ? uniqueClientIds : [];
+
+  if (input.kind === 'undecided') throw new Error('Choose a sponsor scope.');
+  if (input.kind === 'client' && clientIds.length !== 1) {
+    throw new Error('One-client sponsor scope requires exactly one client.');
+  }
+  if (input.kind === 'multi_client' && clientIds.length < 2) {
+    throw new Error('Several-clients sponsor scope requires at least two clients.');
+  }
+  if (input.kind === 'coalition' && !label) {
+    throw new Error('Coalition sponsor scope requires a name.');
+  }
+
   return command('SET_SPONSOR_SCOPE', {
     kind: input.kind,
-    label: nullable(input.label ?? ''),
-    clientRefs: [...new Set(input.clientIds ?? [])].map((clientId) => ({ clientId })),
+    label,
+    clientRefs: clientIds.map((clientId) => ({ clientId })),
   });
 }
 
@@ -85,7 +114,7 @@ export function addTargetCommand(
 }
 
 export function removeTargetCommand(targetKey: string): OutreachV3Command {
-  return command('REMOVE_TARGET_REFS', { targetKeys: [targetKey] });
+  return command('REMOVE_TARGET_REFS', { targetKeys: [required(targetKey, 'Target key')] });
 }
 
 export function rejectTargetRecommendationCommand(input: {
@@ -94,8 +123,8 @@ export function rejectTargetRecommendationCommand(input: {
   reason?: 'not_relevant' | 'wrong_jurisdiction' | 'wrong_role' | 'already_covered' | 'other';
 }): OutreachV3Command {
   return command('REJECT_TARGET_RECOMMENDATION', {
-    recommendationRef: input.recommendationRef,
-    targetKey: input.targetKey,
+    recommendationRef: required(input.recommendationRef, 'Recommendation reference'),
+    targetKey: required(input.targetKey, 'Target key'),
     reason: input.reason ?? 'not_relevant',
   });
 }
@@ -104,6 +133,12 @@ export function deliveryCommands(
   pattern: OutreachV3DeliveryPattern,
   personalization: OutreachV3Personalization,
 ): OutreachV3Command[] {
+  if (pattern === 'undecided' || personalization === 'undecided') {
+    throw new Error('Choose a delivery pattern and personalization level.');
+  }
+  if (pattern === 'shared_thread' && personalization === 'high') {
+    throw new Error('High per-recipient personalization is incompatible with a shared thread.');
+  }
   return [
     command('SET_DELIVERY_PATTERN', { value: pattern }),
     command('SET_PERSONALIZATION', { value: personalization }),
@@ -119,6 +154,7 @@ export interface ContextSelectionInput {
 export function acceptContextCommand(
   selections: ContextSelectionInput[],
 ): OutreachV3Command {
+  if (selections.length === 0) throw new Error('Choose at least one context source.');
   return command('ACCEPT_CONTEXT_REFS', { selections });
 }
 
@@ -135,9 +171,10 @@ export function excludeContextCommand(
       | 'superseded';
   }>,
 ): OutreachV3Command {
+  if (refs.length === 0) throw new Error('Choose at least one context source to exclude.');
   return command('EXCLUDE_CONTEXT_REFS', {
     refs: refs.map((ref) => ({
-      contextKey: ref.contextKey,
+      contextKey: required(ref.contextKey, 'Context key'),
       reason: ref.reason ?? 'user_excluded',
     })),
   });
@@ -149,13 +186,19 @@ export function strategyCommands(input: {
   length: OutreachV3Length;
   customInstruction?: string;
 }): OutreachV3Command[] {
+  const campaignAngle = required(input.campaignAngle, 'Campaign angle');
+  const tone = required(input.tone, 'Tone');
+  if (input.length === 'undecided') throw new Error('Choose a campaign length.');
+  const customInstruction =
+    input.length === 'custom'
+      ? required(input.customInstruction ?? '', 'Custom length instruction')
+      : null;
   return [
-    command('SET_CAMPAIGN_ANGLE', { value: nullable(input.campaignAngle) }),
-    command('SET_TONE', { value: nullable(input.tone) }),
+    command('SET_CAMPAIGN_ANGLE', { value: campaignAngle }),
+    command('SET_TONE', { value: tone }),
     command('SET_LENGTH', {
       value: input.length,
-      customInstruction:
-        input.length === 'custom' ? nullable(input.customInstruction ?? '') : null,
+      customInstruction,
     }),
   ];
 }
