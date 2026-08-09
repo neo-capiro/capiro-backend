@@ -1,7 +1,12 @@
-// Barrel export so callers can import everything from a single path:
-//   import { NewOutreachWizard } from '@/pages/engagement/outreach/v2'
+// Stable barrel export for the Engagement page.
+//
+// NewOutreachWizard is now a fail-closed router: Classic Outreach remains the
+// default, while the native V3 workspace requires both explicit preview modes.
+// Existing v2 drafts always open with ClassicOutreachWizard because semantic
+// conversion is not implemented.
 
-export { NewOutreachWizard } from './NewOutreachWizard.js';
+export { OutreachWizardRouter as NewOutreachWizard } from '../v3/OutreachWizardRouter.js';
+export { NewOutreachWizard as ClassicOutreachWizard } from './NewOutreachWizard.js';
 export { StepCampaignSetup } from './StepCampaignSetup.js';
 export { StepDirectionLanding } from './StepDirectionLanding.js';
 export { StepRecipientsSelect } from './StepRecipientsSelect.js';
