@@ -5,6 +5,7 @@ import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { OUTREACH_COMMAND_REGISTRY } from '../commands/outreach-command-registry.js';
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
+import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
   OUTREACH_REASONING_LIMITS,
@@ -38,6 +39,7 @@ export class OutreachReasoningService {
     private readonly campaignContext: OutreachReasoningContextService,
     private readonly provider: OpenAiOutreachReasoningProvider,
     private readonly proposals: OutreachCommandProposalService,
+    private readonly stateVersions: OutreachStateVersionGuardService,
   ) {}
 
   async createConversation(ctx: TenantContext, sessionId: string) {
@@ -161,9 +163,9 @@ export class OutreachReasoningService {
         instructions,
         userMessage: input.message,
         recentTranscript: transcript,
-        tools: this.campaignContext.providerTools(),
+        tools: this.campaignContext.providerTools(campaign),
         executeTool: (name, toolInput) =>
-          this.campaignContext.executeReadTool(capabilityCtx, name, toolInput),
+          this.campaignContext.executeReadTool(capabilityCtx, campaign, name, toolInput),
       });
 
       for (const command of providerResult.proposedCommands) {
@@ -181,6 +183,16 @@ export class OutreachReasoningService {
       const proposalIds: string[] = [];
 
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        // Always recheck the exact canonical state the model inspected, even for
+        // a read-only/no-command answer. Stale advice is rejected rather than
+        // committed/returned as if it described the current campaign.
+        await this.stateVersions.assertCurrentWithinTx(
+          tx,
+          ctx,
+          conversation!.sessionId,
+          inspectedStateVersion,
+        );
+
         if (providerResult.proposedCommands.length > 0) {
           const proposal = await this.proposals.createModelProposalWithinTx(
             tx,
