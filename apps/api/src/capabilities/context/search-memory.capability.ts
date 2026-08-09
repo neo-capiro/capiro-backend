@@ -6,6 +6,7 @@ import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import type { CapabilityDefinition, CapabilityRuntimeSchema } from '../capability-definition.js';
+import { CapabilityError } from '../capability-errors.js';
 import { assertCapabilityResult, type CapabilityResult } from '../capability-result.js';
 import {
   outreachContextScopeV1Schema,
@@ -114,10 +115,16 @@ export class SearchMemoryCapability {
     rawInput: SearchMemoryInput,
   ): Promise<CapabilityResult<SearchMemoryDataV1>> {
     const input = inputSchemaZod.parse(rawInput);
-    if (ctx.clientScope && input.clientId && ctx.clientScope.clientId !== input.clientId) {
-      throw new Error('The requested memory scope does not match the authorized client scope.');
+    const inheritedClientId = ctx.clientScope?.clientId ?? null;
+    if (inheritedClientId && input.clientId && inheritedClientId !== input.clientId) {
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested memory scope does not match the authorized client scope.',
+      );
     }
-    if (input.clientId) await this.authorization.authorizeClient(ctx, input.clientId);
+    const effectiveClientId = input.clientId ?? inheritedClientId;
+    if (effectiveClientId) await this.authorization.authorizeClient(ctx, effectiveClientId);
+
     const pattern = `%${escapeLike(input.query.trim())}%`;
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
       tx.$queryRaw<MemorySearchRow[]>`
@@ -127,7 +134,7 @@ export class SearchMemoryCapability {
                updated_at
         FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
-          ${input.clientId ? Prisma.sql`AND client_id = ${input.clientId}::uuid` : Prisma.empty}
+          ${effectiveClientId ? Prisma.sql`AND client_id = ${effectiveClientId}::uuid` : Prisma.empty}
           AND status NOT IN ('revoked', 'rejected', 'withdrawn')
           AND (expires_at IS NULL OR expires_at > now())
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.actorUserId}::uuid)
@@ -171,6 +178,7 @@ export class SearchMemoryCapability {
       });
       if (candidates.length >= input.limit) break;
     }
+
     const retrievedAt = new Date().toISOString();
     return {
       capability: 'search_memory',
@@ -178,9 +186,10 @@ export class SearchMemoryCapability {
       data: { candidates, totalConsidered: rows.length },
       provenance: candidates.map((candidate) => ({
         recordType: 'memory_item',
-        recordId: candidate.selection.locator.source === 'memory_item'
-          ? candidate.selection.locator.id
-          : '',
+        recordId:
+          candidate.selection.locator.source === 'memory_item'
+            ? candidate.selection.locator.id
+            : '',
         sourceSystem: 'capiro_memory',
         sourceDate: candidate.lastVerifiedAt,
         lastVerifiedAt: candidate.lastVerifiedAt,
@@ -191,17 +200,19 @@ export class SearchMemoryCapability {
             : candidate.verificationClass === 'unverified'
               ? 'unverified'
               : 'first_party',
-        classification:
-          input.intendedClass === 'writing_guidance' ? 'instruction' : 'fact',
+        classification: input.intendedClass === 'writing_guidance' ? 'instruction' : 'fact',
       })),
       exclusions: [],
-      scope: { tenantId: ctx.tenantId, clientId: input.clientId },
+      scope: { tenantId: ctx.tenantId, clientId: effectiveClientId },
       freshness: {
         asOf: retrievedAt,
         degraded: false,
         reasons: [],
       },
-      authorization: { filtered: rows.length !== candidates.length, restrictedCount: rows.length - candidates.length },
+      authorization: {
+        filtered: rows.length !== candidates.length,
+        restrictedCount: rows.length - candidates.length,
+      },
     };
   }
 }
@@ -229,7 +240,8 @@ function sensitivity(value: string | null): MemorySearchCandidateV1['sensitivity
 }
 
 function memorySummary(row: MemorySearchRow): string {
-  const value = row.source_excerpt?.trim() || jsonText(row.sections_jsonb) || `${row.type}: ${row.title}`;
+  const value =
+    row.source_excerpt?.trim() || jsonText(row.sections_jsonb) || `${row.type}: ${row.title}`;
   return value.slice(0, 2_000);
 }
 
