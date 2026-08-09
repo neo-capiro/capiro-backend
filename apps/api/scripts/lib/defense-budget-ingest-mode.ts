@@ -1,10 +1,17 @@
 /**
  * Safety posture for the generalized defense-budget PDF command.
  *
- * Phase A freezes canonical writes until the project-wide USD-millions contract
- * is repaired and independently verified. The absence of a posture flag is the
- * safest possible mode: local/S3-name preflight only, with no network or DB I/O.
+ * Phase A made the absence of a posture flag the safest possible mode: local /
+ * S3-name preflight only, with no network or DB I/O. Phase 7 adds a second,
+ * independent boundary: even an exact-SHA `--commit` is a legacy canonical
+ * write and is refused by default. Direct invocation must obey the same kill
+ * switch as the dispatcher.
  */
+import {
+  assertLegacyBudgetWriteGateForLoaderV1,
+  type LegacyBudgetWriteGateRuntimeV1,
+} from './pe-exact-sha-loader-contract.js';
+
 export type DefenseBudgetIngestPosture = 'preflight' | 'extract_only' | 'commit';
 
 const EXTRACT_ONLY = '--extract-only';
@@ -18,6 +25,7 @@ const COMMIT = '--commit';
  */
 export function resolveDefenseBudgetIngestPosture(
   argv: readonly string[],
+  runtime: LegacyBudgetWriteGateRuntimeV1 = {},
 ): DefenseBudgetIngestPosture {
   const extractOnly = argv.includes(EXTRACT_ONLY);
   const dryRunAlias = argv.includes(DRY_RUN);
@@ -30,7 +38,13 @@ export function resolveDefenseBudgetIngestPosture(
     );
   }
 
-  if (commit) return 'commit';
+  if (commit) {
+    assertLegacyBudgetWriteGateForLoaderV1(argv, {
+      verb: runtime.verb ?? 'ingest-defense-budget',
+      environment: runtime.environment,
+    });
+    return 'commit';
+  }
   if (extractOnly || dryRunAlias) return 'extract_only';
   return 'preflight';
 }
