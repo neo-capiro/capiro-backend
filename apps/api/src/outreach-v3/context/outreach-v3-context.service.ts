@@ -57,6 +57,7 @@ export class OutreachV3ContextService {
   ): Promise<CapabilityResult<SearchMemoryDataV1>> {
     const campaign = await this.sessions.getSession(ctx, sessionId);
     assertScopeAllowed(campaign.spec, input.scope);
+    assertClientContextAllowed(campaign.spec, input.clientId);
     return this.execute<SearchMemoryDataV1>(
       'search_memory',
       this.capabilityContext(ctx, sessionId, input.clientId),
@@ -85,6 +86,7 @@ export class OutreachV3ContextService {
   ): Promise<CapabilityResult<GetDocumentDataV1>> {
     const campaign = await this.sessions.getSession(ctx, sessionId);
     assertScopeAllowed(campaign.spec, input.scope);
+    assertClientContextAllowed(campaign.spec, input.clientId);
     return this.execute<GetDocumentDataV1>(
       'get_document',
       this.capabilityContext(ctx, sessionId, input.clientId),
@@ -192,6 +194,18 @@ function assertScopeAllowed(spec: OutreachCampaignSpecV1, scope: OutreachContext
       'OUTREACH_CONTEXT_INVALID_SCOPE',
       'Target-scoped context must reference a selected campaign target.',
       422,
+    );
+  }
+}
+
+function assertClientContextAllowed(spec: OutreachCampaignSpecV1, clientId: string | null): void {
+  if (!clientId) return;
+  if (singleSponsorClient(spec) !== clientId) {
+    // Same non-leaking result for wrong sponsor, wrong client, or unavailable client.
+    throw new OutreachCommandError(
+      'OUTREACH_CONTEXT_NOT_FOUND',
+      'The requested context was not found in the authorized campaign scope.',
+      404,
     );
   }
 }
