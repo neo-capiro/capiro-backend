@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { TenantContext } from '@capiro/shared';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import type { CapabilityDefinition, CapabilityRuntimeSchema } from '../capability-definition.js';
+import { CapabilityError } from '../capability-errors.js';
 import { assertCapabilityResult, type CapabilityResult } from '../capability-result.js';
 import {
   outreachContextScopeV1Schema,
@@ -57,7 +58,7 @@ export class GetDocumentCapability {
     return {
       name: 'get_document',
       description:
-        'Inspect one authorized Capiro document as a bounded governed-context candidate without exposing raw S3 credentials or unrestricted file bytes.',
+        'Inspect one authorized Capiro document as a bounded governed-context candidate without exposing raw S3 credentials or unrestricted file bytes. A null client scope resolves tenant-neutral documents only.',
       version: 1,
       readOnly: true,
       riskClass: 'read',
@@ -79,8 +80,20 @@ export class GetDocumentCapability {
     rawInput: GetDocumentInput,
   ): Promise<CapabilityResult<GetDocumentDataV1>> {
     const input = inputSchemaZod.parse(rawInput);
+    const inheritedClientId = ctx.clientScope?.clientId ?? null;
+    if (inheritedClientId && input.clientId && inheritedClientId !== input.clientId) {
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested document scope does not match the authorized client scope.',
+      );
+    }
+    const effectiveClientId = input.clientId ?? inheritedClientId;
     const selection = outreachContextSelectionV1Schema.parse({
-      locator: { source: 'document', id: input.documentId, clientId: input.clientId },
+      locator: {
+        source: 'document',
+        id: input.documentId,
+        clientId: effectiveClientId,
+      },
       contextClass: input.intendedClass,
       scope: input.scope,
     });
