@@ -189,6 +189,22 @@ function wsUrl(sessionId: string, ticket: string): string {
   )}&ticket=${encodeURIComponent(ticket)}`;
 }
 
+/**
+ * A displayable speaker for a segment, or null.
+ *
+ * Diarization hands back bare indices ("0", "1"), which the old inline
+ * "0: text" form buried but the v3 row promotes to a heading — where a lone
+ * "0" reads as a rendering fault. Resolved names win; a bare index becomes
+ * "Speaker N"; anything else is passed through.
+ */
+function speakerName(s: LiveSegment): string | null {
+  const resolved = s.resolvedSpeakerName?.trim();
+  if (resolved) return resolved;
+  const label = s.speakerLabel?.trim();
+  if (!label) return null;
+  return /^\d+$/.test(label) ? `Speaker ${label}` : label;
+}
+
 /** Offset within the hearing as mm:ss (or h:mm:ss past an hour). */
 function fmtClock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -249,7 +265,7 @@ export function TranscriptList({
    * so those are not rendered rather than guessed.
    */
   const renderSegment = (s: LiveSegment) => {
-    const speaker = s.resolvedSpeakerName ?? s.speakerLabel;
+    const speaker = speakerName(s);
     return (
       <div className="lw-seg" key={s.id || `${s.startMs}:${s.endMs}`}>
         <div className="lw-seg-time">{fmtClock(s.startMs)}</div>
