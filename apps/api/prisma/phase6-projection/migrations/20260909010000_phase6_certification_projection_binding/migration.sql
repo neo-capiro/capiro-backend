@@ -104,6 +104,19 @@ CREATE TRIGGER phase6_cert_projection_immutable_truncate_trg
 BEFORE TRUNCATE ON phase6_cycle_certification_projection
 FOR EACH STATEMENT EXECUTE FUNCTION phase6_certification_projection_immutable();
 
+-- The ordinary application role owns Phase 6 audit persistence and Phase 7
+-- read-only planning. It needs to insert the new association, but never mutate
+-- an existing binding. The immutable triggers above are the binding control;
+-- explicit privileges keep the intended surface reviewable instead of relying
+-- on whatever ALTER DEFAULT PRIVILEGES happened to exist in an environment.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
+    GRANT SELECT, INSERT ON phase6_cycle_certification_projection TO capiro_app;
+    REVOKE UPDATE, DELETE, TRUNCATE ON phase6_cycle_certification_projection FROM capiro_app;
+  END IF;
+END $$;
+
 -- Phase 7 execution reloads all three Phase 6 evidence tables under the
 -- dedicated promoter role. This migration belongs to the separate Phase 6
 -- chain, so capiro_pe_promoter may or may not exist yet depending on migration
