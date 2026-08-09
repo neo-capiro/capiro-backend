@@ -20,6 +20,7 @@ export type EngagementExternalAction =
   | 'outreach_generate'
   | 'outreach_send'
   | 'outreach_test_send'
+  | 'outreach_reasoning'
   | 'meeting_prep_generate'
   | 'meeting_debrief_generate'
   | 'integration_oauth_start'
