@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import type { CapabilityDefinition, CapabilityRuntimeSchema } from '../capability-definition.js';
+import { CapabilityError } from '../capability-errors.js';
 import { assertCapabilityResult, type CapabilityResult } from '../capability-result.js';
 import {
   outreachTargetLocatorV1Schema,
@@ -95,12 +96,22 @@ export class AnalyzeRelationshipsCapability {
   ): Promise<CapabilityResult<AnalyzeRelationshipsDataV1>> {
     const input = inputSchemaZod.parse(rawInput);
     if (ctx.clientScope && ctx.clientScope.clientId !== input.clientId) {
-      throw new Error('The requested client does not match the authorized relationship scope.');
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested relationship scope is not authorized.',
+        false,
+        true,
+      );
     }
     await this.authorization.authorizeClient(ctx, input.clientId);
     const target = await this.targetResolver.resolveOne(toTenantContext(ctx), input.targetRef);
     if (target.clientId && target.clientId !== input.clientId) {
-      throw new Error('The target belongs to a different authorized client scope.');
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested target is not available in the authorized client scope.',
+        false,
+        true,
+      );
     }
 
     const email = target.email?.toLowerCase() ?? null;
@@ -238,12 +249,20 @@ export class AnalyzeRelationshipsCapability {
           lastVerifiedAt: lastInteractionAt,
           retrievedAt,
           verificationClass: 'first_party',
-          classification: 'derived',
+          classification: 'inference',
         },
       ],
       exclusions: [
-        { category: 'message_bodies', reasonCode: 'not_required_for_relationship_metadata', count: 1 },
-        { category: 'private_notes', reasonCode: 'requires_governed_context_phase', count: 1 },
+        {
+          category: 'message_bodies',
+          reasonCode: 'not_required_for_relationship_metadata',
+          count: 1,
+        },
+        {
+          category: 'private_notes',
+          reasonCode: 'requires_governed_context_phase',
+          count: 1,
+        },
       ],
       scope: { tenantId: ctx.tenantId, clientId: input.clientId },
       freshness: {
@@ -326,12 +345,8 @@ function toTenantContext(ctx: AuthorizedCapabilityContext): TenantContext {
   return {
     tenantId: ctx.tenantId,
     tenantSlug: ctx.tenantSlug ?? '',
-    clerkOrgId: '',
     userId: ctx.actorUserId,
     clerkUserId: ctx.clerkUserId ?? '',
     role: ctx.role as TenantContext['role'],
-    plan: undefined,
-    impersonationSessionId: ctx.impersonation?.sessionId,
-    impersonatedByUserId: ctx.impersonation?.actorUserId,
   };
 }
