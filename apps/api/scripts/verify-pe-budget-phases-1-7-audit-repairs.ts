@@ -150,7 +150,10 @@ for (const step of steps) {
     cwd: step.cwd ?? REPO_ROOT,
     stdio: 'inherit',
     shell: step.shell === true,
-    timeout: step.timeoutMs ?? 60 * 60 * 1000,
+    // Phase 3/4/5 --include-containers regularly exceed 60m on Windows Docker
+    // (layout/ocr image builds alone). Outer step cap must outlive nested
+    // closeouts or the chain dies with ETIMEDOUT after otherwise-green work.
+    timeout: step.timeoutMs ?? 4 * 60 * 60 * 1000,
     env,
   });
   if (result.error) {
