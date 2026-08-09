@@ -20,6 +20,7 @@ const reasoningSpecs = [
   'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning-turn-claim.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-contract-eval.spec.ts',
 ];
 
 const steps = [
@@ -30,7 +31,7 @@ const steps = [
     { DATABASE_URL: DUMMY_DATABASE_URL },
   ],
   [
-    'Phase 3 focused reasoning/runtime tests',
+    'Phase 3 focused reasoning/runtime tests + 100-case contract eval',
     'pnpm',
     ['-C', 'apps/api', 'exec', 'jest', '--runInBand', '--forceExit', ...reasoningSpecs],
   ],
