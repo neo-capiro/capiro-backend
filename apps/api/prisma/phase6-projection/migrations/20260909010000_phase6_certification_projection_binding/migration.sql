@@ -24,6 +24,8 @@ BEGIN
           AND projection_set_sha256 ~ '^[0-9a-f]{64}$'
           AND projection_count IS NOT NULL
           AND projection_count >= 0
+          AND report_jsonb->>'projectionSetSha256' = projection_set_sha256
+          AND (report_jsonb->>'projectionCount')::integer = projection_count
         )
       );
   END IF;
@@ -49,6 +51,33 @@ CREATE TABLE IF NOT EXISTS phase6_cycle_certification_projection (
 
 CREATE INDEX IF NOT EXISTS phase6_cert_projection_projection_idx
   ON phase6_cycle_certification_projection(projection_id);
+
+-- A historical unbound certification cannot be retrofitted with guessed row
+-- bindings. Only a newly generated certification carrying its exact set hash
+-- and count may receive association rows.
+CREATE OR REPLACE FUNCTION phase6_certification_projection_requires_bound_cert()
+RETURNS trigger AS $$
+DECLARE
+  parent_hash char(64);
+  parent_count integer;
+BEGIN
+  SELECT projection_set_sha256, projection_count
+    INTO parent_hash, parent_count
+    FROM phase6_cycle_certification
+   WHERE content_sha256 = NEW.certification_content_sha256;
+
+  IF parent_hash IS NULL OR parent_count IS NULL THEN
+    RAISE EXCEPTION 'phase6 certification predates exact projection-set binding';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS phase6_cert_projection_requires_bound_cert_trg
+  ON phase6_cycle_certification_projection;
+CREATE TRIGGER phase6_cert_projection_requires_bound_cert_trg
+BEFORE INSERT ON phase6_cycle_certification_projection
+FOR EACH ROW EXECUTE FUNCTION phase6_certification_projection_requires_bound_cert();
 
 CREATE OR REPLACE FUNCTION phase6_certification_projection_immutable()
 RETURNS trigger AS $$
