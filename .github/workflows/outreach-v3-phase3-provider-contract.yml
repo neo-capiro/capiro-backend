@@ -1,0 +1,36 @@
+name: outreach-v3-phase3-provider-contract
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p3-reasoning-gateway
+  pull_request:
+    branches:
+      - main
+      - agent/outreach-v3-p2-campaign-state-command-engine
+    paths:
+      - 'apps/api/src/outreach-v3/reasoning/**'
+      - 'scripts/verify-outreach-v3-phase3-provider-contract.mjs'
+      - '.github/workflows/outreach-v3-phase3-provider-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  provider-contract:
+    name: Stateless OpenAI reasoning provider contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Provider contract
+        run: node scripts/verify-outreach-v3-phase3-provider-contract.mjs
