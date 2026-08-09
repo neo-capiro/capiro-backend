@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "runtime": "engagement-api",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
+  "featureFlag": "OUTREACH_V3_TARGETS_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/targets/coverage",
+      "handler": "coverage"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/targets/profile",
+      "handler": "profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/targets/relationships",
+      "handler": "relationships"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/targets/search",
+      "handler": "search"
+    }
+  ]
+}
