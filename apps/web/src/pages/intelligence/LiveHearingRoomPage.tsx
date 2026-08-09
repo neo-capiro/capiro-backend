@@ -189,6 +189,16 @@ function wsUrl(sessionId: string, ticket: string): string {
   )}&ticket=${encodeURIComponent(ticket)}`;
 }
 
+/** Offset within the hearing as mm:ss (or h:mm:ss past an hour). */
+function fmtClock(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const mm = `${m}`.padStart(h ? 2 : 1, '0');
+  return `${h ? `${h}:` : ''}${mm}:${`${s}`.padStart(2, '0')}`;
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error(timeoutMessage)), ms);
@@ -232,17 +242,24 @@ export function TranscriptList({
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [segments.length, interim]);
-  const renderSegment = (s: LiveSegment) => (
-    <Paragraph key={s.id || `${s.startMs}:${s.endMs}`} style={{ marginBottom: 8 }}>
-      {(s.resolvedSpeakerName || s.speakerLabel) && (
-        <Text strong>{s.resolvedSpeakerName ?? s.speakerLabel}: </Text>
-      )}
-      <Text>{s.text}</Text>{' '}
-      <Text type="secondary" style={{ fontSize: 11 }}>
-        [{Math.floor(s.startMs / 1000)}s]
-      </Text>
-    </Paragraph>
-  );
+  /**
+   * v3 segment row: offset gutter, then speaker over the utterance. The mockup
+   * also carries a matched-term chip and client tags per segment; watchlist
+   * matches are stored with a startMs but no endpoint returns them per segment,
+   * so those are not rendered rather than guessed.
+   */
+  const renderSegment = (s: LiveSegment) => {
+    const speaker = s.resolvedSpeakerName ?? s.speakerLabel;
+    return (
+      <div className="lw-seg" key={s.id || `${s.startMs}:${s.endMs}`}>
+        <div className="lw-seg-time">{fmtClock(s.startMs)}</div>
+        <div className="lw-seg-main">
+          {speaker && <div className="lw-seg-speaker">{speaker}</div>}
+          <div className="lw-seg-text">{s.text}</div>
+        </div>
+      </div>
+    );
+  };
   return (
     <div
       ref={parentRef}
@@ -277,9 +294,12 @@ export function TranscriptList({
         segments.map(renderSegment)
       )}
       {interim ? (
-        <Paragraph style={{ marginBottom: 8, opacity: 0.6 }}>
-          <Text italic>{interim}</Text>
-        </Paragraph>
+        <div className="lw-seg interim">
+          <div className="lw-seg-time">live</div>
+          <div className="lw-seg-main">
+            <div className="lw-seg-text">{interim}</div>
+          </div>
+        </div>
       ) : null}
       <div ref={endRef} />
     </div>
@@ -844,7 +864,15 @@ export function LiveHearingRoomPage() {
       <div className="lw-room-grid">
         <div className="lw-room-col">
       {(embeddableUrl || referenceUrl) && (
-        <Card size="small" title="Hearing source">
+        <div className="lw-panel">
+          <div className="lw-panel-head">
+            <h3>Hearing source</h3>
+            <span className="grow" style={{ flex: 1 }} />
+            {session.data?.audioSource && (
+              <span className="lw-panel-meta">{session.data.audioSource}</span>
+            )}
+          </div>
+          <div className="lw-panel-body">
           {embeddableUrl ? (
             <>
               <MediaPlayer src={embeddableUrl} />
@@ -890,11 +918,25 @@ export function LiveHearingRoomPage() {
               </Button>
             </>
           )}
-        </Card>
+          </div>
+        </div>
       )}
 
-      <Card size="small" title="Capture">
-        <Space direction="vertical" size={6}>
+      <div className="lw-panel">
+        <div className="lw-panel-head">
+          <h3>Capture</h3>
+          <span className="grow" style={{ flex: 1 }} />
+          {captureActive && (
+            <span className="lw-pill ok">
+              <span className="pdot" />
+              Transcribing
+            </span>
+          )}
+        </div>
+        <div className="lw-panel-body">
+          <div className="lw-panel-meta" style={{ marginBottom: 8 }}>
+            {captureActive ? `This tab · ${RECORDER_MIME.replace(';codecs=', ' · ')}` : 'Not capturing'}
+          </div>
           <Tooltip title={phase !== 'connected' ? 'Connect first.' : undefined}>
             <span>
               <Button
@@ -907,71 +949,106 @@ export function LiveHearingRoomPage() {
               </Button>
             </span>
           </Tooltip>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
             Choose the browser tab playing the hearing and enable Share tab audio. Chrome or Edge is
             required.
           </Text>
-          {statusText && <Badge status="processing" text={statusText} />}
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            Uploaded {(bytesSent / 1024 / 1024).toFixed(2)} MB
-            {lastTranscriptAt
-              ? ` · last transcript ${Math.max(0, Math.round((Date.now() - lastTranscriptAt) / 1000))}s ago`
-              : ''}
-          </Text>
-        </Space>
-      </Card>
+          {statusText && (
+            <div style={{ marginTop: 8 }}>
+              <Badge status="processing" text={statusText} />
+            </div>
+          )}
+          {/* The mockup shows a dropped-frame count next to the byte total;
+              MediaRecorder gives us bytes but nothing tracks dropped frames. */}
+          <div className="lw-panel-meta" style={{ marginTop: 8 }}>
+            {(bytesSent / 1024 / 1024).toFixed(2)} MB uploaded
+          </div>
+        </div>
+      </div>
 
         </div>
 
         <div className="lw-room-col">
-        <Card title="Live transcript" size="small" style={{ minHeight: 420 }}>
-          {transcript.isLoading && segments.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 24 }}>
-              <Spin />
+          <div className="lw-panel">
+            <div className="lw-panel-head">
+              <h3>Live transcript</h3>
+              <span className="lw-panel-meta">
+                {segments.length} finals{interim ? ' · 1 interim' : ''}
+              </span>
             </div>
-          ) : segments.length === 0 && !interim ? (
-            <Empty
-              description={
-                statusText ??
-                'No transcript yet. Connect, play the hearing, and start transcription.'
-              }
-            />
-          ) : (
-            <TranscriptList segments={segments} interim={interim} />
-          )}
-          {transcript.hasNextPage && (
-            <Button
-              size="small"
-              style={{ marginTop: 8 }}
-              loading={transcript.isFetchingNextPage}
-              onClick={() => void transcript.fetchNextPage()}
-            >
-              Load more transcript
-            </Button>
-          )}
-        </Card>
-
+            {transcript.isLoading && segments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <Spin />
+              </div>
+            ) : segments.length === 0 && !interim ? (
+              <div className="lw-empty">
+                {statusText ??
+                  'No transcript yet. Connect, play the hearing, and start transcription.'}
+              </div>
+            ) : (
+              <div style={{ padding: '0 0 4px' }}>
+                <TranscriptList segments={segments} interim={interim} />
+              </div>
+            )}
+            <div className="lw-panel-foot">
+              {transcript.hasNextPage ? (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={transcript.isFetchingNextPage}
+                  onClick={() => void transcript.fetchNextPage()}
+                >
+                  Load earlier
+                </button>
+              ) : (
+                <span className="lw-panel-meta">Start of transcript</span>
+              )}
+              <span className="grow" style={{ flex: 1 }} />
+              <span className="lw-panel-meta">
+                {segments.length} finals{segments.length > 200 ? ' · virtualized' : ''}
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="lw-room-col intel">
-        <Card title="Live intelligence" size="small" style={{ minHeight: 420 }}>
-          {cards.length === 0 ? (
-            <Empty description="Relevant moments will appear here." />
-          ) : (
-            <div style={{ maxHeight: 560, overflowY: 'auto', margin: '-12px -12px -12px' }}>
-              {cards.map((c) => (
-                <div className="lw-icard" key={c.id}>
-                  <Tag color={cardColor[c.cardType] ?? 'default'}>{c.cardType}</Tag>
-                  <div className="lw-icard-title">{c.title}</div>
-                  {c.body && <div className="lw-icard-body">{c.body}</div>}
-                  {c.startMs != null && (
-                    <div className="lw-icard-at">[{Math.floor(c.startMs / 1000)}s]</div>
-                  )}
-                </div>
-              ))}
+          <div className="lw-panel">
+            <div className="lw-panel-head">
+              <h3>Live intelligence</h3>
+              <span className="lw-panel-meta">
+                {cards.length} {cards.length === 1 ? 'moment' : 'moments'}
+              </span>
             </div>
-          )}
-        </Card>
+            {/* The mockup has MOMENTS / ACTIONS / ENTITIES tabs. Only moments
+                exist: there is no live action-rule engine and no entity
+                extraction on the hearing path, so a tab strip here would be two
+                tabs that can never fill. */}
+            {cards.length === 0 ? (
+              <div className="lw-empty">Relevant moments will appear here.</div>
+            ) : (
+              <div style={{ maxHeight: 620, overflowY: 'auto' }}>
+                {cards.map((c) => (
+                  <div
+                    className={c.cardType === 'watchlist_match' ? 'lw-icard match' : 'lw-icard'}
+                    key={c.id}
+                  >
+                    <div className="lw-icard-top">
+                      <span className="lw-icard-kind">
+                        <span className="pdot" />
+                        {c.cardType.replace(/_/g, ' ')}
+                      </span>
+                      <span className="grow" style={{ flex: 1 }} />
+                      {c.startMs != null && (
+                        <span className="lw-icard-at">{fmtClock(c.startMs)}</span>
+                      )}
+                    </div>
+                    <div className="lw-icard-title">{c.title}</div>
+                    {c.body && <div className="lw-icard-body">{c.body}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

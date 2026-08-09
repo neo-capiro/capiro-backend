@@ -559,3 +559,154 @@
   .lw-root .lw-room-grid { grid-template-columns: 1fr; }
   .lw-root .lw-room-col.intel { grid-column: auto; }
 }
+
+/* ── Room: panels, pills, transcript segments, intel cards ───
+   Custom markup replacing antd Card so the room matches node 395:2.
+   Panels are 12px widget surfaces with a 42px head. */
+.lw-root .lw-panel {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  box-shadow: var(--capiro-elevation-widget);
+  overflow: hidden;
+}
+
+.lw-root .lw-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+}
+
+.lw-root .lw-panel-head h3 {
+  margin: 0;
+  font-size: var(--capiro-type-size-heading-sub);
+  line-height: var(--capiro-type-line-heading-sub);
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-panel-meta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: var(--capiro-type-line-meta-code);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-panel-body { padding: 13px; }
+.lw-root .lw-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-top: 1px solid var(--capiro-color-border-default);
+}
+
+/* Pills in the room header. */
+.lw-root .lw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--capiro-status-badge-height);
+  padding: 0 9px;
+  border-radius: var(--capiro-radius-technical);
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+  white-space: nowrap;
+}
+
+.lw-root .lw-pill .pdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lw-root .lw-pill.live {
+  background: var(--capiro-color-text-destructive);
+  border-color: var(--capiro-color-text-destructive);
+  color: #fff;
+}
+.lw-root .lw-pill.ok { color: var(--capiro-color-text-success); }
+
+/* Transcript segment. */
+.lw-root .lw-seg {
+  display: flex;
+  gap: 12px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-left: 2px solid transparent;
+}
+
+.lw-root .lw-seg:last-child { border-bottom: 0; }
+.lw-root .lw-seg.hit {
+  background: var(--capiro-color-bg-review);
+  border-left-color: var(--capiro-color-text-destructive);
+}
+
+.lw-root .lw-seg-time {
+  flex: none;
+  width: 44px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-code);
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-seg-main { flex: 1; min-width: 0; }
+
+.lw-root .lw-seg-speaker {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: 16.9px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-seg-role {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.lw-root .lw-seg-text {
+  margin-top: 6px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-primary);
+}
+
+.lw-root .lw-seg.interim .lw-seg-text { color: var(--capiro-color-text-muted); font-style: italic; }
+
+/* Intelligence card detail. */
+.lw-root .lw-icard-top { display: flex; align-items: center; gap: 8px; }
+.lw-root .lw-icard-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-meta-label);
+  line-height: var(--capiro-type-line-meta-label);
+  font-weight: 500;
+  letter-spacing: var(--capiro-type-tracking-meta-label);
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+.lw-root .lw-icard-kind .pdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lw-root .lw-icard.match { background: var(--capiro-color-bg-review); border-left: 2px solid var(--capiro-color-text-destructive); }
+.lw-root .lw-icard.match .lw-icard-kind { color: var(--capiro-color-text-destructive); }
+
+/* Empty state that keeps a panel at the mockup shape without inventing data. */
+.lw-root .lw-empty {
+  padding: 18px 13px;
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-muted);
+  text-align: center;
+}
