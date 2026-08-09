@@ -184,7 +184,7 @@ describe('OutreachCommandProposalService', () => {
     await expect(harness.service.applyProposal(ctx, session.id, proposalId)).rejects.toMatchObject({
       code: 'OUTREACH_PROPOSAL_STALE',
       httpStatus: 409,
-      details: { currentStateVersion: 2 },
+      safeMetadata: { currentStateVersion: 2 },
     } satisfies Partial<OutreachCommandError>);
     expect(harness.tx.$executeRaw).not.toHaveBeenCalled();
     expect(harness.applyBatchWithinTx).not.toHaveBeenCalled();

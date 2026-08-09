@@ -18,7 +18,7 @@ export interface CapabilityCatalogEntry {
   outreachConsumer: boolean;
 }
 
-export const CAPIRO_CAPABILITY_CATALOG: readonly CapabilityCatalogEntry[] = [
+export const CAPIRO_CAPABILITY_CATALOG: readonly CapabilityCatalogEntry[] = ([
   ['search_capiro', 'contract_only', 'search'],
   ['get_capiro_record', 'implemented', 'capabilities/records'],
   ['get_client_context', 'implemented', 'capabilities/clients'],
@@ -28,7 +28,7 @@ export const CAPIRO_CAPABILITY_CATALOG: readonly CapabilityCatalogEntry[] = [
   ['get_recent_activity', 'implemented', 'capabilities/activity'],
   ['search_targets', 'contract_only', 'targets'],
   ['get_target_profile', 'contract_only', 'targets'],
-].map(([name, status, domainOwner]) => ({
+] as readonly [string, CapabilityCatalogStatus, string][]).map(([name, status, domainOwner]) => ({
   name,
   status: status as CapabilityCatalogStatus,
   domainOwner,

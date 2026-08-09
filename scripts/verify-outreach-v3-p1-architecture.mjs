@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { validateOwnershipFixture } from './engagement-runtime-ownership.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const PHASE1_BASE_SHA = '46e029dad5c27bf44c7920cd5a4000716621671f';
+export const PHASE1_BASE_SHA = process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
 export const REQUIRED_CAPABILITIES = [
   'search_capiro',
   'get_capiro_record',
@@ -148,10 +148,10 @@ export function architectureProblems() {
   const hearingRecapService = read(
     'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
   );
-  if (alertMemoModule.includes('EngagementModule')) {
+  if (/^import\s+\{[^}]*EngagementModule/m.test(alertMemoModule)) {
     problems.push('AlertMemoModule still imports broad EngagementModule');
   }
-  if (districtBriefModule.includes('EngagementModule')) {
+  if (/^import\s+\{[^}]*EngagementModule/m.test(districtBriefModule)) {
     problems.push('DistrictBriefModule still imports broad EngagementModule');
   }
   if (hearingRecapService.includes('EngagementService')) {

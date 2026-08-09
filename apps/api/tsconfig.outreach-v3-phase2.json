@@ -1,17 +1,1 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "noEmit": true,
-    "incremental": false
-  },
-  "include": [
-    "src/outreach-v3/**/*.ts",
-    "src/capabilities/capability-authorization.service.ts",
-    "src/capabilities/capabilities.module.ts",
-    "src/engagement-api.app.module.ts",
-    "scripts/outreach-v3-phase2-flow-rehearsal.ts",
-    "scripts/outreach-v3-phase2-delete-protection-rehearsal.ts"
-  ],
-  "exclude": ["node_modules", "dist"]
-}
+{"compilerOptions": {"declaration": false, "declarationMap": false, "incremental": false, "noEmit": true, "rootDir": "."}, "exclude": ["node_modules", "dist"], "extends": "./tsconfig.json", "include": ["src/outreach-v3/**/*.ts", "src/capabilities/capability-authorization.service.ts", "src/capabilities/capabilities.module.ts", "src/engagement-api.app.module.ts", "scripts/outreach-v3-phase2-flow-rehearsal.ts", "scripts/outreach-v3-phase2-delete-protection-rehearsal.ts"]}

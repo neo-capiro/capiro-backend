@@ -78,6 +78,23 @@ export class OutreachCommandEngineService {
     const session =
       options.prelockedSession ?? (await this.repository.lockOwnedSession(tx, ctx, sessionId));
 
+    // P2-INT-002: Explicit scope assertion for prelocked sessions before
+    // idempotency/state access. Mismatch fails closed as OUTREACH_STATE_CORRUPT.
+    if (options.prelockedSession) {
+      const locked = options.prelockedSession;
+      if (
+        locked.id !== sessionId ||
+        locked.tenantId !== ctx.tenantId ||
+        locked.createdByUserId !== ctx.userId
+      ) {
+        throw new OutreachCommandError(
+          'OUTREACH_STATE_CORRUPT',
+          'The prelocked session does not match the requested scope.',
+          500,
+        );
+      }
+    }
+
     // The session lock serializes both idempotency lookup and expected-version
     // comparison. A concurrent retry waits, then sees the committed result.
     const prior = await this.repository.findBatchResult(tx, ctx, sessionId, batch.batchId);
@@ -215,7 +232,7 @@ export class OutreachCommandEngineService {
       stateVersionAfter: nextVersion,
       commandBatchId: batch.batchId,
       payloadHash: batchHash,
-      safeMetadata: result,
+      safeMetadata: result as unknown as Record<string, unknown>,
     });
 
     return result;
