@@ -1905,9 +1905,55 @@ jobs:
       # "+33 tests" were understated by 3. The floor asserted at that time was
       # already 2528, because P40's alias guard (PR #854) added 3 tests after
       # that prose was written. The floor was right; the prose was stale.
+      #
+      # 82/2564 -> 83/2598 after P41 part 1: one NEW file, dibbs-relevance.spec.ts
+      # (34 tests), picked up by the existing src/funding-opportunities/ glob — no
+      # new path needed here, same as forecast-relevance.spec.ts at P25.
+      #
+      # SIX of those 34 are a review regression worth naming, because the bug was
+      # invisible to the other 28. `closesDate` is a DATE anchored at UTC midnight
+      # and `asOf` is a real clock, so differencing the raw INSTANTS made a bid
+      # closing TODAY come out at floor(-0.5) = -1 at any time past midnight:
+      # isClosed returned true and the item was passed on its final biddable day.
+      # Production passes new Date(), which is essentially never midnight, so this
+      # would have fired on every same-day close. The original tests missed it
+      # because their asOf was exactly midnight — the one clock value that makes
+      # the instant arithmetic accidentally correct. The comparison is now by
+      # calendar day, and the regression cases all use a MID-DAY clock.
+      #
+      # Generalisable, and the reason this is spelled out: a fixture whose clock
+      # is midnight cannot test date arithmetic. Pick an awkward time on purpose.
+      #
+      # What it proves, and the part worth not re-deriving: THREE OF P41'S FIVE
+      # SPECIFIED SIGNALS CANNOT FIRE, for structural reasons on one side or the
+      # other. No model in this schema stores a client's reviewed NSNs or part
+      # numbers, so the plan's designated STRONGEST signal (exact part/NSN) has
+      # nothing to match against; tango_dibbs_solicitation carries no PSC or NAICS
+      # column, so that signal has nothing on the provider side; and nothing stores
+      # a client's DLA buyer history. Prior CAGE award history is the only signal
+      # that can independently qualify an item today, and capability text is
+      # forbidden by the phase's own acceptance from clearing the floor alone.
+      #
+      # So the suite pins the ABSENCE as much as the behaviour: the part/NSN gap is
+      # reported as `no_client_parts_recorded` on every rule path and is never
+      # itself a reason code, because an absence of data is not evidence. The
+      # dormant signals are declared and passed false rather than fed a lookalike
+      # — the AwardHistoryFacts.contractOffices mistake, whose own comment records
+      # that feeding an office signal the awarding sub-tier produced a signal that
+      # fired on the wrong fact.
+      #
+      # Also pinned structurally: awards cannot reach the scorer, because
+      # DibbsRelevanceInput.documentType admits only 'rfq' | 'rfp' and the award
+      # path returns an object with no field a Pursue could occupy — asserted by
+      # its exact key set, not by checking a value.
+      #
+      # Measured on this branch: 83 suites / 2598 passed, zero failures, zero
+      # skips, zero todo. The api typecheck baseline did NOT move — still 12
+      # pre-existing errors (defense-budget, memory, meri), none in
+      # funding-opportunities code.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 82 2564
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 83 2598
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -2112,9 +2158,33 @@ jobs:
       # stack merge (#813), not this phase. The floor below is raised to reflect
       # the real added test count regardless; it does not and cannot make this
       # step report green until Engagement's own regression is fixed.
+      # (That leak was later found to be OURS and fixed — see the completion
+      # matrix's 2026-08-08 correction. This scope now measures 0 failures.)
+      #
+      # 109/412 -> 117/440 after P41 part 1: one NEW file,
+      # DibbsOpportunityCard.test.tsx (26 tests across 5 blocks) — the bid-board
+      # card, the informational award row, and the two pure formatters. Asserted
+      # against RENDERED TEXT, not props, because the failure being guarded is a
+      # formatter turning a null into a falsy-coalesced 0 on the way to the
+      # screen: an unscored item says "Not scored yet" while a genuine 0 still
+      # renders 0; a null award price never becomes $0; an RFP's absent quantity
+      # names the document type rather than reporting a source gap.
+      #
+      # PART OF THIS RAISE IS PRE-EXISTING SLACK, and saying so is the point.
+      # Measured on this branch: 117/441. This file contributes 5 blocks and 27
+      # tests, so the actual on main was already 112/414 — above the 109/412
+      # floor it was carrying. The floor is a MINIMUM, so that drift was silent
+      # and legal. It is closed here rather than left, because a floor sitting
+      # below the actual cannot detect the next deletion.
+      #
+      # The 27th test is a review regression: an award whose numeric price exists
+      # but whose display text is null rendered an EMPTY slot between two
+      # separators. The card receives only the text, so it is the fallback in both
+      # branches now. A gap in the middle of a line reads as a rendering fault,
+      # not as a fact about the source — the same confusion P49's em dash caused.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 109 412
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 117 441
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`
