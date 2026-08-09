@@ -10,14 +10,50 @@ import { OutreachCommandError } from './outreach-command-errors.js';
 import {
   deriveOutreachReadiness,
   PHASE2_OUTREACH_FEATURE_AVAILABILITY,
+  PHASE4_OUTREACH_FEATURE_AVAILABILITY,
 } from './outreach-readiness.contract.js';
 import {
   assertOutreachCommandRegistry,
   OUTREACH_COMMAND_REGISTRY,
 } from '../commands/outreach-command-registry.js';
+import {
+  createManualTargetLocator,
+  createResolvedTargetRefV1,
+} from '../../capabilities/targets/outreach-target.contract.js';
 
 const command = (type: string, payload: unknown) =>
   parseOutreachCommandEnvelope({ type, schemaVersion: 1, payload });
+
+function manualTarget() {
+  const locator = createManualTargetLocator({
+    id: '00000000-0000-4000-8000-000000000099',
+    name: 'Alex Example',
+    email: 'alex@example.test',
+    title: 'Policy Director',
+    organization: 'Example Office',
+  });
+  return createResolvedTargetRefV1({
+    locator,
+    displayName: locator.name,
+    email: locator.email,
+    phone: locator.phone,
+    title: locator.title,
+    organization: locator.organization,
+    clientId: null,
+    jurisdiction: {
+      governmentLevel: 'unknown',
+      chamber: null,
+      state: null,
+      district: null,
+      committees: [],
+      issueAreas: [],
+    },
+    roleStatus: 'unknown',
+    emailStatus: 'available',
+    profileStatus: 'limited',
+    sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
+  });
+}
 
 describe('Outreach V3 Phase 2 campaign state', () => {
   it('creates the exact deterministic no-client blank state', () => {
@@ -60,13 +96,20 @@ describe('Outreach V3 Phase 2 campaign state', () => {
     ]);
   });
 
-  it('rejects unknown spec keys and non-empty future-owned reference arrays', () => {
+  it('accepts canonical target snapshots while keeping future context arrays closed', () => {
     const blank = createBlankCampaignSpecV1();
+    const target = manualTarget();
+    expect(() =>
+      parseCampaignSpecV1({
+        ...blank,
+        targeting: { ...blank.targeting, selectedTargetRefs: [target] },
+      }),
+    ).not.toThrow();
     expect(() => parseCampaignSpecV1({ ...blank, wizardStep: 3 })).toThrow();
     expect(() =>
       parseCampaignSpecV1({
         ...blank,
-        targeting: { ...blank.targeting, selectedTargetRefs: [{ targetId: 'future' }] },
+        context: { ...blank.context, campaignFactRefs: ['future'] },
       }),
     ).toThrow();
   });
@@ -95,6 +138,16 @@ describe('Outreach V3 Phase 2 campaign state', () => {
     expect(OUTREACH_COMMAND_REGISTRY.some((entry) => entry.type.includes('SEND_EMAIL_NOW'))).toBe(
       false,
     );
+    for (const targetCommand of [
+      'ADD_TARGET_REFS',
+      'REMOVE_TARGET_REFS',
+      'REJECT_TARGET_RECOMMENDATION',
+    ]) {
+      expect(OUTREACH_COMMAND_REGISTRY.find((entry) => entry.type === targetCommand)).toMatchObject({
+        status: 'implemented',
+        phaseOwner: 'target_context',
+      });
+    }
   });
 
   it('applies core commands without mutating unrelated state', () => {
@@ -109,6 +162,25 @@ describe('Outreach V3 Phase 2 campaign state', () => {
       command('SET_OBJECTIVE', { value: 'Secure committee support' }),
     );
     expect(objective.nextSpec.goal.objective).toBe('Secure committee support');
+  });
+
+  it('adds and removes only server-resolved target snapshots', () => {
+    const blank = createBlankCampaignSpecV1();
+    const target = manualTarget();
+    const locator = target.locator;
+    const add = reduceOutreachCommand(blank, {
+      ...command('ADD_TARGET_REFS', { refs: [locator] }),
+      resolvedTargetRefs: [target],
+    });
+    expect(add.nextSpec.targeting.selectedTargetRefs).toEqual([target]);
+    expect(() =>
+      reduceOutreachCommand(blank, command('ADD_TARGET_REFS', { refs: [locator] })),
+    ).toThrow(OutreachCommandError);
+    const remove = reduceOutreachCommand(
+      add.nextSpec,
+      command('REMOVE_TARGET_REFS', { targetKeys: [target.targetKey] }),
+    );
+    expect(remove.nextSpec.targeting.selectedTargetRefs).toEqual([]);
   });
 
   it('detects deterministic no-op commands', () => {
@@ -171,5 +243,26 @@ describe('Outreach V3 Phase 2 campaign state', () => {
       'DRAFTS_NOT_AVAILABLE',
       'PREFLIGHT_NOT_AVAILABLE',
     ]);
+  });
+
+  it('derives Phase 4 target readiness from selected canonical target snapshots', () => {
+    const spec = createBlankCampaignSpecV1();
+    spec.targeting.criteria = {
+      notes: null,
+      governmentLevels: ['federal'],
+      chambers: [],
+      committees: [],
+      agencies: [],
+      states: [],
+      relationshipPreference: 'any',
+      includeStaff: false,
+      includePrincipals: true,
+    };
+    spec.targeting.selectedTargetRefs = [manualTarget()];
+    const readiness = deriveOutreachReadiness(spec, PHASE4_OUTREACH_FEATURE_AVAILABILITY);
+    expect(readiness.targetCriteriaReady).toBe(true);
+    expect(readiness.targetsReady).toBe(true);
+    expect(readiness.blockers).not.toContain('TARGETS_NOT_IMPLEMENTED_YET');
+    expect(readiness.blockers).not.toContain('TARGETS_MISSING');
   });
 });
