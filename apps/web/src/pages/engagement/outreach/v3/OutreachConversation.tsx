@@ -44,7 +44,7 @@ export interface OutreachConversationProps {
   unavailableMessage?: string | null;
   sending: boolean;
   onSend: (message: string) => Promise<unknown>;
-  onRetry?: () => void;
+  onRetry: () => void | Promise<void>;
 }
 
 export function OutreachConversation({
@@ -55,7 +55,7 @@ export function OutreachConversation({
   unavailableMessage,
   sending,
   onSend,
-  onRetry = () => window.location.reload(),
+  onRetry,
 }: OutreachConversationProps) {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -144,7 +144,11 @@ export function OutreachConversation({
                 {unavailableMessage ??
                   'Campaign state is safe. Use the deterministic controls to continue.'}
               </p>
-              <button type="button" className="ov3-button is-secondary" onClick={onRetry}>
+              <button
+                type="button"
+                className="ov3-button is-secondary"
+                onClick={() => void onRetry()}
+              >
                 <RotateCcw size={15} aria-hidden="true" />
                 Retry reasoning
               </button>
