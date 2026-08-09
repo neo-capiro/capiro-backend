@@ -78,6 +78,8 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
       'search_targets',
       'get_target_profile',
       'analyze_relationships',
+      'analyze_target_coverage',
+      'find_similar_targets',
     ]) {
       expect(tools).toContain(`'${allowed}'`);
     }
