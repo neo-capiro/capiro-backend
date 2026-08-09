@@ -7,6 +7,8 @@ import { GetCapiroRecordCapability } from './records/get-capiro-record.capabilit
 import { SearchTargetsCapability } from './targets/search-targets.capability.js';
 import { GetTargetProfileCapability } from './targets/get-target-profile.capability.js';
 import { AnalyzeRelationshipsCapability } from './targets/analyze-relationships.capability.js';
+import { AnalyzeTargetCoverageCapability } from './targets/analyze-target-coverage.capability.js';
+import { FindSimilarTargetsCapability } from './targets/find-similar-targets.capability.js';
 
 @Injectable()
 export class CapiroCapabilityCatalogService implements OnModuleInit {
@@ -18,6 +20,8 @@ export class CapiroCapabilityCatalogService implements OnModuleInit {
     private readonly searchTargets: SearchTargetsCapability,
     private readonly getTargetProfile: GetTargetProfileCapability,
     private readonly analyzeRelationships: AnalyzeRelationshipsCapability,
+    private readonly analyzeTargetCoverage: AnalyzeTargetCoverageCapability,
+    private readonly findSimilarTargets: FindSimilarTargetsCapability,
   ) {}
 
   onModuleInit(): void {
@@ -27,6 +31,8 @@ export class CapiroCapabilityCatalogService implements OnModuleInit {
     this.registry.register(this.searchTargets.definition());
     this.registry.register(this.getTargetProfile.definition());
     this.registry.register(this.analyzeRelationships.definition());
+    this.registry.register(this.analyzeTargetCoverage.definition());
+    this.registry.register(this.findSimilarTargets.definition());
   }
 
   list() {
