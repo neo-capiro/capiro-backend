@@ -24,10 +24,10 @@ export const CAPIRO_CAPABILITY_CATALOG: readonly CapabilityCatalogEntry[] = ([
   ['get_client_context', 'implemented', 'capabilities/clients'],
   ['search_memory', 'contract_only', 'memory'],
   ['research_government', 'contract_only', 'government-research'],
-  ['analyze_relationships', 'contract_only', 'relationships'],
+  ['analyze_relationships', 'implemented', 'capabilities/targets'],
   ['get_recent_activity', 'implemented', 'capabilities/activity'],
-  ['search_targets', 'contract_only', 'targets'],
-  ['get_target_profile', 'contract_only', 'targets'],
+  ['search_targets', 'implemented', 'capabilities/targets'],
+  ['get_target_profile', 'implemented', 'capabilities/targets'],
 ] as readonly [string, CapabilityCatalogStatus, string][]).map(([name, status, domainOwner]) => ({
   name,
   status: status as CapabilityCatalogStatus,
