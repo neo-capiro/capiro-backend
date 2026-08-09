@@ -1,0 +1,116 @@
+name: outreach-v3-phase3
+
+on:
+  push:
+    branches:
+      - agent/outreach-v3-p3-reasoning-gateway
+  pull_request:
+    branches:
+      - main
+      - agent/outreach-v3-p2-campaign-state-command-engine
+    paths:
+      - 'apps/api/src/outreach-v3/**'
+      - 'apps/api/src/ai-credentials/**'
+      - 'apps/api/src/engagement/runtime/**'
+      - 'apps/api/src/engagement-api.app.module.ts'
+      - 'apps/api/prisma/migrations/20261001012000_outreach_v3_reasoning_conversations/**'
+      - 'apps/api/prisma/migrations/20261001012100_outreach_v3_reasoning_turn_claim/**'
+      - 'apps/api/prisma/migrations/20261001012200_outreach_v3_reasoning_archive_claim_cleanup/**'
+      - 'apps/api/prisma/outreach-v3-phase3/**'
+      - 'apps/api/tsconfig.outreach-v3-phase3.json'
+      - 'apps/api/scripts/outreach-v3-phase3-live-eval.ts'
+      - 'scripts/*outreach-v3-phase3*'
+      - 'docs/contracts/outreach-v3-reasoning-v1.md'
+      - 'docs/plans/outreach-v3/revised-phase-3-*'
+      - 'docs/runbooks/outreach-v3-reasoning-*'
+      - 'package.json'
+      - '.github/workflows/outreach-v3-phase3.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outreach-v3-phase3-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-free:
+    name: Revised Phase 3 DB-free + regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Revised Phase 3 DB-free gate
+        run: pnpm verify:outreach-v3-phase-3
+
+  disposable-postgres:
+    name: Revised Phase 3 disposable PostgreSQL acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql --version
+
+      - name: Generate canonical Prisma client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
+        run: pnpm -C apps/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Fresh + ordered-upgrade Phase 3 DB rehearsal
+        run: pnpm verify:outreach-v3-phase-3:db
+
+  # Intentionally no live OpenAI eval here. The 100-turn provider eval consumes
+  # credentials/cost and is an explicit acceptance action with a retained artifact.
