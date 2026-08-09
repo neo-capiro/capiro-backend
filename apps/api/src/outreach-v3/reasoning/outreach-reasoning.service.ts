@@ -41,7 +41,6 @@ export class OutreachReasoningService {
   ) {}
 
   async createConversation(ctx: TenantContext, sessionId: string) {
-    // Owner/session validation comes from the canonical Phase 2 service first.
     const campaign = await this.campaignContext.loadCampaignContext(ctx, sessionId);
     const stateMode = configuredStateMode();
     const reasoningEffort = configuredReasoningEffort();
@@ -177,18 +176,27 @@ export class OutreachReasoningService {
         }
       }
 
-      const proposalIds: string[] = [];
-      if (providerResult.proposedCommands.length > 0) {
-        const proposal = await this.proposals.createModelProposal(ctx, conversation.sessionId, {
-          expectedStateVersion: inspectedStateVersion,
-          commands: providerResult.proposedCommands,
-        });
-        proposalIds.push(proposal.id);
-      }
-
       const assistantMessageHash = hashVisibleText(providerResult.assistantMessage);
       const latencyMs = Date.now() - started;
+      const proposalIds: string[] = [];
+
+      // This is the only post-provider write transaction. If campaign state moved
+      // while the model was thinking, model proposal creation throws a Phase 2
+      // version conflict and the visible turn/proposal/event all roll back together.
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        if (providerResult.proposedCommands.length > 0) {
+          const proposal = await this.proposals.createModelProposalWithinTx(
+            tx,
+            ctx,
+            conversation!.sessionId,
+            {
+              expectedStateVersion: inspectedStateVersion,
+              commands: providerResult.proposedCommands,
+            },
+          );
+          proposalIds.push(proposal.id);
+        }
+
         const currentConversation = await this.repository.getOwnedConversation(
           tx,
           ctx,
@@ -256,8 +264,7 @@ export class OutreachReasoningService {
             });
           });
         } catch {
-          // Failure-audit persistence is best-effort only after the authoritative
-          // state/proposal operation has already failed. Never mask the safe error.
+          // Never mask the safe user-facing failure with secondary audit trouble.
         }
       }
       throw normalized;
@@ -327,15 +334,14 @@ function boundTranscript(turns: ReasoningTranscriptTurn[]): ReasoningTranscriptT
 function normalizeReasoningFailure(error: unknown): OutreachReasoningError {
   if (error instanceof OutreachReasoningError) return error;
   if (error instanceof OutreachCommandError) {
+    const conflict = error.code === 'OUTREACH_STATE_CONFLICT';
     return new OutreachReasoningError(
-      error.code === 'OUTREACH_STATE_CONFLICT'
-        ? 'OUTREACH_REASONING_OUTPUT_INVALID'
-        : 'OUTREACH_REASONING_OUTPUT_INVALID',
-      error.code === 'OUTREACH_STATE_CONFLICT'
+      'OUTREACH_REASONING_OUTPUT_INVALID',
+      conflict
         ? 'The campaign changed while the reasoning turn was running. Retry against the current state.'
         : 'The proposed campaign change could not be persisted safely.',
-      error.code === 'OUTREACH_STATE_CONFLICT' ? 409 : 502,
-      error.code === 'OUTREACH_STATE_CONFLICT',
+      conflict ? 409 : 502,
+      conflict,
       error.safeMetadata,
     );
   }
