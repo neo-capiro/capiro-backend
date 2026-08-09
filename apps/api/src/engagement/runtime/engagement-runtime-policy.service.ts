@@ -83,8 +83,9 @@ export class EngagementRuntimePolicyService {
    * Check whether an external action is allowed without throwing.
    *
    * `outreach_reasoning` is special in every mode: it can run only in the
-   * existing engagement-api process and only when its own strict feature gate
-   * is true. A globally-active main API must never gain reasoning authority.
+   * existing engagement-api process and only when BOTH the Phase 2 canonical
+   * state substrate and the Phase 3 reasoning surface are explicitly enabled.
+   * A globally-active main API must never gain reasoning authority.
    *
    * Other rules:
    *   enabled    → all other registered actions
@@ -98,6 +99,7 @@ export class EngagementRuntimePolicyService {
     if (action === 'outreach_reasoning') {
       return (
         this.serviceName === 'engagement-api' &&
+        process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
         process.env.OUTREACH_V3_REASONING_ENABLED === 'true'
       );
     }
