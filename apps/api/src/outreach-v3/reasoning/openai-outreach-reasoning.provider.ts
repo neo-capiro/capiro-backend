@@ -29,8 +29,7 @@ type OpenAiOutputItem =
       type: 'message';
       role?: string;
       content?: Array<{ type?: string; text?: string }>;
-    }
-  | Record<string, unknown>;
+    };
 
 interface OpenAiResponse {
   id?: string;
@@ -101,7 +100,10 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
   }
 
   async respond(input: ReasoningProviderRequest): Promise<ReasoningTurnResult> {
-    const credential = await this.credentials.resolveProvider(input.ctx, 'openai');
+    const credential = await this.credentials.resolveProviderForOutreachReasoning(
+      input.ctx,
+      'openai',
+    );
     if (!credential) {
       throw new OutreachReasoningError(
         'OUTREACH_REASONING_PROVIDER_UNAVAILABLE',
@@ -223,8 +225,6 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
         previousResponseId = finalResponseId;
         capiroManagedInput = toolOutputs;
       } else {
-        // With provider storage disabled, preserve the provider's visible/tool-call
-        // output explicitly in the next request instead of relying on response IDs.
         capiroManagedInput = [
           ...capiroManagedInput,
           ...(response.output ?? []),
@@ -246,7 +246,9 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
   }
 
   private initialCapiroManagedInput(input: ReasoningProviderRequest): unknown[] {
-    if (input.stateMode === 'provider_state') return [{ role: 'user', content: input.userMessage }];
+    if (input.stateMode === 'provider_state') {
+      return [{ role: 'user', content: input.userMessage }];
+    }
     return [
       ...input.recentTranscript.map((turn) => ({ role: turn.role, content: turn.text })),
       { role: 'user', content: input.userMessage },
@@ -330,7 +332,9 @@ function extractOutputText(response: OpenAiResponse): string {
 function parseFinalPayload(text: string): ProviderFinalPayload {
   try {
     const parsed = JSON.parse(text) as ProviderFinalPayload;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not object');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('not object');
+    }
     return parsed;
   } catch {
     throw new OutreachReasoningError(
