@@ -1,0 +1,47 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { VNEXT_ROUTE_GAPS, VNEXT_ROUTE_MANIFEST } from './adapters/routes/routeManifest.js';
+
+const cssFiles = [
+  './foundations/tokens.css',
+  './foundations/reset.css',
+  './foundations/typography.css',
+  './foundations/elevation.css',
+  './foundations/responsive.css',
+  './components/primitives.css',
+  './shell/shell.css',
+];
+
+describe('vNext foundation contract', () => {
+  it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
+    for (const path of cssFiles) {
+      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      expect(css).toContain('.capiro-vnext-root');
+      expect(css).not.toMatch(/(^|\n)\s*(body|html)\b/);
+      expect(css).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
+    }
+  });
+
+  it('uses existing shell destinations and keeps unresolved directory routes explicit', () => {
+    expect(VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'dashboard')?.path).toBe('/');
+    expect(VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio')?.path).toBe('/clients');
+    expect(VNEXT_ROUTE_GAPS.map((route) => route.id)).toEqual([
+      'congressional-staff',
+      'committee-staff',
+      'department-of-war',
+    ]);
+    expect(VNEXT_ROUTE_GAPS.every((route) => route.path === null)).toBe(true);
+  });
+
+  it('injects WEB_SURFACE only through the isolated WebVNext stack and exposes release identity', () => {
+    const stack = readFileSync(
+      new URL('../../../../infra/cdk/lib/web-vnext-stack.ts', import.meta.url),
+      'utf8',
+    );
+    const entrypoint = readFileSync(new URL('../../nginx/entrypoint.sh', import.meta.url), 'utf8');
+    expect(stack).toContain("WEB_SURFACE: 'vnext'");
+    expect(stack).toContain('CAPIRO_WEB_RELEASE_SHA: props.releaseSha');
+    expect(entrypoint).toContain("webSurface: '${WEB_SURFACE_VALUE}'");
+    expect(entrypoint).toContain("releaseSha: '${WEB_RELEASE_SHA}'");
+  });
+});
