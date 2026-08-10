@@ -11,6 +11,11 @@ export interface VNextRouteDefinition {
   note?: string;
 }
 
+export interface VNextRouteVisibilityContext {
+  featureFlags?: Readonly<Record<string, boolean | undefined>>;
+  meFeatures?: Readonly<Record<string, boolean | undefined>>;
+}
+
 /**
  * vNext navigation contract mapped to routes that already exist in App.tsx.
  * Gaps stay explicit; this file never invents replacement URLs or redirects.
@@ -97,3 +102,24 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
 
 export const VNEXT_ROUTE_GAPS = VNEXT_ROUTE_MANIFEST.flatMap((route) => route.children ?? [])
   .filter((route) => route.availability === 'gap');
+
+/**
+ * Applies the same deny-by-default feature-gate behavior used by the canonical
+ * shell. The result is presentation metadata only; registered routes and API
+ * authorization remain authoritative and are never recreated here.
+ */
+export function visibleVNextRoutes(
+  routes: readonly VNextRouteDefinition[],
+  context: VNextRouteVisibilityContext,
+): VNextRouteDefinition[] {
+  return routes.flatMap((route) => {
+    if (route.featureFlag && !context.featureFlags?.[route.featureFlag]) return [];
+    if (route.meFeature && !context.meFeatures?.[route.meFeature]) return [];
+
+    const children = route.children
+      ? visibleVNextRoutes(route.children, context)
+      : undefined;
+
+    return [{ ...route, ...(children ? { children } : {}) }];
+  });
+}
