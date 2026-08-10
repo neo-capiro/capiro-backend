@@ -555,8 +555,8 @@ async function main(): Promise<void> {
         (plan_id, plan_hash, eligibility_hash, mapping_registry_version, mapping_registry_hash,
          cycle_id, fiscal_year, scope, scope_hash, mode, expected_active_snapshot_id,
          proposed_snapshot_id, item_count, blocked_count, plan_document)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11,
-              $12, $13, 0, $14::jsonb)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::uuid,
+              $12::uuid, $13, 0, $14::jsonb)`,
       driftedPlanId,
       planHash,
       eligibilityHash,
@@ -567,6 +567,8 @@ async function main(): Promise<void> {
       scopeJson,
       scopeHash,
       'baseline_hydration',
+      // Explicit ::uuid: Prisma $executeRawUnsafe binds JS strings as text,
+      // and Postgres will not coerce text → uuid for this column without a cast.
       '11111111-1111-1111-1111-111111111111',
       String(first.report.proposedSnapshotId),
       counts.total,
