@@ -29,7 +29,7 @@
 }
 
 .capiro-vnext-root .capiro-vnext-topbar__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--capiro-color-bg-interactive-primary); color: #fff; font-size: 17px; font-weight: 600; }
+.capiro-vnext-root .capiro-vnext-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--capiro-color-bg-interactive-primary); color: var(--capiro-color-text-inverse-primary); font-size: 17px; font-weight: 600; }
 .capiro-vnext-root .capiro-vnext-brand-copy { display: grid; gap: 0; }
 .capiro-vnext-root .capiro-vnext-brand-name { font-size: 16px; font-weight: 600; line-height: 20px; }
 .capiro-vnext-root .capiro-vnext-brand-meta { font-family: var(--capiro-type-family-mono); font-size: 8.5px; line-height: 12px; color: var(--capiro-color-text-muted); letter-spacing: .05em; text-transform: uppercase; }
@@ -60,7 +60,7 @@
 .capiro-vnext-root .capiro-vnext-sidebar--collapsed { width: var(--capiro-layout-shell-sidebar-collapsed); }
 .capiro-vnext-root .capiro-vnext-sidebar__label { padding: 0 6px 4px; font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-muted); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
 .capiro-vnext-root .capiro-vnext-nav-item { min-height: var(--capiro-layout-shell-nav-item-height); display: flex; align-items: center; gap: 10px; padding: 0 8px; border-radius: var(--capiro-radius-navigation); color: var(--capiro-color-text-secondary); font-size: 13px; }
-.capiro-vnext-root .capiro-vnext-nav-item:hover { background: rgba(255, 255, 255, .55); }
+.capiro-vnext-root .capiro-vnext-nav-item:hover { background: var(--capiro-color-bg-navigation-hover); }
 .capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'] { background: var(--capiro-color-shell-nav-current-bg); color: var(--capiro-color-text-accent); font-weight: 500; }
 .capiro-vnext-root .capiro-vnext-sidebar__footer { margin-top: auto; display: grid; gap: 6px; }
 
@@ -80,7 +80,7 @@
 .capiro-vnext-root .capiro-mailbox-status[data-state='syncing'] .capiro-mailbox-status__indicator { background: var(--capiro-color-info); }
 
 .capiro-vnext-root .capiro-vnext-content { grid-area: content; min-width: 0; min-height: 0; overflow: auto; background: var(--capiro-color-bg-canvas); }
-.capiro-vnext-root .capiro-vnext-foundation-banner { margin: 12px 16px 0; padding: 8px 10px; border: 1px dashed var(--capiro-color-border-default); border-radius: 8px; background: rgba(255,255,255,.6); font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-muted); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.capiro-vnext-root .capiro-vnext-foundation-banner { margin: 12px 16px 0; padding: 8px 10px; border: 1px dashed var(--capiro-color-border-default); border-radius: 8px; background: var(--capiro-color-bg-foundation-banner); font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-muted); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 
 @media (max-width: 1023px) {
   .capiro-vnext-root .capiro-vnext-shell { grid-template-columns: var(--capiro-layout-shell-sidebar-collapsed) minmax(0, 1fr); }
