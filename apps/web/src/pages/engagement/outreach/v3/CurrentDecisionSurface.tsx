@@ -344,6 +344,7 @@ export function CurrentDecisionSurface(props: CurrentDecisionSurfaceProps) {
   if (proposal) {
     return <ProposalSurface {...props} proposal={proposal} />;
   }
-  const { onSelectStage: _onSelectStage, ...decisionProps } = props;
+  const { onSelectStage, ...decisionProps } = props;
+  void onSelectStage;
   return <DecisionSurfaces {...decisionProps} pendingProposals={[]} />;
 }
