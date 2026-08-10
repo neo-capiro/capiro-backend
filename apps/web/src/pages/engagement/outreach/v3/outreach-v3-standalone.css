@@ -1,0 +1,843 @@
+/*
+ * Outreach V3 standalone visual contract.
+ *
+ * The standalone prototype is authoritative for layout: one workbench, a
+ * collapsible Campaign Brief, six user-visible stages, and one conversation
+ * bar docked beneath the work instead of a permanent chat column.
+ */
+
+.ov3-root--standalone {
+  --ov3-canvas: #f4f2ec;
+  --ov3-surface: #ffffff;
+  --ov3-subtle: #f8f6f1;
+  --ov3-selected: #f4f7fe;
+  --ov3-ink: #15161a;
+  --ov3-secondary: #4f525a;
+  --ov3-muted: #8a8780;
+  --ov3-accent: #2a57ce;
+  --ov3-cobalt: #2a57ce;
+  --ov3-navy: #0c1a38;
+  --ov3-border: #e6e1d6;
+  --ov3-border-quiet: #efe9dc;
+  --ov3-border-strong: #c9c4b8;
+  --ov3-success: #2e6b43;
+  --ov3-warning: #a26913;
+  --ov3-danger: #b5301b;
+  background: var(--ov3-canvas);
+  border-color: var(--ov3-border);
+  border-radius: 18px;
+  box-shadow: 0 22px 72px -46px rgba(12, 26, 56, 0.34);
+  color: var(--ov3-ink);
+  font-family: "Hanken Grotesk", "Instrument Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: min(920px, calc(100dvh - 142px));
+}
+
+.ov3-root--standalone .ov3-eyebrow,
+.ov3-root--standalone .ov3-section-label,
+.ov3-root--standalone .ov3-version,
+.ov3-root--standalone .ov3-panel-footer > span,
+.ov3-root--standalone .ov3-save-state,
+.ov3-root--standalone .ov3-detail-list dt,
+.ov3-root--standalone .ov3-target-card__meta,
+.ov3-root--standalone .ov3-context-card__scope,
+.ov3-root--standalone .ov3-proposal-list code,
+.ov3-root--standalone .ov3-stage-rail small,
+.ov3-root--standalone .ov3-future-grid article > span,
+.ov3-root--standalone .ov3-dock-footnote,
+.ov3-root--standalone .ov3-docked-composer__scope {
+  font-family: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.ov3-root--standalone .ov3-toolbar {
+  background: var(--ov3-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f5f2eb;
+  min-height: 62px;
+  padding: 9px 15px;
+}
+
+.ov3-root--standalone .ov3-toolbar h1,
+.ov3-root--standalone .ov3-toolbar .ov3-eyebrow {
+  color: #f5f2eb;
+}
+
+.ov3-root--standalone .ov3-toolbar .ov3-eyebrow {
+  opacity: 0.72;
+}
+
+.ov3-root--standalone .ov3-toolbar__mark {
+  background: #2a57ce;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.72);
+}
+
+.ov3-root--standalone .ov3-toolbar__context {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ov3-root--standalone .ov3-toolbar__context > span {
+  color: #f5f2eb;
+}
+
+.ov3-root--standalone .ov3-toolbar__context > span + span {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.ov3-root--standalone .ov3-toolbar__context small,
+.ov3-root--standalone .ov3-save-state {
+  color: rgba(245, 242, 235, 0.62);
+}
+
+.ov3-root--standalone .ov3-toolbar .ov3-button.is-quiet,
+.ov3-root--standalone .ov3-toolbar .ov3-icon-button {
+  color: rgba(245, 242, 235, 0.8);
+}
+
+.ov3-root--standalone .ov3-toolbar .ov3-button.is-quiet:hover:not(:disabled),
+.ov3-root--standalone .ov3-toolbar .ov3-icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.ov3-root--standalone .ov3-toolbar .ov3-button.is-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #f5f2eb;
+}
+
+.ov3-root--standalone .ov3-toolbar .ov3-button.is-primary {
+  background: #f5f2eb;
+  border-color: #f5f2eb;
+  color: var(--ov3-navy);
+}
+
+/* Six thin user-visible stages. Internal checkpoints remain backend-owned. */
+.ov3-root--standalone .ov3-stage-rail--six {
+  background: #fff;
+  border-bottom-color: var(--ov3-border);
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  min-height: 54px;
+  padding: 0 18px;
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  gap: 8px;
+  justify-content: center;
+  min-height: 54px;
+  padding: 7px 10px;
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button + button {
+  border-left: 1px solid var(--ov3-border-quiet);
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button.is-current,
+.ov3-root--standalone .ov3-stage-rail--six button.is-selected {
+  background: #fff;
+  border-bottom-color: var(--ov3-cobalt);
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button.is-complete {
+  background: #fbfaf7;
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button.is-future {
+  background: #fbfaf7;
+  color: var(--ov3-muted);
+}
+
+.ov3-root--standalone .ov3-stage-rail__index {
+  background: #f3efe7;
+  border: 1px solid var(--ov3-border);
+  height: 24px;
+  width: 24px;
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button.is-current .ov3-stage-rail__index,
+.ov3-root--standalone .ov3-stage-rail--six button.is-selected .ov3-stage-rail__index {
+  background: var(--ov3-navy);
+  border-color: var(--ov3-navy);
+}
+
+.ov3-root--standalone .ov3-stage-rail--six button.is-complete .ov3-stage-rail__index {
+  background: #ddebdE;
+  border-color: #bdd4c3;
+  color: var(--ov3-success);
+}
+
+.ov3-root--standalone .ov3-stage-rail--six strong {
+  font-size: 12px;
+}
+
+.ov3-root--standalone .ov3-review-banner {
+  background: #f4f7fe;
+  border-bottom-color: #cbd9f4;
+  color: #244aa9;
+}
+
+/* Canonical one-workbench layout. */
+.ov3-workbench {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.ov3-workbench__surface {
+  flex: 1 1 auto;
+  margin: 0 auto;
+  max-width: 1092px;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px 18px;
+  scrollbar-gutter: stable;
+  width: 100%;
+}
+
+.ov3-workbench__surface > .ov3-decision-panel {
+  min-height: 100%;
+}
+
+.ov3-root--standalone .ov3-decision-panel,
+.ov3-root--standalone .ov3-target-workspace {
+  background: #fff;
+  border-color: var(--ov3-border);
+  border-radius: 14px;
+  box-shadow: 0 16px 38px -34px rgba(12, 26, 56, 0.5);
+}
+
+/* Campaign brief: a one-line strip with an expandable canonical projection. */
+.ov3-brief-strip {
+  background: #fff;
+  border-bottom: 1px solid var(--ov3-border);
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+}
+
+.ov3-brief-strip__toggle {
+  align-items: center;
+  background: #fff;
+  border: 0;
+  color: var(--ov3-ink);
+  cursor: pointer;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, auto) minmax(0, 1fr) auto auto;
+  margin: 0 auto;
+  max-width: 1092px;
+  min-height: 46px;
+  padding: 7px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.ov3-brief-strip__toggle:hover {
+  background: #fbfaf7;
+}
+
+.ov3-brief-strip__identity {
+  min-width: 0;
+}
+
+.ov3-brief-strip__identity strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov3-brief-strip__summary {
+  color: var(--ov3-secondary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov3-brief-strip__health {
+  align-items: center;
+  border: 1px solid var(--ov3-border);
+  border-radius: 999px;
+  color: var(--ov3-muted);
+  display: inline-flex;
+  font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+  font-size: 9px;
+  gap: 5px;
+  padding: 5px 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ov3-brief-strip__health.is-clear {
+  border-color: #bfd7c5;
+  color: var(--ov3-success);
+}
+
+.ov3-brief-strip__health.is-blocked {
+  border-color: #e0cda3;
+  color: var(--ov3-warning);
+}
+
+.ov3-brief-strip__body {
+  background: #fbfaf7;
+  border-top: 1px solid var(--ov3-border-quiet);
+  margin: 0 auto;
+  max-width: 1092px;
+  padding: 12px 16px 15px;
+}
+
+.ov3-brief-strip__help {
+  color: var(--ov3-muted);
+  font-size: 11px;
+  margin: 0 0 10px;
+}
+
+.ov3-brief-strip__rows {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ov3-brief-strip__rows > div {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--ov3-border-quiet);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 92px minmax(0, 1fr) 18px auto;
+  margin: -1px 0 0 -1px;
+  min-height: 42px;
+  padding: 7px 9px;
+}
+
+.ov3-brief-strip__rows dt {
+  color: var(--ov3-muted);
+  font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ov3-brief-strip__rows dd {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov3-brief-strip__state {
+  color: var(--ov3-warning);
+}
+
+.ov3-brief-strip__rows .is-ready .ov3-brief-strip__state {
+  color: var(--ov3-success);
+}
+
+.ov3-brief-strip__edit {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ov3-accent);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 10px;
+  gap: 4px;
+  padding: 4px;
+}
+
+/* One docked conversation bar. */
+.ov3-conversation-dock {
+  background: #f4f2ec;
+  border-top: 1px solid var(--ov3-border);
+  box-shadow: 0 -18px 40px -36px rgba(12, 26, 56, 0.7);
+  flex: 0 0 auto;
+  padding: 10px 16px 8px;
+  position: relative;
+  z-index: 12;
+}
+
+.ov3-live-turn,
+.ov3-docked-composer,
+.ov3-dock-suggestions,
+.ov3-dock-footnote {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1092px;
+  width: 100%;
+}
+
+.ov3-live-turn {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--ov3-border);
+  border-radius: 12px 12px 0 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 54px;
+  padding: 8px 10px;
+}
+
+.ov3-live-turn.is-warning {
+  border-color: #dfc99a;
+}
+
+.ov3-live-turn__identity {
+  align-items: center;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.ov3-live-turn__mark {
+  align-items: center;
+  background: var(--ov3-navy);
+  border-radius: 9px;
+  color: #f5f2eb;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.ov3-live-turn.is-warning .ov3-live-turn__mark {
+  background: #f4e5c3;
+  color: var(--ov3-warning);
+}
+
+.ov3-live-turn__identity p {
+  color: var(--ov3-ink);
+  font-size: 12px;
+  line-height: 1.42;
+  margin-top: 2px;
+  max-width: 780px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov3-live-turn__actions {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+}
+
+.ov3-history-toggle {
+  min-height: 32px;
+}
+
+.ov3-dock-suggestions {
+  background: #fff;
+  border-left: 1px solid var(--ov3-border);
+  border-right: 1px solid var(--ov3-border);
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 6px 10px 0;
+}
+
+.ov3-dock-suggestions button {
+  background: #f8f6f1;
+  border: 1px solid var(--ov3-border);
+  border-radius: 999px;
+  color: var(--ov3-secondary);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.ov3-dock-suggestions button:hover {
+  border-color: #b7c6e8;
+  color: var(--ov3-accent);
+}
+
+.ov3-docked-composer {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--ov3-border);
+  border-radius: 0 0 12px 12px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(220px, 1fr) auto auto;
+  min-height: 52px;
+  padding: 7px 8px;
+}
+
+.ov3-docked-composer textarea {
+  background: transparent;
+  border: 0;
+  color: var(--ov3-ink);
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 92px;
+  min-height: 34px;
+  outline: none;
+  padding: 8px 5px;
+  resize: none;
+  width: 100%;
+}
+
+.ov3-docked-composer textarea::placeholder {
+  color: #a6a198;
+}
+
+.ov3-docked-composer__scope {
+  align-items: center;
+  color: var(--ov3-muted);
+  display: flex;
+  font-size: 8px;
+  gap: 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ov3-docked-composer__scope span + span::before {
+  content: "·";
+  margin-right: 6px;
+}
+
+.ov3-root--standalone .ov3-send-button {
+  background: var(--ov3-cobalt);
+  border-radius: 999px;
+}
+
+.ov3-dock-footnote {
+  color: var(--ov3-muted);
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  padding: 5px 4px 0;
+  text-align: center;
+}
+
+.ov3-conversation-history {
+  background: rgba(244, 242, 236, 0.98);
+  border: 1px solid var(--ov3-border);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  bottom: calc(100% - 2px);
+  box-shadow: 0 -24px 68px -30px rgba(12, 26, 56, 0.42);
+  left: 50%;
+  max-height: min(58vh, 560px);
+  max-width: 1092px;
+  overflow: hidden;
+  position: absolute;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  z-index: 30;
+}
+
+.ov3-conversation-history__header {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid var(--ov3-border);
+  display: flex;
+  justify-content: space-between;
+  min-height: 50px;
+  padding: 8px 11px 8px 14px;
+}
+
+.ov3-conversation-history__header h3 {
+  font-size: 13px;
+  margin-top: 1px;
+}
+
+.ov3-conversation-history__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(min(58vh, 560px) - 50px);
+  overflow-y: auto;
+  padding: 12px 14px 16px;
+}
+
+.ov3-history-turn {
+  background: #fff;
+  border: 1px solid var(--ov3-border);
+  border-radius: 10px;
+  max-width: 78%;
+  padding: 9px 11px;
+}
+
+.ov3-history-turn.is-user {
+  align-self: flex-end;
+  background: #f4f7fe;
+  border-color: #cbd9f4;
+}
+
+.ov3-history-turn.is-system {
+  background: #fbfaf7;
+  border-style: dashed;
+  max-width: 90%;
+}
+
+.ov3-history-turn.is-failed {
+  border-color: #e2b5aa;
+}
+
+.ov3-history-turn__meta {
+  align-items: center;
+  color: var(--ov3-muted);
+  display: flex;
+  font-size: 9px;
+  gap: 5px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.ov3-history-turn__meta strong {
+  color: var(--ov3-ink);
+}
+
+.ov3-history-turn__meta span {
+  margin-left: auto;
+}
+
+.ov3-history-turn p {
+  font-size: 11px;
+  line-height: 1.48;
+}
+
+.ov3-history-empty {
+  align-items: center;
+  color: var(--ov3-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  min-height: 180px;
+  text-align: center;
+}
+
+/* Target profile remains a nested right pane inside the target work surface. */
+.ov3-root--standalone .ov3-work-grid.is-targets {
+  grid-template-columns: minmax(0, 1fr) minmax(286px, 0.45fr);
+}
+
+.ov3-root--standalone .ov3-target-inspector {
+  background: #fbfaf7;
+  border-color: var(--ov3-border);
+  box-shadow: -18px 0 40px -42px rgba(12, 26, 56, 0.6);
+}
+
+.ov3-root--standalone .ov3-target-card,
+.ov3-root--standalone .ov3-context-card,
+.ov3-root--standalone .ov3-choice-card,
+.ov3-root--standalone .ov3-inspector,
+.ov3-root--standalone .ov3-coverage-card,
+.ov3-root--standalone .ov3-strategy-card,
+.ov3-root--standalone .ov3-proposal-card {
+  border-color: var(--ov3-border);
+}
+
+.ov3-root--standalone .ov3-choice-card.is-selected,
+.ov3-root--standalone .ov3-target-card.is-selected,
+.ov3-root--standalone .ov3-tab-row button.is-selected,
+.ov3-root--standalone .ov3-segmented button.is-selected {
+  background: #f4f7fe;
+  border-color: var(--ov3-cobalt);
+}
+
+.ov3-root--standalone .ov3-button.is-primary {
+  background: var(--ov3-navy);
+  border-color: var(--ov3-navy);
+  color: #f5f2eb;
+}
+
+.ov3-root--standalone .ov3-button.is-secondary {
+  background: #fff;
+  border-color: var(--ov3-border-strong);
+}
+
+.ov3-root--standalone .ov3-recovery.is-info {
+  background: #f4f7fe;
+  border-color: #cbd9f4;
+  color: #244aa9;
+}
+
+.ov3-root--standalone .ov3-recovery.is-warning {
+  background: #fff9ec;
+  border-color: #dfc99a;
+  color: #8b5a0e;
+}
+
+.ov3-root--standalone .ov3-recovery.is-danger {
+  background: #fff4f1;
+  border-color: #e4b8ad;
+  color: var(--ov3-danger);
+}
+
+@media (max-width: 1280px) {
+  .ov3-root--standalone .ov3-toolbar {
+    grid-template-columns: minmax(240px, 1fr) auto;
+  }
+
+  .ov3-root--standalone .ov3-toolbar__context {
+    display: none;
+  }
+
+  .ov3-root--standalone .ov3-stage-rail--six {
+    padding-inline: 10px;
+  }
+
+  .ov3-workbench__surface,
+  .ov3-brief-strip__toggle,
+  .ov3-brief-strip__body,
+  .ov3-live-turn,
+  .ov3-docked-composer,
+  .ov3-dock-suggestions,
+  .ov3-dock-footnote,
+  .ov3-conversation-history {
+    max-width: none;
+  }
+
+  .ov3-root--standalone .ov3-work-grid.is-targets {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ov3-root--standalone {
+    border-radius: 0;
+    min-height: calc(100dvh - 96px);
+    overflow: auto;
+  }
+
+  .ov3-root--standalone .ov3-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 58px;
+  }
+
+  .ov3-root--standalone .ov3-toolbar__actions .ov3-save-state,
+  .ov3-root--standalone .ov3-toolbar__actions .ov3-button.is-quiet,
+  .ov3-root--standalone .ov3-toolbar__actions .ov3-button.is-secondary,
+  .ov3-root--standalone .ov3-toolbar__actions .ov3-icon-button:last-child {
+    display: none;
+  }
+
+  .ov3-root--standalone .ov3-stage-rail--six {
+    grid-template-columns: repeat(6, minmax(96px, 1fr));
+    min-height: 48px;
+    overflow-x: auto;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 18;
+  }
+
+  .ov3-root--standalone .ov3-stage-rail--six button {
+    min-height: 48px;
+    padding-inline: 8px;
+  }
+
+  .ov3-workbench {
+    overflow: visible;
+  }
+
+  .ov3-brief-strip {
+    order: 0;
+  }
+
+  .ov3-brief-strip__toggle {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    min-height: 44px;
+  }
+
+  .ov3-brief-strip__summary {
+    display: none;
+  }
+
+  .ov3-brief-strip__rows {
+    grid-template-columns: 1fr;
+  }
+
+  .ov3-conversation-dock {
+    border: 1px solid var(--ov3-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px -28px rgba(12, 26, 56, 0.5);
+    margin: 10px 12px 0;
+    order: 1;
+    padding: 8px;
+    position: sticky;
+    top: 49px;
+    z-index: 16;
+  }
+
+  .ov3-live-turn {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .ov3-live-turn__identity p {
+    white-space: normal;
+  }
+
+  .ov3-live-turn__actions {
+    justify-content: flex-end;
+  }
+
+  .ov3-docked-composer {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .ov3-docked-composer__scope {
+    display: none;
+  }
+
+  .ov3-dock-footnote {
+    display: none;
+  }
+
+  .ov3-workbench__surface {
+    max-height: none;
+    order: 2;
+    overflow: visible;
+    padding: 10px 12px 18px;
+  }
+
+  .ov3-conversation-history {
+    bottom: auto;
+    left: 0;
+    max-height: min(62vh, 520px);
+    position: fixed;
+    top: 106px;
+    transform: none;
+    width: 100%;
+    z-index: 70;
+  }
+
+  .ov3-root--standalone .ov3-work-grid.is-targets {
+    grid-template-columns: 1fr;
+  }
+
+  .ov3-root--standalone .ov3-target-inspector {
+    max-height: none;
+    position: static;
+  }
+
+  .ov3-root--standalone .ov3-tab-row {
+    flex-wrap: wrap;
+  }
+
+  .ov3-root--standalone .ov3-button,
+  .ov3-root--standalone .ov3-icon-button,
+  .ov3-root--standalone .ov3-send-button,
+  .ov3-root--standalone .ov3-tab-row button,
+  .ov3-root--standalone .ov3-segmented button {
+    min-height: 44px;
+  }
+}
