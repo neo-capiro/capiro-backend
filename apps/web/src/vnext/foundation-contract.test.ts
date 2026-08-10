@@ -12,6 +12,8 @@ const cssFiles = [
   './shell/shell.css',
 ];
 
+const componentCssFiles = ['./components/primitives.css', './shell/shell.css'];
+
 describe('vNext foundation contract', () => {
   it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
     for (const path of cssFiles) {
@@ -19,6 +21,14 @@ describe('vNext foundation contract', () => {
       expect(css).toContain('.capiro-vnext-root');
       expect(css).not.toMatch(/(^|\n)\s*(body|html)\b/);
       expect(css).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
+    }
+  });
+
+  it('keeps visual color literals in the semantic token layer rather than component CSS', () => {
+    for (const path of componentCssFiles) {
+      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+      expect(css).not.toMatch(/rgba?\s*\(/i);
     }
   });
 
@@ -31,6 +41,15 @@ describe('vNext foundation contract', () => {
       'department-of-war',
     ]);
     expect(VNEXT_ROUTE_GAPS.every((route) => route.path === null)).toBe(true);
+  });
+
+  it('selects vNext lazily after shared billing gates and preserves the canonical AppShell fallback', () => {
+    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+    expect(app).toContain("import('./vnext/app/VNextApp.js')");
+    expect(app).toContain('if (isVNextSurface)');
+    expect(app).toContain('<VNextApp />');
+    expect(app).toContain('return <AppShell />;');
+    expect(app.indexOf('if (isVNextSurface)')).toBeGreaterThan(app.indexOf('if (data?.billingEnabled && data.locked)'));
   });
 
   it('injects WEB_SURFACE only through the isolated WebVNext stack and exposes release identity', () => {
