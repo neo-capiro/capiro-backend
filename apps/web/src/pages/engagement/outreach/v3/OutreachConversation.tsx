@@ -2,10 +2,15 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
   Loader2,
+  MessageSquareText,
   Plus,
   RotateCcw,
   Sparkles,
+  X,
 } from 'lucide-react';
 import type { OutreachV3Stage, OutreachV3TranscriptTurn } from './contracts.js';
 
@@ -47,6 +52,12 @@ export interface OutreachConversationProps {
   onRetry: () => void | Promise<void>;
 }
 
+function turnLabel(turn: OutreachV3TranscriptTurn): string {
+  if (turn.role === 'assistant') return 'Meri';
+  if (turn.role === 'system') return 'Campaign state';
+  return 'You';
+}
+
 export function OutreachConversation({
   title,
   stage,
@@ -58,12 +69,28 @@ export function OutreachConversation({
   onRetry,
 }: OutreachConversationProps) {
   const [message, setMessage] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const suggestions = STAGE_PROMPTS[stage] ?? [];
   const visibleTurns = useMemo(
     () => turns.filter((turn) => turn.text.trim().length > 0),
     [turns],
   );
+  const latestTurn = useMemo(
+    () => visibleTurns[visibleTurns.length - 1],
+    [visibleTurns],
+  );
+  const latestAssistant = useMemo(
+    () => [...visibleTurns].reverse().find((turn) => turn.role === 'assistant'),
+    [visibleTurns],
+  );
+
+  const liveText = unavailable
+    ? unavailableMessage ?? 'Reasoning is temporarily unavailable. Campaign controls remain usable.'
+    : sending
+      ? 'Reviewing the current campaign state and authorized sources…'
+      : latestAssistant?.text ??
+        'Tell me what you want to accomplish. I can structure the campaign, research targets and context, and propose changes for your review.';
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -79,86 +106,81 @@ export function OutreachConversation({
   };
 
   return (
-    <section className="ov3-conversation" aria-label="Outreach conversation">
-      <header className="ov3-conversation__header">
-        <div>
-          <span className="ov3-eyebrow">Outreach conversation</span>
-          <h2>{title}</h2>
-        </div>
-        <span className={`ov3-badge ${unavailable ? 'is-warning' : 'is-info'}`}>
-          <span aria-hidden="true" className="ov3-badge__dot" />
-          {unavailable ? 'Controls active' : 'Meri available'}
-        </span>
-      </header>
-
-      <div className="ov3-conversation__scroll" role="log" aria-live="polite">
-        {visibleTurns.length === 0 && !unavailable ? (
-          <article className="ov3-message is-meri">
-            <div className="ov3-message__meta">
-              <Sparkles size={14} aria-hidden="true" />
-              <strong>Meri</strong>
-              <span>Ready</span>
-            </div>
-            <p>
-              Tell me what you want to accomplish. I can help structure the campaign,
-              research targets and context, and propose changes for your review. Nothing
-              applies automatically.
-            </p>
-          </article>
-        ) : null}
-
-        {visibleTurns.map((turn, index) => (
-          <article
-            key={turn.id ?? `${turn.role}-${index}`}
-            className={`ov3-message is-${turn.role} ${turn.status === 'failed' ? 'is-failed' : ''}`}
-          >
-            <div className="ov3-message__meta">
-              {turn.role === 'assistant' ? <Sparkles size={14} aria-hidden="true" /> : null}
-              {turn.role === 'system' ? <AlertTriangle size={14} aria-hidden="true" /> : null}
-              <strong>
-                {turn.role === 'assistant' ? 'Meri' : turn.role === 'system' ? 'Campaign state' : 'You'}
-              </strong>
-              <span>{turn.status === 'pending' ? 'Working' : turn.status ?? 'Complete'}</span>
-            </div>
-            <p>{turn.text}</p>
-          </article>
-        ))}
-
-        {sending ? (
-          <article className="ov3-message is-meri is-working">
-            <div className="ov3-message__meta">
-              <Loader2 className="ov3-spin" size={14} aria-hidden="true" />
-              <strong>Meri</strong>
-              <span>Reasoning</span>
-            </div>
-            <p>Reviewing the current campaign state and authorized sources…</p>
-          </article>
-        ) : null}
-
-        {unavailable ? (
-          <div className="ov3-recovery is-warning" role="status">
-            <AlertTriangle size={18} aria-hidden="true" />
+    <section className="ov3-conversation-dock" aria-label="Outreach conversation">
+      {historyOpen ? (
+        <div className="ov3-conversation-history" role="dialog" aria-label="Conversation history">
+          <header className="ov3-conversation-history__header">
             <div>
-              <strong>Reasoning is temporarily unavailable</strong>
-              <p>
-                {unavailableMessage ??
-                  'Campaign state is safe. Use the deterministic controls to continue.'}
-              </p>
-              <button
-                type="button"
-                className="ov3-button is-secondary"
-                onClick={() => void onRetry()}
-              >
-                <RotateCcw size={15} aria-hidden="true" />
-                Retry reasoning
-              </button>
+              <span className="ov3-eyebrow">Conversation history</span>
+              <h3>{title}</h3>
             </div>
+            <button
+              type="button"
+              className="ov3-icon-button"
+              onClick={() => setHistoryOpen(false)}
+              aria-label="Close conversation history"
+            >
+              <X size={17} aria-hidden="true" />
+            </button>
+          </header>
+          <div className="ov3-conversation-history__scroll" role="log" aria-live="polite">
+            {visibleTurns.length ? (
+              visibleTurns.map((turn, index) => (
+                <article
+                  key={turn.id ?? `${turn.role}-${index}`}
+                  className={`ov3-history-turn is-${turn.role} ${turn.status === 'failed' ? 'is-failed' : ''}`}
+                >
+                  <div className="ov3-history-turn__meta">
+                    {turn.role === 'assistant' ? <Sparkles size={13} aria-hidden="true" /> : null}
+                    {turn.role === 'system' ? <AlertTriangle size={13} aria-hidden="true" /> : null}
+                    <strong>{turnLabel(turn)}</strong>
+                    <span>{turn.status === 'pending' ? 'Working' : turn.status ?? 'Complete'}</span>
+                  </div>
+                  <p>{turn.text}</p>
+                </article>
+              ))
+            ) : (
+              <div className="ov3-history-empty">
+                <MessageSquareText size={20} aria-hidden="true" />
+                <p>No prior turns yet. Start with the goal below.</p>
+              </div>
+            )}
           </div>
-        ) : null}
+        </div>
+      ) : null}
+
+      <div className={`ov3-live-turn ${unavailable ? 'is-warning' : ''}`}>
+        <div className="ov3-live-turn__identity">
+          <span className="ov3-live-turn__mark" aria-hidden="true">
+            {unavailable ? <AlertTriangle size={16} /> : sending ? <Loader2 className="ov3-spin" size={16} /> : <Sparkles size={16} />}
+          </span>
+          <div>
+            <span className="ov3-eyebrow">{unavailable ? 'Meri unavailable' : 'Meri · live'}</span>
+            <p>{liveText}</p>
+          </div>
+        </div>
+        <div className="ov3-live-turn__actions">
+          {unavailable ? (
+            <button type="button" className="ov3-button is-secondary" onClick={() => void onRetry()}>
+              <RotateCcw size={14} aria-hidden="true" />
+              Retry
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ov3-button is-quiet ov3-history-toggle"
+            onClick={() => setHistoryOpen((open) => !open)}
+            aria-expanded={historyOpen}
+          >
+            <Clock3 size={14} aria-hidden="true" />
+            {visibleTurns.length ? `${visibleTurns.length} turns` : 'History'}
+            {historyOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+          </button>
+        </div>
       </div>
 
-      {visibleTurns.length === 0 && !unavailable && suggestions.length > 0 ? (
-        <div className="ov3-conversation__suggestions" aria-label="Suggested prompts">
+      {!unavailable && !sending && suggestions.length > 0 && visibleTurns.length <= 1 ? (
+        <div className="ov3-dock-suggestions" aria-label="Suggested responses">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion}
@@ -174,7 +196,16 @@ export function OutreachConversation({
         </div>
       ) : null}
 
-      <form className="ov3-composer" onSubmit={submit}>
+      <form className="ov3-docked-composer" onSubmit={submit}>
+        <button
+          className="ov3-icon-button ov3-docked-composer__add"
+          type="button"
+          disabled
+          aria-label="Add context — use the Context stage"
+          title="Add governed context from the Context stage"
+        >
+          <Plus size={17} aria-hidden="true" />
+        </button>
         <label className="sr-only" htmlFor="outreach-v3-message">
           Message Meri about this campaign
         </label>
@@ -191,37 +222,31 @@ export function OutreachConversation({
           }}
           placeholder={
             unavailable
-              ? 'Reasoning unavailable — campaign controls remain usable'
-              : 'Tell Meri what you want to accomplish…'
+              ? 'Reasoning unavailable — deterministic controls remain usable'
+              : 'Tell Meri what to change, ask a question, or keep working…'
           }
           disabled={unavailable || sending}
-          rows={3}
+          rows={1}
           maxLength={16_000}
         />
-        <div className="ov3-composer__toolbar">
-          <button
-            className="ov3-icon-button"
-            type="button"
-            disabled
-            aria-label="Add context — available from the Context stage"
-            title="Add context from the Context stage"
-          >
-            <Plus size={17} aria-hidden="true" />
-          </button>
-          <span className="ov3-composer__scope">Campaign state · governed sources</span>
-          <button
-            className="ov3-send-button"
-            type="submit"
-            disabled={!message.trim() || unavailable || sending}
-            aria-label="Send message to Meri"
-          >
-            {sending ? <Loader2 className="ov3-spin" size={16} /> : <ArrowUp size={16} />}
-          </button>
+        <div className="ov3-docked-composer__scope">
+          <span>Campaign V3</span>
+          <span>Governed sources</span>
         </div>
-        <p className="ov3-composer__hint">
-          Enter to send · Shift+Enter for a new line · recommendations never apply automatically
-        </p>
+        <button
+          className="ov3-send-button"
+          type="submit"
+          disabled={!message.trim() || unavailable || sending}
+          aria-label="Send message to Meri"
+        >
+          {sending ? <Loader2 className="ov3-spin" size={16} /> : <ArrowUp size={16} />}
+        </button>
       </form>
+
+      <p className="ov3-dock-footnote">
+        Enter to send · Shift+Enter for a new line · typed instructions become proposals and never apply themselves
+        {latestTurn?.status === 'failed' ? ' · last turn needs attention' : ''}
+      </p>
     </section>
   );
 }
