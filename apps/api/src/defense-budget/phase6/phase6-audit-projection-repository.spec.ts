@@ -117,7 +117,9 @@ class Store implements Phase6AuditProjectionStore {
 describe('Phase 6 final audit repository', () => {
   it('persists and replays the exact certification projection bindings', async () => {
     const store = new Store();
-    const repository = new Phase6AuditProjectionRepository({ transaction: async (fn) => fn(store) });
+    const repository = new Phase6AuditProjectionRepository({
+      transaction: async (fn) => fn(store),
+    });
     const first = await repository.persistAuditOnly({
       projections: [projection()],
       certification: certification(),
@@ -128,9 +130,9 @@ describe('Phase 6 final audit repository', () => {
       certificationProjectionIds: ['p1'],
       certificationReplayed: false,
     });
-    expect(await store.findProjectionIdsForCertification(first.certificationContentSha256)).toEqual([
-      'p1',
-    ]);
+    expect(await store.findProjectionIdsForCertification(first.certificationContentSha256)).toEqual(
+      ['p1'],
+    );
 
     const second = await repository.persistAuditOnly({
       projections: [projection()],
@@ -146,7 +148,9 @@ describe('Phase 6 final audit repository', () => {
 
   it('fails before persistence when a certification is paired with a different projection set', async () => {
     const store = new Store();
-    const repository = new Phase6AuditProjectionRepository({ transaction: async (fn) => fn(store) });
+    const repository = new Phase6AuditProjectionRepository({
+      transaction: async (fn) => fn(store),
+    });
     const certified = projection();
     const different = projection({
       projectionId: 'p2',
@@ -168,7 +172,9 @@ describe('Phase 6 final audit repository', () => {
 
   it('fails if persisted certification bindings disagree with the certified set', async () => {
     const store = new Store();
-    const repository = new Phase6AuditProjectionRepository({ transaction: async (fn) => fn(store) });
+    const repository = new Phase6AuditProjectionRepository({
+      transaction: async (fn) => fn(store),
+    });
     const cert = certification();
     await store.insertProjection(projection());
     await store.insertCertification(cert);
@@ -186,12 +192,17 @@ describe('Phase 6 final audit repository', () => {
   it('fails when an idempotency key points to a different natural key', async () => {
     const store = new Store();
     await store.insertProjection(projection());
-    const repository = new Phase6AuditProjectionRepository({ transaction: async (fn) => fn(store) });
+    const repository = new Phase6AuditProjectionRepository({
+      transaction: async (fn) => fn(store),
+    });
+    // Same idempotency/projection id as the live row, but a different natural key.
+    // Certification must bind THIS supplied set so the set-hash gate does not fire first;
+    // the idempotency collision is checked inside the transaction against the live row.
     const mutated = { ...projection(), naturalKey: 'different' };
     await expect(
       repository.persistAuditOnly({
         projections: [mutated],
-        certification: certification(),
+        certification: certification([mutated]),
         auditPersistenceAuthorized: true,
       }),
     ).rejects.toThrow(/different projection/);
@@ -199,7 +210,9 @@ describe('Phase 6 final audit repository', () => {
 
   it('requires explicit audit-persistence authorization at the type/runtime boundary', async () => {
     const store = new Store();
-    const repository = new Phase6AuditProjectionRepository({ transaction: async (fn) => fn(store) });
+    const repository = new Phase6AuditProjectionRepository({
+      transaction: async (fn) => fn(store),
+    });
     await expect(
       repository.persistAuditOnly({
         projections: [projection()],
