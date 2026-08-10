@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  ChevronRight,
   CircleAlert,
   Loader2,
   RotateCcw,
@@ -22,6 +21,7 @@ import type {
 } from './contracts.js';
 import { useOutreachV3Session } from './useOutreachV3Session.js';
 import './outreach-v3.css';
+import './outreach-v3-standalone.css';
 
 export interface OutreachV3RouteProps {
   clients: Client[];
@@ -31,13 +31,34 @@ export interface OutreachV3RouteProps {
   onOpenClassic: () => void;
 }
 
-const STAGES: Array<{ key: OutreachV3Stage; label: string; shortLabel: string }> = [
-  { key: 'goal', label: 'Goal', shortLabel: 'Goal' },
-  { key: 'sponsor', label: 'Sponsor', shortLabel: 'Sponsor' },
-  { key: 'targets', label: 'Targets', shortLabel: 'Targets' },
-  { key: 'delivery', label: 'Delivery', shortLabel: 'Delivery' },
-  { key: 'context', label: 'Context', shortLabel: 'Context' },
-  { key: 'strategy', label: 'Strategy', shortLabel: 'Strategy' },
+type VisibleStageKey = 'goal' | 'targets' | 'delivery' | 'context' | 'drafts' | 'send';
+
+interface VisibleStage {
+  key: VisibleStageKey;
+  label: string;
+  entry: OutreachV3Stage | null;
+  members: OutreachV3Stage[];
+  future?: boolean;
+}
+
+/**
+ * The standalone prototype deliberately exposes six user-visible stages while
+ * keeping the richer internal checkpoint machine. Sponsor is part of Goal;
+ * strategy/planning is the Phase 6 portion of Drafts; Send remains locked until
+ * its deterministic backend exists.
+ */
+const VISIBLE_STAGES: VisibleStage[] = [
+  { key: 'goal', label: 'Goal', entry: 'goal', members: ['goal', 'sponsor'] },
+  { key: 'targets', label: 'Targets', entry: 'targets', members: ['targets'] },
+  { key: 'delivery', label: 'Delivery', entry: 'delivery', members: ['delivery'] },
+  { key: 'context', label: 'Context', entry: 'context', members: ['context'] },
+  {
+    key: 'drafts',
+    label: 'Drafts',
+    entry: 'strategy',
+    members: ['strategy', 'ready_for_generation'],
+  },
+  { key: 'send', label: 'Send', entry: null, members: [], future: true },
 ];
 
 const STAGE_INDEX: Record<OutreachV3Stage, number> = {
@@ -61,9 +82,27 @@ function campaignTitle(topic: string | null | undefined, fallback: string | null
   return topic?.trim() || fallback?.trim() || 'New outreach campaign';
 }
 
-function stageLabel(stage: OutreachV3Stage): string {
-  if (stage === 'ready_for_generation') return 'Planning complete';
-  return STAGES.find((entry) => entry.key === stage)?.label ?? stage;
+function internalStageLabel(stage: OutreachV3Stage): string {
+  switch (stage) {
+    case 'goal': return 'Goal';
+    case 'sponsor': return 'Sponsor';
+    case 'targets': return 'Targets';
+    case 'delivery': return 'Delivery';
+    case 'context': return 'Context';
+    case 'strategy': return 'Strategy';
+    case 'ready_for_generation': return 'Planning complete';
+  }
+}
+
+function visibleStageIndex(stage: OutreachV3Stage): number {
+  const index = VISIBLE_STAGES.findIndex((group) => group.members.includes(stage));
+  return index < 0 ? 0 : index;
+}
+
+function stageForGroup(group: VisibleStage, canonical: OutreachV3Stage): OutreachV3Stage | null {
+  if (group.future || !group.entry) return null;
+  if (group.members.includes(canonical)) return canonical;
+  return group.entry;
 }
 
 export function OutreachV3Route({
@@ -150,7 +189,7 @@ export function OutreachV3Route({
         <CircleAlert size={28} aria-hidden="true" />
         <div>
           <span className="ov3-eyebrow">Outreach V3 unavailable</span>
-          <h2>The preview workspace could not open</h2>
+          <h2>The workspace could not open</h2>
           <p>{controller.errorMessage ?? 'The canonical Outreach session is unavailable.'}</p>
           <div className="ov3-fatal-state__actions">
             <button type="button" className="ov3-button is-secondary" onClick={onOpenClassic}>
@@ -177,14 +216,15 @@ export function OutreachV3Route({
 
   const canonicalIndex = STAGE_INDEX[controller.stage];
   const selectedIndex = STAGE_INDEX[viewStage];
-  const canOpenStage = (stage: OutreachV3Stage) => STAGE_INDEX[stage] <= canonicalIndex;
+  const canonicalVisibleIndex = visibleStageIndex(controller.stage);
+  const canOpenInternalStage = (stage: OutreachV3Stage) => STAGE_INDEX[stage] <= canonicalIndex;
   const hasUnsavedMutation =
     controller.applyingCommands || controller.proposalBusy || controller.startingNewSession;
   const reviewCanContinue = selectedIndex < canonicalIndex;
   const deliberateReviewHold = REVIEW_BEFORE_CONTINUE.has(viewStage) && reviewCanContinue;
 
   return (
-    <div className="ov3-root" aria-busy={hasUnsavedMutation || controller.isRefreshing}>
+    <div className="ov3-root ov3-root--standalone" aria-busy={hasUnsavedMutation || controller.isRefreshing}>
       <header className="ov3-toolbar">
         <div className="ov3-toolbar__identity">
           <button type="button" className="ov3-icon-button" onClick={onCancel} aria-label="Close Outreach workspace">
@@ -194,13 +234,13 @@ export function OutreachV3Route({
             <Sparkles size={17} />
           </div>
           <div>
-            <span className="ov3-eyebrow">Conversational Outreach · preview</span>
+            <span className="ov3-eyebrow">Outreach · conversational campaign</span>
             <h1>{title}</h1>
           </div>
         </div>
         <div className="ov3-toolbar__context" aria-label="Campaign context">
           <span><small>State</small>V{session.currentStateVersion}</span>
-          <span><small>Sponsor</small>{session.spec.sponsor.kind === 'undecided' ? 'Undecided' : session.spec.sponsor.kind.replaceAll('_', ' ')}</span>
+          <span><small>Decision</small>{internalStageLabel(controller.stage)}</span>
           <span><small>Targets</small>{session.spec.targeting.selectedTargetRefs.length}</span>
         </div>
         <div className="ov3-toolbar__actions">
@@ -208,11 +248,11 @@ export function OutreachV3Route({
             {hasUnsavedMutation || controller.isRefreshing ? (
               <><Loader2 className="ov3-spin" size={14} /> Saving…</>
             ) : (
-              <><Save size={14} /> Autosaved</>
+              <><Save size={14} /> Saved</>
             )}
           </span>
           <button type="button" className="ov3-button is-quiet" onClick={onOpenClassic}>
-            Classic Outreach
+            Classic
           </button>
           <button
             type="button"
@@ -236,37 +276,49 @@ export function OutreachV3Route({
         </div>
       </header>
 
-      <nav className="ov3-stage-rail" aria-label="Campaign planning stages">
-        {STAGES.map((stage, index) => {
-          const complete = index < canonicalIndex;
-          const current = stage.key === controller.stage;
-          const selected = stage.key === viewStage;
-          const enabled = canOpenStage(stage.key);
+      <nav className="ov3-stage-rail ov3-stage-rail--six" aria-label="Campaign stages">
+        {VISIBLE_STAGES.map((group, index) => {
+          const future = Boolean(group.future);
+          const complete =
+            index < canonicalVisibleIndex ||
+            (group.key === 'drafts' && controller.stage === 'ready_for_generation');
+          const current =
+            index === canonicalVisibleIndex && controller.stage !== 'ready_for_generation';
+          const selected = group.members.includes(viewStage);
+          const targetStage = stageForGroup(group, controller.stage);
+          const enabled = !future && Boolean(targetStage) && index <= canonicalVisibleIndex;
+          const status = future
+            ? 'Locked'
+            : complete
+              ? group.key === 'drafts' && controller.stage === 'ready_for_generation'
+                ? 'Plan ready'
+                : 'Done'
+              : current
+                ? 'Now'
+                : selected
+                  ? 'Review'
+                  : 'Next';
           return (
             <button
-              key={stage.key}
+              key={group.key}
               type="button"
               disabled={!enabled}
-              className={selected ? 'is-selected' : current ? 'is-current' : complete ? 'is-complete' : ''}
+              className={selected ? 'is-selected' : current ? 'is-current' : complete ? 'is-complete' : future ? 'is-future' : ''}
               aria-current={current ? 'step' : undefined}
-              onClick={() => enabled && setViewStage(stage.key)}
+              onClick={() => {
+                if (targetStage && canOpenInternalStage(targetStage)) setViewStage(targetStage);
+              }}
             >
               <span className="ov3-stage-rail__index">
-                {complete ? <Check size={15} aria-hidden="true" /> : index + 1}
+                {complete ? <Check size={14} aria-hidden="true" /> : index + 1}
               </span>
               <span>
-                <strong>{stage.label}</strong>
-                <small>{current ? 'Now' : complete ? 'Done' : selected ? 'Review' : 'Next'}</small>
+                <strong>{group.label}</strong>
+                <small>{status}</small>
               </span>
-              {index < STAGES.length - 1 ? <ChevronRight className="ov3-stage-rail__arrow" size={14} /> : null}
             </button>
           );
         })}
-        {controller.stage === 'ready_for_generation' ? (
-          <span className="ov3-stage-rail__ready">
-            <Check size={15} /> Planning complete
-          </span>
-        ) : null}
       </nav>
 
       {controller.lifecycleErrorMessage ? (
@@ -283,29 +335,26 @@ export function OutreachV3Route({
         <div className="ov3-review-banner" role="status">
           <span>
             {deliberateReviewHold
-              ? `${stageLabel(viewStage)} changes are saved. Keep reviewing here or continue when you are ready.`
-              : 'Reviewing a completed stage. Saving a change creates a new Campaign Spec version and may invalidate downstream readiness.'}
+              ? `${internalStageLabel(viewStage)} changes are saved. Keep reviewing here or continue when you are ready.`
+              : 'Reviewing a completed checkpoint. Saving a change creates a new Campaign Spec version and may invalidate downstream readiness.'}
           </span>
           <button type="button" onClick={() => setViewStage(controller.stage)}>
-            {deliberateReviewHold ? 'Continue to' : 'Return to'} {stageLabel(controller.stage)}{' '}
-            <ChevronRight size={14} />
+            {deliberateReviewHold ? 'Continue to' : 'Return to'} {internalStageLabel(controller.stage)}
           </button>
         </div>
       ) : null}
 
-      <main className="ov3-workspace">
-        <OutreachConversation
-          title={title}
-          stage={controller.stage}
-          turns={controller.turns}
-          unavailable={controller.reasoningUnavailable}
-          unavailableMessage={controller.reasoningErrorMessage}
-          sending={controller.sendingTurn}
-          onSend={controller.sendTurn}
-          onRetry={() => controller.retryReasoning()}
+      <main className="ov3-workbench">
+        <CampaignBrief
+          session={session}
+          clients={clients}
+          currentStage={controller.stage}
+          onSelectStage={(stage) => {
+            if (canOpenInternalStage(stage)) setViewStage(stage);
+          }}
         />
 
-        <div className="ov3-workspace__decision">
+        <section className="ov3-workbench__surface" aria-label={`${internalStageLabel(viewStage)} work surface`}>
           <CurrentDecisionSurface
             session={decisionSession ?? session}
             stage={viewStage}
@@ -339,9 +388,18 @@ export function OutreachV3Route({
             onFinish={onComplete}
             onSelectStage={setViewStage}
           />
-        </div>
+        </section>
 
-        <CampaignBrief session={session} clients={clients} currentStage={controller.stage} />
+        <OutreachConversation
+          title={title}
+          stage={controller.stage}
+          turns={controller.turns}
+          unavailable={controller.reasoningUnavailable}
+          unavailableMessage={controller.reasoningErrorMessage}
+          sending={controller.sendingTurn}
+          onSend={controller.sendTurn}
+          onRetry={() => controller.retryReasoning()}
+        />
       </main>
     </div>
   );
