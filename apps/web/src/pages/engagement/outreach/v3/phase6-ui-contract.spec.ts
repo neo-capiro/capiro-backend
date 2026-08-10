@@ -65,7 +65,51 @@ describe('Outreach V3 Phase 6 UI contract', () => {
     expect(route).toContain('controller.retryReasoning()');
   });
 
-  it('archives the exact accepted Figma implementation nodes', () => {
+  it('implements the accepted standalone one-workbench conversation contract', () => {
+    const route = source('OutreachV3Route.tsx');
+    const conversation = source('OutreachConversation.tsx');
+    const brief = source('CampaignBrief.tsx');
+    const standaloneCss = source('outreach-v3-standalone.css');
+
+    expect(route).toContain('<main className="ov3-workbench">');
+    expect(route).not.toContain('className="ov3-workspace"');
+    expect(route).toContain("{ key: 'goal', label: 'Goal'");
+    expect(route).toContain("{ key: 'targets', label: 'Targets'");
+    expect(route).toContain("{ key: 'delivery', label: 'Delivery'");
+    expect(route).toContain("{ key: 'context', label: 'Context'");
+    expect(route).toContain("label: 'Drafts'");
+    expect(route).toContain("{ key: 'send', label: 'Send'");
+    expect(route).toContain("members: ['goal', 'sponsor']");
+    expect(route).toContain("members: ['strategy', 'ready_for_generation']");
+    expect(route).toContain("import './outreach-v3-standalone.css';");
+
+    expect(conversation).toContain('ov3-conversation-dock');
+    expect(conversation).toContain('ov3-conversation-history');
+    expect(conversation).toContain('ov3-live-turn');
+    expect(conversation).toContain('ov3-docked-composer');
+    expect(conversation).toContain('typed instructions become proposals and never apply themselves');
+
+    expect(brief).toContain('ov3-brief-strip');
+    expect(brief).toContain('onSelectStage');
+
+    expect(standaloneCss).toContain('max-width: 1092px');
+    expect(standaloneCss).toContain('grid-template-columns: repeat(6');
+    expect(standaloneCss).toContain('.ov3-conversation-history');
+    expect(standaloneCss).not.toContain('grid-template-columns: minmax(310px, 0.82fr)');
+  });
+
+  it('freezes the exact standalone layout supersession artifact hash', () => {
+    const manifest = readFileSync(
+      path.join(ROOT, 'docs/plans/outreach-v3/revised-phase-6-standalone-layout-supersession.md'),
+      'utf8',
+    );
+    expect(manifest).toContain('84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453');
+    expect(manifest).toContain('The desktop screen is **not** a permanent conversation/work split.');
+    expect(manifest).toContain('Goal → Targets → Delivery → Context → Drafts → Send');
+    expect(manifest).toContain('Typing “send it” must never send from Phase 6.');
+  });
+
+  it('archives the earlier accepted Figma implementation nodes as component/style reference', () => {
     const manifest = readFileSync(
       path.join(ROOT, 'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md'),
       'utf8',
