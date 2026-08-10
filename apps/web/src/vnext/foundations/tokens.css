@@ -16,6 +16,10 @@
   --capiro-color-bg-subtle: #eaedf1;
   --capiro-color-bg-interactive-primary: #131a24;
   --capiro-color-bg-destructive: #a32b23;
+  --capiro-color-bg-skeleton-highlight: #f5f6f8;
+  --capiro-color-bg-navigation-hover: rgba(255, 255, 255, 0.55);
+  --capiro-color-bg-foundation-banner: rgba(255, 255, 255, 0.6);
+  --capiro-color-bg-overlay-scrim: rgba(19, 26, 36, 0.36);
 
   /* Text. */
   --capiro-color-text-primary: #131a24;
