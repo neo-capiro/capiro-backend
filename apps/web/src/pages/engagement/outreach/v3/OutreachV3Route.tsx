@@ -13,12 +13,7 @@ import type { Client } from '../../../clients/clientTypes.js';
 import { CampaignBrief } from './CampaignBrief.js';
 import { CurrentDecisionSurface } from './CurrentDecisionSurface.js';
 import { OutreachConversation } from './OutreachConversation.js';
-import type {
-  OutreachV3DeliveryPattern,
-  OutreachV3Personalization,
-  OutreachV3Stage,
-  OutreachV3StrategyData,
-} from './contracts.js';
+import type { OutreachV3Stage } from './contracts.js';
 import { useOutreachV3Session } from './useOutreachV3Session.js';
 import './outreach-v3.css';
 import './outreach-v3-standalone.css';
@@ -73,11 +68,6 @@ const STAGE_INDEX: Record<OutreachV3Stage, number> = {
 
 const REVIEW_BEFORE_CONTINUE = new Set<OutreachV3Stage>(['targets', 'context']);
 
-type StrategyProjection = OutreachV3StrategyData & {
-  recommendedPattern?: OutreachV3DeliveryPattern;
-  recommendedPersonalization?: OutreachV3Personalization;
-};
-
 function campaignTitle(topic: string | null | undefined, fallback: string | null | undefined): string {
   return topic?.trim() || fallback?.trim() || 'New outreach campaign';
 }
@@ -130,34 +120,6 @@ export function OutreachV3Route({
     () => campaignTitle(session?.spec.goal.topic, session?.session.title),
     [session?.session.title, session?.spec.goal.topic],
   );
-  const decisionSession = useMemo(() => {
-    if (!session || viewStage !== 'delivery') return session;
-    const projection = controller.strategy?.data as StrategyProjection | undefined;
-    const recommendedPattern = projection?.recommendedPattern;
-    const recommendedPersonalization = projection?.recommendedPersonalization;
-    if (!recommendedPattern && !recommendedPersonalization) return session;
-    const pattern =
-      session.spec.delivery.pattern === 'undecided' && recommendedPattern
-        ? recommendedPattern
-        : session.spec.delivery.pattern;
-    const personalization =
-      session.spec.delivery.personalization === 'undecided' && recommendedPersonalization
-        ? recommendedPersonalization
-        : session.spec.delivery.personalization;
-    if (
-      pattern === session.spec.delivery.pattern &&
-      personalization === session.spec.delivery.personalization
-    ) {
-      return session;
-    }
-    return {
-      ...session,
-      spec: {
-        ...session.spec,
-        delivery: { pattern, personalization },
-      },
-    };
-  }, [controller.strategy?.data, session, viewStage]);
 
   const startNew = async () => {
     try {
@@ -356,7 +318,7 @@ export function OutreachV3Route({
 
         <section className="ov3-workbench__surface" aria-label={`${internalStageLabel(viewStage)} work surface`}>
           <CurrentDecisionSurface
-            session={decisionSession ?? session}
+            session={session}
             stage={viewStage}
             clients={clients}
             selectedClientId={selectedClientId}
