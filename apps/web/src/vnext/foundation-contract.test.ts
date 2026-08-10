@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { VNEXT_ROUTE_GAPS, VNEXT_ROUTE_MANIFEST } from './adapters/routes/routeManifest.js';
+import {
+  VNEXT_ROUTE_GAPS,
+  VNEXT_ROUTE_MANIFEST,
+  visibleVNextRoutes,
+} from './adapters/routes/routeManifest.js';
 
 const cssFiles = [
   './foundations/tokens.css',
@@ -41,6 +45,24 @@ describe('vNext foundation contract', () => {
       'department-of-war',
     ]);
     expect(VNEXT_ROUTE_GAPS.every((route) => route.path === null)).toBe(true);
+  });
+
+  it('preserves canonical feature visibility instead of exposing gated navigation by default', () => {
+    const withoutFlags = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, {});
+    expect(withoutFlags.some((route) => route.id === 'strategies')).toBe(false);
+    const intelligenceWithoutFlags = withoutFlags.find((route) => route.id === 'intelligence');
+    expect(intelligenceWithoutFlags?.children?.map((route) => route.id)).not.toContain('funding-opportunities');
+    expect(intelligenceWithoutFlags?.children?.map((route) => route.id)).not.toContain('district-nexus');
+
+    const withFlags = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, {
+      meFeatures: { strategyPlanner: true },
+      featureFlags: { funding_opportunities: true, district_nexus_v2: true },
+    });
+    expect(withFlags.some((route) => route.id === 'strategies')).toBe(true);
+    const intelligenceWithFlags = withFlags.find((route) => route.id === 'intelligence');
+    expect(intelligenceWithFlags?.children?.map((route) => route.id)).toEqual(
+      expect.arrayContaining(['funding-opportunities', 'district-nexus']),
+    );
   });
 
   it('selects vNext lazily after shared billing gates and preserves the canonical AppShell fallback', () => {
