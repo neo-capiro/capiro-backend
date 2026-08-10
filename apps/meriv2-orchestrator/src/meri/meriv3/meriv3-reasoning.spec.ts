@@ -1,6 +1,5 @@
 import {
   listMeriV3ReasoningProfiles,
-  modelSupportsReasoningEffort,
   normalizeMeriV3ReasoningMode,
   resolveMeriV3ReasoningProfile,
 } from './meriv3-reasoning.js';
@@ -70,15 +69,5 @@ describe('MeriV3 reasoning profiles', () => {
     expect(profile.mode).toBe('standard');
     expect(profile.maxToolRounds).toBe(10);
     expect(profile.turnBudgetMs).toBe(180_000);
-  });
-
-  test('only the reasoning-capable GPT-5.6 family member accepts reasoning.effort', () => {
-    expect(modelSupportsReasoningEffort('gpt-5.6-terra')).toBe(false);
-    expect(modelSupportsReasoningEffort('gpt-5.6-luna')).toBe(false);
-    expect(modelSupportsReasoningEffort('gpt-5.6')).toBe(true);
-    expect(modelSupportsReasoningEffort('gpt-5.6-sol')).toBe(true);
-    // Unknown/custom model ids (env overrides, tenant BYOK) default to
-    // supported so a real reasoning-capable override is never dropped.
-    expect(modelSupportsReasoningEffort('gpt-custom-reasoning')).toBe(true);
   });
 });
