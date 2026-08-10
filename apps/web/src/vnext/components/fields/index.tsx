@@ -42,7 +42,7 @@ export interface CapiroSelectOption {
 export interface CapiroSelectProps
   extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'aria-invalid'>,
     FieldChromeProps {
-  options: CapiroSelectOption[];
+  options: readonly CapiroSelectOption[];
 }
 
 export function CapiroSelect({
