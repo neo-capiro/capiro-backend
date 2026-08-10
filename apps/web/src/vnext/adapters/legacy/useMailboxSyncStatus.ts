@@ -71,7 +71,7 @@ export function useMailboxSyncStatus(): MailboxSyncViewModel {
     if (connected.length > 0) {
       const freshest = [...connected].sort((a, b) =>
         String(b.lastSyncAt ?? '').localeCompare(String(a.lastSyncAt ?? '')),
-      )[0];
+      )[0]!;
       return {
         state: 'synced',
         title: connected.length > 1 ? `${connected.length} mailboxes synced` : 'Mailbox synced',
