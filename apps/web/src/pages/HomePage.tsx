@@ -30,6 +30,8 @@ import {
   SURFACE_LABELS,
   type ReviewRequestDto,
 } from './reviews/types.js';
+import { DashboardNewsAndNarrative } from './dashboard/DashboardNewsAndNarrative.js';
+import { DashboardWorkQueue } from './dashboard/DashboardWorkQueue.js';
 import './home-dashboard.css';
 
 /* ── Local data shapes (lean projections of API responses) ─────────────── */
@@ -206,11 +208,13 @@ export function HomePage() {
   const actions = useActionsList({ sort: 'deadline', limit: 25, page: 1 });
   const reviews = useReviewsList('pending');
 
+  // The customizable news module owns the live query. Keep this legacy query
+  // dormant while the old local renderer remains below for regression history.
   const news = useQuery<NewsDashboardResponse>({
     queryKey: ['dashboard-news'],
     queryFn: async () =>
       (await api.get<NewsDashboardResponse>('/api/intelligence/news/dashboard')).data,
-    enabled: visibility.news,
+    enabled: false,
     staleTime: 15 * 60 * 1000,
     retry: false,
   });
@@ -241,9 +245,7 @@ export function HomePage() {
         overnightCount={overnightCount}
         criticalToday={criticalTodayCount}
         signalsUnknown={recentChanges.isError}
-        action={
-          <DashboardCustomize visibility={visibility} onChange={setVisibility} />
-        }
+        action={<DashboardCustomize visibility={visibility} onChange={setVisibility} />}
       />
 
       <NeedsAction
@@ -256,13 +258,7 @@ export function HomePage() {
         someSourcesUnavailable={recentChanges.isError || portfolioAlerts.isError}
       />
 
-      {visibility.news ? (
-        <NewsAndNarrative
-          data={news.data}
-          loading={news.isLoading}
-          isError={news.isError}
-        />
-      ) : null}
+      {visibility.news ? <DashboardNewsAndNarrative /> : null}
 
       {visibleGridModules > 0 ? (
         <div
@@ -276,14 +272,7 @@ export function HomePage() {
               loading={meetings.isLoading || comingUp.isLoading}
             />
           ) : null}
-          {visibility.work ? (
-            <WorkQueue
-              actions={Array.isArray(actions.data?.data) ? actions.data.data : []}
-              reviews={Array.isArray(reviews.data) ? reviews.data : []}
-              outreach={outreach.data ?? []}
-              loading={actions.isLoading || reviews.isLoading || outreach.isLoading}
-            />
-          ) : null}
+          {visibility.work ? <DashboardWorkQueue /> : null}
         </div>
       ) : null}
     </section>
@@ -451,10 +440,6 @@ interface BannerItem extends BannerItemRaw {
   actionLabel: string;
 }
 
-/* Map a BannerItem to the Figma status badge pill.
- * Badge kind is derived from severity + eyebrow content so the dashboard
- * surfaces the same CRITICAL / APPROVAL / DEADLINE / HEARING pills the
- * reference shows, without touching any upstream data shape. */
 type AttentionBadge = 'critical' | 'approval' | 'deadline' | 'hearing';
 
 function badgeFor(item: BannerItemRaw): { kind: AttentionBadge; label: string } {
@@ -467,7 +452,6 @@ function badgeFor(item: BannerItemRaw): { kind: AttentionBadge; label: string } 
   return { kind: 'deadline', label: 'DEADLINE' };
 }
 
-/* Default per-row action verb. Keeps the row action compact + scannable. */
 function actionFor(item: BannerItemRaw): string {
   const eyebrow = item.eyebrow.toLowerCase();
   if (eyebrow.includes('hearing') || eyebrow.includes('markup')) return 'Prepare';
@@ -478,9 +462,6 @@ function actionFor(item: BannerItemRaw): string {
   return 'Open';
 }
 
-/* Pull a short "DUE AUG 14" / "DUE TODAY" / "10:00 AM" string from the eyebrow
- * when the underlying event carries timing. Returns null when nothing useful
- * is available so the cell collapses cleanly. */
 function dueLabelFor(item: BannerItemRaw): string | null {
   const m = item.eyebrow.match(/(?:·|^)\s*([^·]+?)\s*$/);
   if (!m) return null;
@@ -514,9 +495,12 @@ function NeedsAction({
 }) {
   const items = useMemo<BannerItem[]>(() => {
     const out: BannerItemRaw[] = [];
-    const hasPortfolio = portfolioAlerts.length > 0;
+    const dashboardPortfolioAlerts = portfolioAlerts.filter(
+      (alert) => alert.type !== 'comment_overdue',
+    );
+    const hasPortfolio = dashboardPortfolioAlerts.length > 0;
 
-    for (const alert of portfolioAlerts) {
+    for (const alert of dashboardPortfolioAlerts) {
       const sev: BannerItemRaw['sev'] =
         alert.severity === 'critical' || alert.severity === 'notable'
           ? alert.severity
@@ -637,8 +621,19 @@ function NeedsAction({
     }
 
     const severityRank = { critical: 0, notable: 1, info: 2 } as const;
+    const seen = new Set<string>();
     return out
       .sort((a, b) => severityRank[a.sev] - severityRank[b.sev] || a.rank - b.rank)
+      .filter((item) => {
+        const key = item.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 4)
       .map((item) => ({
         ...item,
@@ -1173,7 +1168,7 @@ function MeetingBriefBody({ meeting, loading }: { meeting: Meeting | undefined; 
   );
 }
 
-/* ── Work Queue: governed reviews + action cards + outreach drafts ─────── */
+/* ── Legacy Work Queue kept for regression reference; no longer mounted ─ */
 
 interface WorkQueueItem {
   id: string;
@@ -1295,7 +1290,7 @@ function WorkQueue({
   );
 }
 
-/* ── News & Narrative: NewsCatcher client-relevance feed ───────────────── */
+/* ── Legacy News renderer kept for regression reference; no longer mounted ─ */
 
 function NewsAndNarrative({
   data,
@@ -1441,7 +1436,6 @@ function commentSeverity(days: number): 'critical' | 'notable' | 'info' {
 function portfolioAlertCategoryLabel(type: string): string {
   const map: Record<string, string> = {
     comment_deadline: 'Comment deadline',
-    comment_overdue: 'Comment closed',
     competitor_filing: 'Competitor filing',
     contract_award: 'Contract award',
     hearing: 'Hearing',

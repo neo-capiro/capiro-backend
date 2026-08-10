@@ -12,28 +12,73 @@ const PAGE_SIZE = 100;
 /**
  * NewsCatcher is the retrieval layer; Capiro owns relevance.
  *
- * The provider query is portfolio-wide and deliberately combines two things:
- *   1. public-policy context; and
- *   2. client issue/capability/company signals.
- *
- * This is intentionally NOT `ORG_entity_name = client names`. Small Capiro
- * clients are often affected by a policy/program/capability story without being
- * named in it. Company aliases remain a high-confidence signal, but capability
- * and specific issue matches can independently qualify an article.
- *
- * Broad commercial words are paired with government context so ordinary company
- * news (for example, signing a commercial customer contract) does not become a
- * government-affairs signal merely because it contains the word "contract".
+ * The default query remains portfolio-wide and combines public-policy context
+ * with client issue/capability/company signals. Dashboard filters can narrow
+ * both halves of that query, but missing filters preserve this exact baseline.
  */
 const POLICY_QUERY =
   '(Congress OR Senate OR "House of Representatives" OR "congressional committee" OR hearing OR markup OR legislation OR legislative OR regulation OR regulatory OR rule OR "Federal Register" OR rulemaking OR appropriations OR authorization OR "executive order" OR "White House" OR governor OR "state legislature" OR statehouse OR DoD OR Pentagon OR "Department of Defense" OR Army OR Navy OR "Air Force" OR "Space Force" OR "Marine Corps" OR ((budget OR procurement OR acquisition OR contract OR grant OR award) AND (federal OR government OR agency OR department OR Congress OR state)))';
 
-type SignalKind = 'capability' | 'issue' | 'program' | 'alias';
+export type NewsSignalKind = 'capability' | 'issue' | 'program' | 'alias';
+export type NewsPolicyTopic =
+  | 'legislation'
+  | 'hearings'
+  | 'regulation'
+  | 'budget'
+  | 'procurement'
+  | 'grants'
+  | 'state'
+  | 'executive';
+export type NewsLookback = '24h' | '48h' | '7d';
+
+export interface NewsDashboardFilterInput {
+  clientIds?: string[];
+  policyTopics?: string[];
+  signalKinds?: string[];
+  customTopics?: string[];
+  lookback?: string;
+}
+
+export interface ResolvedNewsDashboardFilters {
+  clientIds: string[];
+  policyTopics: NewsPolicyTopic[];
+  signalKinds: NewsSignalKind[];
+  customTopics: string[];
+  lookback: NewsLookback;
+}
+
+const ALL_POLICY_TOPICS: NewsPolicyTopic[] = [
+  'legislation',
+  'hearings',
+  'regulation',
+  'budget',
+  'procurement',
+  'grants',
+  'state',
+  'executive',
+];
+const ALL_SIGNAL_KINDS: NewsSignalKind[] = ['capability', 'issue', 'program', 'alias'];
+const LOOKBACKS = new Set<NewsLookback>(['24h', '48h', '7d']);
+
+const POLICY_TOPIC_QUERY: Record<NewsPolicyTopic, string> = {
+  legislation:
+    '(Congress OR Senate OR "House of Representatives" OR legislation OR legislative OR bill)',
+  hearings: '("congressional committee" OR hearing OR markup)',
+  regulation: '(regulation OR regulatory OR rule OR "Federal Register" OR rulemaking)',
+  budget:
+    '(appropriations OR authorization OR ((budget OR "funding level") AND (federal OR government OR Congress OR DoD OR Pentagon)))',
+  procurement:
+    '((procurement OR acquisition OR contract OR award) AND (federal OR government OR agency OR department OR Congress OR state OR DoD OR Pentagon))',
+  grants:
+    '((grant OR grants OR "funding opportunity" OR "notice of funding") AND (federal OR government OR agency OR department OR state))',
+  state: '(governor OR "state legislature" OR statehouse OR "state senate" OR "state assembly")',
+  executive: '("executive order" OR "White House" OR "federal agency")',
+};
 
 interface ClientSignal {
   term: string;
   label: string;
-  kind: SignalKind;
+  kind: NewsSignalKind;
   priority: number;
   strong: boolean;
 }
@@ -137,40 +182,46 @@ export class NewsCatcherDashboardService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDashboard(tenantId: string): Promise<NewsDashboardResponse> {
+  async getDashboard(
+    tenantId: string,
+    input: NewsDashboardFilterInput = {},
+  ): Promise<NewsDashboardResponse> {
+    const filters = normalizeNewsDashboardFilters(input);
+    const cacheKey = `${tenantId}:${JSON.stringify(filters)}`;
     const now = Date.now();
-    const cached = this.cache.get(tenantId);
+    const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
       return { ...cached.value, cached: true };
     }
 
-    const existing = this.inflight.get(tenantId);
+    const existing = this.inflight.get(cacheKey);
     if (existing) return existing;
 
-    const run = this.computeDashboard(tenantId, cached?.value)
+    const run = this.computeDashboard(tenantId, filters, cached?.value)
       .then((value) => {
-        this.cache.set(tenantId, {
+        this.cache.set(cacheKey, {
           expiresAt: Date.now() + cacheMs(),
           value: { ...value, cached: false },
         });
         return value;
       })
-      .finally(() => this.inflight.delete(tenantId));
+      .finally(() => this.inflight.delete(cacheKey));
 
-    this.inflight.set(tenantId, run);
+    this.inflight.set(cacheKey, run);
     return run;
   }
 
   private async computeDashboard(
     tenantId: string,
+    filters: ResolvedNewsDashboardFilters,
     staleValue?: NewsDashboardResponse,
   ): Promise<NewsDashboardResponse> {
     const generatedAt = new Date().toISOString();
 
-    // One tenant-scoped client/capability read. The remaining two portfolio reads
-    // below batch LDA-derived issues rather than calling a relevance method once
-    // per client (which would turn a dashboard load into N database workflows).
-    const allClients = (await this.prisma.withTenant(tenantId, (tx) =>
+    // One tenant-scoped client/capability read. Filter the portfolio BEFORE LDA
+    // and provider work so a user's selected-client view genuinely reduces the
+    // retrieval envelope rather than just hiding cards at render time.
+    const tenantClients = (await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findMany({
         where: { status: { not: 'archived' } },
         select: {
@@ -197,8 +248,17 @@ export class NewsCatcherDashboardService {
       }),
     )) as ClientSeed[];
 
-    if (allClients.length === 0) {
+    if (tenantClients.length === 0) {
       return unavailable('no_clients', generatedAt, 0, 0, false);
+    }
+
+    const selectedClientIds = new Set(filters.clientIds);
+    const allClients = selectedClientIds.size
+      ? tenantClients.filter((client) => selectedClientIds.has(client.id))
+      : tenantClients;
+
+    if (allClients.length === 0) {
+      return unavailable('no_clients', generatedAt, 0, tenantClients.length, false);
     }
 
     const clientIds = allClients.map((client) => client.id);
@@ -211,7 +271,7 @@ export class NewsCatcherDashboardService {
         },
         select: { clientId: true, externalId: true },
       }),
-    );
+    ) as Array<{ clientId: string; externalId: string }>;
 
     const clientsByLdaId = new Map<number, string[]>();
     for (const mapping of ldaMappings) {
@@ -223,8 +283,11 @@ export class NewsCatcherDashboardService {
     }
 
     const ldaIds = Array.from(clientsByLdaId.keys());
+    const prismaRaw = this.prisma as unknown as {
+      $queryRaw: <T>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+    };
     const ldaCodeRows = ldaIds.length
-      ? await this.prisma.$queryRaw<Array<{ id: number; code: string }>>`
+      ? await prismaRaw.$queryRaw<Array<{ id: number; code: string }>>`
           SELECT id, unnest(issue_codes) AS code
           FROM lda_client
           WHERE id = ANY(${ldaIds}::int[]) AND issue_codes IS NOT NULL
@@ -249,22 +312,25 @@ export class NewsCatcherDashboardService {
     );
 
     const issueNameRows = allIssueCodes.length
-      ? await this.prisma.$queryRaw<Array<{ code: string; name: string }>>`
+      ? await prismaRaw.$queryRaw<Array<{ code: string; name: string }>>`
           SELECT code, name
           FROM lda_issue_code
           WHERE code = ANY(${allIssueCodes}::text[])
         `
       : [];
-    const issueNameByCode = new Map(issueNameRows.map((row) => [row.code, row.name]));
+    const issueNameByCode = new Map<string, string>(
+      issueNameRows.map((row) => [row.code, row.name] as [string, string]),
+    );
 
     const watched = allClients
       .map((client) =>
         buildWatchedClient(client, ldaCodesByClient.get(client.id) ?? [], issueNameByCode),
       )
+      .map((client) => applySignalKinds(client, filters.signalKinds))
       .filter((client) => client.signals.length > 0);
 
     if (watched.length === 0) {
-      return unavailable('no_clients', generatedAt, 0, allClients.length, false);
+      return unavailable('no_clients', generatedAt, 0, tenantClients.length, false);
     }
 
     const apiKey = process.env.NEWSCATCHER_API_KEY?.trim();
@@ -273,18 +339,19 @@ export class NewsCatcherDashboardService {
         'not_configured',
         generatedAt,
         watched.length,
-        allClients.length,
+        tenantClients.length,
         false,
       );
     }
 
     const selection = selectSignalsForSharedQuery(watched);
     if (selection.signals.length === 0) {
-      return unavailable('no_clients', generatedAt, 0, allClients.length, false);
+      return unavailable('no_clients', generatedAt, 0, tenantClients.length, false);
     }
 
     const monitoredClients = watched.filter((client) => selection.clientIds.has(client.id));
     const portfolioQuery = selection.signals.map((signal) => quoteBooleanPhrase(signal)).join(' OR ');
+    const policyQuery = buildPolicyQuery(filters.policyTopics, filters.customTopics);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs());
@@ -297,9 +364,9 @@ export class NewsCatcherDashboardService {
           'x-api-token': apiKey,
         },
         body: JSON.stringify({
-          q: `${POLICY_QUERY} AND (${portfolioQuery})`,
+          q: `${policyQuery} AND (${portfolioQuery})`,
           lang: 'en',
-          from_: '48h',
+          from_: filters.lookback,
           sort_by: 'date',
           ranked_only: false,
           page_size: PAGE_SIZE,
@@ -319,7 +386,7 @@ export class NewsCatcherDashboardService {
           staleValue,
           generatedAt,
           monitoredClients.length,
-          allClients.length,
+          tenantClients.length,
           selection.coverageLimited,
         );
       }
@@ -336,9 +403,10 @@ export class NewsCatcherDashboardService {
 
       this.logger.log(
         `NewsCatcher dashboard: provider returned ${articles.length} articles, ` +
-        `${scored.length} qualified after Capiro matching, ${items.length} selected for dashboard ` +
-        `(monitored ${monitoredClients.length}/${allClients.length} clients, ` +
-        `${selection.signals.length} signals, query ${portfolioQuery.length} chars)`,
+          `${scored.length} qualified after Capiro matching, ${items.length} selected for dashboard ` +
+          `(monitored ${monitoredClients.length}/${tenantClients.length} clients, ` +
+          `${selection.signals.length} signals, ${filters.policyTopics.length} policy filters, ` +
+          `${filters.lookback} lookback, query ${portfolioQuery.length} chars)`,
       );
 
       return {
@@ -348,7 +416,7 @@ export class NewsCatcherDashboardService {
         generatedAt,
         cached: false,
         monitoredClientCount: monitoredClients.length,
-        activeClientCount: allClients.length,
+        activeClientCount: tenantClients.length,
         coverageLimited: selection.coverageLimited,
       };
     } catch (error) {
@@ -358,13 +426,71 @@ export class NewsCatcherDashboardService {
         staleValue,
         generatedAt,
         monitoredClients.length,
-        allClients.length,
+        tenantClients.length,
         selection.coverageLimited,
       );
     } finally {
       clearTimeout(timeout);
     }
   }
+}
+
+export function normalizeNewsDashboardFilters(
+  input: NewsDashboardFilterInput = {},
+): ResolvedNewsDashboardFilters {
+  const policyTopics = normalizedAllowedValues(
+    input.policyTopics,
+    new Set<string>(ALL_POLICY_TOPICS),
+    ALL_POLICY_TOPICS,
+  ) as NewsPolicyTopic[];
+  const signalKinds = normalizedAllowedValues(
+    input.signalKinds,
+    new Set<string>(ALL_SIGNAL_KINDS),
+    ALL_SIGNAL_KINDS,
+  ) as NewsSignalKind[];
+  const clientIds = uniqueStrings(input.clientIds ?? []).slice(0, 100);
+  const customTopics = uniqueStrings(input.customTopics ?? [])
+    .map(cleanSignalTerm)
+    .filter((term) => term.length >= 2)
+    .slice(0, 20);
+  const lookback = LOOKBACKS.has(input.lookback as NewsLookback)
+    ? (input.lookback as NewsLookback)
+    : '48h';
+
+  return { clientIds, policyTopics, signalKinds, customTopics, lookback };
+}
+
+function normalizedAllowedValues(
+  input: string[] | undefined,
+  allowed: Set<string>,
+  fallback: string[],
+): string[] {
+  if (!input) return [...fallback];
+  const filtered = uniqueStrings(input).filter((value) => allowed.has(value));
+  return filtered.length ? filtered : [...fallback];
+}
+
+export function buildPolicyQuery(
+  topics: NewsPolicyTopic[],
+  customTopics: string[] = [],
+): string {
+  const hasEveryDefault =
+    topics.length === ALL_POLICY_TOPICS.length &&
+    ALL_POLICY_TOPICS.every((topic) => topics.includes(topic));
+  if (hasEveryDefault && customTopics.length === 0) return POLICY_QUERY;
+
+  const clauses = topics.map((topic) => POLICY_TOPIC_QUERY[topic]);
+  clauses.push(...customTopics.map(quoteBooleanPhrase));
+  return `(${clauses.join(' OR ')})`;
+}
+
+function applySignalKinds(client: WatchedClient, kinds: NewsSignalKind[]): WatchedClient {
+  const allowed = new Set(kinds);
+  return {
+    ...client,
+    aliases: allowed.has('alias') ? client.aliases : [],
+    signals: client.signals.filter((signal) => allowed.has(signal.kind)),
+  };
 }
 
 function buildWatchedClient(
@@ -385,14 +511,11 @@ function buildWatchedClient(
   const add = (
     term: string,
     label: string,
-    kind: SignalKind,
+    kind: NewsSignalKind,
     priority: number,
     strong: boolean,
   ) => addSignal(signalMap, { term, label, kind, priority, strong });
 
-  // Capabilities are the primary path for the typical smaller Capiro client.
-  // Names/tags/keywords are far more likely to describe what a client cares
-  // about than the company name appearing in national coverage.
   for (const capability of client.capabilities ?? []) {
     add(capability.name, capability.name, 'capability', 0, true);
     for (const tag of stringArray(capability.tags)) {
@@ -423,8 +546,6 @@ function buildWatchedClient(
     if (capability.targetSubcommittee) {
       add(capability.targetSubcommittee, capability.targetSubcommittee, 'program', 2, true);
     }
-    // Service branch is useful corroboration but too broad to qualify a story by
-    // itself ("Army" should not map every Army article to every Army client).
     if (capability.serviceBranch) {
       add(capability.serviceBranch, capability.serviceBranch, 'program', 4, false);
     }
@@ -444,8 +565,6 @@ function buildWatchedClient(
     }
   }
 
-  // Direct company coverage is retained as a high-confidence bonus/fallback,
-  // but comes after issues/capabilities in the provider query ordering.
   for (const alias of aliases) {
     add(alias, 'Direct company coverage', 'alias', 3, true);
   }
@@ -476,14 +595,9 @@ function addSignal(map: Map<string, ClientSignal>, signal: ClientSignal): void {
 }
 
 /**
- * Fairly pack the portfolio into ONE provider query. Round-robin selection means
- * a client with twenty capability tags cannot consume the whole query before the
- * next client gets one signal. Shared terms count once and still cover every
- * client that owns that term.
- *
- * Only strong signals go to NewsCatcher. Broad issue/service terms stay local as
- * corroborating evidence; sending `Defense` or `Army` to the provider would let
- * generic coverage crowd out the first page before Capiro gets a chance to rank.
+ * Fairly pack the selected portfolio into ONE provider query. Round-robin
+ * selection prevents a client with many capability tags from monopolizing the
+ * provider query envelope.
  */
 export function selectSignalsForSharedQuery(clients: WatchedClient[]): {
   signals: string[];
@@ -546,9 +660,6 @@ function normalizeArticle(
   const nlp = asRecord(article.nlp);
   const summary = asNonEmptyString(nlp?.summary) ?? '';
   const description = asNonEmptyString(article.description) ?? '';
-  // Full article text, when the provider returns it, is used ephemerally only to
-  // improve matching. It is never returned to the browser or persisted by this
-  // MVP; the customer-facing object stays headline/source/link + derived signals.
   const content = asNonEmptyString(article.content) ?? '';
   const organizationNames = extractOrganizationNames(nlp);
   const searchable = normalizeText(`${title} ${description} ${summary} ${content}`);
@@ -561,8 +672,6 @@ function normalizeArticle(
   if (matches.length === 0) return null;
 
   const topics = policyTopics(`${title} ${description} ${summary} ${content}`);
-  // POLICY_QUERY can match provider-indexed body text even when a compact result
-  // omits that body. Preserve the qualified signal with a conservative label.
   if (topics.length === 0) topics.push('Public policy');
 
   const topMatches = matches.slice(0, 3);
@@ -611,8 +720,6 @@ function matchClientToArticle(
   const program = matchedSignals.filter((signal) => signal.kind === 'program' && signal.strong);
   const supporting = matchedSignals.filter((signal) => !signal.strong);
 
-  // A broad issue or service branch alone is not enough. "Defense" and "Army"
-  // are context, not proof that an article matters to every defense/Army client.
   if (!direct && capability.length === 0 && issue.length === 0 && program.length === 0) {
     return null;
   }
@@ -650,7 +757,6 @@ function selectDashboardItems(items: ScoredNewsDashboardItem[]): ScoredNewsDashb
     if (primary) perClient.set(primary, (perClient.get(primary) ?? 0) + 1);
   }
 
-  // If diversity left open slots, fill them with the next best remaining items.
   for (const item of sorted) {
     if (selected.length >= MAX_DASHBOARD_ITEMS) break;
     if (selectedIds.has(item.id)) continue;
@@ -757,9 +863,6 @@ function matchesSignal(searchable: string, term: string): boolean {
   if (containsPhrase(searchable, normalized)) return true;
 
   const tokens = normalized.split(' ').filter((token) => token.length >= 3);
-  // Distinctive long single-word concepts tolerate morphological compounds such
-  // as communications ↔ telecommunications. Short/generic terms never get this
-  // looser path.
   if (tokens.length === 1 && normalized.length >= 8) {
     return searchable
       .split(' ')
@@ -769,9 +872,6 @@ function matchesSignal(searchable: string, term: string): boolean {
       );
   }
 
-  // LDA issue names often contain separators ("Aviation/Aircraft/Airlines") and
-  // article prose inserts conjunctions between words. For multi-token signals,
-  // require every meaningful token rather than requiring an exact phrase.
   return tokens.length >= 2 && tokens.every((token) => containsPhrase(searchable, token));
 }
 
@@ -838,7 +938,7 @@ function isSpecificSignalTerm(value: string): boolean {
   return normalized.length >= 7;
 }
 
-function isUsefulSearchSignal(value: string, kind: SignalKind): boolean {
+function isUsefulSearchSignal(value: string, kind: NewsSignalKind): boolean {
   const normalized = normalizeText(value);
   if (!normalized) return false;
   if (kind === 'program' && /^\d{5,}[a-z0-9-]*$/i.test(value.replace(/\s+/g, ''))) return true;
@@ -854,10 +954,6 @@ function specificityScore(value: string): number {
 }
 
 function cleanSignalTerm(value: string): string {
-  // Strip characters that NewsCatcher's Boolean query parser may interpret
-  // as operators even inside quoted phrases. Parentheses, ampersands, pipes,
-  // and slashes have all caused 422 validation errors when they appear in
-  // capability names, issue names, or program identifiers.
   return value
     .replace(/["\\()&|!<>]/g, ' ')
     .replace(/[/;,]/g, ' ')
