@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
@@ -142,7 +142,7 @@ export function VNextComponentWorkshop() {
   );
 }
 
-function WorkshopCard({ title, children }: { title: string; children: React.ReactNode }) {
+function WorkshopCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <CapiroCard>
       <h2 className="capiro-vnext-heading" style={{ fontSize: 17, marginBottom: 14 }}>{title}</h2>
