@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { DecisionSurfaces, type DecisionSurfacesProps } from './DecisionSurfaces.js';
+import { TargetWorkspace } from './TargetWorkspace.js';
 import type {
   OutreachV3Command,
   OutreachV3Proposal,
@@ -343,6 +344,9 @@ export function CurrentDecisionSurface(props: CurrentDecisionSurfaceProps) {
   const proposal = props.pendingProposals[0];
   if (proposal) {
     return <ProposalSurface {...props} proposal={proposal} />;
+  }
+  if (props.stage === 'targets') {
+    return <TargetWorkspace {...props} />;
   }
   const { onSelectStage, ...decisionProps } = props;
   void onSelectStage;
