@@ -1,0 +1,51 @@
+name: Outreach V3 Phase 4-6 Combined
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/api/src/capabilities/targets/**'
+      - 'apps/api/src/outreach-v3/**'
+      - 'apps/web/src/pages/engagement/outreach/v3/**'
+      - 'apps/web/src/pages/engagement/OutreachView.tsx'
+      - 'apps/web/src/lib/engagement-api-preview*'
+      - 'docs/plans/outreach-v3/**'
+      - 'scripts/verify-outreach-v3-phase4-6-combined.mjs'
+      - 'scripts/verify-outreach-v3-phase4-code.mjs'
+      - 'scripts/verify-outreach-v3-phase5-code.mjs'
+      - 'scripts/verify-outreach-v3-phase6-code.mjs'
+      - '.github/workflows/outreach-v3-phase4-6-combined.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: outreach-v3-phase4-6-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  combined-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Combined Phase 4-6 code gate
+        run: node scripts/verify-outreach-v3-phase4-6-combined.mjs --sha "$(git rev-parse HEAD)"
