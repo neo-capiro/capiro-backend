@@ -1,0 +1,17 @@
+.capiro-vnext-root .capiro-elevation-control {
+  box-shadow:
+    inset 0 1px 0 var(--capiro-primitive-highlight-white-72),
+    0 1px 2px var(--capiro-primitive-shadow-shell),
+    0 6px 16px -12px var(--capiro-primitive-shadow-widget);
+}
+
+.capiro-vnext-root .capiro-elevation-widget {
+  box-shadow:
+    inset 0 1px 0 var(--capiro-primitive-highlight-white-72),
+    0 1px 3px var(--capiro-primitive-shadow-shell),
+    0 14px 34px -16px var(--capiro-primitive-shadow-widget);
+}
+
+.capiro-vnext-root .capiro-elevation-meri {
+  box-shadow: 0 6px 18px -7px var(--capiro-shadow-meri);
+}
