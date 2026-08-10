@@ -8,8 +8,9 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
+import { ContextReviewSurface } from './ContextReviewSurface.js';
 import { DecisionSurfaces, type DecisionSurfacesProps } from './DecisionSurfaces.js';
-import { TargetWorkspace } from './TargetWorkspace.js';
+import { TargetWorkspace } from './TargetWorkspaceEntry.js';
 import type {
   OutreachV3Command,
   OutreachV3Proposal,
@@ -347,6 +348,9 @@ export function CurrentDecisionSurface(props: CurrentDecisionSurfaceProps) {
   }
   if (props.stage === 'targets') {
     return <TargetWorkspace {...props} />;
+  }
+  if (props.stage === 'context') {
+    return <ContextReviewSurface {...props} />;
   }
   const { onSelectStage, ...decisionProps } = props;
   void onSelectStage;
