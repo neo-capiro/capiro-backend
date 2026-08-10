@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyOutreachV3Proposal,
   getOutreachV3Strategy,
+  getOutreachV3TargetRelationships,
   listOutreachV3Proposals,
 } from './outreach-v3-api.js';
 
@@ -54,6 +55,45 @@ describe('Outreach V3 browser wire normalization', () => {
     };
     const api = apiMock({ post: { proposalId: 'proposal-1', result } });
     await expect(applyOutreachV3Proposal(api, 'session-1', 'proposal-1')).resolves.toEqual(result);
+  });
+
+  it('uses the session-scoped governed relationship endpoint without browser inference', async () => {
+    const response = {
+      capability: 'analyze_relationships',
+      schemaVersion: 1,
+      data: {
+        targetKey: 'directory_staff:staff-1',
+        clientId: '11111111-1111-4111-8111-111111111111',
+        status: 'active',
+        interactionCount: 3,
+        meetingCount: 2,
+        emailCount: 1,
+        lastInteractionAt: '2026-08-01T12:00:00.000Z',
+        recentInteractions: [],
+        openCommitments: [],
+        limitations: [],
+      },
+      provenance: [],
+    };
+    const api = apiMock({ post: response });
+    const locator = { source: 'directory_staff', id: 'staff-1' };
+
+    await expect(
+      getOutreachV3TargetRelationships(
+        api,
+        'session-1',
+        locator,
+        '11111111-1111-4111-8111-111111111111',
+      ),
+    ).resolves.toEqual(response);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/api/engagement/outreach-v3/sessions/session-1/targets/relationships',
+      {
+        targetRef: locator,
+        clientId: '11111111-1111-4111-8111-111111111111',
+      },
+    );
   });
 
   it('normalizes the deterministic strategy capability for the UI', async () => {
