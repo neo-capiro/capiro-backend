@@ -1,7 +1,7 @@
 import type { HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from 'react';
 
-export function CapiroTableWrap(props: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`capiro-table-wrap ${props.className ?? ''}`.trim()} {...props} />;
+export function CapiroTableWrap({ className = '', ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={`capiro-table-wrap ${className}`.trim()} {...props} />;
 }
 
 export function CapiroTable({ className = '', ...props }: TableHTMLAttributes<HTMLTableElement>) {
