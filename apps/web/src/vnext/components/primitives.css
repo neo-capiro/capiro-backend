@@ -114,10 +114,13 @@
 .capiro-vnext-root .capiro-menu { min-width: 180px; margin: 0; padding: 6px; list-style: none; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-control); }
 .capiro-vnext-root .capiro-menu button,
 .capiro-vnext-root .capiro-menu a { width: 100%; min-height: 34px; display: flex; align-items: center; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--capiro-color-text-secondary); text-align: left; cursor: pointer; }
-.capiro-vnext-root .capiro-menu button:hover,
-.capiro-vnext-root .capiro-menu a:hover { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-menu button:hover:not(:disabled),
+.capiro-vnext-root .capiro-menu a:hover:not([aria-disabled='true']) { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-menu button:disabled,
+.capiro-vnext-root .capiro-menu a[aria-disabled='true'] { cursor: not-allowed; opacity: 0.45; }
 
 .capiro-vnext-root .capiro-popover { position: relative; display: inline-block; }
+.capiro-vnext-root .capiro-popover__trigger { display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
 .capiro-vnext-root .capiro-popover__panel { position: absolute; z-index: var(--capiro-z-popover); min-width: 220px; margin-top: 6px; padding: 10px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-control); }
 
 .capiro-vnext-root .capiro-overlay { position: fixed; inset: 0; z-index: var(--capiro-z-modal); display: grid; place-items: center; padding: 24px; background: var(--capiro-color-bg-overlay-scrim); }
