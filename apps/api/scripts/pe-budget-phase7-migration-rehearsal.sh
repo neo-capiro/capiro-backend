@@ -15,6 +15,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Keep the process in apps/api so relative `npx tsx ./scripts/...` paths work
+# under native Windows Node (MSYS absolute /c/Users/... becomes C:\c\Users\...).
+cd "$API_ROOT"
 MIGRATIONS_DIR="$API_ROOT/prisma/migrations"
 # pgvector, not plain postgres: the migration chain installs the `vector`
 # extension in its first migration.
@@ -1040,7 +1043,7 @@ ok "serve role given a rehearsal password"
 
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1055,7 +1058,7 @@ log "Workstream L — the outbox drainer against a real database"
 # and lease recovery are actually demonstrated.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-drain-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-drain-rehearsal.ts" \
   || fail "the drain rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1064,7 +1067,7 @@ log "Workstream M — the snapshot read path as the general serve role"
 # =============================================================================
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-read-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-read-rehearsal.ts" \
   || fail "the read rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1077,7 +1080,7 @@ log "Workstream N — the plan and validate operator verbs as the serve role"
 # grant fails here instead of in production.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-plan-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-plan-rehearsal.ts" \
   || fail "the plan/validate rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1091,7 +1094,7 @@ log "Gap 3 closeout — the authorize operator verb as the serve role"
 # segregation evidence comes from a real, persisted eligibility record.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
   || fail "the Gap 3 authorize rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1248,7 +1251,7 @@ cat > "$GAP5_PLAN_FILE" <<JSON
 JSON
 
 DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  npx tsx "./scripts/persist-defense-budget-projection-plan-v1.ts" \
   --plan "$GAP5_PLAN_FILE" --family rdte \
   --producer-version 'rehearsal-build-rdte-cycle@1' \
   --certification-sha256 "$(printf '4%.0s' $(seq 1 64))" \
@@ -1338,7 +1341,7 @@ INSERT INTO phase6_audit_projection (
 ok "seeded two live Phase 6 audit-projection rows and one superseded row"
 
 GAP5_PHASE6_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-phase6-projection-plan.json"
-npx tsx "$SCRIPT_DIR/build-defense-budget-phase6-projection-plan-v1.ts" \
+npx tsx "./scripts/build-defense-budget-phase6-projection-plan-v1.ts" \
   --cycle-id cycle-gap5-a --fiscal-year 2027 --out "$GAP5_PHASE6_PLAN_FILE" \
   || fail "build-defense-budget-phase6-projection-plan-v1 could not build a plan document"
 ok "the real build verb reads phase6_audit_projection and produces a plan document"
@@ -1364,7 +1367,7 @@ ok "A3's mapping produced insert (accepted) and no_op (unresolved_binding) exact
 # before this line gets to inspect it.
 set +e
 DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  npx tsx "./scripts/persist-defense-budget-projection-plan-v1.ts" \
   --plan "$GAP5_PHASE6_PLAN_FILE" --family committee \
   --producer-version 'rehearsal-build-phase6-plan@1' \
   --certification-sha256 "$(printf '5%.0s' $(seq 1 64))" \

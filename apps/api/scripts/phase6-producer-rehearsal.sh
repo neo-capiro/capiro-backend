@@ -40,4 +40,6 @@ done
 export DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:$PORT/$DB_NAME"
 
 cd "$API_ROOT"
-npx tsx "$SCRIPT_DIR/phase6-producer-rehearsal.ts"
+# Relative path after cd — MSYS absolute paths like /c/Users/... become
+# C:\c\Users\... under native Windows Node/tsx and fail to resolve.
+npx tsx ./scripts/phase6-producer-rehearsal.ts
