@@ -108,6 +108,54 @@ describe('OpenAiResponsesClient', () => {
     expect(result.usedTenantKey).toBe(false);
   });
 
+  test('omits the reasoning parameter for Standard (Terra), which rejects it', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const fetchMock = jest.fn(
+      async (..._args: Parameters<typeof fetch>) =>
+        new Response(JSON.stringify({ ...responseBody, model: 'gpt-5.6-terra' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    global.fetch = fetchMock as typeof fetch;
+    const client = new OpenAiResponsesClient();
+    await client.complete({
+      profile: resolveMeriV3ReasoningProfile('standard', {}),
+      instructions: 'Meri instructions',
+      input: [{ role: 'user', content: 'Help' }],
+      tools: [],
+    });
+    const sent = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
+    ) as Record<string, unknown>;
+    expect(sent.model).toBe('gpt-5.6-terra');
+    expect(sent).not.toHaveProperty('reasoning');
+  });
+
+  test('omits the reasoning parameter for Fast (Luna), which rejects it', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const fetchMock = jest.fn(
+      async (..._args: Parameters<typeof fetch>) =>
+        new Response(JSON.stringify({ ...responseBody, model: 'gpt-5.6-luna' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    global.fetch = fetchMock as typeof fetch;
+    const client = new OpenAiResponsesClient();
+    await client.complete({
+      profile: resolveMeriV3ReasoningProfile('fast', {}),
+      instructions: 'Meri instructions',
+      input: [{ role: 'user', content: 'Help' }],
+      tools: [],
+    });
+    const sent = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
+    ) as Record<string, unknown>;
+    expect(sent.model).toBe('gpt-5.6-luna');
+    expect(sent).not.toHaveProperty('reasoning');
+  });
+
   test('omits every tool field for the final tool-free synthesis request', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const fetchMock = jest.fn(
