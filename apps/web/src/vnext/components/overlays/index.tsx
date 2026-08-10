@@ -19,6 +19,8 @@ const FOCUSABLE_SELECTOR = [
 
 function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'open'> & { kind: 'modal' | 'drawer' }) {
   const dialogRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -29,7 +31,7 @@ function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'ope
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !dialogRef.current) return;
@@ -61,7 +63,7 @@ function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'ope
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
