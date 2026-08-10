@@ -1,3 +1,5 @@
+import { resolveWebPresentation } from './vnext/app/presentation.js';
+
 /**
  * Resolves the web app's runtime config.
  *
@@ -66,7 +68,7 @@ function loadConfig(): RuntimeConfig {
 export const config: RuntimeConfig = loadConfig();
 
 export function runtimeConfigIsVNext(value: Pick<RuntimeConfig, 'webSurface'>): boolean {
-  return value.webSurface?.trim().toLowerCase() === 'vnext';
+  return resolveWebPresentation(value.webSurface) === 'vnext';
 }
 
 /** Canonical production switch for the vNext presentation surface. */
