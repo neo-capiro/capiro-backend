@@ -96,6 +96,25 @@ const DEFAULT_MAX_RATE_LIMIT_RETRIES = 5;
 const DEFAULT_RATE_LIMIT_WAIT_SECONDS = 35;
 /** A runaway `next` chain must not page forever. Hit means in_progress, never "complete". */
 const MAX_PAGES_PER_ENDPOINT = 10_000;
+/**
+ * Hard ceiling on any single provider-directed sleep (proactive throttle wait
+ * OR 429 retry wait), regardless of what `resetIn`/`retryAfter` says.
+ *
+ * A first full (`--full`, no `--limit`) run stalled for 4.5+ hours with zero
+ * log output and a frozen row count, root-caused to exactly this: an
+ * unbounded `await deps.sleep(result.rate.resetIn * 1000)` trusted the live
+ * provider's header value verbatim. That header had only ever been exercised
+ * against synthetic fixtures (`'31'`, matching the documented ~31s window) —
+ * never against a real response, since no capture before this run ever made
+ * enough requests in a burst to trigger it. Whatever the real value actually
+ * was is unrecoverable after the fact: this call path writes no row to
+ * `tango_api_usage` (that table belongs to the unrelated 8-method resilient
+ * gateway), so nothing captured it. Two minutes is comfortably above the
+ * documented ~31s window with margin for a slow reset, while bounding the
+ * worst case for a misread or misinterpreted header to "one wasted retry
+ * loop," never "the task is gone for hours."
+ */
+const MAX_PROVIDER_WAIT_MS = 120_000;
 
 export const DIBBS_ENDPOINTS = ['rfq', 'rfp', 'award'] as const;
 export type DibbsEndpoint = (typeof DIBBS_ENDPOINTS)[number];
@@ -278,8 +297,12 @@ async function fetchWithRateLimitRetry(
 
       const retryAfterSec =
         error.rate?.retryAfter ?? error.rate?.resetIn ?? DEFAULT_RATE_LIMIT_WAIT_SECONDS;
+      const waitMs = Math.min(retryAfterSec * 1000, MAX_PROVIDER_WAIT_MS);
       summary.rateLimitRetries += 1;
-      await deps.sleep(retryAfterSec * 1000);
+      console.log(
+        `TANGO_DIBBS_SYNC_RATE_LIMIT_RETRY ${JSON.stringify({ attempt, retryAfterSec, waitMs })}`,
+      );
+      await deps.sleep(waitMs);
     }
   }
 }
@@ -370,8 +393,12 @@ async function walkEndpoint(
     // measured this account at 25 requests per ~31s — small enough that a
     // page-complete walk reaches it routinely, not exceptionally.
     if (result.rate?.remaining === 0 && result.rate.resetIn != null) {
+      const waitMs = Math.min(result.rate.resetIn * 1000, MAX_PROVIDER_WAIT_MS);
       summary.throttleWaits += 1;
-      await deps.sleep(result.rate.resetIn * 1000);
+      console.log(
+        `TANGO_DIBBS_SYNC_THROTTLE_WAIT ${JSON.stringify({ endpoint, page, resetIn: result.rate.resetIn, waitMs })}`,
+      );
+      await deps.sleep(waitMs);
     }
 
     for (const raw of result.items) {

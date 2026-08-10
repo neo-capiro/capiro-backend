@@ -2563,3 +2563,59 @@ scripts specifically — it was a response to the false diagnosis. Once a correc
 image is used, the plain verb path works and is what P50's disabled EventBridge schedule rules already
 assume. Recorded so a future reader of D-73 does not conclude the dispatcher itself needed touching —
 it did not, and was never edited.
+
+---
+
+## D-75 · 2026-08-10 · The first real full DIBBS walk stalled 4.5+ hours on an unbounded sleep, root-caused and fixed
+
+With D-73/D-74 resolved, the DIBBS full walk (`--commit --full`, verified digest-pinned image,
+`capiro-dev-api-sync-jobs` revision 9) ran clean through the plain verb path — but stalled. Two
+independent row-count checks 3 minutes apart, then a third, all read the exact same number
+(`tango_dibbs_solicitation = 2520`) and, on the first two, byte-identical "most recent 3 rows." The
+task itself stayed `RUNNING`/`CONNECTED` throughout, with zero CloudWatch log output (this script only
+logs a per-endpoint summary at completion, never per-page). Total elapsed before it was stopped:
+roughly 4.5 hours against a ~50–60 minute estimate.
+
+**Root cause, found by reading the code, not by capturing the live trigger:** `walkEndpoint`'s
+proactive throttle —
+
+```ts
+if (result.rate?.remaining === 0 && result.rate.resetIn != null) {
+  summary.throttleWaits += 1;
+  await deps.sleep(result.rate.resetIn * 1000);
+}
+```
+
+— and `fetchWithRateLimitRetry`'s 429 backoff, both trust the live provider's `resetIn`/`retryAfter`
+header value verbatim, multiplied into milliseconds, with **no ceiling**. Every existing test of this
+path (`sync-tango-dibbs.spec.ts`, `sync-tango-sbir.spec.ts`) used a synthetic fixture value of `31` or
+similar, matching P17's documented "~25 requests per ~31s" window — because no capture before this run
+had ever made enough requests in a single burst to trigger a REAL `remaining: 0` response. 2520 rows
+is almost exactly 25 pages of 100, the documented threshold — consistent with this being the first
+page where a genuine `remaining: 0` response landed, and whatever value the live provider actually
+sent, this code slept for it without question.
+
+**The exact real value that triggered it is unrecoverable.** This call path — unlike the original
+8-method `TANGO_GATEWAY`/`TangoResilienceService` surface — writes nothing to `tango_api_usage`
+(confirmed: no reference to that table or `recordUsage` anywhere under `sync-tango-dibbs*`). Whether
+the live `x-ratelimit-reset-in` header sent something in a different unit than seconds, a value meant
+for a longer-window quota tier, or something else entirely, no artifact captured it before the task
+was stopped. This entry does not claim to know why the value was wrong — only that it demonstrably
+was, by its effect.
+
+**Fix:** `MAX_PROVIDER_WAIT_MS = 120_000` in both `sync-tango-dibbs.ts` and `sync-tango-sbir.ts` (SBIR
+has the byte-identical pattern at both call sites and has never exercised it live either — fixed
+pre-emptively rather than waiting to reproduce the same incident there). Both sleeps are now
+`Math.min(reportedSeconds * 1000, MAX_PROVIDER_WAIT_MS)`, and both now log
+(`TANGO_DIBBS_SYNC_THROTTLE_WAIT` / `TANGO_DIBBS_SYNC_RATE_LIMIT_RETRY`, and the `SBIR` equivalents)
+the endpoint, page, reported value, and actual wait BEFORE sleeping — this run's single biggest
+diagnostic gap was that a multi-hour wait produced no evidence of its own existence. Four new tests
+(two per script) prove the ceiling holds against an absurdly large reported value on both the
+proactive-throttle and the 429-retry path. `funding-opportunities-ci.yml`'s api floor: 88/2782 →
+88/2786.
+
+**What this forbids:** any future `deps.sleep(<provider-reported value> * 1000)` call in this program
+without a hard ceiling alongside it. A value read from a live response and trusted verbatim into a
+sleep duration is exactly the shape of bug this entry exists to name — bounded retries (D-32's breaker
+cooldown, this file's own `fetchWithRateLimitRetry` retry COUNT) were already a house pattern; an
+unbounded retry DURATION was the gap.

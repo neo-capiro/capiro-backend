@@ -2188,9 +2188,20 @@ jobs:
       # the DOCUMENT against reality. Relatedly, the SBIR list carries no
       # `phase`, because the contract publishes none; looking for one would
       # report it MISSING and invite someone to "fix" a mapper that is correct.
+      #
+      # 88/2782 -> 88/2786 (2026-08-10, D-75): a first full (--full, no --limit)
+      # DIBBS walk stalled 4.5+ hours on an unbounded
+      # `sleep(resetIn * 1000)` trusting a live rate-limit header no prior
+      # capture had ever exercised in a real burst. Fixed with a hard
+      # MAX_PROVIDER_WAIT_MS ceiling plus a log line, in both
+      # sync-tango-dibbs.ts and sync-tango-sbir.ts (SBIR shares the identical
+      # client shape and had never hit this path live either). No new file —
+      # 4 tests ADDED, 2 per script, proving the ceiling holds against an
+      # absurdly large resetIn/Retry-After on both the proactive-throttle and
+      # the 429-retry path.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2782
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2786
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
