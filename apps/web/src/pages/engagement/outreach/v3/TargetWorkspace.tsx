@@ -11,7 +11,6 @@ import {
   History,
   Loader2,
   Mail,
-  Plus,
   Search,
   ShieldCheck,
   UserRound,
@@ -113,6 +112,10 @@ function formatDate(value: string | null | undefined): string {
     day: 'numeric',
     year: 'numeric',
   }).format(parsed);
+}
+
+function validEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function PanelHeader({ selectedCount }: { selectedCount: number }) {
@@ -248,7 +251,8 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
   const searched = useRef(false);
 
   const profile = targetProfile as OutreachV3TargetProfileResponse | undefined;
-  const profileTarget = profile?.data.target;
+  const profileData = profile?.data;
+  const profileTarget = profileData?.target;
   const profileStatus = profile?.selectionSnapshot.status;
 
   const relationships = useMutation({
@@ -285,9 +289,21 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       includePrincipals,
     });
 
+  const selectedOption = () => SOURCE_OPTIONS.find((entry) => entry.key === source);
+
+  const targetSearchInput = (option: (typeof SOURCE_OPTIONS)[number]) => ({
+    query: query.trim() || undefined,
+    clientId:
+      source === 'recommended' || option.requiresClient
+        ? sponsorClientId ?? undefined
+        : undefined,
+    sources: [...option.sources],
+    limit: 20,
+  });
+
   const runSearch = async (event?: FormEvent) => {
     event?.preventDefault();
-    const option = SOURCE_OPTIONS.find((entry) => entry.key === source);
+    const option = selectedOption();
     if (!option || option.unavailable || source === 'selected' || source === 'manual') return;
     if (option.requiresClient && !sponsorClientId) {
       setError('This source requires one explicit client sponsor.');
@@ -295,16 +311,10 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     }
     setError(null);
     try {
+      // Search is an explicit commit point for the edited criteria. Merely
+      // entering the stage never mutates the canonical Campaign Spec.
       await applyCommands([criteriaCommand()]);
-      await searchTargets({
-        query: query.trim() || undefined,
-        clientId:
-          source === 'recommended' || option.requiresClient
-            ? sponsorClientId ?? undefined
-            : undefined,
-        sources: [...option.sources],
-        limit: 20,
-      });
+      await searchTargets(targetSearchInput(option));
     } catch (caught) {
       setError(safeOutreachV3Error(caught));
     }
@@ -313,10 +323,16 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
   useEffect(() => {
     if (searched.current) return;
     searched.current = true;
-    void runSearch();
-    // The initial request starts from the canonical topic/criteria only once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const option = SOURCE_OPTIONS[0]!;
+    // Read-only recommendations are allowed to load automatically. They do not
+    // add targets or commit inferred criteria.
+    void searchTargets({
+      query: query.trim() || undefined,
+      clientId: sponsorClientId ?? undefined,
+      sources: [...option.sources],
+      limit: 20,
+    }).catch((caught) => setError(safeOutreachV3Error(caught)));
+  }, [query, searchTargets, sponsorClientId]);
 
   const openProfile = async (locator: OutreachV3TargetLocator) => {
     setActiveLocator(locator);
@@ -379,6 +395,10 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       setError('Enter the target name.');
       return;
     }
+    if (manual.email.trim() && !validEmail(manual.email.trim())) {
+      setError('Enter a valid email address or leave the email blank.');
+      return;
+    }
     const locator: OutreachV3TargetLocator = {
       source: 'manual',
       id: crypto.randomUUID(),
@@ -406,6 +426,9 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     : undefined;
   const relationship = relationships.data as OutreachV3RelationshipResponse | undefined;
   const snapshotChanged = profile?.selectionSnapshot.status === 'changed';
+  const coverageSelectedCount = coverage?.coverage.selectedCount ?? selected.length;
+  const coverageSendReadyCount =
+    coverage?.coverage.sendReadyCount ?? selected.filter((target) => Boolean(target.email)).length;
 
   return (
     <section className="ov3-decision-panel ov3-target-workspace">
@@ -489,7 +512,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               <option value="mixed">Mixed audience</option>
             </select>
           </label>
-          {source === 'recommended' && highConfidence.length ? (
+          {source === 'recommended' && highConfidence.length > 0 ? (
             <button
               type="button"
               className="ov3-button is-primary"
@@ -621,21 +644,21 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
           </header>
           {targetProfilePending ? (
             <div className="ov3-centered"><Loader2 className="ov3-spin" /></div>
-          ) : profileTarget ? (
+          ) : profileTarget && profileData && profile ? (
             <>
               <div className="ov3-inspector__identity">
                 <span className="ov3-avatar is-large">{profileTarget.displayName.slice(0, 2).toUpperCase()}</span>
                 <div>
                   <h3>{profileTarget.displayName}</h3>
-                  <p>{profile.data.role.title || profile.data.role.organization || 'Target'}</p>
+                  <p>{profileData.role.title || profileData.role.organization || 'Target'}</p>
                 </div>
               </div>
               <div className="ov3-profile-status-row">
-                <StatusPill tone={profile.data.role.status === 'current' ? 'success' : 'warning'}>
-                  Role {profile.data.role.status}
+                <StatusPill tone={profileData.role.status === 'current' ? 'success' : 'warning'}>
+                  Role {profileData.role.status}
                 </StatusPill>
-                <StatusPill tone={profile.data.contact.emailStatus === 'available' ? 'info' : 'warning'}>
-                  Email {profile.data.contact.emailStatus}
+                <StatusPill tone={profileData.contact.emailStatus === 'available' ? 'info' : 'warning'}>
+                  Email {profileData.contact.emailStatus}
                 </StatusPill>
                 {activeSelected ? <StatusPill tone="success">Selected</StatusPill> : null}
               </div>
@@ -651,18 +674,18 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               ) : null}
 
               <dl className="ov3-detail-list">
-                <div><dt>Office</dt><dd>{profile.data.role.organization || 'Not listed'}</dd></div>
-                <div><dt>Email</dt><dd>{profile.data.contact.email || 'Not available'}</dd></div>
-                <div><dt>Phone</dt><dd>{profile.data.contact.phone || 'Not available'}</dd></div>
-                <div><dt>Committees</dt><dd>{profile.data.jurisdiction.committees.join(', ') || 'Not listed'}</dd></div>
-                <div><dt>Issue areas</dt><dd>{profile.data.jurisdiction.issueAreas.join(', ') || 'Not listed'}</dd></div>
-                <div><dt>Source</dt><dd>{sentence(profile.data.dataQuality.sourceSystem)}</dd></div>
-                <div><dt>Verified</dt><dd>{formatDate(profile.data.dataQuality.lastVerifiedAt)}</dd></div>
+                <div><dt>Office</dt><dd>{profileData.role.organization || 'Not listed'}</dd></div>
+                <div><dt>Email</dt><dd>{profileData.contact.email || 'Not available'}</dd></div>
+                <div><dt>Phone</dt><dd>{profileData.contact.phone || 'Not available'}</dd></div>
+                <div><dt>Committees</dt><dd>{profileData.jurisdiction.committees.join(', ') || 'Not listed'}</dd></div>
+                <div><dt>Issue areas</dt><dd>{profileData.jurisdiction.issueAreas.join(', ') || 'Not listed'}</dd></div>
+                <div><dt>Source</dt><dd>{sentence(profileData.dataQuality.sourceSystem)}</dd></div>
+                <div><dt>Verified</dt><dd>{formatDate(profileData.dataQuality.lastVerifiedAt)}</dd></div>
               </dl>
 
-              {profile.data.warnings.length ? (
+              {profileData.warnings.length ? (
                 <div className="ov3-target-warning-list">
-                  {profile.data.warnings.map((warning) => (
+                  {profileData.warnings.map((warning) => (
                     <div key={warning.code} className="ov3-recovery is-warning">
                       <CircleAlert size={16} aria-hidden="true" />
                       <div><strong>{sentence(warning.code)}</strong><p>{warning.message}</p></div>
@@ -673,21 +696,25 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
 
               <section className="ov3-profile-facts">
                 <span className="ov3-section-label">Personalization facts</span>
-                {profile.data.personalizationFacts.map((fact) => (
-                  <article key={fact.code}>
-                    <div>
-                      <strong>{fact.label}</strong>
-                      <p>{Array.isArray(fact.value) ? fact.value.join(', ') : fact.value || 'Not available'}</p>
-                    </div>
-                    <StatusPill tone={fact.usableForPersonalization ? 'success' : 'warning'}>
-                      {fact.usableForPersonalization ? 'Usable' : sentence(fact.status)}
-                    </StatusPill>
-                  </article>
-                ))}
+                {profileData.personalizationFacts.length ? (
+                  profileData.personalizationFacts.map((fact) => (
+                    <article key={fact.code}>
+                      <div>
+                        <strong>{fact.label}</strong>
+                        <p>{Array.isArray(fact.value) ? fact.value.join(', ') : fact.value || 'Not available'}</p>
+                      </div>
+                      <StatusPill tone={fact.usableForPersonalization ? 'success' : 'warning'}>
+                        {fact.usableForPersonalization ? 'Usable' : sentence(fact.status)}
+                      </StatusPill>
+                    </article>
+                  ))
+                ) : (
+                  <p className="ov3-muted-copy">No approved personalization facts are available.</p>
+                )}
               </section>
 
-              <ProfileSection label="Known interests" section={profile.data.positioning.knownInterests} />
-              <ProfileSection label="District and state" section={profile.data.governmentNexus.districtState} />
+              <ProfileSection label="Known interests" section={profileData.positioning.knownInterests} />
+              <ProfileSection label="District and state" section={profileData.governmentNexus.districtState} />
 
               <section className="ov3-relationship-panel">
                 <div className="ov3-relationship-panel__header">
@@ -735,8 +762,8 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                   <p className="ov3-muted-copy">
                     {sponsorClientId
                       ? 'Relationship metadata loads when the profile opens.'
-                      : profile.data.relationshipMetadata.lastContactAt
-                        ? `Last known contact ${formatDate(profile.data.relationshipMetadata.lastContactAt)}.`
+                      : profileData.relationshipMetadata.lastContactAt
+                        ? `Last known contact ${formatDate(profileData.relationshipMetadata.lastContactAt)}.`
                         : 'No client-scoped relationship analysis is available.'}
                   </p>
                 )}
@@ -766,19 +793,14 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               <Loader2 className="ov3-spin" size={18} />
             ) : (
               <>
-                <strong>{coverage?.coverage.selectedCount ?? selected.length} selected</strong>
-                <p>
-                  {coverage?.coverage.sendReadyCount ?? selected.filter((target) => target.email).length}{' '}
-                  email-ready
-                </p>
+                <strong>{coverageSelectedCount} selected</strong>
+                <p>{coverageSendReadyCount} email-ready</p>
                 <div className="ov3-meter">
                   <span
                     style={{
                       width: `${Math.min(
                         100,
-                        ((coverage?.coverage.sendReadyCount ?? 0) /
-                          Math.max(coverage?.coverage.selectedCount ?? selected.length, 1)) *
-                          100,
+                        (coverageSendReadyCount / Math.max(coverageSelectedCount, 1)) * 100,
                       )}%`,
                     }}
                   />
