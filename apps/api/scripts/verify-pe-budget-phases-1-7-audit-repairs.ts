@@ -181,8 +181,7 @@ console.log(
       paidProviderCalls: false,
       awsMutations: false,
       sharedDatabaseMutations: false,
-      note:
-        'Code/disposable closeout only. Production-scale SLO, live canary, real activation and independent human approval remain separate operational release gates.',
+      note: 'Code/disposable closeout only. Production-scale SLO, live canary, real activation and independent human approval remain separate operational release gates.',
     },
     null,
     2,

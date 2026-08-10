@@ -45,9 +45,7 @@ const pnpm = resolvePnpm();
 // Nested Phase 4 --include-containers re-runs full Phase 3 container builds.
 // On Windows cold/warm Docker hosts that path regularly exceeds 45m; kill the
 // child early and the outer closeout reports ETIMEDOUT after green smokes.
-const defaultStepTimeoutMs = includeContainers
-  ? 4 * 60 * 60 * 1000
-  : 45 * 60 * 1000;
+const defaultStepTimeoutMs = includeContainers ? 4 * 60 * 60 * 1000 : 45 * 60 * 1000;
 
 function pnpmStep(name: string, args: string[], cwd = REPO_ROOT): Step {
   return {
