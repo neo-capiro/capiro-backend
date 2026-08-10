@@ -47,11 +47,17 @@ const required = [
   'apps/web/src/pages/engagement/outreach/v3/OutreachConversation.tsx',
   'apps/web/src/pages/engagement/outreach/v3/CampaignBrief.tsx',
   'apps/web/src/pages/engagement/outreach/v3/CurrentDecisionSurface.tsx',
+  'apps/web/src/pages/engagement/outreach/v3/TargetWorkspace.tsx',
+  'apps/web/src/pages/engagement/outreach/v3/TargetWorkspaceEntry.tsx',
+  'apps/web/src/pages/engagement/outreach/v3/ContextReviewSurface.tsx',
   'apps/web/src/pages/engagement/outreach/v3/DecisionSurfaces.tsx',
   'apps/web/src/pages/engagement/outreach/v3/useOutreachV3Session.ts',
   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-preview.ts',
+  'apps/web/src/pages/engagement/outreach/v3/target-intelligence-contracts.ts',
   'apps/web/src/pages/engagement/outreach/v3/outreach-v3.css',
+  'apps/web/src/pages/engagement/outreach/v3/target-workspace.css',
+  'apps/web/src/pages/engagement/outreach/v3/context-review-surface.css',
 ];
 for (const file of required) assert(existsSync(resolve(root, file)), `missing:${file}`);
 
@@ -77,6 +83,8 @@ const productionCombined = productionFiles
 const apiClient = readFileSync(resolve(v3Dir, 'outreach-v3-api.ts'), 'utf8');
 const router = readFileSync(resolve(v3Dir, 'OutreachWizardRouter.tsx'), 'utf8');
 const proposalReview = readFileSync(resolve(v3Dir, 'CurrentDecisionSurface.tsx'), 'utf8');
+const targets = readFileSync(resolve(v3Dir, 'TargetWorkspace.tsx'), 'utf8');
+const context = readFileSync(resolve(v3Dir, 'ContextReviewSurface.tsx'), 'utf8');
 const manifest = readFileSync(
   resolve(root, 'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md'),
   'utf8',
@@ -100,6 +108,14 @@ assert(proposalReview.includes('Why this proposal?'), 'proposal-rationale-contro
 assert(proposalReview.includes('Edit manually'), 'proposal-edit-control-missing');
 assert(proposalReview.includes('will not auto-rebase'), 'stale-proposal-no-rebase-copy-missing');
 assert(proposalReview.includes('disabled={proposalBusy || stale}'), 'stale-proposal-apply-guard-missing');
+assert(targets.includes('Read-only recommendations are allowed to load automatically'), 'target-read-only-load-contract-missing');
+assert(targets.includes('Saving to the shared Directory remains'), 'manual-directory-default-off-copy-missing');
+assert(targets.includes('getOutreachV3TargetRelationships'), 'relationship-inspection-missing');
+assert(!targets.includes('void runSearch();'), 'target-stage-auto-commit');
+assert(context.includes('Style is not evidence'), 'writing-guidance-separation-missing');
+assert(context.includes('Applies to ${scopeTarget} only'), 'target-scope-copy-missing');
+assert(context.includes("entry.contextClass === 'required_policy'"), 'required-policy-lock-missing');
+assert(context.includes('Group-safe context requires a named audience group'), 'group-safe-fail-closed-missing');
 
 for (const node of [
   '634:2703',
@@ -138,6 +154,8 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/pages/engagement/outreach/v3/outreach-v3-preview.spec.ts',
   'src/pages/engagement/outreach/v3/OutreachWizardRouter.spec.tsx',
   'src/pages/engagement/outreach/v3/CurrentDecisionSurface.spec.tsx',
+  'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
+  'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
   'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',
