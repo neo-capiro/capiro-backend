@@ -2455,3 +2455,111 @@ Both it and P42's are added.
 one most likely to be wrong. The durable fix is deriving the list from the directory; that is a
 bigger change than this phase should make to a shared workflow, so it is recorded here rather than
 done.
+
+---
+
+## D-72 · 2026-08-09 · A dedicated execution role for sync-jobs, not a wider grant on the shared one
+
+Wiring `TANGO_API_KEY` onto `capiro-dev-api-sync-jobs`'s secrets array (D-26/D-27's live-run
+follow-through) hit `AccessDeniedException: secretsmanager:GetSecretValue` on the first dry-run.
+Root cause: `capiro-dev-api` (serve), `capiro-dev-api-migrate`, and `capiro-dev-api-sync-jobs` all
+resolved the SAME execution role — `Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg`
+— so the only way to let sync-jobs read the secret through that role was to grant it to all three.
+
+**That was rejected**, not patched around. `infra/cdk`'s P16 synth test
+(`compute-stack.tango.spec.ts`, D-25) exists specifically to prove `TANGO_API_KEY` is absent from
+serve/migrate containers; granting the shared EXECUTION role secret-read access does not put the key
+in serve's environment, but it does mean the always-on, internet-facing serve process runs under an
+IAM identity that CAN read it — the same "once two things share an unqualified credential path,
+nothing downstream can tell them apart" reasoning D-03 already applied to Tango data, applied here to
+Tango CREDENTIALS.
+
+**Fix:** forked a new role, `capiro-dev-syncjobs-execution-role`
+(`arn:aws:iam::967807252336:role/capiro-dev-syncjobs-execution-role`, created 2026-08-09), carrying
+the shared role's 17 existing inline policies verbatim plus one new one, `TangoApiKeyRead`, scoped to
+exactly the one secret ARN (`arn:aws:secretsmanager:us-east-1:967807252336:secret:tango-c0YGNk`).
+`capiro-dev-api-sync-jobs` now resolves this role; `capiro-dev-api` and `capiro-dev-api-migrate`
+still resolve the original shared role, unchanged, confirmed by `describe-task-definition` on all
+three families after the change. The dry-run then succeeded.
+
+**Why fork rather than parameterize the existing role's policy set:** the shared role backs the
+serve API, which is a live, internet-facing target — the LOWEST-risk place to add a secret grant is
+nowhere on it. A role that exists for one always-ephemeral, never-internet-facing task family is the
+right home for a credential that family alone needs.
+
+**What this forbids:** any future secret intended for sync-only use being added to
+`Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg` (the serve/migrate shared role) as a
+shortcut. New sync-exclusive credentials belong on `capiro-dev-syncjobs-execution-role`, or on a
+further split of it if a future credential needs to be scoped away from sync-jobs' OTHER secrets too.
+
+---
+
+## D-73 · 2026-08-10 · CORRECTION: the verbs were never missing — the deployed `:latest` tag was pointing at an image built from no commit in this repository
+
+First read of this incident (now known wrong, kept here per this log's own no-silent-edit rule):
+attempting the full DIBBS walk via the `sync-tango-dibbs` verb failed with "unknown command," and the
+container's own printed verb list did not include it — which looked exactly like P40/P42 having
+shipped the script but never wired its verb into the entrypoint dispatch chain.
+
+**That diagnosis was wrong.** `apps/api/scripts/entrypoint-dispatcher.inc` on `origin/main` HAS both
+verbs — `sync-tango-dibbs` (added `0b6aec0c`, P40 part 3) and `sync-tango-sbir` (added `31cd1dc6`,
+P42 part 3) — confirmed by reading `git show origin/main:apps/api/scripts/entrypoint-dispatcher.inc`
+directly. Working around the "gap" with a raw `entryPoint`/`command` override then failed a second
+way: `ERR_MODULE_NOT_FOUND` for `/app/apps/api/scripts/sync-tango-dibbs.ts` — the file genuinely was
+not present in whatever the container was actually running.
+
+**Root cause: the `capiro/dev/api:latest` ECR tag had been repushed** at 2026-08-10T09:17:14-04:00 by
+IAM user `capirocli` (the same shared CLI credential this session's AWS operations use), to a digest
+tagged with a second string — `5dc9757634c000eb436f3ff0769ab0fe70abfb5f` — shaped like a git commit
+SHA but matching **no commit in this repository**: confirmed absent from `origin/main`, and absent
+after `git fetch origin` pulled and checked all 720 remote branches. Both `capiro-dev-api-sync-jobs`
+revisions 7 and 8 reference the image by the mutable tag `:latest`, not a pinned digest, so both
+resolved to this unverifiable build at task-launch time.
+
+**What this is not:** a live incident. `capiro-dev-api`'s (serve) actual running tasks were
+independently confirmed on task-definition revision 134, image tag `5c18a427b4dd...` — a real commit
+(`5c18a427`, "feat(dashboard): Work Queue + News customization", #893) — deployed 2026-08-09 21:35,
+`rolloutState: COMPLETED`, unaffected by the later `:latest` repush. Only NEW, unpinned task launches
+against this family (this session's sync-jobs runs; nothing else currently launches this family
+unpinned) picked up the unverifiable build.
+
+**Why CloudTrail couldn't settle who pushed it:** `PutImage` for a Docker-protocol `docker push`
+records `invokedBy` and `sourceIPAddress` as `ecr.amazonaws.com` regardless of the actual origin
+machine — a documented ECR/CloudTrail limitation, not evidence of anything automated. Every push in
+this program's history, including this session's own earlier rebuilds, shows the identical pattern
+under the identical shared `capirocli` principal. The most likely explanation given the timing (this
+session had already rebuilt and pushed this same repository more than once) is a local commit built
+and pushed directly to ECR without first being pushed to `origin` — not a third party.
+
+**Fix:** rebuilt from `origin/main`'s verified tip and re-pushed (see the immediately following build
+record in this session's history). `capiro-dev-api-sync-jobs` revision 9 pins the sync-jobs image by
+**digest**, not `:latest` — specifically so a future unrelated `:latest` repush can never again
+silently change what this family's next `run-task` call executes — and, per D-74, uses the ordinary
+default entryPoint rather than carrying revision 8's `sh -c` workaround forward: that workaround
+addressed a diagnosis this entry retracts, and a correctly-built image needs it for nothing.
+Revision 8 is left registered (harmless, unreferenced) rather than deregistered, matching this log's
+practice of not deleting evidence of a step that was taken, even a since-superseded one.
+
+**What this forbids:** any task-definition revision for a one-off/manual/diagnostic run referencing
+an image by mutable tag when a verified digest is available at registration time. `:latest` is fine
+for a long-running SERVICE that goes through a real deployment (which updates the running tasks
+explicitly and leaves an ECS deployment record), but not for a `run-task` family whose only
+protection against silently running unverified code is what tag its task definition happens to name.
+
+---
+
+## D-74 · 2026-08-10 · The sh -c entryPoint fix from the (retracted) prior diagnosis, kept for a real reason
+
+D-73's first draft is wrong about WHY, but the mechanical fix it made is still correct and still
+needed, independent of the `:latest` mystery: ECS `run-task --overrides` does not accept an
+`entryPoint` override (`Unknown parameter in overrides.containerOverrides[0]: "entryPoint", must be
+one of: name, command, environment, environmentFiles, cpu, memory, memoryReservation,
+resourceRequirements` — the CLI's own parameter validation). `sync-tango-dibbs` and `sync-tango-sbir`
+ARE correctly wired into `entrypoint-dispatcher.inc` as verbs — but reaching them by verb means
+`command: ["sync-tango-dibbs", "--commit", "--full"]`, going through `entrypoint.sh` →
+`entrypoint-legacy.sh` → `entrypoint-dispatcher.inc`, all three of which are reachable and correct on
+a properly-built image. The entryPoint override was never actually necessary to reach these two
+scripts specifically — it was a response to the false diagnosis. Once a correctly-built, digest-pinned
+image is used, the plain verb path works and is what P50's disabled EventBridge schedule rules already
+assume. Recorded so a future reader of D-73 does not conclude the dispatcher itself needed touching —
+it did not, and was never edited.
