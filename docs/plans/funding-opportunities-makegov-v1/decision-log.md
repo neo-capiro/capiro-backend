@@ -2619,3 +2619,64 @@ without a hard ceiling alongside it. A value read from a live response and trust
 sleep duration is exactly the shape of bug this entry exists to name — bounded retries (D-32's breaker
 cooldown, this file's own `fetchWithRateLimitRetry` retry COUNT) were already a house pattern; an
 unbounded retry DURATION was the gap.
+
+---
+
+## D-76 · 2026-08-10 · The re-run, with D-75's fix in place, hit a real multi-hour account-wide block — not a bug
+
+Re-ran the full DIBBS walk (`capiro-dev-api-sync-jobs` revision 10, image rebuilt from `main` at
+`342d6fa2` — includes D-75's fix) from a clean image. The fix worked exactly as designed: every
+provider-directed sleep this run logged was visibly capped, and the run terminated on its own in
+well under an hour instead of hanging.
+
+**What the logs proved, not guessed:** the live `retryAfterSec` values, read across successive
+capped-wait cycles, counted down in real time and in lockstep with the 120s cap —
+`13007 → 12887 → 12767 → 12647 → 12527 → 12406 → 12286 → 12166 → 12046 → 11926 → 11806 → 11685 →
+11565 → 11445 → 11325` — each step smaller by essentially exactly 120. That is not sensor noise or a
+misread header; it is a real countdown toward an actual reset roughly **3.5+ hours** away at the
+point the first block was hit, and the account was still that far from clearing when this run gave
+up. Two shorter blocks (45s, 40s) resolved normally first — this is a SEPARATE, coarser limit tier
+than the documented "~25 requests per ~31s" window, undocumented anywhere in the plan or the SDK, and
+never previously triggered because no prior capture or run had made enough requests in one account
+to reach it.
+
+**Final summary, per endpoint** (`TANGO_DIBBS_SYNC_DONE`):
+
+| endpoint | pagesRead | written | complete | rateLimited | rateLimitRetries |
+|---|---|---|---|---|---|
+| rfq | 75 | 7,500 | false | true | 9 |
+| rfp | 0 | 0 | false | true | 5 |
+| award | 0 | 0 | false | true | 5 |
+
+RFQ made real, genuine, committed progress (7,500 rows — independently re-verified via direct query:
+`tango_dibbs_solicitation` = 7,520, i.e. exactly the 20-row bounded-test baseline plus this run's
+7,500) before the account-wide block took effect. RFP and Award never completed a single page — by
+the time the walk reached them, the SAME block was already in force account-wide (not
+per-endpoint), so both exhausted their 5 retries on their very first request each and gave up
+immediately. `completeness: "in_progress"`, `rateLimited: true` at the top level, accurately
+reflecting exactly this — not a crash, not a hang, an honest partial result.
+
+**Why this session's cumulative testing is the most likely cause, not a defect in this account's
+configuration:** today alone included the P17-era probe re-runs implied by history, the D-71
+contract-capture run, the bounded 20-record dry-run-then-commit pass, this program's FIRST full
+walk (which made ~26+ real requests before its own stall), and this SECOND full walk (75+ successful
+pages plus 19 logged failed retry attempts before this entry was written). A daily or similarly
+long-window account quota — never documented, never hit before because no prior session drove this
+much real traffic against DIBBS in one day — is a far more parsimonious explanation than a
+misconfigured or unusually restrictive account.
+
+**Decision: do not attempt the SBIR full walk in the same session.** SBIR shares the same
+`TANGO_API_KEY` and, per D-27/D-29, the same account — an account-wide block observed on DIBBS has no
+reason to spare a different dataset under the same key. Launching SBIR immediately would almost
+certainly exhaust its own 5 retries on the first request for no benefit, and would add more failed
+requests against an account that may already be past whatever threshold caused this.
+
+**What this leaves open, deliberately not resolved by this entry:** whether the block is a daily
+reset (clears at a fixed wall-clock time) or a genuinely multi-hour rolling window; whether this
+account's real tier limits are documented anywhere MakeGov support could confirm; and whether P40's
+own schedule design (D-63's incremental-plus-periodic-`--full` pairing) needs a materially longer
+gap between full reconciliation runs than assumed, given a single `--full` walk against a
+75,339-record RFQ endpoint alone appears to reliably exhaust whatever this coarser quota is before
+finishing ONE of DIBBS's three endpoints. Completing the remaining ~67,839 RFQ records, all of RFP,
+all of Award, and all of SBIR is unfinished — to be resumed once the block is confirmed clear, not
+before.
