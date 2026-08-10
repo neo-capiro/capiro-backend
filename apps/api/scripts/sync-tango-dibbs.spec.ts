@@ -583,6 +583,51 @@ describe('rate limiting', () => {
     });
     expect.assertions(4);
   });
+
+  // A first full run stalled 4.5+ hours on exactly this: an unbounded sleep
+  // trusting a live header value that had only ever been exercised against a
+  // synthetic '31' fixture. These two tests prove the ceiling holds even when
+  // the reported value is wildly larger than anything the documented ~31s
+  // window would ever produce — the exact shape a misread or misinterpreted
+  // header would take, whatever the real cause turns out to be.
+  test('a throttle wait is capped even when resetIn is absurdly large', async () => {
+    const { deps, sleeps } = fakeDeps({});
+    let page = 0;
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      page += 1;
+      return {
+        items: [rfq(`p${page}`)],
+        totalCount: null,
+        nextPage: page === 1 ? 2 : null,
+        rate:
+          page === 1
+            ? { remaining: 0, limit: 25, resetIn: 9_999_999, retryAfter: null, limitType: null }
+            : null,
+      };
+    });
+
+    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+
+    expect(sleeps).toEqual([120_000]);
+    expect(byEndpoint(summary, 'rfq').throttleWaits).toBe(1);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(true);
+  });
+
+  test('a 429 retry wait is capped even when Retry-After is absurdly large', async () => {
+    const { deps, sleeps } = fakeDeps({ rfq: [[rfq('a')]] });
+    let calls = 0;
+    (deps.gateway as any).listRfqs = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw rateLimitError(9_999_999);
+      return { items: [rfq('a')], totalCount: 1, nextPage: null, rate: null };
+    });
+
+    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+
+    expect(sleeps).toEqual([120_000]);
+    expect(byEndpoint(summary, 'rfq').rateLimitRetries).toBe(1);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(true);
+  });
 });
 
 // ── The client's envelope assertion ──────────────────────────────────────────
