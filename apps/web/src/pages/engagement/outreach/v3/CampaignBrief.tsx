@@ -1,4 +1,12 @@
-import { Check, CircleAlert, LockKeyhole } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  LockKeyhole,
+  Pencil,
+} from 'lucide-react';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachV3SessionEnvelope, OutreachV3Stage } from './contracts.js';
 import { outreachV3PlanningBlockerCodes } from './useOutreachV3Session.js';
@@ -26,10 +34,24 @@ export interface CampaignBriefProps {
   session: OutreachV3SessionEnvelope;
   clients: Client[];
   currentStage: OutreachV3Stage;
+  onSelectStage?: (stage: OutreachV3Stage) => void;
 }
 
-export function CampaignBrief({ session, clients, currentStage }: CampaignBriefProps) {
+export function CampaignBrief({
+  session,
+  clients,
+  currentStage,
+  onSelectStage,
+}: CampaignBriefProps) {
   const { spec, readiness } = session;
+  const [open, setOpen] = useState(currentStage === 'goal' || currentStage === 'sponsor');
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (touched) return;
+    setOpen(currentStage === 'goal' || currentStage === 'sponsor');
+  }, [currentStage, touched]);
+
   const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   const sponsor = (() => {
     switch (spec.sponsor.kind) {
@@ -66,10 +88,6 @@ export function CampaignBrief({ session, clients, currentStage }: CampaignBriefP
     readiness.sponsorResolved,
     spec.sponsor.kind !== 'undecided',
   );
-  const targetCriteriaReady = canonicalBoolean(
-    readiness.targetCriteriaReady,
-    spec.targeting.criteria !== null,
-  );
   const targetsReady = canonicalBoolean(
     readiness.targetsReady,
     spec.targeting.selectedTargetRefs.length > 0,
@@ -81,103 +99,110 @@ export function CampaignBrief({ session, clients, currentStage }: CampaignBriefP
   const contextReady =
     canonicalBoolean(readiness.contextReady, acceptedContext > 0) &&
     canonicalBoolean(readiness.contextEvidenceReady, true);
-  const strategyReady = canonicalBoolean(
-    readiness.strategyReady,
-    Boolean(
-      spec.strategy.campaignAngle &&
-        spec.strategy.tone &&
-        spec.strategy.length !== 'undecided',
-    ),
-  );
 
-  const rows = [
-    {
-      label: 'Goal',
-      value: joinMeaningful(
-        [spec.goal.desiredOutcome, spec.goal.ask.text, spec.goal.topic],
-        'Not defined',
-      ),
-      ready: goalReady,
-    },
-    { label: 'Sponsor', value: sponsor, ready: sponsorReady },
+  const ask = spec.goal.ask.mode === 'none'
+    ? 'No formal ask — informational update only'
+    : spec.goal.ask.text || 'Not set';
+  const delivery = spec.delivery.pattern === 'undecided'
+    ? 'Not set'
+    : `${spec.delivery.pattern.replaceAll('_', ' ')} · ${spec.delivery.personalization}`;
+  const readinessText = planningBlockerCount
+    ? `${planningBlockerCount} planning blocker${planningBlockerCount === 1 ? '' : 's'}`
+    : currentStage === 'ready_for_generation'
+      ? 'Planning complete'
+      : 'Planning state validated';
+
+  const rows: Array<{
+    label: string;
+    value: string;
+    ready: boolean;
+    stage: OutreachV3Stage;
+  }> = [
+    { label: 'Goal', value: spec.goal.goal || spec.goal.objective || 'Not defined', ready: goalReady, stage: 'goal' },
+    { label: 'Topic', value: spec.goal.topic || 'Not set', ready: Boolean(spec.goal.topic), stage: 'goal' },
+    { label: 'Ask', value: ask, ready: spec.goal.ask.mode !== 'undecided', stage: 'goal' },
+    { label: 'Sponsor', value: sponsor, ready: sponsorReady, stage: 'sponsor' },
     {
       label: 'Targets',
       value: spec.targeting.selectedTargetRefs.length
-        ? `${spec.targeting.selectedTargetRefs.length} selected${
-            targetCriteriaReady ? '' : ' · criteria open'
-          }`
+        ? `${spec.targeting.selectedTargetRefs.length} selected`
         : 'None selected',
-      ready: targetCriteriaReady && targetsReady,
+      ready: targetsReady,
+      stage: 'targets',
     },
+    { label: 'Delivery', value: delivery, ready: deliveryReady, stage: 'delivery' },
     {
-      label: 'Delivery',
-      value:
-        spec.delivery.pattern === 'undecided'
-          ? 'Undecided'
-          : `${spec.delivery.pattern.replaceAll('_', ' ')} · ${spec.delivery.personalization}`,
-      ready: deliveryReady,
-    },
-    {
-      label: 'Context',
+      label: 'Context health',
       value: acceptedContext
-        ? `${acceptedContext} accepted${
-            readiness.contextEvidenceReady === false ? ' · evidence review needed' : ''
-          }`
+        ? `${acceptedContext} in use${readiness.contextEvidenceReady === false ? ' · evidence review needed' : ''}`
         : 'Not reviewed',
       ready: contextReady,
+      stage: 'context',
     },
-    {
-      label: 'Strategy',
-      value: joinMeaningful(
-        [spec.strategy.campaignAngle, spec.strategy.tone, spec.strategy.length],
-        'Not set',
-      ),
-      ready: strategyReady,
-    },
+    { label: 'Readiness', value: readinessText, ready: planningBlockerCount === 0, stage: currentStage },
   ];
 
+  const summary = [
+    sponsor,
+    spec.targeting.selectedTargetRefs.length
+      ? `${spec.targeting.selectedTargetRefs.length} targets`
+      : 'Targets not set',
+    delivery,
+    `${acceptedContext} context source${acceptedContext === 1 ? '' : 's'}`,
+    currentStage === 'ready_for_generation' ? 'Plan ready' : `${STAGE_LABELS[currentStage]} in progress`,
+  ].join(' · ');
+
   return (
-    <aside className="ov3-brief" aria-label="Canonical campaign brief">
-      <header className="ov3-brief__header">
-        <div>
-          <span className="ov3-eyebrow">Campaign brief</span>
-          <h3>{spec.goal.topic || session.session.title || 'New outreach campaign'}</h3>
+    <section className={`ov3-brief-strip ${open ? 'is-open' : 'is-collapsed'}`} aria-label="Canonical campaign brief">
+      <button
+        type="button"
+        className="ov3-brief-strip__toggle"
+        onClick={() => {
+          setTouched(true);
+          setOpen((value) => !value);
+        }}
+        aria-expanded={open}
+      >
+        <div className="ov3-brief-strip__identity">
+          <span className="ov3-eyebrow">Campaign brief · V{session.currentStateVersion}</span>
+          <strong>{spec.goal.topic || session.session.title || 'New outreach campaign'}</strong>
         </div>
-        <span className="ov3-version">V{session.currentStateVersion}</span>
-      </header>
-      <p className="ov3-brief__help">
-        This is the canonical Campaign Spec. Meri may propose changes; only a confirmed
-        command or Apply action updates it.
-      </p>
+        <span className="ov3-brief-strip__summary">{summary}</span>
+        <span className={`ov3-brief-strip__health ${planningBlockerCount ? 'is-blocked' : 'is-clear'}`}>
+          <LockKeyhole size={14} aria-hidden="true" />
+          {planningBlockerCount ? `${planningBlockerCount} open` : 'Validated'}
+        </span>
+        {open ? <ChevronUp size={17} aria-hidden="true" /> : <ChevronDown size={17} aria-hidden="true" />}
+      </button>
 
-      <dl className="ov3-brief__rows">
-        {rows.map((row) => (
-          <div key={row.label} className={row.ready ? 'is-ready' : 'is-open'}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-            <span className="ov3-brief__state" aria-label={row.ready ? 'Complete' : 'Open'}>
-              {row.ready ? <Check size={14} aria-hidden="true" /> : <CircleAlert size={14} />}
-            </span>
-          </div>
-        ))}
-      </dl>
-
-      <div className="ov3-brief__footer">
-        <div className="ov3-brief__stage">
-          <span>Current decision</span>
-          <strong>{STAGE_LABELS[currentStage]}</strong>
+      {open ? (
+        <div className="ov3-brief-strip__body">
+          <p className="ov3-brief-strip__help">
+            This is the canonical Campaign Spec. Meri may propose changes; only a confirmed command or Apply action updates it.
+          </p>
+          <dl className="ov3-brief-strip__rows">
+            {rows.map((row) => (
+              <div key={row.label} className={row.ready ? 'is-ready' : 'is-open'}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+                <span className="ov3-brief-strip__state" aria-label={row.ready ? 'Complete' : 'Open'}>
+                  {row.ready ? <Check size={13} aria-hidden="true" /> : <CircleAlert size={13} aria-hidden="true" />}
+                </span>
+                {onSelectStage ? (
+                  <button
+                    type="button"
+                    className="ov3-brief-strip__edit"
+                    onClick={() => onSelectStage(row.stage)}
+                  >
+                    <Pencil size={12} aria-hidden="true" />
+                    {row.ready ? 'Edit' : 'Open'}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </dl>
         </div>
-        <div
-          className={`ov3-brief__readiness ${planningBlockerCount ? 'is-blocked' : 'is-clear'}`}
-        >
-          <LockKeyhole size={15} aria-hidden="true" />
-          <span>
-            {planningBlockerCount
-              ? `${planningBlockerCount} planning blocker${planningBlockerCount === 1 ? '' : 's'}`
-              : 'Planning state validated'}
-          </span>
-        </div>
-      </div>
-    </aside>
+      ) : null}
+    </section>
   );
 }
