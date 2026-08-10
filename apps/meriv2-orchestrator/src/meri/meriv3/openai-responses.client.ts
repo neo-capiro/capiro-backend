@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import { modelSupportsReasoningEffort } from './meriv3-reasoning.js';
 import type {
   MeriV3ReasoningProfile,
   OpenAiResponsesFunctionCall,
@@ -114,6 +113,18 @@ function sanitizedProviderError(status: number, raw: string): Error {
   return new Error(`OpenAI Responses HTTP ${status}: ${String(message).slice(0, 300)}`);
 }
 
+// Some model tiers intermittently reject the `reasoning` parameter outright
+// ("Unsupported parameter: 'reasoning.effort' is not supported with this
+// model") depending on which backend serves a given request — the same
+// model has been observed succeeding with it minutes apart. Detect that
+// specific rejection so a turn can retry without the parameter rather than
+// assume any given model can never accept it.
+function isReasoningEffortUnsupported(status: number | undefined, error: unknown): boolean {
+  if (status !== 400) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return /unsupported parameter.*reasoning\.effort/i.test(message);
+}
+
 @Injectable()
 export class OpenAiResponsesClient {
   private readonly logger = new Logger(OpenAiResponsesClient.name);
@@ -135,6 +146,7 @@ export class OpenAiResponsesClient {
       usedTenantKey && requestOpenAi?.modelOverridden ? requestOpenAi.model : params.profile.model;
 
     let lastError: unknown;
+    let reasoningUnsupported = false;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const controller = new AbortController();
@@ -163,11 +175,9 @@ export class OpenAiResponsesClient {
             instructions: params.instructions,
             input: params.input,
             ...toolFields,
-            // Terra (Standard) and Luna (Fast) are non-reasoning chat variants
-            // that reject the `reasoning` parameter outright; only send it to
-            // models that actually support it.
-            ...(modelSupportsReasoningEffort(model)
-              ? {
+            ...(reasoningUnsupported
+              ? {}
+              : {
                   reasoning: {
                     effort: params.profile.effort,
                     // Request a provider-authored bounded summary for continuity
@@ -175,8 +185,7 @@ export class OpenAiResponsesClient {
                     // items.
                     summary: 'auto',
                   },
-                }
-              : {}),
+                }),
             max_output_tokens: params.profile.maxOutputTokens,
             store: false,
             ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
@@ -208,6 +217,14 @@ export class OpenAiResponsesClient {
         if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         if (error instanceof DOMException && error.name === 'AbortError') {
           throw new Error(`OpenAI Responses request timed out after ${timeoutMs}ms`);
+        }
+        if (!reasoningUnsupported && isReasoningEffortUnsupported(status, error)) {
+          reasoningUnsupported = true;
+          this.logger.warn(
+            `MeriV3 model ${model} rejected the reasoning parameter on this request; retrying the same turn without it.`,
+          );
+          attempt -= 1;
+          continue;
         }
         if (attempt >= MAX_RETRIES || !shouldRetry(status, error)) throw error;
         this.logger.warn(
