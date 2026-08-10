@@ -141,13 +141,13 @@ describe('TargetWorkspace', () => {
     renderWorkspace(value);
     fireEvent.click(screen.getByRole('tab', { name: 'Manual' }));
 
-    fireEvent.change(screen.getByLabelText('NameRequired'), { target: { value: 'Jordan Miller' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'not-an-email' } });
+    fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Jordan Miller' } });
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'not-an-email' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
     expect(await screen.findByText('Enter a valid email address or leave the email blank.')).toBeInTheDocument();
     expect(value.applyCommands).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jordan@example.test' } });
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'jordan@example.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
 
     await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
