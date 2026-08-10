@@ -46,6 +46,7 @@ const required = [
   'apps/web/src/pages/engagement/outreach/v3/OutreachV3Route.tsx',
   'apps/web/src/pages/engagement/outreach/v3/OutreachConversation.tsx',
   'apps/web/src/pages/engagement/outreach/v3/CampaignBrief.tsx',
+  'apps/web/src/pages/engagement/outreach/v3/CurrentDecisionSurface.tsx',
   'apps/web/src/pages/engagement/outreach/v3/DecisionSurfaces.tsx',
   'apps/web/src/pages/engagement/outreach/v3/useOutreachV3Session.ts',
   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
@@ -75,6 +76,7 @@ const productionCombined = productionFiles
   .join('\n');
 const apiClient = readFileSync(resolve(v3Dir, 'outreach-v3-api.ts'), 'utf8');
 const router = readFileSync(resolve(v3Dir, 'OutreachWizardRouter.tsx'), 'utf8');
+const proposalReview = readFileSync(resolve(v3Dir, 'CurrentDecisionSurface.tsx'), 'utf8');
 const manifest = readFileSync(
   resolve(root, 'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md'),
   'utf8',
@@ -94,6 +96,10 @@ assert(
 );
 assert(router.includes('<ClassicOutreachWizard {...props} />'), 'classic-fallback-missing');
 assert(router.includes('initialRecord || props.initialDraftId'), 'classic-draft-routing-missing');
+assert(proposalReview.includes('Why this proposal?'), 'proposal-rationale-control-missing');
+assert(proposalReview.includes('Edit manually'), 'proposal-edit-control-missing');
+assert(proposalReview.includes('will not auto-rebase'), 'stale-proposal-no-rebase-copy-missing');
+assert(proposalReview.includes('disabled={proposalBusy || stale}'), 'stale-proposal-apply-guard-missing');
 
 for (const node of [
   '634:2703',
@@ -131,6 +137,7 @@ run('Outreach V3 focused tests', 'pnpm', [
   '--hookTimeout=20000',
   'src/pages/engagement/outreach/v3/outreach-v3-preview.spec.ts',
   'src/pages/engagement/outreach/v3/OutreachWizardRouter.spec.tsx',
+  'src/pages/engagement/outreach/v3/CurrentDecisionSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
   'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',
