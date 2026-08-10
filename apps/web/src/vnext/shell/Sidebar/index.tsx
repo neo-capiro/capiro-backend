@@ -10,11 +10,7 @@ export interface CapiroNavItemModel {
 
 export function CapiroNavItem({ item }: { item: CapiroNavItemModel }) {
   return (
-    <NavLink
-      to={item.path}
-      className="capiro-vnext-nav-item"
-      aria-current={({ isActive }) => (isActive ? 'page' : undefined) as never}
-    >
+    <NavLink to={item.path} className="capiro-vnext-nav-item">
       {item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
       <span>{item.label}</span>
     </NavLink>
