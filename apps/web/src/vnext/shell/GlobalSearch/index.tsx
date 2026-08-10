@@ -1,40 +1,106 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useShellOverlay } from '../overlay-manager.js';
 
 export interface GlobalSearchProps {
   placeholder?: string;
   shortcut?: string;
-  onSubmit?: (query: string) => void;
+  /**
+   * SCOPE contract (`730:2589`). Supplied by the shell from the canonical client
+   * context so this component stays presentational and harness-renderable.
+   */
+  scopeLabel?: string;
 }
 
+/**
+ * Global search (`722:2510`, popover `726:2569`).
+ *
+ * The popover mechanics are implemented in full — open, Escape, outside click,
+ * focus return and an explicit scope statement. The canonical web app has no
+ * cross-entity search endpoint returning the designed `Kind / Name / Meta`
+ * shape, so results render the honest not-enabled state rather than fabricated
+ * rows. The missing contract is recorded in IMPLEMENTATION_CONTRACT.md §5.
+ */
 export function GlobalSearch({
   placeholder = 'Search clients, issues, programs, people…',
   shortcut = '⌘K',
-  onSubmit,
+  scopeLabel = 'All clients',
 }: GlobalSearchProps) {
   const [value, setValue] = useState('');
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const query = value.trim();
-    if (query) onSubmit?.(query);
-  };
+  const { isOpen, containerRef, open, close } = useShellOverlay('search');
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Global shortcut for the search trigger, matching the canonical shell.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        open(triggerRef.current);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
+
   return (
-    <form className="capiro-global-search" role="search" onSubmit={submit}>
-      <label className="capiro-global-search__label" htmlFor="capiro-vnext-global-search">
-        Global search
-      </label>
-      <div className="capiro-global-search__control">
-        <span className="capiro-global-search__glyph" aria-hidden="true">⌕</span>
-        <input
-          id="capiro-vnext-global-search"
-          className="capiro-global-search__input"
-          type="search"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={placeholder}
-          autoComplete="off"
-        />
+    <div className="capiro-global-search" ref={containerRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="capiro-global-search__trigger capiro-elevation-control"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={() => open(triggerRef.current)}
+      >
+        <Search size={14} strokeWidth={1.8} aria-hidden="true" />
+        <span className="capiro-global-search__placeholder">{placeholder}</span>
         <span className="capiro-global-search__shortcut" aria-hidden="true">{shortcut}</span>
-      </div>
-    </form>
+      </button>
+
+      {isOpen ? (
+        <div
+          className="capiro-global-search__popover capiro-elevation-popover"
+          role="dialog"
+          aria-label="Global search"
+        >
+          <div className="capiro-global-search__input-row">
+            <Search size={14} strokeWidth={1.8} aria-hidden="true" />
+            <input
+              ref={inputRef}
+              className="capiro-global-search__input"
+              type="search"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              placeholder={placeholder}
+              autoComplete="off"
+              aria-label="Search"
+            />
+            <button
+              type="button"
+              className="capiro-global-search__escape"
+              onClick={close}
+              aria-label="Close search"
+            >
+              ESC
+            </button>
+          </div>
+
+          <div className="capiro-global-search__results">
+            <p className="capiro-global-search__state-title">Search is not enabled yet</p>
+            <p className="capiro-global-search__state-body">
+              Cross-entity search has no backend contract on this surface. Use the
+              destination pages until it is available.
+            </p>
+          </div>
+
+          <div className="capiro-global-search__footer">{scopeLabel}</div>
+        </div>
+      ) : null}
+    </div>
   );
 }

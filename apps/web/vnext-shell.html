@@ -8,6 +8,21 @@
   </head>
   <body style="margin:0">
     <div id="root"></div>
+    <!--
+      Dev-fixture runtime config. `src/env.ts` resolves its config at module load
+      and throws without one, so any module that transitively imports the API
+      client would break this Clerk-free harness. These values are inert: the
+      harness mounts no ClerkProvider and issues no API requests. Production
+      uses `index.html` + the container-generated /runtime-config.js.
+    -->
+    <script>
+      window.__CAPIRO_CONFIG__ = Object.freeze({
+        clerkPublishableKey: 'pk_test_vnext_visual_harness_not_a_real_key',
+        apiBaseUrl: 'http://127.0.0.1:0',
+        appEnv: 'vnext-visual-harness',
+        webSurface: 'vnext',
+      });
+    </script>
     <script type="module" src="/src/vnext/testing/visual/shell-main.tsx"></script>
   </body>
 </html>

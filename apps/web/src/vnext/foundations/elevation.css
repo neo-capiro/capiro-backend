@@ -15,3 +15,8 @@
 .capiro-vnext-root .capiro-elevation-meri {
   box-shadow: 0 6px 18px -7px var(--capiro-shadow-meri);
 }
+
+/* Elevation/Popover — shell menus and flyouts (Figma 728:2575). */
+.capiro-vnext-root .capiro-elevation-popover {
+  box-shadow: 0 12px 28px -14px var(--capiro-primitive-overlay-ink-16);
+}

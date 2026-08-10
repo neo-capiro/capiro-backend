@@ -32,7 +32,14 @@
   /* Borders. */
   --capiro-color-border-default: #dfe2e8;
   --capiro-color-border-quiet: #eaedf1;
+  --capiro-color-border-information: #1c4e7a;
   --capiro-color-shell-search-border: #d7e0eb;
+
+  /* Menu/overlay surfaces (Figma 728:2575). */
+  --capiro-color-bg-selected: #e6e9ef;
+  --capiro-color-bg-flyout-hover: #f6f7fa;
+  --capiro-color-text-destructive: #a32b23;
+  --capiro-primitive-overlay-ink-16: rgba(19, 26, 36, 0.16);
 
   /* Brand/signature actions. */
   --capiro-color-action-primary-default: #131a24;
@@ -78,6 +85,7 @@
   --capiro-layout-shell-sidebar-collapsed: 72px;
   --capiro-layout-shell-nav-item-height: 44px;
   --capiro-layout-shell-icon-container: 32px;
+  --capiro-layout-shell-context-height: 44px;
 
   /* Radius. */
   --capiro-radius-control: 8px;

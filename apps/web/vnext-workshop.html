@@ -8,6 +8,15 @@
   </head>
   <body style="margin:0">
     <div id="root"></div>
+    <!-- Dev-fixture runtime config; see vnext-shell.html for rationale. -->
+    <script>
+      window.__CAPIRO_CONFIG__ = Object.freeze({
+        clerkPublishableKey: 'pk_test_vnext_visual_harness_not_a_real_key',
+        apiBaseUrl: 'http://127.0.0.1:0',
+        appEnv: 'vnext-visual-harness',
+        webSurface: 'vnext',
+      });
+    </script>
     <script type="module" src="/src/vnext/testing/visual/workshop-main.tsx"></script>
   </body>
 </html>

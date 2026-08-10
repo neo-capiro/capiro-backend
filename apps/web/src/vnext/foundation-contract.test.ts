@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   VNEXT_ROUTE_GAPS,
@@ -17,6 +18,15 @@ const cssFiles = [
 ];
 
 const componentCssFiles = ['./components/primitives.css', './shell/shell.css'];
+
+/**
+ * Vite rewrites `new URL('<string literal>', import.meta.url)` into an asset URL
+ * (`http://localhost:3000/...`), which `readFileSync` rejects. Resolving from the
+ * package root keeps these repository-contract assertions reading real files.
+ */
+function fromPackageRoot(relativePath: string): string {
+  return resolve(process.cwd(), relativePath);
+}
 
 describe('vNext foundation contract', () => {
   it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
@@ -66,8 +76,8 @@ describe('vNext foundation contract', () => {
   });
 
   it('selects vNext lazily after shared billing gates and preserves the canonical AppShell fallback', () => {
-    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-    const vnextApp = readFileSync(new URL('./app/VNextApp.tsx', import.meta.url), 'utf8');
+    const app = readFileSync(fromPackageRoot('src/App.tsx'), 'utf8');
+    const vnextApp = readFileSync(fromPackageRoot('src/vnext/app/VNextApp.tsx'), 'utf8');
     expect(app).toContain("import('./vnext/app/VNextApp.js')");
     expect(app).not.toContain("from './vnext/foundations");
     expect(app).toContain('if (isVNextSurface)');
@@ -79,10 +89,10 @@ describe('vNext foundation contract', () => {
 
   it('injects WEB_SURFACE only through the isolated WebVNext stack and exposes release identity', () => {
     const stack = readFileSync(
-      new URL('../../../../infra/cdk/lib/web-vnext-stack.ts', import.meta.url),
+      fromPackageRoot('../../infra/cdk/lib/web-vnext-stack.ts'),
       'utf8',
     );
-    const entrypoint = readFileSync(new URL('../../nginx/entrypoint.sh', import.meta.url), 'utf8');
+    const entrypoint = readFileSync(fromPackageRoot('nginx/entrypoint.sh'), 'utf8');
     expect(stack).toContain("WEB_SURFACE: 'vnext'");
     expect(stack).toContain('CAPIRO_WEB_RELEASE_SHA: props.releaseSha');
     expect(entrypoint).toContain("webSurface: '${WEB_SURFACE_VALUE}'");

@@ -93,7 +93,7 @@ export function VNextComponentWorkshop() {
           <WorkshopCard title="Shell controls">
             <CapiroTopBar
               brand={<CapiroBrand environmentLabel="workshop" />}
-              search={<GlobalSearch onSubmit={() => undefined} />}
+              search={<GlobalSearch scopeLabel="All clients" />}
               actions={<MeriLauncher onLaunch={() => undefined} />}
             />
           </WorkshopCard>
