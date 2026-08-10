@@ -1,0 +1,161 @@
+.ov3-context-review .ov3-context-search {
+  background: var(--ov3-subtle);
+  border: 1px solid var(--ov3-border);
+  border-radius: 11px;
+  padding: 9px;
+}
+
+.ov3-context-review .ov3-context-search .ov3-search-control {
+  background: var(--ov3-surface);
+}
+
+.ov3-context-class-guide {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.ov3-context-class-guide article {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.ov3-context-class-guide article.is-guidance {
+  background: #f5f0ff;
+  border-color: #c9b9df;
+}
+
+.ov3-context-class-guide article.is-evidence {
+  background: #eef5fb;
+  border-color: #bfd2e4;
+}
+
+.ov3-context-class-guide article.is-target {
+  background: #eef7f3;
+  border-color: #b9d8c5;
+}
+
+.ov3-context-class-guide article.is-disabled {
+  opacity: 0.54;
+}
+
+.ov3-context-class-guide strong {
+  display: block;
+  font-size: 10px;
+}
+
+.ov3-context-class-guide p {
+  color: var(--ov3-secondary);
+  font-size: 8px;
+  line-height: 1.35;
+  margin-top: 3px !important;
+}
+
+.ov3-context-card.is-guidance {
+  background: #fbf8ff;
+  border-color: #c9b9df;
+}
+
+.ov3-context-card.is-evidence {
+  border-color: #a9c3da;
+}
+
+.ov3-context-card.is-target-specific {
+  background: #f7fbf9;
+  border-color: #add0bd;
+}
+
+.ov3-context-card.is-conflict {
+  border-color: #d7bf86;
+}
+
+.ov3-context-source-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ov3-context-source-row > span {
+  color: var(--ov3-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.ov3-context-source-row a {
+  color: var(--ov3-accent);
+  font-size: 9px;
+  font-weight: 650;
+  margin-left: auto;
+  text-decoration: none;
+}
+
+.ov3-context-source-row a:hover {
+  text-decoration: underline;
+}
+
+.ov3-context-summary-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ov3-context-summary-grid article {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.ov3-context-summary-grid strong {
+  display: block;
+  font-size: 15px;
+}
+
+.ov3-context-summary-grid span {
+  color: var(--ov3-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.ov3-context-scope-name {
+  color: var(--ov3-accent) !important;
+  font-weight: 650;
+}
+
+.ov3-context-accepted-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ov3-context-accepted-section > header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ov3-context-accepted-section > header p {
+  color: var(--ov3-muted);
+  font-size: 9px;
+}
+
+@media (max-width: 1180px) {
+  .ov3-context-class-guide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .ov3-context-class-guide,
+  .ov3-context-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
