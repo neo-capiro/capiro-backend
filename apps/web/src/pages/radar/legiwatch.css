@@ -15,70 +15,29 @@
    ============================================================ */
 
 
-/* Capiro Design System v3 mapping.
-   The legacy semantic names below are kept so the ~1000 rules in this file
-   (and the .redesign rules in tracker.css that render inside .lw-root) keep
-   resolving — only their VALUES move to the v3 palette. Source of truth is
-   src/capiro-v3-tokens.css.
+.lw-root {
+  --bg-canvas: #f4f2ec; --bg-surface: #ffffff; --bg-surface-2: #fbf9f4; --bg-sunken: #efece4;
+  --bg-dark: #0c1a38; --bg-dark-2: #15264a;
+  --border-1: #e6e1d6; --border-2: #d8d2c4; --border-strong: #c8c1b0;
+  --ink-1: #15161a; --ink-2: #4f525a; --ink-3: #8a8780; --ink-4: #b5b0a4;
+  --ink-on-dark: #f5f2eb; --ink-on-dark-2: rgba(245,242,235,0.66); --ink-on-dark-3: rgba(245,242,235,0.42);
+  --accent: #2a57ce; --accent-ink: #1a3f9f; --accent-soft: #dee6f8; --accent-glow: rgba(42,87,206,0.18);
+  --critical: #b5301b; --critical-soft: #f6ddd6;
+  --notable: #a26913; --notable-soft: #f4e5c3;
+  --info: #2c5bd4; --info-soft: #dce4f8;
+  --success: #2e6b43; --success-soft: #ddebde;
+  --violet: #6a2eb5; --violet-soft: #ebe4f8;
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
+  --shadow-1: 0 1px 2px rgba(16,18,24,.04), 0 1px 0 rgba(16,18,24,.03);
+  --shadow-2: 0 2px 4px rgba(16,18,24,.04), 0 8px 24px rgba(16,18,24,.06);
+  --shadow-3: 0 8px 32px rgba(16,18,24,.14);
 
-   The portal selectors are listed alongside .lw-root because antd renders
-   drawers, dialogs and toasts outside the page subtree; without them those
-   surfaces would inherit the old warm palette from theme.css and clash. */
-.lw-root,
-.trk-overlay,
-.trk-toasts,
-.trk-toast,
-.bill360-drawer {
-  --bg-canvas: var(--capiro-color-bg-canvas);
-  --bg-surface: var(--capiro-color-bg-surface);
-  --bg-surface-2: var(--capiro-color-shell-sidebar-bg);
-  --bg-sunken: var(--capiro-color-bg-subtle);
-  --bg-dark: var(--capiro-color-bg-inverse);
-  --bg-dark-2: #15202f;
-
-  --border-1: var(--capiro-color-border-default);
-  --border-2: var(--capiro-color-border-strong);
-  --border-strong: var(--capiro-color-border-strong);
-
-  --ink-1: var(--capiro-color-text-primary);
-  --ink-2: var(--capiro-color-text-secondary);
-  --ink-3: var(--capiro-color-text-muted);
-  --ink-4: var(--capiro-color-border-strong);
-  --ink-on-dark: #ffffff;
-  --ink-on-dark-2: var(--capiro-primitive-highlight-white-72);
-  --ink-on-dark-3: rgba(255,255,255,0.42);
-
-  --accent: var(--capiro-color-text-accent);
-  --accent-ink: var(--capiro-color-shell-nav-current-text);
-  --accent-soft: var(--capiro-color-shell-nav-current-bg);
-  --accent-glow: rgba(29,72,201,0.18);
-
-  --critical: var(--capiro-color-text-destructive);
-  --critical-soft: var(--capiro-color-bg-review);
-  --notable: var(--capiro-color-text-warning);
-  --notable-soft: var(--capiro-color-bg-review);
-  --info: var(--capiro-color-text-information);
-  --info-soft: var(--capiro-color-bg-subtle);
-  --success: var(--capiro-color-text-success);
-  --success-soft: var(--capiro-color-bg-subtle);
-  /* v3 has no violet ramp; fold it into the accent so nothing renders raw purple */
-  --violet: var(--capiro-color-text-accent);
-  --violet-soft: var(--capiro-color-bg-subtle);
-
-  --font-sans: var(--capiro-type-family-sans);
-  --font-mono: var(--capiro-type-family-mono);
-  /* v3 sets the page title in Instrument Sans SemiBold, not a serif */
-  --font-serif: var(--capiro-type-family-sans);
-
-  --r-xs: var(--capiro-radius-technical);
-  --r-sm: var(--capiro-radius-control);
-  --r-md: var(--capiro-radius-navigation);
-  --r-lg: var(--capiro-radius-widget);
-  --r-xl: var(--capiro-radius-widget);
-
-  --shadow-1: var(--capiro-elevation-control);
-  --shadow-2: var(--capiro-elevation-widget);
-  --shadow-3: var(--capiro-elevation-widget-emphasis);
+  --font-sans: var(--font-sans-rd); --font-mono: var(--font-mono-rd); --font-serif: var(--font-serif-rd);
+  --violet: #6a2eb5; --violet-soft: #ebe4f8;
+  --shadow-3: 0 8px 32px rgba(16,18,24,.14);
 }
 
 .lw-root * { box-sizing: border-box; }

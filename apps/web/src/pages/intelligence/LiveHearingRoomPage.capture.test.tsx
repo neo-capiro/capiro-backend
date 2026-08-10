@@ -266,11 +266,7 @@ describe('LiveHearingRoomPage browser capture', () => {
     ];
     renderRoom();
     expect(await screen.findByText('Persisted testimony from the prior session.')).toBeInTheDocument();
-    // v3 puts the speaker on its own line above the utterance, so the label no
-    // longer carries the trailing colon of the old inline "Speaker 1: text" form.
-    expect(screen.getByText('Speaker 1')).toBeInTheDocument();
-    // The offset gutter replaces the old trailing "[5s]" stamp.
-    expect(screen.getByText('0:05')).toBeInTheDocument();
+    expect(screen.getByText('Speaker 1:')).toBeInTheDocument();
   });
 
   test('a rapid double-click mints only one WebSocket ticket', async () => {

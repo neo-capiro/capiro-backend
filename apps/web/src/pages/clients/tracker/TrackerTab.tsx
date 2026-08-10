@@ -14,7 +14,6 @@ import './tracker.css';
 // used by this surface live here; import so they load wherever TrackerTab renders
 // (Radar Bills/Configure AND the client-profile LegiWatch tab), not just on /legiwatch.
 import '../../radar/legiwatch.css';
-import '../../radar/legiwatch-v3.css';
 import { Icon, StarIcon } from './tracker-icons.js';
 import {
   AddBillModal,

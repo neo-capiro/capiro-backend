@@ -32,9 +32,7 @@ import {
 } from '../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../clients/clientTypes.js';
 import { useMe, type MeResponse } from '../../lib/me.js';
-import { useLegiWatchOverview, type LegiWatchOverview } from './legiwatch-overview-api.js';
 import './legiwatch.css';
-import './legiwatch-v3.css';
 
 type RadarTab = 'feed' | 'bills' | 'hearings' | 'watchlist';
 const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist'];
@@ -186,12 +184,6 @@ export function RadarPage() {
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
   const { enabled: hearingWatch, ready: hearingReady } = useIntelFeature('hearing_watch');
 
-  const overview = useLegiWatchOverview({
-    clientId: selectedClient?.id ?? null,
-    feedEnabled: trackerReady && trackerV2,
-    hearingsEnabled: hearingReady && hearingWatch,
-  });
-
   // ── First-run cold-start (P6) ──────────────────────────────────────────────
   // A client is "cold" when it has NO watchlist configured: 0 issue areas AND 0
   // topics/terms. Feed and Bills lead with a single-CTA guided empty state that
@@ -286,9 +278,6 @@ export function RadarPage() {
       }}
     >
       <div className="pg-head">
-        <p className="pg-eyebrow">
-          Policy action center · {selectedClient ? selectedClient.name : 'All clients'}
-        </p>
         <div className="pg-top">
           <h1 className="pg-title">
             <AimOutlined /> LegiWatch
@@ -319,8 +308,6 @@ export function RadarPage() {
         ))}
       </div>
 
-      {tab === 'feed' && <LegiWatchMetrics overview={overview} />}
-
       {tab === 'feed' &&
         (!trackerReady ? (
           <PanelLoading />
@@ -343,14 +330,6 @@ export function RadarPage() {
                 clientName={selectedClient.name}
                 focusAlertId={alertParam}
                 onFocused={() => setParam('alert', null)}
-                railTop={
-                  <LegiWatchRailWidgets
-                    overview={overview}
-                    watchlist={coldStartQuery.data}
-                    clientName={selectedClient.name}
-                    onOpenTab={(t) => setParam('tab', t)}
-                  />
-                }
               />
             </div>
           </FirstRunGate>
@@ -363,13 +342,6 @@ export function RadarPage() {
               onScopeClient={(id) => setParam('client', id)}
               focusAlertId={alertParam}
               onFocused={() => setParam('alert', null)}
-              railTop={
-                <LegiWatchRailWidgets
-                  overview={overview}
-                  clientName={null}
-                  onOpenTab={(t) => setParam('tab', t)}
-                />
-              }
             />
           </div>
         ))}
@@ -481,14 +453,12 @@ function RadarFeedTab({
   clientName,
   focusAlertId,
   onFocused,
-  railTop,
 }: {
   clientId: string;
   clientName: string;
   /** g-7: `&alert=<id>` from an alert email — scroll to and expand that card. */
   focusAlertId?: string | null;
   onFocused?: () => void;
-  railTop?: ReactNode;
 }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -545,7 +515,6 @@ function RadarFeedTab({
         onOpenBill={(billId) => setDrawerBillId(billId)}
         focusAlertId={focusAlertId}
         onFocused={onFocused}
-        railTop={railTop}
       />
       <BillDrawer
         open={drawerBillId !== null}
@@ -573,9 +542,7 @@ function RadarGlobalFeedTab({
   onScopeClient,
   focusAlertId,
   onFocused,
-  railTop,
 }: {
-  railTop?: ReactNode;
   clientNameById: Map<string, string>;
   /** LegiWatch v2 (L1): scope the whole feature to a client (from a feed card's label). */
   onScopeClient: (clientId: string) => void;
@@ -636,7 +603,6 @@ function RadarGlobalFeedTab({
         onOpenBill={(billId, cId) => setDrawer({ billId, clientId: cId })}
         focusAlertId={focusAlertId}
         onFocused={onFocused}
-        railTop={railTop}
       />
       <BillDrawer
         open={drawer !== null}
@@ -1002,201 +968,6 @@ function ClientGate({
       <p>Select a client to view {what}. Feed, Bills, and Configure are scoped to one client.</p>
       <div className="row">{picker}</div>
     </div>
-  );
-}
-
-/**
- * The v3 header strip.
- *
- * A tile renders only once its figure has actually loaded — a count is either a
- * real server-side total or the tile is absent. The mockup also carried
- * "comment deadlines" and "source gaps" tiles; intel-api has no aggregate
- * behind either, so they are not built rather than filled with a placeholder.
- */
-function LegiWatchMetrics({ overview }: { overview: LegiWatchOverview }) {
-  const tiles: Array<{ label: string; value: number; sub: string; attention?: boolean }> = [];
-
-  if (overview.needsReview != null) {
-    tiles.push({
-      label: 'Needs review',
-      value: overview.needsReview,
-      sub:
-        overview.needsReviewCritical != null
-          ? `${overview.needsReviewCritical} critical`
-          : 'unread alerts',
-      attention: overview.needsReview > 0,
-    });
-  }
-  if (overview.billsMovingThisWeek != null) {
-    tiles.push({
-      label: 'Bills moving',
-      value: overview.billsMovingThisWeek,
-      sub: 'last 7 days',
-    });
-  }
-  if (overview.hearingsToday != null) {
-    tiles.push({
-      label: 'Hearings today',
-      value: overview.hearingsToday,
-      sub: overview.hearingsThisWeek != null ? `${overview.hearingsThisWeek} within 7 days` : '',
-    });
-  }
-
-  if (tiles.length === 0) return null;
-
-  return (
-    <div className="lw-metrics">
-      {tiles.map((t) => (
-        <div key={t.label} className={t.attention ? 'lw-metric attention' : 'lw-metric'}>
-          <div className="lw-metric-label">{t.label}</div>
-          <div className="lw-metric-row">
-            <span className="lw-metric-value">{t.value}</span>
-            {t.sub && <span className="lw-metric-sub">{t.sub}</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const STAGE_LABEL: Record<string, string> = {
-  introduced: 'Introduced',
-  committee: 'In committee',
-  passed: 'Passed chamber',
-  enacted: 'Enacted',
-};
-
-const CHANGE_TONE_CLASS: Record<string, string> = {
-  critical: 'chip sev-critical',
-  notable: 'chip sev-notable',
-  info: 'chip sev-info',
-  success: 'chip success',
-};
-
-/**
- * The v3 feed rail widgets, rendered above the feed's own controls.
- *
- * Both data widgets read the queries the header strip already issued, so they
- * cost no extra requests. Two deliberate departures from the mockup:
- * per-hearing "N watchlist matches" is not shown (the only such count comes
- * from live transcription, so it is 0 for any hearing nobody captured), and
- * watchlist coverage appears only for a selected client — computing it at
- * all-clients altitude would mean one watchlist request per client.
- */
-function LegiWatchRailWidgets({
-  overview,
-  watchlist,
-  clientName,
-  onOpenTab,
-}: {
-  overview: LegiWatchOverview;
-  watchlist?: WatchlistPayload;
-  clientName: string | null;
-  onOpenTab: (tab: RadarTab) => void;
-}) {
-  const showHearings = overview.hearingsToday != null || overview.hearingsUnavailable;
-  const bills = overview.movingBills.slice(0, 4);
-  const topics = watchlist?.tags?.length ?? 0;
-  const terms =
-    watchlist?.tags?.reduce(
-      (n, t) =>
-        n + (t.synonyms?.length ?? 0) + (t.relatedEntities?.length ?? 0) + (t.riskTerms?.length ?? 0),
-      0,
-    ) ?? 0;
-
-  if (!showHearings && bills.length === 0 && !watchlist) return null;
-
-  return (
-    <>
-      {showHearings && (
-        <div className="card">
-          <div className="card-head">
-            <h3>Today&rsquo;s hearings</h3>
-            {overview.hearingsToday != null && (
-              <span className="sub">{overview.hearingsToday} scheduled</span>
-            )}
-            <span className="grow" />
-            <button type="button" className="link-btn" onClick={() => onOpenTab('hearings')}>
-              Open Hearings →
-            </button>
-          </div>
-          {overview.hearingsUnavailable ? (
-            <div className="lw-card-note">
-              The hearing schedule could not be loaded, so today may not be empty. Open Hearings to
-              retry.
-            </div>
-          ) : overview.todayHearings.length === 0 ? (
-            <div className="lw-card-note">No hearings scheduled today.</div>
-          ) : (
-            overview.todayHearings.slice(0, 4).map((h) => (
-              <div className="lw-row" key={h.id}>
-                <span className="lw-row-lead">{h.time || '—'}</span>
-                <div className="lw-row-main">
-                  <div className="lw-row-title">{h.committee || h.title}</div>
-                  {h.committee && <div className="lw-row-meta">{h.title}</div>}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {bills.length > 0 && (
-        <div className="card">
-          <div className="card-head">
-            <h3>Tracked bills moving</h3>
-            {overview.billsMovingThisWeek != null && (
-              <span className="sub">{overview.billsMovingThisWeek} in 7 days</span>
-            )}
-            <span className="grow" />
-            <button type="button" className="link-btn" onClick={() => onOpenTab('bills')}>
-              Open Bills →
-            </button>
-          </div>
-          {bills.map((b) => (
-            <div className="lw-row" key={b.billId}>
-              <span className="lw-row-lead" style={{ minWidth: 74 }}>
-                {b.displayNum}
-              </span>
-              <div className="lw-row-main">
-                <div className="lw-row-title">
-                  {b.canonicalStatus || STAGE_LABEL[b.stage] || b.stage}
-                </div>
-                {b.latestActionDate && <div className="lw-row-meta">{b.latestActionDate}</div>}
-              </div>
-              {b.change && (
-                <span className={CHANGE_TONE_CLASS[b.change.tone] ?? 'chip'}>{b.change.label}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {watchlist && clientName && (
-        <div className="card">
-          <div className="card-head">
-            <h3>Watchlist coverage</h3>
-            <span className="grow" />
-            <button type="button" className="link-btn" onClick={() => onOpenTab('watchlist')}>
-              Configure →
-            </button>
-          </div>
-          <div className="lw-row">
-            <div className="lw-row-main">
-              <div className="lw-row-title">{clientName}</div>
-            </div>
-            <span className="lw-row-meta">
-              {topics} topics · {terms} terms
-            </span>
-          </div>
-          {topics === 0 && (
-            <div className="lw-card-note">
-              No targeting yet — Configure produces guided setup, not an empty feed.
-            </div>
-          )}
-        </div>
-      )}
-    </>
   );
 }
 
