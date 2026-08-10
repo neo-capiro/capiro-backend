@@ -67,10 +67,13 @@ describe('vNext foundation contract', () => {
 
   it('selects vNext lazily after shared billing gates and preserves the canonical AppShell fallback', () => {
     const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+    const vnextApp = readFileSync(new URL('./app/VNextApp.tsx', import.meta.url), 'utf8');
     expect(app).toContain("import('./vnext/app/VNextApp.js')");
+    expect(app).not.toContain("from './vnext/foundations");
     expect(app).toContain('if (isVNextSurface)');
     expect(app).toContain('<VNextApp />');
     expect(app).toContain('return <AppShell />;');
+    expect(vnextApp).toContain("import '../foundations/index.css';");
     expect(app.indexOf('if (isVNextSurface)')).toBeGreaterThan(app.indexOf('if (data?.billingEnabled && data.locked)'));
   });
 
