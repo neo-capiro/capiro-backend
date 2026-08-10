@@ -87,11 +87,35 @@ describe('Needs Attention module contract', () => {
   it('carries only material intelligence changes', () => {
     const items = selectAttentionItems({
       alerts: [],
-      changes: [change({ id: 'low', severity: 'low' }), change({ id: 'big', severity: 'critical' })],
+      changes: [
+        change({ id: 'low', severity: 'low', relatedClientIds: ['c1'] }),
+        change({ id: 'big', severity: 'critical', relatedClientIds: ['c1'] }),
+      ],
       failedSourceReason: null,
     });
 
     expect(items.map((item) => item.id)).toEqual(['change-big']);
+  });
+
+  // Regression: os.capiro.ai served four rows of pipeline telemetry
+  // ("379954 new LDA filings synced") because severity alone let the ingestion
+  // feed through. Needs Attention is client-facing work, so an item must be
+  // attributable to at least one client.
+  it('excludes portfolio-wide ingestion counters that carry no client', () => {
+    const items = selectAttentionItems({
+      alerts: [],
+      changes: [
+        change({
+          id: 'ingest',
+          severity: 'high',
+          title: '379954 new LDA filings synced',
+          relatedClientIds: [],
+        }),
+      ],
+      failedSourceReason: null,
+    });
+
+    expect(items).toHaveLength(0);
   });
 
   it('raises material source failures but not configuration states', () => {
@@ -148,6 +172,13 @@ describe('dashboard source contract', () => {
   it('stays all-client — no client filter is read or sent', () => {
     expect(source).not.toContain('useClientFilter');
     expect(source).not.toContain('selectedClientId');
+  });
+
+  it('orders Today & Coming Up by real instant, not the rendered time string', () => {
+    // Regression: the week query returns every day's meetings, so sorting by
+    // "10:00 AM" interleaved each day's recurring standup indistinguishably.
+    expect(source).toContain('a.at - b.at');
+    expect(source).not.toContain('a.time.localeCompare(b.time)');
   });
 
   it('never turns a failed request into a zero or empty result', () => {

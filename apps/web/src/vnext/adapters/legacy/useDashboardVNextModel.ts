@@ -359,21 +359,28 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       return { state: 'empty' as DashboardModuleState, week: [], events: [] };
     }
     if (meetings.isLoading && comingUp.isLoading) {
-      return { state: 'loading' as DashboardModuleState, week: weekStrip([]), events: [] };
+      return { state: 'loading' as DashboardModuleState, week: weekStrip(new Set()), events: [] };
     }
     if (meetings.isError && comingUp.isError) {
-      return { state: 'unavailable' as DashboardModuleState, week: weekStrip([]), events: [] };
+      return { state: 'unavailable' as DashboardModuleState, week: weekStrip(new Set()), events: [] };
     }
 
-    const events: TodayEvent[] = [];
+    // Ordering must use the real instant, not the rendered time string: the
+    // week query returns every day's meetings, so sorting by "10:00 AM" alone
+    // interleaves each day's recurring standup into one indistinguishable list.
+    const dated: Array<TodayEvent & { at: number }> = [];
 
     for (const meeting of meetings.data ?? []) {
       const joinUrl = readJoinUrl(meeting);
-      events.push({
+      const at = new Date(meeting.startsAt).getTime();
+      dated.push({
+        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
         id: `meeting-${meeting.id}`,
         time: formatTime(meeting.startsAt),
         title: meeting.subject,
-        meta: [meeting.client?.name, meeting.location].filter(Boolean).join(' · ') || 'Meeting',
+        meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
+          .filter(Boolean)
+          .join(' · '),
         href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
         action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
         joinUrl,
@@ -382,30 +389,43 @@ export function useDashboardVNextModel(): DashboardVNextModel {
 
     // Hearings, comment deadlines, floor activity and other tracked events.
     for (const item of comingUp.data?.items ?? []) {
-      events.push({
+      const at = new Date(item.time ? `${item.date}T${item.time}` : item.date).getTime();
+      dated.push({
+        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
         id: `coming-${item.id}`,
         time: item.time ?? formatDayShort(item.date),
         title: item.title,
-        meta: [item.label, item.detail].filter(Boolean).join(' · '),
+        meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
         href: item.href,
         action: 'open',
       });
     }
 
-    events.sort((a, b) => a.time.localeCompare(b.time));
+    // Past events are not "today and coming up".
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const upcoming = dated
+      .filter((event) => event.at >= startOfToday.getTime())
+      .sort((a, b) => a.at - b.at);
+    const eventDays = new Set(
+      upcoming
+        .filter((event) => event.at !== Number.MAX_SAFE_INTEGER)
+        .map((event) => new Date(event.at).toDateString()),
+    );
+    const events: TodayEvent[] = upcoming.map(({ at: _at, ...event }) => event);
 
     const partial = meetings.isError || comingUp.isError;
     if (events.length === 0) {
       return {
         state: (partial ? 'partial' : 'empty') as DashboardModuleState,
-        week: weekStrip([]),
+        week: weekStrip(new Set()),
         events,
       };
     }
 
     return {
       state: (partial ? 'partial' : 'ready') as DashboardModuleState,
-      week: weekStrip(events),
+      week: weekStrip(eventDays),
       events,
     };
   }, [comingUp.data, comingUp.isError, comingUp.isLoading, meetings.data, meetings.isError, meetings.isLoading, visibility.today]);
@@ -578,8 +598,15 @@ export function selectAttentionItems({
   }
 
   // Material funding/regulatory movement the alert roll-up does not carry.
+  //
+  // Severity alone is not sufficient. `/api/intelligence/changes` is the
+  // ingestion feed behind the Changes Inbox, and it emits portfolio-wide
+  // pipeline counters ("379954 new LDA filings synced") at high severity. Those
+  // are housekeeping, not client-facing work, so an item must additionally be
+  // attributable to at least one client to qualify.
   for (const change of changes) {
     if (!MATERIAL_CHANGE_SEVERITIES.has(change.severity)) continue;
+    if ((change.relatedClientIds?.length ?? 0) === 0) continue;
     items.push({
       id: `change-${change.id}`,
       kind: 'BUDGET',
@@ -705,7 +732,7 @@ function weekBounds(now: Date): { from: string; to: string } {
   return { from: start.toISOString(), to: end.toISOString() };
 }
 
-function weekStrip(events: TodayEvent[]): DashboardVNextModel['today']['week'] {
+function weekStrip(eventDays: ReadonlySet<string>): DashboardVNextModel['today']['week'] {
   const now = new Date();
   const start = new Date(now);
   const day = (start.getDay() + 6) % 7;
@@ -720,9 +747,18 @@ function weekStrip(events: TodayEvent[]): DashboardVNextModel['today']['week'] {
       weekday: date.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
       day: String(date.getDate()),
       today: date.toDateString() === now.toDateString(),
-      hasEvents: events.length > 0 && date.toDateString() === now.toDateString(),
+      // Marks the days that actually carry events, not just today.
+      hasEvents: eventDays.has(date.toDateString()),
     };
   });
+}
+
+function dayLabel(iso: string): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return null;
+  return date.toLocaleDateString(undefined, { weekday: 'short' });
 }
 
 /** Reuses the existing per-user localStorage preference contract. */

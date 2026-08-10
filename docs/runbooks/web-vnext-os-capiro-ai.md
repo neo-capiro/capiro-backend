@@ -56,9 +56,17 @@ Do not deploy by mutable `latest` alone.
 
 From the repository root, with the normal CDK environment/account credentials available:
 
+The concrete values for `env=dev` are recorded in `web-vnext-release-dev.env`; source it rather than
+rediscovering them. Every value there was read back from the deployed stack, and `cdk diff` with them
+reports "There were no differences" against the live stack.
+
+> **Do not route these through `pnpm ... -- -c ...`.** pnpm forwards the `--` literally, so cdk
+> receives `"--" "-c" "env=dev"` and silently ignores every context value — the app then fails with
+> `Missing required CDK context: releaseSha`. Invoke cdk directly from `infra/cdk`.
+
 ```bash
 pnpm --filter @capiro/infra-cdk typecheck
-pnpm --filter @capiro/infra-cdk synth:web-vnext -- \
+cd infra/cdk && npx cdk synth --app "ts-node --prefer-ts-exts bin/web-vnext.ts" \
   -c env=dev \
   -c releaseSha="$RELEASE_SHA" \
   -c webVnextImageDigest="$IMAGE_DIGEST" \
@@ -73,12 +81,18 @@ pnpm --filter @capiro/infra-cdk synth:web-vnext -- \
   -c webVnextListenerPriority="$WEB_VNEXT_LISTENER_PRIORITY"
 ```
 
-Use the same context for `diff:web-vnext`. Inspect the diff before deployment. It must be limited to the standalone WebVNext stack and must not propose replacements/deletions of canonical API/database/auth resources.
+Use the same context for `npx cdk diff`. Inspect the diff before deployment. It must be limited to the standalone WebVNext stack and must not propose replacements/deletions of canonical API/database/auth resources.
+
+Note that `os.capiro.ai` and `app.capiro.ai` share the `capiro-prod-alb` listener. `app.capiro.ai` is
+served by that listener's **default** action, and the vNext host rule sits at priority 50 behind the
+backend path rules (6–15) and the marketing host rule (20). A WebVNext deploy therefore cannot alter
+`app.capiro.ai` routing, but a diff that touches the listener's default action or any rule below 50
+must be treated as a stop condition.
 
 Only after the diff is clean:
 
 ```bash
-pnpm --filter @capiro/infra-cdk deploy:web-vnext -- <same context>
+cd infra/cdk && npx cdk deploy --app "ts-node --prefer-ts-exts bin/web-vnext.ts" <same context>
 ```
 
 The standalone app requires `releaseSha` to be exactly 40 hexadecimal characters and `webVnextImageDigest` to be an immutable SHA-256 digest. The hostname is fixed to `os.capiro.ai`; the listener priority must remain below the web host catch-all in precedence terms and, by code contract, greater than 20 so established backend path rules retain precedence.
