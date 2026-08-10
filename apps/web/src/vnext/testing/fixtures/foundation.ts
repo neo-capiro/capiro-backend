@@ -1,6 +1,6 @@
 import type { MailboxSyncViewModel } from '../../adapters/legacy/useMailboxSyncStatus.js';
 
-export const FOUNDATION_MAILBOX_STATES: MailboxSyncViewModel[] = [
+export const FOUNDATION_MAILBOX_STATES = [
   {
     state: 'synced',
     title: 'Mailbox synced',
@@ -19,9 +19,9 @@ export const FOUNDATION_MAILBOX_STATES: MailboxSyncViewModel[] = [
     detail: 'Microsoft 365 · reconnect',
     connectedCount: 0,
   },
-];
+] as const satisfies readonly MailboxSyncViewModel[];
 
 export const FOUNDATION_SELECT_OPTIONS = [
   { value: 'federal', label: 'Federal' },
   { value: 'state', label: 'State' },
-];
+] as const;
