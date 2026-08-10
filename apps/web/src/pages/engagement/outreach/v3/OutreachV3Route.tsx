@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { Client } from '../../../clients/clientTypes.js';
 import { CampaignBrief } from './CampaignBrief.js';
-import { DecisionSurfaces } from './DecisionSurfaces.js';
+import { CurrentDecisionSurface } from './CurrentDecisionSurface.js';
 import { OutreachConversation } from './OutreachConversation.js';
 import type {
   OutreachV3DeliveryPattern,
@@ -276,7 +276,7 @@ export function OutreachV3Route({
         />
 
         <div className="ov3-workspace__decision">
-          <DecisionSurfaces
+          <CurrentDecisionSurface
             session={decisionSession ?? session}
             stage={viewStage}
             clients={clients}
@@ -307,6 +307,7 @@ export function OutreachV3Route({
             strategyPending={controller.strategyPending}
             strategyError={controller.strategyError}
             onFinish={onComplete}
+            onSelectStage={setViewStage}
           />
         </div>
 
