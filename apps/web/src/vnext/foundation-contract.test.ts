@@ -15,9 +15,14 @@ const cssFiles = [
   './foundations/responsive.css',
   './components/primitives.css',
   './shell/shell.css',
+  './pages/dashboard/dashboard.css',
 ];
 
-const componentCssFiles = ['./components/primitives.css', './shell/shell.css'];
+const componentCssFiles = [
+  './components/primitives.css',
+  './shell/shell.css',
+  './pages/dashboard/dashboard.css',
+];
 
 /**
  * Vite rewrites `new URL('<string literal>', import.meta.url)` into an asset URL

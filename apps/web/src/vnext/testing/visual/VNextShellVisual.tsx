@@ -12,7 +12,9 @@ import { CapiroSidebar } from '../../shell/Sidebar/index.js';
 import { MailboxSyncStatusView } from '../../shell/MailboxSyncStatus/index.js';
 import { ShellOverlayProvider } from '../../shell/overlay-manager.js';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
+import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
+import { DASHBOARD_VISUAL_FIXTURE } from '../fixtures/dashboard.js';
 
 /**
  * Clerk-free shell baseline. The nav model comes from the real route manifest so
@@ -38,9 +40,15 @@ const fixtureNotifications = {
   badgeLabel: '3',
 };
 
-export function VNextShellVisual({ collapsed = false }: { collapsed?: boolean }) {
+export function VNextShellVisual({
+  collapsed = false,
+  screen = 'empty',
+}: {
+  collapsed?: boolean;
+  screen?: 'empty' | 'dashboard';
+}) {
   return (
-    <MemoryRouter initialEntries={['/clients']}>
+    <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients']}>
       <ShellOverlayProvider>
         <div className="capiro-vnext-root">
           <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
@@ -80,10 +88,14 @@ export function VNextShellVisual({ collapsed = false }: { collapsed?: boolean })
               </span>
               <span className="capiro-vnext-contextbar__scope">All clients</span>
             </div>
-            <main className="capiro-vnext-content" style={{ padding: 20 }}>
-              <div className="capiro-vnext-foundation-banner" style={{ margin: 0 }}>
-                shell baseline · product screens intentionally absent
-              </div>
+            <main className="capiro-vnext-content">
+              {screen === 'dashboard' ? (
+                <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
+              ) : (
+                <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>
+                  shell baseline · product screens intentionally absent
+                </div>
+              )}
             </main>
           </div>
         </div>

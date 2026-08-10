@@ -24,7 +24,8 @@ export type ShellOverlayId =
   | 'profile'
   | 'directory'
   | 'intelligence'
-  | 'client-context';
+  | 'client-context'
+  | 'dashboard-customize';
 
 interface ShellOverlayContextValue {
   openId: ShellOverlayId | null;

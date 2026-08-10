@@ -6,7 +6,7 @@ import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import type { Client } from '../clients/clientTypes.js';
 
-type NewsPolicyTopic =
+export type NewsPolicyTopic =
   | 'legislation'
   | 'hearings'
   | 'regulation'
@@ -15,10 +15,10 @@ type NewsPolicyTopic =
   | 'grants'
   | 'state'
   | 'executive';
-type NewsSignalKind = 'capability' | 'issue' | 'program' | 'alias';
-type NewsLookback = '24h' | '48h' | '7d';
+export type NewsSignalKind = 'capability' | 'issue' | 'program' | 'alias';
+export type NewsLookback = '24h' | '48h' | '7d';
 
-interface NewsPreferences {
+export interface NewsPreferences {
   clientIds: string[];
   policyTopics: NewsPolicyTopic[];
   signalKinds: NewsSignalKind[];
@@ -403,7 +403,7 @@ function PreferenceSection({
   );
 }
 
-function useNewsPreferences(
+export function useNewsPreferences(
   key: string | null,
 ): [NewsPreferences, (next: NewsPreferences) => void] {
   const [preferences, setPreferencesState] = useState<NewsPreferences>(DEFAULT_NEWS_PREFERENCES);

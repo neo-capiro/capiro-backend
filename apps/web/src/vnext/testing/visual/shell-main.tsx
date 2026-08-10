@@ -5,10 +5,12 @@ import { VNextShellVisual } from './VNextShellVisual.js';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root for vNext shell visual fixture');
-const collapsed = new URLSearchParams(window.location.search).get('collapsed') === '1';
+const params = new URLSearchParams(window.location.search);
+const collapsed = params.get('collapsed') === '1';
+const screen = params.get('screen') === 'dashboard' ? 'dashboard' : 'empty';
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <VNextShellVisual collapsed={collapsed} />
+    <VNextShellVisual collapsed={collapsed} screen={screen} />
   </React.StrictMode>,
 );
