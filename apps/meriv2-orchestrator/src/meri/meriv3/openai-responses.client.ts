@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { modelSupportsReasoningEffort } from './meriv3-reasoning.js';
 import type {
   MeriV3ReasoningProfile,
   OpenAiResponsesFunctionCall,
@@ -162,12 +163,20 @@ export class OpenAiResponsesClient {
             instructions: params.instructions,
             input: params.input,
             ...toolFields,
-            reasoning: {
-              effort: params.profile.effort,
-              // Request a provider-authored bounded summary for continuity in
-              // the current turn, but never emit or persist reasoning items.
-              summary: 'auto',
-            },
+            // Terra (Standard) and Luna (Fast) are non-reasoning chat variants
+            // that reject the `reasoning` parameter outright; only send it to
+            // models that actually support it.
+            ...(modelSupportsReasoningEffort(model)
+              ? {
+                  reasoning: {
+                    effort: params.profile.effort,
+                    // Request a provider-authored bounded summary for continuity
+                    // in the current turn, but never emit or persist reasoning
+                    // items.
+                    summary: 'auto',
+                  },
+                }
+              : {}),
             max_output_tokens: params.profile.maxOutputTokens,
             store: false,
             ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),

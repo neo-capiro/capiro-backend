@@ -27,6 +27,20 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
 }
 
 /**
+ * GPT-5.6 Terra (Standard) and Luna (Fast) are non-reasoning chat variants:
+ * the Responses API rejects the `reasoning` parameter outright for them
+ * ("Unsupported parameter: 'reasoning.effort' is not supported with this
+ * model"). Only GPT-5.6 / its `gpt-5.6-sol` alias (Deep, Max) is reasoning-
+ * capable. Unknown/custom model ids (env overrides, tenant BYOK) default to
+ * supported so we never silently drop a real reasoning-capable model.
+ */
+const NON_REASONING_MODELS = new Set(['gpt-5.6-terra', 'gpt-5.6-luna']);
+
+export function modelSupportsReasoningEffort(model: string): boolean {
+  return !NON_REASONING_MODELS.has(model);
+}
+
+/**
  * Translate stable Capiro UX modes into the current OpenAI reasoning family,
  * effort, output ceiling and bounded tool-loop budget.
  *
