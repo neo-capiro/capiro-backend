@@ -17,9 +17,12 @@ import type {
   OutreachV3TargetCandidate,
   OutreachV3TargetCoverageResponse,
   OutreachV3TargetLocator,
-  OutreachV3TargetProfileResponse,
   OutreachV3TargetSearchData,
 } from './contracts.js';
+import type {
+  OutreachV3RelationshipResponse,
+  OutreachV3TargetProfileResponse,
+} from './target-intelligence-contracts.js';
 
 const ROOT = '/api/engagement/outreach-v3';
 
@@ -191,6 +194,20 @@ export async function getOutreachV3TargetProfile(
     await api.post<OutreachV3TargetProfileResponse>(
       `${outreachV3SessionPath(sessionId)}/targets/profile`,
       { targetRef },
+    )
+  ).data;
+}
+
+export async function getOutreachV3TargetRelationships(
+  api: AxiosInstance,
+  sessionId: string,
+  targetRef: OutreachV3TargetLocator,
+  clientId: string,
+): Promise<OutreachV3RelationshipResponse> {
+  return (
+    await api.post<OutreachV3RelationshipResponse>(
+      `${outreachV3SessionPath(sessionId)}/targets/relationships`,
+      { targetRef, clientId },
     )
   ).data;
 }
