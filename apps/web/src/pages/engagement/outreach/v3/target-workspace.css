@@ -1,0 +1,209 @@
+.ov3-target-workspace .ov3-tab-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.ov3-target-criteria {
+  background: var(--ov3-subtle);
+  border: 1px solid var(--ov3-border);
+  border-radius: 11px;
+  flex: 0 0 auto;
+  margin-bottom: 11px;
+  padding: 9px;
+}
+
+.ov3-target-criteria .ov3-search-bar {
+  background: var(--ov3-surface);
+  margin-bottom: 8px;
+}
+
+.ov3-target-criteria__controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ov3-target-criteria__controls > button:not(.ov3-button),
+.ov3-target-criteria__controls select {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 7px;
+  color: var(--ov3-secondary);
+  cursor: pointer;
+  font-size: 10px;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.ov3-target-criteria__controls > button.is-selected {
+  background: #121722;
+  border-color: #121722;
+  color: white;
+}
+
+.ov3-target-criteria__controls .ov3-button {
+  margin-left: auto;
+}
+
+.ov3-profile-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ov3-target-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ov3-profile-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ov3-profile-facts article {
+  align-items: flex-start;
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  display: flex;
+  gap: 7px;
+  justify-content: space-between;
+  padding: 8px;
+}
+
+.ov3-profile-facts article strong {
+  display: block;
+  font-size: 10px;
+}
+
+.ov3-profile-facts article p {
+  color: var(--ov3-secondary);
+  font-size: 9px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.ov3-target-intel-section {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  padding: 9px;
+}
+
+.ov3-target-intel-section > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  justify-content: space-between;
+}
+
+.ov3-target-intel-section > p {
+  color: var(--ov3-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+  margin-top: 6px !important;
+}
+
+.ov3-muted-copy {
+  color: var(--ov3-muted) !important;
+  font-size: 9px !important;
+  line-height: 1.45;
+}
+
+.ov3-relationship-panel {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px;
+}
+
+.ov3-relationship-panel__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.ov3-relationship-panel__header p {
+  color: var(--ov3-secondary);
+  font-size: 9px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.ov3-relationship-metrics {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ov3-relationship-metrics span {
+  background: var(--ov3-subtle);
+  border: 1px solid var(--ov3-border-quiet);
+  border-radius: 7px;
+  color: var(--ov3-muted);
+  display: flex;
+  flex-direction: column;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7px;
+  gap: 2px;
+  padding: 6px;
+  text-transform: uppercase;
+}
+
+.ov3-relationship-metrics strong {
+  color: var(--ov3-ink);
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 15px;
+}
+
+.ov3-relationship-event {
+  align-items: flex-start;
+  border-top: 1px solid var(--ov3-border-quiet);
+  color: var(--ov3-accent);
+  display: flex;
+  gap: 7px;
+  padding-top: 7px;
+}
+
+.ov3-relationship-event > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ov3-relationship-event strong {
+  color: var(--ov3-ink);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.ov3-relationship-event span {
+  color: var(--ov3-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7px;
+  margin-top: 1px;
+}
+
+@media (max-width: 760px) {
+  .ov3-target-criteria__controls {
+    align-items: stretch;
+  }
+
+  .ov3-target-criteria__controls > *,
+  .ov3-target-criteria__controls .ov3-button {
+    flex: 1 1 calc(50% - 6px);
+    margin-left: 0;
+  }
+
+  .ov3-relationship-metrics {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+  }
+}
