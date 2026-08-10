@@ -1,0 +1,103 @@
+.capiro-vnext-root {
+  /* Typography — approved handoff family stack. No font binaries are owned here. */
+  --capiro-type-family-sans: 'Hanken Grotesk', 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --capiro-type-family-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --capiro-type-family-serif: 'Source Serif 4', 'Iowan Old Style', Charter, Georgia, serif;
+  --capiro-type-size-body-sm: 13px;
+  --capiro-type-size-body-md: 14px;
+  --capiro-type-size-title-sm: 17px;
+  --capiro-type-size-title-md: 22px;
+  --capiro-type-line-body-sm: 20px;
+  --capiro-type-line-body-md: 22px;
+
+  /* Canvas + surface. */
+  --capiro-color-bg-canvas: #f0f1f4;
+  --capiro-color-bg-surface: #ffffff;
+  --capiro-color-bg-subtle: #eaedf1;
+  --capiro-color-bg-interactive-primary: #131a24;
+  --capiro-color-bg-destructive: #a32b23;
+
+  /* Text. */
+  --capiro-color-text-primary: #131a24;
+  --capiro-color-text-secondary: #48525f;
+  --capiro-color-text-muted: #616b79;
+  --capiro-color-text-accent: #294e68;
+  --capiro-color-text-success: #2f6b4f;
+  --capiro-color-text-inverse-primary: #ffffff;
+
+  /* Borders. */
+  --capiro-color-border-default: #dfe2e8;
+  --capiro-color-border-quiet: #eaedf1;
+  --capiro-color-shell-search-border: #d7e0eb;
+
+  /* Brand/signature actions. */
+  --capiro-color-action-primary-default: #131a24;
+  --capiro-color-action-primary-hover: #252d38;
+  --capiro-color-action-secondary-default: #ffffff;
+  --capiro-color-action-meri-default: #2f63f5;
+  --capiro-color-action-meri-hover: #2858dd;
+  --capiro-color-action-meri-text: #ffffff;
+  --capiro-color-shell-signature-primary: #2f63f5;
+  --capiro-color-shell-signature-secondary: #32c7d7;
+  --capiro-color-shell-nav-default: #4a5260;
+  --capiro-color-shell-nav-current-bg: #e7eefd;
+  --capiro-color-shell-nav-current-text: #1d48c9;
+  --capiro-color-shell-search-bg: #ffffff;
+  --capiro-color-shell-search-text: #636c7a;
+
+  /* Semantic state. */
+  --capiro-color-success: #2f6b4f;
+  --capiro-color-success-soft: #e7f2ec;
+  --capiro-color-warning: #8a6116;
+  --capiro-color-warning-soft: #f7edcf;
+  --capiro-color-danger: #a32b23;
+  --capiro-color-danger-soft: #f8e5e3;
+  --capiro-color-info: #2f63f5;
+  --capiro-color-info-soft: #e7eefd;
+
+  /* Spacing. */
+  --capiro-space-01: 4px;
+  --capiro-space-02: 8px;
+  --capiro-space-03: 12px;
+  --capiro-space-04: 16px;
+  --capiro-space-05: 20px;
+  --capiro-space-06: 24px;
+  --capiro-space-08: 32px;
+  --capiro-space-10: 40px;
+
+  /* Controls/layout. */
+  --capiro-control-height-compact: 32px;
+  --capiro-control-height-standard: 36px;
+  --capiro-control-min-width-button: 120px;
+  --capiro-layout-shell-topbar-height: 64px;
+  --capiro-layout-shell-sidebar-expanded: 232px;
+  --capiro-layout-shell-sidebar-collapsed: 72px;
+  --capiro-layout-shell-nav-item-height: 44px;
+  --capiro-layout-shell-icon-container: 32px;
+
+  /* Radius. */
+  --capiro-radius-control: 8px;
+  --capiro-radius-shell-control: 10px;
+  --capiro-radius-navigation: 10px;
+  --capiro-radius-surface: 10px;
+
+  /* Elevation. */
+  --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
+  --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);
+  --capiro-primitive-highlight-white-72: rgba(255, 255, 255, 0.72);
+  --capiro-shadow-meri: rgba(47, 99, 245, 0.3);
+
+  /* Focus, motion and layer ordering. */
+  --capiro-focus-ring: 0 0 0 3px rgba(47, 99, 245, 0.22);
+  --capiro-motion-fast: 120ms;
+  --capiro-motion-standard: 180ms;
+  --capiro-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --capiro-z-base: 0;
+  --capiro-z-sticky: 20;
+  --capiro-z-popover: 100;
+  --capiro-z-modal: 200;
+  --capiro-z-toast: 300;
+
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-canvas);
+}
