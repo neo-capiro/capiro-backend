@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { ContextReviewSurface } from './ContextReviewSurface.js';
 import { DecisionSurfaces, type DecisionSurfacesProps } from './DecisionSurfaces.js';
+import { GoalDecisionSurface } from './GoalDecisionSurface.js';
+import { SponsorDecisionSurface } from './SponsorDecisionSurface.js';
 import { TargetWorkspace } from './TargetWorkspaceEntry.js';
 import type {
   OutreachV3Command,
@@ -345,6 +347,12 @@ export function CurrentDecisionSurface(props: CurrentDecisionSurfaceProps) {
   const proposal = props.pendingProposals[0];
   if (proposal) {
     return <ProposalSurface {...props} proposal={proposal} />;
+  }
+  if (props.stage === 'goal') {
+    return <GoalDecisionSurface {...props} />;
+  }
+  if (props.stage === 'sponsor') {
+    return <SponsorDecisionSurface {...props} />;
   }
   if (props.stage === 'targets') {
     return <TargetWorkspace {...props} />;
