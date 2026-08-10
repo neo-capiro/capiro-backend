@@ -23,24 +23,24 @@ VNEXT_VISUAL_BASE_URL=http://127.0.0.1:4173 \
   pnpm --filter @capiro/web visual:vnext:capture
 ```
 
-The capture script reuses the repository's existing `lighthouse` + `chrome-launcher` dev dependencies and writes PNGs plus a SHA-256 manifest under:
+The capture script reuses the repository's existing `lighthouse` + `chrome-launcher` dev dependencies and writes browser screenshots plus a SHA-256 manifest under:
 
 ```text
 apps/web/artifacts/vnext-visual/
 ```
 
-Expected captures:
+Expected capture stems are:
 
 ```text
-component-gallery-desktop.png
-shell-desktop-expanded.png
-shell-desktop-collapsed.png
-shell-tablet.png
-shell-mobile.png
+component-gallery-desktop.<image extension>
+shell-desktop-expanded.<image extension>
+shell-desktop-collapsed.<image extension>
+shell-tablet.<image extension>
+shell-mobile.<image extension>
 manifest.json
 ```
 
-The CI workflow `.github/workflows/web-vnext-foundation.yml` performs the same capture and uploads the directory as the `web-vnext-foundation-visuals` artifact when GitHub Actions runners are available.
+The extension matches the media type returned by Lighthouse (`png`, `jpg`, or `webp`) and `manifest.json` records both the filename and media type. The CI workflow `.github/workflows/web-vnext-foundation.yml` performs the same capture and uploads the directory as the `web-vnext-foundation-visuals` artifact when GitHub Actions runners are available.
 
 ## Baseline rule
 
