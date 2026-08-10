@@ -18,10 +18,10 @@ import type {
   OutreachV3TargetCandidate,
   OutreachV3TargetCoverageResponse,
   OutreachV3TargetLocator,
-  OutreachV3TargetProfileResponse,
   OutreachV3TargetSearchData,
   OutreachV3TranscriptTurn,
 } from './contracts.js';
+import type { OutreachV3TargetProfileResponse } from './target-intelligence-contracts.js';
 import {
   applyOutreachV3Commands,
   applyOutreachV3Proposal,
@@ -227,6 +227,8 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     readSessionStorage(ACTIVE_SESSION_KEY),
   );
   const [transientTurns, setTransientTurns] = useState<OutreachV3TranscriptTurn[]>([]);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [startingNewSession, setStartingNewSession] = useState(false);
 
   const bootstrapKey = ['outreach-v3', 'bootstrap', options.title ?? 'new'] as const;
   const bootstrap = useQuery({
@@ -475,14 +477,24 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   }, [conversationId, queryClient, sessionId]);
 
   const startNewSession = useCallback(async () => {
+    if (startingNewSession) return;
     const priorId = sessionId;
-    if (priorId) await archiveOutreachV3Session(api, priorId).catch(() => undefined);
-    writeSessionStorage(ACTIVE_SESSION_KEY, null);
-    if (priorId) writeSessionStorage(conversationKey(priorId), null);
-    setTransientTurns([]);
-    setSessionId(null);
-    queryClient.removeQueries({ queryKey: ['outreach-v3'] });
-  }, [api, queryClient, sessionId]);
+    setLifecycleError(null);
+    setStartingNewSession(true);
+    try {
+      if (priorId) await archiveOutreachV3Session(api, priorId);
+      writeSessionStorage(ACTIVE_SESSION_KEY, null);
+      if (priorId) writeSessionStorage(conversationKey(priorId), null);
+      setTransientTurns([]);
+      setSessionId(null);
+      queryClient.removeQueries({ queryKey: ['outreach-v3'] });
+    } catch (error) {
+      setLifecycleError(safeOutreachV3Error(error));
+      throw error;
+    } finally {
+      setStartingNewSession(false);
+    }
+  }, [api, queryClient, sessionId, startingNewSession]);
 
   const serverTurns = useMemo(
     () => normalizeTurns(turnsQuery.data ?? []),
@@ -532,6 +544,8 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     isRefreshing: sessionQuery.isFetching,
     error: primaryError,
     errorMessage: primaryError ? safeOutreachV3Error(primaryError) : null,
+    lifecycleErrorMessage: lifecycleError,
+    startingNewSession,
     refreshCanonical,
     applyCommands: commandsMutation.mutateAsync,
     applyingCommands: commandsMutation.isPending,
