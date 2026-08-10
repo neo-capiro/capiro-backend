@@ -120,6 +120,14 @@ export function OutreachV3Route({
     };
   }, [controller.strategy?.data, session, viewStage]);
 
+  const startNew = async () => {
+    try {
+      await controller.startNewSession();
+    } catch {
+      // The hook preserves the current session and exposes safe visible error copy.
+    }
+  };
+
   if (controller.isBootstrapping) {
     return (
       <div className="ov3-root ov3-bootstrap" aria-busy="true">
@@ -148,8 +156,17 @@ export function OutreachV3Route({
             <button type="button" className="ov3-button is-secondary" onClick={onOpenClassic}>
               Open Classic Outreach
             </button>
-            <button type="button" className="ov3-button is-primary" onClick={() => void controller.startNewSession()}>
-              <RotateCcw size={16} aria-hidden="true" />
+            <button
+              type="button"
+              className="ov3-button is-primary"
+              disabled={controller.startingNewSession}
+              onClick={() => void startNew()}
+            >
+              {controller.startingNewSession ? (
+                <Loader2 className="ov3-spin" size={16} aria-hidden="true" />
+              ) : (
+                <RotateCcw size={16} aria-hidden="true" />
+              )}
               Try a new V3 session
             </button>
           </div>
@@ -161,7 +178,8 @@ export function OutreachV3Route({
   const canonicalIndex = STAGE_INDEX[controller.stage];
   const selectedIndex = STAGE_INDEX[viewStage];
   const canOpenStage = (stage: OutreachV3Stage) => STAGE_INDEX[stage] <= canonicalIndex;
-  const hasUnsavedMutation = controller.applyingCommands || controller.proposalBusy;
+  const hasUnsavedMutation =
+    controller.applyingCommands || controller.proposalBusy || controller.startingNewSession;
   const reviewCanContinue = selectedIndex < canonicalIndex;
   const deliberateReviewHold = REVIEW_BEFORE_CONTINUE.has(viewStage) && reviewCanContinue;
 
@@ -199,12 +217,14 @@ export function OutreachV3Route({
           <button
             type="button"
             className="ov3-button is-secondary"
+            disabled={controller.startingNewSession}
             onClick={() => {
               if (window.confirm('Archive this V3 session and start a new campaign?')) {
-                void controller.startNewSession();
+                void startNew();
               }
             }}
           >
+            {controller.startingNewSession ? <Loader2 className="ov3-spin" size={15} /> : null}
             New campaign
           </button>
           <button type="button" className="ov3-button is-primary" onClick={onComplete}>
@@ -248,6 +268,16 @@ export function OutreachV3Route({
           </span>
         ) : null}
       </nav>
+
+      {controller.lifecycleErrorMessage ? (
+        <div className="ov3-recovery is-danger ov3-lifecycle-error" role="alert">
+          <CircleAlert size={18} aria-hidden="true" />
+          <div>
+            <strong>The current campaign was not archived</strong>
+            <p>{controller.lifecycleErrorMessage}</p>
+          </div>
+        </div>
+      ) : null}
 
       {reviewCanContinue && viewStage !== 'ready_for_generation' ? (
         <div className="ov3-review-banner" role="status">
