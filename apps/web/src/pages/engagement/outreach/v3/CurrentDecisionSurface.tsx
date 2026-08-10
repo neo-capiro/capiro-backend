@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
-  FilePenLine,
+  CircleHelp,
   Loader2,
-  MessageCircleQuestion,
+  Pencil,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -263,7 +263,7 @@ function ProposalSurface({
         aria-expanded={showWhy}
         onClick={() => setShowWhy((value) => !value)}
       >
-        <MessageCircleQuestion size={16} aria-hidden="true" />
+        <CircleHelp size={16} aria-hidden="true" />
         Why this proposal?
       </button>
       {showWhy ? (
@@ -317,7 +317,7 @@ function ProposalSurface({
             onClick={() => void edit()}
             disabled={proposalBusy}
           >
-            <FilePenLine size={16} aria-hidden="true" />
+            <Pencil size={16} aria-hidden="true" />
             Edit manually
           </button>
           <button
@@ -344,5 +344,6 @@ export function CurrentDecisionSurface(props: CurrentDecisionSurfaceProps) {
   if (proposal) {
     return <ProposalSurface {...props} proposal={proposal} />;
   }
-  return <DecisionSurfaces {...props} pendingProposals={[]} />;
+  const { onSelectStage: _onSelectStage, ...decisionProps } = props;
+  return <DecisionSurfaces {...decisionProps} pendingProposals={[]} />;
 }
