@@ -57,19 +57,23 @@ try {
       throw new Error(`No Lighthouse screenshot data was available for ${target.name}`);
     }
 
+    const mimeMatch = /^data:(image\/[a-z0-9.+-]+);base64,/i.exec(dataUri);
+    if (!mimeMatch) throw new Error(`Unsupported screenshot data URI for ${target.name}`);
+    const extension = extensionForMime(mimeMatch[1]);
     const encoded = dataUri.slice(dataUri.indexOf(',') + 1);
     const bytes = Buffer.from(encoded, 'base64');
-    const filename = `${target.name}.png`;
+    const filename = `${target.name}.${extension}`;
     await writeFile(path.join(outputDir, filename), bytes);
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     manifest.captures.push({
       name: target.name,
       file: filename,
+      mediaType: mimeMatch[1],
       path: target.path,
       viewport: { width: target.width, height: target.height },
       sha256,
     });
-    console.log(`${target.name}: ${bytes.length} bytes sha256:${sha256}`);
+    console.log(`${target.name}: ${bytes.length} bytes ${mimeMatch[1]} sha256:${sha256}`);
   }
 } finally {
   await chrome.kill();
@@ -77,3 +81,13 @@ try {
 
 await writeFile(path.join(outputDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 console.log(`Wrote vNext visual captures to ${outputDir}`);
+
+function extensionForMime(mime) {
+  switch (mime.toLowerCase()) {
+    case 'image/png': return 'png';
+    case 'image/webp': return 'webp';
+    case 'image/jpeg':
+    case 'image/jpg': return 'jpg';
+    default: throw new Error(`Unsupported screenshot media type: ${mime}`);
+  }
+}
