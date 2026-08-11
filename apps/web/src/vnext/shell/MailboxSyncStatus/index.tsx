@@ -22,7 +22,8 @@ export function MailboxSyncStatusView({
       onClick={onClick}
       aria-label={`${status.title}. ${status.detail}`}
     >
-      <span aria-hidden="true">✉</span>
+      {/* Literal ✉ per 1126:2594 — body sans, Medium 15px, centred. Not artwork. */}
+      <span className="capiro-mailbox-status__glyph" aria-hidden="true">✉</span>
       <span className="capiro-mailbox-status__copy">
         <span className="capiro-mailbox-status__title">{status.title}</span>
         <span className="capiro-mailbox-status__detail">{status.detail}</span>

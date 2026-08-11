@@ -1,16 +1,6 @@
 import { useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import {
-  CapiroAudioIcon,
-  CapiroBarChartIcon,
-  CapiroBellIcon,
-  CapiroEyeIcon,
-  CapiroFileTextIcon,
-  CapiroPlusIcon,
-  CapiroReadIcon,
-  CapiroSaveIcon,
-} from '../../components/icons/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { UpcomingHearing } from '../../../lib/hearing-watch-api.js';
@@ -172,14 +162,14 @@ export function VNextLegiWatchPage() {
     }, { replace: true });
   };
 
-  const tabs: Array<{ id: VNextLegiWatchTab; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: 'overview', label: 'Overview', icon: <CapiroEyeIcon /> },
-    { id: 'feed', label: 'Feed', icon: <CapiroBellIcon />, count: counts.alerts },
-    { id: 'bills', label: 'Bills', icon: <CapiroFileTextIcon />, count: counts.bills },
-    { id: 'hearings', label: 'Hearings', icon: <CapiroAudioIcon />, count: counts.hearings },
-    { id: 'watchlist', label: 'Watchlists', icon: <CapiroSaveIcon /> },
-    { id: 'digest', label: 'Digest', icon: <CapiroReadIcon /> },
-    { id: 'analytics', label: 'Analytics', icon: <CapiroBarChartIcon /> },
+  const tabs: Array<{ id: VNextLegiWatchTab; label: string; count?: number }> = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'feed', label: 'Feed', count: counts.alerts },
+    { id: 'bills', label: 'Bills', count: counts.bills },
+    { id: 'hearings', label: 'Hearings', count: counts.hearings },
+    { id: 'watchlist', label: 'Watchlists' },
+    { id: 'digest', label: 'Digest' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   return (
@@ -203,10 +193,10 @@ export function VNextLegiWatchPage() {
             </select>
           ) : null}
           <button className="vnext-legiwatch-button" type="button" disabled title="Saved views require the saved-view service before this control can be activated.">
-            <CapiroSaveIcon /> Saved Views
+            Saved Views
           </button>
           <button className="vnext-legiwatch-button is-primary" type="button" onClick={() => setTab('watchlist')}>
-            <CapiroPlusIcon /> Create Watch
+            Create Watch
           </button>
           <span className={`vnext-legiwatch-health${feed.isError ? ' is-error' : feed.isFetching ? ' is-refreshing' : ''}`}>
             <span aria-hidden="true" />
@@ -230,7 +220,7 @@ export function VNextLegiWatchPage() {
             onClick={() => setTab(item.id)}
             aria-current={tab === item.id ? 'page' : undefined}
           >
-            {item.icon}
+            {/* No glyph: 869:2502's tab rail is label + count only. */}
             <span>{item.label}</span>
             {item.count != null && item.count > 0 ? <span className="vnext-legiwatch-tabs__count">{item.count > 999 ? '999+' : item.count}</span> : null}
           </button>

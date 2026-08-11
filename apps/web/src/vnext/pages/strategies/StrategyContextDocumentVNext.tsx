@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { CapiroModal } from '../../components/overlays/index.js';
-import { CapiroCopyIcon, CapiroFolderIcon, CapiroSafetyCertificateIcon, CapiroThunderboltIcon } from '../../components/icons/index.js';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMe } from '../../../lib/me.js';
 import { errorMessage } from '../../../lib/error-message.js';
@@ -129,12 +128,12 @@ export function StrategyContextDocumentVNext() {
           <div className="vnext-strategy-context-doc__actions">
             {showExtract ? (
               <button className="vnext-strategy-button is-primary" type="button" onClick={onExtract} disabled={extract.isPending}>
-                <CapiroThunderboltIcon /> {extract.isPending ? 'Extracting…' : 'Extract facts'}
+                {extract.isPending ? 'Extracting…' : 'Extract facts'}
               </button>
             ) : null}
             {canArchiveContextDoc(d.state) ? (
               <button className="vnext-strategy-button" type="button" onClick={() => setArchiveOpen(true)} disabled={archive.isPending}>
-                <CapiroFolderIcon /> {archive.isPending ? 'Archiving…' : 'Archive'}
+                {archive.isPending ? 'Archiving…' : 'Archive'}
               </button>
             ) : null}
           </div>
@@ -213,10 +212,10 @@ export function StrategyContextDocumentVNext() {
             <strong>{activeFacts} active{historicalFacts ? ` · ${historicalFacts} historical` : ''}</strong>
           </div>
           <button className="vnext-strategy-button" type="button" onClick={() => navigate('/strategies/context/steward')}>
-            <CapiroSafetyCertificateIcon /> Open steward review
+            Open steward review
           </button>
           <button className="vnext-strategy-button" type="button" onClick={copySourceLink}>
-            <CapiroCopyIcon /> Copy source link
+            Copy source link
           </button>
           {activeRef && locate.isError ? <span className="vnext-strategy-context-doc__locate-error">Could not locate this section in the source.</span> : null}
         </aside>

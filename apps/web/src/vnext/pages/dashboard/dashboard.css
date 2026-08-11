@@ -54,10 +54,12 @@
 /* Four equal 134px story rows with a 96x92 thumbnail — the oversized hero
    treatment was removed, so every story shares one row anatomy. */
 .capiro-vnext-root .capiro-dash-news { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 14px; height: 134px; padding: 14px 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); color: inherit; }
-.capiro-vnext-root .capiro-dash-news__thumb { width: 96px; height: 92px; }
 .capiro-vnext-root .capiro-dash-news:last-child { border-bottom: 0; }
 .capiro-vnext-root .capiro-dash-news:hover { background: var(--capiro-color-bg-flyout-hover); }
-.capiro-vnext-root .capiro-dash-news__thumb { width: 72px; height: 56px; border-radius: 8px; background: var(--capiro-color-bg-subtle); overflow: hidden; }
+/* 96x92 per the handoff spec. This previously carried a second 72x56 declaration
+   further down the file which silently won on cascade order — a single rule now,
+   so the desktop thumbnail cannot be overridden by accident. */
+.capiro-vnext-root .capiro-dash-news__thumb { width: 96px; height: 92px; border-radius: 8px; background: var(--capiro-color-bg-subtle); overflow: hidden; }
 .capiro-vnext-root .capiro-dash-news__thumb img { width: 100%; height: 100%; object-fit: cover; }
 .capiro-vnext-root .capiro-dash-news__copy { display: grid; gap: 3px; min-width: 0; }
 .capiro-vnext-root .capiro-dash-news__source { font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; color: var(--capiro-color-text-muted); }
