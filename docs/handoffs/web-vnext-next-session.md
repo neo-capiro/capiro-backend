@@ -478,3 +478,68 @@ them** so the next session knows they are not the designer's.
   page's direct children from the spill file, rather than re-running it.
 - Both frames independently forbid the same class of error: **showing zero or empty where the
   truth is "missing" or "failed."** Treat that as a product-wide invariant, not per-family.
+
+## 12. The Strategies and LegiWatch screens, actually looked at
+
+Reference screenshots pulled for `843:2502` (Strategies / 01 Library) and `869:2502`
+(LegiWatch / 01 Overview). Page `868:2502` enumerated: 18 frames, matching `manifest.ts`
+exactly (as Strategies' 14 did — the manifest is reliable for both).
+
+### 12.1 The antd icon removal preserved something the design never had
+
+**Neither design puts icons on its controls.** Strategies' three header actions
+(`Agent review`, `Context library`, `New strategy`) and `Edit phases` are **text-only**.
+LegiWatch's seven tabs (`Overview`, `Feed 14`, `Bills 126`, `Hearings 6`, `Watchlists 9`,
+`Digest`, `Analytics`) are **label + count only, no glyphs**.
+
+The current code renders an icon in every one of those. So commit `f6576d16` did a faithful
+like-for-like antd swap — which made the §3 grep pass **without moving either screen toward
+its design**. The correct re-skin *deletes* those icons rather than porting them.
+
+`vnext/components/icons` is still needed (other surfaces use glyphs, and it removed the
+dependency), but for these two families most of those call sites should render no icon at all.
+The one real icon on Strategies Library is the firm-phases **tile** — a dark rounded square
+holding a wave glyph — not the bare calendar icon the code passes as `<FirmPhaseStrip icon>`.
+
+### 12.2 The two families put different things in the context row
+
+- **Strategies** has a client context bar: `PORTFOLIO · All clients` / `CALENDAR · Federal` /
+  `HORIZON · FY27–FY29`, right-aligned `LIVE · refreshed 4 min ago`.
+- **LegiWatch** has an **Intelligence sub-navigation rail** instead:
+  `Data Explorer | LegiWatch | Program Elements | Funding Opportunities | District Nexus`,
+  right-aligned `5 SOURCES · REFRESHED 4 MIN AGO`.
+
+⚠️ **This may contradict a recorded App Shell ruling.** The conflict resolution from
+`722:2502` was that "the Intelligence destinations belong in the sidebar flyout (subnav
+chevron `819:2611`), not a second context bar." LegiWatch's own screen shows them as a
+horizontal rail in the context row. Resolve with the designer before building — do not
+silently pick one. The shell's `data-context` mechanism (§0.3) is the hook either way.
+
+### 12.3 What Overview actually contains
+
+Matches the handoff frame's component list exactly — `OperationalPulse · DecisionQueue ·
+ClientExposure · PolicyWindows`, where PolicyWindows is titled "Today and next windows":
+
+- **Operational pulse** — headline sentence ("Four developments require a human decision
+  before noon."), a counts line, four metrics (needs review / due < 7 days / clients exposed /
+  source coverage), and an `Open morning digest` action.
+- **Decision queue** — `ORDERED BY URGENCY × CLIENT IMPACT`, `Open full feed`. Each packet row:
+  tone chip (`CRITICAL` / `HEARING` / `DEADLINE` / `STATE BILL`), source + age
+  (`CONGRESS · 18 MIN`), headline, a `WHY THIS MATTERS` line, a `NEXT ·` line, a work-state
+  chip (`ASSIGNED · NEO` / `NEW` / `IN REVIEW`) and a directed action link
+  (`Create brief →`, `Review moment →`, `Draft memo →`, `Open bill →`).
+- **Client exposure** — `7 CLIENTS · 28 ACTIVE SIGNALS`; per client: name, tag list, bar,
+  count, and a `n CRITICAL` chip.
+- **Today and next windows** — `Open hearings`; time rows with committee, match count, and a
+  verb (`WATCH` / `PREPARE` / `DECIDE`).
+
+Remember Overview is an **ADDITIVE** tab (§11.2): behind a flag, real endpoints or an explicit
+unavailable state, never mock data. Every number visible above is mockup data.
+
+### 12.4 One ambiguity to take to the designer, not guess
+
+In `869:2502`'s tab rail, `Overview` renders as the active raised white tab **and** `Hearings`
+renders with a dark navy fill — two tabs emphasised at once. Most likely `Hearings` is
+capturing a hover/pressed state in the frame, but that is inference. Confirm it. This is
+exactly the shape of the trap that produced the Meri-pill bug (§0.2): a single frame carrying
+a state that reads as the default.
