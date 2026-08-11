@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   VNEXT_ROUTE_GAPS,
@@ -6,22 +7,27 @@ import {
   visibleVNextRoutes,
 } from './adapters/routes/routeManifest.js';
 
+// vitest jsdom on Windows gives import.meta.url a non-file scheme; resolve paths
+// via import.meta.dirname / __dirname instead of new URL(..., import.meta.url).
+const here = import.meta.dirname ?? __dirname;
+const readLocal = (...parts: string[]) => readFileSync(resolve(here, ...parts), 'utf8');
+
 const cssFiles = [
-  './foundations/tokens.css',
-  './foundations/reset.css',
-  './foundations/typography.css',
-  './foundations/elevation.css',
-  './foundations/responsive.css',
-  './components/primitives.css',
-  './shell/shell.css',
+  'foundations/tokens.css',
+  'foundations/reset.css',
+  'foundations/typography.css',
+  'foundations/elevation.css',
+  'foundations/responsive.css',
+  'components/primitives.css',
+  'shell/shell.css',
 ];
 
-const componentCssFiles = ['./components/primitives.css', './shell/shell.css'];
+const componentCssFiles = ['components/primitives.css', 'shell/shell.css'];
 
 describe('vNext foundation contract', () => {
   it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
     for (const path of cssFiles) {
-      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      const css = readLocal(path);
       expect(css).toContain('.capiro-vnext-root');
       expect(css).not.toMatch(/(^|\n)\s*(body|html)\b/);
       expect(css).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
@@ -30,7 +36,7 @@ describe('vNext foundation contract', () => {
 
   it('keeps visual color literals in the semantic token layer rather than component CSS', () => {
     for (const path of componentCssFiles) {
-      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      const css = readLocal(path);
       expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
       expect(css).not.toMatch(/rgba?\s*\(/i);
     }
@@ -66,8 +72,8 @@ describe('vNext foundation contract', () => {
   });
 
   it('selects vNext lazily after shared billing gates and preserves the canonical AppShell fallback', () => {
-    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-    const vnextApp = readFileSync(new URL('./app/VNextApp.tsx', import.meta.url), 'utf8');
+    const app = readLocal('../App.tsx');
+    const vnextApp = readLocal('app/VNextApp.tsx');
     expect(app).toContain("import('./vnext/app/VNextApp.js')");
     expect(app).not.toContain("from './vnext/foundations");
     expect(app).toContain('if (isVNextSurface)');
@@ -78,11 +84,8 @@ describe('vNext foundation contract', () => {
   });
 
   it('injects WEB_SURFACE only through the isolated WebVNext stack and exposes release identity', () => {
-    const stack = readFileSync(
-      new URL('../../../../infra/cdk/lib/web-vnext-stack.ts', import.meta.url),
-      'utf8',
-    );
-    const entrypoint = readFileSync(new URL('../../nginx/entrypoint.sh', import.meta.url), 'utf8');
+    const stack = readLocal('../../../../infra/cdk/lib/web-vnext-stack.ts');
+    const entrypoint = readLocal('../../nginx/entrypoint.sh');
     expect(stack).toContain("WEB_SURFACE: 'vnext'");
     expect(stack).toContain('CAPIRO_WEB_RELEASE_SHA: props.releaseSha');
     expect(entrypoint).toContain("webSurface: '${WEB_SURFACE_VALUE}'");
