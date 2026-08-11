@@ -13,7 +13,11 @@
 
 /* Content grid (751:2568) */
 .capiro-vnext-root .capiro-dash__content { display: flex; flex-direction: column; gap: 16px; padding: 0 124px 32px; }
-.capiro-vnext-root .capiro-dash__columns { display: grid; grid-template-columns: minmax(0, 720fr) minmax(0, 384fr); gap: 16px; align-items: start; }
+/* Exact desktop grid per the Dashboard vNext Developer Handoff Spec (1238:3130):
+   content 1120 wide = News 688 + 16 gap + right column 416. The right column is
+   582 tall = Meetings 350 + 16 gap + Work Queue 216. 1120 is the vNext content
+   column centred in the 1368 working surface, matching the Strategies body. */
+.capiro-vnext-root .capiro-dash__columns { display: grid; grid-template-columns: 688px 416px; gap: 16px; align-items: start; }
 .capiro-vnext-root .capiro-dash__stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* Cards */
@@ -47,7 +51,10 @@
 .capiro-vnext-root .capiro-dash-attention[data-current] .capiro-dash-attention__action { background: var(--capiro-color-action-primary-default); color: var(--capiro-color-text-inverse-primary); box-shadow: inset 0 1px 0 var(--capiro-primitive-highlight-white-72), 0 1px 2px var(--capiro-primitive-shadow-shell), 0 6px 16px -12px var(--capiro-primitive-shadow-widget); }
 
 /* News rows (751:2608) */
-.capiro-vnext-root .capiro-dash-news { display: grid; grid-template-columns: 72px minmax(0, 1fr) 110px; align-items: center; gap: 14px; min-height: 96px; padding: 14px 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+/* Four equal 134px story rows with a 96x92 thumbnail — the oversized hero
+   treatment was removed, so every story shares one row anatomy. */
+.capiro-vnext-root .capiro-dash-news { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 14px; height: 134px; padding: 14px 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+.capiro-vnext-root .capiro-dash-news__thumb { width: 96px; height: 92px; }
 .capiro-vnext-root .capiro-dash-news:last-child { border-bottom: 0; }
 .capiro-vnext-root .capiro-dash-news:hover { background: var(--capiro-color-bg-flyout-hover); }
 .capiro-vnext-root .capiro-dash-news__thumb { width: 72px; height: 56px; border-radius: 8px; background: var(--capiro-color-bg-subtle); overflow: hidden; }
@@ -69,7 +76,9 @@
 .capiro-vnext-root .capiro-dash-week__dot { position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--capiro-color-shell-signature-secondary); }
 
 /* Event rows (751:2658) */
-.capiro-vnext-root .capiro-dash-event { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 54px; padding: 6px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+/* Three 80px meeting rows; the split action (Join + Send Meri caret) is 146px so
+   the caret cannot clip. */
+.capiro-vnext-root .capiro-dash-event { display: grid; grid-template-columns: 50px minmax(0, 1fr) 146px; align-items: center; gap: 8px; height: 80px; padding: 6px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
 .capiro-vnext-root .capiro-dash-event:hover { background: var(--capiro-color-bg-flyout-hover); }
 .capiro-vnext-root .capiro-dash-event__time { font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .03em; color: var(--capiro-color-text-muted); }
 .capiro-vnext-root .capiro-dash-event__copy { display: grid; min-width: 0; }
@@ -78,7 +87,9 @@
 .capiro-vnext-root .capiro-dash-event__action { font-size: 11px; color: var(--capiro-color-text-accent); }
 
 /* Work queue rows (751:2675) */
-.capiro-vnext-root .capiro-dash-work { display: grid; grid-template-columns: minmax(0, 1fr) 70px; grid-template-rows: auto auto; align-items: center; gap: 2px 8px; min-height: 48px; padding: 7px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+/* Work Queue: three equal 57px rows, 280px title column, 80px right-aligned
+   status column, under a 45px header. */
+.capiro-vnext-root .capiro-dash-work { display: grid; grid-template-columns: 280px 80px; grid-template-rows: auto auto; align-items: center; justify-content: space-between; gap: 2px 8px; height: 57px; padding: 7px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
 .capiro-vnext-root .capiro-dash-work:hover { background: var(--capiro-color-bg-flyout-hover); }
 .capiro-vnext-root .capiro-dash-work__kind { grid-column: 1; font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; color: var(--capiro-color-text-muted); }
 .capiro-vnext-root .capiro-dash-work__title { grid-column: 1; font-size: 12.5px; line-height: 16px; font-weight: 500; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
