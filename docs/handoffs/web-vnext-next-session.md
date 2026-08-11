@@ -1,6 +1,8 @@
 # Web vNext / os.capiro.ai — handover for the next session
 
-**Written:** 2026-08-11 · **Branch:** `agent/web-vnext-figma-impl` · **Deployed:** `928970ce`
+**Written:** 2026-08-11 (updated after §0) · **Branch:** `agent/web-vnext-figma-impl`
+**Deployed:** `a3dbce1d` (build/deploy in flight as of writing — verify before trusting this SHA;
+`docs/runbooks/web-vnext-release-dev.env` has the authoritative current value)
 
 ## The goal you were handed
 
@@ -11,6 +13,44 @@ and **not** app.capiro.ai, all matching their mockups or better.
 Two of those six are genuinely built. Read §3 before believing any status.
 
 ---
+
+## 0. Three shell/dashboard fixes made after this doc was first written
+
+Neo reviewed a live screenshot and flagged three defects. All three were confirmed by
+measuring the actual rendered DOM (`getBoundingClientRect`/`getComputedStyle` via the
+browser tool) before fixing — **don't trust CSS source-reading alone for layout bugs**;
+two of these three gave misleading signals when reasoned about from the stylesheet text
+alone. Fixed in commit `a3dbce1d`, building/deploying as this doc is written.
+
+1. **Sidebar required scrolling the whole page to reach Settings/Collapse.**
+   Root cause: `.capiro-vnext-shell` used `min-height: 100vh` instead of `height: 100vh` +
+   `overflow: hidden`. Once dashboard content exceeded one screen (measured: 1050px page vs
+   816px viewport), the *entire shell* — and the sidebar, which spans its grid rows — grew
+   to the page's full height instead of staying capped at the viewport. The Collapse button
+   measured at `top: 998px` against a `816px` viewport. Fixed: shell is now viewport-capped,
+   only `.capiro-vnext-content` scrolls (it already had `overflow: auto`), and the sidebar
+   got `overflow-y: auto` as a safety valve for its own content. **Generalizes:** any other
+   full-height container in this codebase that uses `min-height: 100vh` on a grid/flex parent
+   whose children are meant to stay pinned has the same latent bug — grep for it.
+2. **Meri launcher didn't match the design system.** Confirmed live: `getComputedStyle`
+   showed `border-radius: 10px` on a 30px-tall button — a rounded rectangle. The actual
+   Figma reference screenshot for `Shell/MeriLauncher` (`722:2517`) is an unambiguous full
+   pill. **The node's own Figma-bound variable (`--capiro-radius-shell-control` = 10) directly
+   contradicts its own rendered screenshot** — a real trap: `get_variable_defs` and the visual
+   reference disagreed, and the screenshot won per the design-to-code priority order. Fixed:
+   `border-radius: 999px`. **Lesson: when a bound variable and the component's own reference
+   screenshot disagree, download and actually look at the screenshot — don't resolve the
+   conflict by trusting whichever data structure is more convenient to read.**
+3. **Large empty gap above Dashboard content.** Confirmed live: `gridTemplateRows` computed
+   to `"64px 44px …"` with `hasContextBarInDom: false` — the shell's grid unconditionally
+   reserves a context-bar row even when `AppShell` renders no context bar (true on Dashboard,
+   per the `DASHBOARD · OFF` rule at `729:2617`). Fixed: `AppShell` now sets
+   `data-context="hidden"` on the shell root when `clientContext.enabled` is false, and
+   `[data-context='hidden']` collapses that row's track to `0px`.
+
+**Action for you:** confirm this build deployed cleanly (§8 for the release steps) and
+re-screenshot the live Dashboard before doing anything else — verify these actually landed
+before building on top of them.
 
 ## 1. The fact that makes this safe (verify it, then stop worrying)
 
