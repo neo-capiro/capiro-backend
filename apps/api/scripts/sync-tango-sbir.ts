@@ -103,6 +103,18 @@ const DEFAULT_MAX_RATE_LIMIT_RETRIES = 5;
 const DEFAULT_RATE_LIMIT_WAIT_SECONDS = 35;
 /** A runaway `next` chain must not page forever. Hit means in_progress, never "complete". */
 const MAX_PAGES_PER_ENDPOINT = 10_000;
+/**
+ * Hard ceiling on any single provider-directed sleep (proactive throttle wait
+ * OR 429 retry wait), regardless of what `resetIn`/`retryAfter` says.
+ *
+ * Mirrors the identical fix in `sync-tango-dibbs.ts` — see that file's
+ * constant doc for the full incident (a first full DIBBS walk stalled 4.5+
+ * hours on exactly this unbounded sleep). SBIR shares the same client
+ * shape and has never made enough requests in a burst to have exercised
+ * this path against a real response either, so it gets the same ceiling
+ * pre-emptively rather than waiting to reproduce the same incident here.
+ */
+const MAX_PROVIDER_WAIT_MS = 120_000;
 
 /**
  * Cycles first — see the file header. The order of this array IS the run order.
@@ -305,8 +317,12 @@ async function fetchWithRateLimitRetry(
 
       const retryAfterSec =
         error.rate?.retryAfter ?? error.rate?.resetIn ?? DEFAULT_RATE_LIMIT_WAIT_SECONDS;
+      const waitMs = Math.min(retryAfterSec * 1000, MAX_PROVIDER_WAIT_MS);
       summary.rateLimitRetries += 1;
-      await deps.sleep(retryAfterSec * 1000);
+      console.log(
+        `TANGO_SBIR_SYNC_RATE_LIMIT_RETRY ${JSON.stringify({ attempt, retryAfterSec, waitMs })}`,
+      );
+      await deps.sleep(waitMs);
     }
   }
 }
@@ -389,8 +405,12 @@ async function walkEndpoint(
     // Proactive throttle. Waiting for the 429 works, but it spends a request to
     // learn something the previous response already said.
     if (result.rate?.remaining === 0 && result.rate.resetIn != null) {
+      const waitMs = Math.min(result.rate.resetIn * 1000, MAX_PROVIDER_WAIT_MS);
       summary.throttleWaits += 1;
-      await deps.sleep(result.rate.resetIn * 1000);
+      console.log(
+        `TANGO_SBIR_SYNC_THROTTLE_WAIT ${JSON.stringify({ endpoint, page, resetIn: result.rate.resetIn, waitMs })}`,
+      );
+      await deps.sleep(waitMs);
     }
 
     for (const raw of result.items) {

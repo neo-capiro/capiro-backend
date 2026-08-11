@@ -2563,3 +2563,155 @@ scripts specifically — it was a response to the false diagnosis. Once a correc
 image is used, the plain verb path works and is what P50's disabled EventBridge schedule rules already
 assume. Recorded so a future reader of D-73 does not conclude the dispatcher itself needed touching —
 it did not, and was never edited.
+
+---
+
+## D-75 · 2026-08-10 · The first real full DIBBS walk stalled 4.5+ hours on an unbounded sleep, root-caused and fixed
+
+With D-73/D-74 resolved, the DIBBS full walk (`--commit --full`, verified digest-pinned image,
+`capiro-dev-api-sync-jobs` revision 9) ran clean through the plain verb path — but stalled. Two
+independent row-count checks 3 minutes apart, then a third, all read the exact same number
+(`tango_dibbs_solicitation = 2520`) and, on the first two, byte-identical "most recent 3 rows." The
+task itself stayed `RUNNING`/`CONNECTED` throughout, with zero CloudWatch log output (this script only
+logs a per-endpoint summary at completion, never per-page). Total elapsed before it was stopped:
+roughly 4.5 hours against a ~50–60 minute estimate.
+
+**Root cause, found by reading the code, not by capturing the live trigger:** `walkEndpoint`'s
+proactive throttle —
+
+```ts
+if (result.rate?.remaining === 0 && result.rate.resetIn != null) {
+  summary.throttleWaits += 1;
+  await deps.sleep(result.rate.resetIn * 1000);
+}
+```
+
+— and `fetchWithRateLimitRetry`'s 429 backoff, both trust the live provider's `resetIn`/`retryAfter`
+header value verbatim, multiplied into milliseconds, with **no ceiling**. Every existing test of this
+path (`sync-tango-dibbs.spec.ts`, `sync-tango-sbir.spec.ts`) used a synthetic fixture value of `31` or
+similar, matching P17's documented "~25 requests per ~31s" window — because no capture before this run
+had ever made enough requests in a single burst to trigger a REAL `remaining: 0` response. 2520 rows
+is almost exactly 25 pages of 100, the documented threshold — consistent with this being the first
+page where a genuine `remaining: 0` response landed, and whatever value the live provider actually
+sent, this code slept for it without question.
+
+**The exact real value that triggered it is unrecoverable.** This call path — unlike the original
+8-method `TANGO_GATEWAY`/`TangoResilienceService` surface — writes nothing to `tango_api_usage`
+(confirmed: no reference to that table or `recordUsage` anywhere under `sync-tango-dibbs*`). Whether
+the live `x-ratelimit-reset-in` header sent something in a different unit than seconds, a value meant
+for a longer-window quota tier, or something else entirely, no artifact captured it before the task
+was stopped. This entry does not claim to know why the value was wrong — only that it demonstrably
+was, by its effect.
+
+**Fix:** `MAX_PROVIDER_WAIT_MS = 120_000` in both `sync-tango-dibbs.ts` and `sync-tango-sbir.ts` (SBIR
+has the byte-identical pattern at both call sites and has never exercised it live either — fixed
+pre-emptively rather than waiting to reproduce the same incident there). Both sleeps are now
+`Math.min(reportedSeconds * 1000, MAX_PROVIDER_WAIT_MS)`, and both now log
+(`TANGO_DIBBS_SYNC_THROTTLE_WAIT` / `TANGO_DIBBS_SYNC_RATE_LIMIT_RETRY`, and the `SBIR` equivalents)
+the endpoint, page, reported value, and actual wait BEFORE sleeping — this run's single biggest
+diagnostic gap was that a multi-hour wait produced no evidence of its own existence. Four new tests
+(two per script) prove the ceiling holds against an absurdly large reported value on both the
+proactive-throttle and the 429-retry path. `funding-opportunities-ci.yml`'s api floor: 88/2782 →
+88/2786.
+
+**What this forbids:** any future `deps.sleep(<provider-reported value> * 1000)` call in this program
+without a hard ceiling alongside it. A value read from a live response and trusted verbatim into a
+sleep duration is exactly the shape of bug this entry exists to name — bounded retries (D-32's breaker
+cooldown, this file's own `fetchWithRateLimitRetry` retry COUNT) were already a house pattern; an
+unbounded retry DURATION was the gap.
+
+---
+
+## D-76 · 2026-08-10 · The re-run, with D-75's fix in place, hit a real multi-hour account-wide block — not a bug
+
+Re-ran the full DIBBS walk (`capiro-dev-api-sync-jobs` revision 10, image rebuilt from `main` at
+`342d6fa2` — includes D-75's fix) from a clean image. The fix worked exactly as designed: every
+provider-directed sleep this run logged was visibly capped, and the run terminated on its own in
+well under an hour instead of hanging.
+
+**What the logs proved, not guessed:** the live `retryAfterSec` values, read across successive
+capped-wait cycles, counted down in real time and in lockstep with the 120s cap —
+`13007 → 12887 → 12767 → 12647 → 12527 → 12406 → 12286 → 12166 → 12046 → 11926 → 11806 → 11685 →
+11565 → 11445 → 11325` — each step smaller by essentially exactly 120. That is not sensor noise or a
+misread header; it is a real countdown toward an actual reset roughly **3.5+ hours** away at the
+point the first block was hit, and the account was still that far from clearing when this run gave
+up. Two shorter blocks (45s, 40s) resolved normally first — this is a SEPARATE, coarser limit tier
+than the documented "~25 requests per ~31s" window, undocumented anywhere in the plan or the SDK, and
+never previously triggered because no prior capture or run had made enough requests in one account
+to reach it.
+
+**Final summary, per endpoint** (`TANGO_DIBBS_SYNC_DONE`):
+
+| endpoint | pagesRead | written | complete | rateLimited | rateLimitRetries |
+|---|---|---|---|---|---|
+| rfq | 75 | 7,500 | false | true | 9 |
+| rfp | 0 | 0 | false | true | 5 |
+| award | 0 | 0 | false | true | 5 |
+
+RFQ made real, genuine, committed progress (7,500 rows — independently re-verified via direct query:
+`tango_dibbs_solicitation` = 7,520, i.e. exactly the 20-row bounded-test baseline plus this run's
+7,500) before the account-wide block took effect. RFP and Award never completed a single page — by
+the time the walk reached them, the SAME block was already in force account-wide (not
+per-endpoint), so both exhausted their 5 retries on their very first request each and gave up
+immediately. `completeness: "in_progress"`, `rateLimited: true` at the top level, accurately
+reflecting exactly this — not a crash, not a hang, an honest partial result.
+
+**Why this session's cumulative testing is the most likely cause, not a defect in this account's
+configuration:** today alone included the P17-era probe re-runs implied by history, the D-71
+contract-capture run, the bounded 20-record dry-run-then-commit pass, this program's FIRST full
+walk (which made ~26+ real requests before its own stall), and this SECOND full walk (75+ successful
+pages plus 19 logged failed retry attempts before this entry was written). A daily or similarly
+long-window account quota — never documented, never hit before because no prior session drove this
+much real traffic against DIBBS in one day — is a far more parsimonious explanation than a
+misconfigured or unusually restrictive account.
+
+**Decision: do not attempt the SBIR full walk in the same session.** SBIR shares the same
+`TANGO_API_KEY` and, per D-27/D-29, the same account — an account-wide block observed on DIBBS has no
+reason to spare a different dataset under the same key. Launching SBIR immediately would almost
+certainly exhaust its own 5 retries on the first request for no benefit, and would add more failed
+requests against an account that may already be past whatever threshold caused this.
+
+**What this leaves open, deliberately not resolved by this entry:** whether the block is a daily
+reset (clears at a fixed wall-clock time) or a genuinely multi-hour rolling window; whether this
+account's real tier limits are documented anywhere MakeGov support could confirm; and whether P40's
+own schedule design (D-63's incremental-plus-periodic-`--full` pairing) needs a materially longer
+gap between full reconciliation runs than assumed, given a single `--full` walk against a
+75,339-record RFQ endpoint alone appears to reliably exhaust whatever this coarser quota is before
+finishing ONE of DIBBS's three endpoints. Completing the remaining ~67,839 RFQ records, all of RFP,
+all of Award, and all of SBIR is unfinished — to be resumed once the block is confirmed clear, not
+before.
+
+---
+
+## D-77 · 2026-08-11 · The block cleared, then recurred at ~20 hours — this reads as a daily quota, not a fluke
+
+A one-record probe (`--endpoint=rfq --limit=1`) confirmed the D-76 block had cleared:
+`rateLimited: false`, clean success. The full walk was resumed on the same digest-pinned image
+(revision 10). It made real further progress — 24 more pages, 2,400 more RFQ rows (7,520 → 9,920,
+independently re-verified) — then hit rate-limiting again, this time reporting `retryAfterSec` around
+**70,000+ seconds (≈19.5–19.7 hours)**, roughly five times larger than D-76's ~13,000s (≈3.6h)
+observation. Same shape as before: capped at 120s per D-75's fix, decreasing in lockstep with the
+cap across ten further retries, RFP and Award immediately inheriting the still-active block on their
+first request each. Final summary: RFQ 99 pages / 9,900 written this run / `rateLimited: true`; RFP
+and Award both 0 pages / `rateLimited: true`. Run terminated cleanly, exit 0, in a few minutes — the
+fix continues to do exactly its job.
+
+**Reading these two data points together:** a block that clears and then reappears at a MUCH larger
+remaining-time value, on an account making meaningfully more cumulative requests each time it's hit,
+is the signature of a **daily (or similarly long, calendar-anchored) quota**, not a short rolling
+window that merely varies in severity. This is now the working assumption for planning purposes,
+though nothing in this session confirms it against MakeGov's own documentation or support — that
+confirmation is explicitly not something this session can obtain.
+
+**What this means for finishing the catalog, stated plainly:** waiting out today's block (~20 hours,
+by this run's own report) and resuming tomorrow is the only path available inside this session's own
+tools. No further code change or retry-tuning addresses an external quota. SBIR was deliberately not
+attempted a second time this session for the same reason as D-76 — it shares the account and would
+almost certainly report the same remaining-time value immediately.
+
+**What this forbids:** treating a single cleared-then-reoccurred cycle as proof the block is now
+"handled" or unlikely to recur again during the NEXT resumption attempt. Two data points establish a
+pattern worth planning around; they do not establish the quota's exact size, reset time, or whether
+it scales with request volume within a day. A future full-walk attempt should expect to hit this
+same wall again, budget for it, and stop cleanly rather than assume today's specific ~13,000s and
+~70,000s figures bound all future occurrences.

@@ -497,6 +497,41 @@ describe('rate limiting', () => {
 
     await expect(runSbirSync(deps, { commit: false, endpoints: ['topic'] })).rejects.toThrow('boom');
   });
+
+  // Mirrors the two capped-wait tests in sync-tango-dibbs.spec.ts, added after
+  // that sibling script's first full run stalled 4.5+ hours on an unbounded
+  // sleep trusting a live resetIn value no prior capture had ever exercised.
+  // SBIR shares the identical client shape and gets the same ceiling
+  // pre-emptively.
+  test('a throttle wait is capped even when resetIn is absurdly large', async () => {
+    const { deps, sleeps } = fakeDeps(
+      { topic: [[topic('T1')], [topic('T2')]] },
+      {},
+      { topic: { remaining: 0, limit: 25, resetIn: 9_999_999, retryAfter: null, limitType: null } },
+    );
+    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+
+    expect(sleeps).toContain(120_000);
+    expect(sleeps).not.toContain(9_999_999_000);
+    expect(byEndpoint(summary, 'topic').throttleWaits).toBeGreaterThan(0);
+  });
+
+  test('a 429 retry wait is capped even when Retry-After is absurdly large', async () => {
+    const { deps, sleeps } = fakeDeps({ topic: [[topic('T1')]] });
+    const real = (deps.gateway as any).listTopics;
+    let calls = 0;
+    (deps.gateway as any).listTopics = jest.fn(async (options: any) => {
+      calls += 1;
+      if (calls === 1) throw rateLimitError({ retryAfter: 9_999_999, resetIn: null, remaining: 0 });
+      return real(options);
+    });
+
+    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+
+    expect(sleeps).toContain(120_000);
+    expect(sleeps).not.toContain(9_999_999_000);
+    expect(byEndpoint(summary, 'topic').rateLimitRetries).toBe(1);
+  });
 });
 
 describe('what the summary reports', () => {
