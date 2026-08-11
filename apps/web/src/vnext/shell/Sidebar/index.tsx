@@ -24,6 +24,7 @@ export function CapiroNavItem({
   return (
     <NavLink
       to={item.path}
+      end={item.path === '/'}
       className={`capiro-vnext-nav-item${groupCurrent ? ' is-group-current' : ''}`}
       aria-label={collapsed ? item.label : undefined}
       title={collapsed ? item.label : undefined}
