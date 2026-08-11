@@ -35,7 +35,7 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @capiro/shared build
       - name: Web vNext focused tests
-        run: pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts --poolOptions.threads.singleThread
+        run: pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts src/vnext/figma-strategy-legiwatch-contract.test.ts --poolOptions.threads.singleThread
       - name: Web typecheck
         run: pnpm --filter @capiro/web typecheck
       - name: Web build
