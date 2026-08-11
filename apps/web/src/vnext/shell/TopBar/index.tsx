@@ -12,20 +12,21 @@ export function CapiroTopBar({
   return (
     <header className="capiro-vnext-topbar">
       <div className="capiro-vnext-topbar__brand">{brand}</div>
-      <div>{search}</div>
+      <div className="capiro-vnext-topbar__search">{search}</div>
       <div className="capiro-vnext-topbar__actions">{actions}</div>
     </header>
   );
 }
 
-export function CapiroBrand({ environmentLabel = 'vNext' }: { environmentLabel?: string }) {
+/**
+ * Figma shell brand (expanded 722:2502). The product wordmark is the existing
+ * repository asset; no short-lived Figma asset URL is shipped to production.
+ */
+export function CapiroBrand({ environmentLabel }: { environmentLabel?: string }) {
   return (
-    <>
-      <span className="capiro-vnext-brand-mark" aria-hidden="true">C</span>
-      <span className="capiro-vnext-brand-copy">
-        <span className="capiro-vnext-brand-name">Capiro</span>
-        <span className="capiro-vnext-brand-meta">{environmentLabel}</span>
-      </span>
-    </>
+    <span className="capiro-vnext-brand">
+      <img className="capiro-vnext-brand-wordmark" src="/logo.png" alt="Capiro" />
+      {environmentLabel ? <span className="capiro-vnext-brand-meta">{environmentLabel}</span> : null}
+    </span>
   );
 }
