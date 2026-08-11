@@ -1248,7 +1248,8 @@ log "Gap 5 — the real persist verb, end to end"
 # =============================================================================
 # The verb, not raw SQL: this is the same substitution Gap 4 made for plan
 # filing, and it is what proves an operator can actually produce this row.
-GAP5_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-projection-plan.json"
+# Relative path only: native Windows Node mangles MSYS abs paths (/c/Users → C:\c\Users).
+GAP5_PLAN_FILE="$TMP_REL/gap5-projection-plan.json"
 cat > "$GAP5_PLAN_FILE" <<JSON
 {
   "schemaVersion": "rdte_canonical_projection_plan_v1",
@@ -1353,7 +1354,8 @@ INSERT INTO phase6_audit_projection (
 );"
 ok "seeded two live Phase 6 audit-projection rows and one superseded row"
 
-GAP5_PHASE6_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-phase6-projection-plan.json"
+# Relative path only: native Windows Node mangles MSYS abs paths (/c/Users -> C:/c/Users).
+GAP5_PHASE6_PLAN_FILE="$TMP_REL/gap5-phase6-projection-plan.json"
 npx tsx "./scripts/build-defense-budget-phase6-projection-plan-v1.ts" \
   --cycle-id cycle-gap5-a --fiscal-year 2027 --out "$GAP5_PHASE6_PLAN_FILE" \
   || fail "build-defense-budget-phase6-projection-plan-v1 could not build a plan document"
