@@ -1358,15 +1358,18 @@ ok "seeded two live Phase 6 audit-projection rows and one superseded row"
 # projection-set binding (projection_set_sha256 + projection_count). Seed one
 # for cycle-gap5-a / FY2027 whose content_sha256 is passed to --certification-sha256.
 GAP5_PHASE6_CERT_SHA="$(printf '6%.0s' $(seq 1 64))"
-GAP5_PHASE6_PROJSET_SHA="$(printf '7%.0s' $(seq 1 64))"
+# The build verb recomputes the projection-set hash from the actual DB rows
+# and refuses a stale certification. Compute the real hash from the two seeded
+# projections so the certification's projection_set_sha256 matches exactly.
+GAP5_PHASE6_PROJSET_SHA="92951d20639ecf2359e28ef13ab732089c34840c27f3b8eee11729ee2606a845"
 run_sql "
 INSERT INTO phase6_cycle_certification (
   cycle_id, fiscal_year, manifest_hash, content_sha256, status,
   projection_set_sha256, projection_count, report_jsonb
 ) VALUES (
   'cycle-gap5-a', 2027, repeat('a', 64), repeat('6', 64), 'CERTIFIED',
-  repeat('7', 64), 2,
-  jsonb_build_object('projectionSetSha256', repeat('7', 64), 'projectionCount', 2)
+  '$GAP5_PHASE6_PROJSET_SHA', 2,
+  jsonb_build_object('projectionSetSha256', '$GAP5_PHASE6_PROJSET_SHA', 'projectionCount', 2)
 );"
 # Bind the two live projections (p6proj-gap5-a-1 and p6proj-gap5-a-2) to the certification.
 run_sql "
