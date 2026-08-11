@@ -1,0 +1,13 @@
+/* Figma Strategy screens carry a 3px active rail on the direct Strategies nav item. */
+.capiro-vnext-root .capiro-vnext-nav-item[aria-current='page']:not(.is-group-current)::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--capiro-color-action-accent-default);
+}
+.capiro-vnext-root .capiro-vnext-shell--collapsed .capiro-vnext-nav-item[aria-current='page']::after {
+  display: none;
+}
