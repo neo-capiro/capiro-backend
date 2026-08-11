@@ -117,21 +117,22 @@ the selection rail fetches them per selected person. Guard `source` with `?.`:
 exactly the required "provenance missing" state.
 
 Figma's fixtures carry prototype labels ("6 SAMPLE RECORDS · LAYOUT FIXTURE", "· sample")
-and a **blank COVERAGE column header** — none of that ships; the header is labelled
-COVERAGE to match the row content and the written spec.
+— none of that ships.
+
+> **Correction (later session).** This section previously claimed the node has "a blank
+> COVERAGE column header", which is why the implementation labels it `COVERAGE`. Rendering
+> `937:2539` shows the header is **not** blank: it reads **`ROLE & COVERAGE`**. The row
+> content is already role-then-issue, so the design's label is the accurate one. See §8.1.
 
 ---
 
 ## 5. Remaining work, in the order I'd do it
 
-1. **Make it visually QA-able (do this first — it de-risks everything after).**
-   `pnpm --filter @capiro/web visual:vnext:capture` is **already broken repo-wide** ("No
-   Lighthouse screenshot data was available"), so review is manual in-browser today. The
-   durable fix: split each screen into a data container + a pure `…View` (the pattern
-   `DashboardVNextView` already uses), register it in the Clerk-free harness
-   `src/vnext/testing/visual/VNextShellVisual.tsx` (`vnext-shell.html`), then capture at
-   1600×1000 with fonts loaded and overlay against each Figma node at 50%.
-   **No pixel claim has been made for anything yet.**
+1. ~~**Make it visually QA-able.**~~ **DONE — see §8.** The capture pipeline works, and
+   Congressional Staff is split (`useCongressionalStaffModel` + `CongressionalStaffVNextView`)
+   and registered in the harness. Apply the same split to each remaining screen as you build
+   it — it is now the cheapest way to see your own work.
+   **Still no pixel claim:** §8 is a structural side-by-side, not a numeric overlay.
 2. **Department of War** (`939:2736`) — search 500×40; filters PE Alignment / Service /
    Role / Organization; results 960 + inspector 344 + 16 gutter; columns
    145/160/205/75/195/60; PE-first sort stays default; **inspector must scroll internally**
@@ -221,3 +222,74 @@ cd C:/dev/capiro-directory-vnext-wt/apps/web && npx vitest run --poolOptions.thr
 
 Note: `pnpm lint` is unconfigured in this repo (no `eslint.config.*`, no `.eslintrc`, no
 local eslint binary) — typecheck + vitest are the real gates.
+
+---
+
+## 8. Visual QA — now possible, and the first real comparison
+
+### 8.0 The harness works now (it did not before)
+
+`pnpm --filter @capiro/web visual:vnext:capture` was failing repo-wide. The stated symptom
+("No Lighthouse screenshot data was available") was three separate faults stacked, all
+confirmed by running it:
+
+1. **Lighthouse 12 removed the `full-page-screenshot` audit** — it moved to the top-level
+   `lhr.fullPageScreenshot`. The script's primary path had been dead code for some time;
+   only the `final-screenshot` fallback was load-bearing.
+2. **Lighthouse returned `runtimeError: NO_FCP`**, which puts *every* audit — including
+   `final-screenshot` — into `scoreDisplayMode: 'error'` with null details. That is the
+   error message you actually saw.
+3. **The component workshop page threw on mount.** `VNextComponentWorkshop` renders
+   `GlobalSearch`, which calls `useShellOverlay`, with **no `ShellOverlayProvider`**. This is
+   the root cause of #2: there was no first paint to screenshot. Fixed.
+
+Capture no longer uses Lighthouse. A performance auditor cannot promise an exact viewport or
+settled webfonts, and both matter when the output is overlaid on a Figma frame. It now drives
+Chrome over **CDP directly** (`chrome-launcher`, already a dependency, plus Node's built-in
+`WebSocket` — no new packages): exact device metrics, an explicit `document.fonts.ready` +
+double-`requestAnimationFrame` wait, and a per-target **`expect` selector that fails the run
+if the screen did not render**. That assertion is the point — it is what stops a blank PNG
+being filed as evidence, and it caught fault #3 on the first run.
+
+```bash
+cd C:/dev/capiro-directory-vnext-wt/apps/web && npx vite --host 127.0.0.1 --port 4188 --strictPort
+```
+```bash
+cd C:/dev/capiro-directory-vnext-wt/apps/web && VNEXT_VISUAL_BASE_URL=http://127.0.0.1:4188 node scripts/vnext-visual-capture.mjs
+```
+
+Eight targets capture green, including `directory-congressional-staff`,
+`…-collapsed` and `…-empty`. Output + `manifest.json` (sha256 per capture) land in
+`apps/web/artifacts/vnext-visual/`, which is now gitignored — CI already treats it as an
+upload artifact, so the manifest hashes are the evidence trail, not committed binaries.
+
+> **Trap that cost real time — read this before you debug a dev server.**
+> Port **4173** on this machine is held by a *different checkout*:
+> `C:\Users\neoma\Downloads\web-vnext-foundation`. Starting Vite with `--port 4173` fails to
+> bind (`--strictPort` exits 1) and you are then silently talking to that stale tree, whose
+> `vnext-shell.html` predates the inline `__CAPIRO_CONFIG__` fix. It produces a confident,
+> completely wrong diagnosis ("Vite is stripping the runtime-config script"). **Use 4188**,
+> and verify with `curl -s .../vnext-shell.html | grep -c __CAPIRO_CONFIG__` → must be `1`.
+
+### 8.1 Congressional Staff vs `937:2539` — structural deltas
+
+Side-by-side of `artifacts/vnext-visual/directory-congressional-staff.png` (1600×1000)
+against the rendered node (1600×1010). **This is a structural read, not a pixel measurement
+— no pixel claim is being made.** Deltas, largest first:
+
+| # | Delta | Assessment |
+| --- | --- | --- |
+| 1 | **Sidebar is dark navy; design is warm paper (#f5f0e3)** with dark text | Known + deliberate (§5 rough edge). Visually it is the single biggest divergence on the screen — worth a decision sooner rather than later, because every Directory capture will carry it. |
+| 2 | **Context bar content differs.** Design: `SCOPE Federal` / `SOURCE Directory` / `VIEW Staff` + `LIVE CONTEXT · 32 ITEMS READY`. Built: one `CLIENT All clients` chip + `ALL CLIENTS` | Shared shell surface, not Directory-local. Directory screens specify their own context-bar content; nothing implements that yet. **Not previously recorded.** |
+| 3 | **Column header `COVERAGE` should be `ROLE & COVERAGE`** | Straight defect, and it falsifies the old §4 note. Cheap fix. |
+| 4 | **Ribbon right side.** Design: static chips `PERSONAL OFFICES` / `ROLE + ISSUE FILTERS` / `ENGAGEMENT READY`. Built: live `42 staff` / `Page 1 of 4` badges | Deliberate-looking substitution of real data for decorative labels. Defensible, but it *is* a design deviation and should be a conscious call, not an accident. |
+| 5 | **Metric values are title case; design is uppercase mono** (`HOUSE + SENATE` vs `House + Senate`) | Small, real, trivially fixable. |
+| 6 | **Rail field values have no filled background.** Design puts each of EMAIL/PHONE/COVERAGE/COMMITTEE/SOURCE in a subtle grey block | Real omission. |
+| 7 | **Rail `USED BY · ENGAGEMENT · OUTREACH · QUICK LOG` line is missing.** The Connected-workflows card below it is built | Real omission. |
+| 8 | **Rail identity mark is a circle; the design's `AC` mark reads as a rounded square** | **Verify against the `Identity/Mark` component set before changing anything** — implementation follows the documented rule (person ⇒ circular) and the fixture instance may simply use a different variant. Do not "fix" this from the screenshot alone. |
+| 9 | **Subtitle copy differs.** Design: "Personal-office staff · Federal House & Senate · Searchable by role, issue and member" | Copy decision; design's is more specific. |
+| 10 | **Member/Office secondary lines truncate** ("Russell Senate Office Bu…") at the 210px column | Occurs with realistic building names. Confirm the ellipsis is intended rather than a column-width miss. |
+| 11 | Role + Committee pills render visibly disabled | Expected — the honest state. Goes away when §6 lands. |
+
+None of 3, 5, 6, 7, 9 is architectural; they are a single focused pass. 1, 2 and 4 are
+decisions rather than defects, and 8 needs the component set checked first.
