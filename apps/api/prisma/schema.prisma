@@ -226,6 +226,7 @@ model Tenant {
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
   clientFacilities                   ClientFacility[]
+  clientActivity                     ClientActivity[]
   clientTargets                      ClientTarget[]
   clientTargetRecommendations        ClientTargetRecommendation[]
   engagementCampaigns                EngagementCampaign[]
@@ -612,6 +613,7 @@ model Client {
   submissionHistory       ClientSubmissionHistory[]
   people                  ClientPerson[]
   facilities              ClientFacility[]
+  activity                ClientActivity[]
   targets                 ClientTarget[]
   targetRecommendations   ClientTargetRecommendation[]
   engagementCampaigns     EngagementCampaign[]
@@ -940,6 +942,9 @@ model EngagementAttachment {
   /// as proof of integrity. See calculatedSha256 for the server's own digest.
   checksumSha256   String?   @map("checksum_sha256")
   source           String    @default("manual")
+  /// Client CRM vNext file folder. NULL = unfiled. Moving a file rewrites this
+  /// column only; the stored S3 object is never copied (contract §12).
+  folder           String?   @db.VarChar(120)
   // Generic generated-document provenance. Hearing recaps use
   // sourceEntityType="hearing_session" plus the intel session id.
   sourceEntityType String?   @map("source_entity_type") @db.VarChar(64)
@@ -2732,8 +2737,23 @@ model ClientPerson {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // ── Organization hierarchy (Client CRM vNext 906:2790) ───────────────────
+  // NULL level = not placed yet, which is a real state the roster shows as
+  // "unplaced" — deliberately not defaulted to the bottom of the org chart.
+  /// executive | c_suite | senior_leadership | leadership | management | team
+  hierarchyLevel      String?  @map("hierarchy_level") @db.VarChar(24)
+  reportsToPersonId   String?  @map("reports_to_person_id") @db.Uuid
+  /// auto_title | manual — manual ALWAYS wins and is never re-derived.
+  placementSource     String   @default("auto_title") @map("placement_source") @db.VarChar(16)
+  /// Inference confidence; NULL for manual placements.
+  placementConfidence Decimal? @map("placement_confidence") @db.Decimal(4, 3)
+  reviewRequired      Boolean  @default(false) @map("review_required")
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  reportsTo    ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
+  directReports ClientPerson[] @relation("ClientPersonReportsTo")
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
   // Import-path identity lookup: Meri's update_client_profile and the contact
@@ -2748,6 +2768,39 @@ model ClientPerson {
   // duplicates have been reconciled.
   @@index([tenantId, clientId, email], map: "client_people_tenant_client_email_idx")
   @@map("client_people")
+}
+
+/// Normalized CRM activity for the client relationship history (906:3360).
+/// Only RECORDED activity lives here; meetings, attachments, outreach and
+/// actions stay in their own tables and are unioned at read time.
+model ClientActivity {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  /// email | call | note | meeting | outreach | document | request | decision | commitment
+  kind            String    @db.VarChar(24)
+  occurredAt      DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  title           String    @db.Text
+  body            String?   @db.Text
+  actorUserId     String?   @map("actor_user_id") @db.Uuid
+  personId        String?   @map("person_id") @db.Uuid
+  /// Identity of the underlying record so a row can open what it describes.
+  sourceType      String?   @map("source_type") @db.VarChar(32)
+  sourceId        String?   @map("source_id") @db.VarChar(128)
+  pinned          Boolean   @default(false)
+  dueAt           DateTime? @map("due_at") @db.Timestamptz(6)
+  settledAt       DateTime? @map("settled_at") @db.Timestamptz(6)
+  metadata        Json      @default("{}") @map("metadata_jsonb")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientId, occurredAt(sort: Desc)], map: "client_activity_timeline_idx")
+  @@index([tenantId, clientId, kind, occurredAt(sort: Desc)], map: "client_activity_kind_idx")
+  @@map("client_activity")
 }
 
 model ClientFacility {

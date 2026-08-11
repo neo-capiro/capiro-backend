@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import {
+  inferPlacementFromTitle,
+  isHierarchyLevel,
+  wouldCreateCycle,
+  type HierarchyLevel,
+} from './client-hierarchy.helpers.js';
 
 export interface CreatePersonInput {
   name: string;
@@ -14,6 +20,20 @@ export interface CreatePersonInput {
 }
 
 export type UpdatePersonInput = Partial<CreatePersonInput>;
+
+/**
+ * Hierarchy edits are a separate input from ordinary contact edits: sending
+ * `hierarchyLevel` marks the placement MANUAL, and manual placement must never
+ * be a side effect of someone correcting a phone number.
+ */
+export interface UpdatePersonHierarchyInput {
+  /** `null` clears the placement and returns the person to inference. */
+  hierarchyLevel?: HierarchyLevel | null;
+  reportsToPersonId?: string | null;
+  /** Explicitly hand a person back to title inference. */
+  resetToAutomatic?: boolean;
+  reviewRequired?: boolean;
+}
 
 @Injectable()
 export class ClientPeopleService {
@@ -37,6 +57,7 @@ export class ClientPeopleService {
   }
 
   async createPerson(ctx: TenantContext, clientId: string, input: CreatePersonInput) {
+    const inferred = inferPlacementFromTitle(input.title);
     const person = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
@@ -54,10 +75,82 @@ export class ClientPeopleService {
           role: input.role ?? null,
           lastContact: input.lastContact ? new Date(input.lastContact) : null,
           notes: input.notes ?? null,
+          // A new contact is placed automatically from its title; an unknown
+          // title lands unplaced and flagged rather than at the bottom.
+          hierarchyLevel: inferred.level,
+          placementConfidence: inferred.confidence,
+          reviewRequired: inferred.reviewRequired,
+          placementSource: 'auto_title',
         },
       });
     });
     // Client KB (F5): keep retrieval in sync with the People tab.
+    this.clientKb.indexPersonFireAndForget(ctx.tenantId, person.id);
+    return person;
+  }
+
+  /**
+   * Manual placement (Figma `907:3028` Configure Hierarchy, `907:2919` person
+   * drawer). Separate from `updatePerson` so an ordinary contact edit can never
+   * silently convert an automatic placement into a manual one.
+   */
+  async updatePersonHierarchy(
+    ctx: TenantContext,
+    clientId: string,
+    id: string,
+    input: UpdatePersonHierarchyInput,
+  ) {
+    const person = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const roster = await tx.clientPerson.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        select: { id: true, reportsToPersonId: true, title: true },
+      });
+      const existing = roster.find((entry) => entry.id === id);
+      if (!existing) throw new NotFoundException('Person not found');
+
+      if ('hierarchyLevel' in input && input.hierarchyLevel != null && !isHierarchyLevel(input.hierarchyLevel)) {
+        throw new BadRequestException('Unknown hierarchy level');
+      }
+
+      if ('reportsToPersonId' in input && input.reportsToPersonId) {
+        // Reports-to must name a live contact of THIS client. The database FK
+        // enforces the same rule; this produces a usable message first.
+        if (!roster.some((entry) => entry.id === input.reportsToPersonId)) {
+          throw new BadRequestException('That manager is not a contact of this client');
+        }
+        if (wouldCreateCycle(roster, id, input.reportsToPersonId)) {
+          throw new BadRequestException('That placement would create a reporting loop');
+        }
+      }
+
+      // Returning a person to inference is explicit, never implied.
+      if (input.resetToAutomatic) {
+        const inferred = inferPlacementFromTitle(existing.title);
+        return tx.clientPerson.update({
+          where: { id },
+          data: {
+            hierarchyLevel: inferred.level,
+            placementConfidence: inferred.confidence,
+            reviewRequired: inferred.reviewRequired,
+            placementSource: 'auto_title',
+            ...('reportsToPersonId' in input ? { reportsToPersonId: input.reportsToPersonId ?? null } : {}),
+          },
+        });
+      }
+
+      return tx.clientPerson.update({
+        where: { id },
+        data: {
+          ...('hierarchyLevel' in input ? { hierarchyLevel: input.hierarchyLevel ?? null } : {}),
+          ...('reportsToPersonId' in input ? { reportsToPersonId: input.reportsToPersonId ?? null } : {}),
+          // Any explicit placement is manual, and a manual placement carries no
+          // confidence score — a person decided it.
+          placementSource: 'manual',
+          placementConfidence: null,
+          reviewRequired: input.reviewRequired ?? false,
+        },
+      });
+    });
     this.clientKb.indexPersonFireAndForget(ctx.tenantId, person.id);
     return person;
   }
@@ -148,12 +241,26 @@ export class ClientPeopleService {
     const person = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clientPerson.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
-        select: { id: true },
+        select: { id: true, placementSource: true },
       });
       if (!existing) throw new NotFoundException('Person not found');
+      // A changed title re-runs inference, but ONLY for a person whose
+      // placement is still automatic. Manual placement always wins.
+      const reinfer =
+        'title' in input && existing.placementSource !== 'manual'
+          ? inferPlacementFromTitle(input.title)
+          : null;
       return tx.clientPerson.update({
         where: { id },
         data: {
+          ...(reinfer
+            ? {
+                hierarchyLevel: reinfer.level,
+                placementConfidence: reinfer.confidence,
+                reviewRequired: reinfer.reviewRequired,
+                placementSource: 'auto_title',
+              }
+            : {}),
           ...('name' in input ? { name: input.name } : {}),
           ...('title' in input ? { title: input.title ?? null } : {}),
           ...('email' in input ? { email: input.email ?? null } : {}),
