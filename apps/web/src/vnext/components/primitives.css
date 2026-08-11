@@ -136,3 +136,117 @@
 .capiro-vnext-root .capiro-toast__dismiss { flex-shrink: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--capiro-color-text-muted); font-size: 15px; line-height: 1; cursor: pointer; }
 .capiro-vnext-root .capiro-toast__dismiss:hover { background: var(--capiro-color-bg-subtle); color: var(--capiro-color-text-secondary); }
 @media (max-width: 767px) { .capiro-vnext-root .capiro-toast-region { top: auto; bottom: 76px; left: 16px; right: 16px; justify-items: stretch; } .capiro-vnext-root .capiro-toast { width: auto; } .capiro-vnext-root .capiro-toast__dismiss { width: 44px; height: 44px; } }
+
+/* ── Identity/Mark ──────────────────────────────────────────────────────────
+   Canonical identity mark. People are circular; offices, committees and
+   programs take non-person rounded-rect geometry (Directory handoff 963:3064).
+   Sizes are the rendered instances: 32/36 in shell and row density, 46 in the
+   selected-profile rail (937:2856). */
+.capiro-vnext-root .capiro-identity-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--capiro-color-bg-selected);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-primary);
+  font-family: var(--capiro-type-family-mono);
+  font-weight: 500;
+}
+
+.capiro-vnext-root .capiro-identity-mark--person { border-radius: var(--capiro-radius-circular); }
+.capiro-vnext-root .capiro-identity-mark--office,
+.capiro-vnext-root .capiro-identity-mark--committee,
+.capiro-vnext-root .capiro-identity-mark--program { border-radius: var(--capiro-radius-control); }
+
+.capiro-vnext-root .capiro-identity-mark--sm { width: 32px; height: 32px; font-size: 10px; line-height: 14px; letter-spacing: 0.06em; }
+.capiro-vnext-root .capiro-identity-mark--md { width: 36px; height: 36px; font-size: 10px; line-height: 14px; letter-spacing: 0.06em; }
+.capiro-vnext-root .capiro-identity-mark--lg { width: 46px; height: 46px; font-size: 12px; line-height: 17px; }
+
+.capiro-vnext-root .capiro-identity-mark__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.capiro-vnext-root .capiro-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-identity__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-identity__name {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.032px;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-identity__meta {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Navigation/TopItem (432:133) ───────────────────────────────────────────
+   Horizontal route tabs. Labels stay visible in every state; Current is the one
+   active destination. */
+.capiro-vnext-root .capiro-top-nav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: var(--capiro-navigation-top-item-height);
+  padding: 0 var(--capiro-navigation-top-item-padding-x);
+  border: 1px solid transparent;
+  border-radius: var(--capiro-radius-shell-control);
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-shell-nav-default);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .capiro-top-nav-item:hover {
+  background: var(--capiro-color-shell-nav-hover-bg);
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.capiro-vnext-root .capiro-top-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
+.capiro-vnext-root .capiro-top-nav-item--current {
+  background: var(--capiro-color-shell-nav-current-bg);
+  border-color: var(--capiro-color-shell-signature-primary);
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.capiro-vnext-root .capiro-top-nav-item--disabled {
+  opacity: 0.72;
+  color: var(--capiro-color-shell-nav-disabled);
+  cursor: not-allowed;
+}

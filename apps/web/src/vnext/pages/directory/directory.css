@@ -1,0 +1,656 @@
+/**
+ * Directory vNext — presentation for the four list surfaces and their profiles.
+ *
+ * Geometry is read from the rendered Figma screens (`937:2539` Congressional
+ * Staff, `938:2628` Committee Staff, `939:2736` Department of War, `944:2867`
+ * State Legislators) at the 1600×1000 reference viewport.
+ *
+ * Two rules from the handoff (`941:2860`, `1269:3782`) shape everything here:
+ * the outer presentation frame is NOT application chrome, and a fixed fixture
+ * height is never a content height — quick inspectors scroll internally and
+ * nothing is clipped to a mockup's bounds.
+ */
+
+/* ── Page header (937:2614) ─────────────────────────────────────────────────
+   112px white band with the slim accent orientation rail. The rendered screens
+   are authoritative over the prose's "dark intelligence header". */
+.capiro-vnext-root .capiro-directory-header {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 112px;
+  padding: 18px var(--capiro-space-06) 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--capiro-space-06);
+  background: var(--capiro-color-bg-surface);
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+/* Premium Header / Accent Rail (954:3020) — 4px, full band height. */
+.capiro-vnext-root .capiro-directory-header__rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--capiro-color-icon-accent);
+}
+
+.capiro-vnext-root .capiro-directory-header__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-directory-header__eyebrow {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-header__title {
+  margin: 6px 0 0;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 38px;
+  letter-spacing: -0.48px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-header__subtitle {
+  margin: 2px 0 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* Premium Header / Metrics (954:3021) — three 150×56 cards, 8px gap. */
+.capiro-vnext-root .capiro-directory-header__metrics {
+  display: flex;
+  gap: var(--capiro-space-02);
+  margin-top: 6px;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-directory-metric {
+  box-sizing: border-box;
+  width: 150px;
+  min-height: 56px;
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-01);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 9px;
+  background: var(--capiro-color-bg-subtle);
+  font-family: var(--capiro-type-family-mono);
+  font-weight: 500;
+}
+
+.capiro-vnext-root .capiro-directory-metric__label {
+  margin: 0;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-metric__value {
+  margin: 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+
+/* ── Route tabs (937:2712) — 40px band: 6px top pad + 34px item. ─────────── */
+.capiro-vnext-root .capiro-directory-tabs {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 6px var(--capiro-space-06) 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-02);
+  background: var(--capiro-color-bg-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.capiro-vnext-root .capiro-directory-tabs::-webkit-scrollbar { display: none; }
+
+/* ── Body (937:2720) ────────────────────────────────────────────────────────
+   24px horizontal padding over the 1368 surface yields the 1320 inner content
+   width. Height is content-driven: the mockup's 740px is a fixture bound. */
+.capiro-vnext-root .capiro-directory-body {
+  box-sizing: border-box;
+  max-width: calc(var(--capiro-layout-page-max) + (2 * var(--capiro-space-06)));
+  padding: var(--capiro-space-05) var(--capiro-space-06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--capiro-color-bg-canvas);
+}
+
+/* ── Signal ribbon (957:3021) ───────────────────────────────────────────── */
+.capiro-vnext-root .capiro-directory-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 9px;
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-ribbon__accent {
+  width: 3px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--capiro-color-icon-accent);
+}
+
+.capiro-vnext-root .capiro-directory-ribbon__label {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-ribbon__spacer { flex: 1 1 0; }
+
+/* ── Toolbar: search + filter pills (937:2723) ──────────────────────────── */
+.capiro-vnext-root .capiro-directory-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: var(--capiro-space-03) 14px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+}
+
+/* Search (937:2724) — 460×40, stacked label + input. */
+.capiro-vnext-root .capiro-directory-search {
+  box-sizing: border-box;
+  width: 460px;
+  max-width: 100%;
+  height: 40px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  padding: 0 var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-search:focus-within {
+  border-color: var(--capiro-color-border-information);
+  box-shadow: var(--capiro-focus-ring);
+}
+
+.capiro-vnext-root .capiro-directory-search__label {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-directory-search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-search__input::placeholder { color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-directory-search__input:focus { outline: none; }
+
+.capiro-vnext-root .capiro-directory-search__clear {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+  cursor: pointer;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-directory-search__clear:hover { color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-directory-search__clear:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--capiro-radius-control); }
+
+/* Filter pill (937:2721) — circular, label is the control's text. */
+.capiro-vnext-root .capiro-directory-filter { position: relative; flex: 0 0 auto; }
+
+.capiro-vnext-root .capiro-directory-filter__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-circular);
+  background: var(--capiro-color-bg-subtle);
+  cursor: pointer;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--capiro-color-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-filter__pill:hover { color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-directory-filter__pill:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
+
+.capiro-vnext-root .capiro-directory-filter__pill--selected {
+  border-color: var(--capiro-color-shell-signature-primary);
+  background: var(--capiro-color-shell-nav-current-bg);
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.capiro-vnext-root .capiro-directory-filter__pill--unavailable { cursor: not-allowed; opacity: 0.72; color: var(--capiro-color-shell-nav-disabled); }
+
+.capiro-vnext-root .capiro-directory-filter__count {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+}
+
+.capiro-vnext-root .capiro-directory-filter__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--capiro-z-popover);
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--capiro-space-02);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .capiro-directory-filter__option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  padding: 6px var(--capiro-space-02);
+  border: 0;
+  border-radius: var(--capiro-radius-control);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-filter__option:hover { background: var(--capiro-color-bg-flyout-hover); }
+.capiro-vnext-root .capiro-directory-filter__option:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
+.capiro-vnext-root .capiro-directory-filter__option[aria-checked='true'] { color: var(--capiro-color-shell-nav-current-text); }
+
+.capiro-vnext-root .capiro-directory-filter__note {
+  margin: 0;
+  padding: 6px var(--capiro-space-02);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-directory-toolbar__reset {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-toolbar__reset:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--capiro-radius-control); }
+
+/* ── Results + selection rail (937:2737) ────────────────────────────────── */
+.capiro-vnext-root .capiro-directory-split {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-04);
+}
+
+.capiro-vnext-root .capiro-directory-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Congressional Staff results column is 930px (939 DoW is 960). */
+.capiro-vnext-root .capiro-directory-results--congressional { width: 930px; }
+
+.capiro-vnext-root .capiro-directory-results__header {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  padding: 13px 14px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-navigation);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-results__eyebrow,
+.capiro-vnext-root .capiro-directory-results__count {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-results__eyebrow { color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-directory-results__count { color: var(--capiro-color-text-secondary); }
+
+/* Column header (937:2742) + rows (937:2748) share one grid so the columns
+   cannot drift apart. Widths and the 10px gap come from the fixture. */
+.capiro-vnext-root .capiro-directory-row-grid {
+  display: grid;
+  grid-template-columns: 180px 210px 220px 180px 70px;
+  gap: 10px;
+  align-items: start;
+}
+
+.capiro-vnext-root .capiro-directory-columns {
+  padding: 9px 14px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-columns__label {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-directory-row {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 14px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 9px;
+  background: var(--capiro-color-bg-surface);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .capiro-directory-row:hover { border-color: var(--capiro-color-border-default); }
+.capiro-vnext-root .capiro-directory-row:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
+
+.capiro-vnext-root .capiro-directory-row--selected {
+  border-color: var(--capiro-color-border-default);
+  background: var(--capiro-color-bg-selected);
+}
+
+.capiro-vnext-root .capiro-directory-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Row / Staffer (937:2749) is the one cell with its own chip treatment. */
+.capiro-vnext-root .capiro-directory-cell--identity {
+  padding: 0;
+  border-radius: 7px;
+}
+
+.capiro-vnext-root .capiro-directory-cell__primary,
+.capiro-vnext-root .capiro-directory-cell__secondary {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-cell__primary {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-cell__secondary {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* Office / Coverage / Contact cells are mono. */
+.capiro-vnext-root .capiro-directory-cell--mono .capiro-directory-cell__primary {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 17px;
+}
+
+.capiro-vnext-root .capiro-directory-cell--mono .capiro-directory-cell__secondary {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+}
+
+/* Contact stacks two mono-10 lines rather than 12/10. */
+.capiro-vnext-root .capiro-directory-cell--contact .capiro-directory-cell__primary {
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+}
+
+.capiro-vnext-root .capiro-directory-cell__action {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-accent);
+  white-space: nowrap;
+}
+
+/* ── Selected profile rail (937:2853) ───────────────────────────────────────
+   374px at the reference width. `min-height: 0` + internal scroll is what keeps
+   the rail honest: the fixture clips, production must not. */
+.capiro-vnext-root .capiro-directory-rail {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 18px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .capiro-directory-rail__eyebrow {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-directory-rail__office {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-rail__divider {
+  height: 1px;
+  background: var(--capiro-color-icon-accent);
+}
+
+.capiro-vnext-root .capiro-directory-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-directory-field__label {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-directory-field__value {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-directory-rail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+}
+
+/* Connected Workflows (962:3052). */
+.capiro-vnext-root .capiro-directory-workflows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-02);
+  padding: var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-navigation);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-workflows__eyebrow {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-workflows__copy {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-workflows__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.capiro-vnext-root .capiro-directory-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding-top: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-directory-pagination__status {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* A background refetch must be visible without blanking resolved content. */
+.capiro-vnext-root .capiro-directory-results--refetching { opacity: 0.72; }
+
+/* ── Responsive — reuses the existing vNext breakpoints (responsive.css) ─── */
+@media (max-width: 1280px) {
+  .capiro-vnext-root .capiro-directory-results--congressional { width: auto; flex: 1 1 0; }
+  .capiro-vnext-root .capiro-directory-row-grid { grid-template-columns: 1.4fr 1.6fr 1.6fr 1.4fr 70px; }
+}
+
+@media (max-width: 1024px) {
+  .capiro-vnext-root .capiro-directory-split { flex-direction: column; }
+  .capiro-vnext-root .capiro-directory-rail { width: 100%; flex: 0 0 auto; }
+  .capiro-vnext-root .capiro-directory-header__metrics { display: none; }
+}
+
+@media (max-width: 639px) {
+  .capiro-vnext-root .capiro-directory-body { padding: var(--capiro-space-04) var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-directory-header { padding: 14px var(--capiro-space-04) 0; }
+  .capiro-vnext-root .capiro-directory-header__title { font-size: 24px; line-height: 30px; }
+  .capiro-vnext-root .capiro-directory-tabs { padding: 6px var(--capiro-space-04) 0; }
+  .capiro-vnext-root .capiro-directory-search { width: 100%; }
+  /* Rows stack so no cell is clipped and the page never scrolls sideways. */
+  .capiro-vnext-root .capiro-directory-row-grid { grid-template-columns: 1fr; gap: var(--capiro-space-02); }
+  .capiro-vnext-root .capiro-directory-columns { display: none; }
+  .capiro-vnext-root .capiro-directory-row { min-height: 0; }
+}

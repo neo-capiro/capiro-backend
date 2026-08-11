@@ -427,7 +427,17 @@ export function App() {
         />
         <Route path="/intelligence/*" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence-center" element={<ComingSoonIntelligence />} />
+        {/* `/directory` stays the backward-compatible entry point. The four
+            first-class list surfaces (Figma 941:2860) are peer routes over the
+            same canonical records — no new data model, no duplicated identity.
+            The vNext presentation is substituted per-route by VNextRouter where
+            an approved Figma implementation exists; otherwise these resolve to
+            the canonical Directory page. */}
         <Route path="/directory" element={<DirectoryPage />} />
+        <Route path="/directory/congressional-staff" element={<DirectoryPage />} />
+        <Route path="/directory/committee-staff" element={<DirectoryPage />} />
+        <Route path="/directory/department-of-war" element={<DirectoryPage />} />
+        <Route path="/directory/state-legislators" element={<DirectoryPage />} />
         {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
         <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
         <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
