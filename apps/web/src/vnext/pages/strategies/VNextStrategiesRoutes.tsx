@@ -11,6 +11,7 @@ import '../../../pages/strategy/strategy-ds.css';
 import './strategies.css';
 import './strategy-context.css';
 import './strategy-context-document.css';
+import './strategy-shell-bridge.css';
 
 export function VNextStrategiesRoutes() {
   const me = useMe();
