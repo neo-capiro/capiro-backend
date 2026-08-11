@@ -107,7 +107,7 @@ grep -rln "from 'antd'\|@ant-design/icons" apps/web/src/vnext/
 | **Dashboard** | ✅ real | zero antd; rebuilt this session against the `760:2641` contract |
 | **LegiWatch** | ⚠️ **re-layout, not an implementation** | `VNextLegiWatchPage.tsx` imports antd; embeds canonical `RadarPage` |
 | **Strategies** | ⚠️ **re-layout, not an implementation** | 3 files import antd; `/strategies/:id` renders legacy `StrategyEditorPage`; steward/agent routes wrap canonical components in a `GovernanceSurface` shim |
-| **Program Elements** | ❌ not started | `pages/program-elements/` is a README placeholder only |
+| **Program Elements** | ⚠️ **not started in vNext — but the feature is already fully built in production** | `vnext/pages/program-elements/` is a 381-byte README, *but* the real feature is 12 files under `apps/web/src/pages/program-element/`. Its Handoff frame mandates re-skinning those, **not** a greenfield build — see §11 |
 | **Client Profiles** | ❌ not started, **and design source unknown** | see §6 |
 | **Meri v3 undocked** | ✅ shipped & verified live | see §5 |
 
@@ -140,9 +140,9 @@ nobody had built, and the ship gate (acceptance A–F) lives there rather than i
 | Family | Handoff frame |
 |---|---|
 | Dashboard | `760:2641` (read; drove this session's rebuild) |
-| Program Elements | **`788:2765`** — never read |
-| LegiWatch | **`891:2593`** — never read (+ system states `895:2593`) |
-| Strategies | check page `842:2502` for the equivalent — never read |
+| Program Elements | `788:2765` — **READ. Contents and consequences in §11.** |
+| LegiWatch | `891:2593` — **READ. Contents and consequences in §11.** (+ system states `895:2593`, still unread) |
+| Strategies | **There is no Handoff frame.** Page `842:2502` holds 14 frames, all screens and modals (`01 Library` → `14 Resolve Conflict`) — no engineering contract, no ship gate. Verified by enumerating the page's direct children. Strategies is the one family with no designer-authored acceptance criteria. |
 
 Expect each to carry: a module/content matrix (allowed vs excluded content), a
 customization contract, a density contract, a per-file code mapping, a migration
@@ -281,12 +281,181 @@ cd infra/cdk && npx cdk deploy --app "ts-node --prefer-ts-exts bin/web-vnext.ts"
    parallel-branch problem that cost this session hours. Open one PR from
    `agent/web-vnext-figma-impl`. Before merging, re-check for *other* unmerged vNext
    branches: `git ls-remote --heads origin | grep -iE "vnext|os-"`.
-2. **Read the three unread Handoff frames** (`788:2765`, `891:2593`, Strategies') — they
-   may contradict what you think the scope is, as the Dashboard's did.
-3. **Rebuild Strategies and LegiWatch properly** against `843:2502…` and `869:2502…`,
-   removing antd. These are the two Neo called out as looking old.
-4. **Build Program Elements** from `768:2502` — the seven visualisations already exist.
+2. ~~Read the three unread Handoff frames~~ — **done, and they did contradict the scope.
+   Read §11 before planning steps 3 and 4; both are re-scoped by it.**
+3. **Re-skin Strategies and LegiWatch — do not rebuild their data layers.** Against
+   `843:2502…` and `869:2502…`, removing antd from the *presentation*. LegiWatch's contract
+   is explicit: *"Do not copy these hooks into src/vnext. Build adapters around existing
+   query/mutation ownership."* So §3's "embeds canonical `RadarPage`" is only half a defect —
+   reusing RadarPage's logic is **required**; it is the antd presentation that must go.
+   Note 3 of LegiWatch's 9 tabs are additive and need endpoints that may not exist (§11).
+4. **Re-skin Program Elements — it is NOT a greenfield build.** All 12 files named in its
+   Handoff frame exist in production under `apps/web/src/pages/program-element/` (verified).
+   The frame's own words: *"One feature contract. Existing backend. New presentation."*
+   Building fresh in `vnext/pages/program-elements/` would violate its explicit
+   **DO NOT INTRODUCE** list (duplicate backend, new PE-specific action system) and lose the
+   route contract. The seven visualisations in `vnext/intelligence/` are still useful, but as
+   replacement presentation inside the existing pages — not as the skeleton of a new feature.
 5. **Client Profiles** — resolve the design source with Neo first (§6).
 6. One build, one deploy, then QA on os.capiro.ai against exported Figma nodes.
 
 Publish Code Connect mappings for every new component as you go.
+
+## 11. The Handoff frames, now read — and what they change
+
+Read via `get_design_context` on the real nodes (per §4's rule), not from screenshots.
+**Both frames re-scope the work from "build" to "re-skin".** This is the same failure the
+Dashboard's frame exposed, and it would have cost far more here: building either family
+greenfield would have violated an explicit prohibition in its own contract.
+
+### 11.1 Program Elements — `788:2765` · "CANONICAL · READY TO IMPLEMENT"
+
+Headline: **"One feature contract. Existing backend. New presentation."** The frame says
+outright that no new backend service, duplicate data model, or second action system is
+required. Status badge: ready to implement.
+
+**Route contract — preserve URLs and deep links:**
+
+| Route / query | Owner / result |
+|---|---|
+| `/program-elements` | Explore · default (dest omitted) |
+| `?dest=movement\|congressional\|actions\|portfolio` | Same workspace shell; destination changes only |
+| `/program-elements/:peCode` | Line profile |
+| `?tab=funding\|legislative\|structure\|sources` | Profile tab; Overview omits tab |
+| `/actions?peCode=:peCode` | Governed Action Board create/open path |
+
+**Current production ownership — all 12 verified present in the repo:**
+
+| File | Owns |
+|---|---|
+| `ProgramElementsV2Page.tsx` | Destination URL + bar; summary counts |
+| `PeV2Explore.tsx` | Search, filters, density, expand, select, paging, watch, CSV |
+| `PeV2Movement` / `Congressional` / `Actions` / `Portfolio` | Destination-specific queries and controls |
+| `ProgramElementV2ProfilePage.tsx` | Shared profile header, snapshot, trust strip, 5 visible tabs |
+| `useProgramElementProfileFinal.ts` | Queries, lazy tab loading, actions, clients, watch, export |
+| `PeV2*Tab.tsx` | Overview / Funding / Legislative / Structure / Sources bodies |
+| `PeV2SourceInspector.tsx` + `DataIssueModal` + `PeLoadState` | Trust layers, feedback, explicit failure states |
+| `v2/pe-v2.css` | **The file to replace** — swap for canonical vNext tokens/responsive rules |
+
+They live at `apps/web/src/pages/program-element/` and `.../v2/` (not `vnext/`).
+
+**Migration boundary.** PRESERVE: API endpoints, TanStack query ownership and query keys,
+V2 route/feature gating and deep links, watch mutation + monitoring persistence,
+CSV/profile export, Action Board links and governed status, source/reconciliation/data-issue
+workflows. CHANGE: shell/page geometry and typography, dense Explore grid → responsive
+records, filters/badges/cards/drawers/tables, profile information hierarchy and trust
+treatment, mobile/tablet reflow and More ownership, visual regression targets.
+**DO NOT INTRODUCE:** duplicate backend or database tables · a new PE-specific task/action
+system · a combined authorization + appropriations number · silent request carry-forward for
+a missing stage · candidate relationships presented as verified · "empty" UI when the
+API/source actually failed.
+
+**Data & state invariants — stated as acceptance rules, not preferences:**
+`MISSING ≠ ZERO` (null/absent stays absent; no carry-forward) · `PARALLEL TRACKS`
+(authorization and appropriations are **never summed**) · `CURRENT` (latest asserted
+appropriations position; NO POSITION is valid) · `EVIDENCE` (conflict/pending/absent are
+distinct from workflow status) · `MONITORING` (watch state only) · `ACTIONS` (existing Action
+Board owns status/assignee/due date/review) · `DATA ISSUE` (feedback only; canonical change
+needs the reconciliation path) · `RELATIONSHIPS` (candidate links stay labeled; graphs
+require a verified set).
+
+**Sequence:** 01 tokens + shared PE chrome → 02 workspace destinations (Explore → Movement →
+Congressional → Actions → Portfolio) → 03 shared profile → 04 tab bodies → 05 trust layers →
+06 responsive → 07 visual QA.
+
+**Ship gate A–F:** A FUNCTION · B TRUST · C OWNERSHIP · D RESPONSIVE (232/72 rail) ·
+E ACCESSIBILITY (keyboard focus, escape/return focus, labels, ≥44px mobile targets, AA
+contrast) · F PARITY (visual regression across desktop expanded/collapsed, tablet, mobile,
+filters, inspector, modal, failure states).
+
+### 11.2 LegiWatch — `891:2593` · "READY TO IMPLEMENT"
+
+Headline: **"Figma defines presentation and responsive behavior. Existing hooks, API
+contracts, permissions, and governed actions remain canonical."**
+
+**Routes.** EXISTING (preserve): `/legiwatch?tab=feed`, `?tab=bills`, `?tab=hearings`,
+`?tab=watchlist`, `/bills/:billId`, `/intelligence/hearing-watch/:sessionId`.
+ADDITIVE: `?tab=overview`, `?tab=digest`, `?tab=analytics`. Tabs must stay URL-addressable;
+alert detail and Bill 360 may be route-backed drawers, but browser back/forward must restore
+the prior worklist state.
+
+**React source map — and the hard rule.** `RadarPage.tsx` (tab + scope orchestration),
+`TrackerFeedPanel.tsx` (unified feed + work states), `TrackerTab.tsx` (packet actions + bill
+routing), `TrackerConfigPanel.tsx` (watchlist targeting + alerts), `HearingWatchPage.tsx`
+(schedule, sessions, live route), `BillDrawer.tsx` (in-place Bill 360 shell),
+`BillDossierBody.tsx` (dossier tabs + evidence). Verbatim: **"Do not copy these hooks into
+src/vnext. Build adapters around existing query/mutation ownership."** Badge: REUSE BUSINESS
+LOGIC.
+
+**Screen → component map** (badge: ONE PACKET MODEL — feed, drawer, digest and hearing
+moments must share one evidence/confidence/unknown/client-impact/work-state vocabulary):
+OVERVIEW `OperationalPulse · DecisionQueue · ClientExposure · PolicyWindows` ·
+FEED `SavedViewStrip · BulkTriageBar · AlertPacketCard · ViewControlRail` ·
+ALERT DETAIL `AlertDecisionDrawer · EvidenceBlock · MatchExplanation · Unknowns` ·
+BILLS `BillRecommendationCard · BillStageBoard · Bill360Drawer` ·
+HEARINGS `HearingSchedule · SessionRail · LiveTranscript · MomentCard` ·
+WATCHLISTS `CoverageScore · TargetingEditor · DeliveryPreferences` ·
+DIGEST `DigestBrief · DecisionList · DeliveryRail` ·
+ANALYTICS `SignalVolume · IssueMomentum · ExposureMatrix · SourceCoverage`.
+
+**Product boundary.** EXISTING · PRESERVE: all-client/client scope and server work states;
+unified federal/state/hearing/regulation/PE packets; bulk triage and packet actions; bill
+recommendations, board and Bill 360; hearing schedule, sessions, transcript moments; client
+watchlist targeting and alert preferences. ADDITIVE · **IMPLEMENT BEHIND FLAGS**: Overview
+aggregate from existing packet queries; Morning Digest generation/persistence/delivery;
+Analytics aggregates / time-series endpoints; per-user Saved Views persistence; Fast Create
+Watch preset supplementing canonical client watchlists.
+
+> **"Do not silently substitute mock data when an additive endpoint is absent. Render the
+> explicit unavailable or partial state."** Three of the nine tabs are in this additive set.
+> Audit those endpoints against the live API *before* building them — this is the same rule
+> that has already bitten this program on fixture-green work (§9.6).
+
+**Responsive contract:** ≥1280 → 232px sidebar · desktop tabs · feed + context rail ·
+768–1279 → **72px rail · two-column worklist · compact controls** · <768 → 56px top bar ·
+64px bottom nav · one-column feed · DETAIL → desktop right drawer, mobile bottom/full-height
+sheet. All mobile and tablet targets ≥44px. Dense tables become record cards; desktop columns
+are **not** merely scaled down. Note this collides with §9.1 — the tablet stage has never been
+seen rendering, and this is a distinct layout, not a squeeze.
+
+**System-state matrix:** `LOADING` skeleton preserves module geometry · `PARTIAL` available
+packets + source warning · `STALE` retain data + timestamp + refresh · `UNAVAILABLE` name the
+failed source, **never show zero** · `EMPTY` all-clear vs filtered-empty vs true no-results ·
+`COLD START` guided watchlist setup, no meaningless feed.
+
+**Non-negotiable invariants:** missing data never equals zero · evidence quality and workflow
+state are separate fields · authorization/appropriations/regulation/hearing posture keep
+source-specific semantics · bill clicks open Bill 360, not a Data Explorer route · hearing
+stream capability resolved honestly (direct / browser capture / pending / unavailable) · no
+alert action autonomously sends outreach or publishes externally · "Why am I seeing this?"
+cites actual matching inputs and the priority band · browser back/forward, permissions,
+feature flags and tenant scope stay intact. Gate: typecheck, build, route tests, work-state
+mutations, packet actions, responsive screenshots and Figma parity all pass before cutover.
+
+### 11.3 Strategies — no Handoff frame exists
+
+Page `842:2502` ("30 · Canonical App · Strategies vNext") has 14 top-level frames, all
+screens and modals: `01 Library`, `02 Editor`, `03 Editor — Meri & Step Rail`,
+`04 Context Library`, `05 Context Document`, `06 Steward Review`, `07 Agent Review Queue`,
+`08 Execution Review`, `09 New Strategy Modal`, `10 Firm Phases Modal`, `11 Export`,
+`12 History`, `13 Upload Context`, `14 Resolve Conflict`. No handoff, no implementation
+contract, no acceptance criteria — searched the whole page's node tree for them.
+
+They match `figma/manifest.ts` exactly, so the manifest is trustworthy here.
+
+**Consequence:** Strategies is the only family with no designer-authored ship gate. Do not
+invent one silently. Either ask Neo for the acceptance criteria, or derive them from the two
+frames above (their invariants are largely product-wide) and **write down that you derived
+them** so the next session knows they are not the designer's.
+
+### 11.4 Also learned
+
+- **Code Connect returns real props, not just names.** `891:2593` came back with
+  `<CapiroBadge showDot label tone="Review" emphasis="Subtle" />` and per-variant component
+  docs ("Tone communicates intent; emphasis communicates prominence. Do not use it as a
+  substitute for evidence classification"). §7 is live and worth leaning on harder.
+- **`get_metadata` on a whole page can exceed the tool's token cap** — `842:2502` returned
+  462,693 characters and was spilled to a file. Query a specific frame, or enumerate the
+  page's direct children from the spill file, rather than re-running it.
+- Both frames independently forbid the same class of error: **showing zero or empty where the
+  truth is "missing" or "failed."** Treat that as a product-wide invariant, not per-family.
