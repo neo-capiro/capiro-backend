@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 
 const VNextStrategiesRoutes = lazy(async () => ({
@@ -27,8 +27,19 @@ export function VNextRouter() {
   // blank frame on the most common navigation in the product.
   if (location.pathname === '/') return <DashboardVNext />;
 
+  // VNextApp renders outside the canonical route tree, so a descendant <Routes>
+  // resolves against "/" — at /strategies that left "strategies" as the
+  // remaining segment, which the family's `:id` route swallowed and tried to
+  // open as a strategy ("This strategy could not be loaded"). Mounting the
+  // family under its own route re-bases the nested Routes so `index` matches.
   if (location.pathname === '/strategies' || location.pathname.startsWith('/strategies/')) {
-    return <Suspense fallback={fallback}><VNextStrategiesRoutes /></Suspense>;
+    return (
+      <Suspense fallback={fallback}>
+        <Routes>
+          <Route path="strategies/*" element={<VNextStrategiesRoutes />} />
+        </Routes>
+      </Suspense>
+    );
   }
   if (location.pathname === '/legiwatch' || location.pathname.startsWith('/legiwatch/')) {
     return <Suspense fallback={fallback}><VNextLegiWatchPage /></Suspense>;

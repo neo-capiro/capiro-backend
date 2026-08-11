@@ -85,3 +85,13 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     expect(sidebar).toContain("end={item.path === '/'}");
   });
 });
+
+describe('vNext route mounting', () => {
+  it('re-bases the Strategies family so its index route can match', () => {
+    // Regression, caught on os.capiro.ai: VNextApp renders outside the
+    // canonical route tree, so VNextStrategiesRoutes' descendant <Routes>
+    // resolved against "/" and its `:id` route swallowed "strategies",
+    // rendering "This strategy could not be loaded" instead of the library.
+    expect(source('./app/VNextRouter.tsx')).toContain('path="strategies/*"');
+  });
+});

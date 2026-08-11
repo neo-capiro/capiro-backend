@@ -179,8 +179,11 @@
 .capiro-vnext-root .capiro-dash[data-density='presentation'] .capiro-dash-work { min-height: 58px; }
 .capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-attention { min-height: 42px; }
 .capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-news { min-height: 72px; padding-top: 9px; padding-bottom: 9px; }
-/* Secondary prose may collapse; ownership, status, due and action stay. */
-.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-news__reason { display: none; }
+/* Compact tightens the relevance line but must not drop it: acceptance D
+   (760:2755) requires every story to explain its relevance, and the
+   EXPLANATIONS contract (760:2691) keeps source, age and reason on every row.
+   Only genuinely secondary prose may collapse. */
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-news__reason { font-size: 11px; line-height: 15px; }
 .capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-event { min-height: 44px; }
 .capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-work { min-height: 40px; }
 

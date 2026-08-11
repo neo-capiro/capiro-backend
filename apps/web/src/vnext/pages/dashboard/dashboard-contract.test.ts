@@ -217,6 +217,17 @@ describe('dashboard source contract', () => {
     expect(pinnedRow).not.toContain('role="switch"');
   });
 
+  it('keeps the relevance explanation at every density', () => {
+    // Regression, caught on os.capiro.ai: compact density hid
+    // .capiro-dash-news__reason, so stories showed source and client but no
+    // relevance. Acceptance D (760:2755) requires every story to explain it.
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/vnext/pages/dashboard/dashboard.css'),
+      'utf8',
+    );
+    expect(css).not.toMatch(/\[data-density='compact'\][^\n]*__reason[^\n]*display:\s*none/);
+  });
+
   it('renders Customize as a full-height drawer, not a popover', () => {
     // 754:2766 is a 390×936 right drawer with its own News Grid and density
     // section — the earlier 244px popover was the wrong component.
