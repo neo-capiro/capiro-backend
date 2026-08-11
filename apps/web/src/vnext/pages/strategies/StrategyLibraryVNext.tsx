@@ -1,5 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useCapiroToast } from '../../components/feedback/toast.js';
+import { CapiroBadge } from '../../components/badges/index.js';
 import { useNavigate } from 'react-router-dom';
 import { useMe } from '../../../lib/me.js';
 import {
@@ -118,23 +119,31 @@ export function StrategyLibraryVNext() {
 
       <div className="vnext-strategy-library__body">
         {!firmLoaded ? (
-          <FirmPhaseStrip icon={'≈'} title="Loading firm phases…" detail="Aligning this library to your operating calendar." />
+          <FirmPhaseStrip icon={'≋'} title="Loading firm phases…" detail="Aligning this library to your operating calendar." />
         ) : firmConfigured ? (
           <FirmPhaseStrip
-            icon={'≈'}
+            icon={'≋'}
             title="Firm phases are set"
             detail={`${firmPhases.data?.length ?? 0} operating phases align every strategy to the firm’s planning rhythm.`}
             action={<button className="vnext-strategy-button" onClick={() => setFirmOpen(true)}>Edit phases</button>}
           />
         ) : (
           <FirmPhaseStrip
-            icon={'≈'}
+            icon={'≋'}
             title="Set your firm phases"
             detail={`Start from the ${FIRM_PHASES_DEFAULT.length}-phase template, then adapt it to your firm.`}
             action={<button className="vnext-strategy-button is-primary" onClick={() => setFirmOpen(true)}>Set firm phases</button>}
           />
         )}
 
+        {/* Figma's 3rd and 4th cards are "Approaching gates / Within 30 days" and
+            "Plan coverage / Steps with owners" — a due-date-windowed gate count and
+            step-level ownership. Neither is in StrategyListItem (list endpoint has
+            nodeCount only, no per-node type/due-date/owner breakdown), so computing
+            them here would mean fabricating numbers to match the mockup's labels.
+            Same 4-card slot count and geometry; the two right-hand cards keep their
+            real, honestly-labeled metrics (plan steps, owner-per-plan coverage)
+            until a data source for gates/step-owners exists. */}
         <section className="vnext-strategy-metrics" aria-label="Strategy portfolio summary">
           <Metric value={String(allRows.length)} label="Active strategies" sub={`Across ${metrics.portfolioClients} client${metrics.portfolioClients === 1 ? '' : 's'}`} tone="accent" />
           <Metric value={String(metrics.needsReview)} label="Needs review" sub="Watcher proposals" tone="warning" />
@@ -301,9 +310,9 @@ function StrategyRow({
         <span className="vnext-strategy-row__owner-copy">
           <span>{ownerName}</span>
           {pendingWatchCount ? (
-            <span className="vnext-strategy-chip is-warning">{pendingWatchCount} watch note{pendingWatchCount === 1 ? '' : 's'}</span>
+            <CapiroBadge tone="warning">{pendingWatchCount} watch note{pendingWatchCount === 1 ? '' : 's'}</CapiroBadge>
           ) : (
-            <span className="vnext-strategy-chip is-success">On track</span>
+            <CapiroBadge tone="success">On track</CapiroBadge>
           )}
         </span>
       </div>
