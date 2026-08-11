@@ -147,7 +147,11 @@ const ROW_LIMITS: Readonly<
   Record<DashboardDensity, { attention: number; news: number; today: number; work: number }>
 > = {
   presentation: { attention: 3, news: 3, today: 2, work: 2 },
-  standard: { attention: 4, news: 4, today: 3, work: 3 },
+  // Standard shows THREE attention rows, not four: the approved card is
+  // 1120x198 = 45px header + 3 x ~51px rows. The header keeps the true total and
+  // `View all` reaches the rest, so only the visible count changes here — the
+  // selection taxonomy and governance logic are untouched.
+  standard: { attention: 3, news: 4, today: 3, work: 3 },
   compact: { attention: 6, news: 6, today: 5, work: 5 },
 };
 
