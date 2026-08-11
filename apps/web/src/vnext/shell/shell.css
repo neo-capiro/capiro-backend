@@ -126,31 +126,34 @@
   flex-direction: column;
   gap: 4px;
   padding: 14px 12px 12px;
-  background: var(--capiro-color-bg-sidebar);
-  border-right: 1px solid var(--capiro-color-border-default);
+  /* Pattern/Shell/AppNavigation vNext (1126:2640): the nav is accent/blue-dark
+     with inverse-secondary labels and porcelain current rows. Consumed as
+     tokens, never inlined. */
+  background: var(--capiro-primitive-accent-blue-dark);
+  border-right: 1px solid var(--capiro-primitive-brand-inverse-line);
   /* Safety valve, not the normal case: the sidebar is now capped to the
      viewport by the shell above it. If its own content ever exceeds that
      (many nav children, browser zoom, a very short viewport) it scrolls
      internally instead of pushing Settings/Collapse off-screen again. */
   overflow-y: auto;
 }
-.capiro-vnext-root .capiro-vnext-sidebar__label { padding: 0 6px 4px; font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-muted); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.capiro-vnext-root .capiro-vnext-sidebar__label { padding: 0 6px 4px; font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-inverse-secondary); font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; }
 .capiro-vnext-root .capiro-vnext-sidebar__nav { display: flex; flex-direction: column; gap: 4px; }
 .capiro-vnext-root .capiro-vnext-sidebar__footer { margin-top: auto; display: grid; gap: 6px; }
 
-.capiro-vnext-root .capiro-vnext-nav-item { width: 100%; height: var(--capiro-layout-shell-nav-item-height); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 6px; border: 0; border-radius: var(--capiro-radius-navigation); background: transparent; color: var(--capiro-color-text-secondary); font-size: 13px; line-height: 18px; cursor: pointer; text-align: left; }
-.capiro-vnext-root .capiro-vnext-nav-item:hover { background: var(--capiro-color-bg-navigation-hover); }
+.capiro-vnext-root .capiro-vnext-nav-item { width: 100%; height: var(--capiro-layout-shell-nav-item-height); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 6px; border: 0; border-radius: var(--capiro-radius-navigation); background: transparent; color: var(--capiro-color-text-inverse-secondary); font-size: 12.5px; line-height: 18px; cursor: pointer; text-align: left; }
+.capiro-vnext-root .capiro-vnext-nav-item:hover { background: var(--capiro-primitive-highlight-white-72); color: var(--capiro-primitive-product-ink); }
 /* NavLink stamps aria-current; the Strategy screens' active rail hangs off it. */
 .capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'],
-.capiro-vnext-root .capiro-vnext-nav-item.is-group-current { background: var(--capiro-color-bg-accent-soft); color: var(--capiro-color-text-accent); font-weight: 500; }
+.capiro-vnext-root .capiro-vnext-nav-item.is-group-current { background: var(--capiro-primitive-shell-porcelain); color: var(--capiro-primitive-product-ink); border: 1px solid var(--capiro-primitive-product-border); font-weight: 500; }
 /* The nav glyphs are Unicode characters in the body font, not SVG icons — see
    Sidebar/index.tsx. Size and weight are therefore type properties, and the
    17px/16px/15px split is authored per slot in 1126:2638, not a scale. */
 .capiro-vnext-root .capiro-vnext-nav-item__icon { width: var(--capiro-layout-shell-icon-container); height: var(--capiro-layout-shell-icon-container); display: grid; place-items: center; flex-shrink: 0; font-family: var(--capiro-type-family-sans); font-size: 17px; font-weight: 500; line-height: 1; }
 .capiro-vnext-root .capiro-vnext-nav-item__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-nav-item__chevron { flex-shrink: 0; display: grid; place-items: center; width: 10px; height: 22px; color: var(--capiro-color-text-muted); font-family: var(--capiro-type-family-sans); font-size: 16px; font-weight: 500; line-height: 1; }
+.capiro-vnext-root .capiro-vnext-nav-item__chevron { flex-shrink: 0; display: grid; place-items: center; width: 10px; height: 22px; color: var(--capiro-color-text-inverse-secondary); font-family: var(--capiro-type-family-sans); font-size: 16px; font-weight: 500; line-height: 1; }
 .capiro-vnext-root .capiro-vnext-nav-item--current,
-.capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'] { background: var(--capiro-color-shell-nav-current-bg); color: var(--capiro-color-text-accent); font-weight: 500; }
+.capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'] { background: var(--capiro-primitive-shell-porcelain); color: var(--capiro-primitive-product-ink); border: 1px solid var(--capiro-primitive-product-border); font-weight: 500; }
 
 .capiro-vnext-root .capiro-vnext-nav-group { position: relative; }
 .capiro-vnext-root .capiro-vnext-nav-group__items { padding-left: 10px; }
@@ -176,9 +179,11 @@
 
 /* ── Collapse control (722:2586) ────────────────────────────────────────── */
 
-.capiro-vnext-root .capiro-vnext-collapse { height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--capiro-color-border-default); border-radius: 9px; background: var(--capiro-color-bg-surface); color: var(--capiro-color-text-secondary); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-collapse__chevron { display: grid; place-items: center; }
-.capiro-vnext-root .capiro-vnext-collapse__label { font-size: 11.5px; line-height: 16px; }
+/* 1126:2603 — quiet inverse utility: the dark nav ground with an inverse hairline,
+   not a light surface. Label is mono 12px/17, chevron is the 17px glyph. */
+.capiro-vnext-root .capiro-vnext-collapse { height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--capiro-primitive-brand-inverse-line); border-radius: var(--capiro-radius-navigation); background: var(--capiro-primitive-accent-blue-dark); color: var(--capiro-color-text-inverse-primary); cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-collapse__chevron { display: grid; place-items: center; font-family: var(--capiro-type-family-sans); font-size: 17px; font-weight: 500; line-height: 20px; }
+.capiro-vnext-root .capiro-vnext-collapse__label { font-family: var(--capiro-type-family-mono); font-size: 12px; line-height: 17px; font-weight: 500; }
 .capiro-vnext-root .capiro-vnext-shell[data-collapsed] .capiro-vnext-collapse { justify-content: center; padding: 0; }
 
 /* ── Context bar (722:2589) ─────────────────────────────────────────────── */
@@ -197,9 +202,9 @@
 
 /* ── Mailbox status (819:2612) ──────────────────────────────────────────── */
 
-.capiro-vnext-root .capiro-mailbox-status { width: 100%; min-height: 56px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--capiro-color-border-default); border-radius: 9px; background: var(--capiro-color-bg-surface); color: var(--capiro-color-text-primary); text-align: left; cursor: pointer; }
+.capiro-vnext-root .capiro-mailbox-status { width: 100%; min-height: 56px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--capiro-primitive-product-border); border-radius: var(--capiro-radius-card); background: var(--capiro-primitive-shell-porcelain); color: var(--capiro-primitive-product-ink); text-align: left; cursor: pointer; }
 .capiro-vnext-root .capiro-mailbox-status__title { display: block; font-size: 12px; font-weight: 500; line-height: 17px; }
-.capiro-vnext-root .capiro-mailbox-status__detail { display: block; overflow: hidden; font-family: var(--capiro-type-family-mono); font-size: 8px; line-height: 12px; letter-spacing: .03em; color: var(--capiro-color-text-muted); text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-mailbox-status__detail { display: block; overflow: hidden; font-family: var(--capiro-type-family-mono); font-size: 10px; line-height: 14px; letter-spacing: .6px; color: var(--capiro-primitive-product-ink-secondary); text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
 .capiro-vnext-root .capiro-mailbox-status__indicator { width: 7px; height: 7px; border-radius: 50%; background: var(--capiro-color-warning); }
 .capiro-vnext-root .capiro-mailbox-status[data-state='synced'] .capiro-mailbox-status__indicator { background: var(--capiro-color-success); }
 .capiro-vnext-root .capiro-mailbox-status[data-state='syncing'] .capiro-mailbox-status__indicator { background: var(--capiro-color-info); }
@@ -232,7 +237,8 @@
   /* Tablet is an icon rail (758:2622) — its own subtle surface and 56×44
      items with a 9px radius — not the desktop sidebar with labels hidden. */
   .capiro-vnext-root .capiro-vnext-shell { grid-template-columns: var(--capiro-layout-shell-sidebar-collapsed) minmax(0, 1fr); }
-  .capiro-vnext-root .capiro-vnext-sidebar { gap: 5px; padding: 14px 8px 10px; background: var(--capiro-color-bg-subtle); }
+  /* The collapsed/tablet rail keeps the dark nav ground; only its width changes. */
+  .capiro-vnext-root .capiro-vnext-sidebar { gap: 5px; padding: 14px 8px 10px; background: var(--capiro-primitive-accent-blue-dark); }
   .capiro-vnext-root .capiro-vnext-sidebar__nav { gap: 5px; }
   .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item__label,
   .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item__chevron,
@@ -241,7 +247,7 @@
   .capiro-vnext-root .capiro-mailbox-status__copy,
   .capiro-vnext-root .capiro-mailbox-status__indicator { display: none; }
   .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item { justify-content: center; width: 56px; height: 44px; padding: 0; border-radius: 9px; }
-  .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item--current { background: var(--capiro-color-bg-selected); border: 1px solid var(--capiro-color-border-information); color: var(--capiro-color-text-accent); }
+  .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item--current { background: var(--capiro-primitive-shell-porcelain); border: 1px solid var(--capiro-primitive-product-border); color: var(--capiro-primitive-product-ink); }
   /* The tablet top bar drops the wordmark copy and the profile name/role
      (758:2611), keeping the mark, search and the three actions. */
   .capiro-vnext-root .capiro-vnext-profile__copy { display: none; }
