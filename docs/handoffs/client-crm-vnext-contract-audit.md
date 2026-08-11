@@ -131,6 +131,66 @@ keeping:
 > os.capiro.ai. It is deliberately **not** changed here. Either the shell's
 > breakpoint moves to 1439 for every family, or the CRM's §5 is relaxed.
 
+## Final status — what shipped on this branch
+
+All eighteen screens plus the contract are implemented. The three blocked
+contracts were **implemented**, not deferred.
+
+| Screen | Node | State |
+|---|---|---|
+| 01 Overview | `906:2503` | full Figma geometry, measured to ≤1px |
+| 02 Relationships · Organization | `906:2790` | full Figma geometry (972 + 328 split) |
+| 03 Relationships · Government | `906:3075` | built |
+| 04 Relationships · History | `906:3360` | built on the new activity contract |
+| 05 Work | `906:3645` | built as a Strategies projection |
+| 06–11 Intelligence ×6 | `906:3930`…`907:2701` | built over `intelligence-v1` |
+| 12 Files | `907:2810` | built on the new folder column |
+| 13 Person drawer | `907:2919` | built |
+| 14 Configure hierarchy | `907:3028` | built |
+| 15 Current target drawer | `907:3137` | built |
+| 16 Strategy detail drawer | `907:3246` | built |
+| 17 Move to folder | `907:3355` | built |
+| 18 Data health drawer | `907:3464` | built |
+| Capabilities (§13) | no vNext design | compatibility surface, canonical drawer |
+
+**Fidelity caveat, stated plainly.** Screens 01 and 02 were built from
+`get_design_context` on their own nodes and 01 was verified by measuring the
+rendered DOM. Screens 03–18 were built from the contract's explicit data-
+ownership rules plus the card/row/drawer vocabulary established by 01 and 02;
+their per-node Figma geometry has **not** been diffed. They are functionally
+complete and visually consistent, but a per-screen pixel pass against
+`get_design_context` is still owed before anyone calls them pixel-perfect.
+
+### Contracts implemented here
+
+| Contract | Migration | Notes |
+|---|---|---|
+| Person hierarchy | `20261120010000_client_person_hierarchy` | rules enforced in the DB, not only the service, because Meri's import also writes `client_people` |
+| Normalized CRM activity | `20261120020000_client_activity` | recorded rows stored; meetings/attachments/outreach unioned at read time, never copied |
+| File folders | `20261120030000_attachment_folder` | a column, so a move never copies the S3 object |
+| Fill with Meri | `20261015010000` + `20261015020000` | taken from `agent/client-profile-fill-with-meri-v2` (API only) |
+
+**Five migrations must be applied before the API is deployed.** A web-only
+WebVNext deploy is unaffected.
+
+## Blast radius — why app.capiro.ai cannot break
+
+- **Zero** web files outside `apps/web/src/vnext/` were changed
+  (`git diff --name-only agent/web-vnext-figma-impl..HEAD -- apps/web/src`
+  returns nothing outside that directory).
+- `App.tsx` branches hard: `if (isVNextSurface) return <VNextApp/>; return <AppShell/>;`
+  and the surface comes from `WEB_SURFACE`, set per ECS task definition.
+- Verified live, not from a doc: `capiro-dev-web:72` (the task definition
+  app.capiro.ai is running) has **no** `WEB_SURFACE` variable, so it resolves to
+  `canonical` and never loads a vNext module.
+
+**The API is shared, and it did change** — additively:
+new controllers/services, five new migrations, new nullable columns. The one
+edit to existing behaviour is `ClientPeopleService.createPerson/updatePerson`,
+which now populates the new hierarchy columns. It writes only new nullable
+fields and changes no response field the legacy profile reads, but it is a
+shared-path change and should be reviewed as one.
+
 ## Decisions taken from this audit
 
 1. Build on `agent/web-vnext-figma-impl` (PR #906), not `main` — the vNext shell,

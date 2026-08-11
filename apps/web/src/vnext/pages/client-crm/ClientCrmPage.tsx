@@ -13,6 +13,7 @@ import { CapiroMenu, type CapiroMenuItem } from '../../components/menus/index.js
 import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { ClientFillWithMeriDrawer } from './ClientFillWithMeriDrawer.js';
+import { ClientDataHealthDrawer } from './ClientDataHealthDrawer.js';
 import { ClientCrmCapabilities } from './ClientCrmCapabilities.js';
 import { ClientCrmOrganization } from './ClientCrmOrganization.js';
 import { ClientCrmGovernment } from './ClientCrmGovernment.js';
@@ -68,6 +69,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
   );
 
   const [fillOpen, setFillOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
 
   return (
     <div className="capiro-crm" data-tab={route.tab} data-view={route.view ?? undefined}>
@@ -76,6 +78,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
         route={route}
         onNavigate={goTo}
         onFillWithMeri={() => setFillOpen(true)}
+        onDataHealth={() => setHealthOpen(true)}
       />
       <ClientCrmBody client={client} route={route} onNavigate={goTo} />
       {/* Mounted only while open: the enrichment hook must not start polling —
@@ -87,6 +90,9 @@ export function ClientCrmPage({ client }: { client: Client }) {
           open
           onClose={() => setFillOpen(false)}
         />
+      ) : null}
+      {healthOpen ? (
+        <ClientDataHealthDrawer client={client} onClose={() => setHealthOpen(false)} />
       ) : null}
     </div>
   );
@@ -111,11 +117,13 @@ export function ClientCrmHeader({
   route,
   onNavigate,
   onFillWithMeri = () => undefined,
+  onDataHealth = () => undefined,
 }: {
   client: Client;
   route: { tab: CrmSurface };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
   onFillWithMeri?: () => void;
+  onDataHealth?: () => void;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const chips = focusChipsFor(client);
@@ -168,7 +176,7 @@ export function ClientCrmHeader({
           Fill with Meri
         </CapiroButton>
 
-        <ClientCrmMoreMenu client={client} onNavigate={onNavigate} />
+        <ClientCrmMoreMenu client={client} onNavigate={onNavigate} onDataHealth={onDataHealth} />
       </div>
 
       <div className="capiro-crm__focus">
@@ -223,9 +231,11 @@ export function ClientCrmHeader({
 function ClientCrmMoreMenu({
   client,
   onNavigate,
+  onDataHealth,
 }: {
   client: Client;
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+  onDataHealth: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -269,7 +279,7 @@ function ClientCrmMoreMenu({
       label: 'Data health',
       onSelect: () => {
         setOpen(false);
-        onNavigate('overview');
+        onDataHealth();
       },
     },
   ];

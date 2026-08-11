@@ -50,9 +50,11 @@ const fixtureNotifications = {
 export function VNextShellVisual({
   collapsed = false,
   screen = 'empty',
+  crmTab = 'overview',
 }: {
   collapsed?: boolean;
   screen?: 'empty' | 'dashboard' | 'client-crm';
+  crmTab?: 'overview' | 'relationships' | 'work' | 'intelligence' | 'files';
 }) {
   return (
     <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients?clientId=visual-fixture']}>
@@ -102,10 +104,23 @@ export function VNextShellVisual({
                 <div className="capiro-crm" data-tab="overview">
                   <ClientCrmHeader
                     client={CLIENT_CRM_VISUAL_CLIENT}
-                    route={{ tab: 'overview' }}
+                    route={{ tab: crmTab }}
                     onNavigate={() => undefined}
                   />
-                  <ClientCrmOverviewView model={CLIENT_CRM_VISUAL_FIXTURE} />
+                  {crmTab === 'overview' ? (
+                    <ClientCrmOverviewView model={CLIENT_CRM_VISUAL_FIXTURE} />
+                  ) : (
+                    <div className="capiro-crm__body">
+                      <div className="capiro-crm__page-head">
+                        <div>
+                          <h2 className="capiro-crm__page-title">{crmTab}</h2>
+                          <p className="capiro-crm__page-sub">
+                            Data-backed surface; only the header geometry is captured here.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : screen === 'dashboard' ? (
                 <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
