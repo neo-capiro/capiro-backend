@@ -13,9 +13,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { ClientCrmPage } from './ClientCrmPage.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
-// The Overview surface issues real queries; the shell is what is under test.
+// The body surfaces issue real queries; the shell is what is under test.
 vi.mock('./ClientCrmOverview.js', () => ({
   ClientCrmOverview: () => <div data-testid="overview-surface">overview</div>,
+}));
+vi.mock('./ClientCrmCapabilities.js', () => ({
+  ClientCrmCapabilities: () => <div data-testid="capabilities-surface">capabilities</div>,
 }));
 
 const client: Client = {
@@ -127,6 +130,25 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
       'id',
       'capiro-crm-panel-capabilities',
     );
+    expect(screen.getByTestId('capabilities-surface')).toBeInTheDocument();
+  });
+
+  it('offers Capabilities from the header overflow menu', () => {
+    renderAt('/clients?clientId=client-1');
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Capabilities' }));
+    expect(url()).toContain('tab=capabilities');
+  });
+
+  it('keeps Ask Meri as an action separate from Fill with Meri (§14)', () => {
+    renderAt('/clients?clientId=client-1');
+    // Fill with Meri must never be the chat entry point; the chat action lives
+    // in the overflow menu and is a different control entirely.
+    expect(screen.getByRole('button', { name: 'Fill with Meri' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /More actions/ }));
+    expect(
+      screen.getByRole('menuitem', { name: 'Ask Meri about this client' }),
+    ).toBeInTheDocument();
   });
 
   it('falls back to Overview for an unknown tab instead of rendering nothing', () => {

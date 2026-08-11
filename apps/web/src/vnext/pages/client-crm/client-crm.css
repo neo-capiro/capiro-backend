@@ -728,3 +728,185 @@
   /* Dense rows lose their date column before they lose their identity. */
   .capiro-vnext-root .capiro-crm__attention-when { min-width: 0; }
 }
+
+/* ── Generic record rows (capabilities, people, targets, files) ──────────── */
+
+.capiro-vnext-root .capiro-crm__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  width: calc(100% + 38px);
+  margin: 0 -19px;
+  padding: 0 19px;
+  min-height: 45px;
+  border: 0;
+  border-bottom: 1px solid var(--crm-quiet);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__rows > li:last-child .capiro-crm__row { border-bottom: 0; }
+.capiro-vnext-root .capiro-crm__row:hover { background: var(--capiro-color-bg-canvas); }
+
+.capiro-vnext-root .capiro-crm__row:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+}
+
+.capiro-vnext-root .capiro-crm__row-main { flex: 1 1 auto; min-width: 0; }
+
+.capiro-vnext-root .capiro-crm__row-title {
+  display: block;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__row-meta {
+  display: block;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__row-side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+}
+
+/* ── Header overflow menu ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__more-wrap { position: relative; flex: 0 0 auto; }
+
+.capiro-vnext-root .capiro-crm__more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+}
+
+/* ── Fill with Meri drawer (§14) ─────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm-fill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  font-family: var(--capiro-type-family-sans);
+}
+
+.capiro-vnext-root .capiro-crm-fill__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-04) 0;
+}
+
+.capiro-vnext-root .capiro-crm-fill__warning {
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-warning, var(--capiro-color-warning));
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-warning, var(--crm-ink));
+}
+
+.capiro-vnext-root .capiro-crm-fill__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding-bottom: var(--capiro-space-02);
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm-fill__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .capiro-crm-fill__item {
+  display: flex;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-03) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm-fill__item:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm-fill__check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm-fill__item-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm-fill__field {
+  display: block;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  font-weight: 600;
+  color: var(--crm-ink);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm-fill__diff {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin: 4px 0 6px;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+}
+
+/* The existing value stays visible next to the proposal — §14 forbids a silent
+   overwrite, so the user always sees what would be replaced. */
+.capiro-vnext-root .capiro-crm-fill__before {
+  color: var(--crm-ink-secondary);
+  text-decoration: line-through;
+}
+
+.capiro-vnext-root .capiro-crm-fill__arrow { color: var(--crm-ink-secondary); }
+.capiro-vnext-root .capiro-crm-fill__after { color: var(--crm-ink-accent); font-weight: 600; }
+
+.capiro-vnext-root .capiro-crm-fill__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm-fill__evidence {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm-fill__actions {
+  display: flex;
+  gap: var(--capiro-space-02);
+  padding-top: var(--capiro-space-03);
+}

@@ -1,7 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroMenu, type CapiroMenuItem } from '../../components/menus/index.js';
+import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { ClientFillWithMeriDrawer } from './ClientFillWithMeriDrawer.js';
+import { ClientCrmCapabilities } from './ClientCrmCapabilities.js';
 import {
   applyCrmRoute,
   CRM_TAB_LABELS,
@@ -48,10 +60,27 @@ export function ClientCrmPage({ client }: { client: Client }) {
     [searchParams, setSearchParams],
   );
 
+  const [fillOpen, setFillOpen] = useState(false);
+
   return (
     <div className="capiro-crm" data-tab={route.tab} data-view={route.view ?? undefined}>
-      <ClientCrmHeader client={client} route={route} onNavigate={goTo} />
+      <ClientCrmHeader
+        client={client}
+        route={route}
+        onNavigate={goTo}
+        onFillWithMeri={() => setFillOpen(true)}
+      />
       <ClientCrmBody client={client} route={route} onNavigate={goTo} />
+      {/* Mounted only while open: the enrichment hook must not start polling —
+          or hold a query subscription — for a drawer nobody has opened. */}
+      {fillOpen ? (
+        <ClientFillWithMeriDrawer
+          clientId={client.id}
+          clientName={client.name}
+          open
+          onClose={() => setFillOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -74,10 +103,12 @@ export function ClientCrmHeader({
   client,
   route,
   onNavigate,
+  onFillWithMeri = () => undefined,
 }: {
   client: Client;
   route: { tab: CrmSurface };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+  onFillWithMeri?: () => void;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const chips = focusChipsFor(client);
@@ -124,18 +155,13 @@ export function ClientCrmHeader({
           <span className="capiro-crm__owner-value capiro-crm__owner-value--empty">Not tracked</span>
         </span>
 
-        <CapiroButton
-          variant="primary"
-          size="compact"
-          disabled
-          title="Enrichment API is not on this branch yet — see docs/handoffs/client-crm-vnext-contract-audit.md"
-        >
+        {/* §14: enrichment, never the chat drawer. `askMeriAboutClient` and
+            `setChatOpen` are deliberately not imported by this file. */}
+        <CapiroButton variant="primary" size="compact" onClick={onFillWithMeri}>
           Fill with Meri
         </CapiroButton>
 
-        <button type="button" className="capiro-crm__more" aria-label={`More actions for ${client.name}`}>
-          ⋯
-        </button>
+        <ClientCrmMoreMenu client={client} onNavigate={onNavigate} />
       </div>
 
       <div className="capiro-crm__focus">
@@ -180,6 +206,85 @@ export function ClientCrmHeader({
         })}
       </div>
     </header>
+  );
+}
+
+/**
+ * Overflow menu. §13 and §14: the capability surface and any separate "Ask
+ * Meri" action stay reachable from here now that neither is a primary tab.
+ */
+function ClientCrmMoreMenu({
+  client,
+  onNavigate,
+}: {
+  client: Client;
+  onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocument = (event: MouseEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocument);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocument);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const items: CapiroMenuItem[] = [
+    {
+      id: 'capabilities',
+      label: 'Capabilities',
+      onSelect: () => {
+        setOpen(false);
+        onNavigate('capabilities');
+      },
+    },
+    {
+      id: 'ask-meri',
+      label: 'Ask Meri about this client',
+      // Kept as a SEPARATE action from Fill with Meri, per §14's last line.
+      onSelect: () => {
+        setOpen(false);
+        openMeriWorkspaceWindow();
+      },
+    },
+    {
+      id: 'data-health',
+      label: 'Data health',
+      onSelect: () => {
+        setOpen(false);
+        onNavigate('overview');
+      },
+    },
+  ];
+
+  return (
+    <div className="capiro-crm__more-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="capiro-crm__more"
+        aria-label={`More actions for ${client.name}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        ⋯
+      </button>
+      {open ? (
+        <div className="capiro-crm__more-menu">
+          <CapiroMenu items={items} label={`More actions for ${client.name}`} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -240,6 +345,9 @@ function ClientCrmSurface({
   route: { tab: CrmSurface; view: CrmView | null };
 }) {
   if (route.tab === 'overview') return <ClientCrmOverview client={client} />;
+  // §13 — the capability surface has no vNext design yet, but every field and
+  // its advocacy history must stay editable. This mounts the canonical drawer.
+  if (route.tab === 'capabilities') return <ClientCrmCapabilities client={client} />;
   return <NotYetImplemented tab={route.tab} view={route.view} />;
 }
 
