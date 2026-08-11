@@ -7,37 +7,55 @@
   --capiro-type-size-body-md: 14px;
   --capiro-type-size-title-sm: 17px;
   --capiro-type-size-title-md: 22px;
+  --capiro-type-size-title-lg: 29px;
+  --capiro-type-size-display-sm: 32px;
   --capiro-type-line-body-sm: 20px;
   --capiro-type-line-body-md: 22px;
 
   /* Canvas + surface. */
   --capiro-color-bg-canvas: #f0f1f4;
+  --capiro-color-bg-page: #f2f3f5;
   --capiro-color-bg-surface: #ffffff;
   --capiro-color-bg-subtle: #eaedf1;
+  --capiro-color-bg-sunken: #eef1f5;
+  --capiro-color-bg-dark: #172737;
+  --capiro-color-bg-dark-2: #21384d;
   --capiro-color-bg-interactive-primary: #131a24;
   --capiro-color-bg-destructive: #a32b23;
   --capiro-color-bg-skeleton-highlight: #f5f6f8;
   --capiro-color-bg-navigation-hover: rgba(255, 255, 255, 0.55);
   --capiro-color-bg-foundation-banner: rgba(255, 255, 255, 0.6);
   --capiro-color-bg-overlay-scrim: rgba(19, 26, 36, 0.36);
+  --capiro-color-bg-accent-soft: #eaf0f4;
 
   /* Text. */
   --capiro-color-text-primary: #131a24;
+  --capiro-color-text-heading: #17212c;
   --capiro-color-text-secondary: #48525f;
+  --capiro-color-text-body-secondary: #53606d;
   --capiro-color-text-muted: #616b79;
+  --capiro-color-text-muted-2: #6d7783;
   --capiro-color-text-accent: #294e68;
-  --capiro-color-text-success: #2f6b4f;
+  --capiro-color-text-success: #2f7655;
   --capiro-color-text-inverse-primary: #ffffff;
+  --capiro-color-text-inverse-secondary: #d1dbe3;
+  --capiro-color-text-inverse-muted: #b9c5cf;
 
   /* Borders. */
   --capiro-color-border-default: #dfe2e8;
+  --capiro-color-border-page: #dce1e6;
   --capiro-color-border-quiet: #eaedf1;
+  --capiro-color-border-divider: #e4e7eb;
+  --capiro-color-border-control: #d7dbe2;
+  --capiro-color-border-strong: #c5cdd6;
   --capiro-color-shell-search-border: #d7e0eb;
 
   /* Brand/signature actions. */
   --capiro-color-action-primary-default: #131a24;
   --capiro-color-action-primary-hover: #252d38;
   --capiro-color-action-secondary-default: #ffffff;
+  --capiro-color-action-accent-default: #294e68;
+  --capiro-color-action-accent-hover: #223f55;
   --capiro-color-action-meri-default: #2f63f5;
   --capiro-color-action-meri-hover: #2858dd;
   --capiro-color-action-meri-text: #ffffff;
@@ -49,15 +67,20 @@
   --capiro-color-shell-search-bg: #ffffff;
   --capiro-color-shell-search-text: #636c7a;
 
-  /* Semantic state. */
-  --capiro-color-success: #2f6b4f;
-  --capiro-color-success-soft: #e7f2ec;
-  --capiro-color-warning: #8a6116;
-  --capiro-color-warning-soft: #f7edcf;
-  --capiro-color-danger: #a32b23;
-  --capiro-color-danger-soft: #f8e5e3;
-  --capiro-color-info: #2f63f5;
-  --capiro-color-info-soft: #e7eefd;
+  /* Semantic state — exact Strategy/LegiWatch surface values. */
+  --capiro-color-success: #2f7655;
+  --capiro-color-success-rail: #3c936b;
+  --capiro-color-success-soft: #eaf6ef;
+  --capiro-color-warning: #9b5b17;
+  --capiro-color-warning-rail: #c67a2e;
+  --capiro-color-warning-soft: #fff4e6;
+  --capiro-color-danger: #9c3d46;
+  --capiro-color-danger-rail: #b84f59;
+  --capiro-color-danger-soft: #fceaec;
+  --capiro-color-info: #2147a8;
+  --capiro-color-info-rail: #2f63f5;
+  --capiro-color-info-soft: #e8eeff;
+  --capiro-color-neutral-rail: #6e7782;
 
   /* Spacing. */
   --capiro-space-01: 4px;
@@ -78,18 +101,23 @@
   --capiro-layout-shell-sidebar-collapsed: 72px;
   --capiro-layout-shell-nav-item-height: 44px;
   --capiro-layout-shell-icon-container: 32px;
+  --capiro-layout-contextbar-height: 44px;
+  --capiro-layout-page-max: 1320px;
 
   /* Radius. */
   --capiro-radius-control: 8px;
   --capiro-radius-shell-control: 10px;
   --capiro-radius-navigation: 10px;
   --capiro-radius-surface: 10px;
+  --capiro-radius-widget: 12px;
 
   /* Elevation. */
   --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
   --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);
+  --capiro-primitive-shadow-deep: rgba(7, 16, 29, 0.18);
   --capiro-primitive-highlight-white-72: rgba(255, 255, 255, 0.72);
   --capiro-shadow-meri: rgba(47, 99, 245, 0.3);
+  --capiro-shadow-accent: rgba(41, 78, 104, 0.16);
 
   /* Focus, motion and layer ordering. */
   --capiro-focus-ring: 0 0 0 3px rgba(47, 99, 245, 0.22);
