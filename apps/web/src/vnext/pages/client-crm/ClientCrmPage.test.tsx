@@ -20,6 +20,26 @@ vi.mock('./ClientCrmOverview.js', () => ({
 vi.mock('./ClientCrmCapabilities.js', () => ({
   ClientCrmCapabilities: () => <div data-testid="capabilities-surface">capabilities</div>,
 }));
+vi.mock('./ClientCrmOrganization.js', () => ({
+  ClientCrmOrganization: () => <div data-testid="organization-surface">organization</div>,
+}));
+vi.mock('./ClientCrmGovernment.js', () => ({
+  ClientCrmGovernment: () => <div data-testid="government-surface">government</div>,
+}));
+vi.mock('./ClientCrmHistory.js', () => ({
+  ClientCrmHistory: () => <div data-testid="history-surface">history</div>,
+}));
+vi.mock('./ClientCrmWork.js', () => ({
+  ClientCrmWork: () => <div data-testid="work-surface">work</div>,
+}));
+vi.mock('./ClientCrmIntelligence.js', () => ({
+  ClientCrmIntelligence: ({ view }: { view: string }) => (
+    <div data-testid="intelligence-surface">{view}</div>
+  ),
+}));
+vi.mock('./ClientCrmFiles.js', () => ({
+  ClientCrmFiles: () => <div data-testid="files-surface">files</div>,
+}));
 
 const client: Client = {
   id: 'client-1',
@@ -149,6 +169,30 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
     expect(
       screen.getByRole('menuitem', { name: 'Ask Meri about this client' }),
     ).toBeInTheDocument();
+  });
+
+  it('renders a real surface for every legacy destination', () => {
+    const expected: Array<[string, string]> = [
+      ['activity', 'history-surface'],
+      ['people', 'organization-surface'],
+      ['targets', 'government-surface'],
+      ['facilities', 'intelligence-surface'],
+      ['documents', 'files-surface'],
+      ['tracker', 'intelligence-surface'],
+    ];
+    for (const [legacy, testId] of expected) {
+      const view = renderAt(`/clients?clientId=client-1&tab=${legacy}`);
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it('routes each Intelligence view to its own surface', () => {
+    for (const view of ['overview', 'legislative', 'regulatory', 'funding', 'footprint', 'district']) {
+      const rendered = renderAt(`/clients?clientId=client-1&tab=intelligence&view=${view}`);
+      expect(screen.getByTestId('intelligence-surface')).toHaveTextContent(view);
+      rendered.unmount();
+    }
   });
 
   it('falls back to Overview for an unknown tab instead of rendering nothing', () => {

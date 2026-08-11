@@ -1160,3 +1160,133 @@
   .capiro-vnext-root .capiro-crm__grid--org { grid-template-columns: minmax(0, 1fr); }
   .capiro-vnext-root .capiro-crm-form__row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── History (906:3360) / Government (906:3075) / Work (906:3645) ────────── */
+
+.capiro-vnext-root .capiro-crm__grid--history {
+  grid-template-columns: minmax(0, 900fr) minmax(0, 400fr);
+  align-items: start;
+}
+
+.capiro-vnext-root .capiro-crm__grid--files {
+  grid-template-columns: minmax(0, 300fr) minmax(0, 1000fr);
+  align-items: start;
+}
+
+.capiro-vnext-root .capiro-crm__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--crm-gap);
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-crm__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  padding-bottom: var(--capiro-space-03);
+  margin-bottom: var(--capiro-space-02);
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__search { max-width: 260px; }
+
+.capiro-vnext-root .capiro-crm__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__event {
+  display: flex;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-03) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__event:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__event-rail {
+  flex: 0 0 auto;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--crm-quiet);
+}
+
+/* Kind is carried by the badge text too — the rail colour is never the only
+   signal (§6). */
+.capiro-vnext-root .capiro-crm__event-rail--commitment,
+.capiro-vnext-root .capiro-crm__event-rail--request {
+  background: var(--capiro-color-warning-rail, var(--capiro-color-warning));
+}
+.capiro-vnext-root .capiro-crm__event-rail--decision {
+  background: var(--capiro-color-success-rail, var(--capiro-color-success));
+}
+.capiro-vnext-root .capiro-crm__event-rail--meeting,
+.capiro-vnext-root .capiro-crm__event-rail--outreach {
+  background: var(--capiro-color-info-rail, var(--capiro-color-info));
+}
+
+.capiro-vnext-root .capiro-crm__event-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__event-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-bottom: 4px;
+}
+
+.capiro-vnext-root .capiro-crm__event-title {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm__pinned {
+  display: block;
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__pinned:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__provenance {
+  margin-top: var(--capiro-space-03);
+  padding-top: var(--capiro-space-02);
+  border-top: 1px solid var(--crm-quiet);
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__row--static { cursor: default; }
+.capiro-vnext-root .capiro-crm__row--static:hover { background: transparent; }
+
+.capiro-vnext-root .capiro-crm__row[aria-pressed='true'] {
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-crm__file-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm__file-grid .capiro-crm__row {
+  width: 100%;
+  margin: 0;
+  padding: var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+@media (max-width: 1199px) {
+  .capiro-vnext-root .capiro-crm__grid--history,
+  .capiro-vnext-root .capiro-crm__grid--files { grid-template-columns: minmax(0, 1fr); }
+}

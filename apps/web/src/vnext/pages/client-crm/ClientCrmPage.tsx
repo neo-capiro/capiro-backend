@@ -15,6 +15,11 @@ import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js'
 import { ClientFillWithMeriDrawer } from './ClientFillWithMeriDrawer.js';
 import { ClientCrmCapabilities } from './ClientCrmCapabilities.js';
 import { ClientCrmOrganization } from './ClientCrmOrganization.js';
+import { ClientCrmGovernment } from './ClientCrmGovernment.js';
+import { ClientCrmHistory } from './ClientCrmHistory.js';
+import { ClientCrmWork } from './ClientCrmWork.js';
+import { ClientCrmIntelligence } from './ClientCrmIntelligence.js';
+import { ClientCrmFiles } from './ClientCrmFiles.js';
 import {
   applyCrmRoute,
   CRM_TAB_LABELS,
@@ -23,6 +28,7 @@ import {
   resolveCrmRoute,
   type CrmSurface,
   type CrmView,
+  type IntelligenceView,
 } from './client-crm-routing.js';
 import { ClientCrmOverview } from './ClientCrmOverview.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -349,9 +355,21 @@ function ClientCrmSurface({
   // §13 — the capability surface has no vNext design yet, but every field and
   // its advocacy history must stay editable. This mounts the canonical drawer.
   if (route.tab === 'capabilities') return <ClientCrmCapabilities client={client} />;
-  if (route.tab === 'relationships' && route.view === 'organization') {
+  if (route.tab === 'relationships') {
+    if (route.view === 'government') return <ClientCrmGovernment client={client} />;
+    if (route.view === 'history') return <ClientCrmHistory client={client} />;
     return <ClientCrmOrganization client={client} />;
   }
+  if (route.tab === 'work') return <ClientCrmWork client={client} />;
+  if (route.tab === 'intelligence') {
+    return (
+      <ClientCrmIntelligence
+        client={client}
+        view={(route.view ?? 'overview') as IntelligenceView}
+      />
+    );
+  }
+  if (route.tab === 'files') return <ClientCrmFiles client={client} />;
   return <NotYetImplemented tab={route.tab} view={route.view} />;
 }
 
