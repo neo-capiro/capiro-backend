@@ -1,8 +1,9 @@
 # Web vNext / os.capiro.ai — handover for the next session
 
 **Written:** 2026-08-11 (updated after §0) · **Branch:** `agent/web-vnext-figma-impl`
-**Deployed:** `a3dbce1d` (build/deploy in flight as of writing — verify before trusting this SHA;
-`docs/runbooks/web-vnext-release-dev.env` has the authoritative current value)
+**Deployed:** `a3dbce1d` — task def `capiro-dev-web-vnext:7`, confirmed live by re-measuring
+the DOM after deploy (shell height now matches viewport exactly, Meri radius 999px,
+context grid row 0px). `docs/runbooks/web-vnext-release-dev.env` has the release history.
 
 ## The goal you were handed
 
@@ -48,9 +49,11 @@ alone. Fixed in commit `a3dbce1d`, building/deploying as this doc is written.
    `data-context="hidden"` on the shell root when `clientContext.enabled` is false, and
    `[data-context='hidden']` collapses that row's track to `0px`.
 
-**Action for you:** confirm this build deployed cleanly (§8 for the release steps) and
-re-screenshot the live Dashboard before doing anything else — verify these actually landed
-before building on top of them.
+**Confirmed live** (task def `capiro-dev-web-vnext:7`, `releaseSha: a3dbce1d`): shell height
+816px = viewport height exactly (was 1050 vs 816), Collapse Navigation's bottom edge at
+804px is inside the viewport, Meri `border-radius: 999px`, Dashboard `gridTemplateRows`
+`"64px 0px 752px"` with `data-context="hidden"` set. All measured via `getComputedStyle`/
+`getBoundingClientRect`, not assumed.
 
 ## 1. The fact that makes this safe (verify it, then stop worrying)
 
