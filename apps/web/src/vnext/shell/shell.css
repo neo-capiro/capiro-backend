@@ -73,16 +73,19 @@
 
 /* ── Meri, bell, profile ────────────────────────────────────────────────── */
 
-/* Shell/MeriLauncher (722:2517) renders as a full pill in the reference
-   screenshot, not the shared 10px shell-control corner used by ordinary
-   controls (the Figma-bound --capiro-radius-shell-control variable on this
-   node reads 10, which does not match its own rendered screenshot — the
-   screenshot wins per the design-to-code priority order). The component's own
-   docs call this out as the shell's one intentionally-distinct saturated
-   action, so it should read as a chip, not a squared button. */
-.capiro-vnext-root .capiro-meri-launcher { height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 999px; background: var(--capiro-color-action-meri-default); color: var(--capiro-color-action-meri-text); cursor: pointer; font-size: 13px; font-weight: 600; transition: background var(--capiro-motion-fast) var(--capiro-motion-ease); }
-.capiro-vnext-root .capiro-meri-launcher:hover { background: var(--capiro-color-action-meri-hover); }
-.capiro-vnext-root .capiro-meri-launcher__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--capiro-color-shell-signature-secondary); }
+/* Meri carries NO bespoke visual styling. `Pattern/Shell/TopBar vNext`
+   (1124:2682) composes it from Button/Main as Compact + Primary + Default, so
+   MeriLauncher renders a real CapiroButton and inherits
+   --capiro-color-action-primary-default, --capiro-control-height-compact and
+   --capiro-radius-control, plus Elevation/Control, from the design system.
+   (No colour literals here: foundation-contract.test.ts keeps hex values in the
+   token layer and its check scans comments too.)
+
+   Previously this was a 999px pill on cobalt (--capiro-color-action-meri-*),
+   derived from Shell/MeriLauncher's reference screenshot. Neo ruled the
+   top-bar pattern normative, so that was a regression — see the component's
+   own doc comment. The class name is retained only as a QA/test hook; adding
+   visual rules back here would re-break it. */
 
 .capiro-vnext-root .capiro-vnext-bell { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--capiro-color-text-secondary); cursor: pointer; }
 .capiro-vnext-root .capiro-vnext-bell:hover { background: var(--capiro-color-bg-subtle); }
