@@ -153,8 +153,8 @@ export const CRM_TAB_LABELS: Array<{ key: CrmTab; label: string }> = [
 
 export const RELATIONSHIP_VIEW_LABELS: Array<{ key: RelationshipView; label: string }> = [
   { key: 'organization', label: 'Organization' },
-  { key: 'government', label: 'Government' },
-  { key: 'history', label: 'History' },
+  { key: 'government', label: 'Government relationships' },
+  { key: 'history', label: 'Relationship history' },
 ];
 
 export const INTELLIGENCE_VIEW_LABELS: Array<{ key: IntelligenceView; label: string }> = [

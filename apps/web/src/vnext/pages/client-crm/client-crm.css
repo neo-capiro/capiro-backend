@@ -910,3 +910,253 @@
   gap: var(--capiro-space-02);
   padding-top: var(--capiro-space-03);
 }
+
+/* ── Organization (906:2790) — canvas 972 + 20 + settings 328 = 1320 ─────── */
+
+.capiro-vnext-root .capiro-crm__grid--org {
+  grid-template-columns: minmax(0, 972fr) minmax(0, 328fr);
+}
+
+.capiro-vnext-root .capiro-crm__org-scroll {
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: var(--capiro-space-02);
+}
+
+/* Org chart: nested lists with CSS connectors, so the tree is real markup a
+   screen reader can walk rather than absolutely-placed boxes. */
+.capiro-vnext-root .capiro-crm__org-tree,
+.capiro-vnext-root .capiro-crm__org-children {
+  display: flex;
+  gap: var(--capiro-space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__org-tree { justify-content: center; }
+
+.capiro-vnext-root .capiro-crm__org-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.capiro-vnext-root .capiro-crm__org-children {
+  margin-top: 27px;
+  position: relative;
+}
+
+/* Stem down from the parent. */
+.capiro-vnext-root .capiro-crm__org-children::before {
+  content: '';
+  position: absolute;
+  top: -27px;
+  left: 50%;
+  width: 1px;
+  height: 27px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+/* Stem up from each child, plus the horizontal branch across siblings. */
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 1px;
+  height: 14px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  height: 1px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+  left: 50%;
+  right: calc(-1 * var(--capiro-space-04) / 2);
+}
+
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node:last-child::after {
+  right: 50%;
+  left: calc(-1 * var(--capiro-space-04) / 2);
+}
+
+/* A single child needs the stem but no crossbar. */
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node:only-child::after { display: none; }
+
+.capiro-vnext-root .capiro-crm__person {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-02);
+  width: 208px;
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--crm-surface);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__person:hover { border-color: var(--crm-border-pill); }
+
+.capiro-vnext-root .capiro-crm__person:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 1px;
+}
+
+.capiro-vnext-root .capiro-crm__person-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--crm-ink-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  letter-spacing: var(--crm-meta-tracking);
+}
+
+.capiro-vnext-root .capiro-crm__person-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__person-body > span { display: block; }
+
+.capiro-vnext-root .capiro-crm__person-name {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  font-weight: 600;
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__person-title {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__org-loose {
+  margin-top: var(--capiro-space-05);
+  padding-top: var(--capiro-space-03);
+  border-top: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__org-loose-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-top: var(--capiro-space-02);
+}
+
+/* ── Hierarchy settings panel ────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__setting { margin-bottom: var(--capiro-space-03); }
+
+.capiro-vnext-root .capiro-crm__setting-head {
+  margin-top: var(--capiro-space-04);
+  margin-bottom: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm__levels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__level {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--capiro-space-02);
+  min-height: 44px;
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__level:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__level-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__level-label {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm__level-examples {
+  grid-column: 1;
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__review-row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__review-select { max-width: 180px; }
+
+/* ── Forms in drawers and modals ─────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  font-family: var(--capiro-type-family-sans);
+}
+
+.capiro-vnext-root .capiro-crm-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-crm-form__input {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px var(--capiro-space-02);
+  border: 1px solid var(--capiro-color-border-control, var(--crm-quiet));
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-surface);
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm-form__input:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -1px;
+}
+
+@media (max-width: 1199px) {
+  .capiro-vnext-root .capiro-crm__grid--org { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-crm-form__row { grid-template-columns: minmax(0, 1fr); }
+}

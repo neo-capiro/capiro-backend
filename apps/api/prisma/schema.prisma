@@ -2732,8 +2732,23 @@ model ClientPerson {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // ── Organization hierarchy (Client CRM vNext 906:2790) ───────────────────
+  // NULL level = not placed yet, which is a real state the roster shows as
+  // "unplaced" — deliberately not defaulted to the bottom of the org chart.
+  /// executive | c_suite | senior_leadership | leadership | management | team
+  hierarchyLevel      String?  @map("hierarchy_level") @db.VarChar(24)
+  reportsToPersonId   String?  @map("reports_to_person_id") @db.Uuid
+  /// auto_title | manual — manual ALWAYS wins and is never re-derived.
+  placementSource     String   @default("auto_title") @map("placement_source") @db.VarChar(16)
+  /// Inference confidence; NULL for manual placements.
+  placementConfidence Decimal? @map("placement_confidence") @db.Decimal(4, 3)
+  reviewRequired      Boolean  @default(false) @map("review_required")
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  reportsTo    ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
+  directReports ClientPerson[] @relation("ClientPersonReportsTo")
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
   // Import-path identity lookup: Meri's update_client_profile and the contact

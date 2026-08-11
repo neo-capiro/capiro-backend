@@ -1,9 +1,18 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateIf,
+} from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { HIERARCHY_LEVELS } from './client-hierarchy.helpers.js';
 import { ClientPeopleService } from './client-people.service.js';
 
 class CreatePersonDto {
@@ -65,6 +74,26 @@ class UpdatePersonDto {
   notes?: string;
 }
 
+class UpdatePersonHierarchyDto {
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsIn(HIERARCHY_LEVELS)
+  hierarchyLevel?: (typeof HIERARCHY_LEVELS)[number] | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  reportsToPersonId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  resetToAutomatic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  reviewRequired?: boolean;
+}
+
 @Controller('clients/:clientId/people')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -93,6 +122,20 @@ export class ClientPeopleController {
     @Body() body: UpdatePersonDto,
   ) {
     return this.service.updatePerson(ctx, clientId, id, body);
+  }
+
+  /**
+   * Manual hierarchy placement, kept off PATCH :id so that editing a phone
+   * number can never flip a person from automatic to manual placement.
+   */
+  @Patch(':id/hierarchy')
+  updatePersonHierarchy(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('id') id: string,
+    @Body() body: UpdatePersonHierarchyDto,
+  ) {
+    return this.service.updatePersonHierarchy(ctx, clientId, id, body);
   }
 
   @Delete(':id')
