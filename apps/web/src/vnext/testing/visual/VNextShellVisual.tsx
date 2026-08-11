@@ -21,6 +21,13 @@ import {
   CONGRESSIONAL_STAFF_VISUAL_FIXTURE,
 } from '../fixtures/directory.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
+import { ClientCrmHeader } from '../../pages/client-crm/ClientCrmPage.js';
+import { ClientCrmOverviewView } from '../../pages/client-crm/ClientCrmOverview.js';
+import {
+  CLIENT_CRM_VISUAL_CLIENT,
+  CLIENT_CRM_VISUAL_FIXTURE,
+} from '../fixtures/client-crm.js';
+import '../../pages/client-crm/client-crm.css';
 
 /**
  * Clerk-free shell baseline. The nav model comes from the real route manifest so
@@ -49,14 +56,22 @@ const fixtureNotifications = {
 export type VNextVisualScreen =
   | 'empty'
   | 'dashboard'
+  | 'client-crm'
   | 'congressional-staff'
   | 'congressional-staff-empty';
 
-/** Each screen renders at the route it actually ships on, so the sidebar's
- *  current-item state and the context bar are exercised, not faked. */
+/**
+ * Each screen renders at the route it actually ships on, so the sidebar's
+ * current-item state and the context bar are exercised, not faked.
+ *
+ * `/clients` carries `clientId` because the vNext interception requires a param
+ * the app does not otherwise set — see `1a0b000c`, where its absence meant the
+ * CRM surface never rendered at all.
+ */
 const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
-  empty: '/clients',
+  empty: '/clients?clientId=visual-fixture',
   dashboard: '/',
+  'client-crm': '/clients?clientId=visual-fixture',
   'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
   'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
 };
@@ -64,9 +79,11 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
 export function VNextShellVisual({
   collapsed = false,
   screen = 'empty',
+  crmTab = 'overview',
 }: {
   collapsed?: boolean;
   screen?: VNextVisualScreen;
+  crmTab?: 'overview' | 'relationships' | 'work' | 'intelligence' | 'files';
 }) {
   return (
     <MemoryRouter initialEntries={[SCREEN_ROUTES[screen]]}>
@@ -110,7 +127,31 @@ export function VNextShellVisual({
               <span className="capiro-vnext-contextbar__scope">All clients</span>
             </div>
             <main className="capiro-vnext-content">
-              {screen === 'dashboard' ? (
+              {screen === 'client-crm' ? (
+                // Client CRM / 01 Overview (`906:2503`). Header and body are
+                // composed separately so the body stays data-free.
+                <div className="capiro-crm" data-tab="overview">
+                  <ClientCrmHeader
+                    client={CLIENT_CRM_VISUAL_CLIENT}
+                    route={{ tab: crmTab }}
+                    onNavigate={() => undefined}
+                  />
+                  {crmTab === 'overview' ? (
+                    <ClientCrmOverviewView model={CLIENT_CRM_VISUAL_FIXTURE} />
+                  ) : (
+                    <div className="capiro-crm__body">
+                      <div className="capiro-crm__page-head">
+                        <div>
+                          <h2 className="capiro-crm__page-title">{crmTab}</h2>
+                          <p className="capiro-crm__page-sub">
+                            Data-backed surface; only the header geometry is captured here.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : screen === 'dashboard' ? (
                 <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
               ) : screen === 'congressional-staff' ? (
                 <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_VISUAL_FIXTURE} />

@@ -272,9 +272,6 @@
 .capiro-vnext-root .vnext-strategy-row__owner { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .capiro-vnext-root .vnext-strategy-row__avatar { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--capiro-color-bg-accent-soft); color: var(--capiro-color-text-accent); font-family: var(--capiro-type-family-mono); font-size: 9px; font-weight: 700; }
 .capiro-vnext-root .vnext-strategy-row__owner-copy { min-width: 0; display: grid; gap: 4px; color: var(--capiro-color-text-secondary); font-size: 12px; line-height: 16px; font-weight: 600; }
-.capiro-vnext-root .vnext-strategy-chip { width: max-content; max-width: 100%; min-height: 22px; display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; font-family: var(--capiro-type-family-mono); font-size: 8.5px; line-height: 14px; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
-.capiro-vnext-root .vnext-strategy-chip.is-warning { background: var(--capiro-color-warning-soft); color: var(--capiro-color-warning); }
-.capiro-vnext-root .vnext-strategy-chip.is-success { background: var(--capiro-color-success-soft); color: var(--capiro-color-success); }
 .capiro-vnext-root .vnext-strategy-row__updated { color: var(--capiro-color-text-muted); font-size: 12px; line-height: 16px; }
 .capiro-vnext-root .vnext-strategy-row__chevron { color: var(--capiro-color-text-muted); font-size: 24px; line-height: 28px; text-align: center; }
 .capiro-vnext-root .vnext-strategy-empty { padding: 44px 22px; color: var(--capiro-color-text-muted-2); font-size: 13px; line-height: 20px; text-align: center; }

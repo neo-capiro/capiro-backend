@@ -139,9 +139,13 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* Selection is the 2px dark-ink underline and nothing else. 869:2502 marks
+   Overview = Current with that underline; the filled treatment that appears on
+   Hearings in the same frame is stale, and Neo ruled underline-only canonical
+   across Overview/Feed/Hearings/Digest/Analytics. No background fill here — a
+   fill plus an underline reads as two selected tabs. */
 .capiro-vnext-root .vnext-legiwatch-tabs button.is-active {
-  background: var(--capiro-color-bg-accent-soft);
-  color: var(--capiro-color-text-heading);
+  color: var(--capiro-primitive-product-ink);
   font-weight: 600;
 }
 .capiro-vnext-root .vnext-legiwatch-tabs button.is-active::after {
@@ -151,7 +155,7 @@
   right: 0;
   bottom: 0;
   height: 2px;
-  background: var(--capiro-color-action-accent-default);
+  background: var(--capiro-primitive-product-ink);
 }
 .capiro-vnext-root .vnext-legiwatch-tabs__count {
   min-width: 18px;
@@ -166,7 +170,10 @@
   font-size: 8px;
   font-weight: 600;
 }
-.capiro-vnext-root .vnext-legiwatch-tabs button.is-active .vnext-legiwatch-tabs__count { background: var(--capiro-color-bg-surface); color: var(--capiro-color-text-accent); }
+/* The active count chip keeps the default sunken treatment. It previously went
+   white to sit on the removed accent-soft fill; on the now-unfilled tab that
+   painted a white chip on a white bar. */
+.capiro-vnext-root .vnext-legiwatch-tabs button.is-active .vnext-legiwatch-tabs__count { color: var(--capiro-primitive-product-ink); }
 
 .capiro-vnext-root .vnext-legiwatch-overview {
   width: min(var(--capiro-layout-page-max), calc(100% - 48px));

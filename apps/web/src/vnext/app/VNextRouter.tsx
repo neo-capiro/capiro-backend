@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 import {
   DIRECTORY_LEGACY_ROUTE,
@@ -13,6 +13,9 @@ const CongressionalStaffVNext = lazy(async () => ({
 
 const VNextStrategiesRoutes = lazy(async () => ({
   default: (await import('../pages/strategies/VNextStrategiesRoutes.js')).VNextStrategiesRoutes,
+}));
+const VNextClientCrmRoute = lazy(async () => ({
+  default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
 }));
 const VNextLegiWatchPage = lazy(async () => ({
   default: (await import('../pages/legiwatch/VNextLegiWatchPage.js')).VNextLegiWatchPage,
@@ -30,7 +33,25 @@ const VNextLegiWatchPage = lazy(async () => ({
  */
 export function VNextRouter() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const fallback = <div className="capiro-vnext-route-loading">Loading…</div>;
+
+  // Client CRM vNext (Figma page `906:2502`). The profile has no `/clients/:id`
+  // route — it is `/clients?clientId=<id>`.
+  //
+  // This intercepts `/clients` with OR without the parameter. Requiring it was a
+  // real bug: the canonical `ClientWorkspacePage` selects a client with local
+  // state and never puts `clientId` in the URL, so clicking a client produced no
+  // URL for this to match and the canonical profile rendered instead. vNext now
+  // owns the whole route and renders its own picker, which navigates to the
+  // `?clientId=` URL the CRM and every existing deep link already use.
+  if (location.pathname === '/clients') {
+    return (
+      <Suspense fallback={fallback}>
+        <VNextClientCrmRoute />
+      </Suspense>
+    );
+  }
 
   // Dashboard is eager: it is the entry screen, so a lazy chunk would cost a
   // blank frame on the most common navigation in the product.

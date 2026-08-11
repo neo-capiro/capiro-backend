@@ -11,6 +11,7 @@ const collapsed = params.get('collapsed') === '1';
 const SCREENS: readonly VNextVisualScreen[] = [
   'empty',
   'dashboard',
+  'client-crm',
   'congressional-staff',
   'congressional-staff-empty',
 ];

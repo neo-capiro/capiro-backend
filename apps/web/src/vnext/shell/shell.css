@@ -200,6 +200,17 @@
 .capiro-vnext-root .capiro-vnext-contextbar__scope { margin-left: auto; font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--capiro-color-text-muted); }
 .capiro-vnext-root .capiro-vnext-contextbar .capiro-vnext-flyout { top: calc(100% + 6px); left: 0; width: 300px; }
 
+/* Intelligence destination rail (869:2571) — the context row's second variant.
+   Local navigation inside the Intelligence family; the sidebar flyout remains the
+   global switcher. Items are 34px with a 3px current rail, per the frame. */
+.capiro-vnext-root .capiro-vnext-contextbar--rail { gap: 12px; }
+.capiro-vnext-root .capiro-vnext-contextbar__eyebrow { font-family: var(--capiro-type-family-mono); font-size: 10px; font-weight: 500; line-height: 14px; letter-spacing: .6px; text-transform: uppercase; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-vnext-intel-rail { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; }
+.capiro-vnext-root .capiro-vnext-intel-rail__item { position: relative; height: 34px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 7px; color: var(--capiro-color-text-secondary); font-size: 12.5px; line-height: 18px; white-space: nowrap; text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-intel-rail__item:hover { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-vnext-intel-rail__item.is-current { color: var(--capiro-color-text-accent); font-weight: 500; }
+.capiro-vnext-root .capiro-vnext-intel-rail__item.is-current::before { content: ''; position: absolute; left: 0; top: 7px; width: 3px; height: 20px; border-radius: var(--capiro-radius-circular); background: var(--capiro-color-action-accent-default); }
+
 /* ── Mailbox status (819:2612) ──────────────────────────────────────────── */
 
 .capiro-vnext-root .capiro-mailbox-status { width: 100%; min-height: 56px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--capiro-primitive-product-border); border-radius: var(--capiro-radius-widget); background: var(--capiro-primitive-shell-porcelain); color: var(--capiro-primitive-product-ink); text-align: left; cursor: pointer; }
