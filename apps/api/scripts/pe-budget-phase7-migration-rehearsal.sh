@@ -1354,10 +1354,33 @@ INSERT INTO phase6_audit_projection (
 );"
 ok "seeded two live Phase 6 audit-projection rows and one superseded row"
 
+# The build verb requires a phase6_cycle_certification row with an exact
+# projection-set binding (projection_set_sha256 + projection_count). Seed one
+# for cycle-gap5-a / FY2027 whose content_sha256 is passed to --certification-sha256.
+GAP5_PHASE6_CERT_SHA="$(printf '6%.0s' $(seq 1 64))"
+GAP5_PHASE6_PROJSET_SHA="$(printf '7%.0s' $(seq 1 64))"
+run_sql "
+INSERT INTO phase6_cycle_certification (
+  cycle_id, fiscal_year, manifest_hash, content_sha256, status,
+  projection_set_sha256, projection_count, report_jsonb
+) VALUES (
+  'cycle-gap5-a', 2027, repeat('a', 64), repeat('6', 64), 'CERTIFIED',
+  repeat('7', 64), 2,
+  jsonb_build_object('projectionSetSha256', repeat('7', 64), 'projectionCount', 2)
+);"
+# Bind the two live projections (p6proj-gap5-a-1 and p6proj-gap5-a-2) to the certification.
+run_sql "
+INSERT INTO phase6_cycle_certification_projection (certification_content_sha256, projection_id, projection_ordinal) VALUES
+  (repeat('6', 64), 'p6proj-gap5-a-1', 0),
+  (repeat('6', 64), 'p6proj-gap5-a-2', 1);"
+ok "seeded phase6 cycle certification for cycle-gap5-a with exact projection-set binding"
+
 # Relative path only: native Windows Node mangles MSYS abs paths (/c/Users -> C:/c/Users).
 GAP5_PHASE6_PLAN_FILE="$TMP_REL/gap5-phase6-projection-plan.json"
 npx tsx "./scripts/build-defense-budget-phase6-projection-plan-v1.ts" \
-  --cycle-id cycle-gap5-a --fiscal-year 2027 --out "$GAP5_PHASE6_PLAN_FILE" \
+  --cycle-id cycle-gap5-a --fiscal-year 2027 \
+  --certification-sha256 "$GAP5_PHASE6_CERT_SHA" \
+  --out "$GAP5_PHASE6_PLAN_FILE" \
   || fail "build-defense-budget-phase6-projection-plan-v1 could not build a plan document"
 ok "the real build verb reads phase6_audit_projection and produces a plan document"
 
