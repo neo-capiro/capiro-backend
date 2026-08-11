@@ -164,7 +164,12 @@ describe('Needs Attention module contract', () => {
 
     // selectAttentionItems returns everything; the module applies the budget.
     expect(items).toHaveLength(32);
-    expect(source).toContain('MODULE_ROW_LIMITS.attention');
+    expect(source).toContain('limits.attention');
+    // Density changes how many rows are visible, never what they mean, so all
+    // three modes must declare a budget for every module (760:2695).
+    for (const mode of ['presentation', 'standard', 'compact']) {
+      expect(source).toMatch(new RegExp(`${mode}: \\{ attention: \\d+, news: \\d+, today: \\d+, work: \\d+ \\}`));
+    }
   });
 });
 
@@ -183,9 +188,46 @@ describe('dashboard source contract', () => {
     }
   });
 
-  it('stays all-client — no client filter is read or sent', () => {
-    expect(source).not.toContain('useClientFilter');
-    expect(source).not.toContain('selectedClientId');
+  it('stays all-client — scope is cleared, never used to narrow a request', () => {
+    // Acceptance A (760:2740) requires the Dashboard to *clear* hidden client
+    // scope, so it does touch the filter — but only to reset it. The guarantee
+    // that matters is that no request is ever scoped by client.
+    expect(source).toContain('setSelectedClientId(null)');
+    expect(source).not.toMatch(/params:\s*\{[^}]*\bclientId\b/);
+    expect(source).not.toMatch(/\bclientId:\s*selectedClientId/);
+    // The only read of the selection is the equality guard on the clear.
+    const reads = source.match(/selectedClientId/g) ?? [];
+    expect(reads.length).toBeLessThanOrEqual(3);
+  });
+
+  it('keeps Needs Attention out of the reorderable set and pinned at 00', () => {
+    // Customization contract (760:2683): Needs Attention is excluded from the
+    // hide/reorder controls and always renders first.
+    expect(source).toContain("export type DashboardModuleKey = 'news' | 'today' | 'work'");
+    expect(source).toContain("DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work']");
+
+    const drawer = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/CustomizeDrawer.tsx'), 'utf8');
+    expect(drawer).toContain('capiro-dash-drawer__module--pinned');
+    expect(drawer).toContain('>00<');
+    // The pinned row carries a static PINNED pill, never a visibility switch.
+    const pinnedRow = drawer.slice(
+      drawer.indexOf('capiro-dash-drawer__module--pinned'),
+      drawer.indexOf('OPTIONAL MODULES'),
+    );
+    expect(pinnedRow).not.toContain('role="switch"');
+  });
+
+  it('renders Customize as a full-height drawer, not a popover', () => {
+    // 754:2766 is a 390×936 right drawer with its own News Grid and density
+    // section — the earlier 244px popover was the wrong component.
+    const view = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/DashboardVNext.tsx'), 'utf8');
+    expect(view).toContain('CustomizeDrawer');
+    expect(view).not.toContain('capiro-dash__customize-panel');
+
+    const drawer = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/CustomizeDrawer.tsx'), 'utf8');
+    expect(drawer).toContain('aria-modal="true"');
+    expect(drawer).toContain('INFORMATION DENSITY');
+    expect(drawer).toContain('NEWS &amp; NARRATIVE');
   });
 
   it('orders Today & Coming Up by real instant, not the rendered time string', () => {
@@ -196,8 +238,28 @@ describe('dashboard source contract', () => {
   });
 
   it('never turns a failed request into a zero or empty result', () => {
-    // Each module must branch on isError before it can report empty.
-    const unavailableBranches = source.match(/'unavailable' as DashboardModuleState/g) ?? [];
-    expect(unavailableBranches.length).toBeGreaterThanOrEqual(4);
+    // State selection is centralised in buildStatus, so the guarantee is
+    // checked once there: a module only reaches its empty state after every
+    // source has answered without error. Failures surface as unavailable or,
+    // when a prior result survives, stale (760:2692).
+    const buildStatus = source.slice(source.indexOf('function buildStatus'));
+    const emptyIndex = buildStatus.indexOf('state: emptyKind');
+    expect(emptyIndex).toBeGreaterThan(-1);
+    const beforeEmpty = buildStatus.slice(0, emptyIndex);
+    expect(beforeEmpty).toContain("state: 'unavailable'");
+    expect(beforeEmpty).toContain("state: 'stale'");
+    expect(beforeEmpty).toContain("state: 'partial'");
+
+    // Every module must hand its real error/loading flags to buildStatus.
+    for (const flag of [
+      'portfolioAlerts.isError',
+      'recentChanges.isError',
+      'meetings.isError',
+      'comingUp.isError',
+      'outreach.isError',
+      'workspaceDrafts.isError',
+    ]) {
+      expect(source).toContain(flag);
+    }
   });
 });

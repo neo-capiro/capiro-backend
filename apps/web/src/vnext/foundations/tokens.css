@@ -40,6 +40,8 @@
   /* Read from the Figma node code rather than sampled off a render. */
   --capiro-color-text-information: #1c4e7a;
   --capiro-color-text-warning: #8a6218;
+  /* STALE / SOURCE UNAVAILABLE raise the module border (754:2919, 754:2932). */
+  --capiro-color-border-warning: #8a6218;
   --capiro-color-border-badge: #eceef2;
   --capiro-status-badge-height: 24px;
   /* The sidebar is its own cooler surface, not the generic subtle grey. */

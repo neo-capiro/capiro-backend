@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/clerk-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
+import { useClientFilter } from '../../../state/client-filter.js';
 import {
   useNewsPreferences,
   type NewsPreferences,
@@ -36,7 +37,31 @@ export type DashboardModuleState =
   | 'empty'
   | 'all-clear';
 
-export type DashboardDensity = 'standard' | 'compact';
+/**
+ * Density contract (Figma `760:2695`, drawer segment `754:2851`): three modes,
+ * not two. Density changes spacing and visible item count — never meaning or
+ * governance, so the row budgets below only move how much is deferred to
+ * "View all".
+ */
+export type DashboardDensity = 'presentation' | 'standard' | 'compact';
+
+/** The optional, user-orderable modules. Needs Attention is pinned at 00. */
+export type DashboardModuleKey = 'news' | 'today' | 'work';
+
+/**
+ * A module's system state as the design states it (`754:2885`): a badge, the
+ * source fact that justifies the state, a headline, and the next safe action.
+ * Every field is derived from a real query — a module with no honest value
+ * omits it rather than inventing one.
+ */
+export interface ModuleStatus {
+  state: DashboardModuleState;
+  /** Right-aligned source fact, e.g. "2 of 3 ready" or the failing source. */
+  meta: string | null;
+  title: string;
+  body: string;
+  action: { label: string; tone: 'warning' | 'accent' | 'success' } | null;
+}
 
 export interface AttentionItem {
   id: string;
@@ -105,13 +130,32 @@ const MATERIAL_CHANGE_SEVERITIES = new Set(['critical', 'high']);
 
 const DEFAULT_VISIBILITY: DashboardVisibility = { today: true, work: true, news: true };
 
+/** Drawer order 01/02/03 (`754:2789`, `754:2797`, `754:2805`). */
+const DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work'];
+
 /**
  * Row budgets from the Figma layout: the modules are fixed-height cards, not
  * scrolling lists. Each card shows this many rows and defers the rest to its
  * "View all" destination. `total` still reports the true count, so capping is
  * presentational and never hides the real volume.
+ *
+ * Standard matches the canonical desktop artifact (`751:2502`). Presentation
+ * trades items for explanation and Compact does the reverse, per the density
+ * contract (`760:2695`).
  */
-const MODULE_ROW_LIMITS = { attention: 4, news: 4, today: 3, work: 3 } as const;
+const ROW_LIMITS: Readonly<
+  Record<DashboardDensity, { attention: number; news: number; today: number; work: number }>
+> = {
+  presentation: { attention: 3, news: 3, today: 2, work: 2 },
+  standard: { attention: 4, news: 4, today: 3, work: 3 },
+  compact: { attention: 6, news: 6, today: 5, work: 5 },
+};
+
+/**
+ * Mobile (`757:2622`) is a different content model, not a narrower desktop: two
+ * attention rows, two stories, a single Next Meeting card and one work item.
+ */
+const MOBILE_ROW_LIMITS = { attention: 2, news: 2, today: 1, work: 1 } as const;
 
 export interface DashboardVNextModel {
   header: {
@@ -120,9 +164,9 @@ export interface DashboardVNextModel {
     meta: string;
     refreshedLabel: string | null;
   };
-  needsAttention: { state: DashboardModuleState; items: AttentionItem[]; total: number };
+  needsAttention: { status: ModuleStatus; items: AttentionItem[]; total: number };
   news: {
-    state: DashboardModuleState;
+    status: ModuleStatus;
     items: NewsItem[];
     meta: string;
     preferences: NewsPreferences;
@@ -130,21 +174,48 @@ export interface DashboardVNextModel {
     unavailableReason: string | null;
   };
   today: {
-    state: DashboardModuleState;
+    status: ModuleStatus;
     week: Array<{ id: string; weekday: string; day: string; today: boolean; hasEvents: boolean }>;
     events: TodayEvent[];
+    /** Mobile replaces the whole module with this one card (`759:2683`). */
+    nextMeeting: TodayEvent | null;
   };
-  workQueue: { state: DashboardModuleState; items: WorkQueueEntry[]; total: number };
+  workQueue: { status: ModuleStatus; items: WorkQueueEntry[]; total: number };
   visibility: DashboardVisibility;
   setVisibility: (next: DashboardVisibility) => void;
+  /** User order for the optional modules; Needs Attention is never in it. */
+  order: readonly DashboardModuleKey[];
+  setOrder: (next: readonly DashboardModuleKey[]) => void;
   density: DashboardDensity;
   setDensity: (next: DashboardDensity) => void;
+  /** Drives the mobile content model; false above the 390px stage. */
+  isMobile: boolean;
+  /** Backs the designed "Retry source →" action on stale/unavailable states. */
+  retry: () => void;
 }
+
+/** Every query this surface owns, so "Retry source" refetches exactly them. */
+const DASHBOARD_QUERY_KEYS = [
+  'portfolio-alerts',
+  'intel-changes-tracked',
+  'coming-up',
+  'engagement-meetings-week',
+  'dashboard-news-custom',
+  'dashboard-work-outreach',
+  'dashboard-workspace-drafts',
+] as const;
 
 export function useDashboardVNextModel(): DashboardVNextModel {
   const api = useApi();
   const { user } = useUser();
   const me = useMe();
+  const queryClient = useQueryClient();
+
+  const retry = useCallback(() => {
+    for (const key of DASHBOARD_QUERY_KEYS) {
+      void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  }, [queryClient]);
 
   const preferenceKey = useMemo(() => {
     if (!user?.id || !me.data?.tenant.id) return null;
@@ -157,6 +228,23 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     return `capiro:dashboard-density:${me.data.tenant.id}:${user.id}`;
   }, [me.data?.tenant.id, user?.id]);
   const [density, setDensity] = useDashboardDensity(densityKey);
+
+  const orderKey = useMemo(() => {
+    if (!user?.id || !me.data?.tenant.id) return null;
+    return `capiro:dashboard-order:${me.data.tenant.id}:${user.id}`;
+  }, [me.data?.tenant.id, user?.id]);
+  const [order, setOrder] = useDashboardOrder(orderKey);
+
+  const isMobile = useIsMobile();
+  const limits = isMobile ? MOBILE_ROW_LIMITS : ROW_LIMITS[density];
+
+  // Acceptance A (`760:2740`): the Dashboard has no client picker *and* clears
+  // hidden client scope before loading, so a selection persisted on another
+  // surface can never silently narrow a portfolio-wide view.
+  const { selectedClientId, setSelectedClientId } = useClientFilter();
+  useEffect(() => {
+    if (selectedClientId !== null) setSelectedClientId(null);
+  }, [selectedClientId, setSelectedClientId]);
 
   const newsPreferenceKey = useMemo(() => {
     if (!user?.id || !me.data?.tenant.id) return null;
@@ -255,16 +343,6 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   /* ── Needs Attention ──────────────────────────────────────────────────── */
 
   const needsAttention = useMemo(() => {
-    const sourcesFailed =
-      portfolioAlerts.isError || recentChanges.isError || (visibility.news && news.isError);
-
-    if (portfolioAlerts.isLoading && recentChanges.isLoading) {
-      return { state: 'loading' as DashboardModuleState, items: [], total: 0 };
-    }
-    if (portfolioAlerts.isError && recentChanges.isError) {
-      return { state: 'unavailable' as DashboardModuleState, items: [], total: 0 };
-    }
-
     const ordered = selectAttentionItems({
       alerts: portfolioAlerts.data?.alerts ?? [],
       changes: recentChanges.data ?? [],
@@ -272,29 +350,44 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         visibility.news && news.data && !news.data.available ? (news.data.reason ?? null) : null,
     });
 
-    if (ordered.length === 0) {
-      return {
-        state: (sourcesFailed ? 'partial' : 'all-clear') as DashboardModuleState,
-        items: ordered,
-        total: 0,
-      };
-    }
+    const status = buildStatus({
+      sources: [
+        {
+          name: 'Portfolio alerts',
+          isLoading: portfolioAlerts.isLoading,
+          isError: portfolioAlerts.isError,
+          updatedAt: portfolioAlerts.dataUpdatedAt,
+        },
+        {
+          name: 'Intelligence changes',
+          isLoading: recentChanges.isLoading,
+          isError: recentChanges.isError,
+          updatedAt: recentChanges.dataUpdatedAt,
+        },
+      ],
+      hidden: false,
+      emptyKind: 'all-clear',
+      emptyTitle: 'No time-sensitive items need attention',
+      emptyBody: 'Confirm the clear state and show when the next refresh will run.',
+      emptyMeta: portfolioAlerts.dataUpdatedAt
+        ? `Checked ${clockTime(portfolioAlerts.dataUpdatedAt)}`
+        : null,
+      itemCount: ordered.length,
+    });
 
-    return {
-      state: (sourcesFailed ? 'partial' : 'ready') as DashboardModuleState,
-      items: ordered.slice(0, MODULE_ROW_LIMITS.attention),
-      total: ordered.length,
-    };
+    return { status, items: ordered.slice(0, limits.attention), total: ordered.length };
   }, [
     portfolioAlerts.data,
+    portfolioAlerts.dataUpdatedAt,
     portfolioAlerts.isError,
     portfolioAlerts.isLoading,
     recentChanges.data,
+    recentChanges.dataUpdatedAt,
     recentChanges.isError,
     recentChanges.isLoading,
     news.data,
-    news.isError,
     visibility.news,
+    limits.attention,
   ]);
 
   /* ── News & Narrative ─────────────────────────────────────────────────── */
@@ -305,30 +398,70 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       setPreferences: setNewsPreferences,
     };
 
+    /** Subscription breadth, for the EMPTY state's "N active filters". */
+    const activeFilters =
+      newsPreferences.policyTopics.length +
+      newsPreferences.signalKinds.length +
+      newsPreferences.clientIds.length +
+      newsPreferences.customTopics.length;
+
     if (!visibility.news) {
-      return { ...base, state: 'empty' as DashboardModuleState, items: [], meta: '', unavailableReason: null };
-    }
-    if (news.isLoading) {
-      return { ...base, state: 'loading' as DashboardModuleState, items: [], meta: '', unavailableReason: null };
-    }
-    if (news.isError) {
       return {
         ...base,
-        state: 'unavailable' as DashboardModuleState,
+        status: buildStatus({
+          sources: [],
+          hidden: true,
+          emptyKind: 'empty',
+          emptyTitle: 'News & Narrative is hidden',
+          emptyBody: 'Turn the module back on from Customize Dashboard.',
+          itemCount: 0,
+        }),
         items: [],
         meta: '',
-        unavailableReason: 'News could not be loaded.',
+        unavailableReason: null,
       };
     }
 
     const data = news.data;
-    if (!data || !data.available) {
+    // The feed reports its own availability, so a reachable endpoint that
+    // cannot serve a source is still SOURCE UNAVAILABLE — not an empty feed.
+    const sourceDown = news.isError || Boolean(data && !data.available);
+    const failingSource = news.isError
+      ? 'News'
+      : (newsReasonLabel(data?.reason) ?? 'News');
+
+    if (sourceDown) {
       return {
         ...base,
-        state: 'unavailable' as DashboardModuleState,
+        status: {
+          state: 'unavailable' as DashboardModuleState,
+          meta: failingSource,
+          title: 'News source is temporarily unavailable',
+          body: 'Keep the module visible, identify the failing source, and never convert missing data to zero.',
+          action: { label: 'Retry source', tone: 'warning' as const },
+        },
         items: [],
         meta: '',
-        unavailableReason: newsReasonLabel(data?.reason),
+        unavailableReason: news.isError ? 'News could not be loaded.' : newsReasonLabel(data?.reason),
+      };
+    }
+
+    if (news.isLoading || !data) {
+      return {
+        ...base,
+        status: buildStatus({
+          sources: [
+            { name: 'News', isLoading: true, isError: false, updatedAt: news.dataUpdatedAt },
+          ],
+          hidden: false,
+          emptyKind: 'empty',
+          emptyTitle: '',
+          emptyBody: '',
+          itemCount: 0,
+        }),
+        items: [],
+        meta: '',
+        unavailableReason: null,
       };
     }
 
@@ -348,29 +481,86 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       : `${data.monitoredClientCount} clients monitored`;
 
     if (items.length === 0) {
-      return { ...base, state: 'empty' as DashboardModuleState, items, meta, unavailableReason: null };
+      return {
+        ...base,
+        status: {
+          state: 'empty' as DashboardModuleState,
+          meta: activeFilters > 0 ? `${activeFilters} active filter${activeFilters === 1 ? '' : 's'}` : null,
+          title: 'No stories match this subscription',
+          body: 'Offer Customize feed and preserve the active subscription summary.',
+          action: { label: 'Customize feed', tone: 'accent' as const },
+        },
+        items,
+        meta,
+        unavailableReason: null,
+      };
+    }
+
+    if (data.stale) {
+      return {
+        ...base,
+        status: {
+          state: 'stale' as DashboardModuleState,
+          meta: news.dataUpdatedAt ? `Last success ${relativeAge(news.dataUpdatedAt)}` : null,
+          title: news.dataUpdatedAt
+            ? `Showing results from ${clockTime(news.dataUpdatedAt)}`
+            : 'Showing the last good result',
+          body: 'Preserve the last good result, display its age, and offer a controlled retry.',
+          action: { label: 'Retry source', tone: 'warning' as const },
+        },
+        items: items.slice(0, limits.news),
+        meta,
+        unavailableReason: null,
+      };
     }
 
     return {
       ...base,
-      state: (data.stale ? 'stale' : 'ready') as DashboardModuleState,
-      items: items.slice(0, MODULE_ROW_LIMITS.news),
+      status: { state: 'ready' as DashboardModuleState, meta: null, title: '', body: '', action: null },
+      items: items.slice(0, limits.news),
       meta,
       unavailableReason: null,
     };
-  }, [news.data, news.isError, news.isLoading, newsPreferences, setNewsPreferences, visibility.news]);
+  }, [
+    news.data,
+    news.dataUpdatedAt,
+    news.isError,
+    news.isLoading,
+    newsPreferences,
+    setNewsPreferences,
+    visibility.news,
+    limits.news,
+  ]);
 
   /* ── Today & Coming Up ────────────────────────────────────────────────── */
 
   const today = useMemo(() => {
-    if (!visibility.today) {
-      return { state: 'empty' as DashboardModuleState, week: [], events: [] };
-    }
-    if (meetings.isLoading && comingUp.isLoading) {
-      return { state: 'loading' as DashboardModuleState, week: weekStrip(new Set()), events: [] };
-    }
-    if (meetings.isError && comingUp.isError) {
-      return { state: 'unavailable' as DashboardModuleState, week: weekStrip(new Set()), events: [] };
+    const status = buildStatus({
+      sources: [
+        {
+          name: 'Meetings',
+          isLoading: meetings.isLoading,
+          isError: meetings.isError,
+          updatedAt: meetings.dataUpdatedAt,
+        },
+        {
+          name: 'Coming up',
+          isLoading: comingUp.isLoading,
+          isError: comingUp.isError,
+          updatedAt: comingUp.dataUpdatedAt,
+        },
+      ],
+      hidden: !visibility.today,
+      emptyKind: 'empty',
+      emptyTitle: visibility.today ? 'Nothing scheduled in this window' : 'Today & Coming Up is hidden',
+      emptyBody: visibility.today
+        ? 'No meetings, hearings or deadlines fall inside the current week.'
+        : 'Turn the module back on from Customize Dashboard.',
+      itemCount: 1,
+    });
+
+    if (status.state === 'loading' || status.state === 'unavailable' || !visibility.today) {
+      return { status, week: weekStrip(new Set()), events: [], nextMeeting: null };
     }
 
     // Ordering must use the real instant, not the rendered time string: the
@@ -432,38 +622,47 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         .map((event) => new Date(event.at).toDateString()),
     );
     const events: TodayEvent[] = upcoming
-      .slice(0, MODULE_ROW_LIMITS.today)
+      .slice(0, limits.today)
       .map(({ at: _at, ...event }) => event);
 
-    const partial = meetings.isError || comingUp.isError;
+    // Mobile shows the next *meeting*, not the next tracked policy event, so
+    // pick the first joinable/preparable item rather than events[0].
+    const nextMeeting =
+      upcoming
+        .filter((event) => event.action !== 'open')
+        .map(({ at: _at, ...event }) => event)[0] ?? null;
+
     if (events.length === 0) {
       return {
-        state: (partial ? 'partial' : 'empty') as DashboardModuleState,
+        status: {
+          ...status,
+          state: 'empty' as DashboardModuleState,
+          title: 'Nothing scheduled in this window',
+          body: 'No meetings, hearings or deadlines fall inside the current week.',
+        },
         week: weekStrip(new Set()),
         events,
+        nextMeeting: null,
       };
     }
 
-    return {
-      state: (partial ? 'partial' : 'ready') as DashboardModuleState,
-      week: weekStrip(eventDays),
-      events,
-    };
-  }, [comingUp.data, comingUp.isError, comingUp.isLoading, meetings.data, meetings.isError, meetings.isLoading, visibility.today]);
+    return { status, week: weekStrip(eventDays), events, nextMeeting };
+  }, [
+    comingUp.data,
+    comingUp.dataUpdatedAt,
+    comingUp.isError,
+    comingUp.isLoading,
+    meetings.data,
+    meetings.dataUpdatedAt,
+    meetings.isError,
+    meetings.isLoading,
+    visibility.today,
+    limits.today,
+  ]);
 
   /* ── Work Queue (outreach + governed work documents only) ─────────────── */
 
   const workQueue = useMemo(() => {
-    if (!visibility.work) {
-      return { state: 'empty' as DashboardModuleState, items: [], total: 0 };
-    }
-    if (outreach.isLoading && workspaceDrafts.isLoading) {
-      return { state: 'loading' as DashboardModuleState, items: [], total: 0 };
-    }
-    if (outreach.isError && workspaceDrafts.isError) {
-      return { state: 'unavailable' as DashboardModuleState, items: [], total: 0 };
-    }
-
     const items: WorkQueueEntry[] = [];
 
     for (const draft of outreach.data ?? []) {
@@ -489,21 +688,47 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       });
     }
 
-    const partial = outreach.isError || workspaceDrafts.isError;
-    if (items.length === 0) {
-      return {
-        state: (partial ? 'partial' : 'empty') as DashboardModuleState,
-        items,
-        total: 0,
-      };
+    const status = buildStatus({
+      sources: [
+        {
+          name: 'Outreach',
+          isLoading: outreach.isLoading,
+          isError: outreach.isError,
+          updatedAt: outreach.dataUpdatedAt,
+        },
+        {
+          name: 'Work documents',
+          isLoading: workspaceDrafts.isLoading,
+          isError: workspaceDrafts.isError,
+          updatedAt: workspaceDrafts.dataUpdatedAt,
+        },
+      ],
+      hidden: !visibility.work,
+      emptyKind: 'empty',
+      emptyTitle: visibility.work ? 'No open drafts' : 'Work Queue is hidden',
+      emptyBody: visibility.work
+        ? 'Outreach drafts and work documents appear here once one is in progress.'
+        : 'Turn the module back on from Customize Dashboard.',
+      itemCount: items.length,
+    });
+
+    if (status.state !== 'ready') {
+      return { status, items: [], total: items.length };
     }
 
-    return {
-      state: (partial ? 'partial' : 'ready') as DashboardModuleState,
-      items: items.slice(0, MODULE_ROW_LIMITS.work),
-      total: items.length,
-    };
-  }, [outreach.data, outreach.isError, outreach.isLoading, workspaceDrafts.data, workspaceDrafts.isError, workspaceDrafts.isLoading, visibility.work]);
+    return { status, items: items.slice(0, limits.work), total: items.length };
+  }, [
+    outreach.data,
+    outreach.dataUpdatedAt,
+    outreach.isError,
+    outreach.isLoading,
+    workspaceDrafts.data,
+    workspaceDrafts.dataUpdatedAt,
+    workspaceDrafts.isError,
+    workspaceDrafts.isLoading,
+    visibility.work,
+    limits.work,
+  ]);
 
   /* ── Header ───────────────────────────────────────────────────────────── */
 
@@ -536,8 +761,12 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     workQueue,
     visibility,
     setVisibility,
+    order,
+    setOrder,
     density,
     setDensity,
+    isMobile,
+    retry,
   };
 }
 
@@ -805,6 +1034,180 @@ function dayLabel(iso: string): string | null {
   return date.toLocaleDateString(undefined, { weekday: 'short' });
 }
 
+/**
+ * Module order (`754:2786` "Drag to reorder"). Persisted alongside visibility
+ * and density under the same per-user key contract. Unknown or missing keys
+ * fall back to the designed 01/02/03 order rather than dropping a module.
+ */
+function useDashboardOrder(
+  preferenceKey: string | null,
+): [readonly DashboardModuleKey[], (next: readonly DashboardModuleKey[]) => void] {
+  const [order, setOrderState] = useState<readonly DashboardModuleKey[]>(DEFAULT_ORDER);
+
+  useEffect(() => {
+    if (!preferenceKey || typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(preferenceKey);
+      setOrderState(raw ? normalizeOrder(JSON.parse(raw)) : DEFAULT_ORDER);
+    } catch {
+      setOrderState(DEFAULT_ORDER);
+    }
+  }, [preferenceKey]);
+
+  return [
+    order,
+    (next: readonly DashboardModuleKey[]) => {
+      const normalized = normalizeOrder(next);
+      setOrderState(normalized);
+      if (!preferenceKey || typeof window === 'undefined') return;
+      try {
+        window.localStorage.setItem(preferenceKey, JSON.stringify(normalized));
+      } catch {
+        // A blocked storage write must not break the dashboard.
+      }
+    },
+  ];
+}
+
+/** Keeps every module present exactly once, whatever the stored value says. */
+function normalizeOrder(value: unknown): readonly DashboardModuleKey[] {
+  const requested = Array.isArray(value) ? value : [];
+  const seen = new Set<DashboardModuleKey>();
+  const result: DashboardModuleKey[] = [];
+  for (const entry of requested) {
+    if (DEFAULT_ORDER.includes(entry as DashboardModuleKey) && !seen.has(entry as DashboardModuleKey)) {
+      seen.add(entry as DashboardModuleKey);
+      result.push(entry as DashboardModuleKey);
+    }
+  }
+  for (const key of DEFAULT_ORDER) if (!seen.has(key)) result.push(key);
+  return result;
+}
+
+/**
+ * Mobile is a distinct composition (`757:2622`), so the model — not just CSS —
+ * has to know which one is rendering.
+ */
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const query = window.matchMedia('(max-width: 639px)');
+    const sync = () => setIsMobile(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  return isMobile;
+}
+
+/**
+ * Builds a module's system state from its real sources (`754:2885`).
+ *
+ * The six states are not cosmetic: a failed source must never read as empty and
+ * a missing value must never render as zero, so `unavailable` and `stale` are
+ * reported from query errors rather than from an item count.
+ */
+function buildStatus({
+  sources,
+  hidden,
+  emptyKind,
+  emptyTitle,
+  emptyBody,
+  emptyMeta = null,
+  emptyAction = null,
+  itemCount,
+}: {
+  sources: readonly { name: string; isLoading: boolean; isError: boolean; updatedAt: number }[];
+  hidden: boolean;
+  emptyKind: 'empty' | 'all-clear';
+  emptyTitle: string;
+  emptyBody: string;
+  emptyMeta?: string | null;
+  emptyAction?: ModuleStatus['action'];
+  itemCount: number;
+}): ModuleStatus {
+  if (hidden) {
+    return { state: 'empty', meta: null, title: emptyTitle, body: emptyBody, action: null };
+  }
+
+  const loading = sources.filter((source) => source.isLoading);
+  const failed = sources.filter((source) => source.isError);
+  const ready = sources.filter((source) => !source.isLoading && !source.isError);
+
+  if (loading.length === sources.length) {
+    return {
+      state: 'loading',
+      meta: `${sources.length} source${sources.length === 1 ? '' : 's'} connecting`,
+      title: 'Refreshing dashboard sources',
+      body: 'First load waits for required source contracts before showing content.',
+      action: null,
+    };
+  }
+
+  if (failed.length === sources.length) {
+    return {
+      state: 'unavailable',
+      meta: failed.map((source) => source.name).join(' · '),
+      title: `${failed.length === 1 ? failed[0]!.name : 'Every source'} is temporarily unavailable`,
+      body: 'Keep the module visible, identify the failing source, and never convert missing data to zero.',
+      action: { label: 'Retry source', tone: 'warning' },
+    };
+  }
+
+  // Some sources answered and some did not: show what is known and name what is
+  // still outstanding rather than silently rendering a short list.
+  if (loading.length > 0) {
+    return {
+      state: 'partial',
+      meta: `${ready.length} of ${sources.length} ready`,
+      title: `${ready.map((source) => source.name).join(', ')} loaded; ${loading
+        .map((source) => source.name.toLowerCase())
+        .join(', ')} still refreshing`,
+      body: 'Render available modules and name the source that is still pending.',
+      action: null,
+    };
+  }
+
+  if (failed.length > 0) {
+    const lastSuccess = Math.max(0, ...ready.map((source) => source.updatedAt));
+    return {
+      state: 'stale',
+      meta: lastSuccess ? `Last success ${relativeAge(lastSuccess)}` : failed[0]!.name,
+      title: lastSuccess ? `Showing results from ${clockTime(lastSuccess)}` : 'Showing the last good result',
+      body: 'Preserve the last good result, display its age, and offer a controlled retry.',
+      action: { label: 'Retry source', tone: 'warning' },
+    };
+  }
+
+  if (itemCount === 0) {
+    return {
+      state: emptyKind,
+      meta: emptyMeta,
+      title: emptyTitle,
+      body: emptyBody,
+      action: emptyAction,
+    };
+  }
+
+  return { state: 'ready', meta: null, title: '', body: '', action: null };
+}
+
+function clockTime(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function relativeAge(epochMs: number): string {
+  const minutes = Math.max(0, Math.round((Date.now() - epochMs) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 /** Reuses the existing per-user localStorage preference contract. */
 function useDashboardVisibility(
   preferenceKey: string | null,
@@ -844,6 +1247,8 @@ function useDashboardVisibility(
   ];
 }
 
+const DENSITIES: readonly DashboardDensity[] = ['presentation', 'standard', 'compact'];
+
 function useDashboardDensity(
   preferenceKey: string | null,
 ): [DashboardDensity, (next: DashboardDensity) => void] {
@@ -852,9 +1257,8 @@ function useDashboardDensity(
   useEffect(() => {
     if (!preferenceKey || typeof window === 'undefined') return;
     try {
-      setDensityState(
-        window.localStorage.getItem(preferenceKey) === 'compact' ? 'compact' : 'standard',
-      );
+      const raw = window.localStorage.getItem(preferenceKey) as DashboardDensity | null;
+      setDensityState(raw && DENSITIES.includes(raw) ? raw : 'standard');
     } catch {
       setDensityState('standard');
     }

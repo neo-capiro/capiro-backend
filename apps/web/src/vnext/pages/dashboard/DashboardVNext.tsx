@@ -1,20 +1,22 @@
-import { useRef } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useDashboardVNextModel,
   type AttentionItem,
-  type DashboardModuleState,
+  type DashboardModuleKey,
   type DashboardVNextModel,
+  type ModuleStatus,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
-import { useShellOverlay } from '../../shell/overlay-manager.js';
+import { CustomizeDrawer } from './CustomizeDrawer.js';
 import './dashboard.css';
 
 /**
- * Dashboard vNext (Figma `751:2502` expanded, `753:2532` collapsed,
- * `754:2562` customize, `754:2885` system states).
+ * Dashboard vNext (Figma `751:2502` desktop, `757:2618` tablet, `757:2622`
+ * mobile, `754:2766` customize drawer, `754:2885` system states).
  *
- * Always all-client: the controller reads no client context, and the shell
- * disables the client control on this route.
+ * Ship gate `760:2736`: all-client scope, Needs Attention free of internal
+ * work, Work Queue limited to outreach and work documents, explained news,
+ * explicit states, and parity across expanded/collapsed/customize/tablet/mobile.
  */
 export function DashboardVNext() {
   const model = useDashboardVNextModel();
@@ -23,21 +25,50 @@ export function DashboardVNext() {
 
 /** Presentation half, kept data-free so the visual harness can render it. */
 export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
+  const modules: Record<DashboardModuleKey, ReactNode> = {
+    news: model.visibility.news ? <NewsAndNarrative key="news" model={model} /> : null,
+    today: model.visibility.today ? <TodayAndComingUp key="today" model={model} /> : null,
+    work: model.visibility.work ? <WorkQueue key="work" model={model} /> : null,
+  };
+
+  // Mobile is a different content model, not a narrower desktop (`757:2622`):
+  // a single Next Meeting card stands in for Today & Coming Up, and the Work
+  // Queue collapses to its lead item.
+  if (model.isMobile) {
+    return (
+      <div className="capiro-dash" data-density={model.density} data-viewport="mobile">
+        <DashboardHeader model={model} />
+        <div className="capiro-dash__content">
+          <NeedsAttention model={model} />
+          {model.order.map((key) =>
+            key === 'today'
+              ? model.visibility.today && <NextMeetingCard key="today" model={model} />
+              : key === 'work'
+                ? model.visibility.work && <MobileWorkQueue key="work" model={model} />
+                : modules[key],
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop/tablet keep the designed two-column body: News leads the wide
+  // column and the remaining modules stack on the right, in user order.
+  const ordered = model.order.filter((key) => modules[key] !== null);
+  const lead = ordered.find((key) => key === 'news') ?? ordered[0];
+  const rest = ordered.filter((key) => key !== lead);
+
   return (
     <div className="capiro-dash" data-density={model.density}>
       <DashboardHeader model={model} />
 
       <div className="capiro-dash__content">
         {/* Needs Attention is permanently pinned first and is not hideable. */}
-        <NeedsAttention module={model.needsAttention} />
+        <NeedsAttention model={model} />
 
         <div className="capiro-dash__columns">
-          {model.visibility.news ? <NewsAndNarrative model={model} /> : null}
-
-          <div className="capiro-dash__stack">
-            {model.visibility.today ? <TodayAndComingUp module={model.today} /> : null}
-            {model.visibility.work ? <WorkQueue module={model.workQueue} /> : null}
-          </div>
+          {lead ? modules[lead] : null}
+          <div className="capiro-dash__stack">{rest.map((key) => modules[key])}</div>
         </div>
       </div>
     </div>
@@ -45,7 +76,7 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
 }
 
 function DashboardHeader({ model }: { model: DashboardVNextModel }) {
-  const { isOpen, containerRef, toggle, close } = useShellOverlay('dashboard-customize');
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   return (
@@ -54,89 +85,40 @@ function DashboardHeader({ model }: { model: DashboardVNextModel }) {
       <h1 className="capiro-dash__greeting">{model.header.greeting}</h1>
       <p className="capiro-dash__meta">{model.header.meta}</p>
 
-      <div className="capiro-dash__header-actions" ref={containerRef}>
+      <div className="capiro-dash__header-actions">
         <button
           ref={triggerRef}
           type="button"
           className="capiro-dash__customize capiro-elevation-control"
-          aria-expanded={isOpen}
-          aria-haspopup="menu"
-          onClick={() => toggle(triggerRef.current)}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
         >
           Customize
         </button>
         {model.header.refreshedLabel ? (
           <span className="capiro-dash__refreshed">{model.header.refreshedLabel}</span>
         ) : null}
-
-        {isOpen ? (
-          <div
-            className="capiro-dash__customize-panel capiro-elevation-popover"
-            role="menu"
-            aria-label="Customize dashboard"
-          >
-            <p className="capiro-dash__customize-eyebrow">MODULES</p>
-            <p className="capiro-dash__customize-note">
-              Needs Attention is always shown.
-            </p>
-
-            {(
-              [
-                ['news', 'News & Narrative'],
-                ['today', 'Today & Coming Up'],
-                ['work', 'Work Queue'],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="capiro-dash__customize-row">
-                <input
-                  type="checkbox"
-                  checked={model.visibility[key]}
-                  onChange={(event) =>
-                    model.setVisibility({ ...model.visibility, [key]: event.target.checked })
-                  }
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-
-            <p className="capiro-dash__customize-eyebrow">PRESENTATION</p>
-            <div className="capiro-dash__density">
-              {(['standard', 'compact'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className="capiro-dash__density-option"
-                  aria-pressed={model.density === value}
-                  onClick={() => model.setDensity(value)}
-                >
-                  {value === 'standard' ? 'Standard' : 'Compact'}
-                </button>
-              ))}
-            </div>
-
-            <button type="button" className="capiro-dash__customize-done" onClick={close}>
-              Done
-            </button>
-          </div>
-        ) : null}
       </div>
+
+      {open ? <CustomizeDrawer model={model} onClose={() => setOpen(false)} /> : null}
     </header>
   );
 }
 
 /* ── Needs Attention ─────────────────────────────────────────────────────── */
 
-function NeedsAttention({ module }: { module: DashboardVNextModel['needsAttention'] }) {
+function NeedsAttention({ model }: { model: DashboardVNextModel }) {
+  const module = model.needsAttention;
+
   return (
     <section className="capiro-dash-card capiro-dash-card--attention" aria-label="Needs attention">
       <div className="capiro-dash-card__head">
         <h2 className="capiro-dash-card__title">Needs Attention</h2>
         <span className="capiro-dash-card__count">
-          {module.state === 'loading'
-            ? 'Loading…'
-            : module.total > 0
-              ? `${module.total} TIME-SENSITIVE ITEM${module.total === 1 ? '' : 'S'}`
-              : ''}
+          {module.total > 0
+            ? `${module.total} TIME-SENSITIVE ITEM${module.total === 1 ? '' : 'S'}`
+            : ''}
         </span>
         {module.total > 0 ? (
           <Link className="capiro-dash-card__link" to="/explorer">
@@ -145,13 +127,7 @@ function NeedsAttention({ module }: { module: DashboardVNextModel['needsAttentio
         ) : null}
       </div>
 
-      <ModuleState state={module.state} module="Needs Attention" />
-
-      {module.state === 'partial' ? (
-        <p className="capiro-dash__partial">
-          Some intelligence sources did not respond. This list may be incomplete.
-        </p>
-      ) : null}
+      <ModuleStateView status={module.status} onRetry={model.retry} />
 
       {module.items.map((item, index) => (
         <AttentionRow key={item.id} item={item} current={index === 0} />
@@ -180,6 +156,10 @@ function AttentionRow({ item, current }: { item: AttentionItem; current: boolean
       <span className="capiro-dash-attention__copy">
         <span className="capiro-dash-attention__eyebrow">{item.eyebrow}</span>
         <span className="capiro-dash-attention__title">{item.title}</span>
+        {/* Mobile collapses context and due into one meta line (`759:2662`). */}
+        <span className="capiro-dash-attention__mobile-meta">
+          {[item.context, item.due].filter(Boolean).join(' · ')}
+        </span>
       </span>
       <span className="capiro-dash-attention__context">{item.context}</span>
       <span className="capiro-dash-attention__due">{item.due}</span>
@@ -224,18 +204,7 @@ function NewsAndNarrative({ model }: { model: DashboardVNextModel }) {
         </Link>
       </div>
 
-      {module.state === 'stale' ? (
-        <p className="capiro-dash__partial">Showing cached results while the feed refreshes.</p>
-      ) : null}
-
-      {module.state === 'unavailable' ? (
-        <div className="capiro-dash__state">
-          <p className="capiro-dash__state-title">News is unavailable</p>
-          <p className="capiro-dash__state-body">{module.unavailableReason}</p>
-        </div>
-      ) : (
-        <ModuleState state={module.state} module="News" />
-      )}
+      <ModuleStateView status={module.status} onRetry={model.retry} />
 
       {module.items.map((item) => (
         <a
@@ -252,6 +221,10 @@ function NewsAndNarrative({ model }: { model: DashboardVNextModel }) {
             <span className="capiro-dash-news__source">{item.source}</span>
             <span className="capiro-dash-news__title">{item.title}</span>
             <span className="capiro-dash-news__reason">{item.reason}</span>
+            {/* Tablet and mobile fold relevance and clients into one line. */}
+            <span className="capiro-dash-news__narrow-meta">
+              {[item.reason, item.clients].filter(Boolean).join(' · ')}
+            </span>
           </span>
           <span className="capiro-dash-news__client">{item.clients}</span>
         </a>
@@ -262,7 +235,9 @@ function NewsAndNarrative({ model }: { model: DashboardVNextModel }) {
 
 /* ── Today & Coming Up ───────────────────────────────────────────────────── */
 
-function TodayAndComingUp({ module }: { module: DashboardVNextModel['today'] }) {
+function TodayAndComingUp({ model }: { model: DashboardVNextModel }) {
+  const module = model.today;
+
   return (
     <section className="capiro-dash-card" aria-label="Today and coming up">
       <div className="capiro-dash-card__head">
@@ -272,6 +247,8 @@ function TodayAndComingUp({ module }: { module: DashboardVNextModel['today'] }) 
         </Link>
       </div>
 
+      {/* The week strip is desktop-only: the tablet artifact (`758:2831`) drops
+          it and goes straight to the event list. */}
       {module.week.length > 0 ? (
         <div className="capiro-dash-week">
           {module.week.map((day) => (
@@ -288,7 +265,7 @@ function TodayAndComingUp({ module }: { module: DashboardVNextModel['today'] }) 
         </div>
       ) : null}
 
-      <ModuleState state={module.state} module="Today" />
+      <ModuleStateView status={module.status} onRetry={model.retry} />
 
       {module.events.map((event) => (
         <EventRow key={event.id} event={event} />
@@ -297,16 +274,14 @@ function TodayAndComingUp({ module }: { module: DashboardVNextModel['today'] }) 
   );
 }
 
-function EventRow({ event }: { event: DashboardVNextModel['today']['events'][number] }) {
-  const label =
-    event.action === 'join'
-      ? 'Join'
-      : event.action === 'prepare'
-        ? 'Prepare'
-        : event.action === 'brief'
-          ? 'Brief'
-          : 'Open';
+function eventActionLabel(action: DashboardVNextModel['today']['events'][number]['action']) {
+  if (action === 'join') return 'Join';
+  if (action === 'prepare') return 'Prepare';
+  if (action === 'brief') return 'Brief';
+  return 'Open';
+}
 
+function EventRow({ event }: { event: DashboardVNextModel['today']['events'][number] }) {
   const body = (
     <>
       <span className="capiro-dash-event__time">{event.time}</span>
@@ -314,7 +289,7 @@ function EventRow({ event }: { event: DashboardVNextModel['today']['events'][num
         <span className="capiro-dash-event__title">{event.title}</span>
         <span className="capiro-dash-event__meta">{event.meta}</span>
       </span>
-      <span className="capiro-dash-event__action">{label}</span>
+      <span className="capiro-dash-event__action">{eventActionLabel(event.action)}</span>
     </>
   );
 
@@ -335,9 +310,65 @@ function EventRow({ event }: { event: DashboardVNextModel['today']['events'][num
   );
 }
 
+/**
+ * Mobile Next Meeting (`759:2683`) — the single-card content model that replaces
+ * Today & Coming Up below 640px. When nothing is scheduled the module still
+ * renders its state rather than disappearing.
+ */
+function NextMeetingCard({ model }: { model: DashboardVNextModel }) {
+  const event = model.today.nextMeeting;
+
+  if (!event) {
+    return (
+      <section className="capiro-dash-card" aria-label="Next meeting">
+        <ModuleStateView status={model.today.status} onRetry={model.retry} />
+      </section>
+    );
+  }
+
+  const action = (
+    <span className="capiro-dash-next__action">{eventActionLabel(event.action)}</span>
+  );
+
+  const body = (
+    <>
+      <span className="capiro-dash-next__eyebrow">NEXT MEETING · {event.time}</span>
+      <span className="capiro-dash-next__title">{event.title}</span>
+      <span className="capiro-dash-next__meta">{event.meta}</span>
+      {action}
+    </>
+  );
+
+  if (event.action === 'join' && event.joinUrl) {
+    return (
+      <a
+        className="capiro-dash-next"
+        aria-label="Next meeting"
+        href={event.joinUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        {body}
+      </a>
+    );
+  }
+
+  return event.href ? (
+    <Link className="capiro-dash-next" aria-label="Next meeting" to={event.href}>
+      {body}
+    </Link>
+  ) : (
+    <div className="capiro-dash-next" aria-label="Next meeting">
+      {body}
+    </div>
+  );
+}
+
 /* ── Work Queue ──────────────────────────────────────────────────────────── */
 
-function WorkQueue({ module }: { module: DashboardVNextModel['workQueue'] }) {
+function WorkQueue({ model }: { model: DashboardVNextModel }) {
+  const module = model.workQueue;
+
   return (
     <section className="capiro-dash-card" aria-label="Work queue">
       <div className="capiro-dash-card__head">
@@ -348,7 +379,7 @@ function WorkQueue({ module }: { module: DashboardVNextModel['workQueue'] }) {
         </Link>
       </div>
 
-      <ModuleState state={module.state} module="Work Queue" />
+      <ModuleStateView status={module.status} onRetry={model.retry} />
 
       {module.items.map((item) => (
         <Link key={item.id} className="capiro-dash-work" to={item.href}>
@@ -361,46 +392,85 @@ function WorkQueue({ module }: { module: DashboardVNextModel['workQueue'] }) {
   );
 }
 
+/** Mobile collapses the queue to its lead item with no card header (`759:2689`). */
+function MobileWorkQueue({ model }: { model: DashboardVNextModel }) {
+  const item = model.workQueue.items[0];
+
+  if (!item) {
+    return (
+      <section className="capiro-dash-card" aria-label="Work queue">
+        <ModuleStateView status={model.workQueue.status} onRetry={model.retry} />
+      </section>
+    );
+  }
+
+  return (
+    <Link className="capiro-dash-next capiro-dash-next--work" aria-label="Work queue" to={item.href}>
+      <span className="capiro-dash-next__eyebrow">{item.kind}</span>
+      <span className="capiro-dash-next__title">{item.title}</span>
+      <span className="capiro-dash-next__status">{item.status}</span>
+    </Link>
+  );
+}
+
 /* ── Shared system states (Figma 754:2885) ──────────────────────────────── */
 
-function ModuleState({ state, module }: { state: DashboardModuleState; module: string }) {
-  if (state === 'loading') {
-    return (
-      <div className="capiro-dash__skeletons" aria-busy="true" aria-label={`${module} loading`}>
-        <span className="capiro-dash__skeleton" />
-        <span className="capiro-dash__skeleton" />
-        <span className="capiro-dash__skeleton" />
-      </div>
-    );
-  }
+/**
+ * The six named states. Each one carries the source fact that justifies it —
+ * a failed source is never rendered as empty and a missing value is never
+ * rendered as zero (`760:2692`).
+ */
+function ModuleStateView({ status, onRetry }: { status: ModuleStatus; onRetry: () => void }) {
+  if (status.state === 'ready') return null;
 
-  if (state === 'unavailable') {
-    return (
-      <div className="capiro-dash__state">
-        <p className="capiro-dash__state-title">{module} is unavailable</p>
-        <p className="capiro-dash__state-body">
-          The request failed, so no count is shown. Retry shortly.
-        </p>
-      </div>
-    );
-  }
+  const showsSkeleton = status.state === 'loading' || status.state === 'partial';
 
-  if (state === 'all-clear') {
-    return (
-      <div className="capiro-dash__state">
-        <p className="capiro-dash__state-title">All clear</p>
-        <p className="capiro-dash__state-body">Nothing needs attention right now.</p>
+  return (
+    <div className="capiro-dash-state" data-state={status.state}>
+      <div className="capiro-dash-state__head">
+        <span className="capiro-dash-state__badge" data-state={status.state}>
+          {STATE_LABELS[status.state]}
+        </span>
+        {status.meta ? <span className="capiro-dash-state__meta">{status.meta}</span> : null}
       </div>
-    );
-  }
 
-  if (state === 'empty') {
-    return (
-      <div className="capiro-dash__state">
-        <p className="capiro-dash__state-title">Nothing here yet</p>
-      </div>
-    );
-  }
+      {status.title ? <p className="capiro-dash-state__title">{status.title}</p> : null}
+      {status.body ? <p className="capiro-dash-state__body">{status.body}</p> : null}
 
-  return null;
+      {showsSkeleton ? (
+        <div className="capiro-dash-state__skeleton" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      ) : null}
+
+      {status.action ? (
+        status.action.tone === 'warning' ? (
+          <button
+            type="button"
+            className="capiro-dash-state__action"
+            data-tone="warning"
+            onClick={onRetry}
+          >
+            {status.action.label} →
+          </button>
+        ) : (
+          <Link className="capiro-dash-state__action" data-tone={status.action.tone} to="/explorer">
+            {status.action.label} →
+          </Link>
+        )
+      ) : null}
+    </div>
+  );
 }
+
+const STATE_LABELS: Readonly<Record<ModuleStatus['state'], string>> = {
+  loading: 'LOADING',
+  ready: '',
+  partial: 'PARTIAL',
+  stale: 'STALE',
+  unavailable: 'SOURCE UNAVAILABLE',
+  empty: 'EMPTY',
+  'all-clear': 'ALL CLEAR',
+};

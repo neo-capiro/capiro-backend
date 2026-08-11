@@ -7,6 +7,7 @@ import { MailboxSyncStatus } from '../MailboxSyncStatus/index.js';
 import { GlobalSearch } from '../GlobalSearch/index.js';
 import { CapiroSidebar, CapiroNavItem } from '../Sidebar/index.js';
 import { CapiroContextBar } from '../ContextBar/index.js';
+import { MobileBottomNav } from '../BottomNav/index.js';
 import { ShellOverlayProvider } from '../overlay-manager.js';
 import { useShellNavigation } from '../../adapters/legacy/useShellNavigation.js';
 import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
@@ -15,6 +16,9 @@ import { useShellNotifications } from '../../adapters/legacy/useShellNotificatio
 import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 
 const COLLAPSE_STORAGE_KEY = 'capiro.vnext.shell.collapsed';
+
+/** Destinations the mobile bottom bar already exposes as tabs (759:2693). */
+const BOTTOM_NAV_IDS = new Set(['dashboard', 'portfolio', 'intelligence', 'workspace']);
 
 function readCollapsed(): boolean {
   try {
@@ -39,6 +43,7 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { signOut } = useClerk();
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((current) => {
@@ -111,6 +116,44 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
         {clientContext.enabled ? <CapiroContextBar /> : null}
 
         <main className="capiro-vnext-content">{children}</main>
+
+        {/* Mobile navigation is a bottom bar (759:2693), not a hidden sidebar.
+            CSS owns which one is visible so there is no JS breakpoint here. */}
+        <MobileBottomNav routes={navigation.primary} onOpenMore={() => setMoreOpen(true)} />
+
+        {moreOpen ? (
+          <div
+            className="capiro-vnext-moresheet__scrim"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setMoreOpen(false);
+            }}
+          >
+            <div className="capiro-vnext-moresheet" role="dialog" aria-modal="true" aria-label="More">
+              <p className="capiro-vnext-moresheet__label">MORE</p>
+              {navigation.primary
+                .filter((route) => !BOTTOM_NAV_IDS.has(route.id))
+                .map((route) =>
+                  route.path ? (
+                    <CapiroNavItem
+                      key={route.id}
+                      item={{ id: route.id, label: route.label, path: route.path }}
+                    />
+                  ) : null,
+                )}
+              {navigation.settings?.path ? (
+                <CapiroNavItem
+                  item={{
+                    id: 'settings',
+                    label: navigation.settings.label,
+                    path: navigation.settings.path,
+                  }}
+                />
+              ) : null}
+              <MailboxSyncStatus />
+            </div>
+          </div>
+        ) : null}
     </div>
   );
 }

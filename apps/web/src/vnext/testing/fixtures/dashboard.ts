@@ -1,4 +1,10 @@
-import type { DashboardVNextModel } from '../../adapters/legacy/useDashboardVNextModel.js';
+import type {
+  DashboardVNextModel,
+  ModuleStatus,
+} from '../../adapters/legacy/useDashboardVNextModel.js';
+
+/** Every fixture module is in its resting state; states are exercised separately. */
+const READY: ModuleStatus = { state: 'ready', meta: null, title: '', body: '', action: null };
 
 /**
  * Visual-harness fixture for the Dashboard. Illustrative content only — it
@@ -13,7 +19,7 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
     refreshedLabel: 'Refreshed 3m ago',
   },
   needsAttention: {
-    state: 'ready',
+    status: READY,
     total: 4,
     items: [
       {
@@ -63,7 +69,7 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
     ],
   },
   news: {
-    state: 'ready',
+    status: READY,
     meta: '5 clients monitored',
     unavailableReason: null,
     preferences: {
@@ -118,7 +124,7 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
     ],
   },
   today: {
-    state: 'ready',
+    status: READY,
     week: [
       { id: '1', weekday: 'MON', day: '10', today: true, hasEvents: true },
       { id: '2', weekday: 'TUE', day: '11', today: false, hasEvents: false },
@@ -155,9 +161,18 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         action: 'open',
       },
     ],
+    nextMeeting: {
+      id: 'e1',
+      time: '9:30 AM',
+      title: 'Client strategy review',
+      meta: 'Overland AI · 45 min',
+      href: '/engagement',
+      action: 'join',
+      joinUrl: 'https://example.com/join',
+    },
   },
   workQueue: {
-    state: 'ready',
+    status: READY,
     total: 3,
     items: [
       {
@@ -185,6 +200,10 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
   },
   visibility: { today: true, work: true, news: true },
   setVisibility: () => undefined,
+  order: ['news', 'today', 'work'],
+  setOrder: () => undefined,
   density: 'standard',
   setDensity: () => undefined,
+  isMobile: false,
+  retry: () => undefined,
 };

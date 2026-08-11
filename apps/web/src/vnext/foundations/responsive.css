@@ -4,9 +4,11 @@
   --capiro-breakpoint-desktop: 1280px;
 }
 
-@media (max-width: 1023px) {
+/* The tablet artifact is a 1024-wide stage (757:2618), so its rules apply at
+   1024 rather than one pixel below it. */
+@media (max-width: 1024px) {
   .capiro-vnext-root {
-    --capiro-layout-shell-sidebar-expanded: 208px;
+    --capiro-layout-shell-sidebar-expanded: var(--capiro-layout-shell-sidebar-collapsed);
   }
 }
 

@@ -184,16 +184,34 @@
 .capiro-vnext-root .capiro-vnext-shell[data-collapsed] .capiro-vnext-nav-item { justify-content: center; padding: 0; }
 .capiro-vnext-root .capiro-vnext-shell[data-collapsed] .capiro-mailbox-status { min-height: 42px; grid-template-columns: 1fr; justify-items: center; padding: 4px; }
 
-/* ── Responsive (787:2757 tablet / 787:2955 mobile) ─────────────────────── */
+/* ── Bottom navigation (759:2693) — mobile only ──────────────────────────── */
 
-@media (max-width: 1023px) {
+.capiro-vnext-root .capiro-vnext-bottomnav { display: none; }
+.capiro-vnext-root .capiro-vnext-moresheet__scrim { display: none; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────
+   Breakpoints are the artifact stage widths: the tablet stage is 1024×860
+   (757:2618) and the mobile stage is 390×844 (757:2622), so the tablet rules
+   must apply *at* 1024, not below it. */
+
+@media (max-width: 1024px) {
+  /* Tablet is an icon rail (758:2622) — its own subtle surface and 56×44
+     items with a 9px radius — not the desktop sidebar with labels hidden. */
   .capiro-vnext-root .capiro-vnext-shell { grid-template-columns: var(--capiro-layout-shell-sidebar-collapsed) minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-vnext-sidebar { gap: 5px; padding: 14px 8px 10px; background: var(--capiro-color-bg-subtle); }
+  .capiro-vnext-root .capiro-vnext-sidebar__nav { gap: 5px; }
   .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item__label,
   .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item__chevron,
   .capiro-vnext-root .capiro-vnext-sidebar__label,
   .capiro-vnext-root .capiro-vnext-collapse__label,
-  .capiro-vnext-root .capiro-mailbox-status__copy { display: none; }
-  .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item { justify-content: center; padding: 0; }
+  .capiro-vnext-root .capiro-mailbox-status__copy,
+  .capiro-vnext-root .capiro-mailbox-status__indicator { display: none; }
+  .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item { justify-content: center; width: 56px; height: 44px; padding: 0; border-radius: 9px; }
+  .capiro-vnext-root .capiro-vnext-sidebar .capiro-vnext-nav-item--current { background: var(--capiro-color-bg-selected); border: 1px solid var(--capiro-color-border-information); color: var(--capiro-color-text-accent); }
+  /* The tablet top bar drops the wordmark copy and the profile name/role
+     (758:2611), keeping the mark, search and the three actions. */
+  .capiro-vnext-root .capiro-vnext-brand-copy,
+  .capiro-vnext-root .capiro-vnext-profile__copy { display: none; }
   .capiro-vnext-root .capiro-vnext-collapse { justify-content: center; padding: 0; }
   .capiro-vnext-root .capiro-mailbox-status { min-height: 42px; grid-template-columns: 1fr; justify-items: center; padding: 4px; }
   .capiro-vnext-root .capiro-mailbox-status__indicator { display: none; }
@@ -210,4 +228,28 @@
   .capiro-vnext-root .capiro-global-search__trigger { width: 36px; justify-content: center; padding: 0; }
   .capiro-vnext-root .capiro-vnext-contextbar { overflow-x: auto; }
   .capiro-vnext-root .capiro-vnext-contextbar__scope { display: none; }
+
+  /* Bottom bar: 64px tall, five equal tabs, fixed above the content. */
+  .capiro-vnext-root .capiro-vnext-content { padding-bottom: 64px; }
+  .capiro-vnext-root .capiro-vnext-bottomnav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--capiro-z-sticky);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: 64px;
+    background: var(--capiro-color-bg-surface);
+    border-top: 1px solid var(--capiro-color-border-default);
+  }
+  .capiro-vnext-root .capiro-vnext-bottomnav__tab { display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; height: 63px; margin-top: 1px; border: 0; background: none; color: var(--capiro-color-text-secondary); cursor: pointer; }
+  .capiro-vnext-root .capiro-vnext-bottomnav__tab--current { background: var(--capiro-color-bg-selected); color: var(--capiro-color-text-accent); }
+  .capiro-vnext-root .capiro-vnext-bottomnav__glyph { display: inline-flex; align-items: center; justify-content: center; height: 18px; }
+  .capiro-vnext-root .capiro-vnext-bottomnav__label { font-family: var(--capiro-type-family-mono); font-size: 7.5px; font-weight: 500; line-height: 10px; letter-spacing: 0.225px; color: var(--capiro-color-text-muted); }
+  .capiro-vnext-root .capiro-vnext-bottomnav__tab--current .capiro-vnext-bottomnav__label { color: inherit; }
+
+  .capiro-vnext-root .capiro-vnext-moresheet__scrim { position: fixed; inset: 0; z-index: var(--capiro-z-modal); display: flex; align-items: flex-end; background: var(--capiro-primitive-overlay-ink-16); }
+  .capiro-vnext-root .capiro-vnext-moresheet { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 16px 12px calc(64px + 16px); background: var(--capiro-color-bg-surface); border-top-left-radius: 14px; border-top-right-radius: 14px; }
+  .capiro-vnext-root .capiro-vnext-moresheet__label { margin: 0 0 4px 6px; font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .06em; color: var(--capiro-color-text-muted); }
 }
