@@ -2680,3 +2680,38 @@ gap between full reconciliation runs than assumed, given a single `--full` walk 
 finishing ONE of DIBBS's three endpoints. Completing the remaining ~67,839 RFQ records, all of RFP,
 all of Award, and all of SBIR is unfinished — to be resumed once the block is confirmed clear, not
 before.
+
+---
+
+## D-77 · 2026-08-11 · The block cleared, then recurred at ~20 hours — this reads as a daily quota, not a fluke
+
+A one-record probe (`--endpoint=rfq --limit=1`) confirmed the D-76 block had cleared:
+`rateLimited: false`, clean success. The full walk was resumed on the same digest-pinned image
+(revision 10). It made real further progress — 24 more pages, 2,400 more RFQ rows (7,520 → 9,920,
+independently re-verified) — then hit rate-limiting again, this time reporting `retryAfterSec` around
+**70,000+ seconds (≈19.5–19.7 hours)**, roughly five times larger than D-76's ~13,000s (≈3.6h)
+observation. Same shape as before: capped at 120s per D-75's fix, decreasing in lockstep with the
+cap across ten further retries, RFP and Award immediately inheriting the still-active block on their
+first request each. Final summary: RFQ 99 pages / 9,900 written this run / `rateLimited: true`; RFP
+and Award both 0 pages / `rateLimited: true`. Run terminated cleanly, exit 0, in a few minutes — the
+fix continues to do exactly its job.
+
+**Reading these two data points together:** a block that clears and then reappears at a MUCH larger
+remaining-time value, on an account making meaningfully more cumulative requests each time it's hit,
+is the signature of a **daily (or similarly long, calendar-anchored) quota**, not a short rolling
+window that merely varies in severity. This is now the working assumption for planning purposes,
+though nothing in this session confirms it against MakeGov's own documentation or support — that
+confirmation is explicitly not something this session can obtain.
+
+**What this means for finishing the catalog, stated plainly:** waiting out today's block (~20 hours,
+by this run's own report) and resuming tomorrow is the only path available inside this session's own
+tools. No further code change or retry-tuning addresses an external quota. SBIR was deliberately not
+attempted a second time this session for the same reason as D-76 — it shares the account and would
+almost certainly report the same remaining-time value immediately.
+
+**What this forbids:** treating a single cleared-then-reoccurred cycle as proof the block is now
+"handled" or unlikely to recur again during the NEXT resumption attempt. Two data points establish a
+pattern worth planning around; they do not establish the quota's exact size, reset time, or whether
+it scales with request volume within a day. A future full-walk attempt should expect to hit this
+same wall again, budget for it, and stop cleanly rather than assume today's specific ~13,000s and
+~70,000s figures bound all future occurrences.
