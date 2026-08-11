@@ -143,9 +143,12 @@
 /* NavLink stamps aria-current; the Strategy screens' active rail hangs off it. */
 .capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'],
 .capiro-vnext-root .capiro-vnext-nav-item.is-group-current { background: var(--capiro-color-bg-accent-soft); color: var(--capiro-color-text-accent); font-weight: 500; }
-.capiro-vnext-root .capiro-vnext-nav-item__icon { width: var(--capiro-layout-shell-icon-container); height: var(--capiro-layout-shell-icon-container); display: grid; place-items: center; flex-shrink: 0; }
+/* The nav glyphs are Unicode characters in the body font, not SVG icons — see
+   Sidebar/index.tsx. Size and weight are therefore type properties, and the
+   17px/16px/15px split is authored per slot in 1126:2638, not a scale. */
+.capiro-vnext-root .capiro-vnext-nav-item__icon { width: var(--capiro-layout-shell-icon-container); height: var(--capiro-layout-shell-icon-container); display: grid; place-items: center; flex-shrink: 0; font-family: var(--capiro-type-family-sans); font-size: 17px; font-weight: 500; line-height: 1; }
 .capiro-vnext-root .capiro-vnext-nav-item__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-nav-item__chevron { flex-shrink: 0; display: grid; place-items: center; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-vnext-nav-item__chevron { flex-shrink: 0; display: grid; place-items: center; width: 10px; height: 22px; color: var(--capiro-color-text-muted); font-family: var(--capiro-type-family-sans); font-size: 16px; font-weight: 500; line-height: 1; }
 .capiro-vnext-root .capiro-vnext-nav-item--current,
 .capiro-vnext-root .capiro-vnext-nav-item[aria-current='page'] { background: var(--capiro-color-shell-nav-current-bg); color: var(--capiro-color-text-accent); font-weight: 500; }
 

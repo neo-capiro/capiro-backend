@@ -39,7 +39,10 @@
   --capiro-color-text-accent: #294e68;
   --capiro-color-text-success: #2f7655;
   --capiro-color-text-inverse-primary: #ffffff;
-  --capiro-color-text-inverse-secondary: #d1dbe3;
+  /* Was #d1dbe3, which was stale. Figma's semantic `color/text/inverse-secondary`
+     resolves to `brand/inverse-body` = #e1e6ed in both Product and Brand modes
+     (verified by Neo against the file, 2026-08-11). */
+  --capiro-color-text-inverse-secondary: #e1e6ed;
   --capiro-color-text-inverse-muted: #b9c5cf;
 
   /* Borders. */
@@ -133,6 +136,18 @@
   --capiro-radius-widget: 12px;
 
   /* Elevation. */
+  /* Canonical Figma primitives consumed by `Pattern/Shell/AppNavigation vNext`
+     (1126:2640). These are file-wide primitives, not Dashboard one-offs, and the
+     names below are the source-of-truth mapping to Figma — do not rename them or
+     repurpose an unrelated existing primitive in their place. Consume these via
+     var() in the shell; never inline the hex. */
+  --capiro-primitive-accent-blue-dark: #294e68;
+  --capiro-primitive-shell-porcelain: #fbfcfe;
+  --capiro-primitive-product-ink: #121722;
+  --capiro-primitive-product-ink-secondary: #4a5260;
+  --capiro-primitive-brand-inverse-line: #2f3c50;
+  --capiro-primitive-product-border: #e2e5eb;
+
   --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
   --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);
   --capiro-primitive-shadow-deep: rgba(7, 16, 29, 0.18);

@@ -1,18 +1,5 @@
 import { useRef, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Diamond,
-  Grid3x3,
-  House,
-  List,
-  Search,
-  Spline,
-  Target,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
 import { SHELL_NAV_DESCRIPTIONS } from '../nav-content.js';
 import { useShellOverlay, type ShellOverlayId } from '../overlay-manager.js';
@@ -25,21 +12,30 @@ export interface CapiroNavItemModel {
 }
 
 /**
- * Figma renders nav icons as font glyphs (`819:2603`–`819:2610`). The project
- * convention is stroked SVG icons, so each glyph maps to the lucide icon with
- * the matching shape, held at the designed 20px leaf inside a 32px container.
+ * Nav glyphs are literal Unicode characters set in the body font — NOT icon
+ * artwork. `Pattern/Shell/AppNavigation vNext` (`1126:2638`) authors each one as
+ * a text node in Hanken Grotesk Medium, and Neo confirmed against the master
+ * that this is intentional: there is no icon font or vector set behind them.
+ *
+ * This previously mapped each glyph onto a lucide-react icon "because the
+ * project convention is stroked SVG icons". That substitution is exactly what
+ * breaks pixel parity, so it is reverted. **Do not swap these for
+ * lucide/phosphor/SVG artwork** — the character *is* the design.
+ *
+ * Sizes are per-slot and deliberate: 17px for the main nav glyphs inside the
+ * 32px icon treatment, 16px for the subnav chevron, 15px for mailbox.
+ *
+ * Settings is the one exception and is absent here on purpose: Figma gives it a
+ * real exported asset (`Icon / Clients`, `1126:2600`), not a glyph.
  */
-const NAV_ICONS: Readonly<Record<string, LucideIcon>> = {
-  dashboard: House,
-  portfolio: Target,
-  'engagement-manager': Spline,
-  workspace: Grid3x3,
-  strategies: Diamond,
-  // Figma uses a list glyph for Directory (`819:2608`) and the exported people
-  // icon for Settings (`722:2583`).
-  directory: List,
-  intelligence: Search,
-  settings: Users,
+const NAV_GLYPHS: Readonly<Record<string, string>> = {
+  dashboard: '⌂',
+  portfolio: '◎',
+  'engagement-manager': '⌁',
+  workspace: '▦',
+  strategies: '◇',
+  directory: '☷',
+  intelligence: '⌕',
 };
 
 const SUBMENU_OVERLAY_IDS: Readonly<Record<string, ShellOverlayId>> = {
@@ -53,10 +49,10 @@ const SUBMENU_HEADERS: Readonly<Record<string, { eyebrow: string; description: s
 };
 
 function NavIcon({ id }: { id: string }) {
-  const Icon = NAV_ICONS[id];
+  const glyph = NAV_GLYPHS[id];
   return (
     <span className="capiro-vnext-nav-item__icon" aria-hidden="true">
-      {Icon ? <Icon size={20} strokeWidth={1.6} /> : null}
+      {glyph ?? null}
     </span>
   );
 }
@@ -118,7 +114,7 @@ function SidebarFlyout({
         <NavIcon id={route.id} />
         <span className="capiro-vnext-nav-item__label">{route.label}</span>
         <span className="capiro-vnext-nav-item__chevron" aria-hidden="true">
-          <ChevronRight size={14} strokeWidth={1.8} />
+          {'›'}
         </span>
       </button>
 
@@ -154,7 +150,7 @@ function SidebarFlyout({
                   ) : null}
                 </span>
                 <span className="capiro-vnext-flyout__chevron" aria-hidden="true">
-                  <ChevronRight size={14} strokeWidth={1.8} />
+                  {'›'}
                 </span>
               </NavLink>
             ) : (
@@ -245,7 +241,7 @@ export function CapiroSidebar({
             aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
             <span aria-hidden="true" className="capiro-vnext-collapse__chevron">
-              {collapsed ? <ChevronRight size={16} strokeWidth={1.8} /> : <ChevronLeft size={16} strokeWidth={1.8} />}
+              {collapsed ? '›' : '‹'}
             </span>
             {!collapsed ? (
               <span className="capiro-vnext-collapse__label">Collapse navigation</span>
