@@ -1,12 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useCapiroToast } from '../../components/feedback/toast.js';
-import {
-  CapiroCheckIcon,
-  CapiroDownloadIcon,
-  CapiroPlusIcon,
-  CapiroSearchIcon,
-  CapiroSafetyCertificateIcon,
-} from '../../components/icons/index.js';
 import { useNavigate } from 'react-router-dom';
 import {
   useContextConflicts,
@@ -105,10 +98,10 @@ export function StrategyContextLibraryVNext() {
           <p>Durable, typed documents that ground Meri and strategy agents with validated front matter, provenance and supersession.</p>
           <div className="vnext-strategy-context__actions">
             <button className="vnext-strategy-button" type="button" onClick={() => navigate('/strategies/context/steward')}>
-              <CapiroSafetyCertificateIcon /> Steward review
+              Steward review
             </button>
             <button className="vnext-strategy-button is-primary" type="button" onClick={() => setUploadOpen(true)}>
-              <CapiroPlusIcon /> Upload document
+              Upload document
             </button>
           </div>
         </div>
@@ -127,7 +120,7 @@ export function StrategyContextLibraryVNext() {
             <strong>Context is operational data.</strong>
             <p>Facts retain exact source references. Supersession preserves history. Rejection never edits the source document.</p>
             <button type="button" onClick={() => navigate('/strategies/context/steward')}>
-              <CapiroSafetyCertificateIcon /> {openConflicts.length ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}` : 'Open Steward'}
+              {openConflicts.length ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}` : 'Open Steward'}
             </button>
           </aside>
 
@@ -150,7 +143,6 @@ export function StrategyContextLibraryVNext() {
                 <option value="archived">Archived</option>
               </select>
               <label className="vnext-strategy-context-search">
-                <CapiroSearchIcon />
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents" aria-label="Search context documents" />
               </label>
             </div>
@@ -194,7 +186,7 @@ export function StrategyContextLibraryVNext() {
             <GuideItem title="Supersession chain" detail="New versions never erase prior evidence." />
             <GuideItem title="Exact provenance" detail="Facts point back to source document lines." />
             <button className="vnext-strategy-button" type="button" onClick={() => setUploadOpen(true)}>
-              <CapiroDownloadIcon /> Use markdown upload
+              Use markdown upload
             </button>
           </aside>
         </div>
@@ -221,7 +213,7 @@ function ContextMetric({ value, label, detail, tone }: { value: number; label: s
 function GuideItem({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="vnext-strategy-context-guide__item">
-      <span><CapiroCheckIcon /></span>
+      <span></span>
       <div><strong>{title}</strong><small>{detail}</small></div>
     </div>
   );
