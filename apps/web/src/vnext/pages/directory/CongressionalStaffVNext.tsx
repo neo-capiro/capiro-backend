@@ -1,23 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useApi } from '../../../lib/use-api.js';
-import { getStaffDetail } from '../../../pages/directory/directory-api.js';
-import type {
-  DirectoryApiResponse,
-  DirectoryStaffer,
-  DirectoryStaffersResponse,
-} from '../../../pages/directory/directoryData.js';
+import { useEffect, useState } from 'react';
+import type { DirectoryStaffer } from '../../../pages/directory/directoryData.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { IdentityMark } from '../../components/identity/index.js';
 import { DirectoryShell } from './DirectoryShell.js';
-import { DirectoryFilterPill, type DirectoryFilterOption } from './DirectoryFilterPill.js';
-import { DIRECTORY_PROFILE_ROUTES } from './directory-routes.js';
-
-const PAGE_SIZE = 12;
-const SEARCH_DEBOUNCE_MS = 300;
+import { DirectoryFilterPill } from './DirectoryFilterPill.js';
+import {
+  useCongressionalStaffModel,
+  type CongressionalStaffDetailModel,
+  type CongressionalStaffModel,
+} from './useCongressionalStaffModel.js';
 
 /**
  * `/api/directory/staffers` accepts q, chamber, state, issue, page and pageSize —
@@ -25,19 +18,12 @@ const SEARCH_DEBOUNCE_MS = 300;
  * `committee` parameter, so those two designed pills state that they are not
  * filterable yet instead of quietly filtering only the page in hand and
  * reporting a wrong result count.
+ *
+ * Neo has since ruled that both params should be added server-side; until that
+ * lands, this honest state is what ships. See §6 of the Directory vNext handover.
  */
 const UNFILTERABLE_NOTE =
   'Not filterable yet: the canonical staff directory endpoint does not accept this dimension. Search matches role and committee text in the meantime.';
-
-const CHAMBER_OPTIONS: readonly DirectoryFilterOption[] = [
-  { value: 'House', label: 'House' },
-  { value: 'Senate', label: 'Senate' },
-];
-
-function readList(params: URLSearchParams, key: string): string[] {
-  const raw = params.get(key);
-  return raw ? raw.split(',').filter(Boolean) : [];
-}
 
 /** Coverage reads roles first, then issue areas; both are per-row API fields. */
 function coverageLines(staffer: DirectoryStaffer): { primary: string; secondary: string } {
@@ -61,115 +47,15 @@ function officeLines(staffer: DirectoryStaffer): { primary: string; secondary: s
 }
 
 export function CongressionalStaffVNext() {
-  const api = useApi();
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const model = useCongressionalStaffModel();
+  return <CongressionalStaffVNextView model={model} />;
+}
 
-  const query = searchParams.get('q') ?? '';
-  const chamber = readList(searchParams, 'chamber');
-  const state = readList(searchParams, 'state');
-  const issue = readList(searchParams, 'issue');
-  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
-  const selectedId = searchParams.get('profile');
-
-  // Local mirror so typing stays responsive; the URL is updated on a debounce so
-  // a search remains shareable and survives refresh.
-  const [searchText, setSearchText] = useState(query);
-  useEffect(() => setSearchText(query), [query]);
-
-  const commit = useCallback(
-    (mutate: (next: URLSearchParams) => void) => {
-      const next = new URLSearchParams(searchParams);
-      mutate(next);
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams],
-  );
-
-  useEffect(() => {
-    if (searchText === query) return undefined;
-    const handle = window.setTimeout(() => {
-      commit((next) => {
-        if (searchText) next.set('q', searchText);
-        else next.delete('q');
-        next.delete('page');
-      });
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(handle);
-  }, [searchText, query, commit]);
-
-  const setFilter = useCallback(
-    (key: string, values: string[]) => {
-      commit((next) => {
-        if (values.length) next.set(key, values.join(','));
-        else next.delete(key);
-        next.delete('page');
-      });
-    },
-    [commit],
-  );
-
-  const staffersQuery = useQuery({
-    queryKey: ['directory-staffers', query, chamber, state, issue, page],
-    queryFn: async () =>
-      (
-        await api.get<DirectoryStaffersResponse>('/api/directory/staffers', {
-          params: {
-            q: query || undefined,
-            chamber: chamber.length === 1 ? chamber[0] : undefined,
-            state: state.length ? state : undefined,
-            issue: issue.length ? issue.join(',') : undefined,
-            page,
-            pageSize: PAGE_SIZE,
-          },
-        })
-      ).data,
-    staleTime: 5 * 60_000,
-    placeholderData: (previous) => previous,
-    retry: 1,
-  });
-
-  /**
-   * `availableFilters` on the canonical contacts response is the filter-value
-   * source the legacy Directory already relies on. Only that block is consumed
-   * here, so the page size stays minimal.
-   */
-  const filterValuesQuery = useQuery({
-    queryKey: ['directory-available-filters'],
-    queryFn: async () =>
-      (await api.get<DirectoryApiResponse>('/api/directory/contacts', { params: { page: 1, pageSize: 1 } }))
-        .data.availableFilters,
-    staleTime: 30 * 60_000,
-    retry: 1,
-  });
-
-  const stateOptions = useMemo<DirectoryFilterOption[]>(
-    () => (filterValuesQuery.data?.states ?? []).map((value: string) => ({ value, label: value })),
-    [filterValuesQuery.data],
-  );
-  const issueOptions = useMemo<DirectoryFilterOption[]>(
-    () => (filterValuesQuery.data?.issues ?? []).map((value: string) => ({ value, label: value })),
-    [filterValuesQuery.data],
-  );
-
-  const staffers = staffersQuery.data?.staffers ?? [];
-  const total = staffersQuery.data?.total ?? 0;
-  const isInitialLoading = staffersQuery.isLoading && !staffersQuery.data;
-  const isRefetching = staffersQuery.isFetching && Boolean(staffersQuery.data);
-  const hasFilters = Boolean(query) || chamber.length > 0 || state.length > 0 || issue.length > 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const selected = selectedId ? staffers.find((s) => s.id === selectedId) ?? null : null;
-
-  // The rail's committee + provenance lines live on the staff *detail* contract,
-  // not the list row, so they are fetched for the selected person only.
-  const detailQuery = useQuery({
-    queryKey: ['directory-staff-detail', selectedId],
-    queryFn: () => getStaffDetail(api, selectedId as string),
-    enabled: Boolean(selectedId),
-    staleTime: 5 * 60_000,
-    retry: 1,
-  });
+/** Presentation half, kept data-free so the visual harness can render it. */
+export function CongressionalStaffVNextView({ model }: { model: CongressionalStaffModel }) {
+  const { search, filters, results, pagination, selection } = model;
+  const { total, staffers, isInitialLoading, isRefetching } = results;
+  const { page, totalPages, pageSize } = pagination;
 
   return (
     <DirectoryShell
@@ -200,15 +86,15 @@ export function CongressionalStaffVNext() {
             id="directory-congressional-search"
             className="capiro-directory-search__input"
             type="search"
-            value={searchText}
+            value={search.text}
             placeholder="Name, role, member, issue or committee…"
-            onChange={(event) => setSearchText(event.target.value)}
+            onChange={(event) => search.onChange(event.target.value)}
           />
-          {searchText ? (
+          {search.text ? (
             <button
               type="button"
               className="capiro-directory-search__clear"
-              onClick={() => setSearchText('')}
+              onClick={() => search.onChange('')}
               aria-label="Clear search"
             >
               ✕
@@ -218,36 +104,28 @@ export function CongressionalStaffVNext() {
 
         <DirectoryFilterPill
           label="Chamber"
-          options={CHAMBER_OPTIONS}
-          selected={chamber}
+          options={filters.chamberOptions}
+          selected={filters.chamber}
           multiple={false}
-          onChange={(next) => setFilter('chamber', next)}
+          onChange={(next) => filters.onChange('chamber', next)}
         />
         <DirectoryFilterPill
           label="State"
-          options={stateOptions}
-          selected={state}
-          onChange={(next) => setFilter('state', next)}
+          options={filters.stateOptions}
+          selected={filters.state}
+          onChange={(next) => filters.onChange('state', next)}
         />
         <DirectoryFilterPill label="Role" options={[]} selected={[]} onChange={() => {}} unavailableReason={UNFILTERABLE_NOTE} />
         <DirectoryFilterPill
           label="Issue Area"
-          options={issueOptions}
-          selected={issue}
-          onChange={(next) => setFilter('issue', next)}
+          options={filters.issueOptions}
+          selected={filters.issue}
+          onChange={(next) => filters.onChange('issue', next)}
         />
         <DirectoryFilterPill label="Committee" options={[]} selected={[]} onChange={() => {}} unavailableReason={UNFILTERABLE_NOTE} />
 
-        {hasFilters ? (
-          <button
-            type="button"
-            className="capiro-directory-toolbar__reset"
-            onClick={() =>
-              commit((next) => {
-                ['q', 'chamber', 'state', 'issue', 'page'].forEach((key) => next.delete(key));
-              })
-            }
-          >
+        {filters.hasAny ? (
+          <button type="button" className="capiro-directory-toolbar__reset" onClick={filters.onClearAll}>
             Clear all
           </button>
         ) : null}
@@ -274,11 +152,11 @@ export function CongressionalStaffVNext() {
             <p className="capiro-directory-columns__label" aria-hidden="true" />
           </div>
 
-          {staffersQuery.isError ? (
+          {results.isError ? (
             <CapiroErrorState
               title="Congressional staff could not be loaded"
               description="The canonical staff directory did not respond."
-              onRetry={() => void staffersQuery.refetch()}
+              onRetry={results.onRetry}
             />
           ) : isInitialLoading ? (
             <>
@@ -294,22 +172,15 @@ export function CongressionalStaffVNext() {
             </>
           ) : staffers.length === 0 ? (
             <CapiroEmptyState
-              title={hasFilters ? 'No staff match these filters' : 'No congressional staff available'}
+              title={filters.hasAny ? 'No staff match these filters' : 'No congressional staff available'}
               description={
-                hasFilters
+                filters.hasAny
                   ? 'Clear a filter or broaden the search to see more of the directory.'
                   : 'The canonical staff directory returned no records.'
               }
               action={
-                hasFilters ? (
-                  <CapiroButton
-                    size="compact"
-                    onClick={() =>
-                      commit((next) => {
-                        ['q', 'chamber', 'state', 'issue', 'page'].forEach((key) => next.delete(key));
-                      })
-                    }
-                  >
+                filters.hasAny ? (
+                  <CapiroButton size="compact" onClick={filters.onClearAll}>
                     Clear filters
                   </CapiroButton>
                 ) : undefined
@@ -319,7 +190,7 @@ export function CongressionalStaffVNext() {
             staffers.map((staffer) => {
               const office = officeLines(staffer);
               const coverage = coverageLines(staffer);
-              const isSelected = staffer.id === selectedId;
+              const isSelected = staffer.id === selection.selectedId;
               return (
                 <button
                   type="button"
@@ -328,12 +199,7 @@ export function CongressionalStaffVNext() {
                   className={`capiro-directory-row capiro-directory-row-grid${
                     isSelected ? ' capiro-directory-row--selected' : ''
                   }`}
-                  onClick={() =>
-                    commit((next) => {
-                      if (isSelected) next.delete('profile');
-                      else next.set('profile', staffer.id);
-                    })
-                  }
+                  onClick={() => selection.onToggle(staffer.id)}
                 >
                   <span className="capiro-directory-cell capiro-directory-cell--identity">
                     <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
@@ -361,12 +227,12 @@ export function CongressionalStaffVNext() {
             })
           )}
 
-          {total > PAGE_SIZE ? (
+          {total > pageSize ? (
             <div className="capiro-directory-pagination">
               <CapiroButton
                 size="compact"
                 disabled={page <= 1}
-                onClick={() => commit((next) => next.set('page', String(page - 1)))}
+                onClick={() => pagination.onPageChange(page - 1)}
               >
                 Previous
               </CapiroButton>
@@ -376,7 +242,7 @@ export function CongressionalStaffVNext() {
               <CapiroButton
                 size="compact"
                 disabled={page >= totalPages}
-                onClick={() => commit((next) => next.set('page', String(page + 1)))}
+                onClick={() => pagination.onPageChange(page + 1)}
               >
                 Next
               </CapiroButton>
@@ -385,21 +251,14 @@ export function CongressionalStaffVNext() {
         </div>
 
         <SelectedStaffRail
-          staffer={selected}
-          detail={detailQuery}
-          onOpenProfile={(id) => navigate(DIRECTORY_PROFILE_ROUTES.staff(id))}
+          staffer={selection.selected}
+          detail={selection.detail}
+          onOpenProfile={selection.onOpenProfile}
         />
       </div>
     </DirectoryShell>
   );
 }
-
-type DetailQuery = {
-  data?: Awaited<ReturnType<typeof getStaffDetail>>;
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => unknown;
-};
 
 function SelectedStaffRail({
   staffer,
@@ -407,7 +266,7 @@ function SelectedStaffRail({
   onOpenProfile,
 }: {
   staffer: DirectoryStaffer | null;
-  detail: DetailQuery;
+  detail: CongressionalStaffDetailModel;
   onOpenProfile: (id: string) => void;
 }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -430,12 +289,6 @@ function SelectedStaffRail({
 
   const person = staffer;
   const office = officeLines(person);
-  const committeeNames = detail.data?.committeeAssociations?.length
-    ? detail.data.committeeAssociations
-        .map((association) => association.position ?? association.committeeId)
-        .slice(0, 2)
-        .join(' · ')
-    : null;
 
   async function copyEmail() {
     const email = person.email;
@@ -484,15 +337,13 @@ function SelectedStaffRail({
             ? 'Loading…'
             : detail.isError
               ? 'Unavailable'
-              : (committeeNames ?? 'None recorded')}
+              : (detail.committeeNames ?? 'None recorded')}
         </p>
       </div>
       <div className="capiro-directory-field">
         <p className="capiro-directory-field__label">Source</p>
         <p className="capiro-directory-field__value">
-          {detail.isLoading
-            ? 'Loading…'
-            : (detail.data?.source?.snapshotId ?? 'Provenance unavailable')}
+          {detail.isLoading ? 'Loading…' : (detail.sourceSnapshotId ?? 'Provenance unavailable')}
         </p>
       </div>
 
@@ -500,7 +351,7 @@ function SelectedStaffRail({
         <CapiroErrorState
           title="Profile detail unavailable"
           description="Contact and coverage above come from the list record."
-          onRetry={() => void detail.refetch()}
+          onRetry={detail.onRetry}
         />
       ) : null}
 

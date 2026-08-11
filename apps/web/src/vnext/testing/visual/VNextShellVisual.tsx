@@ -13,8 +13,14 @@ import { MailboxSyncStatusView } from '../../shell/MailboxSyncStatus/index.js';
 import { ShellOverlayProvider } from '../../shell/overlay-manager.js';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
+import { CongressionalStaffVNextView } from '../../pages/directory/CongressionalStaffVNext.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
 import { DASHBOARD_VISUAL_FIXTURE } from '../fixtures/dashboard.js';
+import {
+  CONGRESSIONAL_STAFF_EMPTY_FIXTURE,
+  CONGRESSIONAL_STAFF_VISUAL_FIXTURE,
+} from '../fixtures/directory.js';
+import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 
 /**
  * Clerk-free shell baseline. The nav model comes from the real route manifest so
@@ -40,15 +46,30 @@ const fixtureNotifications = {
   badgeLabel: '3',
 };
 
+export type VNextVisualScreen =
+  | 'empty'
+  | 'dashboard'
+  | 'congressional-staff'
+  | 'congressional-staff-empty';
+
+/** Each screen renders at the route it actually ships on, so the sidebar's
+ *  current-item state and the context bar are exercised, not faked. */
+const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
+  empty: '/clients',
+  dashboard: '/',
+  'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
+  'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
+};
+
 export function VNextShellVisual({
   collapsed = false,
   screen = 'empty',
 }: {
   collapsed?: boolean;
-  screen?: 'empty' | 'dashboard';
+  screen?: VNextVisualScreen;
 }) {
   return (
-    <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients']}>
+    <MemoryRouter initialEntries={[SCREEN_ROUTES[screen]]}>
       <ShellOverlayProvider>
         <div className="capiro-vnext-root">
           <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
@@ -91,6 +112,10 @@ export function VNextShellVisual({
             <main className="capiro-vnext-content">
               {screen === 'dashboard' ? (
                 <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
+              ) : screen === 'congressional-staff' ? (
+                <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_VISUAL_FIXTURE} />
+              ) : screen === 'congressional-staff-empty' ? (
+                <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_EMPTY_FIXTURE} />
               ) : (
                 <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>
                   shell baseline · product screens intentionally absent
