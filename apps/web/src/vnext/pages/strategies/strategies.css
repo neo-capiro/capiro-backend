@@ -128,6 +128,15 @@
   box-shadow: 0 8px 16px var(--capiro-primitive-shadow-widget);
 }
 .capiro-vnext-root .vnext-strategy-button.is-primary:hover { background: var(--capiro-color-action-accent-hover); border-color: var(--capiro-color-action-accent-hover); }
+/* Destructive confirm. Replaces antd's `okButtonProps: { danger: true }`; there is no
+   dedicated danger-hover token, so hover uses the saturated rail shade. */
+.capiro-vnext-root .vnext-strategy-button.is-danger {
+  border-color: var(--capiro-color-danger);
+  background: var(--capiro-color-danger);
+  color: var(--capiro-color-text-inverse-primary);
+  box-shadow: 0 8px 16px var(--capiro-primitive-shadow-widget);
+}
+.capiro-vnext-root .vnext-strategy-button.is-danger:hover { background: var(--capiro-color-danger-rail); border-color: var(--capiro-color-danger-rail); }
 
 .capiro-vnext-root .vnext-strategy-library__body {
   width: min(1120px, calc(100% - 48px));

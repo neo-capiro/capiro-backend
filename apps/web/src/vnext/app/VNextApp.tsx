@@ -2,6 +2,7 @@ import { MeriOverlay } from '../../components/chat/MeriOverlay.js';
 import { isMeriWorkspaceWindow } from '../../components/chat/meri-window.js';
 import { OnboardingGates } from '../../components/onboarding/OnboardingGates.js';
 import { TrialBanner } from '../../components/onboarding/TrialBanner.js';
+import { CapiroToastProvider } from '../components/feedback/toast.js';
 import { VNextShellScaffold } from '../shell/AppShell/index.js';
 import { VNextRouter } from './VNextRouter.js';
 import '../foundations/index.css';
@@ -20,12 +21,15 @@ export function VNextApp() {
 
   return (
     <div className="capiro-vnext-root" data-web-surface="vnext">
-      <VNextShellScaffold>
-        <TrialBanner />
-        <OnboardingGates>
-          <VNextRouter />
-        </OnboardingGates>
-      </VNextShellScaffold>
+      {/* Inside the root: `.capiro-toast-region` styles are scoped to it. */}
+      <CapiroToastProvider>
+        <VNextShellScaffold>
+          <TrialBanner />
+          <OnboardingGates>
+            <VNextRouter />
+          </OnboardingGates>
+        </VNextShellScaffold>
+      </CapiroToastProvider>
     </div>
   );
 }

@@ -70,6 +70,37 @@ export const CAPIRO_FIGMA = {
     engineeringHandoff: '891:2593',
     systemStates: '895:2593',
   },
+  /**
+   * Client Profiles. The design source went unfound for a whole session because
+   * the page is named **Client CRM**, not "Client Profile" — a design-system
+   * search for the latter returns nothing. Page `906:2502` is
+   * "33 · Canonical App · Client CRM vNext".
+   *
+   * Like Strategies, this page carries **no Handoff frame** — 18 top-level
+   * frames, all screens, drawers and modals. There are no designer-authored
+   * acceptance criteria for this family; do not assume one exists.
+   */
+  clientProfiles: {
+    page: '906:2502',
+    overview: '906:2503',
+    relationshipsOrganization: '906:2790',
+    relationshipsGovernment: '906:3075',
+    relationshipsHistory: '906:3360',
+    work: '906:3645',
+    intelligenceOverview: '906:3930',
+    intelligenceLegislative: '906:4215',
+    intelligenceRegulatory: '906:4500',
+    intelligenceFundingBudget: '906:4785',
+    intelligenceFederalFootprint: '907:2592',
+    intelligenceDistrictNexus: '907:2701',
+    files: '907:2810',
+    personProfileDrawer: '907:2919',
+    configureHierarchyModal: '907:3028',
+    currentTargetDrawer: '907:3137',
+    strategyDetailDrawer: '907:3246',
+    filesMoveToFolderModal: '907:3355',
+    dataHealthDrawer: '907:3464',
+  },
 } as const;
 
 export const FIGMA_REACT_MAPPING_INVENTORY = [

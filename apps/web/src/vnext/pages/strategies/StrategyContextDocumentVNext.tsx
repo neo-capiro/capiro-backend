@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { App as AntApp } from 'antd';
-import { CopyOutlined, FolderOutlined, SafetyCertificateOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useCapiroToast } from '../../components/feedback/toast.js';
+import { CapiroModal } from '../../components/overlays/index.js';
+import { CapiroCopyIcon, CapiroFolderIcon, CapiroSafetyCertificateIcon, CapiroThunderboltIcon } from '../../components/icons/index.js';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMe } from '../../../lib/me.js';
 import { errorMessage } from '../../../lib/error-message.js';
@@ -26,7 +27,7 @@ import {
 export function StrategyContextDocumentVNext() {
   const { id = null } = useParams();
   const navigate = useNavigate();
-  const { message, modal } = AntApp.useApp();
+  const toast = useCapiroToast();
   const doc = useContextDocument(id);
   const sections = useContextSections(id);
   const facts = useContextFacts();
@@ -35,6 +36,7 @@ export function StrategyContextDocumentVNext() {
   const extract = useExtractContextFacts();
   const me = useMe();
   const [activeRef, setActiveRef] = useState<string | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const locate = useContextLocate(id, activeRef);
   const firstHitRef = useRef<HTMLDivElement | null>(null);
 
@@ -77,40 +79,34 @@ export function StrategyContextDocumentVNext() {
         const details = [`${result.inserted} fact${result.inserted === 1 ? '' : 's'} extracted`];
         if (result.droppedRefs) details.push(`${result.droppedRefs} unlocatable ref${result.droppedRefs === 1 ? '' : 's'} dropped`);
         if (result.conflicts) details.push(`${result.conflicts} conflict${result.conflicts === 1 ? '' : 's'} flagged`);
-        message.success(details.join(' · '));
+        toast.success(details.join(' · '));
       },
-      onError: (error) => message.error(errorMessage(error, 'The Steward could not extract facts.')),
+      onError: (error) => toast.error(errorMessage(error, 'The Steward could not extract facts.')),
     });
   };
 
-  const onArchive = () => {
-    modal.confirm({
-      title: 'Archive this document?',
-      content: `“${d.title}” will stop grounding new agent work. Its provenance and history are retained.`,
-      okText: 'Archive',
-      okButtonProps: { danger: true },
-      onOk: () =>
-        new Promise<void>((resolve, reject) => {
-          archive.mutate(d.id, {
-            onSuccess: () => {
-              message.success('Document archived.');
-              resolve();
-            },
-            onError: (error) => {
-              message.error(errorMessage(error, 'Could not archive the document.'));
-              reject(error);
-            },
-          });
-        }),
+  // Was antd's imperative `modal.confirm`. CapiroModal is declarative, so the
+  // confirm step is page state and the mutation runs from the dialog's action.
+  const confirmArchive = () => {
+    archive.mutate(d.id, {
+      onSuccess: () => {
+        toast.success('Document archived.');
+        setArchiveOpen(false);
+      },
+      onError: (error) => {
+        toast.error(errorMessage(error, 'Could not archive the document.'));
+        // Leave the dialog open so the failure is visible next to the action
+        // that caused it, and the user can retry without re-navigating.
+      },
     });
   };
 
   const copySourceLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      message.success('Source link copied.');
+      toast.success('Source link copied.');
     } catch {
-      message.error('Could not copy the source link.');
+      toast.error('Could not copy the source link.');
     }
   };
 
@@ -133,12 +129,12 @@ export function StrategyContextDocumentVNext() {
           <div className="vnext-strategy-context-doc__actions">
             {showExtract ? (
               <button className="vnext-strategy-button is-primary" type="button" onClick={onExtract} disabled={extract.isPending}>
-                <ThunderboltOutlined /> {extract.isPending ? 'Extracting…' : 'Extract facts'}
+                <CapiroThunderboltIcon /> {extract.isPending ? 'Extracting…' : 'Extract facts'}
               </button>
             ) : null}
             {canArchiveContextDoc(d.state) ? (
-              <button className="vnext-strategy-button" type="button" onClick={onArchive} disabled={archive.isPending}>
-                <FolderOutlined /> {archive.isPending ? 'Archiving…' : 'Archive'}
+              <button className="vnext-strategy-button" type="button" onClick={() => setArchiveOpen(true)} disabled={archive.isPending}>
+                <CapiroFolderIcon /> {archive.isPending ? 'Archiving…' : 'Archive'}
               </button>
             ) : null}
           </div>
@@ -217,14 +213,28 @@ export function StrategyContextDocumentVNext() {
             <strong>{activeFacts} active{historicalFacts ? ` · ${historicalFacts} historical` : ''}</strong>
           </div>
           <button className="vnext-strategy-button" type="button" onClick={() => navigate('/strategies/context/steward')}>
-            <SafetyCertificateOutlined /> Open steward review
+            <CapiroSafetyCertificateIcon /> Open steward review
           </button>
           <button className="vnext-strategy-button" type="button" onClick={copySourceLink}>
-            <CopyOutlined /> Copy source link
+            <CapiroCopyIcon /> Copy source link
           </button>
           {activeRef && locate.isError ? <span className="vnext-strategy-context-doc__locate-error">Could not locate this section in the source.</span> : null}
         </aside>
       </main>
+
+      <CapiroModal open={archiveOpen} title="Archive this document?" onClose={() => setArchiveOpen(false)}>
+        <p className="vnext-strategy-context-doc__confirm">
+          “{d.title}” will stop grounding new agent work. Its provenance and history are retained.
+        </p>
+        <div className="vnext-strategy-context-doc__confirm-actions">
+          <button className="vnext-strategy-button" type="button" onClick={() => setArchiveOpen(false)} disabled={archive.isPending}>
+            Cancel
+          </button>
+          <button className="vnext-strategy-button is-danger" type="button" onClick={confirmArchive} disabled={archive.isPending}>
+            {archive.isPending ? 'Archiving…' : 'Archive'}
+          </button>
+        </div>
+      </CapiroModal>
     </div>
   );
 }

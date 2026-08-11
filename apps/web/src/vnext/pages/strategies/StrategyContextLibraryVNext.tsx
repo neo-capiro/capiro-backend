@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { App as AntApp } from 'antd';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import {
-  CheckOutlined,
-  DownloadOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SafetyCertificateOutlined,
-} from '@ant-design/icons';
+  CapiroCheckIcon,
+  CapiroDownloadIcon,
+  CapiroPlusIcon,
+  CapiroSearchIcon,
+  CapiroSafetyCertificateIcon,
+} from '../../components/icons/index.js';
 import { useNavigate } from 'react-router-dom';
 import {
   useContextConflicts,
@@ -105,10 +105,10 @@ export function StrategyContextLibraryVNext() {
           <p>Durable, typed documents that ground Meri and strategy agents with validated front matter, provenance and supersession.</p>
           <div className="vnext-strategy-context__actions">
             <button className="vnext-strategy-button" type="button" onClick={() => navigate('/strategies/context/steward')}>
-              <SafetyCertificateOutlined /> Steward review
+              <CapiroSafetyCertificateIcon /> Steward review
             </button>
             <button className="vnext-strategy-button is-primary" type="button" onClick={() => setUploadOpen(true)}>
-              <PlusOutlined /> Upload document
+              <CapiroPlusIcon /> Upload document
             </button>
           </div>
         </div>
@@ -127,7 +127,7 @@ export function StrategyContextLibraryVNext() {
             <strong>Context is operational data.</strong>
             <p>Facts retain exact source references. Supersession preserves history. Rejection never edits the source document.</p>
             <button type="button" onClick={() => navigate('/strategies/context/steward')}>
-              <SafetyCertificateOutlined /> {openConflicts.length ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}` : 'Open Steward'}
+              <CapiroSafetyCertificateIcon /> {openConflicts.length ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}` : 'Open Steward'}
             </button>
           </aside>
 
@@ -150,7 +150,7 @@ export function StrategyContextLibraryVNext() {
                 <option value="archived">Archived</option>
               </select>
               <label className="vnext-strategy-context-search">
-                <SearchOutlined />
+                <CapiroSearchIcon />
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents" aria-label="Search context documents" />
               </label>
             </div>
@@ -194,7 +194,7 @@ export function StrategyContextLibraryVNext() {
             <GuideItem title="Supersession chain" detail="New versions never erase prior evidence." />
             <GuideItem title="Exact provenance" detail="Facts point back to source document lines." />
             <button className="vnext-strategy-button" type="button" onClick={() => setUploadOpen(true)}>
-              <DownloadOutlined /> Use markdown upload
+              <CapiroDownloadIcon /> Use markdown upload
             </button>
           </aside>
         </div>
@@ -221,7 +221,7 @@ function ContextMetric({ value, label, detail, tone }: { value: number; label: s
 function GuideItem({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="vnext-strategy-context-guide__item">
-      <span><CheckOutlined /></span>
+      <span><CapiroCheckIcon /></span>
       <div><strong>{title}</strong><small>{detail}</small></div>
     </div>
   );
@@ -250,7 +250,7 @@ function ContextUploadModal({
   clients: Array<{ id: string; name: string }>;
   onClose: () => void;
 }) {
-  const { message } = AntApp.useApp();
+  const toast = useCapiroToast();
   const upload = useUploadContextDocument();
   const fileRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState('');
@@ -264,7 +264,7 @@ function ContextUploadModal({
       setContent(await file.text());
       setErrors(null);
     } catch {
-      message.error(`Could not read ${file.name}.`);
+      toast.error(`Could not read ${file.name}.`);
     }
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -273,7 +273,7 @@ function ContextUploadModal({
     if (!content.trim() || upload.isPending) return;
     try {
       await upload.mutateAsync({ content, clientId: clientId || undefined });
-      message.success('Context document uploaded.');
+      toast.success('Context document uploaded.');
       onClose();
     } catch (error) {
       const status = (error as { response?: { status?: number } } | null)?.response?.status;

@@ -363,3 +363,11 @@
   .capiro-vnext-root .vnext-strategy-context-doc__code { height: 511px; }
   .capiro-vnext-root .vnext-strategy-context-doc__sections { height: auto; min-height: 420px; }
 }
+
+/* Archive confirmation, replacing antd's `modal.confirm` body. */
+.capiro-vnext-root .vnext-strategy-context-doc__confirm { margin: 0 0 16px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .vnext-strategy-context-doc__confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 767px) {
+  .capiro-vnext-root .vnext-strategy-context-doc__confirm-actions { flex-direction: column-reverse; }
+  .capiro-vnext-root .vnext-strategy-context-doc__confirm-actions > .vnext-strategy-button { width: 100%; min-height: 44px; }
+}
