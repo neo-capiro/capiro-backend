@@ -2,7 +2,7 @@ import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
 import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
-import { config } from './env.js';
+import { config, isVNextSurface } from './env.js';
 import { AppShell } from './components/AppShell.js';
 import { PlaceholderPage } from './pages/PlaceholderPage.js';
 import { SettingsLayout } from './pages/settings/SettingsLayout.js';
@@ -164,6 +164,12 @@ const FundingOpportunityDetailPage = lazy(async () =>
   import('./pages/intelligence/opportunities/FundingOpportunityDetail.js').then((m) => ({
     default: m.FundingOpportunityDetailPage,
   })),
+);
+
+// Runtime-selected presentation bundle. Keeping this lazy is the isolation
+// guarantee: canonical app.capiro.ai does not eagerly load vNext CSS/components.
+const VNextApp = lazy(async () =>
+  import('./vnext/app/VNextApp.js').then((m) => ({ default: m.VNextApp })),
 );
 
 export function App() {
@@ -520,6 +526,13 @@ function BillingGate() {
   // invoice is paid — the lifecycle cron clears locked when payment lands.
   if (data?.billingEnabled && data.locked) {
     return <LockoutScreen />;
+  }
+  if (isVNextSurface) {
+    return (
+      <Suspense fallback={<PlaceholderPage title="Loading Capiro vNext" description="Preparing the vNext surface..." />}>
+        <VNextApp />
+      </Suspense>
+    );
   }
   return <AppShell />;
 }

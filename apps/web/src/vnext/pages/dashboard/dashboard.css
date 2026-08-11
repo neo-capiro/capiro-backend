@@ -1,0 +1,243 @@
+/* Dashboard vNext — geometry from Figma 751:2502. */
+
+.capiro-vnext-root .capiro-dash { display: block; }
+
+/* Header (751:2562) */
+.capiro-vnext-root .capiro-dash__header { position: relative; padding: 18px 124px 16px; }
+.capiro-vnext-root .capiro-dash__eyebrow { margin: 0; font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .06em; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash__greeting { margin: 6px 0 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash__meta { margin: 6px 0 0; font-size: 13px; line-height: 20px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dash__header-actions { position: absolute; top: 26px; right: 124px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.capiro-vnext-root .capiro-dash__customize { min-width: 120px; height: 32px; padding: 0 14px; border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-control); background: var(--capiro-color-bg-surface); color: var(--capiro-color-text-secondary); font-size: 12px; cursor: pointer; }
+.capiro-vnext-root .capiro-dash__refreshed { font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; color: var(--capiro-color-text-muted); }
+
+/* Content grid (751:2568) */
+.capiro-vnext-root .capiro-dash__content { display: flex; flex-direction: column; gap: 16px; padding: 0 124px 32px; }
+/* Exact desktop grid per the Dashboard vNext Developer Handoff Spec (1238:3130):
+   content 1120 wide = News 688 + 16 gap + right column 416. The right column is
+   582 tall = Meetings 350 + 16 gap + Work Queue 216. 1120 is the vNext content
+   column centred in the 1368 working surface, matching the Strategies body. */
+.capiro-vnext-root .capiro-dash__columns { display: grid; grid-template-columns: 688px 416px; gap: 16px; align-items: start; }
+.capiro-vnext-root .capiro-dash__stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Cards */
+.capiro-vnext-root .capiro-dash-card { min-width: 0; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-surface); overflow: hidden; }
+.capiro-vnext-root .capiro-dash-card__head { display: flex; align-items: center; gap: 12px; height: 45px; padding: 0 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); }
+.capiro-vnext-root .capiro-dash-card__title { margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-card__count { font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-card__link { margin-left: auto; font-size: 12px; color: var(--capiro-color-text-accent); }
+
+/* Needs Attention rows (751:2574) */
+.capiro-vnext-root .capiro-dash-attention { position: relative; display: grid; grid-template-columns: 86px minmax(0, 1fr) 230px 100px 120px; align-items: center; gap: 16px; min-height: 51px; padding: 6px 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+.capiro-vnext-root .capiro-dash-attention:last-child { border-bottom: 0; }
+.capiro-vnext-root .capiro-dash-attention:hover { background: var(--capiro-color-bg-flyout-hover); }
+/* The lead row is the current one: selected fill plus a 2px accent bar. */
+.capiro-vnext-root .capiro-dash-attention[data-current] { background: var(--capiro-color-bg-selected); }
+.capiro-vnext-root .capiro-dash-attention[data-current]::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--capiro-color-text-accent); }
+/* Status/Badge: white surface, hairline border, 6px tone dot, mono label. */
+.capiro-vnext-root .capiro-dash-attention__badge { display: inline-flex; align-items: center; gap: 6px; height: var(--capiro-status-badge-height); padding: 0 8px; border: 1px solid var(--capiro-color-border-badge); border-radius: 6px; background: var(--capiro-color-bg-surface); font-family: var(--capiro-type-family-mono); font-size: 11px; font-weight: 500; line-height: 15.4px; letter-spacing: 0.66px; color: var(--capiro-color-text-information); }
+.capiro-vnext-root .capiro-dash-attention__badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.capiro-vnext-root .capiro-dash-attention__badge[data-tone='danger'] { color: var(--capiro-color-text-destructive); }
+.capiro-vnext-root .capiro-dash-attention__badge[data-tone='warning'] { color: var(--capiro-color-text-warning); }
+.capiro-vnext-root .capiro-dash-attention__badge[data-tone='review'] { color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-attention__copy { display: grid; min-width: 0; }
+.capiro-vnext-root .capiro-dash-attention__eyebrow { font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; color: var(--capiro-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-attention__title { font-size: 12.5px; line-height: 17px; font-weight: 600; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-attention__context { font-size: 11.5px; line-height: 17px; color: var(--capiro-color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-attention__due { font-family: var(--capiro-type-family-mono); font-size: 8.5px; font-weight: 500; line-height: 12px; letter-spacing: 0.255px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-attention[data-severity='critical'] .capiro-dash-attention__due { color: var(--capiro-color-text-destructive); }
+/* Quiet action by default; only the current row carries the primary button. */
+.capiro-vnext-root .capiro-dash-attention__action { display: inline-flex; align-items: center; justify-content: center; gap: var(--capiro-space-02); min-width: var(--capiro-control-min-width-button); height: var(--capiro-control-height-compact); padding: var(--capiro-space-01) var(--capiro-space-03); border-radius: var(--capiro-radius-control); font-size: var(--capiro-type-size-body-sm); font-weight: 600; line-height: 16.9px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-attention[data-current] .capiro-dash-attention__action { background: var(--capiro-color-action-primary-default); color: var(--capiro-color-text-inverse-primary); box-shadow: inset 0 1px 0 var(--capiro-primitive-highlight-white-72), 0 1px 2px var(--capiro-primitive-shadow-shell), 0 6px 16px -12px var(--capiro-primitive-shadow-widget); }
+
+/* News rows (751:2608) */
+/* Four equal 134px story rows with a 96x92 thumbnail — the oversized hero
+   treatment was removed, so every story shares one row anatomy. */
+.capiro-vnext-root .capiro-dash-news { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 14px; height: 134px; padding: 14px 16px; border-bottom: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+.capiro-vnext-root .capiro-dash-news__thumb { width: 96px; height: 92px; }
+.capiro-vnext-root .capiro-dash-news:last-child { border-bottom: 0; }
+.capiro-vnext-root .capiro-dash-news:hover { background: var(--capiro-color-bg-flyout-hover); }
+.capiro-vnext-root .capiro-dash-news__thumb { width: 72px; height: 56px; border-radius: 8px; background: var(--capiro-color-bg-subtle); overflow: hidden; }
+.capiro-vnext-root .capiro-dash-news__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.capiro-vnext-root .capiro-dash-news__copy { display: grid; gap: 3px; min-width: 0; }
+.capiro-vnext-root .capiro-dash-news__source { font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-news__title { font-size: 13px; line-height: 17px; font-weight: 500; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-news__reason { font-size: 12px; line-height: 17px; color: var(--capiro-color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-news__client { font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--capiro-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Week strip (751:2637) */
+.capiro-vnext-root .capiro-dash-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; padding: 10px 12px 6px; }
+.capiro-vnext-root .capiro-dash-week__day { position: relative; height: 45px; display: grid; place-content: center; justify-items: center; border-radius: 8px; background: var(--capiro-color-bg-subtle); }
+/* Today reads as a selected chip, not a saturated fill. */
+.capiro-vnext-root .capiro-dash-week__day[data-today] { background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); box-shadow: inset 0 1px 0 var(--capiro-primitive-highlight-white-72), 0 1px 2px var(--capiro-primitive-shadow-shell); }
+.capiro-vnext-root .capiro-dash-week__weekday { font-family: var(--capiro-type-family-mono); font-size: 8px; letter-spacing: .05em; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-week__number { font-size: 13px; font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-week__day[data-today] .capiro-dash-week__number { color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-week__dot { position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--capiro-color-shell-signature-secondary); }
+
+/* Event rows (751:2658) */
+/* Three 80px meeting rows; the split action (Join + Send Meri caret) is 146px so
+   the caret cannot clip. */
+.capiro-vnext-root .capiro-dash-event { display: grid; grid-template-columns: 50px minmax(0, 1fr) 146px; align-items: center; gap: 8px; height: 80px; padding: 6px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+.capiro-vnext-root .capiro-dash-event:hover { background: var(--capiro-color-bg-flyout-hover); }
+.capiro-vnext-root .capiro-dash-event__time { font-family: var(--capiro-type-family-mono); font-size: 9px; letter-spacing: .03em; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-event__copy { display: grid; min-width: 0; }
+.capiro-vnext-root .capiro-dash-event__title { font-size: 12.5px; line-height: 16px; font-weight: 500; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-event__meta { font-size: 11px; line-height: 15px; color: var(--capiro-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-event__action { font-size: 11px; color: var(--capiro-color-text-accent); }
+
+/* Work queue rows (751:2675) */
+/* Work Queue: three equal 57px rows, 280px title column, 80px right-aligned
+   status column, under a 45px header. */
+.capiro-vnext-root .capiro-dash-work { display: grid; grid-template-columns: 280px 80px; grid-template-rows: auto auto; align-items: center; justify-content: space-between; gap: 2px 8px; height: 57px; padding: 7px 14px; border-top: 1px solid var(--capiro-color-border-quiet); color: inherit; }
+.capiro-vnext-root .capiro-dash-work:hover { background: var(--capiro-color-bg-flyout-hover); }
+.capiro-vnext-root .capiro-dash-work__kind { grid-column: 1; font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .05em; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-work__title { grid-column: 1; font-size: 12.5px; line-height: 16px; font-weight: 500; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-work__status { grid-column: 2; grid-row: 1 / span 2; justify-self: end; font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--capiro-color-text-muted); }
+
+/* The folded meta lines only exist below the desktop stage. */
+.capiro-vnext-root .capiro-dash-attention__mobile-meta,
+.capiro-vnext-root .capiro-dash-news__narrow-meta { display: none; }
+
+/* ── System states (754:2885) ─────────────────────────────────────────────
+   Six named states, each stating the source fact that justifies it. A failed
+   source keeps the module visible and never reads as empty. */
+.capiro-vnext-root .capiro-dash-state { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; padding: 16px; }
+.capiro-vnext-root .capiro-dash-state__head { display: flex; align-items: center; gap: 12px; width: 100%; }
+.capiro-vnext-root .capiro-dash-state__badge { display: inline-flex; align-items: center; gap: 6px; height: var(--capiro-status-badge-height); padding: 0 8px; border: 1px solid var(--capiro-color-border-badge); border-radius: 6px; background: var(--capiro-color-bg-surface); font-family: var(--capiro-type-family-mono); font-size: 11px; font-weight: 500; line-height: 15.4px; letter-spacing: 0.66px; color: var(--capiro-color-text-information); white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-state__badge::before { content: ''; flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.capiro-vnext-root .capiro-dash-state__badge[data-state='stale'],
+.capiro-vnext-root .capiro-dash-state__badge[data-state='unavailable'] { color: var(--capiro-color-text-warning); }
+.capiro-vnext-root .capiro-dash-state__badge[data-state='empty'] { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-state__badge[data-state='all-clear'] { color: var(--capiro-color-text-success); }
+.capiro-vnext-root .capiro-dash-state__meta { margin-left: auto; font-family: var(--capiro-type-family-mono); font-size: 8.5px; font-weight: 500; line-height: 12px; letter-spacing: 0.255px; color: var(--capiro-color-text-muted); white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-state__title { margin: 0; font-size: 15px; line-height: 21px; font-weight: 600; letter-spacing: -0.03px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-state__body { margin: 0; font-size: 11.5px; line-height: 18px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dash-state__skeleton { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.capiro-vnext-root .capiro-dash-state__skeleton span { height: 5px; border-radius: 2.5px; background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-dash-state__skeleton span:first-child { background: var(--capiro-color-bg-selected); }
+.capiro-vnext-root .capiro-dash-state__skeleton span:last-child { width: 58%; }
+.capiro-vnext-root .capiro-dash-state__action { padding: 0; border: 0; background: none; font-size: 11px; font-weight: 500; line-height: 16px; cursor: pointer; }
+.capiro-vnext-root .capiro-dash-state__action[data-tone='warning'] { color: var(--capiro-color-text-warning); }
+.capiro-vnext-root .capiro-dash-state__action[data-tone='accent'] { color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-state__action[data-tone='success'] { color: var(--capiro-color-text-success); }
+/* STALE and SOURCE UNAVAILABLE raise the whole card's border (754:2919). */
+.capiro-vnext-root .capiro-dash-card:has(.capiro-dash-state[data-state='stale']),
+.capiro-vnext-root .capiro-dash-card:has(.capiro-dash-state[data-state='unavailable']) { border-color: var(--capiro-color-border-warning); }
+
+/* ── Mobile single-card modules (759:2683, 759:2689) ─────────────────────── */
+.capiro-vnext-root .capiro-dash-next { position: relative; display: block; min-height: 74px; padding: 10px 96px 12px 11px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: 9px; color: inherit; }
+.capiro-vnext-root .capiro-dash-next--work { min-height: 68px; padding-right: 60px; }
+.capiro-vnext-root .capiro-dash-next__eyebrow { display: block; font-family: var(--capiro-type-family-mono); font-size: 8px; font-weight: 500; line-height: 11px; letter-spacing: 0.32px; color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-next--work .capiro-dash-next__eyebrow { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-next__title { display: block; margin-top: 9px; font-size: 11.5px; line-height: 16px; font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-next__meta { display: block; margin-top: 3px; font-size: 9.5px; line-height: 14px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dash-next__action { position: absolute; top: 14px; right: 11px; display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 44px; border-radius: 8px; background: var(--capiro-color-bg-interactive-primary); font-size: 11px; font-weight: 500; line-height: 15px; color: var(--capiro-color-text-inverse-primary); }
+.capiro-vnext-root .capiro-dash-next__status { position: absolute; top: 30px; right: 11px; font-family: var(--capiro-type-family-mono); font-size: 8.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--capiro-color-text-muted); }
+
+/* ── Customize drawer (754:2766) ─────────────────────────────────────────── */
+.capiro-vnext-root .capiro-dash-drawer__scrim { position: fixed; inset: 0; z-index: var(--capiro-z-modal); display: flex; justify-content: flex-end; background: var(--capiro-primitive-overlay-ink-16); }
+.capiro-vnext-root .capiro-dash-drawer { display: flex; flex-direction: column; width: 390px; max-width: 100%; height: 100%; background: var(--capiro-color-bg-surface); border-left: 1px solid var(--capiro-color-border-default); box-shadow: -8px 0 32px -20px var(--capiro-primitive-overlay-ink-16); }
+.capiro-vnext-root .capiro-dash-drawer__body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 22px 20px 18px; }
+.capiro-vnext-root .capiro-dash-drawer__header { display: flex; flex-direction: column; gap: 6px; }
+.capiro-vnext-root .capiro-dash-drawer__header-row { display: flex; align-items: center; gap: 12px; }
+.capiro-vnext-root .capiro-dash-drawer__eyebrow { flex: 1; margin: 0; font-family: var(--capiro-type-family-mono); font-size: 8.5px; font-weight: 500; line-height: 12px; letter-spacing: 0.425px; color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-drawer__close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--capiro-color-border-default); border-radius: 8px; background: var(--capiro-color-bg-subtle); color: var(--capiro-color-text-primary); cursor: pointer; }
+.capiro-vnext-root .capiro-dash-drawer__title { margin: 0; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.168px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__description { margin: 0; font-size: 12.5px; line-height: 19px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dash-drawer__divider { height: 1px; background: var(--capiro-color-border-quiet); }
+.capiro-vnext-root .capiro-dash-drawer__section-head { display: flex; align-items: center; gap: 12px; }
+.capiro-vnext-root .capiro-dash-drawer__label { flex: 1; margin: 0; font-family: var(--capiro-type-family-mono); font-size: 8.5px; font-weight: 500; line-height: 12px; letter-spacing: 0.425px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-drawer__hint { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--capiro-color-text-secondary); white-space: nowrap; }
+.capiro-vnext-root .capiro-dash-drawer__module { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 10px; border: 1px solid var(--capiro-color-border-quiet); border-radius: 7px; background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-dash-drawer__module--pinned { background: var(--capiro-color-bg-selected); border-color: var(--capiro-color-border-information); }
+.capiro-vnext-root .capiro-dash-drawer__module[data-dragging] { opacity: .5; }
+.capiro-vnext-root .capiro-dash-drawer__grip { width: 22px; font-family: var(--capiro-type-family-mono); font-size: 9px; font-weight: 500; line-height: 13px; letter-spacing: 0.27px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-drawer__module--pinned .capiro-dash-drawer__grip { color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-drawer__grip--button { padding: 0; border: 0; background: none; text-align: left; cursor: grab; }
+.capiro-vnext-root .capiro-dash-drawer__index { width: 24px; font-family: var(--capiro-type-family-mono); font-size: 8.5px; font-weight: 500; line-height: 12px; letter-spacing: 0.255px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-drawer__module-copy { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
+.capiro-vnext-root .capiro-dash-drawer__module-title { font-size: 12px; line-height: 17px; font-weight: 500; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__module-meta { font-size: 10px; line-height: 14px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dash-drawer__pinned-pill { display: inline-flex; align-items: center; justify-content: center; width: 62px; height: 24px; border: 1px solid var(--capiro-color-border-quiet); border-radius: 12px; background: var(--capiro-color-bg-subtle); font-family: var(--capiro-type-family-mono); font-size: 7.5px; font-weight: 500; line-height: 10px; letter-spacing: 0.225px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dash-drawer__switch { position: relative; flex-shrink: 0; width: 38px; height: 22px; padding: 0; border: 1px solid var(--capiro-color-border-default); border-radius: 11px; background: var(--capiro-color-bg-surface); cursor: pointer; transition: background var(--capiro-motion-fast) ease; }
+.capiro-vnext-root .capiro-dash-drawer__switch[aria-checked='true'] { background: var(--capiro-color-bg-interactive-primary); border-color: var(--capiro-color-border-information); }
+.capiro-vnext-root .capiro-dash-drawer__switch-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--capiro-color-bg-surface); box-shadow: 0 1px 2px var(--capiro-primitive-shadow-shell); transition: transform var(--capiro-motion-fast) ease; }
+.capiro-vnext-root .capiro-dash-drawer__switch[aria-checked='true'] .capiro-dash-drawer__switch-knob { transform: translateX(16px); }
+.capiro-vnext-root .capiro-dash-drawer__grid { display: flex; flex-direction: column; gap: 6px; }
+.capiro-vnext-root .capiro-dash-drawer__grid-row { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 5px; background: none; text-align: left; cursor: pointer; }
+.capiro-vnext-root .capiro-dash-drawer__grid-row[data-checked] { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-dash-drawer__check { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid var(--capiro-color-border-default); border-radius: 4px; background: var(--capiro-color-bg-surface); font-size: 10px; line-height: 12px; color: var(--capiro-color-text-inverse-primary); }
+.capiro-vnext-root .capiro-dash-drawer__grid-row[data-checked] .capiro-dash-drawer__check { background: var(--capiro-color-bg-interactive-primary); border-color: var(--capiro-color-border-information); }
+.capiro-vnext-root .capiro-dash-drawer__grid-label { flex: 1; min-width: 0; font-size: 11px; line-height: 16px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__grid-action { width: 50px; font-size: 10.5px; font-weight: 500; line-height: 15px; color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-dash-drawer__grid-action--button { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.capiro-vnext-root .capiro-dash-drawer__sources { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 8px; }
+.capiro-vnext-root .capiro-dash-drawer__source { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid var(--capiro-color-border-default); border-radius: 12px; font-size: 10.5px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__source button { padding: 0; border: 0; background: none; font-size: 12px; line-height: 1; color: var(--capiro-color-text-muted); cursor: pointer; }
+.capiro-vnext-root .capiro-dash-drawer__source-add { display: flex; gap: 6px; width: 100%; }
+.capiro-vnext-root .capiro-dash-drawer__source-add input { flex: 1; min-width: 0; height: 32px; padding: 0 8px; border: 1px solid var(--capiro-color-border-default); border-radius: 6px; background: var(--capiro-color-bg-surface); font: inherit; font-size: 11px; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__density { display: flex; height: 36px; padding: 1px; border: 1px solid var(--capiro-color-border-default); border-radius: 7px; background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-dash-drawer__density-option { flex: 1; height: 34px; border: 0; border-radius: 6px; background: none; font-size: 10.5px; line-height: 15px; color: var(--capiro-color-text-secondary); cursor: pointer; }
+.capiro-vnext-root .capiro-dash-drawer__density-option[aria-pressed='true'] { background: var(--capiro-color-bg-surface); font-weight: 500; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dash-drawer__footer { display: flex; align-items: center; gap: 8px; height: 52px; padding: 8px 20px; border-top: 1px solid var(--capiro-color-border-quiet); background: var(--capiro-color-bg-surface); }
+.capiro-vnext-root .capiro-dash-drawer__footer > :last-child { margin-left: auto; }
+
+/* ── Density (760:2695) — spacing and item count only, never meaning ─────── */
+.capiro-vnext-root .capiro-dash[data-density='presentation'] .capiro-dash-attention { min-height: 62px; }
+.capiro-vnext-root .capiro-dash[data-density='presentation'] .capiro-dash-news { min-height: 112px; }
+.capiro-vnext-root .capiro-dash[data-density='presentation'] .capiro-dash-event { min-height: 64px; }
+.capiro-vnext-root .capiro-dash[data-density='presentation'] .capiro-dash-work { min-height: 58px; }
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-attention { min-height: 42px; }
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-news { min-height: 72px; padding-top: 9px; padding-bottom: 9px; }
+/* Compact tightens the relevance line but must not drop it: acceptance D
+   (760:2755) requires every story to explain its relevance, and the
+   EXPLANATIONS contract (760:2691) keeps source, age and reason on every row.
+   Only genuinely secondary prose may collapse. */
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-news__reason { font-size: 11px; line-height: 15px; }
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-event { min-height: 44px; }
+.capiro-vnext-root .capiro-dash[data-density='compact'] .capiro-dash-work { min-height: 40px; }
+
+/* ── Tablet stage 1024×860 (757:2618) ────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .capiro-vnext-root .capiro-dash__header { padding: 15px 18px 12px; }
+  .capiro-vnext-root .capiro-dash__header-actions { top: 26px; right: 18px; }
+  .capiro-vnext-root .capiro-dash__greeting { font-size: 24px; line-height: 31px; }
+  .capiro-vnext-root .capiro-dash__content { padding: 0 16px 24px; }
+  /* News 580 / right stack 324, gap 16 (758:2805, 758:2830). */
+  .capiro-vnext-root .capiro-dash__columns { grid-template-columns: minmax(0, 580fr) minmax(0, 324fr); }
+  /* The Due column is dropped; the action stays (758:2749). */
+  .capiro-vnext-root .capiro-dash-attention { grid-template-columns: 86px minmax(0, 1fr) 170px 120px; padding-left: 12px; padding-right: 12px; }
+  .capiro-vnext-root .capiro-dash-attention__due { display: none; }
+  .capiro-vnext-root .capiro-dash-news { grid-template-columns: 62px minmax(0, 1fr); padding-left: 12px; }
+  .capiro-vnext-root .capiro-dash-news__thumb { width: 62px; height: 52px; }
+  /* Relevance and clients fold into one meta line (758:2814). */
+  .capiro-vnext-root .capiro-dash-news__reason,
+  .capiro-vnext-root .capiro-dash-news__client { display: none; }
+  .capiro-vnext-root .capiro-dash-news__narrow-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 14px; color: var(--capiro-color-text-secondary); }
+  /* The week strip is desktop-only (758:2831). */
+  .capiro-vnext-root .capiro-dash-week { display: none; }
+  .capiro-vnext-root .capiro-dash-event { min-height: 65px; padding-left: 12px; }
+  .capiro-vnext-root .capiro-dash-work { min-height: 51px; padding-left: 12px; }
+}
+
+/* ── Mobile stage 390×844 (757:2622) ─────────────────────────────────────── */
+@media (max-width: 639px) {
+  .capiro-vnext-root .capiro-dash__header { padding: 13px 14px 11px; }
+  .capiro-vnext-root .capiro-dash__header-actions { position: static; flex-direction: row; align-items: center; margin-top: 10px; }
+  .capiro-vnext-root .capiro-dash__content { padding: 0 12px 24px; gap: 14px; }
+  .capiro-vnext-root .capiro-dash__greeting { font-size: 23px; line-height: 30px; }
+  .capiro-vnext-root .capiro-dash__columns { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-dash-card__head { height: 39px; padding: 0 12px; }
+  /* Badge leads, then eyebrow/title/meta stacked; no action (759:2658). */
+  .capiro-vnext-root .capiro-dash-attention { grid-template-columns: 86px minmax(0, 1fr); align-items: start; gap: 8px; min-height: 75px; padding: 12px; }
+  .capiro-vnext-root .capiro-dash-attention__context,
+  .capiro-vnext-root .capiro-dash-attention__due,
+  .capiro-vnext-root .capiro-dash-attention__action { display: none; }
+  .capiro-vnext-root .capiro-dash-attention__mobile-meta { display: block; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; line-height: 14px; color: var(--capiro-color-text-secondary); }
+  .capiro-vnext-root .capiro-dash-attention__title { white-space: normal; }
+  .capiro-vnext-root .capiro-dash-news { grid-template-columns: 50px minmax(0, 1fr); min-height: 84px; padding: 17px 12px; }
+  .capiro-vnext-root .capiro-dash-news__thumb { width: 50px; height: 50px; }
+  .capiro-vnext-root .capiro-dash-news__client { display: none; }
+  .capiro-vnext-root .capiro-dash-drawer { width: 100%; }
+}

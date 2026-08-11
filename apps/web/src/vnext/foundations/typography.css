@@ -1,0 +1,36 @@
+.capiro-vnext-root .capiro-vnext-heading {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  color: var(--capiro-color-text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.capiro-vnext-root .capiro-vnext-body {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  color: var(--capiro-color-text-secondary);
+  font-size: var(--capiro-type-size-body-md);
+  line-height: var(--capiro-type-line-body-md);
+}
+
+.capiro-vnext-root .capiro-vnext-meta {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  color: var(--capiro-color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.capiro-vnext-root .capiro-vnext-code {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-vnext-root .capiro-vnext-editorial {
+  font-family: var(--capiro-type-family-serif);
+}

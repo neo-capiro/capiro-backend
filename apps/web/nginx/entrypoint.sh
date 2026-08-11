@@ -9,6 +9,10 @@
 #   CLERK_PUBLISHABLE_KEY  pk_live_...  or  pk_test_...
 #   API_BASE_URL           https://app.capiro.ai
 #   APP_ENV                dev | staging | prod (informational)
+#
+# Optional release identity (used by isolated/canary web services):
+#   WEB_SURFACE            canonical | vnext | ...
+#   CAPIRO_WEB_RELEASE_SHA exact git SHA for the running web image
 
 set -e
 
@@ -32,6 +36,8 @@ ENV_NAME=$(escape "${APP_ENV:-unknown}")
 # built-in OpenFreeMap Positron default when they arrive empty.
 MAP_STYLE=$(escape "${MAP_STYLE_URL:-}")
 MAP_ATTRIBUTION=$(escape "${MAP_STYLE_ATTRIBUTION:-}")
+WEB_SURFACE_VALUE=$(escape "${WEB_SURFACE:-}")
+WEB_RELEASE_SHA=$(escape "${CAPIRO_WEB_RELEASE_SHA:-}")
 
 cat > "$OUT" <<EOF
 // Generated at container start by apps/web/nginx/entrypoint.sh.
@@ -42,8 +48,10 @@ window.__CAPIRO_CONFIG__ = Object.freeze({
   appEnv: '${ENV_NAME}',
   mapStyleUrl: '${MAP_STYLE}',
   mapStyleAttribution: '${MAP_ATTRIBUTION}',
+  webSurface: '${WEB_SURFACE_VALUE}',
+  releaseSha: '${WEB_RELEASE_SHA}',
 });
 EOF
 
 chmod 0644 "$OUT"
-echo "Wrote runtime config for env=${APP_ENV:-unknown}"
+echo "Wrote runtime config for env=${APP_ENV:-unknown} surface=${WEB_SURFACE:-unspecified}"

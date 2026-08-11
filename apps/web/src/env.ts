@@ -1,33 +1,30 @@
+import { resolveWebPresentation } from './vnext/app/presentation.js';
+
 /**
  * Resolves the web app's runtime config.
  *
  * Two sources, in order:
- *   1. window.__CAPIRO_CONFIG__  , set by /runtime-config.js, generated at
- *      container start by apps/web/nginx/entrypoint.sh. Used in deployed
- *      environments. The same Vite-built image promotes through dev → prod
- *      because the keys are NOT baked into the bundle.
- *   2. Vite import.meta.env.VITE_* , used for local `pnpm dev` against a
- *      .env file. Vite substitutes these at build time.
+ *   1. window.__CAPIRO_CONFIG__, set by /runtime-config.js at container start.
+ *   2. Vite import.meta.env.VITE_*, used only for explicit local development.
  *
- * The Clerk publishable key is technically public, but routing it through
- * runtime config keeps the build artifact env-agnostic.
+ * The deployed web surface is selected by runtime configuration. Hostname
+ * detection is intentionally not used as the production switch.
  */
 
-/**
- * Basemap defaults (plan §4.4). OpenFreeMap Positron is key-free, has no
- * request limits and permits commercial use, so the map works out of the box:
- * a missing env var degrades to a working default rather than a blank canvas.
- */
 export const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 export const DEFAULT_MAP_STYLE_ATTRIBUTION = '© OpenStreetMap contributors';
 
-interface RuntimeConfig {
+export interface RuntimeConfig {
   clerkPublishableKey: string;
   apiBaseUrl: string;
   appEnv?: string;
   /** Optional. Absent OR empty string falls back to the default above. */
   mapStyleUrl?: string;
   mapStyleAttribution?: string;
+  /** Runtime presentation surface. `vnext` is injected only by WebVNextStack. */
+  webSurface?: string;
+  /** Exact release SHA injected into the deployed vNext task definition. */
+  releaseSha?: string;
 }
 
 declare global {
@@ -56,23 +53,27 @@ function loadConfig(): RuntimeConfig {
   }
   return {
     clerkPublishableKey: clerkKey,
-    apiBaseUrl:
-      (env.VITE_API_BASE_URL as string | undefined) ?? window.location.origin,
+    apiBaseUrl: (env.VITE_API_BASE_URL as string | undefined) ?? window.location.origin,
     appEnv: 'local',
     mapStyleUrl: env.VITE_MAP_STYLE_URL as string | undefined,
     mapStyleAttribution: env.VITE_MAP_STYLE_ATTRIBUTION as string | undefined,
+    // Explicit local-only fallback for developers who need to exercise the
+    // alternate presentation bundle. Production selection still comes from
+    // runtime-config.js generated from ECS environment variables.
+    webSurface: env.VITE_WEB_SURFACE as string | undefined,
+    releaseSha: env.VITE_RELEASE_SHA as string | undefined,
   };
 }
 
 export const config: RuntimeConfig = loadConfig();
 
-/**
- * The basemap style to render, with the default applied.
- *
- * Treats an EMPTY STRING as absent, which matters: entrypoint.sh always emits
- * the key, so an unset container var arrives as '' rather than undefined. A
- * plain `??` would hand MapLibre an empty style URL and blank the map.
- */
+export function runtimeConfigIsVNext(value: Pick<RuntimeConfig, 'webSurface'>): boolean {
+  return resolveWebPresentation(value.webSurface) === 'vnext';
+}
+
+/** Canonical production switch for the vNext presentation surface. */
+export const isVNextSurface = runtimeConfigIsVNext(config);
+
 export const mapStyleUrl: string = config.mapStyleUrl?.trim() || DEFAULT_MAP_STYLE_URL;
 
 export const mapStyleAttribution: string =
