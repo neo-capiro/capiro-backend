@@ -1,7 +1,13 @@
 /* App Shell vNext — geometry from Figma 722:2502 (expanded) / 723:2530 (collapsed). */
 
 .capiro-vnext-root .capiro-vnext-shell {
-  min-height: 100vh;
+  /* `height`, not `min-height`: the shell must be capped to the viewport so
+     the "content" row's 1fr resolves against a definite size and only it
+     scrolls. `min-height` let the whole shell (and the sidebar, which spans
+     its rows) grow to the page's full scroll height, pushing Settings/Collapse
+     hundreds of pixels below the fold on any dashboard taller than one screen. */
+  height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: var(--capiro-layout-shell-sidebar-expanded) minmax(0, 1fr);
   grid-template-rows: var(--capiro-layout-shell-topbar-height) var(--capiro-layout-shell-context-height) minmax(0, 1fr);
@@ -14,6 +20,12 @@
 
 .capiro-vnext-root .capiro-vnext-shell[data-collapsed] {
   grid-template-columns: var(--capiro-layout-shell-sidebar-collapsed) minmax(0, 1fr);
+}
+
+/* Dashboard (`729:2617`) renders no context bar; collapse its reserved row to
+   0 instead of leaving a 44px empty band above the page content. */
+.capiro-vnext-root .capiro-vnext-shell[data-context='hidden'] {
+  grid-template-rows: var(--capiro-layout-shell-topbar-height) 0px minmax(0, 1fr);
 }
 
 /* ── Top bar ────────────────────────────────────────────────────────────── */
@@ -61,7 +73,14 @@
 
 /* ── Meri, bell, profile ────────────────────────────────────────────────── */
 
-.capiro-vnext-root .capiro-meri-launcher { height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 0; border-radius: var(--capiro-radius-shell-control); background: var(--capiro-color-action-meri-default); color: var(--capiro-color-action-meri-text); cursor: pointer; font-size: 13px; font-weight: 600; transition: background var(--capiro-motion-fast) var(--capiro-motion-ease); }
+/* Shell/MeriLauncher (722:2517) renders as a full pill in the reference
+   screenshot, not the shared 10px shell-control corner used by ordinary
+   controls (the Figma-bound --capiro-radius-shell-control variable on this
+   node reads 10, which does not match its own rendered screenshot — the
+   screenshot wins per the design-to-code priority order). The component's own
+   docs call this out as the shell's one intentionally-distinct saturated
+   action, so it should read as a chip, not a squared button. */
+.capiro-vnext-root .capiro-meri-launcher { height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 999px; background: var(--capiro-color-action-meri-default); color: var(--capiro-color-action-meri-text); cursor: pointer; font-size: 13px; font-weight: 600; transition: background var(--capiro-motion-fast) var(--capiro-motion-ease); }
 .capiro-vnext-root .capiro-meri-launcher:hover { background: var(--capiro-color-action-meri-hover); }
 .capiro-vnext-root .capiro-meri-launcher__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--capiro-color-shell-signature-secondary); }
 
@@ -99,12 +118,18 @@
 .capiro-vnext-root .capiro-vnext-sidebar {
   grid-area: sidebar;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 12px 12px;
   background: var(--capiro-color-bg-sidebar);
   border-right: 1px solid var(--capiro-color-border-default);
+  /* Safety valve, not the normal case: the sidebar is now capped to the
+     viewport by the shell above it. If its own content ever exceeds that
+     (many nav children, browser zoom, a very short viewport) it scrolls
+     internally instead of pushing Settings/Collapse off-screen again. */
+  overflow-y: auto;
 }
 .capiro-vnext-root .capiro-vnext-sidebar__label { padding: 0 6px 4px; font-family: var(--capiro-type-family-mono); color: var(--capiro-color-text-muted); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
 .capiro-vnext-root .capiro-vnext-sidebar__nav { display: flex; flex-direction: column; gap: 4px; }
@@ -220,7 +245,9 @@
 }
 
 @media (max-width: 639px) {
-  .capiro-vnext-root .capiro-vnext-shell { display: block; min-height: 100vh; }
+  /* Mobile is a normal scrolling document (bottom nav is fixed separately),
+     not the desktop grid, so it must not inherit the desktop's viewport cap. */
+  .capiro-vnext-root .capiro-vnext-shell { display: block; height: auto; min-height: 100vh; overflow: visible; }
   .capiro-vnext-root .capiro-vnext-sidebar { display: none; }
   .capiro-vnext-root .capiro-vnext-topbar { grid-template-columns: auto 1fr auto; min-height: 56px; padding: 0 10px; }
   .capiro-vnext-root .capiro-vnext-profile__copy,

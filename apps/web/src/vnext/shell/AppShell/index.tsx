@@ -70,7 +70,13 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
+    <div
+      className="capiro-vnext-shell"
+      data-collapsed={collapsed || undefined}
+      // Dashboard (729:2617, `DASHBOARD · OFF`) renders no context bar; the
+      // shell must collapse that row rather than leave an empty 44px band.
+      data-context={clientContext.enabled ? undefined : 'hidden'}
+    >
         {/* CapiroBrand takes no environment label: 722:2507, the wordmark-plus-
             environment copy, is hidden in the frame. */}
         <CapiroTopBar
