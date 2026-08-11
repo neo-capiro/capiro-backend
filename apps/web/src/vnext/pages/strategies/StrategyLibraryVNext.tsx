@@ -1,12 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useCapiroToast } from '../../components/feedback/toast.js';
-import {
-  CapiroCalendarIcon,
-  CapiroDatabaseIcon,
-  CapiroPlusIcon,
-  CapiroRobotIcon,
-  CapiroSettingsIcon,
-} from '../../components/icons/index.js';
 import { useNavigate } from 'react-router-dom';
 import { useMe } from '../../../lib/me.js';
 import {
@@ -110,32 +103,32 @@ export function StrategyLibraryVNext() {
           {agentic ? (
             <>
               <button className="vnext-strategy-button" onClick={() => navigate('/strategies/agents/review')}>
-                <CapiroRobotIcon /> Agent review
+                Agent review
               </button>
               <button className="vnext-strategy-button" onClick={() => navigate('/strategies/context')}>
-                <CapiroDatabaseIcon /> Context library
+                Context library
               </button>
             </>
           ) : null}
           <button className="vnext-strategy-button is-primary" onClick={() => setGoalOpen(true)}>
-            <CapiroPlusIcon /> New strategy
+            New strategy
           </button>
         </div>
       </header>
 
       <div className="vnext-strategy-library__body">
         {!firmLoaded ? (
-          <FirmPhaseStrip icon={<CapiroCalendarIcon />} title="Loading firm phases…" detail="Aligning this library to your operating calendar." />
+          <FirmPhaseStrip icon={'≈'} title="Loading firm phases…" detail="Aligning this library to your operating calendar." />
         ) : firmConfigured ? (
           <FirmPhaseStrip
-            icon={<CapiroCalendarIcon />}
+            icon={'≈'}
             title="Firm phases are set"
             detail={`${firmPhases.data?.length ?? 0} operating phases align every strategy to the firm’s planning rhythm.`}
-            action={<button className="vnext-strategy-button" onClick={() => setFirmOpen(true)}><CapiroSettingsIcon /> Edit phases</button>}
+            action={<button className="vnext-strategy-button" onClick={() => setFirmOpen(true)}>Edit phases</button>}
           />
         ) : (
           <FirmPhaseStrip
-            icon={<CapiroCalendarIcon />}
+            icon={'≈'}
             title="Set your firm phases"
             detail={`Start from the ${FIRM_PHASES_DEFAULT.length}-phase template, then adapt it to your firm.`}
             action={<button className="vnext-strategy-button is-primary" onClick={() => setFirmOpen(true)}>Set firm phases</button>}

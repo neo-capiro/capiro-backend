@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
 import { SHELL_NAV_DESCRIPTIONS } from '../nav-content.js';
 import { useShellOverlay, type ShellOverlayId } from '../overlay-manager.js';
+import iconClients from '../assets/icon-clients.svg';
 
 export interface CapiroNavItemModel {
   id: string;
@@ -52,7 +53,14 @@ function NavIcon({ id }: { id: string }) {
   const glyph = NAV_GLYPHS[id];
   return (
     <span className="capiro-vnext-nav-item__icon" aria-hidden="true">
-      {glyph ?? null}
+      {/* Settings is the documented exception: a real exported vector, committed
+          from 1126:2600. The Unicode-glyph ruling deliberately does NOT extend
+          here — do not swap this for a character. */}
+      {id === 'settings' ? (
+        <img src={iconClients} alt="" width={20} height={20} />
+      ) : (
+        glyph ?? null
+      )}
     </span>
   );
 }

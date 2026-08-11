@@ -536,6 +536,70 @@ ClientExposure · PolicyWindows`, where PolicyWindows is titled "Today and next 
 Remember Overview is an **ADDITIVE** tab (§11.2): behind a flag, real endpoints or an explicit
 unavailable state, never mock data. Every number visible above is mockup data.
 
+## 13. Neo's implementation rulings — 2026-08-11. Treat as binding.
+
+Neo checked the live vNext nodes and the current `main` backend and issued these. They resolve
+every open question from §11–§12. **The three-line summary he gave: canonical shell beats
+family-frame shell; the global Intelligence flyout and the local Intelligence rail coexist;
+never fabricate backend data to make a mockup look populated.**
+
+1. **Intelligence uses BOTH navigation layers — do not choose.** `722:2502` stays canonical for
+   global nav: Intelligence remains in the dark sidebar with its chevron and opens the anchored
+   flyout; the sidebar does **not** expand. `869:2502` *adds* an in-family destination rail in
+   the context bar. Once inside Intelligence, keep the horizontal rail for
+   `Data Explorer · LegiWatch · Program Elements · Funding Opportunities · District Nexus`.
+   Flyout = global entry/switcher. Rail = persistent local navigation. This supersedes §12.2's
+   "may contradict" flag — it was never a contradiction, it is two layers.
+   ⚠️ Neo's note said "the 264px sidebar does not expand", but every spec elsewhere
+   (`1126:2638`, `502:444`, `503:361`) gives expanded = **232px**. Built as 232; confirm 264
+   was not a separate measurement before changing it.
+2. **The new shell always wins; older family frames' chrome is stale.** Build every page with
+   the canonical dark `#294E68` sidebar, current top bar, current nav behavior and dark-ink
+   Meri. Match `843:2502` / `869:2502` for their **working-surface content only**, never their
+   shell styling, and do not wait for those frames to be refreshed. Neo's detail: the live
+   `869:2502` now *does* carry Meri at `#121722` — it is only its **sidebar** that is still
+   light/stale.
+3. **The additive LegiWatch aggregates do not exist on `main`.** Neo checked `apps/intel-api`
+   directly: the registered modules are Hearing, Watchlist, Tracker, Intel Alert, Upcoming
+   Hearings, Feed and Bill Dossier. **There is no Overview, Digest or Analytics aggregate
+   route.** A real feed API does exist (`/_all/feed`, tenant-wide, and `/:clientId/feed`) and
+   is fair game for underlying data — but it is **not** permission to manufacture the aggregate
+   contracts the mockup depicts. So: build Overview/Digest/Analytics behind their flags,
+   connect only what has a real contract, and render the explicit unavailable/partial state for
+   the rest. **Do not use the Figma numbers and do not compute substitute metrics client-side.**
+   *"If Overview looks sparse initially, that is the correct implementation."*
+4. **Canonical tab selection is the 2px dark-ink (`#121722`) underline.** In `869:2502`
+   Overview = Current, Hearings = Default; the dark-filled Hearings treatment is stale. There
+   must never be two selected tabs. Underline only, across Overview, Feed, Hearings, Digest and
+   Analytics. Resolves §12.4.
+5. **Shipping order: Strategies → LegiWatch → Program Elements → Client CRM.** Strategies and
+   LegiWatch are the most visibly behind. LegiWatch establishes the reusable Intelligence-family
+   chrome, so Program Elements follows it immediately and **inherits that contract rather than
+   inventing its own**.
+6. **Desktop-only wherever Figma is desktop-only. Do not invent responsive designs.** Strategies
+   and Client CRM ship desktop-only. For LegiWatch implement the designed responsive behavior
+   for **Feed and Alert Detail only**. Anything responsive added later without a frame must be
+   labelled *derived from the LegiWatch responsive contract*, not designer-authored. Neo's
+   reasoning: an exact desktop implementation beats an improvised mobile one that becomes
+   accidental design-system precedent.
+7. **Derive the missing Strategies / Client CRM acceptance criteria — do not block on new
+   Handoff frames.** Govern with the canonical shell/nav rulings, the tokens and components,
+   the interaction/state conventions and the three completed handoffs. Record them verbatim as
+   **"engineering-derived acceptance criteria based on canonical vNext system — not
+   designer-authored."** The bar stays strict: pixel fidelity at the designed desktop viewport,
+   canonical shell, no stale chrome, every visible control functional, existing production
+   behavior preserved, real loading/empty/error/permission states, and no fabricated production
+   data.
+8. **Program Elements uses the adapter approach under `src/vnext/`.** Do **not** re-skin the 12
+   canonical production files in place. `app.capiro.ai` stays untouched while vNext is
+   assembled. Slower, but it yields an isolated implementation that can be compared and tested
+   without contaminating production. Making vNext canonical is a **deliberate cutover after
+   visual and functional parity**, never a side effect of this build. Confirms §12's risk note.
+9. **Settings uses the real Figma vector, not a glyph.** `Icon / Clients` (`1126:2600`) is a
+   genuine vector asset, approximately **25.5×16**, consistent with the other vector nav assets.
+   Export and commit those exact bytes. **Do not substitute Unicode here** just because the
+   other nav glyphs are characters — that ruling does not extend to this asset.
+
 ### 12.4 One ambiguity to take to the designer, not guess
 
 In `869:2502`'s tab rail, `Overview` renders as the active raised white tab **and** `Hearings`
