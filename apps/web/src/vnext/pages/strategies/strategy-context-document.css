@@ -1,0 +1,365 @@
+/* Strategies / 05 Context Document — Figma 843:3134. */
+.capiro-vnext-root .vnext-strategy-context-doc {
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  background: var(--capiro-color-bg-page);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__provenance {
+  height: 24px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--capiro-color-success-soft);
+  color: var(--capiro-color-success);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__header {
+  min-height: 124px;
+  padding: 20px 24px 16px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__heading-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin-top: 10px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__heading-row > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__heading-row > div:first-child > span {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__heading-row h1 {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--capiro-color-text-primary);
+  font-size: 27px;
+  line-height: 33px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__metadata {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  border-top: 1px solid var(--capiro-color-border-divider);
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__badge {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-sunken);
+  color: var(--capiro-color-text-secondary);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__badge.tone-success { background: var(--capiro-color-success-soft); color: var(--capiro-color-success); }
+.capiro-vnext-root .vnext-strategy-context-doc__badge.tone-info { background: var(--capiro-color-info-soft); color: var(--capiro-color-info); }
+.capiro-vnext-root .vnext-strategy-context-doc__badge.tone-warning { background: var(--capiro-color-warning-soft); color: var(--capiro-color-warning); }
+.capiro-vnext-root .vnext-strategy-context-doc__version {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--capiro-color-text-muted);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-strategy-context-doc__body {
+  min-height: 716px;
+  display: grid;
+  grid-template-columns: minmax(0, 1010px) 290px;
+  gap: 20px;
+  width: min(1320px, calc(100% - 48px));
+  margin: 18px auto 32px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__viewer,
+.capiro-vnext-root .vnext-strategy-context-doc__sections {
+  height: 678px;
+  overflow: hidden;
+  border: 1px solid var(--capiro-color-border-page);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow: 0 6px 20px var(--capiro-primitive-shadow-widget);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__viewer { position: relative; min-width: 0; }
+.capiro-vnext-root .vnext-strategy-context-doc__viewer > header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__viewer > header > span,
+.capiro-vnext-root .vnext-strategy-context-doc__viewer > header > small {
+  color: var(--capiro-color-text-muted);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 13px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__viewer > header > span {
+  color: var(--capiro-color-text-secondary);
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__viewer > header > small { margin-left: auto; }
+.capiro-vnext-root .vnext-strategy-context-doc__code {
+  height: 629px;
+  overflow: auto;
+  padding: 12px 0 28px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__code > div {
+  position: relative;
+  min-height: 22px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: start;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__code > div.is-selected {
+  background: var(--capiro-color-warning-soft);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__code > div.is-selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 56px;
+  width: 3px;
+  background: var(--capiro-color-warning-rail);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__code > div > span {
+  min-height: 22px;
+  padding-right: 12px;
+  border-right: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-muted);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  line-height: 22px;
+  text-align: right;
+  user-select: none;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__code code {
+  min-width: 0;
+  padding: 0 18px;
+  color: var(--capiro-color-text-primary);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__selection {
+  position: absolute;
+  right: 24px;
+  bottom: 14px;
+  min-width: 190px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: var(--capiro-color-warning-soft);
+  color: var(--capiro-color-warning);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.capiro-vnext-root .vnext-strategy-context-doc__sections {
+  padding: 15px 11px 14px;
+  overflow-y: auto;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__sections > .vnext-strategy-section-label,
+.capiro-vnext-root .vnext-strategy-context-doc__sections > h2,
+.capiro-vnext-root .vnext-strategy-context-doc__facts {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__sections > h2 {
+  margin-top: 8px;
+  margin-bottom: 14px;
+  color: var(--capiro-color-text-heading);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list > button {
+  position: relative;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 calc(11px + var(--section-depth) * 8px);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-secondary);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 11px;
+  line-height: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list > button small {
+  color: var(--capiro-color-text-muted);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 8px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list > button.is-active {
+  border-color: var(--capiro-color-border-strong);
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-text-heading);
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list > button.is-active::before {
+  content: '';
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--capiro-color-action-accent-default);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__section-list .is-note {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  color: var(--capiro-color-text-muted);
+  font-size: 11px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__proof-card {
+  min-height: 154px;
+  margin-top: 22px;
+  padding: 13px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 9px;
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-vnext-root .vnext-strategy-context-doc__proof-card > span,
+.capiro-vnext-root .vnext-strategy-context-doc__facts > span {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__proof-card > strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--capiro-color-text-primary);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__proof-card > p {
+  margin: 7px 0 12px;
+  color: var(--capiro-color-text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__proof-card > small {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-success-soft);
+  color: var(--capiro-color-success);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__facts {
+  margin-top: 28px;
+  display: grid;
+  gap: 8px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__facts > strong {
+  color: var(--capiro-color-text-heading);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__sections > .vnext-strategy-button {
+  width: 100%;
+  margin-top: 12px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc__locate-error {
+  display: block;
+  margin-top: 8px;
+  color: var(--capiro-color-danger);
+  font-size: 10px;
+  line-height: 15px;
+}
+.capiro-vnext-root .vnext-strategy-context-doc-error {
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  color: var(--capiro-color-text-muted);
+}
+
+@media (max-width: 1040px) {
+  .capiro-vnext-root .vnext-strategy-context-doc__body {
+    grid-template-columns: minmax(0, 1fr) 270px;
+  }
+  .capiro-vnext-root .vnext-strategy-context-doc__metadata { overflow-x: auto; }
+  .capiro-vnext-root .vnext-strategy-context-doc__version { display: none; }
+}
+
+@media (max-width: 760px) {
+  .capiro-vnext-root .vnext-strategy-context-doc__header { padding: 16px; }
+  .capiro-vnext-root .vnext-strategy-context-doc__heading-row { align-items: flex-start; flex-direction: column; }
+  .capiro-vnext-root .vnext-strategy-context-doc__heading-row h1 { white-space: normal; }
+  .capiro-vnext-root .vnext-strategy-context-doc__metadata { padding: 0 12px; }
+  .capiro-vnext-root .vnext-strategy-context-doc__body {
+    width: calc(100% - 24px);
+    grid-template-columns: 1fr;
+  }
+  .capiro-vnext-root .vnext-strategy-context-doc__viewer { height: 560px; }
+  .capiro-vnext-root .vnext-strategy-context-doc__code { height: 511px; }
+  .capiro-vnext-root .vnext-strategy-context-doc__sections { height: auto; min-height: 420px; }
+}
