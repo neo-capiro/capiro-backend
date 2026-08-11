@@ -511,17 +511,19 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     const overnight = (recentChanges.data ?? []).filter(
       (change) => new Date(change.detectedAt).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
     ).length;
-    const critical = needsAttention.items.filter((item) => item.severity === 'critical').length;
-
-    const metaParts = [formatToday(), `${overnight} new signals overnight`];
-    if (critical > 0) metaParts.push(`${critical} critical actions today`);
+    
+    // Copy matches the Figma header (`751:2563`–`751:2566`).
+    const metaParts = [formatToday(), `${overnight} signals overnight`];
+    if (needsAttention.total > 0) {
+      metaParts.push(`${needsAttention.total} time-sensitive item${needsAttention.total === 1 ? '' : 's'}`);
+    }
 
     return {
       greeting: `${greetingFor(new Date())}${me.data?.user.firstName ? `, ${me.data.user.firstName}` : ''}.`,
-      eyebrow: 'ALL CLIENTS · PORTFOLIO WIDE',
+      eyebrow: 'COMMAND DASHBOARD · ALL CLIENTS',
       meta: metaParts.join(' · '),
       refreshedLabel: portfolioAlerts.data?.generatedAt
-        ? `Refreshed ${relativeDay(portfolioAlerts.data.generatedAt)}`
+        ? `Refreshed ${new Date(portfolioAlerts.data.generatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
         : null,
     };
   }, [me.data?.user.firstName, needsAttention.items, portfolioAlerts.data?.generatedAt, recentChanges.data]);
@@ -679,10 +681,28 @@ function attentionFromAlert(
     eyebrow: alert.clientName.toUpperCase(),
     title: alert.title,
     context: alert.subtitle || null,
-    due: alert.countdownLabel ?? (alert.when ? relativeDay(alert.when) : null),
+    // Figma renders this column as a mono uppercase stamp ("DUE AUG 16",
+    // "10:00 AM", "NEW TODAY"), not a relative phrase.
+    due: dueStamp(alert),
     href: alert.href,
     actionLabel: mapping.action,
   };
+}
+
+/** Mono uppercase deadline stamp, matching Figma `751:2580`. */
+function dueStamp(alert: PortfolioAlertItem): string | null {
+  const when = alert.when ? new Date(alert.when) : null;
+  if (!when || Number.isNaN(when.getTime())) return alert.countdownLabel?.toUpperCase() ?? null;
+
+  const today = new Date();
+  const sameDay = when.toDateString() === today.toDateString();
+  if (sameDay) {
+    return when
+      .toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      .toUpperCase();
+  }
+  if (when.getTime() < today.getTime()) return 'NEW TODAY';
+  return `DUE ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}`;
 }
 
 function severityRank(severity: AttentionItem['severity']): number {
@@ -700,9 +720,9 @@ function newsReasonLabel(reason: NewsDashboardResponse['reason']): string {
 
 function greetingFor(date: Date): string {
   const hour = date.getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 18) return 'Good Afternoon';
-  return 'Good Evening';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
 function formatToday(): string {
