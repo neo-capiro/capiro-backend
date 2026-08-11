@@ -43,6 +43,11 @@ function change(overrides: Partial<IntelligenceChange>): IntelligenceChange {
   };
 }
 
+const source = readFileSync(
+  resolve(process.cwd(), 'src/vnext/adapters/legacy/useDashboardVNextModel.ts'),
+  'utf8',
+);
+
 describe('Needs Attention module contract', () => {
   it('excludes overdue comments', () => {
     const items = selectAttentionItems({
@@ -145,16 +150,25 @@ describe('Needs Attention module contract', () => {
     });
 
     expect(items[0]!.id).toBe('alert-crit');
-    expect(items[0]!.kind).toBe('CRITICAL');
+    expect(items[0]!.severity).toBe('critical');
+    // Badge names the kind of work; severity rides the tone axis instead, so an
+    // urgent comment deadline still reads DEADLINE rather than CRITICAL.
+    expect(items[0]!.kind).toBe('DEADLINE');
+  });
+
+  it('caps rendered rows to the card budget while reporting the true total', () => {
+    const alerts = Array.from({ length: 32 }, (_, index) =>
+      alert({ id: `a${index}`, type: 'hearing' }),
+    );
+    const items = selectAttentionItems({ alerts, changes: [], failedSourceReason: null });
+
+    // selectAttentionItems returns everything; the module applies the budget.
+    expect(items).toHaveLength(32);
+    expect(source).toContain('MODULE_ROW_LIMITS.attention');
   });
 });
 
 describe('dashboard source contract', () => {
-  const source = readFileSync(
-    resolve(process.cwd(), 'src/vnext/adapters/legacy/useDashboardVNextModel.ts'),
-    'utf8',
-  );
-
   it('reuses the canonical dashboard query keys rather than creating new caches', () => {
     for (const key of [
       "'portfolio-alerts'",

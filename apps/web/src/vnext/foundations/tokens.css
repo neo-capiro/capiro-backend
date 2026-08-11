@@ -37,6 +37,11 @@
 
   /* Menu/overlay surfaces (Figma 728:2575). */
   --capiro-color-bg-selected: #e6e9ef;
+  /* Read from the Figma node code rather than sampled off a render. */
+  --capiro-color-text-information: #1c4e7a;
+  --capiro-color-text-warning: #8a6218;
+  --capiro-color-border-badge: #eceef2;
+  --capiro-status-badge-height: 24px;
   --capiro-color-bg-flyout-hover: #f6f7fa;
   --capiro-color-text-destructive: #a32b23;
   --capiro-primitive-overlay-ink-16: rgba(19, 26, 36, 0.16);

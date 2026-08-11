@@ -106,7 +106,9 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
           }
         />
 
-        <CapiroContextBar />
+        {/* The context bar is per-screen, not global chrome: the Dashboard
+            mockup (751:2502) has no context row, matching `DASHBOARD · OFF`. */}
+        {clientContext.enabled ? <CapiroContextBar /> : null}
 
         <main className="capiro-vnext-content">{children}</main>
     </div>

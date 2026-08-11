@@ -24,13 +24,11 @@ export function CapiroTopBar({
 
 export function CapiroBrand({ environmentLabel = 'vNext' }: { environmentLabel?: string }) {
   return (
-    <>
-      <span className="capiro-vnext-brand-mark" aria-hidden="true">C</span>
-      <span className="capiro-vnext-brand-copy">
-        <span className="capiro-vnext-brand-name">Capiro</span>
-        <span className="capiro-vnext-brand-meta">{environmentLabel}</span>
-      </span>
-    </>
+    <span className="capiro-vnext-brand-copy">
+      {/* The real wordmark the canonical shell already ships, not a drawn glyph. */}
+      <img className="capiro-vnext-brand-logo" src="/logo.png" alt="Capiro" />
+      <span className="capiro-vnext-brand-meta">{environmentLabel}</span>
+    </span>
   );
 }
 

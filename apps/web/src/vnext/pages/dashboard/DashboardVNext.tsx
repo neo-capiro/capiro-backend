@@ -135,12 +135,12 @@ function NeedsAttention({ module }: { module: DashboardVNextModel['needsAttentio
           {module.state === 'loading'
             ? 'Loading…'
             : module.total > 0
-              ? `${module.total} item${module.total === 1 ? '' : 's'}`
+              ? `${module.total} TIME-SENSITIVE ITEM${module.total === 1 ? '' : 'S'}`
               : ''}
         </span>
         {module.total > 0 ? (
           <Link className="capiro-dash-card__link" to="/explorer">
-            View all
+            View all →
           </Link>
         ) : null}
       </div>
@@ -153,17 +153,28 @@ function NeedsAttention({ module }: { module: DashboardVNextModel['needsAttentio
         </p>
       ) : null}
 
-      {module.items.map((item) => (
-        <AttentionRow key={item.id} item={item} />
+      {module.items.map((item, index) => (
+        <AttentionRow key={item.id} item={item} current={index === 0} />
       ))}
     </section>
   );
 }
 
-function AttentionRow({ item }: { item: AttentionItem }) {
+/**
+ * Status/Badge tone axis (Figma `271:6/12/15/18`). Tone is severity; the badge
+ * label is the kind of work. The two axes stay independent.
+ */
+function badgeTone(item: AttentionItem): 'danger' | 'warning' | 'review' | 'information' {
+  if (item.severity === 'critical') return 'danger';
+  if (item.severity === 'high') return 'warning';
+  if (item.kind === 'BUDGET') return 'review';
+  return 'information';
+}
+
+function AttentionRow({ item, current }: { item: AttentionItem; current: boolean }) {
   const body = (
     <>
-      <span className="capiro-dash-attention__badge" data-severity={item.severity}>
+      <span className="capiro-dash-attention__badge" data-tone={badgeTone(item)}>
         {item.kind}
       </span>
       <span className="capiro-dash-attention__copy">
@@ -176,12 +187,23 @@ function AttentionRow({ item }: { item: AttentionItem }) {
     </>
   );
 
+  // Exactly one primary action per decision region, per the Button/Main guidance
+  // in Figma: the lead row is "current" and owns it.
   return item.href ? (
-    <Link className="capiro-dash-attention" data-severity={item.severity} to={item.href}>
+    <Link
+      className="capiro-dash-attention"
+      data-severity={item.severity}
+      data-current={current || undefined}
+      to={item.href}
+    >
       {body}
     </Link>
   ) : (
-    <div className="capiro-dash-attention" data-severity={item.severity}>
+    <div
+      className="capiro-dash-attention"
+      data-severity={item.severity}
+      data-current={current || undefined}
+    >
       {body}
     </div>
   );

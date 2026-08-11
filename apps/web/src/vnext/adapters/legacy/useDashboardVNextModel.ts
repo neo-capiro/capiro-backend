@@ -105,6 +105,14 @@ const MATERIAL_CHANGE_SEVERITIES = new Set(['critical', 'high']);
 
 const DEFAULT_VISIBILITY: DashboardVisibility = { today: true, work: true, news: true };
 
+/**
+ * Row budgets from the Figma layout: the modules are fixed-height cards, not
+ * scrolling lists. Each card shows this many rows and defers the rest to its
+ * "View all" destination. `total` still reports the true count, so capping is
+ * presentational and never hides the real volume.
+ */
+const MODULE_ROW_LIMITS = { attention: 4, news: 4, today: 3, work: 3 } as const;
+
 export interface DashboardVNextModel {
   header: {
     greeting: string;
@@ -274,7 +282,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
 
     return {
       state: (sourcesFailed ? 'partial' : 'ready') as DashboardModuleState,
-      items: ordered,
+      items: ordered.slice(0, MODULE_ROW_LIMITS.attention),
       total: ordered.length,
     };
   }, [
@@ -346,7 +354,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     return {
       ...base,
       state: (data.stale ? 'stale' : 'ready') as DashboardModuleState,
-      items,
+      items: items.slice(0, MODULE_ROW_LIMITS.news),
       meta,
       unavailableReason: null,
     };
@@ -404,15 +412,28 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     // Past events are not "today and coming up".
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    // Real calendars carry noise the mockup never shows: the same recurring
+    // meeting duplicated per source, and cancelled holds. Collapse identical
+    // title+instant pairs and drop cancellations.
+    const seen = new Set<string>();
     const upcoming = dated
       .filter((event) => event.at >= startOfToday.getTime())
-      .sort((a, b) => a.at - b.at);
+      .filter((event) => !/^cancell?ed:/i.test(event.title.trim()))
+      .sort((a, b) => a.at - b.at)
+      .filter((event) => {
+        const key = `${event.at}|${event.title.trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     const eventDays = new Set(
       upcoming
         .filter((event) => event.at !== Number.MAX_SAFE_INTEGER)
         .map((event) => new Date(event.at).toDateString()),
     );
-    const events: TodayEvent[] = upcoming.map(({ at: _at, ...event }) => event);
+    const events: TodayEvent[] = upcoming
+      .slice(0, MODULE_ROW_LIMITS.today)
+      .map(({ at: _at, ...event }) => event);
 
     const partial = meetings.isError || comingUp.isError;
     if (events.length === 0) {
@@ -479,7 +500,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
 
     return {
       state: (partial ? 'partial' : 'ready') as DashboardModuleState,
-      items,
+      items: items.slice(0, MODULE_ROW_LIMITS.work),
       total: items.length,
     };
   }, [outreach.data, outreach.isError, outreach.isLoading, workspaceDrafts.data, workspaceDrafts.isError, workspaceDrafts.isLoading, visibility.work]);
@@ -650,7 +671,10 @@ function attentionFromAlert(
     alert.severity === 'critical' ? 'critical' : alert.severity === 'high' ? 'high' : 'normal';
   return {
     id: `alert-${alert.id}`,
-    kind: severity === 'critical' ? 'CRITICAL' : mapping.badge,
+    // Badge names the kind of work; tone conveys severity (Figma's Status/Badge
+    // keeps those on separate axes). Collapsing every urgent row to "CRITICAL"
+    // erases the distinction the design relies on.
+    kind: mapping.badge,
     severity,
     eyebrow: alert.clientName.toUpperCase(),
     title: alert.title,

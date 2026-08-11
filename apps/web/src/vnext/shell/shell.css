@@ -37,9 +37,9 @@
 .capiro-vnext-root .capiro-vnext-topbar__search { min-width: 0; justify-self: center; width: 100%; }
 .capiro-vnext-root .capiro-vnext-topbar__actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 
-.capiro-vnext-root .capiro-vnext-brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; background: var(--capiro-color-bg-interactive-primary); color: var(--capiro-color-text-inverse-primary); font-size: 17px; font-weight: 600; }
-.capiro-vnext-root .capiro-vnext-brand-copy { display: grid; gap: 0; }
-.capiro-vnext-root .capiro-vnext-brand-name { font-size: 16px; font-weight: 600; line-height: 20px; }
+.capiro-vnext-root .capiro-vnext-brand-copy { display: grid; gap: 3px; justify-items: start; }
+/* The real Capiro wordmark asset, sized to the Figma brand mark box. */
+.capiro-vnext-root .capiro-vnext-brand-logo { height: 18px; width: auto; display: block; }
 .capiro-vnext-root .capiro-vnext-brand-meta { font-family: var(--capiro-type-family-mono); font-size: 8.5px; line-height: 12px; color: var(--capiro-color-text-muted); letter-spacing: .05em; text-transform: uppercase; }
 
 /* ── Global search (722:2510 / 726:2569) ────────────────────────────────── */
