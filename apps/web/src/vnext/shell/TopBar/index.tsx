@@ -22,12 +22,18 @@ export function CapiroTopBar({
   );
 }
 
-export function CapiroBrand({ environmentLabel = 'vNext' }: { environmentLabel?: string }) {
+/**
+ * Brand (`722:2504`). The frame is an 86×36 wordmark and nothing else — its
+ * Brand Copy child (`722:2507`, the wordmark text plus environment label) is
+ * `hidden`, so the environment badge only renders when a caller explicitly
+ * asks for one.
+ */
+export function CapiroBrand({ environmentLabel }: { environmentLabel?: string }) {
   return (
-    <span className="capiro-vnext-brand-copy">
+    <span className="capiro-vnext-brand">
       {/* The real wordmark the canonical shell already ships, not a drawn glyph. */}
-      <img className="capiro-vnext-brand-logo" src="/logo.png" alt="Capiro" />
-      <span className="capiro-vnext-brand-meta">{environmentLabel}</span>
+      <img className="capiro-vnext-brand-wordmark" src="/logo.png" alt="Capiro" />
+      {environmentLabel ? <span className="capiro-vnext-brand-meta">{environmentLabel}</span> : null}
     </span>
   );
 }

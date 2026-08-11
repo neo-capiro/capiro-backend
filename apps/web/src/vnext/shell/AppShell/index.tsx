@@ -71,8 +71,10 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
 
   return (
     <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
+        {/* CapiroBrand takes no environment label: 722:2507, the wordmark-plus-
+            environment copy, is hidden in the frame. */}
         <CapiroTopBar
-          brand={<CapiroBrand environmentLabel="vNext" />}
+          brand={<CapiroBrand />}
           search={<GlobalSearch scopeLabel={clientContext.scopeLabel} />}
           actions={
             <>

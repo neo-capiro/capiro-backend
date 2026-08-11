@@ -16,6 +16,12 @@ const cssFiles = [
   './components/primitives.css',
   './shell/shell.css',
   './pages/dashboard/dashboard.css',
+  './pages/legiwatch/legiwatch.css',
+  './pages/strategies/strategies.css',
+  './pages/strategies/strategy-context.css',
+  './pages/strategies/strategy-context-document.css',
+  './pages/strategies/strategy-governance.css',
+  './pages/strategies/strategy-shell-bridge.css',
 ];
 
 const componentCssFiles = [
@@ -33,10 +39,15 @@ function fromPackageRoot(relativePath: string): string {
   return resolve(process.cwd(), relativePath);
 }
 
+/** The CSS lists above are written relative to this directory. */
+function fromVNext(relativePath: string): string {
+  return resolve(process.cwd(), 'src/vnext', relativePath);
+}
+
 describe('vNext foundation contract', () => {
   it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
     for (const path of cssFiles) {
-      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      const css = readFileSync(fromVNext(path), 'utf8');
       expect(css).toContain('.capiro-vnext-root');
       expect(css).not.toMatch(/(^|\n)\s*(body|html)\b/);
       expect(css).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
@@ -45,7 +56,7 @@ describe('vNext foundation contract', () => {
 
   it('keeps visual color literals in the semantic token layer rather than component CSS', () => {
     for (const path of componentCssFiles) {
-      const css = readFileSync(new URL(path, import.meta.url), 'utf8');
+      const css = readFileSync(fromVNext(path), 'utf8');
       expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
       expect(css).not.toMatch(/rgba?\s*\(/i);
     }

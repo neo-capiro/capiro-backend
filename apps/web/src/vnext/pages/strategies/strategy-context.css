@@ -1,0 +1,544 @@
+/* Strategies / 04 Context Library — Figma 843:2976. */
+.capiro-vnext-root .vnext-strategies .capiro-vnext-nav-item[href='/strategies'][aria-current='page']::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--capiro-color-action-accent-default);
+}
+
+.capiro-vnext-root .vnext-strategy-context {
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  background: var(--capiro-color-bg-page);
+}
+
+.capiro-vnext-root .vnext-strategy-contextbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 15px;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-contextbar__chip {
+  min-width: 118px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 7px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-contextbar__chip small {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-contextbar__chip strong {
+  color: var(--capiro-color-text-primary);
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-contextbar__health {
+  height: 24px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--capiro-color-success-soft);
+  color: var(--capiro-color-success);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-contextbar__health.has-conflict {
+  background: var(--capiro-color-warning-soft);
+  color: var(--capiro-color-warning);
+}
+
+.capiro-vnext-root .vnext-strategy-context__header {
+  min-height: 136px;
+  padding: 22px 24px 18px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .vnext-strategy-context__header > .vnext-strategy-button {
+  height: 34px;
+  margin-bottom: 8px;
+}
+.capiro-vnext-root .vnext-strategy-context__title-row {
+  display: grid;
+  grid-template-columns: 270px minmax(320px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+.capiro-vnext-root .vnext-strategy-context__title-row h1 {
+  margin: 3px 0 0;
+  color: var(--capiro-color-text-primary);
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.capiro-vnext-root .vnext-strategy-context__title-row > p {
+  max-width: 660px;
+  margin: 0;
+  color: var(--capiro-color-text-body-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+.capiro-vnext-root .vnext-strategy-context__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capiro-vnext-root .vnext-strategy-context__body {
+  min-height: 756px;
+  padding: 22px 24px 48px;
+  background: var(--capiro-color-bg-page);
+}
+.capiro-vnext-root .vnext-strategy-context__content {
+  position: relative;
+  width: min(1120px, 100%);
+  min-height: 714px;
+  margin: 0 auto;
+}
+.capiro-vnext-root .vnext-strategy-context__summary {
+  width: 810px;
+  max-width: calc(100% - 310px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.capiro-vnext-root .vnext-strategy-context-metric {
+  position: relative;
+  height: 82px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 0 17px;
+  overflow: hidden;
+  border: 1px solid var(--capiro-color-border-page);
+  border-radius: 10px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow: 0 7px 11px var(--capiro-primitive-shadow-widget);
+}
+.capiro-vnext-root .vnext-strategy-context-metric::before {
+  content: '';
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--capiro-color-action-accent-default);
+}
+.capiro-vnext-root .vnext-strategy-context-metric.tone-success::before { background: var(--capiro-color-success-rail); }
+.capiro-vnext-root .vnext-strategy-context-metric.tone-warning::before { background: var(--capiro-color-warning-rail); }
+.capiro-vnext-root .vnext-strategy-context-metric > strong {
+  color: var(--capiro-color-text-heading);
+  font-size: 26px;
+  line-height: 31px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.capiro-vnext-root .vnext-strategy-context-metric > div { min-width: 0; display: grid; gap: 8px; }
+.capiro-vnext-root .vnext-strategy-context-metric span {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-context-metric small {
+  color: var(--capiro-color-text-body-secondary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.capiro-vnext-root .vnext-strategy-steward-card {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 286px;
+  min-height: 200px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--capiro-color-bg-dark);
+  color: var(--capiro-color-text-inverse-primary);
+}
+.capiro-vnext-root .vnext-strategy-steward-card > span {
+  color: var(--capiro-color-text-inverse-muted);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-steward-card > strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 17px;
+  line-height: 23px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-steward-card > p {
+  margin: 7px 0 18px;
+  color: var(--capiro-color-text-inverse-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.capiro-vnext-root .vnext-strategy-steward-card > button {
+  width: 100%;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--capiro-color-action-accent-default);
+  color: var(--capiro-color-text-inverse-primary);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-strategy-context__documents {
+  width: 810px;
+  max-width: calc(100% - 310px);
+  margin-top: 30px;
+}
+.capiro-vnext-root .vnext-strategy-context__documents-toolbar {
+  min-height: 52px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .vnext-strategy-context__documents-toolbar > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.capiro-vnext-root .vnext-strategy-context__documents-toolbar > div:first-child > strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--capiro-color-text-heading);
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context__documents-toolbar select,
+.capiro-vnext-root .vnext-strategy-context-search {
+  height: 34px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context__documents-toolbar select {
+  min-width: 98px;
+  padding: 0 28px 0 10px;
+}
+.capiro-vnext-root .vnext-strategy-context-search {
+  width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+}
+.capiro-vnext-root .vnext-strategy-context-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--capiro-color-text-primary);
+  font-size: 12px;
+}
+.capiro-vnext-root .vnext-strategy-context-search input::placeholder { color: var(--capiro-color-text-muted); }
+
+.capiro-vnext-root .vnext-strategy-context__document-list {
+  overflow: hidden;
+  border: 1px solid var(--capiro-color-border-page);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow: 0 7px 11px var(--capiro-primitive-shadow-widget);
+}
+.capiro-vnext-root .vnext-strategy-context-group + .vnext-strategy-context-group {
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .vnext-strategy-context-group > header {
+  height: 35px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .vnext-strategy-context-group > header > span {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-group > header > small {
+  min-width: 72px;
+  height: 24px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-sunken);
+  color: var(--capiro-color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-group > button {
+  width: 100%;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 110px 18px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px 9px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  color: inherit;
+  font-family: var(--capiro-type-family-sans);
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .vnext-strategy-context-group > button:last-child { border-bottom: 0; }
+.capiro-vnext-root .vnext-strategy-context-group > button:hover { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .vnext-strategy-context-group__copy { min-width: 0; display: grid; gap: 6px; }
+.capiro-vnext-root .vnext-strategy-context-group__copy > strong {
+  overflow: hidden;
+  color: var(--capiro-color-text-heading);
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-context-group__copy > small {
+  overflow: hidden;
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-strategy-context-group__state {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.capiro-vnext-root .vnext-strategy-context-group__state > span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-sunken);
+  color: var(--capiro-color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-context-group__state .state-active { background: var(--capiro-color-success-soft); color: var(--capiro-color-success); }
+.capiro-vnext-root .vnext-strategy-context-group__state .state-draft { background: var(--capiro-color-info-soft); color: var(--capiro-color-info); }
+.capiro-vnext-root .vnext-strategy-context-group__state .is-stale { background: var(--capiro-color-warning-soft); color: var(--capiro-color-warning); }
+.capiro-vnext-root .vnext-strategy-context-group__updated {
+  color: var(--capiro-color-text-muted-2);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: right;
+}
+.capiro-vnext-root .vnext-strategy-context-empty {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.capiro-vnext-root .vnext-strategy-context-guide {
+  position: absolute;
+  top: 220px;
+  right: 0;
+  width: 286px;
+  min-height: 478px;
+  padding: 15px;
+  border: 1px solid var(--capiro-color-border-page);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow: 0 7px 11px var(--capiro-primitive-shadow-widget);
+}
+.capiro-vnext-root .vnext-strategy-context-guide > h2 {
+  margin: 9px 0 20px;
+  color: var(--capiro-color-text-heading);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-guide__item {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.capiro-vnext-root .vnext-strategy-context-guide__item > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-text-accent);
+  font-size: 13px;
+}
+.capiro-vnext-root .vnext-strategy-context-guide__item > div { display: grid; gap: 4px; }
+.capiro-vnext-root .vnext-strategy-context-guide__item strong {
+  color: var(--capiro-color-text-primary);
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-strategy-context-guide__item small {
+  color: var(--capiro-color-text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+.capiro-vnext-root .vnext-strategy-context-guide > .vnext-strategy-button {
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  left: 15px;
+  width: calc(100% - 30px);
+}
+
+.capiro-vnext-root .vnext-strategy-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--capiro-z-modal);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--capiro-color-bg-overlay-scrim);
+}
+.capiro-vnext-root .vnext-strategy-upload-modal {
+  width: min(620px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--capiro-color-border-page);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow: 0 22px 60px var(--capiro-primitive-shadow-deep);
+}
+.capiro-vnext-root .vnext-strategy-upload-modal > header,
+.capiro-vnext-root .vnext-strategy-upload-modal > footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+}
+.capiro-vnext-root .vnext-strategy-upload-modal > header { border-bottom: 1px solid var(--capiro-color-border-quiet); }
+.capiro-vnext-root .vnext-strategy-upload-modal > header > div { flex: 1; }
+.capiro-vnext-root .vnext-strategy-upload-modal > header span {
+  color: var(--capiro-color-text-muted-2);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .vnext-strategy-upload-modal > header h2 { margin: 4px 0 0; color: var(--capiro-color-text-heading); font-size: 18px; }
+.capiro-vnext-root .vnext-strategy-upload-modal > header > button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+.capiro-vnext-root .vnext-strategy-upload-modal__body { display: grid; gap: 14px; padding: 18px; }
+.capiro-vnext-root .vnext-strategy-upload-modal__body > label { display: grid; gap: 6px; color: var(--capiro-color-text-secondary); font-size: 12px; font-weight: 600; }
+.capiro-vnext-root .vnext-strategy-upload-modal__body select,
+.capiro-vnext-root .vnext-strategy-upload-modal__body textarea {
+  width: 100%;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-primary);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12px;
+}
+.capiro-vnext-root .vnext-strategy-upload-modal__body select { height: 36px; padding: 0 10px; }
+.capiro-vnext-root .vnext-strategy-upload-modal__body textarea { min-height: 250px; resize: vertical; padding: 10px; font-family: var(--capiro-type-family-mono); line-height: 18px; }
+.capiro-vnext-root .vnext-strategy-upload-errors { display: grid; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--capiro-color-danger-soft); color: var(--capiro-color-danger); font-size: 11px; }
+.capiro-vnext-root .vnext-strategy-upload-modal > footer { justify-content: flex-end; border-top: 1px solid var(--capiro-color-border-quiet); }
+
+@media (max-width: 1180px) {
+  .capiro-vnext-root .vnext-strategy-context__title-row { grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.6fr); }
+  .capiro-vnext-root .vnext-strategy-context__actions { grid-column: 1 / -1; }
+  .capiro-vnext-root .vnext-strategy-context__content { display: grid; gap: 18px; }
+  .capiro-vnext-root .vnext-strategy-context__summary,
+  .capiro-vnext-root .vnext-strategy-context__documents { width: 100%; max-width: none; }
+  .capiro-vnext-root .vnext-strategy-steward-card,
+  .capiro-vnext-root .vnext-strategy-context-guide { position: static; width: 100%; min-height: auto; }
+  .capiro-vnext-root .vnext-strategy-steward-card { order: 2; }
+  .capiro-vnext-root .vnext-strategy-context__documents { order: 3; margin-top: 0; }
+  .capiro-vnext-root .vnext-strategy-context-guide { order: 4; }
+  .capiro-vnext-root .vnext-strategy-context-guide > .vnext-strategy-button { position: static; width: 100%; margin-top: 10px; }
+}
+
+@media (max-width: 760px) {
+  .capiro-vnext-root .vnext-strategies .capiro-vnext-nav-item[href='/strategies'][aria-current='page']::after { display: none; }
+  .capiro-vnext-root .vnext-strategy-contextbar { overflow-x: auto; }
+  .capiro-vnext-root .vnext-strategy-contextbar__chip { min-width: max-content; }
+  .capiro-vnext-root .vnext-strategy-contextbar__health { display: none; }
+  .capiro-vnext-root .vnext-strategy-context__header { padding: 16px; }
+  .capiro-vnext-root .vnext-strategy-context__title-row { display: flex; align-items: flex-start; flex-direction: column; }
+  .capiro-vnext-root .vnext-strategy-context__body { padding: 14px 12px 36px; }
+  .capiro-vnext-root .vnext-strategy-context__summary { grid-template-columns: 1fr; }
+  .capiro-vnext-root .vnext-strategy-context__documents-toolbar { align-items: stretch; flex-wrap: wrap; }
+  .capiro-vnext-root .vnext-strategy-context__documents-toolbar > div:first-child { flex-basis: 100%; }
+  .capiro-vnext-root .vnext-strategy-context__documents-toolbar select { flex: 1; }
+  .capiro-vnext-root .vnext-strategy-context-search { width: 100%; }
+  .capiro-vnext-root .vnext-strategy-context-group > button { grid-template-columns: minmax(0, 1fr) 18px; }
+  .capiro-vnext-root .vnext-strategy-context-group__state,
+  .capiro-vnext-root .vnext-strategy-context-group__updated { display: none; }
+}
