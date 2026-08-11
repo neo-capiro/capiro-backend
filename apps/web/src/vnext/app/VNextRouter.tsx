@@ -1,9 +1,12 @@
 import { lazy, Suspense } from 'react';
-import { Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 
 const VNextStrategiesRoutes = lazy(async () => ({
   default: (await import('../pages/strategies/VNextStrategiesRoutes.js')).VNextStrategiesRoutes,
+}));
+const VNextClientCrmRoute = lazy(async () => ({
+  default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
 }));
 const VNextLegiWatchPage = lazy(async () => ({
   default: (await import('../pages/legiwatch/VNextLegiWatchPage.js')).VNextLegiWatchPage,
@@ -21,7 +24,20 @@ const VNextLegiWatchPage = lazy(async () => ({
  */
 export function VNextRouter() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const fallback = <div className="capiro-vnext-route-loading">Loading…</div>;
+
+  // Client CRM vNext (Figma page `906:2502`). The profile has no `/clients/:id`
+  // route — it is `/clients?clientId=<id>` — so the interception is on the
+  // query parameter. Without one this is the clients *list*, which has no
+  // approved vNext screen yet, so it falls through untouched.
+  if (location.pathname === '/clients' && searchParams.get('clientId')) {
+    return (
+      <Suspense fallback={fallback}>
+        <VNextClientCrmRoute />
+      </Suspense>
+    );
+  }
 
   // Dashboard is eager: it is the entry screen, so a lazy chunk would cost a
   // blank frame on the most common navigation in the product.

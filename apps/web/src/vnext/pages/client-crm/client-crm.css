@@ -1,0 +1,730 @@
+/*
+ * Client CRM vNext — Figma page `906:2502`.
+ *
+ * Geometry is transcribed from `get_design_context`, not measured off a
+ * screenshot. Reference stage is 1600×1000: TopBar 64, nav 232, context bar 44,
+ * so the working surface is 1368×892 beginning at x=232 / y=108. Everything
+ * below is expressed relative to that surface, which the vNext shell owns.
+ *
+ * Local `--crm-*` custom properties exist so no literal hex appears in a rule.
+ * Each one records the Figma variable it stands for; where the design system
+ * already publishes an equivalent token, the alias points at it rather than
+ * restating the value.
+ */
+
+.capiro-vnext-root .capiro-crm {
+  /* Figma color/border/active — the hairline on pills and chips. */
+  --crm-border-pill: var(--capiro-color-text-primary);
+  /* Figma color/bg/inverse — the client mark. */
+  --crm-bg-mark: var(--capiro-color-text-primary);
+  --crm-surface: var(--capiro-color-bg-surface);
+  --crm-body-bg: var(--capiro-color-bg-subtle);
+  --crm-quiet: var(--capiro-color-border-quiet);
+  --crm-ink: var(--capiro-color-text-primary);
+  --crm-ink-accent: var(--capiro-color-text-accent);
+  --crm-ink-secondary: var(--capiro-color-text-secondary);
+
+  /* Figma Capiro vNext/Product type ramp. The shared --capiro-type-size-body-sm
+     is 13/20 for legacy surfaces; the vNext CRM ramp is 12.5/18, so it is
+     scoped here instead of retuning a token the shipped Dashboard depends on. */
+  --crm-body-sm-size: 12.5px;
+  --crm-body-sm-line: 18px;
+  --crm-body-md-size: 14px;
+  --crm-body-md-line: 22px;
+  --crm-heading-sub-size: 16px;
+  --crm-heading-sub-line: 22px;
+  --crm-heading-section-size: 22px;
+  --crm-heading-section-line: 28px;
+  --crm-meta-size: 10px;
+  --crm-meta-line: 14px;
+  --crm-meta-tracking: 0.6px;
+  --crm-code-size: 12px;
+  --crm-code-line: 17px;
+
+  /* 1368 surface − 24 gutters = 1320 content; 20px between cards. */
+  --crm-gutter: 24px;
+  --crm-gap: 20px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--crm-body-bg);
+  font-family: var(--capiro-type-family-sans);
+}
+
+/* ── Shared type helpers ─────────────────────────────────────────────────── */
+
+/* Visually hidden but announced — used to give a screen reader the reason a
+   metric is unavailable, which sighted users get from the em dash's tooltip. */
+.capiro-vnext-root .capiro-crm__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.capiro-vnext-root .capiro-crm__meta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  text-transform: uppercase;
+  color: var(--crm-ink-secondary);
+  margin: 0;
+}
+
+.capiro-vnext-root .capiro-crm__code {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  margin: 0;
+}
+
+/* ── Compact client header (906:2751) — 120px tall, sticky across tabs ───── */
+
+.capiro-vnext-root .capiro-crm__header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: 0 0 auto;
+  background: var(--crm-surface);
+  /* 906:2788 — a 1px accent rule closes the header. */
+  border-bottom: 1px solid var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 42px;
+  padding: 12px var(--crm-gutter) 0;
+}
+
+.capiro-vnext-root .capiro-crm__mark {
+  flex: 0 0 auto;
+  /* The frame puts the mark at y=12 with the name centred 8px higher, so it
+     aligns to the top of the content box rather than to the name. */
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-bg-mark);
+  color: var(--capiro-color-text-inverse-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: 17px;
+  font-weight: 500;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.capiro-vnext-root .capiro-crm__name {
+  /* 906:2754 — the name starts at x=72. The 36px mark ends at x=60 and the
+     row's flex gap contributes 8, so this adds the remaining 4. */
+  margin: 0 0 0 4px;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  color: var(--crm-ink-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capiro-vnext-root .capiro-crm__identity-spacer { flex: 1 1 auto; min-width: 12px; }
+
+.capiro-vnext-root .capiro-crm__owner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--capiro-space-02);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__owner-value {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__owner-value--empty { color: var(--crm-ink-secondary); }
+
+/* Pills: status, focus chips, signal chips — 24px, circular, hairline. */
+.capiro-vnext-root .capiro-crm__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--crm-border-pill);
+  border-radius: var(--capiro-radius-circular, 9999px);
+  background: var(--crm-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  color: var(--crm-ink-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__pill--filled {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__pill--action {
+  cursor: pointer;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-crm__focus {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 36px;
+  padding: 0 var(--crm-gutter);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__focus .capiro-crm__meta { margin-right: 4px; }
+
+.capiro-vnext-root .capiro-crm__more {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: var(--capiro-radius-control);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.capiro-vnext-root .capiro-crm__more:hover { background: var(--capiro-color-bg-subtle); }
+
+/* ── Primary tabs (906:2781) — 42px strip, 2px active underline ──────────── */
+
+.capiro-vnext-root .capiro-crm__tabs {
+  display: flex;
+  align-items: stretch;
+  height: 42px;
+  padding: 0 var(--crm-gutter);
+  background: var(--crm-surface);
+}
+
+.capiro-vnext-root .capiro-crm__tab {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--capiro-space-04);
+  min-width: 64px;
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__tab[aria-selected='true'] { color: var(--crm-ink-accent); }
+
+.capiro-vnext-root .capiro-crm__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+.capiro-vnext-root .capiro-crm__tab:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+  border-radius: var(--capiro-radius-control);
+}
+
+/* Secondary view rail (Relationships / Intelligence). */
+.capiro-vnext-root .capiro-crm__subtabs {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  padding: 0 var(--crm-gutter) var(--capiro-space-03);
+  background: var(--crm-body-bg);
+}
+
+.capiro-vnext-root .capiro-crm__subtab {
+  appearance: none;
+  height: 32px;
+  padding: 0 var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-surface);
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__subtab[aria-selected='true'] {
+  border-color: var(--crm-border-pill);
+  color: var(--crm-ink-accent);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-crm__subtab:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 1px;
+}
+
+/* ── Body (906:2789) ─────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 21px var(--crm-gutter) var(--crm-gutter);
+  background: var(--crm-body-bg);
+}
+
+.capiro-vnext-root .capiro-crm__page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-04);
+  margin-bottom: 14px;
+}
+
+.capiro-vnext-root .capiro-crm__page-title {
+  margin: 0;
+  font-size: var(--crm-heading-section-size);
+  line-height: var(--crm-heading-section-line);
+  font-weight: 600;
+  letter-spacing: -0.132px;
+  color: var(--crm-ink-accent);
+}
+
+/* Figma: title box 21–49, subtitle 54–72, first card at 86. The 5px and 14px
+   below are those gaps, not round numbers picked for tidiness. */
+.capiro-vnext-root .capiro-crm__page-sub {
+  margin: 5px 0 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__page-head-spacer { flex: 1 1 auto; }
+
+/* Card grid. 728+20+572 = 1320 and 650+20+650 = 1320 both fall out of `fr`
+   because the Figma widths already sum to the content width minus the gap. */
+.capiro-vnext-root .capiro-crm__grid {
+  display: grid;
+  gap: var(--crm-gap);
+  margin-bottom: var(--crm-gap);
+}
+
+.capiro-vnext-root .capiro-crm__grid--profile { grid-template-columns: minmax(0, 728fr) minmax(0, 572fr); }
+.capiro-vnext-root .capiro-crm__grid--even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.capiro-vnext-root .capiro-crm__grid:last-child { margin-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--crm-surface);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  /* Figma card head: text baseline box 16-38 from the card top. */
+  padding: 13px 19px 19px;
+}
+
+.capiro-vnext-root .capiro-crm__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  min-height: 28px;
+  /* Attention rail starts at y=55: 13 padding + 28 head + 14. */
+  margin-bottom: 14px;
+}
+
+.capiro-vnext-root .capiro-crm__card-title {
+  margin: 0;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__card-title--ink { color: var(--crm-ink); }
+
+.capiro-vnext-root .capiro-crm__card-action {
+  margin-left: auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  text-transform: uppercase;
+  color: var(--capiro-primitive-product-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__card-action:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Client profile card (908:2899) ──────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__profile { display: flex; gap: var(--capiro-space-05); }
+
+.capiro-vnext-root .capiro-crm__profile-mark {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: var(--capiro-radius-widget);
+  background: var(--crm-bg-mark);
+  color: var(--capiro-color-text-inverse-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__profile-mark img { width: 100%; height: 100%; object-fit: cover; }
+
+.capiro-vnext-root .capiro-crm__profile-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__profile-desc {
+  margin: 0 0 var(--capiro-space-02);
+  font-size: var(--crm-body-md-size);
+  line-height: var(--crm-body-md-line);
+  color: var(--crm-ink-accent);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__profile-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-05);
+  flex-wrap: wrap;
+  margin-bottom: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm__profile-link {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__profile-place {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+/* ── Account card (908:2910) ─────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* 908:2913-2919 — row pitch is 50px: 14 label + 3 + 18 value + 20. */
+  gap: 20px var(--capiro-space-05);
+}
+
+.capiro-vnext-root .capiro-crm__field-value {
+  margin: 3px 0 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__field-value--empty { color: var(--crm-ink-secondary); }
+
+/* 908:2920-2930 — the team avatars and the brief chip share row 2's cell. */
+.capiro-vnext-root .capiro-crm__field-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  flex-wrap: wrap;
+  /* Matches a plain value line so the 24px chip does not grow the row. */
+  height: 18px;
+}
+
+/* ── Needs attention (908:2931) — 45px rows with a 4px leading rail ──────── */
+
+/* The last row has no divider, so the card closes tighter than a text card. */
+.capiro-vnext-root .capiro-crm__card--attention { padding-bottom: 11px; }
+
+/* 908:2969 / 908:2985 — the pulse cards close 14px under their last line. */
+.capiro-vnext-root .capiro-crm__card--pulse { padding-bottom: 14px; }
+
+.capiro-vnext-root .capiro-crm__attention { display: flex; flex-direction: column; }
+
+.capiro-vnext-root .capiro-crm__attention-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  column-gap: var(--capiro-space-03);
+  min-height: 45px;
+  padding: 0 0 0 12px;
+  margin: 0 -19px;
+  padding-right: 19px;
+  border: 0;
+  border-bottom: 1px solid var(--crm-quiet);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: calc(100% + 38px);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row:last-child { border-bottom: 0; }
+.capiro-vnext-root .capiro-crm__attention-row:hover { background: var(--capiro-color-bg-canvas); }
+
+.capiro-vnext-root .capiro-crm__attention-row:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+}
+
+/* The 4px rail at x=-1 in the frame; tone comes from urgency, but never alone —
+   the badge and the status text carry the same information as text (§6). */
+.capiro-vnext-root .capiro-crm__attention-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row[data-urgent='true']::before {
+  background: var(--capiro-color-danger-rail, var(--capiro-color-danger));
+}
+
+.capiro-vnext-root .capiro-crm__attention-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row[data-urgent='true'] .capiro-crm__attention-dot {
+  background: var(--capiro-color-danger);
+}
+
+.capiro-vnext-root .capiro-crm__attention-title {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__attention-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__attention-when {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  color: var(--crm-ink-secondary);
+  text-align: right;
+  min-width: 72px;
+}
+
+.capiro-vnext-root .capiro-crm__attention-status { min-width: 56px; text-align: right; }
+
+/* ── Pulse cards (908:2969 / 908:2985) ───────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--capiro-space-03);
+  margin-bottom: 21px;
+}
+
+.capiro-vnext-root .capiro-crm__metric {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+}
+
+.capiro-vnext-root button.capiro-crm__metric { cursor: pointer; }
+
+.capiro-vnext-root button.capiro-crm__metric:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.capiro-vnext-root .capiro-crm__metric-value {
+  margin: 0;
+  font-size: var(--crm-heading-section-size);
+  line-height: var(--crm-heading-section-line);
+  font-weight: 600;
+  letter-spacing: -0.132px;
+  color: var(--crm-ink-accent);
+  margin-bottom: 4px;
+}
+
+/* An unavailable metric is an em dash with a reason, never a zero (§7). */
+.capiro-vnext-root .capiro-crm__metric-value--unavailable { color: var(--crm-ink-secondary); }
+
+.capiro-vnext-root .capiro-crm__readiness { margin-top: auto; }
+
+.capiro-vnext-root .capiro-crm__track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  /* The row is 17px tall because the percentage's line box is, while the track
+     itself is 8px centred inside it — so the gap under the label is 4, not 12. */
+  margin: 4px 0 17px;
+}
+
+.capiro-vnext-root .capiro-crm__track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: var(--capiro-radius-circular, 9999px);
+  background: var(--capiro-color-bg-subtle);
+  overflow: hidden;
+}
+
+/* 908:2983 — the percentage sits at the end of the track, not beneath it. */
+.capiro-vnext-root .capiro-crm__track-pct {
+  flex: 0 0 auto;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__track-value {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm__foot {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-bottom: var(--capiro-space-03);
+}
+
+/* ── Async, empty and error states (§7) ──────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__skeleton {
+  border-radius: 4px;
+  background: var(--capiro-color-bg-subtle);
+  animation: capiro-crm-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes capiro-crm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .capiro-crm__skeleton { animation: none; }
+}
+
+.capiro-vnext-root .capiro-crm__state {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-04) 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__state--error { color: var(--capiro-color-text-destructive, var(--capiro-color-danger)); }
+
+/* ── Responsive contract (§5) ────────────────────────────────────────────── */
+
+/* 1200–1439: the shell collapses its own rail to 72px; cards compress to their
+   documented minimums and the two-column arrangements are preserved. */
+@media (max-width: 1439px) {
+  .capiro-vnext-root .capiro-crm { --crm-gutter: 20px; --crm-gap: 16px; }
+}
+
+/* 1024–1199: stack the two-column regions once their minimum widths fail. */
+@media (max-width: 1199px) {
+  .capiro-vnext-root .capiro-crm__grid--profile,
+  .capiro-vnext-root .capiro-crm__grid--even { grid-template-columns: minmax(0, 1fr); }
+
+  .capiro-vnext-root .capiro-crm__tabs { overflow-x: auto; }
+
+  /* Dense rows lose their date column before they lose their identity. */
+  .capiro-vnext-root .capiro-crm__attention-when { min-width: 0; }
+}

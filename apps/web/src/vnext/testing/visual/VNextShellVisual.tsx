@@ -15,6 +15,13 @@ import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
 import { DASHBOARD_VISUAL_FIXTURE } from '../fixtures/dashboard.js';
+import { ClientCrmHeader } from '../../pages/client-crm/ClientCrmPage.js';
+import { ClientCrmOverviewView } from '../../pages/client-crm/ClientCrmOverview.js';
+import {
+  CLIENT_CRM_VISUAL_CLIENT,
+  CLIENT_CRM_VISUAL_FIXTURE,
+} from '../fixtures/client-crm.js';
+import '../../pages/client-crm/client-crm.css';
 
 /**
  * Clerk-free shell baseline. The nav model comes from the real route manifest so
@@ -45,10 +52,10 @@ export function VNextShellVisual({
   screen = 'empty',
 }: {
   collapsed?: boolean;
-  screen?: 'empty' | 'dashboard';
+  screen?: 'empty' | 'dashboard' | 'client-crm';
 }) {
   return (
-    <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients']}>
+    <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients?clientId=visual-fixture']}>
       <ShellOverlayProvider>
         <div className="capiro-vnext-root">
           <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
@@ -89,7 +96,18 @@ export function VNextShellVisual({
               <span className="capiro-vnext-contextbar__scope">All clients</span>
             </div>
             <main className="capiro-vnext-content">
-              {screen === 'dashboard' ? (
+              {screen === 'client-crm' ? (
+                // Client CRM / 01 Overview (`906:2503`). Header and body are
+                // composed separately so the body stays data-free.
+                <div className="capiro-crm" data-tab="overview">
+                  <ClientCrmHeader
+                    client={CLIENT_CRM_VISUAL_CLIENT}
+                    route={{ tab: 'overview' }}
+                    onNavigate={() => undefined}
+                  />
+                  <ClientCrmOverviewView model={CLIENT_CRM_VISUAL_FIXTURE} />
+                </div>
+              ) : screen === 'dashboard' ? (
                 <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
               ) : (
                 <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>

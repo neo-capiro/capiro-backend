@@ -7,7 +7,9 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root for vNext shell visual fixture');
 const params = new URLSearchParams(window.location.search);
 const collapsed = params.get('collapsed') === '1';
-const screen = params.get('screen') === 'dashboard' ? 'dashboard' : 'empty';
+const requested = params.get('screen');
+const screen =
+  requested === 'dashboard' || requested === 'client-crm' ? requested : 'empty';
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
