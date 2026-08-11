@@ -223,10 +223,12 @@
   .capiro-vnext-root .capiro-vnext-shell { display: block; min-height: 100vh; }
   .capiro-vnext-root .capiro-vnext-sidebar { display: none; }
   .capiro-vnext-root .capiro-vnext-topbar { grid-template-columns: auto 1fr auto; min-height: 56px; padding: 0 10px; }
-  .capiro-vnext-root .capiro-vnext-brand-copy,
   .capiro-vnext-root .capiro-vnext-profile__copy,
   .capiro-vnext-root .capiro-global-search__shortcut,
   .capiro-vnext-root .capiro-global-search__placeholder { display: none; }
+  /* 759:2637 is a 32x32 square mark. We only ship the wordmark asset, so it is
+     scaled to the 56px bar rather than squashed into a square we do not have. */
+  .capiro-vnext-root .capiro-vnext-brand-wordmark { width: auto; height: 28px; }
   .capiro-vnext-root .capiro-global-search__trigger { width: 36px; justify-content: center; padding: 0; }
   .capiro-vnext-root .capiro-vnext-contextbar { overflow-x: auto; }
   .capiro-vnext-root .capiro-vnext-contextbar__scope { display: none; }
