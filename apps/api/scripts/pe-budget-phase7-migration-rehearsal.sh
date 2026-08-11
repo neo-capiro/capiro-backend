@@ -1226,9 +1226,22 @@ UPDATE defense_budget_projection_plan SET conflict_count = 99
 expect_fail "a DELETE of a filed projection plan" "
 DELETE FROM defense_budget_projection_plan WHERE projection_plan_id = 'pp_gap5_clean';"
 
-[ "$(q "SELECT count(*) FROM defense_budget_projection_plan;")" = "1" ] \
+# Earlier Workstream N plan rehearsal also seeds a legitimate projection-plan
+# row for the O&M producer fixture. Assert Gap 5's own identity only — do not
+# require the whole table to hold a single row.
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan
+        WHERE projection_plan_id = 'pp_gap5_clean';")" = "1" ] \
+  || fail "the legitimately filed Gap 5 plan is missing after the refuse checks"
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan
+        WHERE projection_plan_id IN (
+          'pp_gap5_lying',
+          'pp_gap5_blocked_zero',
+          'pp_gap5_status',
+          'pp_gap5_nostorage',
+          'pp_gap5_bothstorage'
+        );")" = "0" ] \
   || fail "a refused statement still changed the projection plan table"
-ok "the projection plan table holds exactly the one plan that was legitimately filed"
+ok "the projection plan table holds the one Gap 5 plan that was legitimately filed and none of the refused ones"
 
 # =============================================================================
 log "Gap 5 — the real persist verb, end to end"
