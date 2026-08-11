@@ -105,8 +105,8 @@ grep -rln "from 'antd'\|@ant-design/icons" apps/web/src/vnext/
 |---|---|---|
 | **App Shell** | ✅ real | zero antd; built from `722:2502` frames |
 | **Dashboard** | ✅ real | zero antd; rebuilt this session against the `760:2641` contract |
-| **LegiWatch** | ⚠️ **re-layout, not an implementation** | `VNextLegiWatchPage.tsx` imports antd; embeds canonical `RadarPage` |
-| **Strategies** | ⚠️ **re-layout, not an implementation** | 3 files import antd; `/strategies/:id` renders legacy `StrategyEditorPage`; steward/agent routes wrap canonical components in a `GovernanceSurface` shim |
+| **LegiWatch** | ⚠️ **re-layout, not an implementation** — but antd is now gone | ~~imports antd~~ (removed, `f6576d16`); still embeds canonical `RadarPage`, which §11.2 says is *correct* — the remaining gap is layout, not the reuse |
+| **Strategies** | ⚠️ **re-layout, not an implementation** — but antd is now gone | ~~3 files import antd~~ (removed, `f6576d16`); `/strategies/:id` still renders legacy `StrategyEditorPage`; steward/agent routes still wrap canonical components in a `GovernanceSurface` shim |
 | **Program Elements** | ⚠️ **not started in vNext — but the feature is already fully built in production** | `vnext/pages/program-elements/` is a 381-byte README, *but* the real feature is 12 files under `apps/web/src/pages/program-element/`. Its Handoff frame mandates re-skinning those, **not** a greenfield build — see §11 |
 | **Client Profiles** | ❌ not started, **and design source unknown** | see §6 |
 | **Meri v3 undocked** | ✅ shipped & verified live | see §5 |
@@ -188,7 +188,17 @@ Client Profiles was **explicitly out of scope** for this program until Neo put i
 in this session's final instruction. Before building:
 
 - **No Client Profiles page exists in `figma/manifest.ts`, and a design-system search
-  finds no Client Profile frames.** The design source is unknown — ask Neo where it is.
+  finds no Client Profile frames.** ~~The design source is unknown — ask Neo where it is.~~
+- **RESOLVED — Neo supplied it. The design source is page `906:2502`,
+  "33 · Canonical App · Client CRM vNext".** The earlier search failed because the page is
+  named **Client CRM**, not "Client Profile" — searching the design system for the latter
+  returns nothing. All 18 frames are now inventoried as `clientProfiles` in
+  `figma/manifest.ts`: Overview; Relationships × 3 (Organization / Government / History);
+  Work; Intelligence × 6 (Overview / Legislative / Regulatory / Funding & Budget / Federal
+  Footprint / District Nexus); Files; plus Person Profile, Current Target, Strategy Detail and
+  Data Health drawers and the Configure Hierarchy and Move to Folder modals.
+- **It has no Handoff frame either** — same as Strategies (§11.3). Two of the six families
+  therefore have no designer-authored acceptance criteria at all.
 - Prior art lives on other branches: `agent/capiro-design-system-v3-react`,
   `agent/client-profile-crm-cleanup`, `dev/outreach-client-profile`.
 - A recorded lesson applies: *client-profile forked whole-file against main's #892 — v3
@@ -283,7 +293,16 @@ cd infra/cdk && npx cdk deploy --app "ts-node --prefer-ts-exts bin/web-vnext.ts"
    branches: `git ls-remote --heads origin | grep -iE "vnext|os-"`.
 2. ~~Read the three unread Handoff frames~~ — **done, and they did contradict the scope.
    Read §11 before planning steps 3 and 4; both are re-scoped by it.**
-3. **Re-skin Strategies and LegiWatch — do not rebuild their data layers.** Against
+3. **Re-skin Strategies and LegiWatch — do not rebuild their data layers.**
+   **PART DONE (`f6576d16`): antd is gone from `src/vnext` and the §3 grep is clean.** The
+   coupling was never layout components — only `message`/`modal` in 3 Strategies files and 19
+   icon glyphs in 4. Replacing it needed two primitives the design system lacked:
+   `components/icons` (19 inline-SVG glyphs, `em`-sized, `currentColor`) and
+   `components/feedback/toast` (`CapiroToastProvider`/`useCapiroToast`, mounted in `VNextApp`).
+   `StrategyContextDocumentVNext`'s archive confirm moved from antd's imperative
+   `modal.confirm` to declarative `CapiroModal` + page state. Verified: `tsc` exit 0,
+   36 vitest tests pass, `vite build` succeeds.
+   **STILL TO DO: the actual layout re-skin** against
    `843:2502…` and `869:2502…`, removing antd from the *presentation*. LegiWatch's contract
    is explicit: *"Do not copy these hooks into src/vnext. Build adapters around existing
    query/mutation ownership."* So §3's "embeds canonical `RadarPage`" is only half a defect —
