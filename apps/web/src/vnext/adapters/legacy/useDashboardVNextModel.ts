@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/clerk-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
 import { useClientFilter } from '../../../state/client-filter.js';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import {
   useNewsPreferences,
   type NewsPreferences,
@@ -14,6 +15,7 @@ import type {
   PortfolioAlertItem,
   PortfolioAlertsResponse,
 } from '../../../pages/intelligence/types.js';
+import type { MeriState } from '../../../pages/engagement/meetings/meetings-types.js';
 
 /**
  * Dashboard vNext controller.
@@ -96,6 +98,17 @@ export interface TodayEvent {
   /** Figma actions: Join / Prepare / Brief / Open. */
   action: 'join' | 'prepare' | 'brief' | 'open';
   joinUrl?: string | null;
+  /**
+   * True only for events sourced from a real meeting. Hearings, comment
+   * deadlines and other tracked items from `comingUp` are never meetings, so
+   * they keep the single Prepare/Open/Brief `action` above rather than
+   * rendering Join/Send Meri controls that don't apply to them.
+   */
+  isMeeting: boolean;
+  isVirtual?: boolean;
+  /** Same `/api/engagement/meetings` field HomePage's Send Meri button reads —
+   * no new endpoint, just widening this projection to include it. */
+  meri?: MeriState | null;
 }
 
 export interface WorkQueueEntry {
@@ -183,6 +196,19 @@ export interface DashboardVNextModel {
     events: TodayEvent[];
     /** Mobile replaces the whole module with this one card (`759:2683`). */
     nextMeeting: TodayEvent | null;
+    /**
+     * Backs the Send Meri consent flow — the same
+     * `POST /api/engagement/meetings/:id/notetaker` call and consent copy
+     * HomePage's dashboard strip already uses, not a new workflow.
+     */
+    sendMeri: {
+      /** The TodayEvent.id the consent dialog is open for, or null when closed. */
+      targetEventId: string | null;
+      pending: boolean;
+      open: (eventId: string) => void;
+      close: () => void;
+      submit: (meetingUrl: string) => void;
+    };
   };
   workQueue: { status: ModuleStatus; items: WorkQueueEntry[]; total: number };
   visibility: DashboardVisibility;
@@ -220,6 +246,41 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       void queryClient.invalidateQueries({ queryKey: [key] });
     }
   }, [queryClient]);
+
+  // Send Meri consent flow — identical endpoint, payload and copy to the one
+  // HomePage's dashboard strip already dispatches (meeting-actions.tsx's
+  // NotetakerConsentFields is compliance-reviewed and must not be forked).
+  const toast = useCapiroToast();
+  const [sendMeriTargetId, setSendMeriTargetId] = useState<string | null>(null);
+  const dispatchNotetaker = useMutation({
+    mutationFn: async ({ meetingId, meetingUrl }: { meetingId: string; meetingUrl: string }) =>
+      (
+        await api.post(`/api/engagement/meetings/${meetingId}/notetaker`, {
+          meetingUrl,
+          authorizedToRecord: true,
+          allPartiesWillBeNotified: true,
+        })
+      ).data,
+    onSuccess: () => {
+      toast.success('Meri is joining the meeting');
+      setSendMeriTargetId(null);
+      void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : 'Could not send Meri'),
+  });
+  const sendMeri = {
+    targetEventId: sendMeriTargetId,
+    pending: dispatchNotetaker.isPending,
+    open: (eventId: string) => setSendMeriTargetId(eventId),
+    close: () => setSendMeriTargetId(null),
+    submit: (meetingUrl: string) => {
+      if (!sendMeriTargetId) return;
+      // TodayEvent ids are prefixed `meeting-${id}` (vs. comingUp's `coming-${id}`)
+      // to disambiguate the two sources — strip it back to the real meeting id.
+      dispatchNotetaker.mutate({ meetingId: sendMeriTargetId.replace(/^meeting-/, ''), meetingUrl });
+    },
+  };
 
   const preferenceKey = useMemo(() => {
     if (!user?.id || !me.data?.tenant.id) return null;
@@ -586,6 +647,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
         action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
         joinUrl,
+        isMeeting: true,
+        isVirtual: meeting.isVirtual,
+        meri: meeting.meri,
       });
     }
 
@@ -600,6 +664,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
         href: item.href,
         action: 'open',
+        isMeeting: false,
       });
     }
 
@@ -761,7 +826,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     header,
     needsAttention,
     news: newsModule,
-    today,
+    today: { ...today, sendMeri },
     workQueue,
     visibility,
     setVisibility,
@@ -786,6 +851,7 @@ interface DashMeeting {
   preps: Array<{ status: string }>;
   isVirtual?: boolean;
   joinLink?: string | null;
+  meri?: MeriState | null;
 }
 
 interface DashOutreach {

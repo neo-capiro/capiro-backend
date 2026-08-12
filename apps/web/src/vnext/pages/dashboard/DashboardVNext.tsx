@@ -1,12 +1,18 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Form } from 'antd';
 import {
   useDashboardVNextModel,
   type AttentionItem,
   type DashboardModuleKey,
   type DashboardVNextModel,
   type ModuleStatus,
+  type TodayEvent,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
+import { JoinButton, SendMeriButton } from '../../../pages/engagement/meetings/meetings-ui.js';
+import { NotetakerConsentFields } from '../../../pages/engagement/meeting-actions.js';
+import { CapiroModal } from '../../components/overlays/index.js';
+import { CapiroButton } from '../../components/actions/index.js';
 import { CustomizeDrawer } from './CustomizeDrawer.js';
 import './dashboard.css';
 
@@ -268,8 +274,13 @@ function TodayAndComingUp({ model }: { model: DashboardVNextModel }) {
       <ModuleStateView status={module.status} onRetry={model.retry} />
 
       {module.events.map((event) => (
-        <EventRow key={event.id} event={event} />
+        <EventRow key={event.id} event={event} onSendMeri={() => module.sendMeri.open(event.id)} />
       ))}
+
+      <SendMeriDialog
+        sendMeri={module.sendMeri}
+        event={module.events.find((event) => event.id === module.sendMeri.targetEventId) ?? null}
+      />
     </section>
   );
 }
@@ -281,32 +292,134 @@ function eventActionLabel(action: DashboardVNextModel['today']['events'][number]
   return 'Open';
 }
 
-function EventRow({ event }: { event: DashboardVNextModel['today']['events'][number] }) {
-  const body = (
-    <>
-      <span className="capiro-dash-event__time">{event.time}</span>
-      <span className="capiro-dash-event__copy">
-        <span className="capiro-dash-event__title">{event.title}</span>
-        <span className="capiro-dash-event__meta">{event.meta}</span>
-      </span>
-      <span className="capiro-dash-event__action">{eventActionLabel(event.action)}</span>
-    </>
+function EventRow({
+  event,
+  onSendMeri,
+}: {
+  event: TodayEvent;
+  onSendMeri: () => void;
+}) {
+  const copy = (
+    <span className="capiro-dash-event__copy">
+      <span className="capiro-dash-event__title">{event.title}</span>
+      <span className="capiro-dash-event__meta">{event.meta}</span>
+    </span>
   );
 
-  if (event.action === 'join' && event.joinUrl) {
-    return (
-      <a className="capiro-dash-event" href={event.joinUrl} target="_blank" rel="noreferrer noopener">
+  // Hearings, comment deadlines and other tracked (non-meeting) items keep the
+  // single Prepare/Open/Brief action the row has always had — Join/Send Meri
+  // only apply to real meetings, per the rule that a tracked item never gets a
+  // fabricated meeting action just because it sits in the same list.
+  if (!event.isMeeting) {
+    const body = (
+      <>
+        <span className="capiro-dash-event__time">{event.time}</span>
+        {copy}
+        <span className="capiro-dash-event__action">{eventActionLabel(event.action)}</span>
+      </>
+    );
+    if (event.action === 'join' && event.joinUrl) {
+      return (
+        <a className="capiro-dash-event" href={event.joinUrl} target="_blank" rel="noreferrer noopener">
+          {body}
+        </a>
+      );
+    }
+    return event.href ? (
+      <Link className="capiro-dash-event" to={event.href}>
         {body}
-      </a>
+      </Link>
+    ) : (
+      <div className="capiro-dash-event">{body}</div>
     );
   }
 
-  return event.href ? (
-    <Link className="capiro-dash-event" to={event.href}>
-      {body}
-    </Link>
-  ) : (
-    <div className="capiro-dash-event">{body}</div>
+  // Real meetings: Join and Send Meri are independent controls, not one
+  // row-wide link, so each keeps its own click target and stops propagation
+  // (both JoinButton and SendMeriButton already do this) rather than also
+  // firing row navigation.
+  return (
+    <div className="capiro-dash-event capiro-dash-event--meeting">
+      <span className="capiro-dash-event__time">{event.time}</span>
+      {event.href ? (
+        <Link className="capiro-dash-event__copy-link" to={event.href}>
+          {copy}
+        </Link>
+      ) : (
+        copy
+      )}
+      <span className="capiro-dash-event__meeting-actions">
+        <JoinButton m={{ isVirtual: event.isVirtual, joinLink: event.joinUrl }} size="sm" />
+        <SendMeriButton
+          m={{ isVirtual: event.isVirtual, joinLink: event.joinUrl, meri: event.meri }}
+          size="sm"
+          className="capiro-dash-send-meri"
+          onClick={onSendMeri}
+        />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Send Meri consent dialog. Reuses the exact `POST …/notetaker` mutation
+ * (`model.today.sendMeri`) and the compliance-reviewed consent copy
+ * (`NotetakerConsentFields`, meeting-actions.tsx) that HomePage's dashboard
+ * strip already dispatches — not a forked copy or a new endpoint.
+ *
+ * `NotetakerConsentFields` is an antd `Form.Item` tree (it needs Form context
+ * to bind its fields), so this is a deliberate, narrow exception to vNext's
+ * antd-free rule: the dialog chrome (CapiroModal, CapiroButton) is vNext, but
+ * the fields themselves render with antd's own Form.Item spacing/typography
+ * because that is the literal reused component, not a re-skin of it. Forking
+ * this copy is explicitly what the compliance review prohibits.
+ */
+function SendMeriDialog({
+  sendMeri,
+  event,
+}: {
+  sendMeri: DashboardVNextModel['today']['sendMeri'];
+  event: TodayEvent | null;
+}) {
+  const [form] = Form.useForm();
+  const authorized = Form.useWatch('authorizedToRecord', form);
+  const notified = Form.useWatch('allPartiesWillBeNotified', form);
+  const open = Boolean(event);
+  const eventId = event?.id;
+  const joinUrl = event?.joinUrl;
+
+  // antd only reads `initialValues` on the Form's first mount, and this dialog
+  // stays mounted (just toggling `open`) across different meetings — so a
+  // second meeting opened after the first would otherwise keep showing the
+  // first meeting's typed values. Re-seed explicitly on every new target,
+  // matching HomePage's own openNotetaker(meeting) => setFieldsValue(...).
+  useEffect(() => {
+    if (!eventId) return;
+    form.resetFields();
+    form.setFieldsValue({ meetingUrl: joinUrl ?? '' });
+  }, [eventId, joinUrl, form]);
+
+  return (
+    <CapiroModal open={open} title="Send Meri to take notes?" onClose={sendMeri.close}>
+      {event ? (
+        <Form form={form} layout="vertical" onFinish={(values) => sendMeri.submit(values.meetingUrl)}>
+          <NotetakerConsentFields />
+          <div className="capiro-dash-send-meri-dialog__actions">
+            <CapiroButton variant="secondary" onClick={sendMeri.close} disabled={sendMeri.pending}>
+              Cancel
+            </CapiroButton>
+            <CapiroButton
+              variant="primary"
+              onClick={() => form.submit()}
+              disabled={!(authorized && notified) || sendMeri.pending}
+              loading={sendMeri.pending}
+            >
+              Send Meri
+            </CapiroButton>
+          </div>
+        </Form>
+      ) : null}
+    </CapiroModal>
   );
 }
 

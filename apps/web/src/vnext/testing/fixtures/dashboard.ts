@@ -143,6 +143,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         href: '/engagement',
         action: 'join',
         joinUrl: 'https://example.com/join',
+        isMeeting: true,
+        isVirtual: true,
+        meri: null,
       },
       {
         id: 'e2',
@@ -151,6 +154,8 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         meta: 'Capiro · Conference room',
         href: '/engagement',
         action: 'brief',
+        isMeeting: true,
+        isVirtual: false,
       },
       {
         id: 'e3',
@@ -159,6 +164,7 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         meta: 'Hearing · Rayburn 2118',
         href: '/legiwatch',
         action: 'open',
+        isMeeting: false,
       },
     ],
     nextMeeting: {
@@ -169,6 +175,16 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
       href: '/engagement',
       action: 'join',
       joinUrl: 'https://example.com/join',
+      isMeeting: true,
+      isVirtual: true,
+      meri: null,
+    },
+    sendMeri: {
+      targetEventId: null,
+      pending: false,
+      open: () => {},
+      close: () => {},
+      submit: () => {},
     },
   },
   workQueue: {

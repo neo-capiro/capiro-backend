@@ -88,6 +88,41 @@
 .capiro-vnext-root .capiro-dash-event__meta { font-size: 11px; line-height: 15px; color: var(--capiro-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .capiro-vnext-root .capiro-dash-event__action { font-size: 11px; color: var(--capiro-color-text-accent); }
 
+/* Real meetings get independent Join / Send Meri controls instead of the
+   single action label above — see EventRow's isMeeting branch. */
+.capiro-vnext-root .capiro-dash-event--meeting { grid-template-columns: 50px minmax(0, 1fr) 146px; }
+.capiro-vnext-root .capiro-dash-event__copy-link { display: grid; min-width: 0; color: inherit; text-decoration: none; }
+.capiro-vnext-root .capiro-dash-event__meeting-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+/* JoinButton/SendMeriButton (pages/engagement/meetings/meetings-ui.tsx) are
+   shared with HomePage and read their colors from these exact variable names
+   via inline styles, scoped per-surface rather than declared globally (every
+   consuming page defines its own copy — see chat.css, meri-overlay.css,
+   district-nexus.css). This is vNext's copy, values matching the same
+   production Meri color scheme: --accent/--accent-ink alias the vNext tokens
+   that already mean the same thing (Meri's own brand blue, distinct from the
+   dark-ink action-primary used elsewhere); the rest (soft/disabled states,
+   which vNext has no token for yet) are the literal established production
+   hex, not new colors invented here. --font-sans aliases vNext's own family
+   so MeriGlyph/JoinButton text isn't left on a browser default. */
+.capiro-vnext-root .capiro-dash-event--meeting {
+  --accent: var(--capiro-color-action-meri-default);
+  --accent-ink: var(--capiro-color-action-meri-hover);
+  --accent-soft: var(--capiro-primitive-meri-attending-soft-bg);
+  --bg-sunken: var(--capiro-primitive-meri-attended-bg);
+  --border-1: var(--capiro-primitive-meri-attended-border);
+  --ink-3: var(--capiro-primitive-meri-attended-ink);
+  --font-sans: var(--capiro-type-family-sans);
+}
+/* The reused SendMeriButton has no caret of its own — this repo's dashboard
+   handoff calls for a visible dropdown affordance, and the component exposes
+   exactly this className hook so a consuming surface can add one without
+   touching the shared behavior. Only the plain clickable "Send Meri" state
+   sets this class (the Attending/Attended status-pill states render a <span>
+   with no className), so the caret correctly disappears once there is nothing
+   left to act on. */
+.capiro-vnext-root .capiro-dash-send-meri::after { content: '▾'; margin-left: 2px; font-size: 10px; }
+.capiro-vnext-root .capiro-dash-send-meri-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
 /* Work queue rows (751:2675) */
 /* Work Queue: three equal 57px rows, 280px title column, 80px right-aligned
    status column, under a 45px header. */
