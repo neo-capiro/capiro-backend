@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const phase4Base = '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
+const phase5ScopeEnd = process.env.OUTREACH_V3_PHASE5_SCOPE_END ?? 'HEAD';
 
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
@@ -67,7 +68,7 @@ const required = [
 ];
 for (const path of required) assert(existsSync(resolve(root, path)), `missing:${path}`);
 
-const changed = output('git', ['diff', '--name-only', `${phase4Base}...HEAD`])
+const changed = output('git', ['diff', '--name-only', `${phase4Base}...${phase5ScopeEnd}`])
   .split(/\r?\n/)
   .filter(Boolean);
 assert(changed.length > 0, 'empty-phase5-diff');
@@ -176,6 +177,6 @@ run('Phase 5 focused tests', 'pnpm', [
   '--forceExit',
 ]);
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
-run('Diff whitespace', 'git', ['diff', '--check', `${phase4Base}...HEAD`]);
+run('Diff whitespace', 'git', ['diff', '--check', `${phase4Base}...${phase5ScopeEnd}`]);
 
 process.stdout.write('\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n');
