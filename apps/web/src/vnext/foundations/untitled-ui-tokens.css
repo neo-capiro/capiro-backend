@@ -8,15 +8,10 @@
  * rationale. `.capiro-dash-uui` is applied only to the Dashboard page's own
  * root element.
  *
- * Values are the ones actually used by the design, verified live against
- * the rendered .dc.html (getComputedStyle + the component's own color
- * tables), not transcribed from the handoff doc's prose:
- *  - #3E4784 solid / #363F72 link-hover / #EAECF5 tint / #B3B8DB ring are
- *    real (PILL.brand + the primary button fill).
- *  - #293056 is real (active date-number color in the day strip) — the
- *    handoff doc's "not present on the mounted pages" note is wrong.
- *  - #4E5BA6 is NOT what the doc claims (focus ring) — the real focus ring
- *    is #717BBC / #D5D9EB (search input focus shadow). Logged in GAPS.md.
+ * Brand ramp corrected 2026-08-12 to Capiro's actual accent blue (Neo:
+ * "update the colors" — the kit's default Slate purple was never meant to
+ * ship). #294E68 is literally --capiro-color-text-accent from the
+ * Capiro-native tokens.css — same brand blue, not a new color.
  */
 .capiro-dash-uui {
   /* Type — Inter, per handoff §4.1. */
@@ -48,12 +43,15 @@
   --uui-gray-700: #344054;
   --uui-gray-900: #101828;
 
-  /* Brand ("Slate"). */
-  --uui-brand-solid: #3e4784;
-  --uui-brand-hover: #363f72;
-  --uui-brand-hover-2: #293056;
-  --uui-brand-tint: #eaecf5;
-  --uui-brand-ring: #b3b8db;
+  /* Brand — Capiro blue. Used for buttons, links, PE codes, progress fills,
+     active tab underline, and count chips. */
+  --uui-brand-solid: #294e68;
+  --uui-brand-hover: #1f3d52;
+  /* Deepest shade — pressed states and the topbar's accent underline. */
+  --uui-brand-deep: #1c3a4e;
+  --uui-brand-hover-2: #1c3a4e;
+  --uui-brand-tint: #edf3f7;
+  --uui-brand-ring: #c3d5e1;
   --uui-focus-ring: #717bbc;
   --uui-focus-ring-outer: #d5d9eb;
 
