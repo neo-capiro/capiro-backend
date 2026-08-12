@@ -1,3 +1,5 @@
+import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
+
 export type VNextRouteAvailability = 'existing' | 'gap';
 
 export interface VNextRouteDefinition {
@@ -42,27 +44,33 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
     label: 'Directory',
     path: '/directory',
     availability: 'existing',
+    // Closed by the Directory vNext split (Figma 941:2860): all four list
+    // surfaces are now first-class registered routes over the same canonical
+    // records. `/directory` remains the backward-compatible entry point.
     children: [
       {
         id: 'congressional-staff',
         label: 'Congressional Staff',
-        path: null,
-        availability: 'gap',
-        note: 'Directory has staff detail routes but no dedicated canonical list route for this destination.',
+        path: DIRECTORY_ROUTES.congressionalStaff,
+        availability: 'existing',
       },
       {
         id: 'committee-staff',
         label: 'Committee Staff',
-        path: null,
-        availability: 'gap',
-        note: 'Committee detail routes exist; no dedicated committee-staff list route was found.',
+        path: DIRECTORY_ROUTES.committeeStaff,
+        availability: 'existing',
       },
       {
         id: 'department-of-war',
         label: 'Department of War',
-        path: null,
-        availability: 'gap',
-        note: 'No equivalent canonical route is currently registered.',
+        path: DIRECTORY_ROUTES.departmentOfWar,
+        availability: 'existing',
+      },
+      {
+        id: 'state-legislators',
+        label: 'State Legislators',
+        path: DIRECTORY_ROUTES.stateLegislators,
+        availability: 'existing',
       },
     ],
   },

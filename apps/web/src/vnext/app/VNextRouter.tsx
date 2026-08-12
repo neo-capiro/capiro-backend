@@ -1,6 +1,15 @@
 import { lazy, Suspense } from 'react';
-import { Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
+import {
+  DIRECTORY_LEGACY_ROUTE,
+  DIRECTORY_ROUTES,
+  resolveLegacyDirectoryTarget,
+} from '../pages/directory/directory-routes.js';
+
+const CongressionalStaffVNext = lazy(async () => ({
+  default: (await import('../pages/directory/CongressionalStaffVNext.js')).CongressionalStaffVNext,
+}));
 
 const VNextStrategiesRoutes = lazy(async () => ({
   default: (await import('../pages/strategies/VNextStrategiesRoutes.js')).VNextStrategiesRoutes,
@@ -64,6 +73,15 @@ export function VNextRouter() {
   }
   if (location.pathname === '/legiwatch' || location.pathname.startsWith('/legiwatch/')) {
     return <Suspense fallback={fallback}><VNextLegiWatchPage /></Suspense>;
+  }
+
+  // Directory: `/directory` resolves to Congressional Staff and keeps the query
+  // string, so existing bookmarks and shared searches survive the split.
+  if (location.pathname === DIRECTORY_LEGACY_ROUTE) {
+    return <Navigate to={resolveLegacyDirectoryTarget(location.search)} replace />;
+  }
+  if (location.pathname === DIRECTORY_ROUTES.congressionalStaff) {
+    return <Suspense fallback={fallback}><CongressionalStaffVNext /></Suspense>;
   }
 
   return <Outlet />;
