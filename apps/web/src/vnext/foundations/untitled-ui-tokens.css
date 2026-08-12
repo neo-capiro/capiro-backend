@@ -1,19 +1,21 @@
 /*
- * Untitled UI PRO kit tokens, scoped to the Dashboard-only reskin
- * (`Capiro Dashboard - Untitled UI.dc.html`, Figma 748:2503).
+ * Untitled UI PRO kit tokens (`Capiro Dashboard - Untitled UI.dc.html`,
+ * Figma 748:2503). Originally Dashboard-only; as of 2026-08 this is the one
+ * global shell's token set (shell/AppShellUui/), so every vnext page now
+ * gets these variables via `.capiro-vnext-uui`. Dashboard's own content
+ * (dashboard.css's uui-dash-* classes) also still consumes them — nothing
+ * about that changed, only the shell's root class name did.
  *
- * These are NOT --capiro-* tokens and must not be. The Capiro-native shell
- * (.capiro-vnext-root, tokens.css) still serves every other vnext page —
- * see apps/web/src/vnext/pages/dashboard/README.md for the isolation
- * rationale. `.capiro-dash-uui` is applied only to the Dashboard page's own
- * root element.
+ * These are NOT --capiro-* tokens and must not be. --capiro-* (tokens.css)
+ * is a separate, retired-from-the-shell palette that Dashboard's content
+ * classes and a few other pages' own CSS may still reference directly.
  *
  * Brand ramp corrected 2026-08-12 to Capiro's actual accent blue (Neo:
  * "update the colors" — the kit's default Slate purple was never meant to
  * ship). #294E68 is literally --capiro-color-text-accent from the
  * Capiro-native tokens.css — same brand blue, not a new color.
  */
-.capiro-dash-uui {
+.capiro-vnext-uui {
   /* Type — Inter, per handoff §4.1. */
   --uui-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --uui-text-display-sm: 30px;

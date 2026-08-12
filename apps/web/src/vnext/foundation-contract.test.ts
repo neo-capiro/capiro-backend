@@ -15,6 +15,7 @@ const cssFiles = [
   './foundations/responsive.css',
   './components/primitives.css',
   './shell/shell.css',
+  './shell/AppShellUui/shell-uui.css',
   './pages/dashboard/dashboard.css',
   './pages/directory/directory.css',
   './pages/legiwatch/legiwatch.css',
@@ -28,6 +29,7 @@ const cssFiles = [
 const componentCssFiles = [
   './components/primitives.css',
   './shell/shell.css',
+  './shell/AppShellUui/shell-uui.css',
   './pages/dashboard/dashboard.css',
   './pages/directory/directory.css',
 ];

@@ -51,17 +51,17 @@ const targets = [
     path: '/vnext-shell.html',
     width: 1600,
     height: 1000,
-    expect: '.capiro-vnext-shell',
+    expect: '.capiro-vnext-uui',
   },
   {
     name: 'shell-desktop-collapsed',
     path: '/vnext-shell.html?collapsed=1',
     width: 1600,
     height: 1000,
-    expect: '.capiro-vnext-shell[data-collapsed]',
+    expect: '.capiro-vnext-uui[data-collapsed]',
   },
-  { name: 'shell-tablet', path: '/vnext-shell.html', width: 900, height: 1000, expect: '.capiro-vnext-shell' },
-  { name: 'shell-mobile', path: '/vnext-shell.html', width: 390, height: 844, expect: '.capiro-vnext-shell' },
+  { name: 'shell-tablet', path: '/vnext-shell.html', width: 900, height: 1000, expect: '.capiro-vnext-uui' },
+  { name: 'shell-mobile', path: '/vnext-shell.html', width: 390, height: 844, expect: '.capiro-vnext-uui' },
   // Directory vNext (Figma 937:2539). Added under the README's own baseline
   // rule: a product screen earns a baseline once it is implemented from its
   // canonical node, which Congressional Staff now is.
