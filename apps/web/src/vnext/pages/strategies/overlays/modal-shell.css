@@ -1,0 +1,979 @@
+/*
+ * Strategies vNext — overlay system styles (STRATEGIES-HANDOFF §7.10).
+ *
+ * ONE modal shell + the six overlay bodies. Scoped under `.capiro-strategies`
+ * (the shell puts this class on its own root, so the module token layer in
+ * strategies-tokens.css applies inside the modal regardless of what the router
+ * renders above it). All values reference var(--st-*) / var(--capiro-*); no
+ * Tailwind, no component-file hex. Kit chrome (CapiroButton / CapiroInput /
+ * CapiroSelect / CapiroBadge / feedback) keeps its own kit styles — these rules
+ * cover only what the kit does not: the shell frame and the six bodies.
+ *
+ * §5.1: monospace appears ONLY through the `.st-mono` class on machine-
+ * verifiable identifiers (template keys, filenames, line refs, hashes, version
+ * strings). Every status pill carries a dot AND a text label.
+ */
+
+/* ------------------------------------------------------------------ shell */
+
+.capiro-strategies .st-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--capiro-z-modal, 1000);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--capiro-color-bg-overlay-scrim, rgba(16, 24, 40, 0.56));
+}
+
+.capiro-strategies .st-modal {
+  width: min(760px, 100%);
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(16, 24, 40, 0.28);
+  outline: none;
+}
+
+.capiro-strategies .st-modal--lg {
+  width: min(1020px, 100%);
+}
+
+.capiro-strategies .st-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--st-gray-200);
+}
+
+.capiro-strategies .st-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-modal__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 650;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-modal__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-modal__header-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.capiro-strategies .st-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* Dirty-state guard strip — replaces a window.confirm; lives in the shell. */
+.capiro-strategies .st-modal__guard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--st-warning-bg);
+  border-top: 1px solid var(--st-warning-ring);
+  color: var(--st-warning-fg);
+  font-size: 13px;
+}
+
+.capiro-strategies .st-modal__guard strong {
+  font-weight: 650;
+}
+
+.capiro-strategies .st-modal__guard-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.capiro-strategies .st-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--st-gray-200);
+}
+
+.capiro-strategies .st-modal__footer-note {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--st-gray-500);
+  min-width: 0;
+}
+
+.capiro-strategies .st-modal__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.capiro-strategies .st-modal__alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--st-error-bg);
+  border: 1px solid var(--st-error-ring);
+  color: var(--st-error-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* ----------------------------------------------------- shared body pieces */
+
+/* Status pill — ALWAYS dot + text label (never colour-only). */
+.capiro-strategies .st-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--st-gray-200);
+  color: var(--st-gray-600);
+  background: var(--st-gray-50);
+  white-space: nowrap;
+}
+
+.capiro-strategies .st-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+
+.capiro-strategies .st-pill--success {
+  background: var(--st-success-bg);
+  border-color: var(--st-success-ring);
+  color: var(--st-success-fg);
+}
+
+.capiro-strategies .st-pill--warning {
+  background: var(--st-warning-bg);
+  border-color: var(--st-warning-ring);
+  color: var(--st-warning-fg);
+}
+
+.capiro-strategies .st-pill--danger {
+  background: var(--st-error-bg);
+  border-color: var(--st-error-ring);
+  color: var(--st-error-fg);
+}
+
+.capiro-strategies .st-pill--info {
+  background: var(--st-info-bg);
+  border-color: var(--st-info-ring);
+  color: var(--st-info-fg);
+}
+
+/* Light inset panel (form groupings, metadata cards). */
+.capiro-strategies .st-panel {
+  background: var(--st-gray-50);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.capiro-strategies .st-panel__label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+}
+
+/* Dark feature panel (previews, resulting states, provenance). */
+.capiro-strategies .st-dark-panel {
+  background: var(--st-accent-deep);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--st-white);
+}
+
+.capiro-strategies .st-dark-panel__label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--st-accent-deep-label);
+}
+
+.capiro-strategies .st-dark-panel__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.capiro-strategies .st-dark-panel__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--st-accent-deep-label);
+}
+
+/* Two-column modal body: main column + aside. */
+.capiro-strategies .st-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.capiro-strategies .st-field-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.capiro-strategies .st-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Textarea chrome to match the kit's CapiroInput. */
+.capiro-strategies .st-textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--st-gray-300);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--st-gray-900);
+  background: var(--st-white);
+}
+
+.capiro-strategies .st-textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+  border-color: var(--st-accent-focus);
+}
+
+/* Toggle switch (role="switch") — Export content toggles. */
+.capiro-strategies .st-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--st-gray-300);
+  background: var(--st-gray-200);
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+  transition: background 120ms ease;
+}
+
+.capiro-strategies .st-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--st-white);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.2);
+  transition: left 120ms ease;
+}
+
+.capiro-strategies .st-switch[aria-checked='true'] {
+  background: var(--st-accent);
+  border-color: var(--st-accent);
+}
+
+.capiro-strategies .st-switch[aria-checked='true']::after {
+  left: 18px;
+}
+
+.capiro-strategies .st-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
+
+.capiro-strategies .st-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--st-gray-700);
+}
+
+/* Segmented tabs (Upload: file vs paste). */
+.capiro-strategies .st-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--st-gray-100);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.capiro-strategies .st-seg button {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-gray-500);
+  cursor: pointer;
+}
+
+.capiro-strategies .st-seg button[aria-selected='true'] {
+  background: var(--st-white);
+  border-color: var(--st-accent-tint-border);
+  color: var(--st-accent);
+  box-shadow: var(--st-shadow-card);
+}
+
+/* Selectable option card (starting point, export format, conflict candidate). */
+.capiro-strategies .st-option-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.capiro-strategies .st-option-card:hover {
+  border-color: var(--st-accent-tint-border);
+}
+
+.capiro-strategies .st-option-card[aria-pressed='true'],
+.capiro-strategies .st-option-card.is-selected {
+  border-color: var(--st-accent);
+  background: var(--st-accent-tint);
+  box-shadow: 0 0 0 1px var(--st-accent);
+}
+
+.capiro-strategies .st-option-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-option-card__desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-option-card__foot {
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------------ new strategy */
+
+.capiro-strategies .st-ns__context-stat {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--st-gray-900);
+  line-height: 32px;
+}
+
+.capiro-strategies .st-ns__context-sub {
+  margin: 2px 0 10px;
+  font-size: 13px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-ns__note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--st-gray-500);
+}
+
+/* -------------------------------------------------------------- firm phases */
+
+.capiro-strategies .st-phases__list {
+  display: grid;
+  gap: 8px;
+}
+
+.capiro-strategies .st-phase-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+}
+
+.capiro-strategies .st-phase-row__num {
+  font-size: 12px;
+  color: var(--st-gray-400);
+  text-align: center;
+}
+
+.capiro-strategies .st-phase-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-phase-row__input {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: transparent;
+}
+
+.capiro-strategies .st-phase-row__input:hover {
+  border-color: var(--st-gray-200);
+}
+
+.capiro-strategies .st-phase-row__input:focus-visible {
+  outline: none;
+  border-color: var(--st-accent-focus);
+  background: var(--st-white);
+  box-shadow: var(--st-shadow-focus);
+}
+
+.capiro-strategies .st-phase-row__input.is-dupe {
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+}
+
+.capiro-strategies .st-phase-row__span {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: var(--st-accent);
+  background: var(--st-firmphase-bg);
+  border: 1px solid var(--st-firmphase-ring);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.capiro-strategies .st-phase-row__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.capiro-strategies .st-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--st-accent-deep-label);
+  padding: 3px 0;
+}
+
+.capiro-strategies .st-preview-bars {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.capiro-strategies .st-preview-bar {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--st-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------- export */
+
+.capiro-strategies .st-format-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.capiro-strategies .st-format-card__ext {
+  margin-top: 8px;
+}
+
+.capiro-strategies .st-preview-page {
+  background: var(--st-white);
+  border-radius: 8px;
+  min-height: 220px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.capiro-strategies .st-preview-block {
+  background: var(--st-gray-100);
+  border-radius: 6px;
+  height: 14px;
+}
+
+.capiro-strategies .st-preview-block--hero {
+  height: 22px;
+  width: 55%;
+  background: var(--st-gray-200);
+}
+
+.capiro-strategies .st-preview-block--wide {
+  height: 64px;
+}
+
+.capiro-strategies .st-preview-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.capiro-strategies .st-preview-row .st-preview-block {
+  height: 40px;
+}
+
+.capiro-strategies .st-preview-meta {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--st-accent-deep-label);
+}
+
+.capiro-strategies .st-filename {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------ history */
+
+.capiro-strategies .st-history {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--st-gray-200);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 420px;
+}
+
+.capiro-strategies .st-history__list {
+  border-right: 1px solid var(--st-gray-200);
+  background: var(--st-gray-50);
+  overflow-y: auto;
+  max-height: 560px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.capiro-strategies .st-rev-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.capiro-strategies .st-rev-item:hover {
+  background: var(--st-white);
+  border-color: var(--st-gray-200);
+}
+
+.capiro-strategies .st-rev-item.is-selected {
+  background: var(--st-white);
+  border-color: var(--st-accent);
+  box-shadow: 0 0 0 1px var(--st-accent);
+}
+
+.capiro-strategies .st-rev-item__num {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--st-accent);
+  color: var(--st-white);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.capiro-strategies .st-rev-item__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--st-gray-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-strategies .st-rev-item__meta {
+  font-size: 12px;
+  color: var(--st-gray-500);
+  margin: 2px 0 6px;
+}
+
+.capiro-strategies .st-history__detail {
+  padding: 18px 20px;
+  overflow-y: auto;
+  max-height: 560px;
+}
+
+.capiro-strategies .st-history__detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.capiro-strategies .st-history__meta {
+  font-size: 12px;
+  color: var(--st-gray-500);
+  margin: 4px 0 14px;
+}
+
+.capiro-strategies .st-change-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--st-gray-100);
+  font-size: 12px;
+}
+
+.capiro-strategies .st-change-row:last-child {
+  border-bottom: 0;
+}
+
+.capiro-strategies .st-change-row__field {
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+  font-size: 11px;
+}
+
+.capiro-strategies .st-change-chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.capiro-strategies .st-change-chip--before {
+  background: var(--st-error-bg);
+  color: var(--st-error-fg);
+}
+
+.capiro-strategies .st-change-chip--after {
+  background: var(--st-success-bg);
+  color: var(--st-success-fg);
+}
+
+.capiro-strategies .st-prov-card {
+  margin-top: 16px;
+}
+
+/* ------------------------------------------------------------------- upload */
+
+.capiro-strategies .st-dropzone {
+  border: 1.5px dashed var(--st-gray-300);
+  border-radius: 12px;
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--st-gray-50);
+}
+
+.capiro-strategies .st-dropzone.is-over {
+  border-color: var(--st-accent);
+  background: var(--st-accent-tint);
+}
+
+.capiro-strategies .st-dropzone__title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-dropzone__sub {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-filechip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+}
+
+.capiro-strategies .st-filechip__badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--st-accent);
+  color: var(--st-white);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+.capiro-strategies .st-filechip__name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-filechip__meta {
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+.capiro-strategies .st-meta-grid__item {
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.capiro-strategies .st-meta-grid__key {
+  display: block;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-gray-400);
+  margin-bottom: 2px;
+}
+
+.capiro-strategies .st-meta-grid__val {
+  font-size: 13px;
+  color: var(--st-gray-900);
+  word-break: break-word;
+}
+
+.capiro-strategies .st-check {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 0;
+  align-items: start;
+}
+
+.capiro-strategies .st-check__icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.capiro-strategies .st-check__icon--pass {
+  background: var(--st-success-bg);
+  color: var(--st-success-fg);
+  border: 1px solid var(--st-success-ring);
+}
+
+.capiro-strategies .st-check__icon--fail {
+  background: var(--st-error-bg);
+  color: var(--st-error-fg);
+  border: 1px solid var(--st-error-ring);
+}
+
+.capiro-strategies .st-check__icon--idle {
+  background: var(--st-gray-100);
+  color: var(--st-gray-400);
+  border: 1px solid var(--st-gray-200);
+}
+
+.capiro-strategies .st-check__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+}
+
+.capiro-strategies .st-check__desc {
+  font-size: 12px;
+  color: var(--st-gray-500);
+  margin-top: 1px;
+}
+
+.capiro-strategies .st-check__desc.is-fail {
+  color: var(--st-error-fg);
+}
+
+/* ------------------------------------------------------------------ resolve */
+
+.capiro-strategies .st-candidates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.capiro-strategies .st-candidate__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--st-gray-900);
+  margin: 8px 0 6px;
+}
+
+.capiro-strategies .st-candidate__meta {
+  font-size: 12px;
+  color: var(--st-gray-500);
+  line-height: 18px;
+}
+
+.capiro-strategies .st-quote {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--st-gray-50);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--st-gray-700);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.capiro-strategies .st-rationale-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-audit {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-gray-200);
+  border-radius: 12px;
+  background: var(--st-gray-50);
+  font-size: 13px;
+  color: var(--st-gray-700);
+}
+
+.capiro-strategies .st-audit strong {
+  color: var(--st-gray-900);
+}
+
+/* Gap / not-yet-available block (export generation, downstream counts). */
+.capiro-strategies .st-gap {
+  border: 1px dashed var(--st-warning-ring);
+  background: var(--st-warning-bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--st-warning-fg);
+}
+
+.capiro-strategies .st-gap strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Skeleton stack used by overlay loading states. */
+.capiro-strategies .st-skel-stack {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .capiro-strategies .st-cols,
+  .capiro-strategies .st-history,
+  .capiro-strategies .st-candidates,
+  .capiro-strategies .st-format-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .capiro-strategies .st-history__list {
+    max-height: 220px;
+    border-right: 0;
+    border-bottom: 1px solid var(--st-gray-200);
+  }
+}

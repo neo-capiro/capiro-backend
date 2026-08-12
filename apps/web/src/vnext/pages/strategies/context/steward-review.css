@@ -1,0 +1,452 @@
+/*
+ * Steward review (§7.7) — scoped under .capiro-vnext-root .capiro-strategies;
+ * token layer only (no hex literals, no rgb()). The health band is the dark
+ * Capiro-navy surface; every status pill carries a dot AND a text label.
+ */
+
+.capiro-vnext-root .capiro-strategies .st-steward {
+  min-height: 100%;
+  background: var(--st-gray-50);
+  font-family: var(--st-font-sans);
+}
+
+/* ---- header -------------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__header {
+  background: var(--st-white);
+  border-bottom: 1px solid var(--st-gray-200);
+  padding: 14px 28px 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__back {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-gray-600);
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__back:hover { color: var(--st-accent); }
+.capiro-vnext-root .capiro-strategies .st-steward__title-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__title-block {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__title {
+  margin: 2px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__lede {
+  margin: 6px 0 0;
+  max-width: 680px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--st-gray-600);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__title-row .capiro-field {
+  flex-shrink: 0;
+  min-width: 200px;
+}
+
+/* ---- body ---------------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__body {
+  padding: 22px 28px 48px;
+  display: grid;
+  gap: 26px;
+}
+
+/* ---- dark health band ----------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__band {
+  background: var(--st-accent-deep);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: var(--st-white);
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-accent-deep-label);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-head strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-metric {
+  display: grid;
+  gap: 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-value.is-unavailable {
+  color: var(--st-accent-deep-label);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-metric.is-alert .st-steward__band-value {
+  color: var(--st-error-dot);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--st-accent-deep-label);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-hint {
+  flex: 1;
+  min-width: 220px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--st-accent-deep-label);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--st-accent-deep-label);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-missing {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-missing-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--st-accent-deep-label);
+  margin-right: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-missing-chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  background: var(--st-accent);
+  color: var(--st-white);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__band-missing-more {
+  font-size: 11px;
+  color: var(--st-accent-deep-label);
+}
+
+/* ---- sections ------------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__section { display: grid; gap: 12px; }
+.capiro-vnext-root .capiro-strategies .st-steward__section-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__section-count {
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__section-spacer { flex: 1; }
+.capiro-vnext-root .capiro-strategies .st-steward__note {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--st-gray-50);
+  border: 1px solid var(--st-gray-200);
+  color: var(--st-gray-600);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__note.is-warning {
+  background: var(--st-warning-bg);
+  border-color: var(--st-warning-ring);
+  color: var(--st-warning-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* search */
+.capiro-vnext-root .capiro-strategies .st-steward__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  height: 34px;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 9px;
+  color: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__search:focus-within {
+  border-color: var(--st-accent-focus);
+  box-shadow: var(--st-shadow-focus);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__search input {
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: var(--st-font-sans);
+  color: var(--st-gray-900);
+  width: 160px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__search input::placeholder {
+  color: var(--st-gray-400);
+}
+
+/* ---- conflict cards -------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__conflicts {
+  display: grid;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict {
+  background: var(--st-white);
+  border-radius: 12px;
+  box-shadow: var(--st-shadow-card);
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict.is-open {
+  box-shadow: var(--st-shadow-card), inset 3px 0 0 var(--st-warning-dot);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-head .capiro-badge {
+  text-transform: capitalize;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-meta {
+  font-size: 11px;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-question {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate {
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate.is-missing {
+  border-style: dashed;
+  color: var(--st-gray-500);
+  font-size: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate.is-missing p { margin: 0; }
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta {
+  margin: 0;
+  display: grid;
+  gap: 5px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta dt {
+  width: 76px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--st-gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta dd a {
+  color: var(--st-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__candidate-meta dd a:hover {
+  text-decoration: underline;
+}
+
+/* recorded decision */
+.capiro-vnext-root .capiro-strategies .st-steward__decision {
+  border: 1px solid var(--st-gray-200);
+  border-left: 3px solid var(--st-accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--st-gray-50);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__decision-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__decision p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--st-gray-700);
+}
+
+/* conflict actions + inline confirms */
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__confirm {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid var(--st-warning-ring);
+  border-radius: 9px;
+  background: var(--st-warning-bg);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__confirm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-warning-fg);
+}
+
+/* ---- facts table ----------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-steward__fact-cell {
+  min-width: 260px;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__fact-citation {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--st-gray-400);
+  white-space: normal;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__doc-link {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-accent);
+  text-decoration: none;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__doc-link:hover { text-decoration: underline; }
+.capiro-vnext-root .capiro-strategies .st-steward__doc-client {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__ref { font-size: 10px; }
+.capiro-vnext-root .capiro-strategies .st-steward__nowrap { white-space: nowrap; }
+.capiro-vnext-root .capiro-strategies .st-steward__action-cell { text-align: right; }
+.capiro-vnext-root .capiro-strategies .st-steward__action-cell .capiro-badge {
+  text-transform: capitalize;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__reject {
+  border: 1px solid var(--st-error-ring);
+  border-radius: 7px;
+  background: var(--st-white);
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--st-font-sans);
+  color: var(--st-error-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__reject:hover { background: var(--st-error-bg); }
+.capiro-vnext-root .capiro-strategies .st-steward__reject:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* highlighted (deep-linked) fact row */
+.capiro-vnext-root .capiro-strategies .st-steward tbody tr.is-highlighted td {
+  background: var(--st-accent-tint);
+}
+
+/* responsive: candidates stack */
+@media (max-width: 1100px) {
+  .capiro-vnext-root .capiro-strategies .st-steward__candidates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

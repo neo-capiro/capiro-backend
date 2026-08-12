@@ -1,0 +1,77 @@
+/* Strategy library (§7.1). */
+
+.capiro-vnext-root .capiro-strategies .st-library-phases { margin-bottom: 24px; }
+.capiro-vnext-root .capiro-strategies .st-library-phases__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-phases--setup { box-shadow: 0 0 0 1px var(--st-warning-ring), var(--st-shadow-card); }
+
+.capiro-vnext-root .capiro-strategies .st-library-listhead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 12px;
+}
+
+.capiro-vnext-root .capiro-strategies .st-library-tablecard { overflow: hidden; }
+.capiro-vnext-root .capiro-strategies .st-library-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-table thead th {
+  text-align: left;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-library-table tbody td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--st-gray-100);
+  vertical-align: middle;
+}
+.capiro-vnext-root .capiro-strategies .st-library-table tbody tr:last-child td { border-bottom: none; }
+
+.capiro-vnext-root .capiro-strategies .st-library-row { cursor: pointer; }
+.capiro-vnext-root .capiro-strategies .st-library-row:hover { background: var(--st-gray-50); }
+.capiro-vnext-root .capiro-strategies .st-library-row:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+
+.capiro-vnext-root .capiro-strategies .st-library-client {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+  line-height: 24px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-steps {
+  font-size: 13px;
+  color: var(--st-gray-500);
+  margin-top: 6px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-owner { display: flex; align-items: center; gap: 10px; }
+.capiro-vnext-root .capiro-strategies .st-library-ownername { font-size: 14px; font-weight: 500; color: var(--st-gray-900); margin-bottom: 4px; }
+.capiro-vnext-root .capiro-strategies .st-library-updated { color: var(--st-gray-600); white-space: nowrap; }
+.capiro-vnext-root .capiro-strategies .st-library-chev { color: var(--st-gray-400); font-size: 20px; text-align: right; }
+
+.capiro-vnext-root .capiro-strategies .st-visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}

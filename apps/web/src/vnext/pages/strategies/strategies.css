@@ -1,326 +1,241 @@
-/*
- * Canonical sources:
- * 843:2502 Library · 843:2660 Editor · 843:2818 Editor/Meri rail
- * 843:2976–843:3608 context + review surfaces · 854:2558–854:3870 dialogs.
- */
-.capiro-vnext-root .vnext-strategies.sp-root {
-  --bg-canvas: var(--capiro-color-bg-page);
-  --bg-surface: var(--capiro-color-bg-surface);
-  --bg-surface-2: var(--capiro-color-bg-surface);
-  --bg-sunken: var(--capiro-color-bg-sunken);
-  --bg-dark: var(--capiro-color-bg-dark);
-  --bg-dark-2: var(--capiro-color-bg-dark-2);
-  --border-1: var(--capiro-color-border-default);
-  --border-2: var(--capiro-color-border-control);
-  --border-strong: var(--capiro-color-border-strong);
-  --ink-1: var(--capiro-color-text-primary);
-  --ink-2: var(--capiro-color-text-secondary);
-  --ink-3: var(--capiro-color-text-muted-2);
-  --ink-4: var(--capiro-color-text-muted);
-  --accent: var(--capiro-color-action-accent-default);
-  --accent-ink: var(--capiro-color-action-accent-default);
-  --accent-soft: var(--capiro-color-bg-accent-soft);
-  --accent-glow: var(--capiro-shadow-accent);
-  --critical: var(--capiro-color-danger);
-  --critical-soft: var(--capiro-color-danger-soft);
-  --notable: var(--capiro-color-warning);
-  --notable-soft: var(--capiro-color-warning-soft);
-  --info: var(--capiro-color-info-rail);
-  --info-soft: var(--capiro-color-info-soft);
-  --success: var(--capiro-color-success);
-  --success-soft: var(--capiro-color-success-soft);
-  --positive: var(--capiro-color-success);
-  --font-sans: var(--capiro-type-family-sans);
-  --font-mono: var(--capiro-type-family-mono);
-  --font-serif: var(--capiro-type-family-serif);
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  overflow: hidden;
-  background: var(--capiro-color-bg-page);
-  color: var(--capiro-color-text-primary);
-  font-family: var(--capiro-type-family-sans);
-}
+/* Strategies module — module-scoped layout + shared chrome (§5, §6, §9). */
 
-.capiro-vnext-root .vnext-strategy-loading {
-  min-height: 240px;
-  display: grid;
-  place-items: center;
-  color: var(--capiro-color-text-muted);
-  font-size: 13px;
-}
-
-.capiro-vnext-root .vnext-strategy-library {
-  height: 100%;
-  overflow: auto;
-  background: var(--capiro-color-bg-page);
-}
-.capiro-vnext-root .vnext-strategy-library__header {
-  min-height: 136px;
+.capiro-strategies {
+  min-height: 100%;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  background: var(--st-gray-50);
+}
+
+/* ---- module header (eyebrow / title / purpose / actions) ---- */
+.capiro-vnext-root .capiro-strategies .st-page {
+  padding: 24px 32px 32px;
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.capiro-vnext-root .capiro-strategies .st-page-header {
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 28px;
-  padding: 20px 24px 22px;
-  background: var(--capiro-color-bg-surface);
-  border-bottom: 1px solid var(--capiro-color-border-divider);
+  gap: 24px;
+  margin-bottom: 20px;
 }
-.capiro-vnext-root .vnext-strategy-eyebrow,
-.capiro-vnext-root .vnext-strategy-section-label,
-.capiro-vnext-root .vnext-strategy-table__head,
-.capiro-vnext-root .vnext-strategy-metric__label,
-.capiro-vnext-root .vnext-strategy-row__client {
-  color: var(--capiro-color-text-muted-2);
-  font-family: var(--capiro-type-family-mono);
+
+.capiro-vnext-root .capiro-strategies .st-eyebrow {
+  font-size: 12px;
+  line-height: 18px;
   font-weight: 600;
-  letter-spacing: .04em;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  margin: 0 0 4px;
 }
-.capiro-vnext-root .vnext-strategy-eyebrow { margin-bottom: 5px; font-size: 10px; line-height: 14px; }
-.capiro-vnext-root .vnext-strategy-library__header h1 {
-  margin: 0;
-  color: var(--capiro-color-text-primary);
-  font-size: 32px;
+
+.capiro-vnext-root .capiro-strategies .st-title {
+  font-size: 30px;
   line-height: 38px;
-  font-weight: 700;
-  letter-spacing: -.025em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--st-gray-900);
+  margin: 0;
 }
-.capiro-vnext-root .vnext-strategy-library__header p {
-  max-width: 720px;
-  margin: 3px 0 0;
-  color: var(--capiro-color-text-body-secondary);
+
+.capiro-vnext-root .capiro-strategies .st-purpose {
   font-size: 14px;
-  line-height: 21px;
+  line-height: 20px;
+  color: var(--st-gray-600);
+  margin: 6px 0 0;
+  max-width: 640px;
 }
-.capiro-vnext-root .vnext-strategy-library__actions {
+
+.capiro-vnext-root .capiro-strategies .st-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---- status pill (dot + label, never colour-only) ---- */
+.capiro-vnext-root .capiro-strategies .st-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-700);
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--st-gray-400);
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-pill--accent { background: var(--st-info-bg); box-shadow: inset 0 0 0 1px var(--st-info-ring); color: var(--st-info-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--accent::before { background: var(--st-info-dot); }
+.capiro-vnext-root .capiro-strategies .st-pill--success { background: var(--st-success-bg); box-shadow: inset 0 0 0 1px var(--st-success-ring); color: var(--st-success-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--success::before { background: var(--st-success-dot); }
+.capiro-vnext-root .capiro-strategies .st-pill--warning { background: var(--st-warning-bg); box-shadow: inset 0 0 0 1px var(--st-warning-ring); color: var(--st-warning-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--warning::before { background: var(--st-warning-dot); }
+.capiro-vnext-root .capiro-strategies .st-pill--error { background: var(--st-error-bg); box-shadow: inset 0 0 0 1px var(--st-error-ring); color: var(--st-error-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--error::before { background: var(--st-error-dot); }
+
+/* ---- dark governance banner (policy copy, §7.8/§7.9) ---- */
+.capiro-vnext-root .capiro-strategies .st-dark-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--st-accent-deep);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: var(--st-white);
+  margin-bottom: 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-dark-banner__title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
-  padding-top: 8px;
 }
-.capiro-vnext-root .vnext-strategy-button {
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: 8px;
-  background: var(--capiro-color-bg-surface);
-  color: var(--capiro-color-text-primary);
-  font-family: var(--capiro-type-family-sans);
+.capiro-vnext-root .capiro-strategies .st-dark-banner__sub {
   font-size: 13px;
-  line-height: 18px;
+  color: var(--st-accent-deep-label);
+  margin: 4px 0 0;
+}
+.capiro-vnext-root .capiro-strategies .st-dark-banner__chip {
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-white);
+  background: rgba(255, 255, 255, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
   white-space: nowrap;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 var(--capiro-primitive-highlight-white-72), 0 1px 1px var(--capiro-primitive-shadow-shell);
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease), border-color var(--capiro-motion-fast) var(--capiro-motion-ease), transform var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
-.capiro-vnext-root .vnext-strategy-button:hover { background: var(--capiro-color-bg-subtle); border-color: var(--capiro-color-border-strong); }
-.capiro-vnext-root .vnext-strategy-button:active { transform: translateY(1px); }
-.capiro-vnext-root .vnext-strategy-button.is-primary {
-  border-color: var(--capiro-color-action-accent-default);
-  background: var(--capiro-color-action-accent-default);
-  color: var(--capiro-color-text-inverse-primary);
-  box-shadow: 0 8px 16px var(--capiro-primitive-shadow-widget);
-}
-.capiro-vnext-root .vnext-strategy-button.is-primary:hover { background: var(--capiro-color-action-accent-hover); border-color: var(--capiro-color-action-accent-hover); }
-/* Destructive confirm. Replaces antd's `okButtonProps: { danger: true }`; there is no
-   dedicated danger-hover token, so hover uses the saturated rail shade. */
-.capiro-vnext-root .vnext-strategy-button.is-danger {
-  border-color: var(--capiro-color-danger);
-  background: var(--capiro-color-danger);
-  color: var(--capiro-color-text-inverse-primary);
-  box-shadow: 0 8px 16px var(--capiro-primitive-shadow-widget);
-}
-.capiro-vnext-root .vnext-strategy-button.is-danger:hover { background: var(--capiro-color-danger-rail); border-color: var(--capiro-color-danger-rail); }
-
-.capiro-vnext-root .vnext-strategy-library__body {
-  width: min(1120px, calc(100% - 48px));
-  margin: 24px auto 52px;
-}
-.capiro-vnext-root .vnext-strategy-firm-strip {
-  position: relative;
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 18px 12px 17px;
-  overflow: hidden;
-  border: 1px solid var(--capiro-color-border-page);
-  border-radius: 10px;
-  background: var(--capiro-color-bg-surface);
-}
-.capiro-vnext-root .vnext-strategy-firm-strip::before {
+.capiro-vnext-root .capiro-strategies .st-dark-banner__chip::before {
   content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--capiro-color-action-accent-default);
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  margin-right: 6px;
+  vertical-align: 1px;
 }
-.capiro-vnext-root .vnext-strategy-firm-strip__icon {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--capiro-color-bg-accent-soft);
-  color: var(--capiro-color-text-accent);
-  font-size: 18px;
-}
-.capiro-vnext-root .vnext-strategy-firm-strip__copy { min-width: 0; display: grid; gap: 2px; }
-.capiro-vnext-root .vnext-strategy-firm-strip__copy strong { color: var(--capiro-color-text-heading); font-size: 15px; line-height: 20px; font-weight: 600; }
-.capiro-vnext-root .vnext-strategy-firm-strip__copy span { color: var(--capiro-color-text-body-secondary); font-size: 13px; line-height: 18px; }
-.capiro-vnext-root .vnext-strategy-firm-strip__action { margin-left: auto; flex: 0 0 auto; }
 
-.capiro-vnext-root .vnext-strategy-metrics {
+/* ---- stat cards row ---- */
+.capiro-vnext-root .capiro-strategies .st-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-bottom: 24px;
 }
-.capiro-vnext-root .vnext-strategy-metric {
-  position: relative;
-  height: 92px;
-  display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
-  align-items: center;
-  gap: 18px;
-  padding: 0 18px;
-  overflow: hidden;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: 10px;
-  background: var(--capiro-color-bg-surface);
-  box-shadow: 0 12px 24px var(--capiro-primitive-shadow-widget), 0 1px 2px var(--capiro-primitive-shadow-shell);
-}
-.capiro-vnext-root .vnext-strategy-metric::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--capiro-color-action-accent-default); }
-.capiro-vnext-root .vnext-strategy-metric.tone-warning::before { background: var(--capiro-color-warning-rail); }
-.capiro-vnext-root .vnext-strategy-metric.tone-danger::before { background: var(--capiro-color-danger-rail); }
-.capiro-vnext-root .vnext-strategy-metric.tone-success::before { background: var(--capiro-color-success-rail); }
-.capiro-vnext-root .vnext-strategy-metric__value { color: var(--capiro-color-text-heading); font-size: 26px; line-height: 31px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.capiro-vnext-root .vnext-strategy-metric__label { font-size: 9px; line-height: 12px; }
-.capiro-vnext-root .vnext-strategy-metric__sub { margin-top: 8px; color: var(--capiro-color-text-body-secondary); font-size: 12px; line-height: 17px; }
-
-.capiro-vnext-root .vnext-strategy-list { margin-top: 28px; }
-.capiro-vnext-root .vnext-strategy-list__toolbar { min-height: 42px; display: flex; align-items: flex-end; gap: 8px; }
-.capiro-vnext-root .vnext-strategy-list__copy { flex: 1; min-width: 0; }
-.capiro-vnext-root .vnext-strategy-section-label { font-size: 10px; line-height: 14px; }
-.capiro-vnext-root .vnext-strategy-list__summary { margin-top: 4px; color: var(--capiro-color-text-heading); font-size: 14px; line-height: 19px; font-weight: 600; }
-.capiro-vnext-root .vnext-strategy-list__toolbar select {
-  height: 34px;
-  min-width: 116px;
-  padding: 0 28px 0 11px;
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: 8px;
-  background: var(--capiro-color-bg-surface);
-  color: var(--capiro-color-text-primary);
-  font-family: var(--capiro-type-family-sans);
-  font-size: 12px;
-  font-weight: 600;
-}
-.capiro-vnext-root .vnext-strategy-list__toolbar select:last-child { min-width: 146px; }
-.capiro-vnext-root .vnext-strategy-table {
-  margin-top: 10px;
-  overflow: hidden;
-  border: 1px solid var(--capiro-color-border-default);
+.capiro-vnext-root .capiro-strategies .st-stat {
+  background: var(--st-white);
   border-radius: 12px;
-  background: var(--capiro-color-bg-surface);
-  box-shadow: 0 12px 24px var(--capiro-primitive-shadow-widget), 0 1px 2px var(--capiro-primitive-shadow-shell);
-}
-.capiro-vnext-root .vnext-strategy-table__head,
-.capiro-vnext-root .vnext-strategy-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(155px, .58fr) minmax(155px, .5fr) 112px 26px;
-  align-items: center;
-  gap: 12px;
-  padding-left: 22px;
-  padding-right: 18px;
-}
-.capiro-vnext-root .vnext-strategy-table__head {
-  height: 42px;
-  border-bottom: 1px solid var(--capiro-color-border-divider);
-  font-size: 9px;
-  line-height: 12px;
-}
-.capiro-vnext-root .vnext-strategy-row {
-  position: relative;
-  width: 100%;
-  min-height: 96px;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  border: 0;
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
-  background: var(--capiro-color-bg-surface);
-  color: inherit;
-  font-family: var(--capiro-type-family-sans);
+  box-shadow: var(--st-shadow-card);
+  padding: 20px;
   text-align: left;
+  border: none;
   cursor: pointer;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+  font: inherit;
+  color: inherit;
+  display: block;
 }
-.capiro-vnext-root .vnext-strategy-row:last-child { border-bottom: 0; }
-.capiro-vnext-root .vnext-strategy-row:hover { background: var(--capiro-color-bg-subtle); }
-.capiro-vnext-root .vnext-strategy-row::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--strategy-client-rail); }
-.capiro-vnext-root .vnext-strategy-row__main { min-width: 0; display: grid; }
-.capiro-vnext-root .vnext-strategy-row__client { font-size: 9px; line-height: 12px; }
-.capiro-vnext-root .vnext-strategy-row__title { margin-top: 7px; overflow: hidden; color: var(--capiro-color-text-heading); font-size: 15px; line-height: 21px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .vnext-strategy-row__type { max-width: 100%; min-height: 24px; display: inline-flex; align-items: center; padding: 3px 9px; overflow: hidden; border: 1px solid var(--capiro-color-border-default); border-radius: 6px; background: var(--capiro-color-bg-sunken); color: var(--capiro-color-text-secondary); font-size: 10px; line-height: 14px; font-weight: 600; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .vnext-strategy-row__steps { display: block; margin-top: 6px; color: var(--capiro-color-text-muted-2); font-size: 12px; line-height: 16px; }
-.capiro-vnext-root .vnext-strategy-row__owner { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.capiro-vnext-root .vnext-strategy-row__avatar { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--capiro-color-bg-accent-soft); color: var(--capiro-color-text-accent); font-family: var(--capiro-type-family-mono); font-size: 9px; font-weight: 700; }
-.capiro-vnext-root .vnext-strategy-row__owner-copy { min-width: 0; display: grid; gap: 4px; color: var(--capiro-color-text-secondary); font-size: 12px; line-height: 16px; font-weight: 600; }
-.capiro-vnext-root .vnext-strategy-row__updated { color: var(--capiro-color-text-muted); font-size: 12px; line-height: 16px; }
-.capiro-vnext-root .vnext-strategy-row__chevron { color: var(--capiro-color-text-muted); font-size: 24px; line-height: 28px; text-align: center; }
-.capiro-vnext-root .vnext-strategy-empty { padding: 44px 22px; color: var(--capiro-color-text-muted-2); font-size: 13px; line-height: 20px; text-align: center; }
-
-/* Editor 843:2660 and 843:2818 — preserve all production interactions while
-   forcing the exact cool-neutral header/Meri treatment from the Figma code. */
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header'] {
-  min-height: 126px !important;
-  padding: 16px 24px 18px !important;
-  background: var(--capiro-color-bg-surface) !important;
-  border-bottom: 1px solid var(--capiro-color-border-divider) !important;
+.capiro-vnext-root .capiro-strategies .st-stat:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+.capiro-vnext-root .capiro-strategies .st-stat__value {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--st-gray-900);
+  margin: 0;
 }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-row1'] { align-items: flex-start !important; gap: 14px !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-eyebrow'] { margin-top: 0 !important; color: var(--capiro-color-text-muted-2) !important; font-family: var(--capiro-type-family-mono) !important; font-size: 9px !important; line-height: 12px !important; letter-spacing: .03em !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-title'] { margin-top: 3px !important; color: var(--capiro-color-text-primary) !important; font-size: 28px !important; line-height: 34px !important; letter-spacing: -.02em !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-goal'] { margin-top: 2px !important; color: var(--capiro-color-text-body-secondary) !important; font-size: 13px !important; line-height: 18px !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-row2'] { margin-top: 9px !important; gap: 8px !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-meri-toggle'] { min-height: 36px !important; padding: 0 14px !important; border-color: var(--capiro-color-action-meri-default) !important; border-radius: 8px !important; background: var(--capiro-color-action-meri-default) !important; color: var(--capiro-color-text-inverse-primary) !important; font-size: 12px !important; box-shadow: 0 8px 18px var(--capiro-shadow-meri) !important; }
-.capiro-vnext-root .vnext-strategies [data-testid='sp-header-watch'] { min-height: 34px !important; border-color: var(--capiro-color-border-control) !important; border-radius: 8px !important; background: var(--capiro-color-bg-surface) !important; color: var(--capiro-color-text-primary) !important; }
-.capiro-vnext-root .vnext-strategies .sp-rail-in { box-shadow: -10px 0 28px var(--capiro-primitive-shadow-widget) !important; }
-.capiro-vnext-root .vnext-strategies [role='dialog'] { border-color: var(--capiro-color-border-page) !important; box-shadow: 0 18px 50px var(--capiro-primitive-shadow-deep) !important; }
-
-@media (max-width: 1100px) {
-  .capiro-vnext-root .vnext-strategy-library__header { min-height: auto; flex-direction: column; }
-  .capiro-vnext-root .vnext-strategy-library__actions { width: 100%; flex-wrap: wrap; padding-top: 0; }
-  .capiro-vnext-root .vnext-strategy-library__body { width: min(1120px, calc(100% - 32px)); }
-  .capiro-vnext-root .vnext-strategy-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .capiro-vnext-root .vnext-strategy-table__head,
-  .capiro-vnext-root .vnext-strategy-row { grid-template-columns: minmax(0, 1.5fr) minmax(150px, .7fr) minmax(135px, .55fr) 26px; }
-  .capiro-vnext-root .vnext-strategy-table__head > :nth-child(4),
-  .capiro-vnext-root .vnext-strategy-row > :nth-child(4) { display: none; }
+.capiro-vnext-root .capiro-strategies .st-stat__label {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  margin: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-stat__hint {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--st-gray-500);
+  margin: 2px 0 0;
 }
 
-@media (max-width: 720px) {
-  .capiro-vnext-root .vnext-strategy-library__header { padding: 18px 16px; }
-  .capiro-vnext-root .vnext-strategy-library__header h1 { font-size: 28px; line-height: 34px; }
-  .capiro-vnext-root .vnext-strategy-library__body { width: calc(100% - 24px); margin-top: 14px; }
-  .capiro-vnext-root .vnext-strategy-firm-strip { align-items: flex-start; flex-wrap: wrap; }
-  .capiro-vnext-root .vnext-strategy-firm-strip__action { width: 100%; margin-left: 52px; }
-  .capiro-vnext-root .vnext-strategy-metrics { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .capiro-vnext-root .vnext-strategy-metric { height: 82px; grid-template-columns: 54px 1fr; gap: 10px; padding: 0 12px; }
-  .capiro-vnext-root .vnext-strategy-metric__value { font-size: 22px; }
-  .capiro-vnext-root .vnext-strategy-list__toolbar { align-items: stretch; flex-wrap: wrap; }
-  .capiro-vnext-root .vnext-strategy-list__copy { flex-basis: 100%; }
-  .capiro-vnext-root .vnext-strategy-list__toolbar select { flex: 1; min-width: 0; }
-  .capiro-vnext-root .vnext-strategy-table__head { display: none; }
-  .capiro-vnext-root .vnext-strategy-row { min-height: 112px; grid-template-columns: minmax(0, 1fr) 26px; gap: 10px; padding: 14px 14px 14px 18px; }
-  .capiro-vnext-root .vnext-strategy-row > :nth-child(2),
-  .capiro-vnext-root .vnext-strategy-row > :nth-child(3),
-  .capiro-vnext-root .vnext-strategy-row > :nth-child(4) { display: none; }
-  .capiro-vnext-root .vnext-strategy-row__title { white-space: normal; }
+/* ---- generic card ---- */
+.capiro-vnext-root .capiro-strategies .st-card {
+  background: var(--st-white);
+  border-radius: 12px;
+  box-shadow: var(--st-shadow-card);
 }
+.capiro-vnext-root .capiro-strategies .st-card__header {
+  padding: 16px 20px 0;
+}
+.capiro-vnext-root .capiro-strategies .st-card__title {
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+  margin: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-card__body { padding: 16px 20px 20px; }
+
+/* ---- section label ---- */
+.capiro-vnext-root .capiro-strategies .st-section-label {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  margin: 0 0 8px;
+}
+
+/* ---- segmented control (tabs / filters) ---- */
+.capiro-vnext-root .capiro-strategies .st-segmented {
+  display: inline-flex;
+  background: var(--st-white);
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--st-gray-200);
+  gap: 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-segmented button {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--st-gray-500);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-segmented button[aria-pressed='true'] {
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-segmented button:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+
+/* ---- async state helpers ---- */
+.capiro-vnext-root .capiro-strategies .st-state-row { display: flex; flex-direction: column; gap: 8px; padding: 20px; }

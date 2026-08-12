@@ -35,16 +35,15 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('intercepts Dashboard and Portfolio — the vNext surfaces shipped on os.capiro.ai', () => {
-    // Client CRM, Strategies, LegiWatch and Directory were intercepted here
-    // too until 2026-08, when os.capiro.ai was scoped down to Dashboard only.
-    // Portfolio (client CRM + index) was re-added 2026-08; Strategies, LegiWatch
-    // and Directory page components are untouched (see the tests below) — only
-    // the interception was removed, so a future reconnect is a router change,
-    // not a rebuild.
+  it('intercepts Dashboard, Portfolio and Strategies — the vNext surfaces on os.capiro.ai', () => {
+    // Dashboard (`/`), Portfolio (`/clients`) and Strategies (`/strategies/*`)
+    // have native vNext presentations. The Strategies module is a complete
+    // native rebuild over the same backend — no old pages/strategy/* components
+    // are rendered. LegiWatch and Directory still fall through to canonical.
     const router = source('./app/VNextRouter.tsx');
     expect(router).toContain("location.pathname === '/'");
-    expect(router).not.toContain("location.pathname === '/strategies'");
+    expect(router).toContain("location.pathname === '/strategies'");
+    expect(router).toContain("startsWith('/strategies/')");
     expect(router).not.toContain("location.pathname === '/legiwatch'");
     expect(router).toContain("location.pathname === '/clients'");
     expect(router).toContain('<Outlet />');
@@ -52,19 +51,20 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
 
   it('grounds Strategy vNext surfaces in production hooks rather than mock data', () => {
     const library = source('./pages/strategies/StrategyLibraryVNext.tsx');
-    const contextLibrary = source('./pages/strategies/StrategyContextLibraryVNext.tsx');
-    const contextDocument = source('./pages/strategies/StrategyContextDocumentVNext.tsx');
+    const editor = source('./pages/strategies/StrategyEditorVNext.tsx');
+    const routes = source('./pages/strategies/VNextStrategiesRoutes.tsx');
 
     expect(library).toContain('useStrategies()');
     expect(library).toContain('useFirmPhases()');
-    expect(library).toContain('data-figma-node="843:2502"');
-    expect(contextLibrary).toContain('useContextDocuments()');
-    expect(contextLibrary).toContain('useContextFacts()');
-    expect(contextLibrary).toContain('useContextConflicts()');
-    expect(contextLibrary).toContain('data-figma-node="843:2976"');
-    expect(contextDocument).toContain('useContextLocate(id, activeRef)');
-    expect(contextDocument).toContain('useExtractContextFacts()');
-    expect(contextDocument).toContain('data-figma-node="843:3134"');
+    expect(editor).toContain('useStrategy(');
+    expect(editor).toContain('useReferenceCalendars()');
+    expect(editor).toContain('useFirmPhases()');
+    // The module never renders an old strategy component.
+    for (const file of [library, editor, routes]) {
+      expect(file).not.toMatch(/pages\/strategy\/(StrategyEditorPage|StrategyLibraryPage|StrategyTimeline)/);
+      expect(file).not.toMatch(/pages\/strategy\/agents\/(ReviewQueue|ExecutionReview)/);
+      expect(file).not.toMatch(/pages\/strategy\/context\/(StewardReview|ContextLibrary|ContextDocumentView)/);
+    }
   });
 
   it('grounds LegiWatch overview, digest and analytics in existing intel APIs', () => {
@@ -80,8 +80,8 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
   it('does not ship ephemeral Figma image endpoints into vNext implementation code', () => {
     const files = [
       './pages/strategies/StrategyLibraryVNext.tsx',
-      './pages/strategies/StrategyContextLibraryVNext.tsx',
-      './pages/strategies/StrategyContextDocumentVNext.tsx',
+      './pages/strategies/StrategyEditorVNext.tsx',
+      './pages/strategies/VNextStrategiesRoutes.tsx',
       './pages/legiwatch/VNextLegiWatchPage.tsx',
       './shell/TopBar/index.tsx',
     ].map(source).join('\n');
