@@ -2715,3 +2715,50 @@ pattern worth planning around; they do not establish the quota's exact size, res
 it scales with request volume within a day. A future full-walk attempt should expect to hit this
 same wall again, budget for it, and stop cleanly rather than assume today's specific ~13,000s and
 ~70,000s figures bound all future occurrences.
+
+---
+
+## D-78 · 2026-08-12 · Two days later, the day's usable budget was gone almost immediately — revises D-77's "large fresh daily allowance" read
+
+Resumed two days after D-77 (2026-08-12). `capiro-dev-api-sync-jobs` revision 10's pinned digest had
+been pruned from ECR in the interim (`CannotPullContainerError ... not found` — the exact risk the
+ingestion-resume handoff doc flagged the day before) — rebuilt from `main`'s current tip
+(`ac1e9c2e`, confirmed to still contain D-75's fix via `merge-base --is-ancestor`), verified the new
+digest, registered revision 11.
+
+A one-record probe against revision 11 confirmed the block had cleared (`rateLimited: false`). Per
+user direction to spread requests across the still-empty tables rather than exhausting the budget on
+RFQ again: ran RFP (`--endpoint=rfp --commit --full`) to **completion** — 13/13 pages, 1,144 rows
+written, zero rate-limiting — then SBIR solicitations (`--endpoint=solicitation --commit --full`) to
+**completion** — 3/3 pages, 173 rows written (66 errored on the DB write itself; see the open item
+below), zero rate-limiting. Both are now genuinely `complete: true`, the first two DIBBS/SBIR
+sub-datasets to reach that state.
+
+**Resuming RFQ immediately after hit the account-wide block again — within seconds, not hours of
+sustained activity.** A `47`s block (the routine short window) was followed on the very next retry by
+one reporting `retryAfterSec: 26259` (≈7.3h). Stopped deliberately rather than let it exhaust retries
+for no benefit, given Award and SBIR topics were still queued and would hit the identical wall.
+
+**This revises D-77's working hypothesis, not confirms it.** D-77 read "clears, then recurs bigger" as
+evidence of a large daily allowance that scales with usage. What actually happened on a FRESH day, with
+minimal cumulative activity (two probes, one 13-page walk, one 3-page walk, a few seconds of a fourth
+call) is closer to: **whatever the real daily allowance is, it is small enough that a few thousand
+combined requests exhausts it — not thousands of pages.** RFP (13 pages) + SBIR-solicitations (3 pages)
++ a handful of retries is nowhere near enough activity to justify "the account is now well into a
+multi-thousand-request day" under any generous reading. The account-wide block is real and
+reproducible; its actual daily ceiling is smaller than D-77 assumed, not merely large-and-scaling.
+
+**What this means for planning:** expect to make progress on ONE modestly-sized endpoint (roughly
+RFP's or SBIR-solicitations' scale, a few dozen pages) per calendar day before the block reappears,
+not "most of a catalog." At that rate, RFQ alone (754 pages) and Award (1,856 pages) will each take many
+separate days to finish, spread thin rather than done in a handful of sessions. This should inform
+whether waiting out the natural pace is acceptable or whether contacting MakeGov support about the
+account's real tier is worth doing before P50's schedule is ever considered for enablement — a
+scheduled job hitting this same wall daily, unattended, with no one reading the resulting
+`rateLimited: true` summaries, would silently under-sync indefinitely.
+
+**Open, not investigated by this entry:** the 66 SBIR-solicitation rows that errored on
+`upsertSolicitation` itself (not rate-limiting — a separate DB-level failure, `errored: 66` out of 240
+processed). `walkEndpoint`'s catch block swallows the exception without logging it
+(`catch { summary.errored += 1; summary.written -= 1; }`), so the real cause is unknown from this
+run's own output. Worth a real capture-the-error pass before assuming a specific root cause.
