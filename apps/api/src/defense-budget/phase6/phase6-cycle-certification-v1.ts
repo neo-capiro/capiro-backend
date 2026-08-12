@@ -2,7 +2,11 @@
 import { z } from 'zod';
 import { sha256CanonicalJson, type JsonValue } from '../contracts/canonical-json.js';
 import { sha256Schema } from '../contracts/extraction-artifact-v1.js';
-import { phase6NativeProjectionV1Schema } from './phase6-native-projection-v1.js';
+import {
+  phase6NativeProjectionV1Schema,
+  phase6ProjectionContentHashV1,
+  type Phase6NativeProjectionV1,
+} from './phase6-native-projection-v1.js';
 
 const nonBlank = z.string().min(1).refine((value) => value.trim().length > 0, {
   message: 'must be nonblank',
@@ -70,6 +74,9 @@ export interface Phase6CycleCertificationV1 {
   cycleId: string;
   fiscalYear: number;
   manifestHash: string;
+  /** Exact immutable set of projection CONTENT hashes certified by this record. */
+  projectionSetSha256: string;
+  projectionCount: number;
   status: 'CERTIFIED' | 'NEEDS_REVIEW' | 'INCOMPLETE' | 'REJECTED';
   reasons: string[];
   documentSummary: {
@@ -90,6 +97,22 @@ export interface Phase6CycleCertificationV1 {
   contentSha256: string;
 }
 
+/**
+ * Hash the exact normalized projection contents, not their count or kinds.
+ *
+ * Before this binding existed, two different projection sets with the same
+ * summary counts could produce the same certification hash. That made a later
+ * Phase 7 plan unable to prove which rows the certification actually covered.
+ */
+export function phase6ProjectionSetSha256V1(
+  projections: readonly Phase6NativeProjectionV1[],
+): string {
+  const hashes = projections
+    .map((projection) => phase6ProjectionContentHashV1(projection))
+    .sort((a, b) => a.localeCompare(b));
+  return sha256CanonicalJson(hashes as JsonValue);
+}
+
 export function certifyPhase6CycleV1(value: unknown): Phase6CycleCertificationV1 {
   const input = phase6CycleCertificationInputV1Schema.parse(value);
   const reasons: string[] = [];
@@ -98,8 +121,10 @@ export function certifyPhase6CycleV1(value: unknown): Phase6CycleCertificationV1
   const blockedDocs = required.filter(
     (doc) => doc.status === 'blocked' || doc.sourceProofStatus === 'BLOCKED',
   );
-  if (missing.length > 0) reasons.push(`missing required documents: ${missing.map((d) => d.documentKey).join(',')}`);
-  if (blockedDocs.length > 0) reasons.push(`blocked required documents: ${blockedDocs.map((d) => d.documentKey).join(',')}`);
+  if (missing.length > 0)
+    reasons.push(`missing required documents: ${missing.map((d) => d.documentKey).join(',')}`);
+  if (blockedDocs.length > 0)
+    reasons.push(`blocked required documents: ${blockedDocs.map((d) => d.documentKey).join(',')}`);
 
   const failedComparisons = input.comparisons.filter(
     (comparison) => comparison.required && comparison.outcome === 'FAIL',
@@ -110,7 +135,9 @@ export function certifyPhase6CycleV1(value: unknown): Phase6CycleCertificationV1
   if (failedComparisons.length > 0) reasons.push('required comparison failed');
   if (notRunComparisons.length > 0) reasons.push('required comparison not run');
 
-  const blockedProjections = input.projections.filter((projection) => projection.projectionStatus === 'blocked');
+  const blockedProjections = input.projections.filter(
+    (projection) => projection.projectionStatus === 'blocked',
+  );
   const reviewProjections = input.projections.filter(
     (projection) =>
       projection.projectionStatus === 'candidate' ||
@@ -122,7 +149,8 @@ export function certifyPhase6CycleV1(value: unknown): Phase6CycleCertificationV1
   if (input.enactmentProofCoverage.blocked > 0) reasons.push('blocked enactment proof exists');
 
   const hasEnactedProjection = input.projections.some(
-    (projection) => projection.projectionKind === 'stage_position' && projection.fundingField === 'enacted',
+    (projection) =>
+      projection.projectionKind === 'stage_position' && projection.fundingField === 'enacted',
   );
   if (
     hasEnactedProjection &&
@@ -132,25 +160,45 @@ export function certifyPhase6CycleV1(value: unknown): Phase6CycleCertificationV1
   }
 
   let status: Phase6CycleCertificationV1['status'] = 'CERTIFIED';
-  if (blockedDocs.length > 0 || failedComparisons.length > 0 || blockedProjections.length > 0 || input.bindingCounts.conflicting > 0 || input.enactmentProofCoverage.blocked > 0) {
+  if (
+    blockedDocs.length > 0 ||
+    failedComparisons.length > 0 ||
+    blockedProjections.length > 0 ||
+    input.bindingCounts.conflicting > 0 ||
+    input.enactmentProofCoverage.blocked > 0
+  ) {
     status = 'REJECTED';
-  } else if (missing.length > 0 || (hasEnactedProjection && input.enactmentProofCoverage.direct + input.enactmentProofCoverage.incorporated === 0)) {
+  } else if (
+    missing.length > 0 ||
+    (hasEnactedProjection &&
+      input.enactmentProofCoverage.direct + input.enactmentProofCoverage.incorporated === 0)
+  ) {
     status = 'INCOMPLETE';
-  } else if (notRunComparisons.length > 0 || reviewProjections.length > 0 || input.bindingCounts.candidate > 0 || input.bindingCounts.unresolved > 0 || input.enactmentProofCoverage.unresolved > 0) {
+  } else if (
+    notRunComparisons.length > 0 ||
+    reviewProjections.length > 0 ||
+    input.bindingCounts.candidate > 0 ||
+    input.bindingCounts.unresolved > 0 ||
+    input.enactmentProofCoverage.unresolved > 0
+  ) {
     status = 'NEEDS_REVIEW';
   }
 
   const projectionSummary: Record<string, number> = {};
   for (const projection of input.projections) {
-    projectionSummary[projection.projectionKind] = (projectionSummary[projection.projectionKind] ?? 0) + 1;
+    projectionSummary[projection.projectionKind] =
+      (projectionSummary[projection.projectionKind] ?? 0) + 1;
   }
   const comparisonSummary = { PASS: 0, FAIL: 0, NOT_RUN: 0, SKIPPED: 0 };
   for (const comparison of input.comparisons) comparisonSummary[comparison.outcome] += 1;
+  const projectionSetSha256 = phase6ProjectionSetSha256V1(input.projections);
   const unsigned = {
     schemaVersion: 'phase6_cycle_certification_v1' as const,
     cycleId: input.cycleId,
     fiscalYear: input.fiscalYear,
     manifestHash: input.manifestHash,
+    projectionSetSha256,
+    projectionCount: input.projections.length,
     status,
     reasons,
     documentSummary: {

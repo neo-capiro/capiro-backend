@@ -1,0 +1,86 @@
+/*
+ * Strategies module — Capiro navy token layer (STRATEGIES-HANDOFF §5).
+ *
+ * Scoped to `.capiro-strategies` (the module page root). The shared
+ * `.capiro-vnext-root` foundations remain the base; this layer pins the
+ * Strategies accent to Capiro navy #294E68 and declares the timeline-specific
+ * geometry from §5.3. Values reference the Untitled UI neutral/status ramps
+ * already used across vNext; only the accent differs (navy, not the kit's
+ * Slate, and not the Dashboard's #3E4784 — Strategies is a separate surface).
+ *
+ * Rule (§5.1): monospace is scoped to machine-verifiable identifiers only —
+ * template keys, filenames, source line refs, hashes, run/op state tokens,
+ * confidence and version strings. Everything else is the vNext sans family.
+ */
+.capiro-strategies {
+  /* Accent — Capiro navy (§5, §5.1 colour table). */
+  --st-accent: #294e68;
+  --st-accent-hover: #1f3d52;
+  --st-accent-deep: #1c3a4e;         /* deep surface — stat bands */
+  --st-accent-deep-label: #a8c0d0;   /* label on deep surface */
+  --st-accent-tint: #edf3f7;         /* selected rows / tinted panels */
+  --st-accent-tint-border: #c3d5e1;
+  --st-accent-focus: #4a7a9b;        /* focus ring, 2px, 2px offset */
+  --st-accent-secondary: #8fb2c9;    /* secondary bar fill */
+
+  /* Neutrals (Untitled UI Gray) — mirrored for module-local use. */
+  --st-white: #ffffff;
+  --st-gray-50: #f9fafb;
+  --st-gray-100: #f2f4f7;
+  --st-gray-200: #eaecf0;
+  --st-gray-300: #d0d5dd;
+  --st-gray-400: #98a2b3;
+  --st-gray-500: #667085;
+  --st-gray-600: #475467;
+  --st-gray-700: #344054;
+  --st-gray-900: #101828;
+
+  /* Status ramps [bg, ring, fg, dot] — §5.1. */
+  --st-error-bg: #fef3f2;   --st-error-ring: #fecdca;   --st-error-fg: #b42318;   --st-error-dot: #f04438;
+  --st-warning-bg: #fffaeb; --st-warning-ring: #fedf89; --st-warning-fg: #b54708; --st-warning-dot: #f79009;
+  --st-success-bg: #ecfdf3; --st-success-ring: #abefc6; --st-success-fg: #027a48; --st-success-dot: #12b76a;
+  --st-info-bg: #edf3f7;    --st-info-ring: #c3d5e1;    --st-info-fg: #294e68;    --st-info-dot: #4a7a9b;
+
+  /* Type — inherit the vNext sans; monospace helper for §5.1 identifiers. */
+  --st-font-sans: var(--capiro-type-family-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  --st-font-mono: var(--capiro-type-family-mono, ui-monospace, 'SFMono-Regular', Consolas, monospace);
+
+  /* Timeline geometry (§5.3). */
+  --st-gridline: #f2f4f7;            /* month column gridline */
+  --st-fyline: #eaecf0;              /* fiscal-year boundary */
+  --st-refbar-h: 26px;
+  --st-refbar-radius: 6px;
+  --st-refbar-active-bg: #101828;    /* active legislative bar */
+  --st-firmphase-bg: #edf3f7;
+  --st-firmphase-ring: #c3d5e1;
+  --st-firmphase-label: #294e68;
+  --st-watch-bg: #fffaeb;
+  --st-watch-ring: #fedf89;
+  --st-watch-label: #b54708;
+  --st-step-h: 86px;
+  --st-step-radius: 8px;
+  --st-step-ring: #eaecf0;
+  --st-step-selected: #294e68;
+  --st-today: #294e68;
+
+  /* Step kind dots (§5.3). */
+  --st-kind-action: #294e68;
+  --st-kind-gate: #101828;
+  --st-kind-milestone: #12b76a;
+  --st-kind-decision: #4a7a9b;
+  --st-kind-risk: #f04438;
+
+  /* Elevation. */
+  --st-shadow-card: 0 0 0 1px var(--st-gray-200), 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --st-shadow-focus: 0 0 0 2px var(--st-white), 0 0 0 4px var(--st-accent-focus);
+
+  color: var(--st-gray-900);
+  font-family: var(--st-font-sans);
+}
+
+/* Monospace helper — ONLY for §5.1 machine-verifiable identifiers. */
+.capiro-strategies .st-mono {
+  font-family: var(--st-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}

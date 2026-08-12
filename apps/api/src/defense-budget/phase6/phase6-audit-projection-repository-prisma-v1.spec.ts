@@ -38,17 +38,22 @@ function projection(overrides: Partial<Phase6NativeProjectionV1> = {}): Phase6Na
   };
 }
 
-function certification(contentSha256Seed: string) {
+function certification(projections: Phase6NativeProjectionV1[] = [projection()]) {
   return certifyPhase6CycleV1({
     schemaVersion: 'phase6_cycle_certification_input_v1',
     cycleId: 'cycle-fy2027',
     fiscalYear: 2027,
-    manifestHash: SHA(contentSha256Seed),
+    manifestHash: SHA('1'),
     documents: [{ documentKey: 'hac-d-report', required: true, status: 'present' }],
-    projections: [],
+    projections,
     comparisons: [],
     lineFamilyCoverage: {},
-    bindingCounts: { accepted: 1, candidate: 0, unresolved: 0, conflicting: 0 },
+    bindingCounts: {
+      accepted: projections.length,
+      candidate: 0,
+      unresolved: 0,
+      conflicting: 0,
+    },
     enactmentProofCoverage: { direct: 0, incorporated: 0, unresolved: 0, blocked: 0 },
     reprogrammingCoverage: 0,
     executionCoverage: 0,
@@ -56,11 +61,20 @@ function certification(contentSha256Seed: string) {
   });
 }
 
-/** An in-memory stand-in for the two `phase6_*` tables, keyed the way Postgres's unique constraints are. */
+/** An in-memory stand-in for the phase6 audit tables, keyed like Postgres unique constraints. */
 class FakePhase6Db {
   projectionsByIdempotencyKey = new Map<string, { projectionId: string; naturalKey: string }>();
   liveByNaturalKey = new Map<string, { projectionId: string; idempotencyKey: string }>();
-  certificationsByContentSha = new Map<string, { cycleId: string; contentSha256: string }>();
+  certificationsByContentSha = new Map<
+    string,
+    {
+      cycleId: string;
+      contentSha256: string;
+      projectionSetSha256: string | null;
+      projectionCount: number | null;
+    }
+  >();
+  bindingsByCertificationSha = new Map<string, Array<{ projectionId: string; ordinal: number }>>();
   insertedProjections: Phase6NativeProjectionV1[] = [];
   insertedCertifications: unknown[] = [];
 
@@ -91,12 +105,17 @@ class FakePhase6Db {
           const row = db.certificationsByContentSha.get(String(values[0]));
           return (row ? [row] : []) as unknown as T;
         }
+        if (query.includes('FROM "phase6_cycle_certification_projection"')) {
+          const bindings = [...(db.bindingsByCertificationSha.get(String(values[0])) ?? [])]
+            .sort((a, b) => a.ordinal - b.ordinal || a.projectionId.localeCompare(b.projectionId))
+            .map((binding) => ({ projectionId: binding.projectionId }));
+          return bindings as unknown as T;
+        }
         throw new Error(`FakePhase6Db: unrecognized query: ${query}`);
       },
       async $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number> {
         // Column order matches the INSERT's own column list in
-        // phase6-audit-projection-repository-prisma-v1.ts; indexed rather than
-        // destructured since only the first three params matter to this fake.
+        // phase6-audit-projection-repository-prisma-v1.ts.
         if (query.includes('INSERT INTO "phase6_audit_projection"')) {
           const projectionId = String(values[0]);
           const naturalKey = String(values[1]);
@@ -109,13 +128,29 @@ class FakePhase6Db {
           return 1;
         }
         if (query.includes('INSERT INTO "phase6_cycle_certification"')) {
+          // $1 cycleId, $2 fiscalYear, $3 manifestHash, $4 contentSha256,
+          // $5 status, $6 projectionSetSha256, $7 projectionCount, $8 report
+          const cycleId = String(values[0]);
           const contentSha256 = String(values[3]);
-          const report = String(values[5]);
+          const projectionSetSha256 = values[5] == null ? null : String(values[5]);
+          const projectionCount = values[6] == null ? null : Number(values[6]);
+          const report = String(values[7]);
           db.certificationsByContentSha.set(contentSha256, {
-            cycleId: (JSON.parse(report) as { cycleId: string }).cycleId,
+            cycleId,
             contentSha256,
+            projectionSetSha256,
+            projectionCount,
           });
           db.insertedCertifications.push(report);
+          return 1;
+        }
+        if (query.includes('INSERT INTO "phase6_cycle_certification_projection"')) {
+          const certificationContentSha256 = String(values[0]);
+          const projectionId = String(values[1]);
+          const ordinal = Number(values[2]);
+          const current = db.bindingsByCertificationSha.get(certificationContentSha256) ?? [];
+          current.push({ projectionId, ordinal });
+          db.bindingsByCertificationSha.set(certificationContentSha256, current);
           return 1;
         }
         throw new Error(`FakePhase6Db: unrecognized statement: ${query}`);
@@ -130,10 +165,12 @@ describe('PrismaPhase6AuditProjectionTransactionClientV1 + Phase6AuditProjection
     const repository = new Phase6AuditProjectionRepository(
       new PrismaPhase6AuditProjectionTransactionClientV1(db.asPrisma()),
     );
+    const proj = projection();
+    const cert = certification([proj]);
 
     const receipt = await repository.persistAuditOnly({
-      projections: [projection()],
-      certification: certification('1'),
+      projections: [proj],
+      certification: cert,
       auditPersistenceAuthorized: true,
     });
 
@@ -142,6 +179,13 @@ describe('PrismaPhase6AuditProjectionTransactionClientV1 + Phase6AuditProjection
     expect(receipt.certificationReplayed).toBe(false);
     expect(receipt.canonicalWrites).toBe(false);
     expect(db.projectionsByIdempotencyKey.has('idem-1')).toBe(true);
+    expect(db.certificationsByContentSha.get(cert.contentSha256)).toMatchObject({
+      projectionSetSha256: cert.projectionSetSha256,
+      projectionCount: 1,
+    });
+    expect(db.bindingsByCertificationSha.get(cert.contentSha256)).toEqual([
+      { projectionId: 'p1', ordinal: 0 },
+    ]);
   });
 
   it('replays an identical idempotency key rather than inserting twice', async () => {
@@ -149,15 +193,17 @@ describe('PrismaPhase6AuditProjectionTransactionClientV1 + Phase6AuditProjection
     const repository = new Phase6AuditProjectionRepository(
       new PrismaPhase6AuditProjectionTransactionClientV1(db.asPrisma()),
     );
+    const proj = projection();
+    const cert = certification([proj]);
 
     await repository.persistAuditOnly({
-      projections: [projection()],
-      certification: certification('1'),
+      projections: [proj],
+      certification: cert,
       auditPersistenceAuthorized: true,
     });
     const second = await repository.persistAuditOnly({
-      projections: [projection()],
-      certification: certification('1'),
+      projections: [proj],
+      certification: cert,
       auditPersistenceAuthorized: true,
     });
 
@@ -171,17 +217,22 @@ describe('PrismaPhase6AuditProjectionTransactionClientV1 + Phase6AuditProjection
     const repository = new Phase6AuditProjectionRepository(
       new PrismaPhase6AuditProjectionTransactionClientV1(db.asPrisma()),
     );
+    const first = projection();
+    const firstCert = certification([first]);
 
     await repository.persistAuditOnly({
-      projections: [projection()],
-      certification: certification('1'),
+      projections: [first],
+      certification: firstCert,
       auditPersistenceAuthorized: true,
     });
 
+    // Same natural key, different idempotency/projection id — certification
+    // must bind THIS supplied set so the set-hash gate does not fire first.
+    const conflict = projection({ projectionId: 'p2', idempotencyKey: 'idem-2' });
     await expect(
       repository.persistAuditOnly({
-        projections: [projection({ projectionId: 'p2', idempotencyKey: 'idem-2' })],
-        certification: certification('2'),
+        projections: [conflict],
+        certification: certification([conflict]),
         auditPersistenceAuthorized: true,
       }),
     ).rejects.toThrow(/conflicting live projection/);
@@ -192,11 +243,12 @@ describe('PrismaPhase6AuditProjectionTransactionClientV1 + Phase6AuditProjection
     const repository = new Phase6AuditProjectionRepository(
       new PrismaPhase6AuditProjectionTransactionClientV1(db.asPrisma()),
     );
+    const proj = projection();
 
     await expect(
       repository.persistAuditOnly({
-        projections: [projection()],
-        certification: certification('1'),
+        projections: [proj],
+        certification: certification([proj]),
         // @ts-expect-error -- exercising the runtime guard, not just the type
         auditPersistenceAuthorized: false,
       }),

@@ -15,6 +15,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Keep the process in apps/api so relative `npx tsx ./scripts/...` paths work
+# under native Windows Node (MSYS absolute /c/Users/... becomes C:\c\Users\...).
+cd "$API_ROOT"
 MIGRATIONS_DIR="$API_ROOT/prisma/migrations"
 # pgvector, not plain postgres: the migration chain installs the `vector`
 # extension in its first migration.
@@ -1040,7 +1043,7 @@ ok "serve role given a rehearsal password"
 
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-engine-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1055,7 +1058,7 @@ log "Workstream L — the outbox drainer against a real database"
 # and lease recovery are actually demonstrated.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-drain-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-drain-rehearsal.ts" \
   || fail "the drain rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1064,7 +1067,7 @@ log "Workstream M — the snapshot read path as the general serve role"
 # =============================================================================
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-read-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-read-rehearsal.ts" \
   || fail "the read rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1077,7 +1080,7 @@ log "Workstream N — the plan and validate operator verbs as the serve role"
 # grant fails here instead of in production.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-plan-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-plan-rehearsal.ts" \
   || fail "the plan/validate rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1091,7 +1094,7 @@ log "Gap 3 closeout — the authorize operator verb as the serve role"
 # segregation evidence comes from a real, persisted eligibility record.
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
+  npx tsx "./scripts/pe-budget-phase7-gap3-authorize-rehearsal.ts" \
   || fail "the Gap 3 authorize rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
 
@@ -1223,16 +1226,30 @@ UPDATE defense_budget_projection_plan SET conflict_count = 99
 expect_fail "a DELETE of a filed projection plan" "
 DELETE FROM defense_budget_projection_plan WHERE projection_plan_id = 'pp_gap5_clean';"
 
-[ "$(q "SELECT count(*) FROM defense_budget_projection_plan;")" = "1" ] \
+# Earlier Workstream N plan rehearsal also seeds a legitimate projection-plan
+# row for the O&M producer fixture. Assert Gap 5's own identity only — do not
+# require the whole table to hold a single row.
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan
+        WHERE projection_plan_id = 'pp_gap5_clean';")" = "1" ] \
+  || fail "the legitimately filed Gap 5 plan is missing after the refuse checks"
+[ "$(q "SELECT count(*) FROM defense_budget_projection_plan
+        WHERE projection_plan_id IN (
+          'pp_gap5_lying',
+          'pp_gap5_blocked_zero',
+          'pp_gap5_status',
+          'pp_gap5_nostorage',
+          'pp_gap5_bothstorage'
+        );")" = "0" ] \
   || fail "a refused statement still changed the projection plan table"
-ok "the projection plan table holds exactly the one plan that was legitimately filed"
+ok "the projection plan table holds the one Gap 5 plan that was legitimately filed and none of the refused ones"
 
 # =============================================================================
 log "Gap 5 — the real persist verb, end to end"
 # =============================================================================
 # The verb, not raw SQL: this is the same substitution Gap 4 made for plan
 # filing, and it is what proves an operator can actually produce this row.
-GAP5_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-projection-plan.json"
+# Relative path only: native Windows Node mangles MSYS abs paths (/c/Users → C:\c\Users).
+GAP5_PLAN_FILE="$TMP_REL/gap5-projection-plan.json"
 cat > "$GAP5_PLAN_FILE" <<JSON
 {
   "schemaVersion": "rdte_canonical_projection_plan_v1",
@@ -1248,7 +1265,7 @@ cat > "$GAP5_PLAN_FILE" <<JSON
 JSON
 
 DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  npx tsx "./scripts/persist-defense-budget-projection-plan-v1.ts" \
   --plan "$GAP5_PLAN_FILE" --family rdte \
   --producer-version 'rehearsal-build-rdte-cycle@1' \
   --certification-sha256 "$(printf '4%.0s' $(seq 1 64))" \
@@ -1337,9 +1354,36 @@ INSERT INTO phase6_audit_projection (
 );"
 ok "seeded two live Phase 6 audit-projection rows and one superseded row"
 
-GAP5_PHASE6_PLAN_FILE="$API_ROOT/$TMP_REL/gap5-phase6-projection-plan.json"
-npx tsx "$SCRIPT_DIR/build-defense-budget-phase6-projection-plan-v1.ts" \
-  --cycle-id cycle-gap5-a --fiscal-year 2027 --out "$GAP5_PHASE6_PLAN_FILE" \
+# The build verb requires a phase6_cycle_certification row with an exact
+# projection-set binding (projection_set_sha256 + projection_count). Seed one
+# for cycle-gap5-a / FY2027 whose content_sha256 is passed to --certification-sha256.
+GAP5_PHASE6_CERT_SHA="$(printf '6%.0s' $(seq 1 64))"
+# The build verb recomputes the projection-set hash from the actual DB rows
+# and refuses a stale certification. Compute the real hash from the two seeded
+# projections so the certification's projection_set_sha256 matches exactly.
+GAP5_PHASE6_PROJSET_SHA="578de20291062393b1f82ca4080a84821dfcf114372727acba6050ddf9358e52"
+run_sql "
+INSERT INTO phase6_cycle_certification (
+  cycle_id, fiscal_year, manifest_hash, content_sha256, status,
+  projection_set_sha256, projection_count, report_jsonb
+) VALUES (
+  'cycle-gap5-a', 2027, repeat('a', 64), repeat('6', 64), 'CERTIFIED',
+  '$GAP5_PHASE6_PROJSET_SHA', 2,
+  jsonb_build_object('projectionSetSha256', '$GAP5_PHASE6_PROJSET_SHA', 'projectionCount', 2)
+);"
+# Bind the two live projections (p6proj-gap5-a-1 and p6proj-gap5-a-2) to the certification.
+run_sql "
+INSERT INTO phase6_cycle_certification_projection (certification_content_sha256, projection_id, projection_ordinal) VALUES
+  (repeat('6', 64), 'p6proj-gap5-a-1', 0),
+  (repeat('6', 64), 'p6proj-gap5-a-2', 1);"
+ok "seeded phase6 cycle certification for cycle-gap5-a with exact projection-set binding"
+
+# Relative path only: native Windows Node mangles MSYS abs paths (/c/Users -> C:/c/Users).
+GAP5_PHASE6_PLAN_FILE="$TMP_REL/gap5-phase6-projection-plan.json"
+npx tsx "./scripts/build-defense-budget-phase6-projection-plan-v1.ts" \
+  --cycle-id cycle-gap5-a --fiscal-year 2027 \
+  --certification-sha256 "$GAP5_PHASE6_CERT_SHA" \
+  --out "$GAP5_PHASE6_PLAN_FILE" \
   || fail "build-defense-budget-phase6-projection-plan-v1 could not build a plan document"
 ok "the real build verb reads phase6_audit_projection and produces a plan document"
 
@@ -1364,7 +1408,7 @@ ok "A3's mapping produced insert (accepted) and no_op (unresolved_binding) exact
 # before this line gets to inspect it.
 set +e
 DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
-  npx tsx "$SCRIPT_DIR/persist-defense-budget-projection-plan-v1.ts" \
+  npx tsx "./scripts/persist-defense-budget-projection-plan-v1.ts" \
   --plan "$GAP5_PHASE6_PLAN_FILE" --family committee \
   --producer-version 'rehearsal-build-phase6-plan@1' \
   --certification-sha256 "$(printf '5%.0s' $(seq 1 64))" \

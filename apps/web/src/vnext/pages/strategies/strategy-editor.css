@@ -1,0 +1,208 @@
+/* Timeline editor (§7.2, §7.3, §5.3). */
+
+.capiro-vnext-root .capiro-strategies .st-editor {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100%;
+}
+.capiro-vnext-root .capiro-strategies .st-editor__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px 32px 32px;
+}
+
+.capiro-vnext-root .capiro-strategies .st-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-editor-header__left { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-editor-header__right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.capiro-vnext-root .capiro-strategies .st-editor-title { font-size: 26px; line-height: 32px; }
+.capiro-vnext-root .capiro-strategies .st-editor-back {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--st-gray-300);
+  background: var(--st-white);
+  color: var(--st-gray-700);
+  font-size: 20px; line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-editor-back:hover { background: var(--st-gray-50); }
+.capiro-vnext-root .capiro-strategies .st-editor-back:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+
+.capiro-vnext-root .capiro-strategies .st-savestamp {
+  font-size: 13px;
+  color: var(--st-gray-500);
+  white-space: nowrap;
+}
+
+/* ---- timeline card ---- */
+.capiro-vnext-root .capiro-strategies .st-timeline { overflow: hidden; }
+.capiro-vnext-root .capiro-strategies .st-timeline__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--st-gray-200);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 13px; color: var(--st-gray-500); margin: 2px 0 0; }
+.capiro-vnext-root .capiro-strategies .st-planhealth-chip { border: none; cursor: pointer; }
+
+.capiro-vnext-root .capiro-strategies .st-tl { overflow-x: auto; }
+.capiro-vnext-root .capiro-strategies .st-tl__grid { min-width: 960px; }
+
+.capiro-vnext-root .capiro-strategies .st-tl-row {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  border-bottom: 1px solid var(--st-gray-100);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-row:last-child { border-bottom: none; }
+.capiro-vnext-root .capiro-strategies .st-tl-row__label {
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  border-right: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-row__track { position: relative; padding: 8px 0; min-height: 44px; }
+.capiro-vnext-root .capiro-strategies .st-tl-row--steps .st-tl-row__track { padding: 12px 0; }
+
+/* Fiscal window */
+.capiro-vnext-root .capiro-strategies .st-tl-fy { position: relative; display: flex; border-bottom: 1px solid var(--st-gray-100); }
+.capiro-vnext-root .capiro-strategies .st-tl-fy__cell {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-gray-600);
+  padding: 4px 0;
+  border-left: 1px solid var(--st-fyline);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-fy__cell:first-child { border-left: none; }
+.capiro-vnext-root .capiro-strategies .st-tl-months { display: flex; }
+.capiro-vnext-root .capiro-strategies .st-tl-month {
+  flex: 1 1 0;
+  min-width: 46px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--st-gray-400);
+  padding: 4px 0;
+  border-left: 1px solid var(--st-gridline);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-month:first-child { border-left: none; }
+.capiro-vnext-root .capiro-strategies .st-tl-month--fy { border-left-color: var(--st-fyline); color: var(--st-gray-600); font-weight: 600; }
+
+.capiro-vnext-root .capiro-strategies .st-tl-today { position: absolute; top: 0; bottom: 0; width: 0; z-index: 2; }
+.capiro-vnext-root .capiro-strategies .st-tl-today::before {
+  content: '';
+  position: absolute; top: 0; bottom: 0; left: -1px;
+  width: 2px; background: var(--st-today); opacity: 0.5;
+}
+.capiro-vnext-root .capiro-strategies .st-tl-today__pill {
+  position: absolute; top: -2px; left: -18px;
+  background: var(--st-today); color: var(--st-white);
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+/* Reference bars (§5.3) */
+.capiro-vnext-root .capiro-strategies .st-tl-bars { position: relative; min-height: 30px; }
+.capiro-vnext-root .capiro-strategies .st-tl-refbar {
+  position: absolute;
+  height: var(--st-refbar-h);
+  border-radius: var(--st-refbar-radius);
+  font-size: 12px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: none;
+  cursor: pointer;
+  background: var(--st-gray-100);
+  color: var(--st-gray-700);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-refbar--active { background: var(--st-refbar-active-bg); color: var(--st-white); }
+.capiro-vnext-root .capiro-strategies .st-tl-refbar--firmphase {
+  background: var(--st-firmphase-bg);
+  box-shadow: inset 0 0 0 1px var(--st-firmphase-ring);
+  color: var(--st-firmphase-label);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-refbar--watch {
+  background: var(--st-watch-bg);
+  box-shadow: inset 0 0 0 1px var(--st-watch-ring);
+  color: var(--st-watch-label);
+}
+.capiro-vnext-root .capiro-strategies .st-tl-empty { font-size: 13px; color: var(--st-gray-400); padding: 6px 4px; }
+
+/* Step cards (§5.3) */
+.capiro-vnext-root .capiro-strategies .st-tl-steps { position: relative; }
+.capiro-vnext-root .capiro-strategies .st-step {
+  position: absolute;
+  height: var(--st-step-h);
+  min-width: 120px;
+  background: var(--st-white);
+  border-radius: var(--st-step-radius);
+  box-shadow: 0 0 0 1px var(--st-step-ring);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  border: none;
+  font: inherit;
+}
+.capiro-vnext-root .capiro-strategies .st-step:hover { box-shadow: 0 0 0 1px var(--st-gray-300); }
+.capiro-vnext-root .capiro-strategies .st-step:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+.capiro-vnext-root .capiro-strategies .st-step--selected { box-shadow: 0 0 0 2px var(--st-step-selected); }
+
+.capiro-vnext-root .capiro-strategies .st-step__kind {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--st-gray-600);
+}
+.capiro-vnext-root .capiro-strategies .st-step__dot { width: 7px; height: 7px; border-radius: 999px; background: var(--st-gray-400); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--action .st-step__dot { background: var(--st-kind-action); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--gate .st-step__dot { background: var(--st-kind-gate); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--milestone .st-step__dot { background: var(--st-kind-milestone); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--decision .st-step__dot { background: var(--st-kind-decision); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--risk .st-step__dot { background: var(--st-kind-risk); }
+
+.capiro-vnext-root .capiro-strategies .st-step__title {
+  font-size: 13px; font-weight: 600; color: var(--st-gray-900); line-height: 18px;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.capiro-vnext-root .capiro-strategies .st-step__meta { font-size: 11px; color: var(--st-gray-500); margin-top: auto; }
+
+/* Bottom cards */
+.capiro-vnext-root .capiro-strategies .st-editor-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.capiro-vnext-root .capiro-strategies .st-next30__title { font-size: 15px; font-weight: 600; color: var(--st-gray-900); margin: 0 0 10px; }
+.capiro-vnext-root .capiro-strategies .st-next30__meta { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.capiro-vnext-root .capiro-strategies .st-next30__owner { font-size: 13px; color: var(--st-gray-600); }
+
+.capiro-vnext-root .capiro-strategies .st-planhealth__body { display: flex; align-items: center; gap: 20px; }
+.capiro-vnext-root .capiro-strategies .st-planhealth__score {
+  font-size: 40px; font-weight: 600; letter-spacing: -0.02em; color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-planhealth__facts p { margin: 0; font-size: 13px; color: var(--st-gray-600); }
+.capiro-vnext-root .capiro-strategies .st-planhealth__body .capiro-button { margin-left: auto; }
+
+@media (max-width: 1200px) {
+  .capiro-vnext-root .capiro-strategies .st-editor-cards { grid-template-columns: 1fr; }
+}

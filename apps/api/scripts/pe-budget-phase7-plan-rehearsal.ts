@@ -6,9 +6,9 @@
  *
  * What it proves that the unit tests cannot:
  *
- *   * the SQL inside `promotion-projection-source-prisma-v1.ts` matches the
- *     Phase 5 projection schema — the unit tests answer it with a fake client
- *     and prove nothing about column names;
+ *   * the SQL inside `eligibility-bound-projection-source-prisma-v1.ts` reloads
+ *     a real producer-plan row and re-projects it — the unit tests answer it
+ *     with a fake client and prove nothing about column names;
  *   * `plan-defense-budget-promotion-v1` runs end to end **as the general
  *     application role**, which is the credential Workstream N assigns the
  *     planner, so a missing SELECT grant fails here rather than in production;
@@ -19,11 +19,41 @@
  *
  * Both verbs are spawned as the actual CLIs rather than imported, so what is
  * demonstrated is the command an operator will type.
+ *
+ * Gap closeout (eligibility-bound planning): the plan CLI no longer queries
+ * live O&M tables by fiscal year. It reloads a content-addressed eligibility
+ * document and the exact producer plans that document names. This rehearsal
+ * therefore seeds those rows first, with a real v2 eligibility document —
+ * not a placeholder hash and not an empty JSON blob.
  */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import {
+  sha256CanonicalJson,
+  type JsonValue,
+} from '../src/defense-budget/contracts/canonical-json.js';
+import {
+  computeNonRdteProjectionPlanContentSha256,
+  NON_RDTE_PROJECTION_PLAN_SCHEMA_VERSION,
+  type NonRdteProjectionCandidateV1,
+  type NonRdteProjectionExclusionV1,
+} from '../src/defense-budget/non-rdte/non-rdte-canonical-projection-plan-v1.js';
+import {
+  DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION,
+  canonicalMappingRegistryHashV1,
+} from '../src/defense-budget/promotion/canonical-mapping-registry-v1.js';
+import {
+  DEFENSE_BUDGET_PROMOTION_ELIGIBILITY_SCHEMA_VERSION,
+  defenseBudgetPromotionEligibilityV1Schema,
+  promotionEligibilityHashV1,
+  type DefenseBudgetPromotionEligibilityV1,
+} from '../src/defense-budget/promotion/promotion-eligibility-v1.js';
+import {
+  buildProjectionPlanRecordV1,
+  type DefenseBudgetProjectionPlanRecordV1,
+} from '../src/defense-budget/projection-plan/projection-plan-record-v1.js';
 
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const APP_URL = required('APP_DATABASE_URL');
@@ -36,16 +66,18 @@ const API_ROOT = path.resolve(SCRIPT_DIR, '..');
 // A distinct environment from every other section, so this plans against an
 // empty pointer without interfering with the engine or read rehearsals.
 const ENVIRONMENT = 'planrehearsal';
-// And a distinct fiscal year, which matters more than it looks: the planner
-// reads every O&M SAG funded in the requested year, and the engine rehearsal
-// seeds its own FY2027 SAG into this same database. Sharing the year made the
-// plan legitimately cover 4 items instead of 2 — correct behaviour, useless
-// assertion. Isolating the year is what lets the counts below be exact.
+// Distinct cycle/year from the engine rehearsal so counts stay exact and the
+// eligibility hash never collides with the engine's placeholder SHA('e') row.
 const CYCLE_ID = 'cycle-fy2029-plan';
 const FISCAL_YEAR = 2029;
-const ELIGIBILITY_HASH = 'e'.repeat(64);
+const POSITION_CYCLE = 'pb_fy2029';
+const SAG_NATURAL_KEY = 'OM_SAG:ARMY:OMA:431';
+const MONEY_MILLIONS = '87.654321';
+const MONEY_ORIGINAL = '87654.321';
 const SHA = (c: string): string => c.repeat(64);
 const SOURCE_DOC_ID = '00000000-0000-0000-0000-0000000000a1';
+const MAPPING_REGISTRY_VERSION = DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION;
+const MAPPING_REGISTRY_HASH = canonicalMappingRegistryHashV1();
 
 let passed = 0;
 function ok(message: string): void {
@@ -69,26 +101,40 @@ function required(name: string): string {
 interface CliResultV1 {
   status: number;
   report: Record<string, unknown>;
+  stdout: string;
+  stderr: string;
 }
 
-/** Runs one operator verb the way an operator runs it, and parses its JSON. */
-function runVerb(script: string, args: string[], databaseUrl: string): CliResultV1 {
+/** Runs one operator verb the way an operator runs it. */
+function runVerb(
+  script: string,
+  args: string[],
+  databaseUrl: string,
+  options: { requireStdoutJson?: boolean } = {},
+): CliResultV1 {
+  const requireStdoutJson = options.requireStdoutJson !== false;
   const result = spawnSync('npx', ['tsx', path.join(SCRIPT_DIR, script), ...args], {
     cwd: API_ROOT,
     encoding: 'utf8',
     env: { ...process.env, DATABASE_URL: databaseUrl },
     shell: process.platform === 'win32',
   });
-  if (result.stdout == null || result.stdout.trim() === '') {
-    fail(`${script} produced no stdout (status ${result.status}); stderr: ${result.stderr ?? ''}`);
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  if (requireStdoutJson && stdout.trim() === '') {
+    fail(`${script} produced no stdout (status ${result.status}); stderr: ${stderr}`);
   }
-  let report: Record<string, unknown>;
-  try {
-    report = JSON.parse(result.stdout) as Record<string, unknown>;
-  } catch {
-    fail(`${script} stdout was not JSON: ${result.stdout.slice(0, 400)}`);
+  let report: Record<string, unknown> = {};
+  if (stdout.trim() !== '') {
+    try {
+      report = JSON.parse(stdout) as Record<string, unknown>;
+    } catch {
+      if (requireStdoutJson) {
+        fail(`${script} stdout was not JSON: ${stdout.slice(0, 400)}`);
+      }
+    }
   }
-  return { status: result.status ?? -1, report };
+  return { status: result.status ?? -1, report, stdout, stderr };
 }
 
 function checkOf(report: Record<string, unknown>, name: string): { ok: boolean; detail: string } {
@@ -98,47 +144,250 @@ function checkOf(report: Record<string, unknown>, name: string): { ok: boolean; 
   return found;
 }
 
+function buildOmProducerPlanRecord(): DefenseBudgetProjectionPlanRecordV1 {
+  const candidates: NonRdteProjectionCandidateV1[] = [
+    {
+      candidateId: 'cand-plan-om-sag',
+      target: 'OmSag',
+      naturalKey: SAG_NATURAL_KEY,
+      operation: 'insert',
+      reason: 'plan rehearsal identity',
+      artifactId: 'artifact-plan-om',
+      artifactContentSha256: SHA('8'),
+      verificationCandidateId: 'cand-plan-om',
+      verificationRunId: 'run-plan-om',
+      verificationDecisionId: 'decision-plan-om',
+      sourceDocumentKey: 'p7-plan-rehearsal',
+      sourcePdfSha256: SHA('9'),
+      assertionIds: ['assert-plan-om-sag'],
+      evidenceIds: ['ev-plan-om'],
+      values: {
+        naturalKey: SAG_NATURAL_KEY,
+        component: 'ARMY',
+        account: 'OMA',
+        sagCode: '431',
+        printedSagCode: '431',
+        title: 'Plan rehearsal SAG',
+      },
+    },
+    {
+      candidateId: 'cand-plan-om-year',
+      target: 'OmSagYear',
+      naturalKey: `${SAG_NATURAL_KEY}|${FISCAL_YEAR}|request`,
+      operation: 'insert',
+      reason: 'plan rehearsal year position',
+      artifactId: 'artifact-plan-om',
+      artifactContentSha256: SHA('8'),
+      verificationCandidateId: 'cand-plan-om',
+      verificationRunId: 'run-plan-om',
+      verificationDecisionId: 'decision-plan-om',
+      sourceDocumentKey: 'p7-plan-rehearsal',
+      sourcePdfSha256: SHA('9'),
+      assertionIds: ['assert-plan-om-year'],
+      evidenceIds: ['ev-plan-om'],
+      values: {
+        identityNaturalKey: SAG_NATURAL_KEY,
+        fiscalYear: FISCAL_YEAR,
+        fundingField: 'request',
+        originalValue: MONEY_ORIGINAL,
+        originalUnit: 'thousands',
+        valueMillions: MONEY_MILLIONS,
+      },
+    },
+  ];
+  const withoutHash = {
+    schemaVersion: NON_RDTE_PROJECTION_PLAN_SCHEMA_VERSION,
+    cycleId: CYCLE_ID,
+    cycleBundleContentSha256: SHA('1'),
+    cycleCertification: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' as const,
+    fiscalYear: FISCAL_YEAR,
+    family: 'om' as const,
+    positionCycle: POSITION_CYCLE,
+    candidates,
+    exclusions: [] as NonRdteProjectionExclusionV1[],
+    diffSummary: [
+      {
+        target: 'OmSag' as const,
+        insertCount: 1,
+        updateCount: 0,
+        noOpCount: 0,
+        conflictCount: 0,
+      },
+      {
+        target: 'OmSagYear' as const,
+        insertCount: 1,
+        updateCount: 0,
+        noOpCount: 0,
+        conflictCount: 0,
+      },
+    ],
+    diffedAgainstCanonicalRows: false,
+  };
+  const document = {
+    ...withoutHash,
+    contentSha256: computeNonRdteProjectionPlanContentSha256(withoutHash),
+  };
+  return buildProjectionPlanRecordV1({
+    family: 'om',
+    producerVersion: 'p7-plan-rehearsal@1',
+    certificationId: 'cert-plan-om-1',
+    certificationSha256: SHA('2'),
+    planDocument: document,
+  });
+}
+
+function buildEligibility(
+  producerPlan: DefenseBudgetProjectionPlanRecordV1,
+): DefenseBudgetPromotionEligibilityV1 {
+  return defenseBudgetPromotionEligibilityV1Schema.parse({
+    schemaVersion: DEFENSE_BUDGET_PROMOTION_ELIGIBILITY_SCHEMA_VERSION,
+    eligibilityId: 'elig-plan-rehearsal',
+    cycleId: CYCLE_ID,
+    scope: {
+      cycleId: CYCLE_ID,
+      fiscalYear: FISCAL_YEAR,
+      families: ['om'],
+      stages: [],
+    },
+    projectionPlanIds: [producerPlan.projectionPlanId],
+    projectionPlanHashes: [producerPlan.contentSha256],
+    mappingRegistryVersion: MAPPING_REGISTRY_VERSION,
+    mappingRegistryHash: MAPPING_REGISTRY_HASH,
+    candidates: [
+      {
+        candidateId: 'cand-plan-om',
+        status: 'VERIFICATION_PASSED',
+        terminalVerificationRunId: 'run-plan-om',
+        family: 'om',
+        extractionMethod: 'deterministic_pdfplumber',
+        sourceProfileSha256: null,
+        acceptedAssertionIds: ['assert-plan-om-sag', 'assert-plan-om-year'],
+        artifactSha256: SHA('8'),
+        sourceSha256: SHA('9'),
+      },
+    ],
+    sourceDocumentHashes: [SHA('9')],
+    artifactHashes: [SHA('8')],
+    manifestHash: SHA('6'),
+    sourceProfileHashes: [],
+    verificationPolicyHashes: [SHA('7')],
+    cycleCertificationIds: ['cert-plan-om-1'],
+    cycleCertificationHashes: [producerPlan.certificationSha256],
+    expectedActiveSnapshotId: null,
+    expectedActiveSnapshotHash: null,
+    openConflictCount: 0,
+    unsupportedItemCount: 0,
+    generatedAt: '2026-08-10T00:00:00.000Z',
+  });
+}
+
+async function seedProducerPlanAndEligibility(
+  admin: PrismaClient,
+  producerPlan: DefenseBudgetProjectionPlanRecordV1,
+  eligibility: DefenseBudgetPromotionEligibilityV1,
+  eligibilityHash: string,
+): Promise<void> {
+  await admin.$executeRawUnsafe(
+    `INSERT INTO "defense_budget_projection_plan" (
+       "projection_plan_id", "record_schema_version", "schema_version", "family",
+       "cycle_id", "fiscal_year", "content_sha256", "producer_version",
+       "certification_id", "certification_sha256", "artifact_set_sha256",
+       "status", "conflict_count", "unsupported_count", "plan_document"
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT ("projection_plan_id") DO NOTHING`,
+    producerPlan.projectionPlanId,
+    producerPlan.recordSchemaVersion,
+    producerPlan.schemaVersion,
+    producerPlan.family,
+    producerPlan.cycleId,
+    producerPlan.fiscalYear,
+    producerPlan.contentSha256,
+    producerPlan.producerVersion,
+    producerPlan.certificationId,
+    producerPlan.certificationSha256,
+    producerPlan.artifactSetSha256,
+    producerPlan.status,
+    producerPlan.conflictCount,
+    producerPlan.unsupportedCount,
+    JSON.stringify(producerPlan.planDocument),
+  );
+
+  await admin.$executeRawUnsafe(
+    `INSERT INTO "defense_budget_promotion_eligibility" (
+       "eligibility_id", "eligibility_hash", "cycle_id",
+       "mapping_registry_version", "mapping_registry_hash",
+       "scope", "scope_hash", "open_conflict_count", "unsupported_item_count",
+       "document", "generated_at"
+     ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10::jsonb, $11::timestamptz)
+     ON CONFLICT ("eligibility_hash") DO NOTHING`,
+    eligibility.eligibilityId,
+    eligibilityHash,
+    eligibility.cycleId,
+    eligibility.mappingRegistryVersion,
+    eligibility.mappingRegistryHash,
+    JSON.stringify(eligibility.scope),
+    sha256CanonicalJson(eligibility.scope as unknown as JsonValue),
+    eligibility.openConflictCount,
+    eligibility.unsupportedItemCount,
+    JSON.stringify(eligibility),
+    eligibility.generatedAt,
+  );
+}
+
 async function main(): Promise<void> {
   const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
 
   try {
-    /* ---- Seed verified O&M projections ---- */
-    // om_sag_year carries a foreign key to source_document; the projection is
-    // proof-bound, so there is no way to seed funding without its source.
+    /* ---- Seed exact producer plan + eligibility (required before plan CLI) ---- */
+
+    const producerPlan = buildOmProducerPlanRecord();
+    const eligibility = buildEligibility(producerPlan);
+    const eligibilityHash = promotionEligibilityHashV1(eligibility);
+    check(
+      /^[0-9a-f]{64}$/.test(eligibilityHash),
+      'eligibility document hashes to a 64-hex content address',
+    );
+    // Must not reuse the engine rehearsal's placeholder SHA('e') row, which
+    // stores document='{}' under ON CONFLICT DO NOTHING and would poison this
+    // section's reload.
+    check(
+      eligibilityHash !== SHA('e'),
+      'plan eligibility hash is distinct from the engine rehearsal placeholder',
+    );
+
+    await seedProducerPlanAndEligibility(admin, producerPlan, eligibility, eligibilityHash);
+    ok('seeded immutable O&M producer plan + eligibility v2 document');
+
+    // Optional ambient O&M rows — not read by the eligibility-bound planner,
+    // but kept so the disposable DB still looks like a verified Phase 5 cycle.
     await admin.$executeRawUnsafe(`
       INSERT INTO source_document
         (id, source_key, fiscal_year, budget_cycle, component, document_type,
          title, source_url, sha256, extraction_method)
       VALUES ('${SOURCE_DOC_ID}', 'p7-plan-rehearsal', ${FISCAL_YEAR},
-              'pb_fy2029', 'ARMY', 'o1', 'Phase 7 plan rehearsal', 'file:///o1-plan.pdf',
+              '${POSITION_CYCLE}', 'ARMY', 'o1', 'Phase 7 plan rehearsal', 'file:///o1-plan.pdf',
               '${SHA('9')}', 'structured_import')
       ON CONFLICT DO NOTHING;`);
-
     await admin.$executeRawUnsafe(`
       INSERT INTO om_sag (natural_key, component, account, sag_code, printed_sag_code, title)
-      VALUES ('OM_SAG:ARMY:OMA:431', 'ARMY', 'OMA', '431', '431', 'Plan rehearsal SAG')
+      VALUES ('${SAG_NATURAL_KEY}', 'ARMY', 'OMA', '431', '431', 'Plan rehearsal SAG')
       ON CONFLICT DO NOTHING;`);
-
     await admin.$executeRawUnsafe(`
       INSERT INTO om_sag_year
         (om_sag_id, fiscal_year, funding_field, amount_millions, original_value, original_unit,
          source_document_id, extraction_artifact_id, extraction_artifact_content_sha256,
          assertion_id, verification_candidate_id, verification_run_id, verification_decision_id,
          source_pdf_sha256, evidence_ids_jsonb)
-      SELECT id, ${FISCAL_YEAR}, 'request', 87.654321, '87654.321', 'thousands',
+      SELECT id, ${FISCAL_YEAR}, 'request', ${MONEY_MILLIONS}, '${MONEY_ORIGINAL}', 'thousands',
              '${SOURCE_DOC_ID}', 'artifact-plan-om', '${SHA('8')}',
-             'assert-plan-om', 'cand-plan-om', 'run-plan-om', 'decision-plan-om',
+             'assert-plan-om-year', 'cand-plan-om', 'run-plan-om', 'decision-plan-om',
              '${SHA('9')}', '["ev-plan-om"]'::jsonb
-        FROM om_sag WHERE natural_key = 'OM_SAG:ARMY:OMA:431'
+        FROM om_sag WHERE natural_key = '${SAG_NATURAL_KEY}'
       ON CONFLICT DO NOTHING;`);
-    ok('seeded verified O&M projections for the plan rehearsal');
+    ok('seeded ambient verified O&M tables alongside the producer plan');
 
     /* ---- 1. plan runs as the application role ---- */
 
-    // Built by family rather than spliced by index: an earlier version sliced
-    // this array to swap the family and silently dropped the
-    // --eligibility-hash flag, so the "unreadable family" case below failed on
-    // a usage error instead of on the thing it meant to test.
     const planArgsFor = (families: string): string[] => [
       '--environment',
       ENVIRONMENT,
@@ -149,7 +398,7 @@ async function main(): Promise<void> {
       '--families',
       families,
       '--eligibility-hash',
-      ELIGIBILITY_HASH,
+      eligibilityHash,
       '--mode',
       'baseline_hydration',
     ];
@@ -165,11 +414,14 @@ async function main(): Promise<void> {
     check(counts.insert === 2, `both items are INSERT on an empty pointer, got ${counts.insert}`);
 
     const inputs = first.report.inputs as { projectionCount: number; priorRowCount: number };
-    check(inputs.projectionCount === 2, 'projection source read 2 projections from real tables');
+    check(
+      inputs.projectionCount === 2,
+      'eligibility-bound source projected 2 rows from the producer plan',
+    );
     check(inputs.priorRowCount === 0, 'no prior rows, as there is no active snapshot');
 
     /* The whole point of reading the real lineage columns: the exact decimal
-     * has to survive NUMERIC -> text -> plan without a float in the path. */
+     * has to survive the producer plan -> projector -> plan path without a float. */
     const planDocument = first.report.plan as {
       items: Array<{ projectionKind: string; canonicalNaturalKey: string }>;
     };
@@ -177,9 +429,6 @@ async function main(): Promise<void> {
       planDocument.items.some((item) => item.projectionKind === 'non_rdte:OmSagYear'),
       'plan carries the O&M year item',
     );
-    // Asserted rather than merely arranged: if another section's fixture ever
-    // lands in this fiscal year again, this fails with the reason rather than
-    // with a count that has to be reverse-engineered.
     check(
       planDocument.items.every((item) => item.canonicalNaturalKey.includes('431')),
       "every planned item belongs to this section's SAG, not another fixture's",
@@ -198,47 +447,35 @@ async function main(): Promise<void> {
       'the derived proposed snapshot id is stable across runs',
     );
 
-    /* ---- 3. A family with no reader blocks instead of planning empty ---- */
+    /* ---- 3. CLI scope must match the persisted eligibility scope ---- */
 
-    const unreadable = runVerb('plan-defense-budget-promotion-v1.ts', planArgsFor('rdte'), APP_URL);
-    check(unreadable.status === 3, `plan refused an unreadable family (exit ${unreadable.status})`);
-    check(unreadable.report.planProduced === false, 'no plan document was produced for it');
+    // Eligibility is O&M-only. Asking for RDT&E is a scope lie, not an empty
+    // reader — the bound planner refuses before it looks at producer plans.
+    const mismatched = runVerb(
+      'plan-defense-budget-promotion-v1.ts',
+      planArgsFor('rdte'),
+      APP_URL,
+      {
+        requireStdoutJson: false,
+      },
+    );
     check(
-      Array.isArray(unreadable.report.unsupportedFamilies) &&
-        (unreadable.report.unsupportedFamilies as string[]).includes('rdte'),
-      'the unreadable family is named rather than silently omitted',
+      mismatched.status === 1,
+      `plan refused a CLI scope that does not match eligibility (exit ${mismatched.status})`,
+    );
+    check(
+      mismatched.stderr.includes('CLI scope does not match persisted eligibility') ||
+        mismatched.stdout.includes('CLI scope does not match persisted eligibility'),
+      'the refusal names the scope mismatch rather than silently planning empty',
     );
 
     /* ---- 4. File the plan — through the real verb, not raw SQL — then validate it ---- */
 
     const planId = String(first.report.planId);
     const planHash = String(first.report.planHash);
-    // Gap 3 closeout: eligibility_hash is now a foreign key into
-    // defense_budget_promotion_eligibility. One row here covers every plan
-    // filed below — they all reuse ELIGIBILITY_HASH.
-    //
-    // ON CONFLICT DO NOTHING: ELIGIBILITY_HASH ('e'.repeat(64)) collides with
-    // pe-budget-phase7-engine-rehearsal.ts's SHA('e') — the same 64-'e' string
-    // — and both scripts run against the one shared disposable database within
-    // a single rehearsal invocation. A matching hash already present means the
-    // identical content was already recorded, which is exactly what a
-    // content-addressed table replaying cleanly looks like — not a defect.
-    await admin.$executeRawUnsafe(`
-      INSERT INTO defense_budget_promotion_eligibility
-        (eligibility_id, eligibility_hash, cycle_id, mapping_registry_version,
-         mapping_registry_hash, scope, scope_hash, open_conflict_count,
-         unsupported_item_count, document, generated_at)
-      VALUES ('elig-plan-rehearsal', '${ELIGIBILITY_HASH}', '${CYCLE_ID}',
-              '${String(first.report.mappingRegistryVersion)}',
-              '${String(first.report.mappingRegistryHash)}',
-              '{"cycleId":"${CYCLE_ID}","fiscalYear":${FISCAL_YEAR},"families":["om"],"stages":[]}'::jsonb,
-              '${SHA('a')}', 0, 0, '{}'::jsonb, now())
-      ON CONFLICT ("eligibility_hash") DO NOTHING;`);
+    // Eligibility was already seeded above with the real v2 document. Filing
+    // reuses that same content-addressed hash.
 
-    // Gap 4 closeout: this used to be a raw SQL INSERT — the exact gap the
-    // rehearsal itself proved existed (nothing filed a plan through an actual
-    // operator command). Now it spawns the real verb, matching how plan/
-    // validate below are already tested as real CLIs rather than imported.
     const planDocPath = path.join(API_ROOT, '.p7-plan-rehearsal-doc.json');
     fs.writeFileSync(planDocPath, JSON.stringify(first.report));
     let filed: CliResultV1;
@@ -299,9 +536,6 @@ async function main(): Promise<void> {
 
     /* ---- 6. Active-snapshot drift is detected ---- */
 
-    // A filed plan is append-only. Assert it rather than assume it: this is the
-    // Workstream D ledger property, and it is what forces the drift case below
-    // to be staged by filing a second plan instead of editing the first.
     let updateRefused = false;
     try {
       await admin.$executeRawUnsafe(
@@ -313,21 +547,33 @@ async function main(): Promise<void> {
     }
     check(updateRefused, 'a filed plan cannot be modified — append-only refused the UPDATE');
 
-    // The drifted twin carries the same document and the same hash, so the only
-    // check that can fail is the pointer one. That keeps the failure attributable.
     const driftedPlanId = `${planId}-drifted`;
-    await admin.$executeRawUnsafe(`
-      INSERT INTO defense_budget_promotion_plan
+    const scopeJson = JSON.stringify(eligibility.scope);
+    const scopeHash = sha256CanonicalJson(eligibility.scope as unknown as JsonValue);
+    await admin.$executeRawUnsafe(
+      `INSERT INTO defense_budget_promotion_plan
         (plan_id, plan_hash, eligibility_hash, mapping_registry_version, mapping_registry_hash,
          cycle_id, fiscal_year, scope, scope_hash, mode, expected_active_snapshot_id,
          proposed_snapshot_id, item_count, blocked_count, plan_document)
-      VALUES ('${driftedPlanId}', '${planHash}', '${ELIGIBILITY_HASH}',
-              '${String(first.report.mappingRegistryVersion)}',
-              '${String(first.report.mappingRegistryHash)}',
-              '${CYCLE_ID}', ${FISCAL_YEAR}, '{"families":["om"]}'::jsonb, '${SHA('a')}',
-              'baseline_hydration', '11111111-1111-1111-1111-111111111111',
-              '${String(first.report.proposedSnapshotId)}',
-              ${counts.total}, 0, $$${JSON.stringify(first.report.plan)}$$::jsonb);`);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::uuid,
+              $12::uuid, $13, 0, $14::jsonb)`,
+      driftedPlanId,
+      planHash,
+      eligibilityHash,
+      MAPPING_REGISTRY_VERSION,
+      MAPPING_REGISTRY_HASH,
+      CYCLE_ID,
+      FISCAL_YEAR,
+      scopeJson,
+      scopeHash,
+      'baseline_hydration',
+      // Explicit ::uuid: Prisma $executeRawUnsafe binds JS strings as text,
+      // and Postgres will not coerce text → uuid for this column without a cast.
+      '11111111-1111-1111-1111-111111111111',
+      String(first.report.proposedSnapshotId),
+      counts.total,
+      JSON.stringify(first.report.plan),
+    );
     ok('filed a second plan expecting a snapshot that is not active');
 
     const drifted = runVerb(

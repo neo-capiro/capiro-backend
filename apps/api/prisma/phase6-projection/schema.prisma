@@ -47,16 +47,30 @@ model Phase6AuditProjection {
 }
 
 model Phase6CycleCertification {
-  id                 String   @id @default(uuid()) @db.Uuid
-  cycleId            String   @map("cycle_id") @db.Text
-  fiscalYear         Int      @map("fiscal_year")
-  manifestHash       String   @map("manifest_hash") @db.Char(64)
-  contentSha256      String   @unique(map: "phase6_cycle_cert_content_sha_key") @map("content_sha256") @db.Char(64)
-  status             String   @db.VarChar(24)
-  report             Json     @map("report_jsonb")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @default(uuid()) @db.Uuid
+  cycleId             String   @map("cycle_id") @db.Text
+  fiscalYear          Int      @map("fiscal_year")
+  manifestHash        String   @map("manifest_hash") @db.Char(64)
+  contentSha256       String   @unique(map: "phase6_cycle_cert_content_sha_key") @map("content_sha256") @db.Char(64)
+  projectionSetSha256 String?  @map("projection_set_sha256") @db.Char(64)
+  projectionCount     Int?     @map("projection_count")
+  status              String   @db.VarChar(24)
+  report              Json     @map("report_jsonb")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([cycleId, contentSha256], map: "phase6_cycle_cert_idempotency_key")
   @@index([fiscalYear, status], map: "phase6_cycle_cert_fy_status_idx")
   @@map("phase6_cycle_certification")
+}
+
+/// Immutable association proving exactly which audit projections one certification signed.
+model Phase6CycleCertificationProjection {
+  certificationContentSha256 String @map("certification_content_sha256") @db.Char(64)
+  projectionId               String @map("projection_id") @db.Text
+  projectionOrdinal          Int    @map("projection_ordinal")
+
+  @@id([certificationContentSha256, projectionId], map: "phase6_cert_projection_pkey")
+  @@unique([certificationContentSha256, projectionOrdinal], map: "phase6_cert_projection_ordinal_key")
+  @@index([projectionId], map: "phase6_cert_projection_projection_idx")
+  @@map("phase6_cycle_certification_projection")
 }

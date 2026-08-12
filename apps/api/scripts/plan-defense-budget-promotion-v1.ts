@@ -1,9 +1,9 @@
 /**
  * plan-defense-budget-promotion-v1 (Phase 7 Workstream N) — read-only.
  *
- * Builds a deterministic promotion plan for one cycle/scope and prints it as
- * machine-readable JSON. Issues no write statement: the plan is filed by a
- * separate authorized step, not by this command.
+ * Builds a deterministic promotion plan for one persisted eligibility record
+ * and prints it as machine-readable JSON. The eligibility record, not a broad
+ * FY query, names the exact immutable producer plans this command may use.
  *
  *   plan-defense-budget-promotion-v1 --environment <env> --cycle-id <id>
  *                                    --fiscal-year <fy> --families <a,b>
@@ -14,18 +14,13 @@
  *                                    [--stages <a,b>] [--domain <domain>]
  *                                    [--summary-only]
  *
- * Determinism: `--plan-id` and `--proposed-snapshot-id` default to values
- * derived from the scope, so re-running against unchanged inputs reproduces the
- * same plan hash — which is the Workstream C acceptance criterion. Passing a
- * random snapshot id would break it.
+ * `--eligibility-hash` is a lookup key, not caller-supplied proof: the command
+ * reloads the full immutable eligibility document, rehashes it, reruns the
+ * deterministic eligibility policy, verifies its exact producer plans, and
+ * refuses if the current active snapshot ID/hash no longer matches what the
+ * eligibility record evaluated.
  *
- * `--eligibility-hash` is required rather than computed. The eligibility
- * service (Workstream A) has no Prisma repository in this build, so there is no
- * trustworthy way to derive the hash here; accepting an operator-supplied one
- * and binding the plan to it is honest, whereas inventing one would produce a
- * plan that claims an eligibility evaluation that never happened.
- *
- * Exit codes: 0 plan is clean, 3 plan is blocked, 2 usage, 1 error.
+ * Exit codes: 0 plan is clean, 3 plan is blocked, 2 usage, 1 integrity/error.
  */
 import { createHash } from 'node:crypto';
 import { config as dotenvConfig } from 'dotenv';
@@ -41,12 +36,14 @@ import {
   DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION,
   type CanonicalEntityV1,
 } from '../src/defense-budget/promotion/canonical-mapping-registry-v1.js';
-import { PrismaPromotionProjectionSourceV1 } from '../src/defense-budget/promotion/promotion-projection-source-prisma-v1.js';
+import { PrismaEligibilityBoundProjectionSourceV1 } from '../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js';
 import {
   BUDGET_FAMILY_V1_VALUES,
   type BudgetFamilyV1,
   type FundingFieldV1,
 } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
+import { sha256CanonicalJson, type JsonValue } from '../src/defense-budget/contracts/canonical-json.js';
+import { evaluatePromotionEligibilityV1 } from '../src/defense-budget/promotion/promotion-eligibility-v1.js';
 
 dotenvConfig();
 
@@ -79,9 +76,6 @@ function databaseHost(): string {
 }
 
 function gitSha(): string {
-  // Same rule as status-defense-budget-promotion-v1.ts: the ECS
-  // container-metadata URI is never a fallback — its last path segment is a
-  // container id, not a reviewable commit.
   return (
     process.env.GIT_SHA ??
     process.env.SOURCE_VERSION ??
@@ -95,17 +89,19 @@ function usage(message: string): never {
   process.exit(2);
 }
 
-/**
- * A well-formed UUID derived from the scope. Deterministic by construction so
- * that the same scope always proposes the same snapshot id and therefore the
- * same plan hash.
- */
 function deterministicUuidV1(seed: string): string {
   const hex = createHash('sha256').update(seed).digest('hex').slice(0, 32).split('');
   hex[12] = '5';
   hex[16] = (((parseInt(hex[16] ?? '0', 16) & 0x3) | 0x8) >>> 0).toString(16);
   const value = hex.join('');
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20, 32)}`;
+}
+
+function sameCanonicalValueV1(left: unknown, right: unknown): boolean {
+  return (
+    sha256CanonicalJson(left as JsonValue) ===
+    sha256CanonicalJson(right as JsonValue)
+  );
 }
 
 interface PriorRowQueryResultV1 {
@@ -176,30 +172,88 @@ async function main(): Promise<void> {
     usage(`--mode must be one of ${PROMOTION_MODES.join(', ')} (got ${mode})`);
   }
 
-  const scope = { cycleId, fiscalYear, families, stages };
-  const scopeSeed = JSON.stringify({ domain, environment, scope, mode });
-  const planId =
-    argValue('--plan-id') ??
-    `plan-${createHash('sha256').update(scopeSeed).digest('hex').slice(0, 24)}`;
-  const proposedSnapshotId =
-    argValue('--proposed-snapshot-id') ?? deterministicUuidV1(`snapshot:${scopeSeed}`);
-
+  const requestedScope = { cycleId, fiscalYear, families, stages };
   const prisma = new PrismaClient();
   try {
-    /* ---- What is actually active right now, read read-only ---- */
+    /* ---- Exact persisted eligibility + producer plans ---- */
 
-    const activeRows = await prisma.$queryRawUnsafe<Array<{ snapshotId: string }>>(
-      `SELECT "snapshot_id" AS "snapshotId"
-         FROM "defense_budget_active_snapshot"
-        WHERE "domain" = $1 AND "environment" = $2`,
+    const source = new PrismaEligibilityBoundProjectionSourceV1(prisma);
+    const loaded = await source.loadForEligibilityHash(eligibilityHash);
+    const eligibilityDecision = evaluatePromotionEligibilityV1(loaded.eligibility);
+    if (!eligibilityDecision.eligible || eligibilityDecision.eligibilityHash !== eligibilityHash) {
+      throw new Error(
+        `eligibility ${eligibilityHash} is not currently eligible: ` +
+          eligibilityDecision.blocks.map((block) => `${block.reason}:${block.detail}`).join('; '),
+      );
+    }
+    if (!sameCanonicalValueV1(requestedScope, loaded.eligibility.scope)) {
+      throw new Error(
+        `CLI scope does not match persisted eligibility ${eligibilityHash}; ` +
+          'do not widen, narrow, or re-label a scope after eligibility evaluation',
+      );
+    }
+
+    const mappingRegistryHash = canonicalMappingRegistryHashV1();
+    if (
+      loaded.eligibility.mappingRegistryVersion !==
+        DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION ||
+      loaded.eligibility.mappingRegistryHash !== mappingRegistryHash
+    ) {
+      throw new Error(
+        `eligibility ${eligibilityHash} was evaluated under mapping registry ` +
+          `${loaded.eligibility.mappingRegistryVersion}/${loaded.eligibility.mappingRegistryHash}, ` +
+          `current is ${DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION}/${mappingRegistryHash}`,
+      );
+    }
+
+    /* ---- What is actually active right now ---- */
+
+    const activeRows = await prisma.$queryRawUnsafe<
+      Array<{ snapshotId: string; snapshotHash: string }>
+    >(
+      `SELECT a."snapshot_id" AS "snapshotId", s."snapshot_hash" AS "snapshotHash"
+         FROM "defense_budget_active_snapshot" a
+         JOIN "defense_budget_canonical_snapshot" s ON s."id" = a."snapshot_id"
+        WHERE a."domain" = $1 AND a."environment" = $2`,
       domain,
       environment,
     );
     const actualActiveSnapshotId = activeRows[0]?.snapshotId ?? null;
-    const expectedActiveSnapshotId =
-      argValue('--expected-active-snapshot-id') ?? actualActiveSnapshotId;
+    const actualActiveSnapshotHash = activeRows[0]?.snapshotHash ?? null;
 
-    /* ---- Prior canonical rows from the active snapshot ---- */
+    if (
+      actualActiveSnapshotId !== loaded.eligibility.expectedActiveSnapshotId ||
+      actualActiveSnapshotHash !== loaded.eligibility.expectedActiveSnapshotHash
+    ) {
+      throw new Error(
+        `active snapshot expectation moved after eligibility: expected ` +
+          `${loaded.eligibility.expectedActiveSnapshotId ?? 'null'}/` +
+          `${loaded.eligibility.expectedActiveSnapshotHash ?? 'null'}, got ` +
+          `${actualActiveSnapshotId ?? 'null'}/${actualActiveSnapshotHash ?? 'null'}`,
+      );
+    }
+
+    const explicitExpectedActiveSnapshotId = argValue('--expected-active-snapshot-id');
+    if (
+      explicitExpectedActiveSnapshotId != null &&
+      explicitExpectedActiveSnapshotId !== loaded.eligibility.expectedActiveSnapshotId
+    ) {
+      throw new Error(
+        `--expected-active-snapshot-id ${explicitExpectedActiveSnapshotId} does not match eligibility ` +
+          `${loaded.eligibility.expectedActiveSnapshotId ?? 'null'}`,
+      );
+    }
+    const expectedActiveSnapshotId = loaded.eligibility.expectedActiveSnapshotId;
+
+    const scope = loaded.eligibility.scope;
+    const scopeSeed = JSON.stringify({ domain, environment, scope, mode });
+    const planId =
+      argValue('--plan-id') ??
+      `plan-${createHash('sha256').update(scopeSeed).digest('hex').slice(0, 24)}`;
+    const proposedSnapshotId =
+      argValue('--proposed-snapshot-id') ?? deterministicUuidV1(`snapshot:${scopeSeed}`);
+
+    /* ---- Prior canonical rows from the exact expected active snapshot ---- */
 
     const priorRows: PriorCanonicalRowV1[] =
       actualActiveSnapshotId == null
@@ -239,8 +293,6 @@ async function main(): Promise<void> {
 
     const now = Date.now();
     const overlays: ManualOverlayV1[] = overlayRows.map((row) => {
-      // Expiry is derived from the window at read time, never stored — the
-      // migration's own note. Mirror that here rather than trusting a flag.
       const status: ManualOverlayV1['status'] =
         row.status === 'revoked'
           ? 'revoked'
@@ -256,26 +308,17 @@ async function main(): Promise<void> {
       };
     });
 
-    /* ---- Verified projections ---- */
-
-    const source = new PrismaPromotionProjectionSourceV1(prisma);
-    const loaded = await source.loadForScope({ fiscalYear, families });
-
     const header = {
       environment,
       domain,
       databaseHost: databaseHost(),
       gitSha: gitSha(),
       mode: 'plan',
-      safety: 'Read-only. No write statement issued. No secrets included.',
+      safety: 'Read-only. Exact eligibility-bound producer plans only. No write statement issued.',
       generatedAt: new Date().toISOString(),
     };
 
-    /* An unreadable family or a refused candidate blocks the plan outright.
-     * Emitting a plan that silently omits them is exactly the failure the
-     * Phase 7 invariants forbid — the plan would look clean while covering
-     * less than its own scope claims. */
-    if (loaded.unsupportedFamilies.length > 0 || loaded.refusals.length > 0) {
+    if (loaded.refusals.length > 0) {
       console.log(
         JSON.stringify(
           {
@@ -285,12 +328,8 @@ async function main(): Promise<void> {
             promotionMode: mode,
             planProduced: false,
             blocked: true,
-            unsupportedFamilies: loaded.unsupportedFamilies,
             refusals: loaded.refusals,
-            detail:
-              loaded.unsupportedFamilies.length > 0
-                ? 'this build has no verified-projection reader for every requested family; no plan was produced'
-                : 'the family projector refused one or more candidates; no plan was produced',
+            detail: 'an exact producer-plan candidate was refused; no promotion plan was produced',
           },
           null,
           2,
@@ -307,7 +346,7 @@ async function main(): Promise<void> {
       proposedSnapshotId,
       expectedActiveSnapshotId,
       actualActiveSnapshotId,
-      mappingRegistryHash: canonicalMappingRegistryHashV1(),
+      mappingRegistryHash,
       projections: loaded.projections,
       priorRows,
       overlays,
@@ -324,8 +363,12 @@ async function main(): Promise<void> {
       scope,
       promotionMode: mode,
       expectedActiveSnapshotId,
+      expectedActiveSnapshotHash: loaded.eligibility.expectedActiveSnapshotHash,
       actualActiveSnapshotId,
+      actualActiveSnapshotHash,
       proposedSnapshotId,
+      producerPlanIds: loaded.projectionPlans.map((record) => record.projectionPlanId),
+      producerPlanHashes: loaded.projectionPlans.map((record) => record.contentSha256),
       planProduced: true,
       blocked: plan.blocked,
       counts: plan.counts,
@@ -337,7 +380,6 @@ async function main(): Promise<void> {
         priorRowCount: priorRows.length,
         overlayCount: overlays.length,
         activeOverlayCount: overlays.filter((overlay) => overlay.status === 'active').length,
-        identitiesWithoutScopedFunding: loaded.identitiesWithoutScopedFunding,
       },
       plan: summaryOnly ? undefined : plan,
     };

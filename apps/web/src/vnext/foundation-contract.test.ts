@@ -19,11 +19,11 @@ const cssFiles = [
   './pages/dashboard/dashboard.css',
   './pages/directory/directory.css',
   './pages/legiwatch/legiwatch.css',
+  './pages/strategies/strategies-tokens.css',
   './pages/strategies/strategies.css',
-  './pages/strategies/strategy-context.css',
-  './pages/strategies/strategy-context-document.css',
-  './pages/strategies/strategy-governance.css',
-  './pages/strategies/strategy-shell-bridge.css',
+  './pages/strategies/strategy-library.css',
+  './pages/strategies/strategy-editor.css',
+  './pages/strategies/step-inspector.css',
 ];
 
 const componentCssFiles = [
