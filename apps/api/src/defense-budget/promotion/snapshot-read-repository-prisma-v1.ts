@@ -5,17 +5,6 @@
  * lets the general API serve role use it: `capiro_app` has SELECT on the
  * canonical tables and nothing more, and the canonical-row trigger refuses a
  * write from it regardless.
- *
- * Filters are built as numbered placeholders rather than array parameters —
- * `IN ($3, $4, $5)` rather than `= ANY($3::text[])` — so nothing depends on how
- * the driver serializes a JavaScript array into a Postgres array literal. Every
- * value still crosses as a parameter; only the placeholder count is dynamic.
- *
- * Every NUMERIC column is normalized through the same
- * `exactDecimalFromColumnV1` the drain adapter uses, for the same reason:
- * Postgres pads `NUMERIC(24,9)` to scale, so a stored `1.25` reads back
- * `1.250000000`, and a read model that carried the padded form would compare
- * unequal to the identical value everywhere else in the system.
  */
 import type {
   ActiveSnapshotV1,
@@ -24,12 +13,12 @@ import type {
   SnapshotRowQueryV1,
 } from './snapshot-read-repository-v1.js';
 import { exactDecimalFromColumnV1 } from './promotion-outbox-drain-repository-prisma-v1.js';
+import { manualOverrideFromRowV1 } from './manual-override-repository-prisma-v1.js';
 
 export interface SnapshotReadPrismaLikeV1 {
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
 }
 
-/** Bound on one read. A canonical snapshot has hundreds of thousands of rows. */
 const DEFAULT_ROW_LIMIT = 5_000;
 const MAX_ROW_LIMIT = 50_000;
 
@@ -74,9 +63,6 @@ export function snapshotRowFromDbV1(row: Record<string, unknown>): SnapshotCanon
     fundingField: row.funding_field == null ? null : String(row.funding_field),
     stage: row.stage == null ? null : String(row.stage),
     canonicalRowHash: String(row.canonical_row_hash),
-    // The money triple is all-or-nothing in the database, so either all three
-    // are present or the row carries no money at all. Reconstructing a partial
-    // triple here would invent a value the column constraint forbids.
     money:
       originalValue != null && originalUnit != null && valueMillions != null
         ? { originalValue, originalUnit, valueMillions }
@@ -101,7 +87,6 @@ export function snapshotRowFromDbV1(row: Record<string, unknown>): SnapshotCanon
   };
 }
 
-/** `IN ($n, $n+1, ...)`, or null when the caller supplied nothing to filter on. */
 function inClause(
   column: string,
   values: readonly (string | number)[] | undefined,
@@ -156,6 +141,70 @@ export function buildSnapshotRowSqlV1(query: SnapshotRowQueryV1): {
   };
 }
 
+/**
+ * Exact target query for governed overrides. We query only targets already
+ * present in the selected snapshot row set, so an override for another PE can
+ * never bleed into this response. `IS NOT DISTINCT FROM` is required because
+ * fiscalYear/fundingField are nullable parts of the governed target identity.
+ */
+export function buildSnapshotOverrideSqlV1(rows: readonly SnapshotCanonicalRowV1[]): {
+  sql: string;
+  params: unknown[];
+} | null {
+  const targets = new Map<string, SnapshotCanonicalRowV1>();
+  for (const row of rows) {
+    const key = `${row.canonicalEntity}\u0001${row.canonicalNaturalKey}\u0001${row.fiscalYear ?? ''}\u0001${row.fundingField ?? ''}`;
+    targets.set(key, row);
+  }
+  if (targets.size === 0) return null;
+
+  const params: unknown[] = [];
+  const clauses: string[] = [];
+  for (const row of targets.values()) {
+    params.push(row.canonicalEntity);
+    const entity = `$${params.length}`;
+    params.push(row.canonicalNaturalKey);
+    const naturalKey = `$${params.length}`;
+    params.push(row.fiscalYear);
+    const fiscalYear = `$${params.length}::int`;
+    params.push(row.fundingField);
+    const fundingField = `$${params.length}`;
+    clauses.push(
+      `("canonical_entity" = ${entity} AND "canonical_natural_key" = ${naturalKey} ` +
+        `AND "fiscal_year" IS NOT DISTINCT FROM ${fiscalYear} ` +
+        `AND "funding_field" IS NOT DISTINCT FROM ${fundingField})`,
+    );
+  }
+
+  return {
+    sql: `SELECT
+            "override_id" AS "overrideId",
+            "canonical_entity" AS "canonicalEntity",
+            "canonical_natural_key" AS "canonicalNaturalKey",
+            "fiscal_year" AS "fiscalYear",
+            "funding_field" AS "fundingField",
+            "money_original_value" AS "moneyOriginalValue",
+            "money_original_unit" AS "moneyOriginalUnit",
+            "money_value_millions" AS "moneyValueMillions",
+            "author_actor_id" AS "authorActorId",
+            "approver_actor_id" AS "approverActorId",
+            "approver_role" AS "approverRole",
+            "reason", "evidence_ids" AS "evidenceIds",
+            "change_request_ref" AS "changeRequestRef",
+            "status", "version",
+            "prior_override_id" AS "priorOverrideId",
+            "effective_from" AS "effectiveFrom",
+            "effective_to" AS "effectiveTo",
+            "proposed_at" AS "proposedAt",
+            "approved_at" AS "approvedAt",
+            "revoked_at" AS "revokedAt"
+          FROM "defense_budget_manual_override"
+         WHERE ${clauses.join('\n            OR ')}
+         ORDER BY "canonical_entity", "canonical_natural_key", "fiscal_year", "funding_field", "version" DESC`,
+    params,
+  };
+}
+
 export function createSnapshotReadPortPrismaV1(
   prisma: SnapshotReadPrismaLikeV1,
 ): SnapshotReadPortV1 {
@@ -183,6 +232,16 @@ export function createSnapshotReadPortPrismaV1(
       const { sql, params } = buildSnapshotRowSqlV1(query);
       const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql, ...params);
       return rows.map(snapshotRowFromDbV1);
+    },
+
+    async loadManualOverridesForRows(rows) {
+      const built = buildSnapshotOverrideSqlV1(rows);
+      if (built == null) return [];
+      const stored = await prisma.$queryRawUnsafe<Array<Parameters<typeof manualOverrideFromRowV1>[0]>>(
+        built.sql,
+        ...built.params,
+      );
+      return stored.map(manualOverrideFromRowV1);
     },
   };
 }

@@ -42,6 +42,11 @@ function resolvePnpm(): { command: string; prefixArgs: string[]; shell?: boolean
 }
 
 const pnpm = resolvePnpm();
+// Nested Phase 4 --include-containers re-runs full Phase 3 container builds.
+// On Windows cold/warm Docker hosts that path regularly exceeds 45m; kill the
+// child early and the outer closeout reports ETIMEDOUT after green smokes.
+const defaultStepTimeoutMs = includeContainers ? 4 * 60 * 60 * 1000 : 45 * 60 * 1000;
+
 function pnpmStep(name: string, args: string[], cwd = REPO_ROOT): Step {
   return {
     name,
@@ -49,7 +54,7 @@ function pnpmStep(name: string, args: string[], cwd = REPO_ROOT): Step {
     args: [...pnpm.prefixArgs, ...args],
     cwd,
     shell: pnpm.shell === true,
-    timeoutMs: 45 * 60 * 1000,
+    timeoutMs: defaultStepTimeoutMs,
   };
 }
 
@@ -59,7 +64,7 @@ function run(step: Step): void {
   const result = spawnSync(step.command, step.args, {
     cwd: step.cwd,
     stdio: 'inherit',
-    timeout: step.timeoutMs ?? 45 * 60 * 1000,
+    timeout: step.timeoutMs ?? defaultStepTimeoutMs,
     env: {
       ...process.env,
       DATABASE_URL: validationDatabaseUrl,

@@ -1116,7 +1116,9 @@ async function runCommit(
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  const posture: DefenseBudgetIngestPosture = resolveDefenseBudgetIngestPosture(argv);
+  // Phase 7 safety scans for this exact call shape so direct invocation cannot
+  // bypass the guarded generalized posture / legacy-write gate.
+  const posture: DefenseBudgetIngestPosture = resolveDefenseBudgetIngestPosture(process.argv);
 
   if (usesDeprecatedDryRunAlias(argv)) {
     console.warn(

@@ -210,6 +210,33 @@ describe('buildPhase6ProjectionPlanDocumentV1 — duplicate natural key composit
     expect(doc.candidates[0]!.sourceProjectionIds).toEqual(['a', 'b']);
   });
 
+  it('treats equal payload objects as identical regardless of key insertion order', () => {
+    const firstPayload: Phase6NativeProjectionV1['payload'] = {};
+    firstPayload.fiscalYear = 2027;
+    firstPayload.actionType = 'transfer';
+    firstPayload.direction = 'decrease';
+
+    const secondPayload: Phase6NativeProjectionV1['payload'] = {};
+    secondPayload.direction = 'decrease';
+    secondPayload.actionType = 'transfer';
+    secondPayload.fiscalYear = 2027;
+
+    const doc = buildPhase6ProjectionPlanDocumentV1({
+      cycleId: 'c',
+      fiscalYear: 2027,
+      rows: [
+        row({ projectionId: 'a', artifactContentSha256: SHA('1'), payload: firstPayload }),
+        row({ projectionId: 'b', artifactContentSha256: SHA('2'), payload: secondPayload }),
+      ],
+    });
+
+    expect(doc.candidates).toHaveLength(1);
+    expect(doc.candidates[0]).toMatchObject({
+      operation: 'insert',
+      sourceProjectionIds: ['a', 'b'],
+    });
+  });
+
   it('binds a collapsed duplicate to the deterministic artifact-set hash, not an arbitrary pick', () => {
     const doc = buildPhase6ProjectionPlanDocumentV1({
       cycleId: 'c',
@@ -318,10 +345,6 @@ describe('buildPhase6ProjectionPlanDocumentV1 — determinism and interop with t
     const summary = summarizeProjectionPlanV1(view);
     expect(summary.status).toBe('BLOCKED');
     expect(summary.conflictCount).toBe(1);
-    // k2 (unresolved_binding) + k3 (binding_conflict, ALSO counted here, same
-    // as RDTE's duplicate_conflict double-counts conflict+unsupported) + k4
-    // (unsupported_projection) + k5 (artifact_needs_review) + k6
-    // (phase6_projection_blocked) = 5.
     expect(summary.unsupportedCount).toBe(5);
   });
 });

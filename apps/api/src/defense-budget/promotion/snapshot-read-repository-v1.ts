@@ -4,28 +4,8 @@
  * Ports, the one-snapshot invariant, and the resolver. No Prisma and no Nest, so
  * Phase 8 can move the read path into its own service without touching any of
  * this and so the invariant below is testable without a database.
- *
- * ---------------------------------------------------------------------------
- * The resolver caches, and that is the guarantee
- * ---------------------------------------------------------------------------
- *
- * "One response never mixes snapshots" (cross-workstream invariant 22) is not
- * satisfied by writing careful queries. A PE profile issues several reads —
- * identity, funding positions, projects, performers, sources — and an activation
- * committing between the first and the last would hand the caller half of one
- * annual cycle and half of another, each read individually correct.
- *
- * So the pointer is resolved **once per request** and every subsequent read is
- * scoped to that snapshot id. The activation transaction is a single small
- * commit, so this closes the window entirely rather than narrowing it: a read
- * either sees the whole old snapshot or the whole new one.
- *
- * `assertOneSnapshotV1` is the belt to that braces. Scoping by snapshot id
- * should make a foreign row impossible; if one appears anyway — a mistaken join,
- * a future family repository that forgets the scope — it must fail loudly rather
- * than be served, because a silently mixed response is indistinguishable from a
- * correct one to the person reading it.
  */
+import type { DefenseBudgetManualOverrideV1 } from './manual-override-v1.js';
 
 /** The activation pointer, as a read needs it. */
 export interface ActiveSnapshotV1 {
@@ -87,6 +67,17 @@ export interface SnapshotRowQueryV1 {
 export interface SnapshotReadPortV1 {
   loadActiveSnapshot(domain: string, environment: string): Promise<ActiveSnapshotV1 | null>;
   loadRows(query: SnapshotRowQueryV1): Promise<SnapshotCanonicalRowV1[]>;
+  /**
+   * Load every governed override version whose target exactly matches one of
+   * these already-selected canonical rows. Optional only for narrow test/Phase8
+   * adapters; the production Prisma port implements it. Keeping this beside the
+   * row port prevents each product endpoint from inventing its own override
+   * query and, critically, avoids a broad entity/FY query that could mix an
+   * override for a different PE into this response.
+   */
+  loadManualOverridesForRows?(
+    rows: readonly SnapshotCanonicalRowV1[],
+  ): Promise<DefenseBudgetManualOverrideV1[]>;
 }
 
 /** A response was about to carry rows from more than one snapshot. */
@@ -102,13 +93,6 @@ export class SnapshotMixError extends Error {
   }
 }
 
-/**
- * Refuse a row set that is not wholly inside one snapshot.
- *
- * Returns the rows so it can be used inline at the point of assembly, which is
- * where it is worth the call — a guard sitting somewhere a developer has to
- * remember to invoke is not a guard.
- */
 export function assertOneSnapshotV1(
   rows: readonly SnapshotCanonicalRowV1[],
   expectedSnapshotId: string,
@@ -121,19 +105,10 @@ export function assertOneSnapshotV1(
   return rows;
 }
 
-/**
- * The additive provenance a snapshot-served response may carry (plan §M.6).
- *
- * Additive only: no existing field changes shape, so an existing client that
- * ignores this object sees the contract it already had. It exists because
- * "which annual cycle is this number from" is otherwise unanswerable from a
- * response, and after cutover that question has a real answer worth exposing.
- */
 export interface SnapshotProvenanceV1 {
   activeSnapshotId: string;
   lastActivatedAt: string | null;
   snapshotHash: string | null;
-  /** How many values in this response are a governed human override. */
   overridesApplied: number;
 }
 
@@ -149,16 +124,8 @@ export function snapshotProvenanceV1(
   };
 }
 
-/**
- * Resolves the active pointer once and remembers the answer.
- *
- * Construct one per request. Deliberately not a singleton: a process-lifetime
- * cache would keep serving a superseded snapshot after an activation, which is
- * the opposite failure — stale rather than mixed, and much harder to notice.
- */
 export interface ActiveSnapshotResolverV1 {
   resolve(): Promise<ActiveSnapshotV1 | null>;
-  /** True once `resolve` has been called and returned a pointer. */
   resolved(): boolean;
 }
 
@@ -171,8 +138,6 @@ export function createActiveSnapshotResolverV1(
   let seen = false;
   return {
     async resolve() {
-      // The promise is cached, not the value, so concurrent reads inside one
-      // request share a single round trip and therefore a single answer.
       pending ??= port.loadActiveSnapshot(domain, environment).then((value) => {
         seen = value != null;
         return value;

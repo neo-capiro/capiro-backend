@@ -65,15 +65,39 @@ class PrismaPhase6AuditProjectionStoreV1 implements Phase6AuditProjectionStore {
     return rows[0] ?? null;
   }
 
-  async findCertificationByContentSha256(
-    contentSha256: string,
-  ): Promise<{ cycleId: string; contentSha256: string } | null> {
-    const rows = await this.tx.$queryRawUnsafe<Array<{ cycleId: string; contentSha256: string }>>(
-      `SELECT "cycle_id" AS "cycleId", "content_sha256" AS "contentSha256"
+  async findCertificationByContentSha256(contentSha256: string): Promise<{
+    cycleId: string;
+    contentSha256: string;
+    projectionSetSha256: string | null;
+    projectionCount: number | null;
+  } | null> {
+    const rows = await this.tx.$queryRawUnsafe<
+      Array<{
+        cycleId: string;
+        contentSha256: string;
+        projectionSetSha256: string | null;
+        projectionCount: number | null;
+      }>
+    >(
+      `SELECT "cycle_id" AS "cycleId",
+              "content_sha256" AS "contentSha256",
+              "projection_set_sha256" AS "projectionSetSha256",
+              "projection_count" AS "projectionCount"
          FROM "phase6_cycle_certification" WHERE "content_sha256" = $1`,
       contentSha256,
     );
     return rows[0] ?? null;
+  }
+
+  async findProjectionIdsForCertification(contentSha256: string): Promise<string[]> {
+    const rows = await this.tx.$queryRawUnsafe<Array<{ projectionId: string }>>(
+      `SELECT "projection_id" AS "projectionId"
+         FROM "phase6_cycle_certification_projection"
+        WHERE "certification_content_sha256" = $1
+        ORDER BY "projection_ordinal", "projection_id"`,
+      contentSha256,
+    );
+    return rows.map((row) => row.projectionId);
   }
 
   async insertProjection(projection: Phase6NativeProjectionV1): Promise<void> {
@@ -121,23 +145,45 @@ class PrismaPhase6AuditProjectionStoreV1 implements Phase6AuditProjectionStore {
 
   async insertCertification(certification: Phase6CycleCertificationV1): Promise<void> {
     // The report column stores the full certification, not a summary — the
-    // status/cycleId/fiscalYear/manifestHash/contentSha256 columns exist for
-    // indexed lookup; the JSON is the actual audit record.
+    // indexed columns exist for lookup; JSON is the actual audit record. The
+    // projection set columns are duplicated intentionally so a later plan can
+    // prove the row bindings agree with the signed certification without
+    // trusting JSON storage alone.
     await this.tx.$executeRawUnsafe(
       `INSERT INTO "phase6_cycle_certification" (
-         "cycle_id", "fiscal_year", "manifest_hash", "content_sha256", "status", "report_jsonb"
-       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+         "cycle_id", "fiscal_year", "manifest_hash", "content_sha256", "status",
+         "projection_set_sha256", "projection_count", "report_jsonb"
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
       certification.cycleId,
       certification.fiscalYear,
       certification.manifestHash,
       certification.contentSha256,
       certification.status,
+      certification.projectionSetSha256,
+      certification.projectionCount,
       JSON.stringify(certification),
+    );
+  }
+
+  async insertCertificationProjectionBinding(
+    certificationContentSha256: string,
+    projectionId: string,
+    ordinal: number,
+  ): Promise<void> {
+    await this.tx.$executeRawUnsafe(
+      `INSERT INTO "phase6_cycle_certification_projection" (
+         "certification_content_sha256", "projection_id", "projection_ordinal"
+       ) VALUES ($1, $2, $3)`,
+      certificationContentSha256,
+      projectionId,
+      ordinal,
     );
   }
 }
 
-export class PrismaPhase6AuditProjectionTransactionClientV1 implements Phase6AuditProjectionTransactionClient {
+export class PrismaPhase6AuditProjectionTransactionClientV1
+  implements Phase6AuditProjectionTransactionClient
+{
   constructor(private readonly prisma: Phase6ProjectionPrismaLikeV1) {}
 
   async transaction<T>(fn: (store: Phase6AuditProjectionStore) => Promise<T>): Promise<T> {

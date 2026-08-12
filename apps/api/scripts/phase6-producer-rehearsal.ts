@@ -1,24 +1,14 @@
 /**
- * Gap 1 closeout — end-to-end producer rehearsal against a real database.
+ * Phase 6 producer rehearsal against a disposable PostgreSQL database.
  *
- * Invoked by `scripts/phase6-producer-rehearsal.sh` against a disposable
- * PostgreSQL container carrying only the `phase6-projection` schema's
- * migrations. Never point this at a shared database.
+ * Proves the producer boundary that the repaired Phase 7 path actually trusts:
+ * builder -> exact-set certification -> transactional audit persistence ->
+ * immutable certification/projection bindings -> deterministic Phase 6 plan.
  *
- * What it proves that the unit tests (which fake the Prisma surface) cannot:
- *
- *   * `phase6-projection-builder-v1.ts`'s output actually satisfies the real
- *     `phase6_audit_projection` table's constraints (not just the zod schema);
- *   * `PrismaPhase6AuditProjectionTransactionClientV1`'s raw SQL — column
- *     names, parameter order, the `::numeric`/`::jsonb` casts — is correct
- *     against the migration-created table, not just against a hand-rolled
- *     fake that mimics what the migration is believed to look like;
- *   * a value written as an exact decimal string comes back an exact decimal
- *     string, surviving Postgres's own `NUMERIC` padding;
- *   * `PrismaPromotionProjectionSourceV1`'s `committee` family reconstructs a
- *     real persisted row into a real `PromotionProjectionInputV1` that
- *     `buildPromotionPlanV1` could consume — the full chain the phase-7
- *     architecture gap said had no producer at any link.
+ * It deliberately does NOT exercise the old broad fiscal-year projection
+ * source. Production planning/execution now reload exact producer plans named
+ * by persisted eligibility, so a rehearsal of "all rows in FY X" would test a
+ * path that is no longer authoritative.
  */
 import { PrismaClient } from '@prisma/client';
 import {
@@ -26,11 +16,10 @@ import {
   buildStagePositionProjectionV1,
   type Phase6ProjectionProvenanceV1,
 } from '../src/defense-budget/phase6/phase6-projection-builder-v1.js';
+import { buildPhase6ProjectionPlanDocumentV1 } from '../src/defense-budget/phase6/phase6-projection-plan-builder-v1.js';
 import { certifyPhase6CycleV1 } from '../src/defense-budget/phase6/phase6-cycle-certification-v1.js';
 import { Phase6AuditProjectionRepository } from '../src/defense-budget/phase6/phase6-audit-projection-repository.js';
 import { PrismaPhase6AuditProjectionTransactionClientV1 } from '../src/defense-budget/phase6/phase6-audit-projection-repository-prisma-v1.js';
-import { PrismaPromotionProjectionSourceV1 } from '../src/defense-budget/promotion/promotion-projection-source-prisma-v1.js';
-import { nativeIdentityHashV1 } from '../src/defense-budget/stages/budget-line-reference-v1.js';
 import type { DefenseBudgetStageActionV1 } from '../src/defense-budget/stages/appropriations/actions/defense-budget-stage-action-v1.js';
 
 const SHA = (c: string) => c.repeat(64);
@@ -103,13 +92,14 @@ async function main(): Promise<void> {
     if (!actionResult.ok) fail(`builder refused the action: ${actionResult.refusal.detail}`);
     ok('buildStageActionProjectionV1 produced a projection');
 
+    const sourceProjections = [positionResult.projection, actionResult.projection];
     const certification = certifyPhase6CycleV1({
       schemaVersion: 'phase6_cycle_certification_input_v1',
       cycleId: 'cycle-rehearsal-fy2027',
       fiscalYear: 2027,
       manifestHash: SHA('d'),
       documents: [{ documentKey: 'hac-d-report', required: true, status: 'present' }],
-      projections: [positionResult.projection, actionResult.projection],
+      projections: sourceProjections,
       comparisons: [],
       lineFamilyCoverage: { RDTE_PE: 1 },
       bindingCounts: { accepted: 2, candidate: 0, unresolved: 0, conflicting: 0 },
@@ -119,20 +109,29 @@ async function main(): Promise<void> {
       parserStats: { localPages: 1, paidPages: 0, cacheHits: 0 },
     });
     check(certification.status === 'CERTIFIED', `cycle certified (status=${certification.status})`);
+    check(certification.projectionCount === 2, 'certification binds the exact projection count');
+    check(
+      /^[0-9a-f]{64}$/.test(certification.projectionSetSha256),
+      'certification binds a deterministic exact projection-set hash',
+    );
 
     const repository = new Phase6AuditProjectionRepository(
       new PrismaPhase6AuditProjectionTransactionClientV1(prisma),
     );
     const receipt = await repository.persistAuditOnly({
-      projections: [positionResult.projection, actionResult.projection],
+      projections: sourceProjections,
       certification,
       auditPersistenceAuthorized: true,
     });
     check(receipt.insertedProjectionIds.length === 2, 'persisted both projections on first write');
     check(!receipt.certificationReplayed, 'certification inserted, not replayed, on first write');
+    check(
+      receipt.certificationProjectionIds.length === 2,
+      'receipt reports the exact certification/projection association',
+    );
 
     const replay = await repository.persistAuditOnly({
-      projections: [positionResult.projection, actionResult.projection],
+      projections: sourceProjections,
       certification,
       auditPersistenceAuthorized: true,
     });
@@ -142,44 +141,58 @@ async function main(): Promise<void> {
     );
     check(replay.certificationReplayed, 'certification replay detected on second write');
 
-    const source = new PrismaPromotionProjectionSourceV1(prisma);
-    const { projections, refusals, unsupportedFamilies } = await source.loadForScope({
-      fiscalYear: 2027,
-      families: ['committee'],
+    const bindings = await prisma.$queryRawUnsafe<Array<{ projectionId: string; ordinal: number }>>(
+      `SELECT "projection_id" AS "projectionId", "projection_ordinal" AS "ordinal"
+         FROM "phase6_cycle_certification_projection"
+        WHERE "certification_content_sha256" = $1
+        ORDER BY "projection_ordinal"`,
+      certification.contentSha256,
+    );
+    check(bindings.length === 2, 'database stores two exact certification bindings');
+    check(
+      new Set(bindings.map((binding) => binding.projectionId)).size === 2,
+      'certification association retains each projection exactly once',
+    );
+
+    const persisted = await prisma.$queryRawUnsafe<
+      Array<{ projectionId: string; amountMillions: string | null; payload: Record<string, unknown> }>
+    >(
+      `SELECT "projection_id" AS "projectionId", "amount_millions"::text AS "amountMillions",
+              "payload_jsonb" AS "payload"
+         FROM "phase6_audit_projection"
+        WHERE "projection_id" IN ($1, $2)
+        ORDER BY "projection_id"`,
+      positionResult.projection.projectionId,
+      actionResult.projection.projectionId,
+    );
+    const persistedPosition = persisted.find(
+      (candidate) => candidate.projectionId === positionResult.projection.projectionId,
+    );
+    const persistedAction = persisted.find(
+      (candidate) => candidate.projectionId === actionResult.projection.projectionId,
+    );
+    check(
+      Number(persistedPosition?.amountMillions) === 125.5,
+      `exact decimal survives NUMERIC storage (got ${persistedPosition?.amountMillions ?? 'missing'})`,
+    );
+    check(
+      persistedAction?.payload.signedValueMillions === '-5',
+      'stage action signed amount survives JSONB storage',
+    );
+
+    const plan = buildPhase6ProjectionPlanDocumentV1({
+      cycleId: certification.cycleId,
+      fiscalYear: certification.fiscalYear,
+      rows: sourceProjections,
     });
-    check(unsupportedFamilies.length === 0, 'committee family is recognized as supported');
-    check(refusals.length === 0, `no refusals reading back (${JSON.stringify(refusals)})`);
-    check(projections.length === 2, `both kinds round-tripped (got ${projections.length})`);
+    check(plan.candidates.length === 2, 'exact certified set becomes two Phase 6 plan candidates');
+    check(
+      new Set(plan.candidates.flatMap((candidate) => candidate.sourceProjectionIds)).size === 2,
+      'plan accounts for every certified projection ID exactly once',
+    );
+    check(/^[0-9a-f]{64}$/.test(plan.contentSha256), 'Phase 6 plan content is deterministically hashed');
 
-    const readPosition = projections.find((p) => p.projectionKind === 'phase6:stage_position');
-    if (readPosition == null) fail('stage_position projection missing from read-back');
-    check(readPosition.fundingField === 'hacDMark', 'read-back position kept its funding field');
-    check(
-      readPosition.values.money?.valueMillions === '125.5',
-      `exact decimal survived the NUMERIC round trip (got ${readPosition.values.money?.valueMillions})`,
-    );
-    check(
-      readPosition.lineage.verificationRunId === 'vr-rehearsal',
-      'read-back position kept real lineage, not a placeholder',
-    );
-
-    const readAction = projections.find((p) => p.projectionKind === 'phase6:stage_action');
-    if (readAction == null) fail('stage_action projection missing from read-back');
-    check(
-      readAction.fundingField === null,
-      'stage_action carries no funding field, even after round-trip',
-    );
-    check(
-      readAction.values.attributes?.signedValueMillions === '-5',
-      'stage_action signed amount survived as a payload attribute',
-    );
-
-    check(
-      readPosition.naturalKey.startsWith(nativeIdentityHashV1(PE_IDENTITY)),
-      'read-back natural key leads with the real nativeIdentityHash, not a placeholder',
-    );
-
-    console.log(`\n[p6-producer] Gap 1 producer rehearsal PASS (${passed} checks)`);
+    console.log(`\n[p6-producer] exact producer rehearsal PASS (${passed} checks)`);
   } finally {
     await prisma.$disconnect();
   }

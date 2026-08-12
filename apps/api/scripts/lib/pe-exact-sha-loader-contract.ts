@@ -1,30 +1,42 @@
 /**
  * Program Elements Phase E — Exact-SHA atomic loader contract (shared).
  *
- * Every PE dollar loader that promotes canonical money must use this helper
- * before mutating the database:
+ * Every PE dollar loader that promotes legacy canonical money must use this
+ * helper before mutating the database:
  *
  *   inspect artifact
  *   → calculate exact SHA-256
  *   → quality audit
  *   → require explicit --approved-sha256 that matches the inspected bytes
- *   → only then run the promoting write path
+ *   → pass the Phase 7 legacy-write kill switch
+ *   → only then run the legacy write path
  *
  * Defaults:
  *   - no posture flag  → inspect (no network, no DB write)
  *   - --inspect        → same as default (explicit)
- *   - --commit         → canonical promote; requires valid approved SHA
+ *   - --commit         → legacy canonical write; requires BOTH an exact SHA and
+ *                        PE_LEGACY_BUDGET_WRITES=allow while read mode is safe
  *   - --extract-only / deprecated --dry-run → extract-only (no canonical write)
  *
- * A bare `--commit` never authorizes a vendor parse. Vendor LLM calls remain
- * exclusive to the generalized PDF path which requires --allow-vendor-parse
- * and are not expressed here.
+ * A bare `--commit` never authorizes a vendor parse and, after Phase 7, never
+ * authorizes a legacy canonical write either. Direct `pnpm parse:*` invocation
+ * therefore cannot bypass the dispatcher-level kill switch.
  */
+import path from 'node:path';
 import {
   assertApprovedShaMatches,
   assertQualityAuditPassed,
   requireApprovedSha256,
 } from './defense-budget-commit.js';
+import {
+  legacyBudgetCommitDecisionV1,
+  legacyBudgetWriteModeFromEnvV1,
+} from '../../src/defense-budget/promotion/legacy-budget-write-gate-v1.js';
+import {
+  DEFAULT_SNAPSHOT_READ_MODE_V1,
+  SNAPSHOT_READ_MODE_V1_VALUES,
+  type SnapshotReadModeV1,
+} from '../../src/defense-budget/promotion/snapshot-read-mode-v1.js';
 
 export type PeDollarLoaderPosture = 'inspect' | 'extract_only' | 'commit';
 
@@ -51,8 +63,52 @@ const EXTRACT_ONLY = '--extract-only';
 const DRY_RUN = '--dry-run';
 const COMMIT = '--commit';
 
+export interface LegacyBudgetWriteGateRuntimeV1 {
+  verb?: string;
+  environment?: {
+    PE_LEGACY_BUDGET_WRITES?: string;
+    PE_SNAPSHOT_READ_MODE?: string;
+  };
+}
+
+function snapshotReadModeForLegacyGateV1(value: string | undefined): SnapshotReadModeV1 {
+  if (value == null || value === '') return DEFAULT_SNAPSHOT_READ_MODE_V1;
+  if ((SNAPSHOT_READ_MODE_V1_VALUES as readonly string[]).includes(value)) {
+    return value as SnapshotReadModeV1;
+  }
+  // A typo must not weaken the write boundary. Startup config normally catches
+  // this, but one-off scripts do not necessarily boot Nest/config.schema first.
+  throw new Error(
+    `PE_SNAPSHOT_READ_MODE=${value} is invalid; refusing legacy canonical budget write`,
+  );
+}
+
+/**
+ * Apply the same Phase 7 legacy-write policy to direct script invocation that
+ * `entrypoint-dispatcher.inc` applies to dispatched verbs.
+ */
+export function assertLegacyBudgetWriteGateForLoaderV1(
+  argv: readonly string[],
+  runtime: LegacyBudgetWriteGateRuntimeV1 = {},
+): void {
+  if (!argv.includes(COMMIT)) return;
+  const environment = runtime.environment ?? process.env;
+  const verb =
+    runtime.verb ?? path.basename(process.argv[1] ?? 'legacy-defense-budget-loader');
+  const decision = legacyBudgetCommitDecisionV1({
+    verb,
+    argv,
+    writeMode: legacyBudgetWriteModeFromEnvV1(environment.PE_LEGACY_BUDGET_WRITES),
+    readMode: snapshotReadModeForLegacyGateV1(environment.PE_SNAPSHOT_READ_MODE),
+  });
+  if (!decision.allowed) throw new Error(decision.message);
+}
+
 /** Resolve mutually-exclusive operator posture for PE dollar loaders. */
-export function resolvePeDollarLoaderPosture(argv: readonly string[]): PeDollarLoaderPosture {
+export function resolvePeDollarLoaderPosture(
+  argv: readonly string[],
+  runtime: LegacyBudgetWriteGateRuntimeV1 = {},
+): PeDollarLoaderPosture {
   const inspect = argv.includes(INSPECT);
   const extractOnly = argv.includes(EXTRACT_ONLY);
   const dryRunAlias = argv.includes(DRY_RUN);
@@ -65,7 +121,10 @@ export function resolvePeDollarLoaderPosture(argv: readonly string[]): PeDollarL
     );
   }
 
-  if (commit) return 'commit';
+  if (commit) {
+    assertLegacyBudgetWriteGateForLoaderV1(argv, runtime);
+    return 'commit';
+  }
   if (extractOnly || dryRunAlias) return 'extract_only';
   return 'inspect';
 }
@@ -107,7 +166,7 @@ export interface ArtifactQualityAuditResult {
   rowCount: number;
 }
 
-/** Pure artifact quality audit used before any PE dollar monietization write. */
+/** Pure artifact quality audit used before any PE dollar monetization write. */
 export function auditArtifactQuality(input: ArtifactQualityAuditInput): ArtifactQualityAuditResult {
   const errors = [...(input.errors ?? [])];
   const warnings = [...(input.warnings ?? [])];
@@ -131,13 +190,12 @@ export function auditArtifactQuality(input: ArtifactQualityAuditInput): Artifact
 }
 
 /**
- * Fail-closed pre-mutation gate for every PE dollar `--commit`.
+ * Fail-closed pre-mutation exact-SHA gate for every PE dollar `--commit`.
  *
- * Order (intentional):
- *   1. parse + validate approved SHA flag shape
- *   2. compare against the exact inspected artifact bytes
- *   3. run quality audit
- *   4. throw before any caller opens a write transaction
+ * Phase 7's legacy-write policy is checked by `resolvePeDollarLoaderPosture`
+ * before a caller reaches this function. Keeping the two checks separate makes
+ * their refusal reasons distinct: authorization to use a legacy path is not
+ * proof that a particular artifact is the one an operator reviewed.
  */
 export function assertExactShaCommitAllowed(input: {
   actualSha256: string;
@@ -185,8 +243,9 @@ export function buildInspectReport(input: {
       flag: '--commit',
       approvedShaFlag: '--approved-sha256',
       approvedSha256MustEqual: input.sha256,
+      legacyWriteGate: 'PE_LEGACY_BUDGET_WRITES=allow and no snapshot/canary reads',
       note:
-        'Default invocation never writes. Re-run with --commit --approved-sha256 <sha above> only after inspecting the quality report.',
+        'Default invocation never writes. Legacy --commit is a controlled exception while Phase 7 cutover is incomplete; normal canonical publication uses the promotion workflow.',
     },
     ...(input.extra ?? {}),
   };
