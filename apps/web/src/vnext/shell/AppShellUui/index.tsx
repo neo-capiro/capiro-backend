@@ -1,21 +1,23 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
-import { useShellNavigation, type ShellNavigationViewModel } from '../../../adapters/legacy/useShellNavigation.js';
-import { useShellIdentity, type ShellIdentityViewModel } from '../../../adapters/legacy/useShellIdentity.js';
-import { useShellNotifications, type ShellNotificationsViewModel } from '../../../adapters/legacy/useShellNotifications.js';
-import type { VNextRouteDefinition } from '../../../adapters/routes/routeManifest.js';
-import { MeriLauncher } from '../../../shell/MeriLauncher/index.js';
-import { NotificationBell, ProfileMenu } from '../../../shell/TopBar/index.js';
-import { GlobalSearch } from '../../../shell/GlobalSearch/index.js';
-import { MailboxSyncStatusView } from '../../../shell/MailboxSyncStatus/index.js';
-import { useMailboxSyncStatus, type MailboxSyncViewModel } from '../../../adapters/legacy/useMailboxSyncStatus.js';
-import { ShellOverlayProvider, useShellOverlay } from '../../../shell/overlay-manager.js';
-import { SHELL_NAV_DESCRIPTIONS } from '../../../shell/nav-content.js';
+import { useShellNavigation, type ShellNavigationViewModel } from '../../adapters/legacy/useShellNavigation.js';
+import { useShellIdentity, type ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
+import { useShellNotifications, type ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
+import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
+import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
+import { MeriLauncher } from '../MeriLauncher/index.js';
+import { NotificationBell, ProfileMenu } from '../TopBar/index.js';
+import { GlobalSearch } from '../GlobalSearch/index.js';
+import { MailboxSyncStatusView } from '../MailboxSyncStatus/index.js';
+import { useMailboxSyncStatus, type MailboxSyncViewModel } from '../../adapters/legacy/useMailboxSyncStatus.js';
+import { ShellOverlayProvider, useShellOverlay } from '../overlay-manager.js';
+import { SHELL_NAV_DESCRIPTIONS } from '../nav-content.js';
+import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { Icon, NAV_ICON_BY_ROUTE_ID } from './icons.js';
-import './dashboard-shell-uui.css';
+import './shell-uui.css';
 
-const COLLAPSE_KEY = 'capiro.vnext.dashboard-shell-uui.collapsed';
+const COLLAPSE_KEY = 'capiro.vnext.shell-uui.collapsed';
 /**
  * Same four destinations the Capiro-native BottomNav exposes as tabs, plus
  * More — in the handoff's specified order (Home/Clients/Intel/Work), which
@@ -39,6 +41,15 @@ function readCollapsed(): boolean {
   }
 }
 
+/**
+ * Directory/Intelligence families. While you're on one of a family's own
+ * routes, its children render as a persistent, always-open nested list
+ * instead of a click-to-open flyout — the equivalent of the Capiro-native
+ * shell's ContextBar-area IntelligenceRail (`ContextBar/index.tsx`), which
+ * this shell has no separate region for. Off-family, it's still a flyout for
+ * discovery. Losing the persistent list going global was the one real
+ * regression the shell-coupling audit found for LegiWatch.
+ */
 function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   const { isOpen, containerRef, toggle, close } = useShellOverlay(
     route.id as 'directory' | 'intelligence',
@@ -50,12 +61,70 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
     (child) => child.path && location.pathname.startsWith(child.path),
   );
 
+  const childList = (variant: 'flyout' | 'nested') =>
+    children.map((child) =>
+      child.path ? (
+        <NavLink
+          key={child.id}
+          role="menuitem"
+          to={child.path}
+          className={variant === 'nested' ? 'uui-nav-nested-item' : 'uui-flyout__item'}
+          onClick={close}
+        >
+          {variant === 'nested' ? (
+            <span className="uui-nav-nested-item__label">{child.label}</span>
+          ) : (
+            <>
+              <span className="uui-flyout__name">{child.label}</span>
+              {SHELL_NAV_DESCRIPTIONS[child.id] ? (
+                <span className="uui-flyout__meta">{SHELL_NAV_DESCRIPTIONS[child.id]}</span>
+              ) : null}
+            </>
+          )}
+        </NavLink>
+      ) : (
+        <div
+          key={child.id}
+          role="menuitem"
+          aria-disabled="true"
+          className={
+            variant === 'nested'
+              ? 'uui-nav-nested-item uui-nav-nested-item--disabled'
+              : 'uui-flyout__item uui-flyout__item--disabled'
+          }
+        >
+          {variant === 'nested' ? (
+            <span className="uui-nav-nested-item__label">{child.label}</span>
+          ) : (
+            <>
+              <span className="uui-flyout__name">{child.label}</span>
+              <span className="uui-flyout__tag">Not available</span>
+            </>
+          )}
+        </div>
+      ),
+    );
+
+  if (hasCurrentChild) {
+    return (
+      <div className="uui-nav-group">
+        <div className="uui-nav-item uui-nav-item--current uui-nav-item--section">
+          <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
+          <span className="uui-nav-item__label">{route.label}</span>
+        </div>
+        <div className="uui-nav-nested" role="group" aria-label={route.label}>
+          {childList('nested')}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="uui-nav-group" ref={containerRef}>
       <button
         ref={triggerRef}
         type="button"
-        className={`uui-nav-item${hasCurrentChild ? ' uui-nav-item--current' : ''}`}
+        className="uui-nav-item"
         aria-expanded={isOpen}
         aria-haspopup="menu"
         onClick={() => toggle(triggerRef.current)}
@@ -67,21 +136,7 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
 
       {isOpen ? (
         <div className="uui-flyout" role="menu" aria-label={route.label}>
-          {children.map((child) =>
-            child.path ? (
-              <NavLink key={child.id} role="menuitem" to={child.path} className="uui-flyout__item" onClick={close}>
-                <span className="uui-flyout__name">{child.label}</span>
-                {SHELL_NAV_DESCRIPTIONS[child.id] ? (
-                  <span className="uui-flyout__meta">{SHELL_NAV_DESCRIPTIONS[child.id]}</span>
-                ) : null}
-              </NavLink>
-            ) : (
-              <div key={child.id} role="menuitem" aria-disabled="true" className="uui-flyout__item uui-flyout__item--disabled">
-                <span className="uui-flyout__name">{child.label}</span>
-                <span className="uui-flyout__tag">Not available</span>
-              </div>
-            ),
-          )}
+          {childList('flyout')}
         </div>
       ) : null}
     </div>
@@ -103,14 +158,21 @@ function NavRow({ route }: { route: VNextRouteDefinition }) {
   );
 }
 
-export interface DashboardShellUuiViewProps {
+export interface AppShellUuiViewProps {
   navigation: ShellNavigationViewModel;
   identity: ShellIdentityViewModel;
   notifications: ShellNotificationsViewModel;
   mailboxStatus: MailboxSyncViewModel;
+  /** SCOPE contract (730:2589) — same string GlobalSearch's footer states on
+   * every other vnext page; Dashboard forces "All clients" (729:2612). */
+  scopeLabel: string;
   onNavigate: (path: string) => void;
   onOpenNotifications: () => void;
   onSignOut: () => void;
+  /** Overrides the persisted collapse state — the vnext-visual-capture
+   * script's only way to force the collapsed screenshot variant (it has no
+   * localStorage to seed). Real usage omits this and reads localStorage. */
+  initialCollapsed?: boolean;
   children: ReactNode;
 }
 
@@ -118,20 +180,35 @@ export interface DashboardShellUuiViewProps {
  * Pure presentation — no data hooks of its own beyond local UI state and the
  * overlay coordinator, so it renders identically in the real app and in the
  * Clerk-free vnext-shell.html visual harness (`?screen=dashboard-uui`).
- * Mirrors the DashboardVNext / DashboardVNextView split one directory over.
+ * Mirrors the DashboardVNext / DashboardVNextView split elsewhere in vnext.
  */
-export function DashboardShellUuiView({
+export function AppShellUuiView({
   navigation,
   identity,
   notifications,
   mailboxStatus,
+  scopeLabel,
   onNavigate,
   onOpenNotifications,
   onSignOut,
+  initialCollapsed,
   children,
-}: DashboardShellUuiViewProps) {
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+}: AppShellUuiViewProps) {
+  const [collapsed, setCollapsed] = useState(() => initialCollapsed ?? readCollapsed());
   const [moreOpen, setMoreOpen] = useState(false);
+
+  // Same MERI contract VNextShellChrome enforces (730:2574): Ctrl+J opens the
+  // separate workspace window.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        openMeriWorkspaceWindow();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const toggleCollapsed = () => {
     setCollapsed((current) => {
@@ -152,13 +229,13 @@ export function DashboardShellUuiView({
 
   return (
     <ShellOverlayProvider>
-      <div className="capiro-dash-uui" data-collapsed={collapsed || undefined}>
+      <div className="capiro-vnext-uui" data-collapsed={collapsed || undefined}>
         <header className="uui-topbar">
           <span className="uui-topbar__brand">
             <img src="/logo.png" alt="Capiro" className="uui-topbar__wordmark" />
           </span>
           <div className="uui-topbar__search">
-            <GlobalSearch />
+            <GlobalSearch scopeLabel={scopeLabel} />
           </div>
           <div className="uui-topbar__actions">
             <MeriLauncher />
@@ -233,41 +310,44 @@ export function DashboardShellUuiView({
 }
 
 /**
- * Dashboard's own Untitled-UI shell container (`Capiro Dashboard - Untitled
- * UI.dc.html`). Deliberately NOT VNextShellScaffold: reskinning the shared
- * Capiro-native shell would touch every other vnext page (LegiWatch,
- * Strategies, Directory, Program Elements, Client CRM). This mounts only at
- * `/`, and every other vnext route keeps the existing shell untouched — see
- * VNextApp.tsx.
+ * The one global vNext shell (Figma `Capiro Dashboard - Untitled UI.dc.html`,
+ * top bar/rail geometry from `748:2503`). Replaces VNextShellScaffold
+ * (`shell/AppShell/index.tsx`) as of 2026-08 — Neo: "the top nav and left nav
+ * should be global and look exactly the same across all pages." The old
+ * Capiro-native shell components are left in place (VNextShellVisual.tsx's
+ * harness screens still use them) but nothing in production mounts them
+ * anymore; see VNextApp.tsx.
  *
  * Behavior is 100% reused, not reimplemented: useShellNavigation/Identity/
- * Notifications, useMailboxSyncStatus (via MailboxSyncStatusView), Clerk
- * sign-out, MeriLauncher, GlobalSearch, NotificationBell and ProfileMenu are
- * the exact same modules the Capiro-native shell uses. Only the markup and
- * CSS in DashboardShellUuiView are new — see icons.tsx for why the icon
- * treatment differs on purpose. All real hooks live here in the container so
- * DashboardShellUuiView stays renderable in the Clerk-free vnext-shell.html
- * harness with fixture props, same split as DashboardVNext/DashboardVNextView.
+ * Notifications/ClientContext, useMailboxSyncStatus (via
+ * MailboxSyncStatusView), Clerk sign-out, MeriLauncher, GlobalSearch,
+ * NotificationBell and ProfileMenu are the exact same modules the
+ * Capiro-native shell used. Only the markup and CSS in AppShellUuiView are
+ * new — see icons.tsx for why the icon treatment differs on purpose. All real
+ * hooks live here in the container so AppShellUuiView stays renderable in the
+ * Clerk-free vnext-shell.html harness with fixture props.
  */
-export function DashboardShellUui({ children }: { children: ReactNode }) {
+export function AppShellUui({ children }: { children: ReactNode }) {
   const navigation = useShellNavigation();
   const identity = useShellIdentity();
   const notifications = useShellNotifications();
   const mailboxStatus = useMailboxSyncStatus();
+  const clientContext = useShellClientContext();
   const navigate = useNavigate();
   const { signOut } = useClerk();
 
   return (
-    <DashboardShellUuiView
+    <AppShellUuiView
       navigation={navigation}
       identity={identity}
       notifications={notifications}
       mailboxStatus={mailboxStatus}
+      scopeLabel={clientContext.scopeLabel}
       onNavigate={navigate}
       onOpenNotifications={() => navigate('/workspace')}
       onSignOut={() => void signOut()}
     >
       {children}
-    </DashboardShellUuiView>
+    </AppShellUuiView>
   );
 }
