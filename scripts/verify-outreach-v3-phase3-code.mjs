@@ -7,6 +7,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_SHA =
   process.env.OUTREACH_V3_PHASE3_BASE_SHA ||
   '89b0a8e08e1cfcc7210a8684335faf6f8405bdf2';
+const ENGAGEMENT_PHASE3_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END;
+if (ENGAGEMENT_PHASE3_SCOPE_END) {
+  process.env.ENGAGEMENT_PHASE3_SCOPE_END = ENGAGEMENT_PHASE3_SCOPE_END;
+}
 const DUMMY_DATABASE_URL =
   'postgresql://phase3:phase3@127.0.0.1:1/phase3?schema=public';
 
@@ -57,7 +61,12 @@ const steps = [
   ],
   ['Phase 3 DB rehearsal syntax', 'node', ['--check', 'scripts/verify-outreach-v3-phase3-db.mjs']],
   ['Phase 2 state-substrate regression', 'pnpm', ['verify:outreach-v3-phase-2']],
-  ['Engagement Phase 3 current-product regression', 'pnpm', ['verify:engagement-phase-3']],
+  [
+    'Engagement Phase 3 current-product regression',
+    'pnpm',
+    ['verify:engagement-phase-3'],
+    ENGAGEMENT_PHASE3_SCOPE_END ? { ENGAGEMENT_PHASE3_SCOPE_END } : {},
+  ],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
   ['Phase 3 committed-diff whitespace', 'git', ['diff', '--check', `${BASE_SHA}..HEAD`]],
 ];
