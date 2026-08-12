@@ -1361,7 +1361,7 @@ GAP5_PHASE6_CERT_SHA="$(printf '6%.0s' $(seq 1 64))"
 # The build verb recomputes the projection-set hash from the actual DB rows
 # and refuses a stale certification. Compute the real hash from the two seeded
 # projections so the certification's projection_set_sha256 matches exactly.
-GAP5_PHASE6_PROJSET_SHA="92951d20639ecf2359e28ef13ab732089c34840c27f3b8eee11729ee2606a845"
+GAP5_PHASE6_PROJSET_SHA="578de20291062393b1f82ca4080a84821dfcf114372727acba6050ddf9358e52"
 run_sql "
 INSERT INTO phase6_cycle_certification (
   cycle_id, fiscal_year, manifest_hash, content_sha256, status,
