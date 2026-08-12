@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { useMe } from '../../../lib/me.js';
 
 export interface ShellIdentityViewModel {
@@ -10,6 +11,8 @@ export interface ShellIdentityViewModel {
   role: string | null;
   email: string | null;
   initials: string | null;
+  /** Clerk avatar — same source the canonical AppShellV2 profile chip uses. */
+  imageUrl: string | null;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -25,13 +28,17 @@ const ROLE_LABELS: Record<string, string> = {
  */
 export function useShellIdentity(): ShellIdentityViewModel {
   const me = useMe();
+  // Same source the canonical AppShellV2 profile chip uses — `/api/me` has no
+  // photo field, and Clerk is already the auth provider for every vnext route.
+  const { user: clerkUser } = useUser();
+  const imageUrl = clerkUser?.imageUrl || null;
 
   return useMemo(() => {
     if (me.isLoading) {
-      return { loading: true, unavailable: false, name: null, role: null, email: null, initials: null };
+      return { loading: true, unavailable: false, name: null, role: null, email: null, initials: null, imageUrl };
     }
     if (me.isError || !me.data) {
-      return { loading: false, unavailable: true, name: null, role: null, email: null, initials: null };
+      return { loading: false, unavailable: true, name: null, role: null, email: null, initials: null, imageUrl };
     }
 
     const { user, role } = me.data;
@@ -45,8 +52,9 @@ export function useShellIdentity(): ShellIdentityViewModel {
       role: user.title?.trim() || ROLE_LABELS[role] || role,
       email: user.email,
       initials: deriveInitials(name, user.email),
+      imageUrl,
     };
-  }, [me.data, me.isError, me.isLoading]);
+  }, [me.data, me.isError, me.isLoading, imageUrl]);
 }
 
 function deriveInitials(name: string | null, email: string | null): string | null {

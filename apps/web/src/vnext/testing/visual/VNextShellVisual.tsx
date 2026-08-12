@@ -38,6 +38,7 @@ const fixtureIdentity = {
   role: 'VP Government Affairs',
   email: 'neo@capiro.ai',
   initials: 'NM',
+  imageUrl: null,
 };
 
 const fixtureNotifications = {
@@ -102,6 +103,7 @@ export function VNextShellVisual({
           onNavigate={() => undefined}
           onOpenNotifications={() => undefined}
           onSignOut={() => undefined}
+          onOpenProfile={() => undefined}
           initialCollapsed={collapsed}
         >
           {screen === 'client-crm' ? (

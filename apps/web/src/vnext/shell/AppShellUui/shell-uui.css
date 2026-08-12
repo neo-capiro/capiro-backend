@@ -45,8 +45,28 @@
   z-index: 20;
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__wordmark { height: 22px; display: block; }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__search { flex: 1; display: flex; justify-content: center; }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; }
+/*
+ * Centered on the full bar, not on the leftover space between brand and
+ * actions. `flex: 1; justify-content: center` centered search only within
+ * whatever room was left after brand/actions — fine while both sides were
+ * similar widths, but actions has grown (Meri + bell + profile chip) well
+ * past the brand wordmark, so that midpoint drifted left of true center.
+ * Positioning off the bar itself keeps it centered regardless of how much
+ * gets added to either side; `min(...)` keeps it from ever growing wide
+ * enough to overlap brand/actions on a narrow viewport.
+ */
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(480px, 40vw);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
 /* Reused GlobalSearch, restyled */
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger {
@@ -89,14 +109,17 @@
  * Reused MeriLauncher (CapiroButton) restyled to the Untitled-UI solid
  * button. CapiroButton's own base rule (primitives.css) forces
  * `min-width: var(--capiro-control-min-width-button)` = 120px on every
- * button regardless of content — that's why this rendered ~50px wider than
- * its "Meri" text needed, out of proportion with the rest of the top bar.
- * `min-width: 0` (not `auto`) is required to actually beat a `!important`-
- * free 120px min-width from an earlier, higher-specificity rule; `auto`
- * does not override a set length.
+ * button regardless of content, which read as too wide here. An earlier pass
+ * dropped to `min-width: 0` (bare "Meri" text + 14px padding, ~61px) to fix
+ * that, but next to the 40px bell and the profile chip that read as too
+ * small/awkward instead — Neo asked for "slightly wider." 88px splits the
+ * difference. `min-width: 0` (not `auto`) is still required to actually beat
+ * a `!important`-free 120px min-width from an earlier, higher-specificity
+ * rule; `auto` does not override a set length.
  */
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher {
   min-width: 0 !important;
+  width: 88px !important;
   background: var(--uui-brand-solid) !important;
   color: var(--uui-white) !important;
   border: none !important;
@@ -127,6 +150,7 @@
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar {
   width: 32px; height: 32px; border-radius: 999px; background: var(--uui-brand-tint); color: var(--uui-brand-hover);
   display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: var(--uui-weight-semibold);
+  overflow: hidden;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); display: block; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role { font-size: 12px; color: var(--uui-gray-500); display: block; }
@@ -238,6 +262,22 @@
   .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: 1fr; grid-template-areas: 'topbar' 'content'; padding-bottom: 64px; }
   .capiro-vnext-root .capiro-vnext-uui .uui-rail { display: none; }
   .capiro-vnext-root .capiro-vnext-uui .uui-content { padding: 16px; }
+  /*
+   * True centering (base rule above) assumes there's room on both sides.
+   * Below this width the actions cluster (Meri + bell + profile) alone is
+   * wider than half the bar, so a truly centered box would sit on top of
+   * it — back to a small in-flow icon between brand and actions, the same
+   * shape this had before the desktop centering fix.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    height: auto;
+    width: 40px;
+    flex: 0 0 auto;
+  }
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__placeholder,
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__shortcut { display: none; }
 

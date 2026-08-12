@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Bell } from 'lucide-react';
 import type { ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
 import type { ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
@@ -76,36 +76,38 @@ interface ProfileMenuEntry {
   id: string;
   label: string;
   path: string | null;
+  action?: 'profile' | 'sign-out';
   tag?: string;
   destructive?: boolean;
   separated?: boolean;
 }
 
 /**
- * Figma `728:2575`. Entries without a registered canonical destination render
- * disabled rather than linking to an invented route.
+ * Figma `728:2575`, trimmed to Neo's ask: Profile / Settings / Sign out only.
+ * "Profile" opens the real Clerk account portal (photo upload, name, etc.)
+ * rather than navigating — Clerk owns that surface, not a vnext settings page.
  */
 const PROFILE_MENU: readonly ProfileMenuEntry[] = [
-  { id: 'profile', label: 'Profile', path: '/settings/personal' },
-  { id: 'preferences', label: 'Preferences', path: null },
+  { id: 'profile', label: 'Profile', path: null, action: 'profile' },
   { id: 'settings', label: 'Settings', path: '/settings' },
-  { id: 'integrations', label: 'Integrations', path: '/settings/integrations' },
-  { id: 'shortcuts', label: 'Keyboard shortcuts', path: null, tag: 'CTRL /' },
-  { id: 'help', label: 'Help & support', path: '/help' },
-  { id: 'sign-out', label: 'Sign out', path: null, destructive: true, separated: true },
+  { id: 'sign-out', label: 'Sign out', path: null, action: 'sign-out', destructive: true, separated: true },
 ];
 
 export function ProfileMenu({
   identity,
   onNavigate,
   onSignOut,
+  onOpenProfile,
 }: {
   identity: ShellIdentityViewModel;
   onNavigate: (path: string) => void;
   onSignOut: () => void;
+  onOpenProfile: () => void;
 }) {
   const { isOpen, containerRef, toggle, close } = useShellOverlay('profile');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = Boolean(identity.imageUrl) && !avatarFailed;
 
   return (
     <div className="capiro-vnext-profile" ref={containerRef}>
@@ -118,7 +120,11 @@ export function ProfileMenu({
         onClick={() => toggle(triggerRef.current)}
       >
         <span className="capiro-vnext-avatar" aria-hidden="true">
-          {identity.initials ?? '—'}
+          {showAvatar ? (
+            <img src={identity.imageUrl ?? undefined} alt="" onError={() => setAvatarFailed(true)} />
+          ) : (
+            (identity.initials ?? '—')
+          )}
         </span>
         <span className="capiro-vnext-profile__copy">
           <span className="capiro-vnext-profile__name">
@@ -139,7 +145,7 @@ export function ProfileMenu({
           </div>
 
           {PROFILE_MENU.map((entry) => {
-            const disabled = entry.path === null && entry.id !== 'sign-out';
+            const disabled = entry.path === null && !entry.action;
             return (
               <button
                 key={entry.id}
@@ -153,8 +159,12 @@ export function ProfileMenu({
                 onClick={() => {
                   if (disabled) return;
                   close();
-                  if (entry.id === 'sign-out') {
+                  if (entry.action === 'sign-out') {
                     onSignOut();
+                    return;
+                  }
+                  if (entry.action === 'profile') {
+                    onOpenProfile();
                     return;
                   }
                   if (entry.path) onNavigate(entry.path);

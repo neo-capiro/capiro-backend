@@ -95,7 +95,9 @@
 .capiro-vnext-root .capiro-vnext-profile { position: relative; }
 .capiro-vnext-root .capiro-vnext-profile__trigger { height: 36px; display: flex; align-items: center; gap: 9px; padding: 0 6px 0 0; border: 0; border-radius: 9px; background: transparent; cursor: pointer; text-align: left; }
 .capiro-vnext-root .capiro-vnext-profile__trigger:hover { background: var(--capiro-color-bg-subtle); }
-.capiro-vnext-root .capiro-vnext-avatar { width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: var(--capiro-color-text-accent); color: var(--capiro-color-text-inverse-primary); font-size: 12px; font-weight: 600; }
+.capiro-vnext-root .capiro-vnext-avatar { width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0; overflow: hidden; border-radius: 50%; background: var(--capiro-color-text-accent); color: var(--capiro-color-text-inverse-primary); font-size: 12px; font-weight: 600; }
+/* Clerk photo, when set — falls back to the initials text node above on load error (ProfileMenu). */
+.capiro-vnext-root .capiro-vnext-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .capiro-vnext-root .capiro-vnext-profile__copy { display: grid; min-width: 0; }
 .capiro-vnext-root .capiro-vnext-profile__name { font-size: 13px; font-weight: 500; line-height: 18px; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-profile__role { font-family: var(--capiro-type-family-mono); font-size: 8.5px; line-height: 12px; letter-spacing: .03em; text-transform: uppercase; color: var(--capiro-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
