@@ -245,6 +245,11 @@ case "${1:-serve}" in
     echo "Running diag-outlook-sync (READ-ONLY Outlook/Graph connection + sync health) $*"
     exec ./node_modules/.bin/tsx scripts/diag-outlook-sync.ts "$@"
     ;;
+  diag-mail-search-match)
+    shift
+    echo "Running diag-mail-search-match (READ-ONLY: same predicate as search_emails, no body text logged) $*"
+    exec ./node_modules/.bin/tsx scripts/diag-mail-search-match.ts "$@"
+    ;;
   reclaim-google-mail)
     # Retroactive Gmail re-association: reset+resume re-fetch of a tenant's Google
     # connection(s) so previously-skipped mail re-runs association against the
