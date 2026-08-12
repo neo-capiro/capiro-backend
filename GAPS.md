@@ -246,3 +246,63 @@ reading the server controller/service — not inferred. See
 - **Canonical staff identity:** committee staff and congressional staff resolve
   to the same staff id (`/directory/staff/:staffId`), satisfying non-negotiable
   #3 with no duplicate person record.
+
+---
+
+# GAPS — Program Elements vNext module backend audit
+
+Backend gaps found while wiring the Program Elements vNext surface
+(`PROGRAM-ELEMENTS-HANDOFF` §13) against the live backend. The module **reuses**
+the proven `pages/program-element/v2/` components (already wired to these
+endpoints); it ships inside `apps/web/src/vnext/pages/program-elements/`,
+runtime-gated to the vNext surface (`os.capiro.ai`). No new backend was written.
+Each entry confirmed by reading the server controller/service/DTO — not inferred.
+Sorted **blocking-first**. Full endpoint table: `docs/handoff/` PE inventory
+(discovery report, 2026-08-12).
+
+**Milestone-01 scope note:** this ship is the vNext **chrome + route + token
+re-skin** (handoff §12 milestone 01). The reused v2 component bodies carry the
+content. The entries below are where that inherited content diverges from the
+handoff §1/§5 domain rules — they are content-fidelity gaps for milestone 02+,
+NOT regressions introduced by this ship (the canonical app renders the same
+bodies today).
+
+## Program Elements summary
+
+| id | surface | gap | blocking | backend surface | owner |
+| --- | --- | --- | --- | --- | --- |
+| PE-G6 | Profile trust strip / Sources / inspector | Reconciliation-conflict read model per line has **no server producer** — `openReconciliationConflictCount` is declared client-side but zero API code sets it, so every conflict surface silently renders "no conflicts" | **Yes** (trust surfaces always clear) | read join from `ReconciliationReviewQueue` into the PE detail DTO | unassigned |
+| PE-G4 | Profile header "Current" + Explore "Current·stage" | Shared `FUNDING_CURRENT_PRECEDENCE` includes authorization marks (`sasc`/`hasc`) as `current` rungs — violates §1.5/§5.2 (auth never sets `current`; appropriations-only ladder) | **Yes** (domain rule) — inherited from v2, not a vNext regression | appropriations-only `currentFunding` variant in `@capiro/shared` (shared — needs sign-off) | unassigned |
+| PE-G1 | Explore | `movement` filter is client-side over the current 50-row page → counts/footer/CSV wrong under that filter | Yes for Movement-filtered export/counts | add `movement` to `QueryProgramElementsDto` + list service | unassigned |
+| PE-G5 | Explore / Portfolio client exposure | Only relevance-score rows; no verified/saved/candidate association-state axis (§1.11) | Yes for exposure-count semantics | association-state on `client-pe-relevance` read | unassigned |
+| PE-G3 | Movement tape | feed item lacks event date, track, from→to, per-event materiality (fields exist on `BudgetAction`, unmapped) | Partial — tape "date+stage", track strip, materiality chip unbacked | map `createdAt`/`baseline`/`evidenceJson` into `/budget-lines/movement` feed | unassigned |
+| PE-G11 | Watch toggle parallel-safety | watch mutation invalidates legacy keys only, NOT `pe-v2-*` keys → v2/vNext lists go stale on toggle (§3.3) | No (correctness/staleness) | extend `useWatchToggle` invalidation set to `pe-v2-*` keys | unassigned |
+| PE-G3b | Actions "Create action" | no manual action-create endpoint; `POST /actions/generate` only; `/actions?peCode=` deep link unconsumed by ActionBoardPage | Partial — governed create path differs from mock | manual create endpoint + peCode param consumption | unassigned |
+| PE-G12 | Source ledger CSV | `/sources` is JSON-only; all CSV is client Blob builds | No (client CSV is today's contract) | optional `text/csv` producer | unassigned |
+
+## Program Elements — explicitly checked and NOT gaps
+
+- **§13 #2 NOT FILED vs 0 — NOT a gap.** Unfiled = `null` end-to-end: nullable
+  `Decimal?` columns (`schema.prisma:3813-3828`); `numDec` null-preserving
+  (`read.service.ts:1015`); client `toNum` keeps null; renderers emit
+  NOT FILED/NOT ENACTED (`pe-v2-model.ts:144-170`). No `0`-for-unfiled path.
+- **§13 #10 Relationship state stored — NOT a gap.** `BudgetLineRelationship.status`
+  ('accepted'/'candidate') + `confidence` are stored columns (`schema:8836-8837`),
+  returned by `/relationships`; `/programs` splits accepted vs candidate server-side.
+- **§13 #14 Bills/vehicles per PE — NOT a gap.** `/bills` + `/bill-actions` live.
+- **§13 #8 Data-issue readback — endpoint exists.** `GET :peCode/data-issues` +
+  status enum exist (`controller.ts:473`); client fetcher defined (`api.ts:246`) but
+  **no caller in apps/web** — unwired, not absent. Data-issue create never patches PE
+  values (resolution requires admin reconciliation path, `schema:4305`).
+- **§13 #9 R-2A not-ingested signal — mostly fine.** `/projects` returns full R-2A
+  rows w/ page cites; `projectCount` on detail; profile renders explicit "Not yet
+  ingested" when `years` empty. Empty+count is the signal (no explicit boolean).
+- **§13 #11 Watch ownership — per-user.** `(tenant_id,user_id,pe_code)` + audit.
+  Divergence: markup-monitor watched set is tenant-wide (`read.service.ts:568-572`)
+  while Portfolio "monitored" is per-user — Congressional ≠ Portfolio "monitored".
+
+**Not reached before the discovery iteration cap (verify in milestone 02):**
+DataIssueModal field wiring (DTO confirmed compatible), the five tab components'
+internal queries (all consume the verified profile hook), gap §13 #7
+(promotion-blocked signal to memo/brief artifacts), §15 open questions
+(materiality constant scope, snapshot activator, QA-states dev flag).
