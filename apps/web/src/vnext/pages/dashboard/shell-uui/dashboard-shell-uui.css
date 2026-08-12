@@ -32,7 +32,7 @@
   gap: 16px;
   padding: 0 24px;
   background: var(--uui-white);
-  border-bottom: 1px solid var(--uui-gray-200);
+  border-bottom: 2px solid var(--uui-brand-deep);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -78,8 +78,18 @@
 .capiro-dash-uui .capiro-global-search__state-body { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
 .capiro-dash-uui .capiro-global-search__footer { padding: 10px 16px; border-top: 1px solid var(--uui-gray-200); font-size: var(--uui-text-xs); color: var(--uui-gray-500); }
 
-/* Reused MeriLauncher (CapiroButton) restyled to the Untitled-UI solid button */
+/*
+ * Reused MeriLauncher (CapiroButton) restyled to the Untitled-UI solid
+ * button. CapiroButton's own base rule (primitives.css) forces
+ * `min-width: var(--capiro-control-min-width-button)` = 120px on every
+ * button regardless of content — that's why this rendered ~50px wider than
+ * its "Meri" text needed, out of proportion with the rest of the top bar.
+ * `min-width: 0` (not `auto`) is required to actually beat a `!important`-
+ * free 120px min-width from an earlier, higher-specificity rule; `auto`
+ * does not override a set length.
+ */
 .capiro-dash-uui .capiro-meri-launcher {
+  min-width: 0 !important;
   background: var(--uui-brand-solid) !important;
   color: var(--uui-white) !important;
   border: none !important;

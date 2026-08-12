@@ -252,7 +252,9 @@
 
 /* CapiroButton reused for Add/Reset/Done — restyled the same way MeriLauncher
    is in dashboard-shell-uui.css: reuse the real behavior, override the look. */
-.capiro-vnext-root .capiro-dash-uui .capiro-button { border-radius: var(--uui-radius-control) !important; font-family: var(--uui-font-family) !important; font-size: var(--uui-text-sm) !important; font-weight: var(--uui-weight-semibold) !important; box-shadow: none !important; }
+/* min-width: 0 beats primitives.css's 120px min-width (see the Meri launcher
+   comment in dashboard-shell-uui.css) so Add/Reset/Done size to content. */
+.capiro-vnext-root .capiro-dash-uui .capiro-button { min-width: 0 !important; border-radius: var(--uui-radius-control) !important; font-family: var(--uui-font-family) !important; font-size: var(--uui-text-sm) !important; font-weight: var(--uui-weight-semibold) !important; box-shadow: none !important; padding: 0 16px !important; }
 .capiro-vnext-root .capiro-dash-uui .capiro-button--primary { background: var(--uui-brand-solid) !important; color: var(--uui-white) !important; border: none !important; }
 .capiro-vnext-root .capiro-dash-uui .capiro-button--primary:hover { background: var(--uui-brand-hover) !important; }
 .capiro-vnext-root .capiro-dash-uui .capiro-button--secondary { background: var(--uui-white) !important; color: var(--uui-gray-700) !important; box-shadow: inset 0 0 0 1px var(--uui-gray-300) !important; }
