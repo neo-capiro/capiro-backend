@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.ENGAGEMENT_PHASE3_BASE_SHA ?? '3841a5ee58e011be7fb4fb6008adfccf081976d9';
+const END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
 
 export const FORBIDDEN_NEW_PATHS = [
   /^apps\/web\/.*(?:outreach(?:-|\/)v3|OutreachV3)/i,
@@ -60,13 +61,15 @@ export function verifyBoundary({ changed = [], addedLines = '', deleted = [] }) 
 
 function main() {
   git(['cat-file', '-e', `${BASE}^{commit}`]);
-  const nameStatus = git(['diff', '--name-status', `${BASE}..HEAD`])
+  git(['cat-file', '-e', `${END}^{commit}`]);
+  const range = `${BASE}..${END}`;
+  const nameStatus = git(['diff', '--name-status', range])
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => line.split(/\t+/));
   const changed = nameStatus.filter(([status]) => status !== 'D').map((parts) => parts.at(-1));
   const deleted = nameStatus.filter(([status]) => status === 'D').map((parts) => parts.at(-1));
-  const diff = git(['diff', '--unified=0', `${BASE}..HEAD`, '--', 'apps', 'packages', 'package.json', 'pnpm-lock.yaml']);
+  const diff = git(['diff', '--unified=0', range, '--', 'apps', 'packages', 'package.json', 'pnpm-lock.yaml']);
   const addedLines = diff
     .split(/\r?\n/)
     .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
