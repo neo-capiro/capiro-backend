@@ -5,6 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PHASE3_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
+const scopedOptions = { env: { ENGAGEMENT_PHASE3_SCOPE_END: PHASE3_SCOPE_END } };
 const steps = [
   ['Phase 0 prerequisite', 'pnpm', ['verify:engagement-phase-0']],
   ['Phase 1 prerequisite', 'pnpm', ['verify:engagement-phase-1']],
@@ -62,8 +64,8 @@ const steps = [
       'scripts/verify-engagement-phase3-scope.spec.mjs',
     ],
   ],
-  ['Phase 3 V3/prototype boundary', 'node', ['scripts/verify-engagement-phase3-prototype-boundary.mjs']],
-  ['Phase 3 scope and findings', 'node', ['scripts/verify-engagement-phase3-scope.mjs']],
+  ['Phase 3 V3/prototype boundary', 'node', ['scripts/verify-engagement-phase3-prototype-boundary.mjs'], scopedOptions],
+  ['Phase 3 scope and findings', 'node', ['scripts/verify-engagement-phase3-scope.mjs'], scopedOptions],
   ['Phase 3 local runner syntax', 'node', ['--check', 'scripts/run-engagement-phase3-local.mjs']],
   ['Phase 3 local proxy syntax', 'node', ['--check', 'scripts/engagement-phase3-local-proxy.mjs']],
   ['Phase 3 resilience syntax', 'node', ['--check', 'scripts/engagement-phase3-resilience.mjs']],
@@ -77,14 +79,14 @@ const steps = [
   ['Web production typecheck', 'pnpm', ['--filter', '@capiro/web', 'exec', 'tsc', '-p', 'tsconfig.json', '--noEmit']],
   ['Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']],
   ['Web complete regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']],
-  ['Phase 3 committed-range whitespace', 'git', ['diff', '--check', '3841a5ee58e011be7fb4fb6008adfccf081976d9..HEAD']],
+  ['Phase 3 committed-range whitespace', 'git', ['diff', '--check', `3841a5ee58e011be7fb4fb6008adfccf081976d9..${PHASE3_SCOPE_END}`]],
 ];
 
-function run(label, command, args) {
+function run(label, command, args, options = {}) {
   console.log(`\n==> ${label}`);
   const result = spawnSync(command, args, {
     cwd: ROOT,
-    env: process.env,
+    env: { ...process.env, ...options.env },
     shell: process.platform === 'win32',
     stdio: 'inherit',
   });
@@ -95,7 +97,7 @@ function run(label, command, args) {
 }
 
 try {
-  for (const [label, command, args] of steps) run(label, command, args);
+  for (const [label, command, args, options] of steps) run(label, command, args, options);
   console.log('\nENGAGEMENT_PHASE3_DB_FREE_COMPLETE');
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
