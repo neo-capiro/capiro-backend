@@ -10,10 +10,10 @@
  * (the prior bridge that re-rendered pages/strategy/* is gone). Only the server
  * contract (types) and the shared backend endpoints are reused.
  */
-import { Suspense, lazy } from 'react';
+import { Component, Suspense, lazy, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useMe } from '../../../lib/me.js';
-import { CapiroSkeleton } from '../../components/feedback/index.js';
+import { CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { StrategyLibraryVNext } from './StrategyLibraryVNext.js';
 import { StrategyEditorVNext } from './StrategyEditorVNext.js';
 import './strategies-tokens.css';
@@ -60,6 +60,44 @@ function Loading() {
   );
 }
 
+/**
+ * Module error boundary. The strategies subtree is lazy-loaded; a render throw
+ * (or a failed lazy chunk) with no boundary unmounts the whole route tree to
+ * the raw Suspense in App.tsx — leaving a bare, unstyled white page with no
+ * shell. Catch it here so the user gets a styled, in-module error with a way
+ * back instead. The shell (sidebar/topbar) lives above this and stays mounted.
+ */
+class StrategiesErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  override componentDidCatch(error: unknown): void {
+    // Surface to the console for diagnostics; the UI shows the recovery state.
+    console.error('[strategies] render error boundary caught', error);
+  }
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="st-page">
+          <CapiroErrorState
+            title="This strategy screen hit an unexpected error"
+            description="The page failed to render. Your data is intact — reload to try again."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function VNextStrategiesRoutes() {
   const me = useMe();
   if (me.isLoading) {
@@ -74,8 +112,9 @@ export function VNextStrategiesRoutes() {
 
   return (
     <div className="capiro-strategies" data-module="strategies">
-      <Suspense fallback={<Loading />}>
-        <Routes>
+      <StrategiesErrorBoundary>
+        <Suspense fallback={<Loading />}>
+          <Routes>
           {/* Library + its overlays. */}
           <Route index element={<StrategyLibraryVNext />} />
           <Route path="new" element={<Overlay caller={<StrategyLibraryVNext />}><NewStrategyOverlay /></Overlay>} />
@@ -119,8 +158,9 @@ export function VNextStrategiesRoutes() {
           />
 
           <Route path="*" element={<Navigate to="/strategies" replace />} />
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </StrategiesErrorBoundary>
     </div>
   );
 }

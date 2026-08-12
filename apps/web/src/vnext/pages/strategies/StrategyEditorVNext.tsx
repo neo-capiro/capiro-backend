@@ -46,6 +46,9 @@ import './strategy-editor.css';
 
 type Horizon = '3fy' | '2fy' | '1fy';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 const KIND_LABEL: Record<string, string> = {
   action: 'Action',
   gate: 'Gate',
@@ -59,7 +62,13 @@ export function StrategyEditorVNext() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const strategy = useStrategy(strategyId ?? null);
+  // Guard: the backend `spStrategy.id` column is UUID-typed. A non-UUID id
+  // (stale seed, truncated link) makes Prisma throw a 500 before any row
+  // lookup — surfacing as a generic load error that retry can never fix.
+  // Treat a malformed id as not-found instead of firing a doomed query.
+  const validId = strategyId && UUID_RE.test(strategyId) ? strategyId : null;
+
+  const strategy = useStrategy(validId);
   const firmPhases = useFirmPhases();
   const calendars = useReferenceCalendars();
   const clients = useClientsLite();
@@ -79,9 +88,22 @@ export function StrategyEditorVNext() {
     return buildFiscalAxis(start, end);
   }, [horizon]);
 
-  const watchCount = Number((strategyId && watchCounts.data?.[strategyId]) ?? 0);
+  const watchCount = Number((validId && watchCounts.data?.[validId]) ?? 0);
   const referenceLayerCount =
     1 + (layers.congress ? 1 : 0) + (layers.ppbe ? 1 : 0) + (layers.watch ? 1 : 0);
+
+  // Malformed id (not a UUID): not-found, not a retryable load error.
+  if (strategyId && !validId) {
+    return (
+      <div className="st-page">
+        <CapiroErrorState
+          title="This strategy link is not valid"
+          description="The link does not point at a strategy. It may be truncated or from an older draft — open the strategy from the library instead."
+          onRetry={() => navigate('/strategies')}
+        />
+      </div>
+    );
+  }
 
   if (strategy.isLoading) {
     return (
