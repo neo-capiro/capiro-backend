@@ -1,0 +1,191 @@
+/**
+ * Program Elements vNext — token re-skin (PROGRAM-ELEMENTS-HANDOFF §6.1, §7).
+ *
+ * This layer maps the legacy `pe-v2-*` class contract onto the canonical Capiro
+ * vNext tokens. It is scoped under `.pe-vnext-root` so it can never leak into
+ * the canonical app, and it references tokens only — the vNext
+ * `foundation-contract.test.ts` forbids raw hex / rgba in vNext CSS.
+ *
+ * Design rules honoured here:
+ *  - Capiro navy is the accent (`--capiro-color-action-accent-default`).
+ *  - Structural dark for primary actions / selection command bar
+ *    (`--capiro-color-bg-dark`).
+ *  - Monospace is scoped to evidence-bearing strings only (`.pe-v2-mono`,
+ *    codes, stage keys, dollar positions, exhibit refs) — Inter elsewhere.
+ *  - Status is never colour-only: the legacy markup already pairs a marker
+ *    (`.pe-v2-ev-mark`) with a text label; this layer only re-colours.
+ */
+
+.pe-vnext-root {
+  /* Module-local type + colour context, all token-backed. */
+  color: var(--capiro-color-text-primary, inherit);
+  font-family: inherit;
+}
+
+/* Monospace scope — evidence-bearing strings only (handoff §6.2). */
+.pe-vnext-root .pe-v2-mono,
+.pe-vnext-root .pe-v2-cell-id,
+.pe-vnext-root .pe-v2-ladder-val,
+.pe-vnext-root .pe-v2-ev-mark {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Page chrome ─────────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-page-title {
+  color: var(--capiro-color-text-primary);
+}
+.pe-vnext-root .pe-v2-page-sub,
+.pe-vnext-root .pe-v2-page-head {
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-eyebrow,
+.pe-vnext-root .pe-v2-eyebrow-quiet {
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── Cards / panels ──────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-card,
+.pe-vnext-root .pe-v2-pf-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 12px;
+  box-shadow: var(--capiro-elevation-card, 0 0 0 1px var(--capiro-color-border-default));
+}
+.pe-vnext-root .pe-v2-card-inktop {
+  border-top-color: var(--capiro-color-bg-dark);
+}
+.pe-vnext-root .pe-v2-card-rusttop,
+.pe-vnext-root .pe-v2-card-head {
+  border-color: var(--capiro-color-border-default);
+}
+.pe-vnext-root .pe-v2-card-title {
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── Buttons / controls ──────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-btn {
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-btn:hover {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-primary);
+}
+.pe-vnext-root .pe-v2-btn-primary {
+  background: var(--capiro-color-action-primary-default);
+  border-color: var(--capiro-color-action-primary-default);
+  color: var(--capiro-color-bg-surface);
+}
+.pe-vnext-root .pe-v2-btn-primary:hover {
+  background: var(--capiro-color-action-primary-hover);
+  border-color: var(--capiro-color-action-primary-hover);
+}
+.pe-vnext-root .pe-v2-filter-btn,
+.pe-vnext-root .pe-v2-filter-opt {
+  border-color: var(--capiro-color-border-control);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-filter-menu {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-flyout, 0 4px 12px var(--capiro-color-bg-overlay-scrim));
+}
+
+/* ── Stage ladders / tracks (Authorization & Appropriations stay parallel) ── */
+.pe-vnext-root .pe-v2-ladder-node {
+  background: var(--capiro-color-bg-subtle);
+  border: 1px solid var(--capiro-color-border-default);
+}
+.pe-vnext-root .pe-v2-ladder-node[data-active='true'],
+.pe-vnext-root .pe-v2-current-badge {
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 1px var(--capiro-color-action-accent-default);
+}
+.pe-vnext-root .pe-v2-ladder-delta {
+  color: var(--capiro-color-text-body-secondary);
+}
+
+/* ── Evidence state chips (semantic, marker + label; colour via tokens) ───── */
+.pe-vnext-root .pe-v2-ev-chip {
+  border: 1px solid var(--capiro-color-border-badge);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='verified'] {
+  background: var(--capiro-color-success-soft);
+  border-color: var(--capiro-color-success-rail);
+  color: var(--capiro-color-success);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='conflict'] {
+  background: var(--capiro-color-danger-soft);
+  border-color: var(--capiro-color-danger-rail);
+  color: var(--capiro-color-danger);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='review'],
+.pe-vnext-root .pe-v2-ev-chip[data-state='pending'] {
+  background: var(--capiro-color-info-soft);
+  border-color: var(--capiro-color-info-rail);
+  color: var(--capiro-color-info);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='warning'] {
+  background: var(--capiro-color-warning-soft);
+  border-color: var(--capiro-color-border-warning);
+  color: var(--capiro-color-warning);
+}
+
+/* ── Explore grid ────────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-grid-head {
+  color: var(--capiro-color-text-faint);
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+.pe-vnext-root .pe-v2-grid [data-selected='true'] {
+  background: var(--capiro-color-bg-selected);
+}
+.pe-vnext-root .pe-v2-cls {
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── Sparkline / funding bars ────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-fyspark-pt,
+.pe-vnext-root .pe-v2-bars-col {
+  background: var(--capiro-color-action-accent-default);
+}
+
+/* ── Source inspector drawer (490px right layer over a scrim) ─────────────── */
+.pe-vnext-root .pe-v2-drawer-scrim {
+  background: var(--capiro-color-bg-overlay-scrim);
+}
+.pe-vnext-root .pe-v2-drawer {
+  background: var(--capiro-color-bg-surface);
+  border-left: 1px solid var(--capiro-color-border-default);
+  width: 490px;
+  max-width: 100%;
+}
+.pe-vnext-root .pe-v2-drawer-block {
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+.pe-vnext-root .pe-v2-excerpt {
+  background: var(--capiro-color-bg-subtle);
+  border-left: 2px solid var(--capiro-color-border-strong);
+  color: var(--capiro-color-text-body-secondary);
+}
+
+/* ── Empty / explicit states (missing ≠ zero; a resolved scope is not a failure) ── */
+.pe-vnext-root .pe-v2-empty {
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-initials {
+  background: var(--capiro-color-bg-dark);
+  color: var(--capiro-color-bg-surface);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pe-vnext-root * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

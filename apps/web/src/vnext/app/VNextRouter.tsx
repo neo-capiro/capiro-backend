@@ -6,6 +6,10 @@ import {
   isVNextDirectoryPath,
   VNextDirectoryRoutes,
 } from '../pages/directory/VNextDirectoryRoutes.js';
+import {
+  isVNextProgramElementsPath,
+  VNextProgramElementsRoutes,
+} from '../pages/program-elements/VNextProgramElementsRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -61,6 +65,15 @@ export function VNextRouter() {
   // canonical page below.
   if (isVNextDirectoryPath(location.pathname)) {
     return <VNextDirectoryRoutes />;
+  }
+
+  // Program Elements: the workspace (Explore · Movement · Congressional ·
+  // Actions · Portfolio) plus the five-tab line profile. The module reuses the
+  // canonical v2 components over the same backend endpoints, re-skinned onto
+  // the vNext token layer. Static segments (mark-up-monitor, contacts) fall
+  // through to canonical.
+  if (isVNextProgramElementsPath(location.pathname)) {
+    return <VNextProgramElementsRoutes />;
   }
 
   return <Outlet />;

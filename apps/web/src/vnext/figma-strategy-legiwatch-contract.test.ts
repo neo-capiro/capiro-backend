@@ -35,13 +35,17 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('intercepts Dashboard, Portfolio, Strategies and Directory — the vNext surfaces on os.capiro.ai', () => {
-    // Dashboard (`/`), Portfolio (`/clients`), Strategies (`/strategies/*`) and
-    // Directory (`/directory` + `/directory/congressional-staff`) have native
+  it('intercepts Dashboard, Portfolio, Strategies, Directory and Program Elements — the vNext surfaces on os.capiro.ai', () => {
+    // Dashboard (`/`), Portfolio (`/clients`), Strategies (`/strategies/*`),
+    // Directory (`/directory` + `/directory/congressional-staff`) and Program
+    // Elements (`/program-elements` + `/program-elements/:peCode`) have native
     // vNext presentations. The Strategies module is a complete native rebuild
     // over the same backend — no old pages/strategy/* components are rendered.
     // Directory claims only the legacy redirect and Congressional Staff in this
     // phase; the remaining list surfaces and all profiles stay canonical.
+    // Program Elements reuses the canonical v2 components over the same backend
+    // endpoints, re-skinned onto the vNext token layer; the static PE segments
+    // (mark-up-monitor, contacts) still fall through to canonical.
     // LegiWatch still falls through to canonical.
     const router = source('./app/VNextRouter.tsx');
     expect(router).toContain("location.pathname === '/'");
@@ -51,6 +55,8 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     expect(router).toContain("location.pathname === '/clients'");
     expect(router).toContain('isVNextDirectoryPath(location.pathname)');
     expect(router).toContain('<VNextDirectoryRoutes />');
+    expect(router).toContain('isVNextProgramElementsPath(location.pathname)');
+    expect(router).toContain('<VNextProgramElementsRoutes />');
     expect(router).toContain('<Outlet />');
   });
 
