@@ -4,7 +4,7 @@ import { useApi } from '../../../lib/use-api.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { ClientCrmPage } from './ClientCrmPage.js';
-import { VNextClientPicker } from './VNextClientPicker.js';
+import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
 import './client-crm.css';
 
 /**
@@ -33,9 +33,11 @@ export function VNextClientCrmRoute() {
     enabled: Boolean(clientId),
   });
 
-  // No client chosen yet — the vNext picker. Placed after the hooks above so
-  // hook order never changes between the picker and the profile.
-  if (!clientId) return <VNextClientPicker />;
+  // No client chosen yet — the Portfolio index (PORTFOLIO-HANDOFF §7.1). It
+  // replaces the engineering-derived picker with the design-grounded all-clients
+  // surface. Placed after the hooks above so hook order never changes between
+  // the index and the profile.
+  if (!clientId) return <PortfolioIndexPage />;
 
   if (client.isLoading) {
     return (

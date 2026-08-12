@@ -35,17 +35,18 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('intercepts only Dashboard — os.capiro.ai runs nothing else', () => {
+  it('intercepts Dashboard and Portfolio — the vNext surfaces shipped on os.capiro.ai', () => {
     // Client CRM, Strategies, LegiWatch and Directory were intercepted here
     // too until 2026-08, when os.capiro.ai was scoped down to Dashboard only.
-    // Their page components are untouched (see the tests below) — only the
-    // interception was removed, so a future reconnect is a router change,
+    // Portfolio (client CRM + index) was re-added 2026-08; Strategies, LegiWatch
+    // and Directory page components are untouched (see the tests below) — only
+    // the interception was removed, so a future reconnect is a router change,
     // not a rebuild.
     const router = source('./app/VNextRouter.tsx');
     expect(router).toContain("location.pathname === '/'");
     expect(router).not.toContain("location.pathname === '/strategies'");
     expect(router).not.toContain("location.pathname === '/legiwatch'");
-    expect(router).not.toContain("location.pathname === '/clients'");
+    expect(router).toContain("location.pathname === '/clients'");
     expect(router).toContain('<Outlet />');
   });
 
