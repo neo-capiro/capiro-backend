@@ -13,8 +13,14 @@ import { MailboxSyncStatusView } from '../../shell/MailboxSyncStatus/index.js';
 import { ShellOverlayProvider } from '../../shell/overlay-manager.js';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
+import { CongressionalStaffVNextView } from '../../pages/directory/CongressionalStaffVNext.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
 import { DASHBOARD_VISUAL_FIXTURE } from '../fixtures/dashboard.js';
+import {
+  CONGRESSIONAL_STAFF_EMPTY_FIXTURE,
+  CONGRESSIONAL_STAFF_VISUAL_FIXTURE,
+} from '../fixtures/directory.js';
+import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 import { ClientCrmHeader } from '../../pages/client-crm/ClientCrmPage.js';
 import { ClientCrmOverviewView } from '../../pages/client-crm/ClientCrmOverview.js';
 import {
@@ -47,17 +53,40 @@ const fixtureNotifications = {
   badgeLabel: '3',
 };
 
+export type VNextVisualScreen =
+  | 'empty'
+  | 'dashboard'
+  | 'client-crm'
+  | 'congressional-staff'
+  | 'congressional-staff-empty';
+
+/**
+ * Each screen renders at the route it actually ships on, so the sidebar's
+ * current-item state and the context bar are exercised, not faked.
+ *
+ * `/clients` carries `clientId` because the vNext interception requires a param
+ * the app does not otherwise set — see `1a0b000c`, where its absence meant the
+ * CRM surface never rendered at all.
+ */
+const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
+  empty: '/clients?clientId=visual-fixture',
+  dashboard: '/',
+  'client-crm': '/clients?clientId=visual-fixture',
+  'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
+  'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
+};
+
 export function VNextShellVisual({
   collapsed = false,
   screen = 'empty',
   crmTab = 'overview',
 }: {
   collapsed?: boolean;
-  screen?: 'empty' | 'dashboard' | 'client-crm';
+  screen?: VNextVisualScreen;
   crmTab?: 'overview' | 'relationships' | 'work' | 'intelligence' | 'files';
 }) {
   return (
-    <MemoryRouter initialEntries={[screen === 'dashboard' ? '/' : '/clients?clientId=visual-fixture']}>
+    <MemoryRouter initialEntries={[SCREEN_ROUTES[screen]]}>
       <ShellOverlayProvider>
         <div className="capiro-vnext-root">
           <div className="capiro-vnext-shell" data-collapsed={collapsed || undefined}>
@@ -124,6 +153,10 @@ export function VNextShellVisual({
                 </div>
               ) : screen === 'dashboard' ? (
                 <DashboardVNextView model={DASHBOARD_VISUAL_FIXTURE} />
+              ) : screen === 'congressional-staff' ? (
+                <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_VISUAL_FIXTURE} />
+              ) : screen === 'congressional-staff-empty' ? (
+                <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_EMPTY_FIXTURE} />
               ) : (
                 <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>
                   shell baseline · product screens intentionally absent

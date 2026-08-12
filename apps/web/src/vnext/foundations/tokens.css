@@ -45,6 +45,10 @@
   --capiro-color-text-inverse-secondary: #e1e6ed;
   --capiro-color-text-inverse-muted: #b9c5cf;
 
+  /* Icons. Figma's semantic `color/icon/accent` resolves to the same accent
+     blue-dark primitive the accent rails and orientation marks use. */
+  --capiro-color-icon-accent: var(--capiro-primitive-accent-blue-dark);
+
   /* Borders. */
   --capiro-color-border-default: #dfe2e8;
   --capiro-color-border-page: #dce1e6;
@@ -94,6 +98,9 @@
   --capiro-color-shell-nav-default: #4a5260;
   --capiro-color-shell-nav-current-bg: #e7eefd;
   --capiro-color-shell-nav-current-text: #1d48c9;
+  /* Navigation/TopItem hover + disabled states (432:127, 432:131). */
+  --capiro-color-shell-nav-hover-bg: #ebf0f7;
+  --capiro-color-shell-nav-disabled: #aab5c4;
   --capiro-color-shell-search-bg: #ffffff;
   --capiro-color-shell-search-text: #636c7a;
 
@@ -135,6 +142,9 @@
   --capiro-layout-shell-context-height: 44px;
   --capiro-layout-contextbar-height: 44px;
   --capiro-layout-page-max: 1320px;
+  /* Navigation/TopItem (432:133) — route tabs, not sidebar rail items. */
+  --capiro-navigation-top-item-height: 34px;
+  --capiro-navigation-top-item-padding-x: 12px;
 
   /* Radius. */
   --capiro-radius-control: 8px;
@@ -142,6 +152,8 @@
   --capiro-radius-navigation: 10px;
   --capiro-radius-surface: 10px;
   --capiro-radius-widget: 12px;
+  /* Figma emits `radius/circular` for pills and person marks. */
+  --capiro-radius-circular: 9999px;
 
   /* Elevation. */
   /* Canonical Figma primitives consumed by `Pattern/Shell/AppNavigation vNext`
@@ -155,6 +167,13 @@
   --capiro-primitive-product-ink-secondary: #4a5260;
   --capiro-primitive-brand-inverse-line: #2f3c50;
   --capiro-primitive-product-border: #e2e5eb;
+  /* The Directory vNext screens (937:2539, 938:2628, 939:2736, 944:2867) render
+     the sidebar on Figma's warm-paper primitive. It is recorded here as the
+     source-of-truth primitive, but the shared shell deliberately still paints
+     itself with `--capiro-color-bg-sidebar`: repointing that token would reskin
+     Dashboard/LegiWatch/Strategies too, which is outside this change's scope and
+     is not covered by the shell regression tests. */
+  --capiro-primitive-warm-paper: #f5f0e3;
 
   --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
   --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);

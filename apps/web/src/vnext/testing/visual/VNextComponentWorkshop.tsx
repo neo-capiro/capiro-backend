@@ -15,6 +15,7 @@ import {
 } from '../../components/tables/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { GlobalSearch } from '../../shell/GlobalSearch/index.js';
+import { ShellOverlayProvider } from '../../shell/overlay-manager.js';
 import { MeriLauncher } from '../../shell/MeriLauncher/index.js';
 import { MailboxSyncStatusView } from '../../shell/MailboxSyncStatus/index.js';
 import { CapiroSidebar } from '../../shell/Sidebar/index.js';
@@ -31,6 +32,10 @@ export function VNextComponentWorkshop() {
   const [activeTab, setActiveTab] = useState('overview');
   return (
     <MemoryRouter initialEntries={['/clients']}>
+      {/* GlobalSearch calls useShellOverlay, which throws outside this provider.
+          Without it the whole workshop page fails to mount — which is why the
+          capture harness only ever produced an unpainted page. */}
+      <ShellOverlayProvider>
       <div className="capiro-vnext-root capiro-vnext-workshop">
         <header className="capiro-vnext-workshop__header">
           <p className="capiro-vnext-meta">vNext foundation · component workshop</p>
@@ -138,6 +143,7 @@ export function VNextComponentWorkshop() {
           </WorkshopCard>
         </div>
       </div>
+      </ShellOverlayProvider>
     </MemoryRouter>
   );
 }

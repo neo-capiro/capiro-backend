@@ -1,6 +1,15 @@
 import { lazy, Suspense } from 'react';
-import { Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
+import {
+  DIRECTORY_LEGACY_ROUTE,
+  DIRECTORY_ROUTES,
+  resolveLegacyDirectoryTarget,
+} from '../pages/directory/directory-routes.js';
+
+const CongressionalStaffVNext = lazy(async () => ({
+  default: (await import('../pages/directory/CongressionalStaffVNext.js')).CongressionalStaffVNext,
+}));
 
 const VNextStrategiesRoutes = lazy(async () => ({
   default: (await import('../pages/strategies/VNextStrategiesRoutes.js')).VNextStrategiesRoutes,
@@ -28,10 +37,15 @@ export function VNextRouter() {
   const fallback = <div className="capiro-vnext-route-loading">Loading…</div>;
 
   // Client CRM vNext (Figma page `906:2502`). The profile has no `/clients/:id`
-  // route — it is `/clients?clientId=<id>` — so the interception is on the
-  // query parameter. Without one this is the clients *list*, which has no
-  // approved vNext screen yet, so it falls through untouched.
-  if (location.pathname === '/clients' && searchParams.get('clientId')) {
+  // route — it is `/clients?clientId=<id>`.
+  //
+  // This intercepts `/clients` with OR without the parameter. Requiring it was a
+  // real bug: the canonical `ClientWorkspacePage` selects a client with local
+  // state and never puts `clientId` in the URL, so clicking a client produced no
+  // URL for this to match and the canonical profile rendered instead. vNext now
+  // owns the whole route and renders its own picker, which navigates to the
+  // `?clientId=` URL the CRM and every existing deep link already use.
+  if (location.pathname === '/clients') {
     return (
       <Suspense fallback={fallback}>
         <VNextClientCrmRoute />
@@ -59,6 +73,15 @@ export function VNextRouter() {
   }
   if (location.pathname === '/legiwatch' || location.pathname.startsWith('/legiwatch/')) {
     return <Suspense fallback={fallback}><VNextLegiWatchPage /></Suspense>;
+  }
+
+  // Directory: `/directory` resolves to Congressional Staff and keeps the query
+  // string, so existing bookmarks and shared searches survive the split.
+  if (location.pathname === DIRECTORY_LEGACY_ROUTE) {
+    return <Navigate to={resolveLegacyDirectoryTarget(location.search)} replace />;
+  }
+  if (location.pathname === DIRECTORY_ROUTES.congressionalStaff) {
+    return <Suspense fallback={fallback}><CongressionalStaffVNext /></Suspense>;
   }
 
   return <Outlet />;

@@ -86,27 +86,62 @@ describe('dashboard client-context rule', () => {
   });
 });
 
-describe('directory navigation gaps', () => {
-  it('renders destinations without a canonical route as unavailable, never as links', () => {
-    const directory = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'directory')!;
-
+describe('directory navigation', () => {
+  function openDirectoryMenu(routes: Parameters<typeof CapiroSidebar>[0]['routes']) {
     render(
       <MemoryRouter>
         <ShellOverlayProvider>
-          <CapiroSidebar routes={[directory]} />
+          <CapiroSidebar routes={routes} />
         </ShellOverlayProvider>
       </MemoryRouter>,
     );
-
     fireEvent.click(screen.getByRole('button', { name: /Directory/ }));
-    const menu = screen.getByRole('menu', { name: 'Directory' });
+    return screen.getByRole('menu', { name: 'Directory' });
+  }
 
-    for (const label of ['Congressional Staff', 'Committee Staff', 'Department of War']) {
+  it('links every Directory destination now that all four surfaces are registered', () => {
+    const directory = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'directory')!;
+    const menu = openDirectoryMenu([directory]);
+
+    const expected: Record<string, string> = {
+      'Congressional Staff': '/directory/congressional-staff',
+      'Committee Staff': '/directory/committee-staff',
+      'Department of War': '/directory/department-of-war',
+      'State Legislators': '/directory/state-legislators',
+    };
+
+    for (const [label, href] of Object.entries(expected)) {
       const entry = within(menu).getByText(label).closest('[role="menuitem"]')!;
-      expect(entry.getAttribute('aria-disabled')).toBe('true');
-      expect(entry.tagName).not.toBe('A');
+      expect(entry.getAttribute('aria-disabled')).not.toBe('true');
+      expect(entry.getAttribute('href')).toBe(href);
     }
+    expect(within(menu).queryAllByRole('menuitem')).toHaveLength(Object.keys(expected).length);
+  });
 
+  it('still renders a destination without a canonical route as unavailable, never as a link', () => {
+    // The gap treatment is load-bearing for any future unresolved destination,
+    // so it keeps its own coverage even though Directory no longer has gaps.
+    const menu = openDirectoryMenu([
+      {
+        id: 'directory',
+        label: 'Directory',
+        path: '/directory',
+        availability: 'existing',
+        children: [
+          {
+            id: 'unbuilt-surface',
+            label: 'Unbuilt Surface',
+            path: null,
+            availability: 'gap',
+            note: 'No canonical route is registered for this destination.',
+          },
+        ],
+      },
+    ]);
+
+    const entry = within(menu).getByRole('menuitem', { name: /Unbuilt Surface/ });
+    expect(entry.getAttribute('aria-disabled')).toBe('true');
+    expect(entry.tagName).not.toBe('A');
     expect(within(menu).queryAllByRole('link')).toHaveLength(0);
   });
 });

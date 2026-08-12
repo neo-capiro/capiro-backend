@@ -4,6 +4,7 @@ import { useApi } from '../../../lib/use-api.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { ClientCrmPage } from './ClientCrmPage.js';
+import { VNextClientPicker } from './VNextClientPicker.js';
 import './client-crm.css';
 
 /**
@@ -14,8 +15,10 @@ import './client-crm.css';
  * component substitutes the vNext presentation at that same URL, which is why
  * cold loads, refresh and browser Back/Forward all keep working unchanged.
  *
- * With no `clientId` the caller falls through to the canonical clients list;
- * the vNext portfolio list is a separate screen and is not claimed here.
+ * With no `clientId` this renders the vNext client picker. It cannot fall
+ * through to the canonical list: that page tracks the selected client in local
+ * state and never writes `clientId` to the URL, so a click there would silently
+ * render the canonical profile on the vNext surface.
  */
 export function VNextClientCrmRoute() {
   const [searchParams] = useSearchParams();
@@ -29,6 +32,10 @@ export function VNextClientCrmRoute() {
     queryFn: async () => (await api.get<Client>(`/api/clients/${clientId}`)).data,
     enabled: Boolean(clientId),
   });
+
+  // No client chosen yet — the vNext picker. Placed after the hooks above so
+  // hook order never changes between the picker and the profile.
+  if (!clientId) return <VNextClientPicker />;
 
   if (client.isLoading) {
     return (

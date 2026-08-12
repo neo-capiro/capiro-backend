@@ -16,6 +16,7 @@ const cssFiles = [
   './components/primitives.css',
   './shell/shell.css',
   './pages/dashboard/dashboard.css',
+  './pages/directory/directory.css',
   './pages/legiwatch/legiwatch.css',
   './pages/strategies/strategies.css',
   './pages/strategies/strategy-context.css',
@@ -28,6 +29,7 @@ const componentCssFiles = [
   './components/primitives.css',
   './shell/shell.css',
   './pages/dashboard/dashboard.css',
+  './pages/directory/directory.css',
 ];
 
 /**
@@ -62,14 +64,23 @@ describe('vNext foundation contract', () => {
     }
   });
 
-  it('uses existing shell destinations and keeps unresolved directory routes explicit', () => {
+  it('uses existing shell destinations and registers every Directory surface', () => {
     expect(VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'dashboard')?.path).toBe('/');
     expect(VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio')?.path).toBe('/clients');
-    expect(VNEXT_ROUTE_GAPS.map((route) => route.id)).toEqual([
-      'congressional-staff',
-      'committee-staff',
-      'department-of-war',
+
+    // The three Directory destinations were gaps until the Directory vNext split
+    // (Figma 941:2860) registered them, and State Legislators joined them as a
+    // fourth first-class surface. A gap here again would mean the shell is
+    // linking to a destination that no longer resolves.
+    const directory = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'directory');
+    expect(directory?.children?.map((route) => route.path)).toEqual([
+      '/directory/congressional-staff',
+      '/directory/committee-staff',
+      '/directory/department-of-war',
+      '/directory/state-legislators',
     ]);
+    expect(VNEXT_ROUTE_GAPS.map((route) => route.id)).toEqual([]);
+    // The gap mechanism itself is still intact for future unresolved routes.
     expect(VNEXT_ROUTE_GAPS.every((route) => route.path === null)).toBe(true);
   });
 
