@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.ENGAGEMENT_PHASE3_BASE_SHA ?? '3841a5ee58e011be7fb4fb6008adfccf081976d9';
+const END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
 const LEDGER = path.join(ROOT, 'docs/plans/engagement-api/phase-3-findings-ledger.v2.json');
 const REVIEWED_TEST_ONLY_INFRA_FIXTURES = new Set([
   'infra/cdk/fixtures/engagement-runtime-ownership.v1.json',
@@ -41,8 +42,10 @@ export function scopeIssues({ changed, addedSource, counts }) {
 
 function main() {
   git(['cat-file', '-e', `${BASE}^{commit}`]);
-  const changed = git(['diff', '--name-only', `${BASE}..HEAD`]).split(/\r?\n/).filter(Boolean);
-  const diff = git(['diff', '--unified=0', `${BASE}..HEAD`, '--', 'apps', 'infra', 'packages', 'scripts']);
+  git(['cat-file', '-e', `${END}^{commit}`]);
+  const range = `${BASE}..${END}`;
+  const changed = git(['diff', '--name-only', range]).split(/\r?\n/).filter(Boolean);
+  const diff = git(['diff', '--unified=0', range, '--', 'apps', 'infra', 'packages', 'scripts']);
   const addedSource = diff
     .split(/\r?\n/)
     .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
