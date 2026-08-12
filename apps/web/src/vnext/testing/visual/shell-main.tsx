@@ -11,6 +11,7 @@ const collapsed = params.get('collapsed') === '1';
 const SCREENS: readonly VNextVisualScreen[] = [
   'empty',
   'dashboard',
+  'dashboard-uui',
   'client-crm',
   'congressional-staff',
   'congressional-staff-empty',
@@ -20,9 +21,10 @@ const requested = params.get('screen');
 const screen: VNextVisualScreen = SCREENS.includes(requested as VNextVisualScreen)
   ? (requested as VNextVisualScreen)
   : 'empty';
+const attnState = params.get('attnState') ?? undefined;
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <VNextShellVisual collapsed={collapsed} screen={screen} />
+    <VNextShellVisual collapsed={collapsed} screen={screen} attnState={attnState as never} />
   </React.StrictMode>,
 );

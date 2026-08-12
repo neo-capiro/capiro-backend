@@ -9,15 +9,18 @@ import type {
 import type { NewsPolicyTopic } from '../../../pages/dashboard/DashboardNewsAndNarrative.js';
 
 /**
- * Customize Dashboard drawer (Figma `754:2766`).
+ * Customize Dashboard drawer (Figma `754:2766`), reskinned onto Untitled UI.
  *
  * A full-height right drawer — not a popover. It owns the three concerns the
- * customization contract (`760:2679`) keeps separate: module layout (visibility
- * plus order), news subscriptions, and information density.
+ * customization contract (`760:2679`) keeps separate: module layout
+ * (visibility plus order — both drag and Up/Down-arrow reordering are real
+ * and wired to model.setOrder; this is not the "not yet implemented" state an
+ * older doc in this same folder describes), news subscriptions, and
+ * information density.
  *
  * The subscription rows below render the *real* topic taxonomy from
- * `DashboardNewsAndNarrative`, not the mockup's illustrative labels: the design
- * fixes the row geometry, the product fixes which categories exist.
+ * `DashboardNewsAndNarrative`, not the mockup's illustrative labels: the
+ * design fixes the row geometry, the product fixes which categories exist.
  */
 
 const TOPIC_ROWS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
@@ -154,7 +157,7 @@ export function CustomizeDrawer({
 
   return (
     <div
-      className="capiro-dash-drawer__scrim"
+      className="uui-dash-drawer__scrim"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -166,54 +169,51 @@ export function CustomizeDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Customize Dashboard"
-        className="capiro-dash-drawer"
+        className="uui-dash-drawer"
       >
-        <div className="capiro-dash-drawer__body">
-          <header className="capiro-dash-drawer__header">
-            <div className="capiro-dash-drawer__header-row">
-              <p className="capiro-dash-drawer__eyebrow">DASHBOARD CONFIGURATION</p>
+        <div className="uui-dash-drawer__body">
+          <header className="uui-dash-drawer__header">
+            <div className="uui-dash-drawer__header-row">
+              <h2 className="uui-dash-drawer__title">Customize Dashboard</h2>
               <button
                 type="button"
-                className="capiro-dash-drawer__close"
+                className="uui-dash-drawer__close"
                 aria-label="Close"
                 onClick={onClose}
               >
-                <X size={16} strokeWidth={1.8} aria-hidden="true" />
+                <X size={18} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
-            <h2 className="capiro-dash-drawer__title">Customize Dashboard</h2>
-            <p className="capiro-dash-drawer__description">
+            <p className="uui-dash-drawer__description">
               Choose optional modules, their order, feed subscriptions, and information density.
               Needs Attention remains pinned.
             </p>
           </header>
 
-          <div className="capiro-dash-drawer__divider" />
-
-          <div className="capiro-dash-drawer__section-head">
-            <p className="capiro-dash-drawer__label">PINNED MODULE</p>
-            <p className="capiro-dash-drawer__hint">Always visible</p>
+          <div className="uui-dash-drawer__section-head">
+            <p className="uui-dash-drawer__label">Pinned module</p>
+            <p className="uui-dash-drawer__hint">Always visible</p>
           </div>
 
           {/* Needs Attention is excluded from hide/reorder and always renders
               first, per the customization contract (`760:2683`). */}
-          <div className="capiro-dash-drawer__module capiro-dash-drawer__module--pinned">
-            <span className="capiro-dash-drawer__grip" aria-hidden="true">
-              ◆
+          <div className="uui-dash-drawer__module uui-dash-drawer__module--pinned">
+            <span className="uui-dash-drawer__grip" aria-hidden="true">
+              ⠿
             </span>
-            <span className="capiro-dash-drawer__index">00</span>
-            <span className="capiro-dash-drawer__module-copy">
-              <span className="capiro-dash-drawer__module-title">Needs Attention</span>
-              <span className="capiro-dash-drawer__module-meta">
+            <span className="uui-dash-drawer__index">00</span>
+            <span className="uui-dash-drawer__module-copy">
+              <span className="uui-dash-drawer__module-title">Needs Attention</span>
+              <span className="uui-dash-drawer__module-meta">
                 External and time-sensitive signals
               </span>
             </span>
-            <span className="capiro-dash-drawer__pinned-pill">PINNED</span>
+            <span className="uui-dash-drawer__pinned-pill">Pinned</span>
           </div>
 
-          <div className="capiro-dash-drawer__section-head">
-            <p className="capiro-dash-drawer__label">OPTIONAL MODULES</p>
-            <p className="capiro-dash-drawer__hint">Drag to reorder</p>
+          <div className="uui-dash-drawer__section-head">
+            <p className="uui-dash-drawer__label">Optional modules</p>
+            <p className="uui-dash-drawer__hint">Drag to reorder</p>
           </div>
 
           {model.order.map((key, index) => {
@@ -222,7 +222,7 @@ export function CustomizeDrawer({
             return (
               <div
                 key={key}
-                className="capiro-dash-drawer__module"
+                className="uui-dash-drawer__module"
                 data-dragging={dragging === key || undefined}
                 draggable
                 onDragStart={() => setDragging(key)}
@@ -234,7 +234,7 @@ export function CustomizeDrawer({
                     reorder reachable without a pointer. */}
                 <button
                   type="button"
-                  className="capiro-dash-drawer__grip capiro-dash-drawer__grip--button"
+                  className="uui-dash-drawer__grip uui-dash-drawer__grip--button"
                   aria-label={`Reorder ${copy.title}. Position ${index + 1} of ${model.order.length}. Use arrow keys.`}
                   onKeyDown={(event) => {
                     if (event.key === 'ArrowUp') {
@@ -246,19 +246,19 @@ export function CustomizeDrawer({
                     }
                   }}
                 >
-                  <span aria-hidden="true">⋮⋮</span>
+                  <span aria-hidden="true">⠿</span>
                 </button>
-                <span className="capiro-dash-drawer__index">{`0${index + 1}`}</span>
-                <span className="capiro-dash-drawer__module-copy">
-                  <span className="capiro-dash-drawer__module-title">{copy.title}</span>
-                  <span className="capiro-dash-drawer__module-meta">{copy.description}</span>
+                <span className="uui-dash-drawer__index">{`0${index + 1}`}</span>
+                <span className="uui-dash-drawer__module-copy">
+                  <span className="uui-dash-drawer__module-title">{copy.title}</span>
+                  <span className="uui-dash-drawer__module-meta">{copy.description}</span>
                 </span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={visible}
                   aria-label={`Show ${copy.title}`}
-                  className="capiro-dash-drawer__switch"
+                  className="uui-dash-drawer__switch"
                   onClick={() =>
                     model.setVisibility({
                       ...model.visibility,
@@ -266,20 +266,20 @@ export function CustomizeDrawer({
                     })
                   }
                 >
-                  <span className="capiro-dash-drawer__switch-knob" aria-hidden="true" />
+                  <span className="uui-dash-drawer__switch-knob" aria-hidden="true" />
                 </button>
               </div>
             );
           })}
 
-          <div className="capiro-dash-drawer__divider" />
+          <div className="uui-dash-drawer__divider" />
 
-          <div className="capiro-dash-drawer__section-head">
-            <p className="capiro-dash-drawer__label">NEWS &amp; NARRATIVE</p>
-            <p className="capiro-dash-drawer__hint">Subscriptions</p>
+          <div className="uui-dash-drawer__section-head">
+            <p className="uui-dash-drawer__label">News &amp; Narrative</p>
+            <p className="uui-dash-drawer__hint">Subscriptions</p>
           </div>
 
-          <div className="capiro-dash-drawer__grid">
+          <div className="uui-dash-drawer__grid">
             {TOPIC_ROWS.map((topic) => {
               const checked = preferences.policyTopics.includes(topic.value);
               return (
@@ -288,45 +288,45 @@ export function CustomizeDrawer({
                   type="button"
                   role="checkbox"
                   aria-checked={checked}
-                  className="capiro-dash-drawer__grid-row"
+                  className="uui-dash-drawer__grid-row"
                   data-checked={checked || undefined}
                   onClick={() => toggleTopic(topic.value)}
                 >
-                  <span className="capiro-dash-drawer__check" aria-hidden="true">
+                  <span className="uui-dash-drawer__check" aria-hidden="true">
                     {checked ? '✓' : null}
                   </span>
-                  <span className="capiro-dash-drawer__grid-label">{topic.label}</span>
-                  <span className="capiro-dash-drawer__grid-action" />
+                  <span className="uui-dash-drawer__grid-label">{topic.label}</span>
+                  <span className="uui-dash-drawer__grid-action" />
                 </button>
               );
             })}
 
             <div
-              className="capiro-dash-drawer__grid-row"
+              className="uui-dash-drawer__grid-row"
               data-checked={preferences.customTopics.length > 0 || undefined}
             >
-              <span className="capiro-dash-drawer__check" aria-hidden="true">
+              <span className="uui-dash-drawer__check" aria-hidden="true">
                 {preferences.customTopics.length > 0 ? '✓' : null}
               </span>
-              <span className="capiro-dash-drawer__grid-label">
+              <span className="uui-dash-drawer__grid-label">
                 {preferences.customTopics.length === 1
                   ? '1 custom source'
                   : `${preferences.customTopics.length} custom sources`}
               </span>
               <button
                 type="button"
-                className="capiro-dash-drawer__grid-action capiro-dash-drawer__grid-action--button"
+                className="uui-dash-drawer__grid-action uui-dash-drawer__grid-action--button"
                 aria-expanded={editingSources}
                 onClick={() => setEditingSources((open) => !open)}
               >
-                {editingSources ? 'Done' : 'Edit →'}
+                {editingSources ? 'Done' : 'Edit'}
               </button>
             </div>
 
             {editingSources ? (
-              <div className="capiro-dash-drawer__sources">
+              <div className="uui-dash-drawer__sources">
                 {preferences.customTopics.map((source) => (
-                  <span key={source} className="capiro-dash-drawer__source">
+                  <span key={source} className="uui-dash-drawer__source">
                     {source}
                     <button
                       type="button"
@@ -342,7 +342,7 @@ export function CustomizeDrawer({
                     </button>
                   </span>
                 ))}
-                <div className="capiro-dash-drawer__source-add">
+                <div className="uui-dash-drawer__source-add">
                   <input
                     value={customDraft}
                     onChange={(event) => setCustomDraft(event.target.value)}
@@ -363,19 +363,19 @@ export function CustomizeDrawer({
             ) : null}
           </div>
 
-          <div className="capiro-dash-drawer__divider" />
+          <div className="uui-dash-drawer__divider" />
 
-          <div className="capiro-dash-drawer__section-head">
-            <p className="capiro-dash-drawer__label">INFORMATION DENSITY</p>
-            <p className="capiro-dash-drawer__hint">Current: {densityLabel}</p>
+          <div className="uui-dash-drawer__section-head">
+            <p className="uui-dash-drawer__label">Information density</p>
+            <p className="uui-dash-drawer__hint">Current: {densityLabel}</p>
           </div>
 
-          <div className="capiro-dash-drawer__density" role="group" aria-label="Information density">
+          <div className="uui-dash-drawer__density" role="group" aria-label="Information density">
             {DENSITY_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"
-                className="capiro-dash-drawer__density-option"
+                className="uui-dash-drawer__density-option"
                 aria-pressed={model.density === option.value}
                 onClick={() => model.setDensity(option.value)}
               >
@@ -385,7 +385,7 @@ export function CustomizeDrawer({
           </div>
         </div>
 
-        <footer className="capiro-dash-drawer__footer">
+        <footer className="uui-dash-drawer__footer">
           <CapiroButton size="compact" variant="quiet" onClick={reset}>
             Reset
           </CapiroButton>

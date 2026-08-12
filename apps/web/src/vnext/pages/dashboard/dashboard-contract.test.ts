@@ -207,12 +207,12 @@ describe('dashboard source contract', () => {
     expect(source).toContain("DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work']");
 
     const drawer = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/CustomizeDrawer.tsx'), 'utf8');
-    expect(drawer).toContain('capiro-dash-drawer__module--pinned');
+    expect(drawer).toContain('uui-dash-drawer__module--pinned');
     expect(drawer).toContain('>00<');
     // The pinned row carries a static PINNED pill, never a visibility switch.
     const pinnedRow = drawer.slice(
-      drawer.indexOf('capiro-dash-drawer__module--pinned'),
-      drawer.indexOf('OPTIONAL MODULES'),
+      drawer.indexOf('uui-dash-drawer__module--pinned'),
+      drawer.indexOf('Optional modules'),
     );
     expect(pinnedRow).not.toContain('role="switch"');
   });
@@ -237,8 +237,8 @@ describe('dashboard source contract', () => {
 
     const drawer = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/CustomizeDrawer.tsx'), 'utf8');
     expect(drawer).toContain('aria-modal="true"');
-    expect(drawer).toContain('INFORMATION DENSITY');
-    expect(drawer).toContain('NEWS &amp; NARRATIVE');
+    expect(drawer).toContain('Information density');
+    expect(drawer).toContain('News &amp; Narrative');
   });
 
   it('orders Today & Coming Up by real instant, not the rendered time string', () => {

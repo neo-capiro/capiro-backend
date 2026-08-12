@@ -7,6 +7,57 @@ import type {
 const READY: ModuleStatus = { state: 'ready', meta: null, title: '', body: '', action: null };
 
 /**
+ * One ModuleStatus per non-ready state (754:2885's six named states, plus
+ * ready itself = seven). ModuleStateView is one shared component across all
+ * four modules, so exercising it once per state — here, via Needs Attention —
+ * covers the same render path every module uses. See DASHBOARD_STATE_FIXTURES.
+ */
+export const DASHBOARD_MODULE_STATES: Readonly<Record<string, ModuleStatus>> = {
+  loading: {
+    state: 'loading',
+    meta: '0 of 2 sources',
+    title: 'Loading Needs Attention',
+    body: 'Connecting to Portfolio Alerts and Intelligence Changes.',
+    action: null,
+  },
+  partial: {
+    state: 'partial',
+    meta: '1 of 2 ready',
+    title: 'Partial results',
+    body: 'Intelligence Changes has not responded yet; showing Portfolio Alerts.',
+    action: null,
+  },
+  stale: {
+    state: 'stale',
+    meta: '18 min old',
+    title: 'Showing the last successful refresh',
+    body: 'Portfolio Alerts has not confirmed a newer read in 18 minutes.',
+    action: { label: 'Retry source', tone: 'warning' },
+  },
+  unavailable: {
+    state: 'unavailable',
+    meta: 'Portfolio Alerts down',
+    title: 'Source unavailable',
+    body: 'Portfolio Alerts failed to respond. Intelligence Changes is intact.',
+    action: { label: 'Retry source', tone: 'warning' },
+  },
+  empty: {
+    state: 'empty',
+    meta: null,
+    title: 'No time-sensitive items',
+    body: 'Nothing from your active sources needs attention right now.',
+    action: null,
+  },
+  'all-clear': {
+    state: 'all-clear',
+    meta: 'Next refresh in 4m',
+    title: 'All clear',
+    body: 'Every tracked source confirmed a clean read this cycle.',
+    action: null,
+  },
+};
+
+/**
  * Visual-harness fixture for the Dashboard. Illustrative content only — it
  * never reaches the product, which reads exclusively from the canonical
  * queries in useDashboardVNextModel.
@@ -223,3 +274,16 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
   isMobile: false,
   retry: () => undefined,
 };
+
+/**
+ * Needs Attention forced into each non-ready state, items cleared so the
+ * state block is the only thing on screen — matches how `754:2885`'s gallery
+ * isolates one state per frame. Selected in the visual harness via
+ * `?attnState=loading|partial|stale|unavailable|empty|all-clear`.
+ */
+export const DASHBOARD_STATE_FIXTURES: Readonly<Record<string, DashboardVNextModel>> = Object.fromEntries(
+  Object.entries(DASHBOARD_MODULE_STATES).map(([key, status]) => [
+    key,
+    { ...DASHBOARD_VISUAL_FIXTURE, needsAttention: { status, total: 0, items: [] } },
+  ]),
+);
