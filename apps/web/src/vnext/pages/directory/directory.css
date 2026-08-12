@@ -391,6 +391,195 @@
   align-items: start;
 }
 
+/* Department of War results column is 960px with six columns (939). The grid
+   shares the column-header / row contract so columns cannot drift apart. */
+.capiro-vnext-root .capiro-directory-results--dow { width: 960px; }
+.capiro-vnext-root .capiro-directory-row-grid--dow {
+  display: grid;
+  grid-template-columns: 168px 150px 200px 110px 190px 60px;
+  gap: 10px;
+  align-items: start;
+}
+
+/* Committee Staff roster is a five-column grid (dense rows, same dataset as
+   the hierarchy). */
+.capiro-vnext-root .capiro-directory-results--roster { width: 960px; }
+.capiro-vnext-root .capiro-directory-row-grid--roster {
+  display: grid;
+  grid-template-columns: 200px 240px 180px 220px 60px;
+  gap: 10px;
+  align-items: start;
+}
+
+/* Hierarchy / Roster peer toggle. */
+.capiro-vnext-root .capiro-directory-viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-control);
+  overflow: hidden;
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .capiro-directory-viewtoggle__btn {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--capiro-color-text-secondary);
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-directory-viewtoggle__btn--active {
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-accent);
+  font-weight: 600;
+}
+
+/* Hierarchy canvas. Only source-backed structure renders; the dashed and muted
+   legend entries are annotated as not source-backed (DIR-1/2/3). */
+.capiro-vnext-root .capiro-directory-hierarchy { display: flex; flex-direction: column; gap: 10px; flex: 1 1 0; min-width: 0; }
+.capiro-vnext-root .capiro-directory-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-directory-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.capiro-vnext-root .capiro-directory-legend__item--disabled { opacity: 0.6; }
+.capiro-vnext-root .capiro-directory-legend__swatch { width: 18px; height: 0; border-top: 1px solid var(--capiro-color-border-default); }
+.capiro-vnext-root .capiro-directory-legend__swatch--dashed { border-top: 1px dashed var(--capiro-color-info-rail); }
+.capiro-vnext-root .capiro-directory-legend__swatch--muted { border-top: 1px solid var(--capiro-color-border-quiet); }
+
+.capiro-vnext-root .capiro-directory-canvas {
+  overflow-x: auto;
+  min-width: 1180px;
+  padding: 24px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-navigation);
+  background: var(--capiro-color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.capiro-vnext-root .capiro-directory-canvas__tier { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.capiro-vnext-root .capiro-directory-canvas__tier--staff { justify-content: flex-start; }
+.capiro-vnext-root .capiro-directory-canvas__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+  max-width: 720px;
+}
+
+.capiro-vnext-root .capiro-directory-node {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+  min-width: 0;
+  max-width: 240px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-directory-node--committee { cursor: default; }
+.capiro-vnext-root .capiro-directory-node--selected {
+  border-color: var(--capiro-color-accent);
+  box-shadow: 0 0 0 1px var(--capiro-color-accent);
+}
+.capiro-vnext-root .capiro-directory-node__mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--capiro-color-text-inverse-primary);
+  background: var(--capiro-color-text-primary);
+}
+/* A person is a circle; a committee/office/unit is a rounded square (§5.3). */
+.capiro-vnext-root .capiro-directory-node__mark--person { width: 32px; height: 32px; border-radius: 9999px; }
+.capiro-vnext-root .capiro-directory-node__mark--place { width: 32px; height: 32px; border-radius: 8px; }
+.capiro-vnext-root .capiro-directory-node__body { min-width: 0; }
+.capiro-vnext-root .capiro-directory-node__name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+  /* Names wrap rather than ellipse (§5.4). */
+  white-space: normal;
+  word-break: break-word;
+}
+.capiro-vnext-root .capiro-directory-node__meta {
+  display: block;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: var(--capiro-color-text-secondary);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.capiro-vnext-root .capiro-directory-cell--muted .capiro-directory-cell__primary {
+  color: var(--capiro-color-text-tertiary);
+}
+
+.capiro-vnext-root .capiro-directory-callout {
+  padding: 10px 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-left: 3px solid var(--capiro-color-accent);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-callout__label {
+  margin: 0 0 2px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-callout__value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-directory-provenance__eyebrow {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
 .capiro-vnext-root .capiro-directory-columns {
   padding: 9px 14px;
   border-radius: var(--capiro-radius-control);
@@ -631,10 +820,154 @@
 /* A background refetch must be visible without blanking resolved content. */
 .capiro-vnext-root .capiro-directory-results--refetching { opacity: 0.72; }
 
+/* ── State Legislators card grid (§7.5) ─────────────────────────────────── */
+.capiro-vnext-root .capiro-directory-leg-section { display: flex; flex-direction: column; gap: 10px; }
+
+.capiro-vnext-root .capiro-directory-leg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.capiro-vnext-root .capiro-directory-leg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  text-align: left;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-navigation);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.capiro-vnext-root .capiro-directory-leg-card--selected {
+  border-color: var(--capiro-color-accent);
+  box-shadow: inset 3px 0 0 var(--capiro-color-accent);
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__head { display: flex; gap: 10px; align-items: center; }
+.capiro-vnext-root .capiro-directory-leg-card__id { min-width: 0; }
+
+.capiro-vnext-root .capiro-directory-leg-card__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__meta {
+  margin: 2px 0 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__party {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-directory-party-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .capiro-directory-party-dot--d { background: var(--capiro-color-info-rail); }
+.capiro-vnext-root .capiro-directory-party-dot--r { background: var(--capiro-color-danger-rail); }
+.capiro-vnext-root .capiro-directory-party-dot--i { background: var(--capiro-color-warning-rail); }
+
+.capiro-vnext-root .capiro-directory-leg-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.capiro-vnext-root .capiro-directory-stat {
+  padding: 8px 10px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-stat__value {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-directory-stat__label {
+  margin: 2px 0 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* A real zero is muted; a never-crosswalked count is the warning ramp. */
+.capiro-vnext-root .capiro-directory-stat--zero .capiro-directory-stat__value {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .capiro-directory-stat--unknown {
+  background: var(--capiro-color-warning-soft);
+  border-color: var(--capiro-color-border-warning);
+}
+.capiro-vnext-root .capiro-directory-stat--unknown .capiro-directory-stat__value {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--capiro-color-text-warning);
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__email {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-directory-leg-card__email--none { color: var(--capiro-color-text-warning); }
+
+@media (max-width: 1180px) {
+  .capiro-vnext-root .capiro-directory-leg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 639px) {
+  .capiro-vnext-root .capiro-directory-leg-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ── Responsive — reuses the existing vNext breakpoints (responsive.css) ─── */
 @media (max-width: 1280px) {
   .capiro-vnext-root .capiro-directory-results--congressional { width: auto; flex: 1 1 0; }
   .capiro-vnext-root .capiro-directory-row-grid { grid-template-columns: 1.4fr 1.6fr 1.6fr 1.4fr 70px; }
+  .capiro-vnext-root .capiro-directory-results--dow { width: auto; flex: 1 1 0; }
+  .capiro-vnext-root .capiro-directory-row-grid--dow {
+    grid-template-columns: 1.4fr 1.2fr 1.6fr 0.9fr 1.5fr 60px;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -650,7 +983,8 @@
   .capiro-vnext-root .capiro-directory-tabs { padding: 6px var(--capiro-space-04) 0; }
   .capiro-vnext-root .capiro-directory-search { width: 100%; }
   /* Rows stack so no cell is clipped and the page never scrolls sideways. */
-  .capiro-vnext-root .capiro-directory-row-grid { grid-template-columns: 1fr; gap: var(--capiro-space-02); }
+  .capiro-vnext-root .capiro-directory-row-grid,
+  .capiro-vnext-root .capiro-directory-row-grid--dow { grid-template-columns: 1fr; gap: var(--capiro-space-02); }
   .capiro-vnext-root .capiro-directory-columns { display: none; }
   .capiro-vnext-root .capiro-directory-row { min-height: 0; }
 }

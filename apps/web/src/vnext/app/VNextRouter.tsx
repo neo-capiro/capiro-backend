@@ -2,6 +2,10 @@ import { lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 import { VNextStrategiesRoutes } from '../pages/strategies/VNextStrategiesRoutes.js';
+import {
+  isVNextDirectoryPath,
+  VNextDirectoryRoutes,
+} from '../pages/directory/VNextDirectoryRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -12,13 +16,16 @@ const VNextClientCrmRoute = lazy(async () => ({
  * the canonical application route tree remain owned by App.tsx; vNext swaps a
  * page only where an approved Figma implementation exists.
  *
- * Dashboard (`/`), Portfolio (client CRM + Portfolio index at `/clients`), and
- * Strategies (`/strategies/*`) have native vNext presentations and are
+ * Dashboard (`/`), Portfolio (client CRM + Portfolio index at `/clients`),
+ * Strategies (`/strategies/*`), and Directory (`/directory` +
+ * `/directory/congressional-staff`) have native vNext presentations and are
  * substituted here. The Strategies module is a complete native rebuild (no old
- * pages/strategy/* components) over the same backend endpoints. LegiWatch and
- * the Directory splits were intercepted here previously — see git history on
- * this file if reviving any of them. Everything else falls through to the
- * canonical page via Outlet.
+ * pages/strategy/* components) over the same backend endpoints. The Directory
+ * module claims only the surfaces with a native vNext body (legacy redirect +
+ * Congressional Staff in this phase); the remaining list surfaces and all
+ * profile routes fall through to canonical. LegiWatch was intercepted here
+ * previously — see git history on this file if reviving it. Everything else
+ * falls through to the canonical page via Outlet.
  *
  * Screens that have an approved vNext presentation are substituted at their
  * existing URL — the route itself is still the canonical one, so deep links,
@@ -46,6 +53,14 @@ export function VNextRouter() {
   // Strategies: native vNext module (library, timeline editor, context, agents).
   if (location.pathname === '/strategies' || location.pathname.startsWith('/strategies/')) {
     return <VNextStrategiesRoutes />;
+  }
+
+  // Directory: the legacy `/directory` redirect plus the surfaces with a native
+  // vNext body (Congressional Staff in this phase). All other directory paths —
+  // the remaining list surfaces and every profile route — fall through to the
+  // canonical page below.
+  if (isVNextDirectoryPath(location.pathname)) {
+    return <VNextDirectoryRoutes />;
   }
 
   return <Outlet />;

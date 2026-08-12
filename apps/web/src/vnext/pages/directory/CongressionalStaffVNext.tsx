@@ -61,22 +61,8 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
     <DirectoryShell
       eyebrow="Directory · Congressional Staff"
       title="Congressional Staff"
-      subtitle="Members, personal offices and staff across the House and Senate."
-      metrics={[
-        { label: 'Scope', value: 'House + Senate' },
-        { label: 'Discovery', value: 'Role + Issue' },
-        { label: 'Identity', value: 'Canonical' },
-      ]}
+      subtitle="Personal-office staff · Federal House & Senate · Searchable by role, issue and member."
     >
-      <div className="capiro-directory-ribbon">
-        <span className="capiro-directory-ribbon__accent" aria-hidden="true" />
-        <p className="capiro-directory-ribbon__label">Directory signals</p>
-        <span className="capiro-directory-ribbon__spacer" />
-        <CapiroBadge tone="info">{total ? `${total} staff` : 'No staff'}</CapiroBadge>
-        <CapiroBadge tone="neutral">{`Page ${Math.min(page, totalPages)} of ${totalPages}`}</CapiroBadge>
-        {isRefetching ? <CapiroBadge tone="warning">Refreshing</CapiroBadge> : null}
-      </div>
-
       <div className="capiro-directory-toolbar">
         <div className="capiro-directory-search">
           <label className="capiro-directory-search__label" htmlFor="directory-congressional-search">
