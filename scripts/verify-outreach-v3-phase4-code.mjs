@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
+const phase4ScopeEnd = process.env.OUTREACH_V3_PHASE4_SCOPE_END ?? 'HEAD';
 
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
@@ -65,7 +66,7 @@ const required = [
 ];
 for (const path of required) assert(existsSync(resolve(root, path)), `missing:${path}`);
 
-const changed = output('git', ['diff', '--name-only', `${phase3Base}...HEAD`])
+const changed = output('git', ['diff', '--name-only', `${phase3Base}...${phase4ScopeEnd}`])
   .split(/\r?\n/)
   .filter(Boolean);
 assert(changed.length > 0, 'empty-phase4-diff');
@@ -121,7 +122,9 @@ assert(manifest.featureFlag === 'OUTREACH_V3_TARGETS_ENABLED', 'wrong-target-fla
 assert(manifest.disabledBehavior === 404, 'target-flag-not-fail-closed');
 assert(manifest.routes.length === 4, 'target-route-count');
 
-run('Phase 3 reasoning regression', 'node', ['scripts/verify-outreach-v3-phase3-code.mjs']);
+run('Phase 3 reasoning regression', 'node', ['scripts/verify-outreach-v3-phase3-code.mjs'], {
+  env: { ENGAGEMENT_PHASE3_SCOPE_END: phase3Base },
+});
 run('Phase 4 TypeScript project', 'pnpm', [
   '--filter',
   '@capiro/api',
@@ -149,6 +152,6 @@ run('Phase 4 focused tests', 'pnpm', [
   '--forceExit',
 ]);
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
-run('Diff whitespace', 'git', ['diff', '--check', `${phase3Base}...HEAD`]);
+run('Diff whitespace', 'git', ['diff', '--check', `${phase3Base}...${phase4ScopeEnd}`]);
 
 process.stdout.write('\nOUTREACH_V3_PHASE4_DB_FREE_COMPLETE\n');
