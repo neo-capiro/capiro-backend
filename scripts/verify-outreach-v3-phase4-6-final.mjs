@@ -8,13 +8,13 @@ const PHASE3_HEAD = 'b043a995928314f7085b7f9df94bdba02cee9640';
 const PHASE4_HEAD = '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
 const PHASE5_HEAD = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
 
-function run(label, command, args) {
+function run(label, command, args, options = {}) {
   console.log(`\n== ${label} ==\n${[command, ...args].join(' ')}`);
   const result = spawnSync(command, args, {
     cwd: ROOT,
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    env: { ...process.env },
+    env: { ...process.env, ...options.env },
   });
   if (result.status !== 0) {
     console.error(`OUTREACH_V3_PHASE4_6_FINAL_FAILED:${label}`);
@@ -43,8 +43,12 @@ for (const sha of [PHASE3_HEAD, PHASE4_HEAD, PHASE5_HEAD]) {
   run(`Ancestor ${sha.slice(0, 12)}`, 'git', ['merge-base', '--is-ancestor', sha, head]);
 }
 
-run('Phase 4 target intelligence', 'pnpm', ['verify:outreach-v3-phase-4']);
-run('Phase 5 context and strategy', 'pnpm', ['verify:outreach-v3-phase-5']);
+run('Phase 4 target intelligence', 'pnpm', ['verify:outreach-v3-phase-4'], {
+  env: { OUTREACH_V3_PHASE4_SCOPE_END: PHASE4_HEAD },
+});
+run('Phase 5 context and strategy', 'pnpm', ['verify:outreach-v3-phase-5'], {
+  env: { OUTREACH_V3_PHASE5_SCOPE_END: PHASE5_HEAD },
+});
 run('Phase 6 conversational UI', 'node', [
   'scripts/verify-outreach-v3-phase6-final.mjs',
   '--sha',
