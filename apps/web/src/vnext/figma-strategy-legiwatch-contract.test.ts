@@ -35,10 +35,17 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('intercepts only approved vNext presentation routes', () => {
+  it('intercepts only Dashboard — os.capiro.ai runs nothing else', () => {
+    // Client CRM, Strategies, LegiWatch and Directory were intercepted here
+    // too until 2026-08, when os.capiro.ai was scoped down to Dashboard only.
+    // Their page components are untouched (see the tests below) — only the
+    // interception was removed, so a future reconnect is a router change,
+    // not a rebuild.
     const router = source('./app/VNextRouter.tsx');
-    expect(router).toContain("location.pathname === '/strategies'");
-    expect(router).toContain("location.pathname === '/legiwatch'");
+    expect(router).toContain("location.pathname === '/'");
+    expect(router).not.toContain("location.pathname === '/strategies'");
+    expect(router).not.toContain("location.pathname === '/legiwatch'");
+    expect(router).not.toContain("location.pathname === '/clients'");
     expect(router).toContain('<Outlet />');
   });
 
@@ -83,15 +90,5 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
   it('keeps the Dashboard nav exact so it cannot stay selected on every route', () => {
     const sidebar = source('./shell/Sidebar/index.tsx');
     expect(sidebar).toContain("end={item.path === '/'}");
-  });
-});
-
-describe('vNext route mounting', () => {
-  it('re-bases the Strategies family so its index route can match', () => {
-    // Regression, caught on os.capiro.ai: VNextApp renders outside the
-    // canonical route tree, so VNextStrategiesRoutes' descendant <Routes>
-    // resolved against "/" and its `:id` route swallowed "strategies",
-    // rendering "This strategy could not be loaded" instead of the library.
-    expect(source('./app/VNextRouter.tsx')).toContain('path="strategies/*"');
   });
 });
