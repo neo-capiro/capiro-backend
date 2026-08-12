@@ -100,6 +100,7 @@ export function StrategyEditorVNext() {
           title="This strategy link is not valid"
           description="The link does not point at a strategy. It may be truncated or from an older draft — open the strategy from the library instead."
           onRetry={() => navigate('/strategies')}
+          retryLabel="Back to strategies"
         />
       </div>
     );

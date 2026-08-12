@@ -27,16 +27,18 @@ export function CapiroErrorState({
   title = 'Something went wrong',
   description,
   onRetry,
+  retryLabel = 'Try again',
 }: {
   title?: string;
   description?: string;
   onRetry?: () => void;
+  retryLabel?: string;
 }) {
   return (
     <section className="capiro-feedback" role="alert">
       <strong>{title}</strong>
       {description ? <span>{description}</span> : null}
-      {onRetry ? <CapiroButton size="compact" onClick={onRetry}>Try again</CapiroButton> : null}
+      {onRetry ? <CapiroButton size="compact" onClick={onRetry}>{retryLabel}</CapiroButton> : null}
     </section>
   );
 }
