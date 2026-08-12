@@ -1,0 +1,251 @@
+.capiro-vnext-root .vnext-meri-integrations {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(85, 127, 153, 0.10), transparent 34rem),
+    #f6f7f8;
+  color: #17212b;
+  font-family: "Hanken Grotesk", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__header {
+  height: 72px;
+  padding: 0 32px;
+  border-bottom: 1px solid rgba(34, 53, 68, 0.10);
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__ring {
+  width: 29px;
+  height: 29px;
+  border-radius: 999px;
+  border: 7px solid #294e68;
+  box-shadow: inset 0 0 0 2px #f6f7f8;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__back,
+.capiro-vnext-root .vnext-meri-integration-card button {
+  appearance: none;
+  border: 1px solid rgba(41, 78, 104, 0.20);
+  border-radius: 9px;
+  background: #fff;
+  color: #294e68;
+  min-height: 38px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__back:hover,
+.capiro-vnext-root .vnext-meri-integration-card button:hover:not(:disabled) {
+  border-color: rgba(41, 78, 104, 0.38);
+  box-shadow: 0 4px 18px rgba(31, 49, 62, 0.08);
+}
+
+.capiro-vnext-root .vnext-meri-integrations__back:focus-visible,
+.capiro-vnext-root .vnext-meri-integration-card button:focus-visible {
+  outline: 3px solid rgba(63, 111, 142, 0.22);
+  outline-offset: 2px;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__content {
+  width: min(1040px, calc(100vw - 48px));
+  margin: 0 auto;
+  padding: 76px 0 64px;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__eyebrow {
+  color: #687986;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.capiro-vnext-root .vnext-meri-integrations h1 {
+  margin: 10px 0 12px;
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 520;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__lede {
+  max-width: 700px;
+  margin: 0;
+  color: #60717d;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__error {
+  margin-top: 24px;
+  border: 1px solid #e8c7c4;
+  border-radius: 10px;
+  background: #fff5f4;
+  color: #8e332d;
+  padding: 12px 14px;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 42px;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card {
+  min-height: 252px;
+  padding: 24px;
+  border: 1px solid rgba(39, 63, 80, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 1px 2px rgba(22, 36, 46, 0.03),
+    0 18px 44px rgba(31, 49, 62, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #edf2f5;
+  color: #294e68;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__status {
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #f0f2f3;
+  color: #65737e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__status.is-connected {
+  background: #eaf4ee;
+  color: #2f7651;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card h2 {
+  margin: 22px 0 6px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card p {
+  margin: 0;
+  color: #687986;
+  line-height: 1.55;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__warning {
+  margin-top: 12px;
+  color: #8e5e28;
+  font-size: 12px;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__actions {
+  margin-top: auto;
+  padding-top: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card__connected {
+  color: #39785a;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card .vnext-meri-integration-card__primary {
+  width: 100%;
+  border-color: #294e68;
+  background: #294e68;
+  color: #fff;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__notice,
+.capiro-vnext-root .vnext-meri-integrations__empty {
+  color: #74838e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__notice {
+  margin-top: 26px;
+  max-width: 720px;
+}
+
+.capiro-vnext-root .vnext-meri-integrations__empty {
+  grid-column: 1 / -1;
+  border: 1px dashed rgba(41, 78, 104, 0.20);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 28px;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card.is-loading {
+  overflow: hidden;
+  position: relative;
+}
+
+.capiro-vnext-root .vnext-meri-integration-card.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(236, 240, 243, 0.82), transparent);
+  animation: vnext-meri-integration-shimmer 1.35s infinite;
+}
+
+@keyframes vnext-meri-integration-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@media (max-width: 760px) {
+  .capiro-vnext-root .vnext-meri-integrations__header { padding: 0 18px; }
+  .capiro-vnext-root .vnext-meri-integrations__content {
+    width: min(100% - 32px, 1040px);
+    padding-top: 48px;
+  }
+  .capiro-vnext-root .vnext-meri-integrations__grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .vnext-meri-integration-card.is-loading::after { animation: none; }
+}
