@@ -2,9 +2,15 @@
 
 **Branch:** `agent/directory-vnext` · **Worktree:** `C:\dev\capiro-directory-vnext-wt`
 **Forked from:** `main` @ `1c75effc` (PR #907, which merged the vNext surface into `main`)
-**State:** committed at `02b716f0`. Typecheck clean (0 errors). Tests **91 pass / 0 fail**
-(baseline before this work was **59**) — re-verified independently before that commit, not
-carried over as a claim.
+**State: MERGED TO `main` at `7fc305e0`** (fast-forward; `main` was `0001b57c`).
+`main` had moved 17 commits — Client CRM vNext, #908/#909 — so `origin/main` was merged in
+here first and three files conflicted; see that merge commit for how they were resolved.
+**Both branches had independently added a product screen to the same visual harness**, which
+is this program's recurring hazard, not a one-off.
+
+Verified on the merged tree before pushing, not carried over as a claim: typecheck 0 errors,
+**full web suite 226 files / 2289 tests passing**, and all 8 visual captures green with the
+three Directory PNG hashes byte-identical to their pre-merge values.
 
 **Source of truth:** Figma `2aa9ipR2qOfumaixZErCfU`, Directory root `934:2502`,
 contract frame `941:2860`.
