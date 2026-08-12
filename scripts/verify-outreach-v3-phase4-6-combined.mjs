@@ -76,8 +76,12 @@ for (const forbidden of [
   assert(!apiClient.includes(forbidden), `PHASE6_AUTHORITY_LEAK:${forbidden}`);
 }
 
-run('Phase 4 code verifier', 'pnpm', ['verify:outreach-v3-phase-4']);
-run('Phase 5 code verifier', 'pnpm', ['verify:outreach-v3-phase-5']);
+run('Phase 4 code verifier', 'pnpm', ['verify:outreach-v3-phase-4'], {
+  env: { OUTREACH_V3_PHASE4_SCOPE_END: PHASE4_HEAD },
+});
+run('Phase 5 code verifier', 'pnpm', ['verify:outreach-v3-phase-5'], {
+  env: { OUTREACH_V3_PHASE5_SCOPE_END: PHASE5_HEAD },
+});
 run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mjs']);
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Web full test suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
