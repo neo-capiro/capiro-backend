@@ -1,0 +1,111 @@
+/*
+ * Untitled UI PRO kit tokens, scoped to the Dashboard-only reskin
+ * (`Capiro Dashboard - Untitled UI.dc.html`, Figma 748:2503).
+ *
+ * These are NOT --capiro-* tokens and must not be. The Capiro-native shell
+ * (.capiro-vnext-root, tokens.css) still serves every other vnext page —
+ * see apps/web/src/vnext/pages/dashboard/README.md for the isolation
+ * rationale. `.capiro-dash-uui` is applied only to the Dashboard page's own
+ * root element.
+ *
+ * Values are the ones actually used by the design, verified live against
+ * the rendered .dc.html (getComputedStyle + the component's own color
+ * tables), not transcribed from the handoff doc's prose:
+ *  - #3E4784 solid / #363F72 link-hover / #EAECF5 tint / #B3B8DB ring are
+ *    real (PILL.brand + the primary button fill).
+ *  - #293056 is real (active date-number color in the day strip) — the
+ *    handoff doc's "not present on the mounted pages" note is wrong.
+ *  - #4E5BA6 is NOT what the doc claims (focus ring) — the real focus ring
+ *    is #717BBC / #D5D9EB (search input focus shadow). Logged in GAPS.md.
+ */
+.capiro-dash-uui {
+  /* Type — Inter, per handoff §4.1. */
+  --uui-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --uui-text-display-sm: 30px;
+  --uui-line-display-sm: 38px;
+  --uui-text-md: 18px;
+  --uui-line-md: 28px;
+  --uui-text-body: 16px;
+  --uui-line-body: 24px;
+  --uui-text-sm: 14px;
+  --uui-line-sm: 20px;
+  --uui-text-xs: 12px;
+  --uui-line-xs: 18px;
+  --uui-weight-regular: 400;
+  --uui-weight-medium: 500;
+  --uui-weight-semibold: 600;
+
+  /* Neutrals. */
+  --uui-white: #ffffff;
+  --uui-gray-25: #fdfdfd;
+  --uui-gray-50: #f9fafb;
+  --uui-gray-100: #f2f4f7;
+  --uui-gray-200: #eaecf0;
+  --uui-gray-300: #d0d5dd;
+  --uui-gray-400: #98a2b3;
+  --uui-gray-500: #667085;
+  --uui-gray-600: #475467;
+  --uui-gray-700: #344054;
+  --uui-gray-900: #101828;
+
+  /* Brand ("Slate"). */
+  --uui-brand-solid: #3e4784;
+  --uui-brand-hover: #363f72;
+  --uui-brand-hover-2: #293056;
+  --uui-brand-tint: #eaecf5;
+  --uui-brand-ring: #b3b8db;
+  --uui-focus-ring: #717bbc;
+  --uui-focus-ring-outer: #d5d9eb;
+
+  /* Semantic pill families: [bg, ring, fg, dot]. */
+  --uui-error-bg: #fef3f2;
+  --uui-error-ring: #fecdca;
+  --uui-error-fg: #b42318;
+  --uui-error-dot: #f04438;
+  --uui-error-tone: #d92d20;
+
+  --uui-warning-bg: #fffaeb;
+  --uui-warning-ring: #fedf89;
+  --uui-warning-fg: #b54708;
+  --uui-warning-dot: #f79009;
+  --uui-warning-tone: #dc6803;
+
+  --uui-success-bg: #ecfdf3;
+  --uui-success-ring: #abefc6;
+  --uui-success-fg: #027a48;
+  --uui-success-dot: #12b76a;
+
+  --uui-blue-bg: #eff8ff;
+  --uui-blue-ring: #b2ddff;
+  --uui-blue-fg: #175cd3;
+  --uui-blue-dot: #2e90fa;
+  --uui-blue-tone: #1570ef;
+
+  --uui-gray-pill-bg: #f9fafb;
+  --uui-gray-pill-ring: #eaecf0;
+  --uui-gray-pill-fg: #344054;
+  --uui-gray-pill-dot: #667085;
+
+  /* Radius + elevation. componentCssFiles (foundation-contract.test.ts) may
+     not contain a literal hex/rgba — every color lives here, and every
+     component file consumes it through var(). */
+  --uui-radius-control: 8px;
+  --uui-radius-card: 12px;
+  --uui-shadow-elevation: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
+  --uui-shadow-card: 0 0 0 1px var(--uui-gray-200), var(--uui-shadow-elevation);
+  --uui-shadow-card-warning: 0 0 0 1px var(--uui-warning-ring), var(--uui-shadow-elevation);
+  --uui-shadow-focus: inset 0 0 0 1px var(--uui-focus-ring), 0 0 0 4px var(--uui-focus-ring-outer);
+  --uui-shadow-input: inset 0 0 0 1px var(--uui-gray-300), 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --uui-shadow-button: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --uui-shadow-knob: 0 1px 2px rgba(16, 24, 40, 0.15);
+  --uui-scrim: rgba(16, 24, 40, 0.36);
+
+  /* Shell geometry, per handoff §4.1/§6.1. */
+  --uui-topbar-h: 72px;
+  --uui-rail-w-expanded: 272px;
+  --uui-rail-w-collapsed: 80px;
+  --uui-content-max-w: 1280px;
+  --uui-content-gutter: 32px;
+  --uui-bp-mobile: 780px;
+  --uui-bp-tablet: 1180px;
+}

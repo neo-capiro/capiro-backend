@@ -1,88 +1,31 @@
-import { lazy, Suspense } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
-import {
-  DIRECTORY_LEGACY_ROUTE,
-  DIRECTORY_ROUTES,
-  resolveLegacyDirectoryTarget,
-} from '../pages/directory/directory-routes.js';
-
-const CongressionalStaffVNext = lazy(async () => ({
-  default: (await import('../pages/directory/CongressionalStaffVNext.js')).CongressionalStaffVNext,
-}));
-
-const VNextStrategiesRoutes = lazy(async () => ({
-  default: (await import('../pages/strategies/VNextStrategiesRoutes.js')).VNextStrategiesRoutes,
-}));
-const VNextClientCrmRoute = lazy(async () => ({
-  default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
-}));
-const VNextLegiWatchPage = lazy(async () => ({
-  default: (await import('../pages/legiwatch/VNextLegiWatchPage.js')).VNextLegiWatchPage,
-}));
 
 /**
  * Presentation-only interception for os.capiro.ai. Authentication, billing and
  * the canonical application route tree remain owned by App.tsx; vNext swaps a
  * page only where an approved Figma implementation exists.
  *
+ * Dashboard-only, as of 2026-08: os.capiro.ai now serves nothing else. Client
+ * CRM, Strategies, LegiWatch and the Directory splits were intercepted here
+ * previously — see git history on this file if reviving any of them. Their
+ * own page components (VNextClientCrmRoute, VNextStrategiesRoutes,
+ * VNextLegiWatchPage, CongressionalStaffVNext, directory-routes.ts) are
+ * untouched and still build; a parallel effort is developing Strategies
+ * against them independently of this router.
+ *
  * Screens that have an approved vNext presentation are substituted at their
  * existing URL — the route itself is still the canonical one, so deep links,
  * back/forward and refresh behave identically. Everything else falls through
- * to the canonical page via Outlet.
+ * to the canonical page via Outlet, exactly like every route that has never
+ * had a vNext presentation (e.g. Program Elements) already does.
  */
 export function VNextRouter() {
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const fallback = <div className="capiro-vnext-route-loading">Loading…</div>;
-
-  // Client CRM vNext (Figma page `906:2502`). The profile has no `/clients/:id`
-  // route — it is `/clients?clientId=<id>`.
-  //
-  // This intercepts `/clients` with OR without the parameter. Requiring it was a
-  // real bug: the canonical `ClientWorkspacePage` selects a client with local
-  // state and never puts `clientId` in the URL, so clicking a client produced no
-  // URL for this to match and the canonical profile rendered instead. vNext now
-  // owns the whole route and renders its own picker, which navigates to the
-  // `?clientId=` URL the CRM and every existing deep link already use.
-  if (location.pathname === '/clients') {
-    return (
-      <Suspense fallback={fallback}>
-        <VNextClientCrmRoute />
-      </Suspense>
-    );
-  }
 
   // Dashboard is eager: it is the entry screen, so a lazy chunk would cost a
   // blank frame on the most common navigation in the product.
   if (location.pathname === '/') return <DashboardVNext />;
-
-  // VNextApp renders outside the canonical route tree, so a descendant <Routes>
-  // resolves against "/" — at /strategies that left "strategies" as the
-  // remaining segment, which the family's `:id` route swallowed and tried to
-  // open as a strategy ("This strategy could not be loaded"). Mounting the
-  // family under its own route re-bases the nested Routes so `index` matches.
-  if (location.pathname === '/strategies' || location.pathname.startsWith('/strategies/')) {
-    return (
-      <Suspense fallback={fallback}>
-        <Routes>
-          <Route path="strategies/*" element={<VNextStrategiesRoutes />} />
-        </Routes>
-      </Suspense>
-    );
-  }
-  if (location.pathname === '/legiwatch' || location.pathname.startsWith('/legiwatch/')) {
-    return <Suspense fallback={fallback}><VNextLegiWatchPage /></Suspense>;
-  }
-
-  // Directory: `/directory` resolves to Congressional Staff and keeps the query
-  // string, so existing bookmarks and shared searches survive the split.
-  if (location.pathname === DIRECTORY_LEGACY_ROUTE) {
-    return <Navigate to={resolveLegacyDirectoryTarget(location.search)} replace />;
-  }
-  if (location.pathname === DIRECTORY_ROUTES.congressionalStaff) {
-    return <Suspense fallback={fallback}><CongressionalStaffVNext /></Suspense>;
-  }
 
   return <Outlet />;
 }

@@ -84,6 +84,14 @@
   --capiro-color-action-accent-hover: #223f55;
   --capiro-color-action-meri-default: #2f63f5;
   --capiro-color-action-meri-hover: #2858dd;
+  /* SendMeriButton's Attending/Attended states (meetings-ui.tsx), reused as-is
+     on the Dashboard rather than reskinned — these are its literal established
+     production values, already live on HomePage's own meeting rows, not new
+     colors invented for vNext. */
+  --capiro-primitive-meri-attending-soft-bg: #dee6f8;
+  --capiro-primitive-meri-attended-bg: #efece4;
+  --capiro-primitive-meri-attended-border: #e6e1d6;
+  --capiro-primitive-meri-attended-ink: #8a8780;
   --capiro-color-action-meri-text: #ffffff;
   --capiro-color-shell-signature-primary: #2f63f5;
   --capiro-color-shell-signature-secondary: #32c7d7;
