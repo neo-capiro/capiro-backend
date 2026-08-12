@@ -41,7 +41,7 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
   const identity = useShellIdentity();
   const notifications = useShellNotifications();
   const navigate = useNavigate();
-  const { signOut } = useClerk();
+  const { signOut, openUserProfile } = useClerk();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -94,6 +94,7 @@ function VNextShellChrome({ children }: { children: ReactNode }) {
                 identity={identity}
                 onNavigate={navigate}
                 onSignOut={() => void signOut()}
+                onOpenProfile={() => openUserProfile()}
               />
             </>
           }

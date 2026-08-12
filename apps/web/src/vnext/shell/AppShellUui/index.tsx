@@ -169,6 +169,7 @@ export interface AppShellUuiViewProps {
   onNavigate: (path: string) => void;
   onOpenNotifications: () => void;
   onSignOut: () => void;
+  onOpenProfile: () => void;
   /** Overrides the persisted collapse state — the vnext-visual-capture
    * script's only way to force the collapsed screenshot variant (it has no
    * localStorage to seed). Real usage omits this and reads localStorage. */
@@ -191,6 +192,7 @@ export function AppShellUuiView({
   onNavigate,
   onOpenNotifications,
   onSignOut,
+  onOpenProfile,
   initialCollapsed,
   children,
 }: AppShellUuiViewProps) {
@@ -240,7 +242,12 @@ export function AppShellUuiView({
           <div className="uui-topbar__actions">
             <MeriLauncher />
             <NotificationBell notifications={notifications} onOpen={onOpenNotifications} />
-            <ProfileMenu identity={identity} onNavigate={onNavigate} onSignOut={onSignOut} />
+            <ProfileMenu
+              identity={identity}
+              onNavigate={onNavigate}
+              onSignOut={onSignOut}
+              onOpenProfile={onOpenProfile}
+            />
           </div>
         </header>
 
@@ -334,7 +341,7 @@ export function AppShellUui({ children }: { children: ReactNode }) {
   const mailboxStatus = useMailboxSyncStatus();
   const clientContext = useShellClientContext();
   const navigate = useNavigate();
-  const { signOut } = useClerk();
+  const { signOut, openUserProfile } = useClerk();
 
   return (
     <AppShellUuiView
@@ -346,6 +353,7 @@ export function AppShellUui({ children }: { children: ReactNode }) {
       onNavigate={navigate}
       onOpenNotifications={() => navigate('/workspace')}
       onSignOut={() => void signOut()}
+      onOpenProfile={() => openUserProfile()}
     >
       {children}
     </AppShellUuiView>
