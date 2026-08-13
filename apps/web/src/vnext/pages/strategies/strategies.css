@@ -19,7 +19,10 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  /* wrap: the title block's min-content (~160px) plus one CapiroButton already
+     exceeds a phone's content box, and this row cannot restack any other way. */
+  flex-wrap: wrap;
+  gap: 16px 24px;
   margin-bottom: 20px;
 }
 
@@ -40,6 +43,11 @@
   letter-spacing: -0.02em;
   color: var(--st-gray-900);
   margin: 0;
+  /* A strategy title is user data with no guaranteed break opportunity; without
+     this its longest word is the flex parent's floor and pushes the header out
+     of the viewport. Size is untouched — the type ramp does not scale. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .capiro-vnext-root .capiro-strategies .st-purpose {
@@ -50,10 +58,15 @@
   max-width: 640px;
 }
 
+/* Shared action cluster: page header, timeline card head, list head. Every use
+   carries at least three unshrinkable atoms (a segmented group, buttons with a
+   min-width floor), so it must be allowed to wrap onto further rows. */
 .capiro-vnext-root .capiro-strategies .st-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
 }
 
 /* ---- status pill (dot + label, never colour-only) ---- */
@@ -94,7 +107,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   background: var(--st-accent-deep);
   border-radius: 12px;
   padding: 16px 20px;
@@ -136,10 +150,17 @@
   vertical-align: 1px;
 }
 
-/* ---- stat cards row ---- */
+/* ---- stat cards row ----
+   auto-fit, not repeat(4): four rigid tracks give each card ~61px at 390px, i.e.
+   ~21px of content box behind 20px of padding, so the 28px value and the
+   uppercase labels paint outside their own cards. minmax(min(180px, 100%), 1fr)
+   — NOT minmax(180px, 1fr) — so the single-column case is floored by the
+   container, not by 180px. Resolves to 4 columns from ~800px of content box
+   (unchanged at every desktop width), 2 at tablet, 1 on a phone. */
 .capiro-vnext-root .capiro-strategies .st-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -209,9 +230,18 @@
   margin: 0 0 8px;
 }
 
-/* ---- segmented control (tabs / filters) ---- */
+/* ---- segmented control (tabs / filters) ----
+   The owner filter renders one nowrap button per distinct owner, so this
+   control's width grows with tenant size and is already tight on a 1024px
+   desktop. It wraps to a second row rather than scrolling: a scroll container
+   would clip the 4px focus ring that sits exactly in this box's padding, and
+   would put filters behind a gesture. Wrapping only engages when the row cannot
+   fit, so every desktop layout that fits today is untouched. */
 .capiro-vnext-root .capiro-strategies .st-segmented {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
   background: var(--st-white);
   padding: 4px;
   border-radius: 10px;
@@ -239,3 +269,40 @@
 
 /* ---- async state helpers ---- */
 .capiro-vnext-root .capiro-strategies .st-state-row { display: flex; flex-direction: column; gap: 8px; padding: 20px; }
+
+/* ══ Responsive ═══════════════════════════════════════════════════════════
+   Canonical boundaries only (foundations/responsive.css): 1179 = tablet,
+   779 = mobile. Strategies has no drawn responsive stage in Figma, so the
+   behaviour below is derived from the foundation's rules, not transcribed.
+   Type is never scaled — only geometry, padding and column count move. */
+
+/* Tablet + mobile: touch-target floor (>=44px) on the two dense controls this
+   module owns. Desktop keeps the drawn 32/34px control geometry. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-strategies .st-segmented button {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}
+
+@media (max-width: 779px) {
+  /*
+   * The shell's .uui-content already owns the horizontal gutter (16px below
+   * 780). .st-page added another 32px per side on top of it, so 96px of a
+   * 390px screen — a quarter of the viewport — was gutter. Drop the module's
+   * own inline padding at mobile and let the shell's gutter stand: 294px of
+   * content box becomes 358px. Vertical rhythm is kept (the shell contributes
+   * none), and the shell already reserves 64px at the page bottom for the
+   * fixed bottom nav, so no extra bottom inset is needed here.
+   */
+  .capiro-vnext-root .capiro-strategies .st-page {
+    padding: 16px 0 24px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-page-header {
+    align-items: flex-start;
+  }
+  /* Once the header wraps, the actions cluster should start at the gutter under
+     the title rather than hanging off the right edge of its own row. */
+  .capiro-vnext-root .capiro-strategies .st-page-header > .st-actions {
+    width: 100%;
+  }
+}

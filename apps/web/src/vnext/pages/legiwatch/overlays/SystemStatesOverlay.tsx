@@ -30,7 +30,7 @@ export function SystemStatesOverlay({ onClose }: { onClose: () => void }) {
       onPrimary={onClose}
       onClose={onClose}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 12 }}>
+      <div className="lw-states-grid">
         {SYSTEM_STATES.map(([name, trigger, must]) => (
           <div key={name} className="lw-block">
             <LwPill tone={name === 'ALL CLEAR' ? 'success' : name === 'UNAVAILABLE' ? 'error' : name === 'STALE' || name === 'PARTIAL' || name === 'RECOVERABLE' ? 'warning' : 'gray'} size="22">

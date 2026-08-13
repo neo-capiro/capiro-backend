@@ -141,8 +141,7 @@ export function VNextMeriThreadRail({
           <span className="vnext-meri__section-label">WORKSPACES</span>
           <button
             type="button"
-            className="vnext-meri__icon-btn"
-            style={{ width: 20, height: 20, borderRadius: 5 }}
+            className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
             aria-label="Add workspace"
           >
             +

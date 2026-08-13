@@ -424,7 +424,13 @@ function Timeline({
 
   return (
     <div className="st-tl" role="group" aria-label="Strategy timeline">
-      <div className="st-tl__grid">
+      {/* The canvas is sized from the real cell count so the month ruler, the FY
+          header row and every percentage-positioned bar share one scale — see
+          the .st-tl__grid note in strategy-editor.css. */}
+      <div
+        className="st-tl__grid"
+        style={{ '--st-tl-months': axis.cells.length } as React.CSSProperties}
+      >
         {/* Row 1: fiscal window headers + month ticks. */}
         <TimelineRow label="3-FY window">
           <div className="st-tl-fy">

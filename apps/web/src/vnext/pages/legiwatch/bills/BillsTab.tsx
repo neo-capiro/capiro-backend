@@ -300,33 +300,37 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
         </>
       ) : (
         <section className="lw-card" aria-label="Bills table">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left' }}>
-                {['Bill', 'Title', 'Stage', 'Client', 'Passage'].map((h) => (
-                  <th key={h} style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {columns.flatMap((col) =>
-                sortBills(col.bills).map((b) => {
-                  const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
-                  return (
-                    <tr key={b.billId} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
-                      <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12, fontWeight: 600 }}>{b.displayNum}</td>
-                      <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{b.title}</td>
-                      <td style={{ padding: '12px 18px' }}><LwPill tone="brand" size="22">{col.label}</LwPill></td>
-                      <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{b.jurisdiction ?? 'US'}</td>
-                      <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
-                        {terminal ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase() : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
-                      </td>
-                    </tr>
-                  );
-                }),
-              )}
-            </tbody>
-          </table>
+          {/* Five columns need ~720px; the module gets 358px on a phone. The
+              table scrolls inside its own card rather than widening the page. */}
+          <div className="capiro-scroll-x lw-tablewrap">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ textAlign: 'left' }}>
+                  {['Bill', 'Title', 'Stage', 'Client', 'Passage'].map((h) => (
+                    <th key={h} style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {columns.flatMap((col) =>
+                  sortBills(col.bills).map((b) => {
+                    const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
+                    return (
+                      <tr key={b.billId} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
+                        <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12, fontWeight: 600 }}>{b.displayNum}</td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{b.title}</td>
+                        <td style={{ padding: '12px 18px' }}><LwPill tone="brand" size="22">{col.label}</LwPill></td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{b.jurisdiction ?? 'US'}</td>
+                        <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                          {terminal ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase() : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
+                        </td>
+                      </tr>
+                    );
+                  }),
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 

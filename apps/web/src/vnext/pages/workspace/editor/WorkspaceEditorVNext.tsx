@@ -58,6 +58,25 @@ const GENERATION_STAGES = [
   'editorial_pass', 'assurance', 'snapshot', 'complete',
 ] as const;
 
+// ── Responsive ─────────────────────────────────────────────────────────────
+
+/**
+ * The canonical tablet boundary (foundations/responsive.css). Mirrored in JS
+ * because a media query cannot set React state — keep it pinned to 1179.
+ *
+ * Below it, an EXPANDED side pane renders as a full-screen sheet
+ * (styles/workspace.css). Two stacked sheets over the document is not a
+ * sensible first paint, so both panes start collapsed to their 56px rails in
+ * that band and the user opens whichever one they want. Nothing about the
+ * document, phase or scroll changes — collapsing is presentation only.
+ */
+const WS_TABLET_QUERY = '(max-width: 1179px)';
+
+function prefersCollapsedPanes(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(WS_TABLET_QUERY).matches;
+}
+
 // ── Utility ────────────────────────────────────────────────────────────────
 
 function genIdempotencyKey(): string {
@@ -114,8 +133,8 @@ export function WorkspaceEditorVNext({ draftId, isRunView }: { draftId: string; 
   const [lock, setLock] = useState<EditLock | null>(null);
 
   // UI state
-  const [agentCollapsed, setAgentCollapsed] = useState(false);
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [agentCollapsed, setAgentCollapsed] = useState(prefersCollapsedPanes);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(prefersCollapsedPanes);
   const [activeTab, setActiveTab] = useState<string>('brief');
   const [composerText, setComposerText] = useState('');
   const [composerScope, setComposerScope] = useState<SendMessageScope>({ kind: 'whole_document' });
@@ -134,6 +153,21 @@ export function WorkspaceEditorVNext({ draftId, isRunView }: { draftId: string; 
   useEffect(() => {
     agentStateRef.current = agentState;
   }, [agentState]);
+
+  // Crossing INTO the tablet band mid-session collapses both panes, for the
+  // same reason they start collapsed there. Deliberately one-way: widening back
+  // out must not undo a collapse the user chose on desktop.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(WS_TABLET_QUERY);
+    const onChange = (e: MediaQueryListEvent) => {
+      if (!e.matches) return;
+      setAgentCollapsed(true);
+      setInspectorCollapsed(true);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // ── Fetch agent state ──────────────────────────────────────────────────────
 
@@ -1181,8 +1215,16 @@ export function WorkspaceEditorVNext({ draftId, isRunView }: { draftId: string; 
           <div className="ws-vnext-pane ws-vnext-pane--inspector">
             {inspectorCollapsed ? (
               <div className="ws-vnext-inspector-collapsed-rail">
-                <button className="ws-vnext-collapse-btn" onClick={() => setInspectorCollapsed(false)} title="Expand inspector">
-                  ▶
+                {/* ◀, not ▶: the inspector is the RIGHT pane, so expanding it
+                    grows leftwards. It shared a glyph with the new collapse
+                    button, which now means the opposite thing. */}
+                <button
+                  className="ws-vnext-collapse-btn"
+                  onClick={() => setInspectorCollapsed(false)}
+                  title="Expand inspector"
+                  aria-label="Expand inspector"
+                >
+                  ◀
                 </button>
                 {['brief', 'context', 'outline', 'design', 'quality'].map((tab) => (
                   <div
@@ -1218,6 +1260,19 @@ export function WorkspaceEditorVNext({ draftId, isRunView }: { draftId: string; 
                       )}
                     </button>
                   ))}
+                  {/* The expanded inspector had no way back to the rail: every
+                      handler here set inspectorCollapsed(false), never true. On
+                      desktop that stranded the pane open; below 1180, where an
+                      expanded pane is a full-screen sheet, it would have left an
+                      undismissable sheet over the document. */}
+                  <button
+                    className="ws-vnext-collapse-btn ws-vnext-inspector__collapse"
+                    onClick={() => setInspectorCollapsed(true)}
+                    title="Collapse inspector"
+                    aria-label="Collapse inspector"
+                  >
+                    ▶
+                  </button>
                 </div>
 
                 <div className="ws-vnext-inspector__body">

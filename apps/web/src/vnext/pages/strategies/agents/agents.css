@@ -119,6 +119,15 @@
   align-items: flex-start;
   gap: 10px;
 }
+/* Label wrapper around the 15px checkbox. It exists only to carry the mobile
+   touch target below — the checkbox keeps its own aria-label, and the wrapper
+   holds no text, so nothing about the accessible name or tab order changes. */
+.capiro-vnext-root .capiro-strategies .st-agents__op-checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: none;
+  cursor: pointer;
+}
 .capiro-vnext-root .capiro-strategies .st-agents__op-check {
   margin-top: 3px;
   width: 15px;
@@ -148,6 +157,7 @@
 .capiro-vnext-root .capiro-strategies .st-agents__op-title {
   font-size: 13px;
   color: var(--st-gray-900);
+  overflow-wrap: anywhere;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__op-verb {
   font-size: 11px;
@@ -169,9 +179,11 @@
   flex-direction: column;
   gap: 2px;
 }
+/* Mono before/after values — arbitrary, unbreakable field content. */
 .capiro-vnext-root .capiro-strategies .st-agents__diff {
   font-size: 11px;
   color: var(--st-gray-500);
+  overflow-wrap: anywhere;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__diff s {
   color: var(--st-gray-400);
@@ -198,7 +210,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 220px;
+  min-width: min(220px, 100%);
   flex: 1;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__rail-count {
@@ -211,9 +223,14 @@
   color: var(--st-gray-500);
   max-width: 460px;
 }
+/* Two kit buttons, each carrying the global 120px min-width floor: ~248px that
+   cannot shrink, against ~226px inside the rail on a 390px screen. The rail
+   itself already wraps; the action pair has to as well. */
 .capiro-vnext-root .capiro-strategies .st-agents__rail-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   flex: none;
 }
@@ -226,7 +243,8 @@
 .capiro-vnext-root .capiro-strategies .st-agents__notice {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 10px 14px;
   background: var(--st-warning-bg);
   box-shadow: inset 0 0 0 1px var(--st-warning-ring);
   color: var(--st-warning-fg);
@@ -235,7 +253,8 @@
   margin-bottom: 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__notice-text {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -295,13 +314,16 @@
 }
 
 /* ---- applied rows (undo surface) -------------------------------------------- */
+/* Risk pill + summary + a 120px Undo button. At 254px of card body the summary
+   was left with ~40px, so the row wraps and the body claims a real basis. */
 .capiro-vnext-root .capiro-strategies .st-agents__applied {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__applied-body {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -323,7 +345,8 @@
 .capiro-vnext-root .capiro-strategies .st-agents__task {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   background: var(--st-gray-50);
   box-shadow: inset 0 0 0 1px var(--st-gray-200);
   border-radius: 8px;
@@ -335,8 +358,10 @@
   flex: none;
   margin-top: 1px;
 }
+/* The trailing status pill is nowrap (~100px); without a real flex basis the
+   task title is squeezed to ~90px on a phone. */
 .capiro-vnext-root .capiro-strategies .st-agents__task-body {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -364,7 +389,8 @@
   margin-top: 12px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 10px 14px;
   background: var(--st-warning-bg);
   box-shadow: inset 0 0 0 1px var(--st-warning-ring);
   color: var(--st-warning-fg);
@@ -372,7 +398,8 @@
   padding: 10px 14px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__block-text {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -396,7 +423,7 @@
 .capiro-vnext-root .capiro-strategies .st-agents__send-preview-grid {
   margin: 0;
   display: grid;
-  grid-template-columns: 90px 1fr;
+  grid-template-columns: 90px minmax(0, 1fr);
   gap: 6px 14px;
   font-size: 13px;
 }
@@ -410,6 +437,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-agents__send-preview-body {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__send-preview-warning {
   margin: 10px 0 0;
@@ -427,9 +455,12 @@
 }
 
 /* ---- run state model card --------------------------------------------------------- */
+/* minmax(min(300px, 100%), 1fr), not minmax(300px, 1fr): the bare form floors
+   even the single-column case at 300px and overflows any narrower container. */
 .capiro-vnext-root .capiro-strategies .st-agents__states-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 8px 20px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__state-row {
@@ -478,6 +509,44 @@
 }
 .capiro-vnext-root .capiro-strategies .st-agents__modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * This sheet had no media query at all. Everything above is intrinsic
+ * (flex-wrap / minmax(min(),1fr)) and needs none; the only thing that has to
+ * restructure is the approval checkbox's hit area.
+ *
+ * The page's own gutter comes from `.st-page` in strategies.css and is
+ * deliberately not overridden here — that file belongs to the strategies top
+ * level. Bottom-nav clearance is not added either: the shell already reserves
+ * 64px on `.capiro-vnext-uui` below 780 (shell-uui.css).
+ */
+@media (max-width: 779px) {
+  /* 44x44 hit box around the approval checkbox. The padding is cancelled by an
+     equal negative margin, so the control still starts on the same left edge
+     and the body still starts in the same place. The row gap opens to 24px
+     (2 x 12) so two neighbouring hit boxes meet rather than overlap, and the
+     column gap to 14px so the box's 12px overhang stays inside the gutter
+     instead of landing on the diff text. */
+  .capiro-vnext-root .capiro-strategies .st-agents__ops {
+    gap: 24px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op {
+    gap: 14px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-checkbox {
+    padding: 12px;
+    margin: -12px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check,
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check-spacer {
+    width: 20px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check {
+    height: 20px;
+    margin-top: 1px;
+  }
 }

@@ -1,5 +1,6 @@
 .capiro-vnext-root .vnext-meri-integrations {
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 18% 0%, rgba(85, 127, 153, 0.10), transparent 34rem),
     #f6f7f8;
@@ -237,13 +238,25 @@
   100% { transform: translateX(100%); }
 }
 
-@media (max-width: 760px) {
-  .capiro-vnext-root .vnext-meri-integrations__header { padding: 0 18px; }
+/* Touch targets at tablet and below (see vnext-meri.css § Responsive). */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .vnext-meri-integrations__back,
+  .capiro-vnext-root .vnext-meri-integration-card button {
+    min-height: 44px;
+  }
+}
+
+/* Canonical vNext mobile breakpoint (foundations/responsive.css). Was 760;
+   at 760-779 the two-column grid had ~347px cards, so moving the boundary out
+   to 779 only ever widens a card. */
+@media (max-width: 779px) {
+  .capiro-vnext-root .vnext-meri-integrations__header { padding: 0 16px; }
   .capiro-vnext-root .vnext-meri-integrations__content {
     width: min(100% - 32px, 1040px);
     padding-top: 48px;
   }
-  .capiro-vnext-root .vnext-meri-integrations__grid { grid-template-columns: 1fr; }
+  .capiro-vnext-root .vnext-meri-integrations__grid { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .vnext-meri-integration-card { min-height: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -75,10 +75,18 @@
   color: var(--st-gray-500);
 }
 
+/* The title block must be allowed to shrink, or a long title pushes the
+   header-side cluster (meta chip + close) off the frame. */
+.capiro-strategies .st-modal__header > div:first-child {
+  min-width: 0;
+}
+
 .capiro-strategies .st-modal__header-side {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 10px;
   flex: none;
 }
 
@@ -93,7 +101,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   padding: 12px 24px;
   background: var(--st-warning-bg);
   border-top: 1px solid var(--st-warning-ring);
@@ -105,22 +114,29 @@
   font-weight: 650;
 }
 
+/* Kit buttons carry a 120px min-width floor (primitives.css), so a pair of them
+   is ~250px that cannot shrink — the guard strip must wrap around it. */
 .capiro-strategies .st-modal__guard-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   flex: none;
+  margin-left: auto;
 }
 
 .capiro-strategies .st-modal__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   padding: 14px 24px;
   border-top: 1px solid var(--st-gray-200);
 }
 
 .capiro-strategies .st-modal__footer-note {
+  flex: 1 1 220px;
   font-size: 13px;
   line-height: 18px;
   color: var(--st-gray-500);
@@ -130,8 +146,11 @@
 .capiro-strategies .st-modal__footer-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 10px;
   flex: none;
+  margin-left: auto;
 }
 
 .capiro-strategies .st-modal__alert {
@@ -395,7 +414,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   font-size: 14px;
   font-weight: 650;
   color: var(--st-gray-900);
@@ -509,6 +529,23 @@
   gap: 4px;
 }
 
+/* The FY·Q editor cell. These were inline styles on the element; they moved
+   here so the mobile restack below can reach them (an inline style would
+   always win over the media query). */
+.capiro-strategies .st-phase-row__editor {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.capiro-strategies .st-phase-row__fields {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+
 .capiro-strategies .st-rule {
   display: flex;
   align-items: center;
@@ -537,9 +574,17 @@
 
 /* ------------------------------------------------------------------- export */
 
+/* Four format cards. Each card's head is `name + "Not yet available" pill`
+   (nowrap, ~130px), so a card needs ~200px before it starts crushing. A fixed
+   repeat(4) held that only while the lg modal was near its 1020px cap; between
+   ~900 and ~1050 viewport the tracks fall under the pill's min-content and the
+   heads spill. auto-fit with a min() floor still lays out 4-up at the full
+   width, steps to 3/2 through the tablet band, and drops to a single track
+   narrower than 200px on a phone — no extra breakpoint. */
 .capiro-strategies .st-format-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -589,13 +634,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   font-size: 12px;
   color: var(--st-accent-deep-label);
 }
 
+/* The generated file name is a single unbreakable mono token. */
+.capiro-strategies .st-preview-meta .st-mono {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .capiro-strategies .st-filename {
   width: 100%;
+  min-width: 0;
 }
 
 /* ------------------------------------------------------------------ history */
@@ -682,8 +735,13 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px 12px;
   margin-bottom: 4px;
+}
+.capiro-strategies .st-history__detail-head > :first-child {
+  flex: 1 1 200px;
+  min-width: 0;
 }
 
 .capiro-strategies .st-history__meta {
@@ -706,12 +764,16 @@
   border-bottom: 0;
 }
 
+/* Carries a `NN_template_key` mono token or a node title in a fixed 92px
+   track — without this it spills straight into the next column. */
 .capiro-strategies .st-change-row__field {
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-gray-500);
   font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .capiro-strategies .st-change-chip {
@@ -719,6 +781,8 @@
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .capiro-strategies .st-change-chip--before {
@@ -800,7 +864,10 @@
 
 .capiro-strategies .st-meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr), not a bare 1fr: these tracks hold live label/value pairs
+     (HistoryOverlay), and a bare 1fr floors each track at its value's
+     min-content width, so one long unbroken token widens the whole modal. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 14px;
 }
 
@@ -963,17 +1030,125 @@
   gap: 10px;
 }
 
-@media (max-width: 900px) {
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * Canonical breakpoints only (foundations/responsive.css): 1179 tablet, 779
+ * mobile. The module's old 900px step is retired.
+ *
+ * Why 779 and not 1179 for the two-column bodies: the overlay is
+ * position:fixed, so the shell rail is irrelevant to it — the frame is
+ * min(760|1020, 100vw - 48). At the narrowest tablet viewport (780) the lg
+ * frame is 732 and its body is 684 wide, which still carries `.st-cols`
+ * (364 + 300), `.st-history` (300 + 384) and `.st-candidates` (2 x 336)
+ * comfortably. They only stop fitting once the frame goes full-bleed below
+ * 780. Stacking them at 1179 would have flattened the drawn 1024 tablet
+ * stage for no reason.
+ *
+ * `.st-format-grid` has left this list: its auto-fit template above already
+ * resolves to a single track once the body drops under ~230px, and to 3-up
+ * through the tablet band, which the old repeat(4) did not.
+ */
+@media (max-width: 779px) {
+  /* Full-height sheet, mirroring section 7 of the responsive foundation.
+     `.st-overlay` / `.st-modal` cannot simply take the `.capiro-overlay` /
+     `.capiro-modal` class names that section already covers: the kit modal
+     brings `overflow: auto` + `padding: 18px` + `width: min(560px, 100%)`,
+     which would fight this shell's flex column and its internally scrolled
+     body. These are the parallel rules instead. The frame is z-index 200 and
+     the shell's bottom nav is z-index 20, so the sheet covers the nav and
+     needs no `.capiro-sheet-safe` inset. */
+  .capiro-strategies .st-overlay {
+    padding: 0;
+    place-items: stretch;
+  }
+  .capiro-strategies .st-modal,
+  .capiro-strategies .st-modal--lg {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* Reclaim the 8px per side the 24px frame padding costs on a 390px screen. */
+  .capiro-strategies .st-modal__header,
+  .capiro-strategies .st-modal__body,
+  .capiro-strategies .st-modal__guard,
+  .capiro-strategies .st-modal__footer {
+    padding-inline: 16px;
+  }
+
   .capiro-strategies .st-cols,
   .capiro-strategies .st-history,
   .capiro-strategies .st-candidates,
-  .capiro-strategies .st-format-grid {
-    grid-template-columns: 1fr;
+  .capiro-strategies .st-field-row,
+  .capiro-strategies .st-meta-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .capiro-strategies .st-history__list {
     max-height: 220px;
     border-right: 0;
     border-bottom: 1px solid var(--st-gray-200);
+  }
+
+  /* Firm phases: the FY·Q editor is ~280px of fixed-width number inputs and
+     cannot share a row with the name field. It takes a full row of its own;
+     the row number and the remove control keep their columns, so the visual
+     order still matches the DOM order and tab order is unchanged. */
+  .capiro-strategies .st-phase-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: start;
+    row-gap: 10px;
+  }
+  .capiro-strategies .st-phase-row__actions {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: end;
+  }
+  .capiro-strategies .st-phase-row__editor {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-items: start;
+  }
+  .capiro-strategies .st-phase-row__fields {
+    flex-wrap: wrap;
+  }
+  .capiro-strategies .st-phase-row__input {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+
+  /* Field / before / after / (spare) — four cells that cannot share 342px. */
+  .capiro-strategies .st-change-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    row-gap: 4px;
+  }
+  .capiro-strategies .st-change-row > :empty {
+    display: none;
+  }
+
+  /* Icon, copy, then the trailing control (a state pill, or the two dismiss
+     buttons at 120px each) on its own line under the copy. */
+  .capiro-strategies .st-audit {
+    grid-template-columns: 20px minmax(0, 1fr);
+    row-gap: 10px;
+  }
+  .capiro-strategies .st-audit > :nth-child(3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  /* Touch targets (>=44px) without moving anything — see section 8 of the
+     foundation. The segmented tabs grow; the switch keeps its 36x20 face and
+     gains a transparent hit box through ::before (::after is its knob). */
+  .capiro-strategies .st-seg button {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-strategies .st-switch::before {
+    content: '';
+    position: absolute;
+    inset-block: -12px;
+    inset-inline: -4px;
   }
 }

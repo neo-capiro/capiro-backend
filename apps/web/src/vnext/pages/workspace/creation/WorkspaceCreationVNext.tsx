@@ -834,11 +834,19 @@ function RecommendationCard({ recommendation }: { recommendation: RecommendRespo
         {recommendation.rationale}
       </div>
 
-      {/* Three fact cards: type / blueprint / theme */}
+      {/* Three fact cards: type / blueprint / theme.
+          repeat(3, 1fr) is minmax(auto, 1fr) three times, and each track's
+          automatic minimum is the card's min-content — ~94px here (12px of
+          padding a side plus a 9px mono uppercase label whose longest word is
+          "Recommended"). Three of those plus the gaps force ~300px inside a
+          callout that has ~262px at 390px. auto-fit + minmax(min(160px, 100%),
+          1fr) reflows to two columns and then one instead, which is the idiom
+          TypeStep and DesignStep already use below. */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          minWidth: 0,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))',
           gap: 10,
           marginTop: 12,
         }}
@@ -951,7 +959,10 @@ function TypeStep(props: TypeStepProps) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          minWidth: 0,
+          // minmax(min(N,100%),1fr), never a bare minmax(N,1fr) — the bare form
+          // floors the single-column case at N and overflows any narrower box.
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
           gap: 12,
         }}
       >
@@ -1267,7 +1278,8 @@ function DesignStep(props: DesignStepProps) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            minWidth: 0,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))',
             gap: 12,
             marginBottom: 20,
           }}

@@ -3,6 +3,12 @@
  * with eyebrow/title/subtitle, scrollable body, footer with a standing note
  * plus Cancel and one primary action. Escape and backdrop close; focus is
  * trapped; dirty state prompts before discard.
+ *
+ * The scrim and panel also carry the surface-wide `.capiro-overlay` /
+ * `.capiro-modal` names so this reads as the same object every other vNext
+ * module uses. legiwatch.css still restates the below-780 full-height sheet:
+ * the foundation's rules are (0,2,0) and every rule in legiwatch.css is (0,3,0)
+ * through `.lw`, so the module's own base sizing would otherwise win the tie.
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 
@@ -71,7 +77,7 @@ export function LwModal({
 
   return (
     <div
-      className="lw-modal-scrim"
+      className="capiro-overlay lw-modal-scrim"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           if (dirty && !window.confirm('Discard unsaved changes?')) return;
@@ -81,7 +87,7 @@ export function LwModal({
     >
       <div
         ref={panelRef}
-        className={`lw-modal lw-modal--${kind}`}
+        className={`capiro-modal lw-modal lw-modal--${kind}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

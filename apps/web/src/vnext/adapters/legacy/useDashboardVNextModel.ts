@@ -1221,13 +1221,20 @@ function normalizeOrder(value: unknown): readonly DashboardModuleKey[] {
 /**
  * Mobile is a distinct composition (`757:2622`), so the model — not just CSS —
  * has to know which one is rendering.
+ *
+ * 779px, matching the canonical mobile boundary in foundations/responsive.css
+ * and the shell's own @media (max-width: 779px). This used to read 639px, which
+ * left a 140px band (640-779) rendering the DESKTOP content model inside MOBILE
+ * geometry — no rail, bottom nav mounted, but the full desktop module set. Both
+ * halves of the boundary have to move together or that band gets worse, not
+ * better.
  */
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
-    const query = window.matchMedia('(max-width: 639px)');
+    const query = window.matchMedia('(max-width: 779px)');
     const sync = () => setIsMobile(query.matches);
     sync();
     query.addEventListener('change', sync);

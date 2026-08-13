@@ -12,14 +12,27 @@
 
 .capiro-vnext-root .capiro-vnext-uui {
   display: grid;
-  grid-template-columns: var(--uui-rail-w-expanded) 1fr;
+  /* minmax(0, 1fr), not 1fr: a bare 1fr is minmax(auto, 1fr) whose automatic
+     minimum is the content's min-content width, so one too-wide page body
+     widens the whole grid — the topbar stretches with it while the fixed
+     bottom nav stays viewport-width and the chrome desynchronises on
+     horizontal scroll. Same reason on every other track definition below. */
+  grid-template-columns: var(--uui-rail-w-expanded) minmax(0, 1fr);
   grid-template-rows: var(--uui-topbar-h) 1fr;
   /* Top bar spans the full page width, above both the rail and the content —
      not beside the rail. Neo: "the top nav should [stretch] across the
      page" — the rail previously spanned the full height, which put its
      first item level with the top bar instead of below it. */
   grid-template-areas: 'topbar topbar' 'rail content';
+  /* 100vh on a mobile browser resolves to the LARGEST viewport height — the one
+     with the URL bar retracted — so the shell is taller than what is actually
+     visible and the page scrolls slightly even when it has nothing to show.
+     100dvh tracks the live viewport. The 100vh line stays first as the fallback
+     for engines without dvh. (The 64px bottom-nav padding does NOT add to this:
+     box-sizing is border-box, so min-height already absorbs it — measured 844px
+     shell height at a 390x844 viewport, zero dead scroll.) */
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--uui-gray-50);
   color: var(--uui-gray-900);
   font-family: var(--uui-font-family);
@@ -27,7 +40,7 @@
   line-height: var(--uui-line-body);
 }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] {
-  grid-template-columns: var(--uui-rail-w-collapsed) 1fr;
+  grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr);
 }
 
 /* Top bar — 72px, white, sticky, hairline bottom border (no brand accent). */
@@ -314,15 +327,51 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim { display: none; }
 
 @media (max-width: 1179px) {
-  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: var(--uui-rail-w-collapsed) 1fr; }
+  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr); }
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label,
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { display: none; }
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button { justify-content: center; padding: 12px; }
+
+  /*
+   * Rail parity for the 780-1179 band.
+   *
+   * This query forces the rail to 80px, but everything below was previously
+   * gated on the [data-collapsed] ATTRIBUTE, which reflects React state and
+   * defaults to false. So on a tablet-width screen with the rail never manually
+   * collapsed, four full-width elements rendered inside an 80px column and
+   * painted over the content beside them. The rules below restate what
+   * [data-collapsed] does, keyed on width instead of state.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__copy { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status { justify-content: center; padding: 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn { justify-content: center; padding: 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn__label { display: none; }
 }
 
+/*
+ * The rail is a sticky, full-height column with no scroller of its own. On a
+ * short viewport — a landscape phone at 390px tall, or any desktop zoomed to
+ * 200% — seven 44px nav rows plus the footer exceed the available height and
+ * Settings / Collapse become unreachable, with no affordance. The nav scrolls
+ * internally; the footer stays pinned.
+ */
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { overflow-y: auto; min-height: 0; }
+
 @media (max-width: 779px) {
-  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: 1fr; grid-template-areas: 'topbar' 'content'; padding-bottom: 64px; }
+  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'topbar' 'content'; padding-bottom: 64px; }
+  /*
+   * MUST be restated for the [data-collapsed] variant. Media queries add no
+   * specificity, so the (0,3,0) [data-collapsed] rule at the top of this file
+   * outranked the (0,2,0) single-column rule above it. `collapsed` is persisted
+   * in localStorage, so for any user who had ever collapsed the rail the grid
+   * kept a 80px + 1fr track list while the area map was single-column: both
+   * named areas resolved into column 1 and the ENTIRE page — topbar included —
+   * rendered inside an 80px strip. Measured at 642px wide: 80px content column
+   * with the attribute, 666px without it.
+   */
+  .capiro-vnext-root .capiro-vnext-uui[data-collapsed] { grid-template-columns: minmax(0, 1fr); }
   .capiro-vnext-root .capiro-vnext-uui .uui-rail { display: none; }
   .capiro-vnext-root .capiro-vnext-uui .uui-content { padding: 16px; }
   /*

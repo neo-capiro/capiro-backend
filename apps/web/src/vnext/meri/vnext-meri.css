@@ -81,7 +81,12 @@
 
   position: relative;
   width: 100%;
+  /* 100vh is the LARGE viewport on mobile browsers: the URL/toolbar chrome
+     overlays its bottom, which is exactly where the pinned composer sits, and
+     `overflow: hidden` below means it cannot be scrolled back into reach.
+     100dvh tracks the visible area; the vh line stays as the fallback. */
   height: 100vh;
+  height: 100dvh;
   background: var(--meri-surface);
   display: flex;
   flex-direction: column;
@@ -194,7 +199,7 @@
   top: 44px;
   left: 50%;
   transform: translateX(-50%);
-  width: 300px;
+  width: min(300px, calc(100vw - 32px));
   background: var(--meri-surface);
   border-radius: var(--meri-radius);
   box-shadow: var(--meri-shadow-popover);
@@ -268,6 +273,14 @@
 .capiro-vnext-root .vnext-meri__icon-btn:hover {
   background: var(--meri-surface-2);
   color: var(--meri-ink);
+}
+
+/* Inline-sized variant used for the in-rail "add workspace" affordance. It was
+   a width/height inline style, which no media query can reach. */
+.capiro-vnext-root .vnext-meri__icon-btn--tiny {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
 }
 
 .capiro-vnext-root .vnext-meri__protip {
@@ -714,7 +727,12 @@
 
 .capiro-vnext-root .vnext-meri__main {
   flex: 1;
-  min-width: 700px;
+  /* Must be 0, not a 700px floor: with rail-left (300) + rail-right (400) both
+     `flex: 0 0 auto`, a 700px floor made `.vnext-meri__body` 1400px wide at
+     every viewport and turned its `overflow-x: auto` into a horizontal scroll
+     canvas below 1400. The conversation is already capped and centred by
+     --meri-conversation-max, so the floor bought nothing. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--meri-surface);
@@ -1051,7 +1069,9 @@
 .capiro-vnext-root .vnext-meri__prompt-grid {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* min(280px, 100%), not a bare 280px: a bare floor overflows any container
+     narrower than the track in the single-column case. */
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -1101,6 +1121,11 @@
 
 .capiro-vnext-root .vnext-meri__user-bubble {
   max-width: 76%;
+  min-width: 0;
+  /* A pasted URL, file path or bill identifier is one unbreakable token: the
+     box is capped but the glyphs are not, and the scroller's overflow-x:hidden
+     chops the tail with no affordance. */
+  overflow-wrap: anywhere;
   padding: 13px 16px;
   border-radius: 12px 12px 4px 12px;
   background: var(--meri-accent-soft);
@@ -1162,6 +1187,8 @@
 
 .capiro-vnext-root .vnext-meri__assistant-body {
   padding: 16px 18px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 14px;
   line-height: 22px;
   color: var(--meri-text-secondary);
@@ -1214,6 +1241,8 @@
   align-items: center;
   gap: 7px;
   height: 26px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 10px;
   border-radius: 7px;
   background: var(--meri-surface);
@@ -1235,6 +1264,13 @@
   font-weight: 500;
   letter-spacing: 0.07em;
   color: var(--meri-text-secondary);
+  /* A long citation title is otherwise chopped without ellipsis by
+     .vnext-meri__assistant-card's overflow:hidden once the column narrows. The
+     full title stays available through the chip's title attribute. */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1436,6 +1472,14 @@
   margin-top: 8px;
 }
 
+/* The composer's scope menu is absolutely positioned by an inline style in
+   VNextMeriComposer. Without this the wrapper is static and the menu resolves
+   against .vnext-meri__composer-wrap instead of its own trigger. */
+.capiro-vnext-root .vnext-meri__composer-scope-control {
+  position: relative;
+  min-width: 0;
+}
+
 .capiro-vnext-root .vnext-meri__composer-scope-btn {
   display: inline-flex;
   align-items: center;
@@ -1631,7 +1675,7 @@
   position: absolute;
   bottom: calc(100% + 10px);
   left: 0;
-  width: 330px;
+  width: min(330px, calc(100vw - 32px));
   background: var(--meri-surface);
   border-radius: var(--meri-radius);
   box-shadow: var(--meri-shadow-popover);
@@ -2096,6 +2140,225 @@
   background: var(--capiro-color-danger-soft);
   color: var(--meri-danger);
   font-size: 13px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────
+ *
+ * Canonical vNext breakpoints (foundations/responsive.css): 1179 tablet, 779
+ * mobile. Meri deliberately bypasses AppShellUui (VNextApp.tsx), so none of the
+ * shell's rail/bottom-nav geometry applies here — `.vnext-meri` IS the viewport
+ * at every width and owns its whole responsive story.
+ *
+ *   >= 1180   three columns, unchanged.
+ *   780-1179  the right context rail defaults to its existing icon strip. That
+ *             default is set in VNextMeriShell with a matchMedia hook, not
+ *             here: collapsed and expanded are two different JSX trees, so a
+ *             width override alone would squeeze the expanded tree instead of
+ *             rendering the strip. The user can still expand it; the width cap
+ *             below keeps that from swallowing the transcript.
+ *   <= 779    the body restacks to one column: bounded thread strip, then the
+ *             conversation (which keeps its own scroller and its pinned
+ *             composer), then the context rail.
+ *
+ * No third breakpoint, and no type-ramp scaling — geometry and padding only.
+ */
+
+/* ---- Tablet and below: touch geometry ------------------------------- */
+
+@media (max-width: 1179px) {
+  /* A user-expanded rail must not take the transcript's width with it: at 1024
+     the two rails otherwise held 700px and left 324px for the conversation. */
+  .capiro-vnext-root .vnext-meri__rail-right.is-expanded {
+    width: min(var(--meri-rail-right-width), 38vw);
+  }
+
+  /* Touch targets. Every control below is under 44px in the desktop
+     composition; these grow in place without changing what is rendered. */
+  .capiro-vnext-root .vnext-meri__icon-btn:not(.vnext-meri__icon-btn--tiny),
+  .capiro-vnext-root .vnext-meri__prompt-nav-btn,
+  .capiro-vnext-root .vnext-meri__composer-add-btn,
+  .capiro-vnext-root .vnext-meri__composer-send-btn,
+  .capiro-vnext-root .vnext-meri__rail-expand-btn,
+  .capiro-vnext-root .vnext-meri__rail-badge-btn,
+  .capiro-vnext-root .vnext-meri__rail-collapse-btn {
+    width: var(--capiro-hit-size);
+    height: var(--capiro-hit-size);
+  }
+
+  .capiro-vnext-root .vnext-meri__scope-trigger,
+  .capiro-vnext-root .vnext-meri__protip-trigger,
+  .capiro-vnext-root .vnext-meri__new-chat-btn,
+  .capiro-vnext-root .vnext-meri__saved-prompt,
+  .capiro-vnext-root .vnext-meri__scope-menu-item,
+  .capiro-vnext-root .vnext-meri__source-row,
+  .capiro-vnext-root .vnext-meri__action-item,
+  .capiro-vnext-root .vnext-meri__rail-action-btn,
+  .capiro-vnext-root .vnext-meri__rail-section-toggle,
+  .capiro-vnext-root .vnext-meri__composer-scope-btn,
+  .capiro-vnext-root .vnext-meri__composer-context-label,
+  .capiro-vnext-root .vnext-meri__composer-stop-btn,
+  .capiro-vnext-root .vnext-meri__research-offer-btn,
+  .capiro-vnext-root .vnext-meri__inline-action-btn {
+    min-height: var(--capiro-hit-size);
+  }
+
+  /* Bare-text controls that cannot grow without moving the row they sit in:
+     expand the hit area only. Same technique as .capiro-hit in the foundation;
+     none of these sits in a box tighter than the expanded area. */
+  .capiro-vnext-root .vnext-meri__section-label-link,
+  .capiro-vnext-root .vnext-meri__protip-close,
+  .capiro-vnext-root .vnext-meri__attachment-remove,
+  .capiro-vnext-root .vnext-meri__icon-btn--tiny {
+    position: relative;
+  }
+  .capiro-vnext-root .vnext-meri__section-label-link::after,
+  .capiro-vnext-root .vnext-meri__protip-close::after,
+  .capiro-vnext-root .vnext-meri__attachment-remove::after,
+  .capiro-vnext-root .vnext-meri__icon-btn--tiny::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: max(100%, var(--capiro-hit-size));
+    height: max(100%, var(--capiro-hit-size));
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Scoped override, not an edit to the canonical sheet. The route's loading and
+   fail-closed screens (VNextMeriWorkspace) are styled by
+   components/chat/meri-workspace-window-scope.css, which is shared with the
+   legacy MeriV3 window; its recovery button is 34px tall and is the only
+   control on those screens. Scoping to .capiro-vnext-root leaves the legacy
+   window untouched. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .meri-v3-workspace-loading button {
+    min-height: var(--capiro-hit-size);
+  }
+}
+
+/* ---- Mobile: <= 779 -------------------------------------------------- */
+
+@media (max-width: 779px) {
+  /* Top bar. Brand and actions are both flex-shrink:0 and together need far
+     more than a 390px row, so today the scope chip collapses to zero width and
+     overlaps the brand while the avatar is pushed past `.vnext-meri`'s
+     overflow:hidden and becomes unreachable. Wrapping to two rows keeps DOM
+     order, so visual order still matches tab order. */
+  .capiro-vnext-root .vnext-meri__topbar {
+    height: auto;
+    min-height: var(--meri-topbar-height);
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px 12px;
+  }
+  /* Decorative only. Every control survives. */
+  .capiro-vnext-root .vnext-meri__brand-label,
+  .capiro-vnext-root .vnext-meri__brand-divider {
+    display: none;
+  }
+  /* An auto-width scope chip is what pushes the actions cluster onto row two;
+     with flex:1 its 0 flex-basis would keep all three on one line. */
+  .capiro-vnext-root .vnext-meri__scope {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+  }
+  .capiro-vnext-root .vnext-meri__scope-menu {
+    left: 0;
+    transform: none;
+  }
+  /* 460px anchored to the right edge of the actions cluster starts far
+     off-screen here, and narrowing it alone does not bring it back — it has to
+     stop being anchored to the trigger. `.vnext-meri` sets no transform, so a
+     fixed panel escapes its overflow:hidden and lands on the viewport. */
+  .capiro-vnext-root .vnext-meri__protip-panel {
+    position: fixed;
+    inset: auto 16px 16px;
+    width: auto;
+  }
+  .capiro-vnext-root .vnext-meri__protip-body {
+    max-height: 52vh;
+    max-height: 52dvh;
+  }
+
+  /* Body restack. Each band keeps its own scroller so the composer is never
+     pushed off screen; overflow-y on the body is the last-resort escape for
+     very short (landscape) viewports, where it scrolls instead of clipping. */
+  .capiro-vnext-root .vnext-meri__body {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Thread history becomes a bounded strip above the transcript instead of a
+     300px column consuming 77% of the screen. Its own scroller keeps every
+     thread, saved prompt and workspace reachable. */
+  .capiro-vnext-root .vnext-meri__rail-left {
+    width: 100%;
+    max-height: min(30vh, 240px);
+    max-height: min(30dvh, 240px);
+    border-right: 0;
+    border-bottom: 1px solid var(--meri-border);
+  }
+  .capiro-vnext-root .vnext-meri__rail-left-top {
+    padding: 12px 16px 10px;
+  }
+  .capiro-vnext-root .vnext-meri__rail-left-scroll {
+    padding: 0 16px 12px;
+  }
+
+  .capiro-vnext-root .vnext-meri__rail-right {
+    border-left: 0;
+    border-top: 1px solid var(--meri-border);
+  }
+  .capiro-vnext-root .vnext-meri__rail-right.is-expanded {
+    width: 100%;
+    max-height: min(45vh, 420px);
+    max-height: min(45dvh, 420px);
+  }
+  .capiro-vnext-root .vnext-meri__rail-right.is-collapsed {
+    width: 100%;
+  }
+  /* The collapsed rail reads as a horizontal control strip at the foot of the
+     column rather than a 66px vertical sliver. */
+  .capiro-vnext-root .vnext-meri__rail-collapsed {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 8px 16px;
+  }
+  .capiro-vnext-root .vnext-meri__rail-collapsed-sep {
+    width: 1px;
+    height: 24px;
+    margin: 0 2px;
+  }
+  .capiro-vnext-root .vnext-meri__rail-section {
+    padding: 14px 16px 12px;
+  }
+
+  /* Conversation gutters: 24px each side spends 12% of a 390px screen. */
+  .capiro-vnext-root .vnext-meri__conversation-column {
+    padding: 16px 16px 20px;
+  }
+  .capiro-vnext-root .vnext-meri__thread-header {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  .capiro-vnext-root .vnext-meri__composer-pinned {
+    padding: 12px 16px 10px;
+  }
+  .capiro-vnext-root .vnext-meri__error {
+    margin: 0;
+  }
+  .capiro-vnext-root .vnext-meri__route-error {
+    margin: 0 16px 8px;
+  }
+  .capiro-vnext-root .vnext-meri__landing {
+    padding-top: 24px;
+  }
+  .capiro-vnext-root .vnext-meri__user-bubble {
+    max-width: 88%;
+  }
 }
 
 /* ── Animations ──────────────────────────────────────────────────────── */

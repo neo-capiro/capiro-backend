@@ -54,7 +54,7 @@ export function CreateWatchOverlay({
       primaryTitle="Watch presets have no storage backend yet (GAPS LW-G9). Configure the client's canonical watchlist instead."
       onClose={onClose}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 16 }}>
+      <div className="lw-watch-cols">
         {/* definition */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -87,7 +87,7 @@ export function CreateWatchOverlay({
             <div className="lw-block__label" style={{ marginBottom: 6 }}>Triggers</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {TRIGGERS.map((t) => (
-                <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+                <label key={t} className="lw-check" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={triggers.has(t)}

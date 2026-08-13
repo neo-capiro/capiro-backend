@@ -37,10 +37,11 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-row {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-block {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: 0;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow {
@@ -60,16 +61,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Holds a primary button plus, while confirming, a label and two more kit
+   buttons — ~300px of 120px-floored controls against ~300px of header. All
+   three levels have to wrap or the archive confirm runs off the page. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   flex-shrink: 0;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__action-wrap { display: inline-flex; }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__confirm {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 5px 6px 5px 12px;
   border: 1px solid var(--st-warning-ring);
@@ -80,7 +86,6 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--st-warning-fg);
-  white-space: nowrap;
 }
 
 /* metadata strip */
@@ -115,7 +120,7 @@
   color: var(--st-accent);
   box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
   background: var(--st-accent-tint);
-  max-width: 320px;
+  max-width: min(320px, 100%);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -209,15 +214,19 @@
 }
 
 /* selection footer */
+/* Label + up to two kit buttons (240px of hard floor) in a ~274px footer. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   padding: 10px 14px;
   border-top: 1px solid var(--st-gray-200);
   background: var(--st-gray-50);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-label {
+  flex: 1 1 200px;
+  min-width: 0;
   font-size: 12px;
   color: var(--st-gray-600);
 }
@@ -409,8 +418,49 @@
   margin-top: 12px;
 }
 
-/* responsive: rail stacks under the viewer */
-@media (max-width: 1100px) {
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * Migrated off the module's old 1100px step onto the canonical 1179/779
+ * boundaries (foundations/responsive.css).
+ */
+
+/* tablet: the provenance rail stacks under the viewer */
+@media (max-width: 1179px) {
   .capiro-vnext-root .capiro-strategies .st-ctxdoc__main { grid-template-columns: minmax(0, 1fr); }
   .capiro-vnext-root .capiro-strategies .st-ctxdoc__rail { position: static; }
+}
+
+@media (max-width: 779px) {
+  /* The shell already spends 16px a side; a second 28px gutter took 88px of a
+     390px screen. Bottom-nav clearance is the shell's (it reserves 64px on
+     .capiro-vnext-uui below 780), so this only touches the inline axis. */
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__header { padding-inline: 16px; }
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__state-page { padding-inline: 16px; }
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__main { padding-inline: 16px; }
+
+  /* Truncating the document title to one ellipsised line is the desktop
+     treatment; on a phone it would hide most of every title, so it wraps
+     instead. The type ramp is unchanged. */
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__title {
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+  /* The eyebrow carries a mono template key. */
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow { overflow-wrap: anywhere; }
+
+  /* Touch targets (>=44px). The outline rows grow; the 24px copy button keeps
+     its geometry and gains a transparent hit box instead. */
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__section {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__hash-copy { position: relative; }
+  .capiro-vnext-root .capiro-strategies .st-ctxdoc__hash-copy::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+    transform: translate(-50%, -50%);
+  }
 }

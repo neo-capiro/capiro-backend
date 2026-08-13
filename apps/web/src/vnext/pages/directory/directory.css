@@ -350,16 +350,25 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 0 0 auto;
+  /* Fluid with a ceiling, never a fixed width.
+     The reference columns below (930 / 960) were read off a 1320px design frame,
+     but the live content box is `viewport - rail(272|80|0) - gutters`, which
+     tops out near 1152px because .uui-content is capped at 1280. A fixed width
+     therefore overflowed the page AND starved the profile rail (flex: 1 1 0)
+     down to a few dozen pixels at every viewport from 1180 to ~1560 — a band no
+     media query covered. Treating the reference width as a max-width keeps the
+     drawn geometry wherever it fits and degrades monotonically below it. */
+  flex: 1 1 0;
   min-width: 0;
 }
 
 /* Congressional Staff results column is 930px (939 DoW is 960). */
-.capiro-vnext-root .capiro-directory-results--congressional { width: 930px; }
+.capiro-vnext-root .capiro-directory-results--congressional { max-width: 930px; }
 
 .capiro-vnext-root .capiro-directory-results__header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--capiro-space-02);
   padding: 13px 14px;
   border: 1px solid var(--capiro-color-border-quiet);
@@ -370,43 +379,62 @@
 .capiro-vnext-root .capiro-directory-results__eyebrow,
 .capiro-vnext-root .capiro-directory-results__count {
   margin: 0;
+  min-width: 0;
   font-family: var(--capiro-type-family-mono);
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  white-space: nowrap;
 }
+
+/* The count ("128 RECORDS") is short and must never break; the eyebrow carries
+   the committee/surface name, which at a phone width is longer than the box.
+   It wraps rather than truncates — a half-named committee is worse than two
+   lines, and nothing here may be dropped to make the layout fit. */
+.capiro-vnext-root .capiro-directory-results__count { white-space: nowrap; }
 
 .capiro-vnext-root .capiro-directory-results__eyebrow { color: var(--capiro-color-text-accent); }
 .capiro-vnext-root .capiro-directory-results__count { color: var(--capiro-color-text-secondary); }
 
 /* Column header (937:2742) + rows (937:2748) share one grid so the columns
    cannot drift apart. Widths and the 10px gap come from the fixture. */
+/* Tracks are proportional, not fixed px. The fixture widths (180/210/220/180)
+   only ever resolve at the one column width they were measured at; everywhere
+   else they overflow the row. The ratios reproduce the drawn proportions at the
+   reference width and stay inside the row at every narrower one. The trailing
+   action track stays fixed because "Open →" has a real intrinsic width.
+   minmax(0, Nfr) rather than a bare Nfr: the column-header cells are <p>s with
+   no overflow of their own, so their min-content width would otherwise floor
+   the tracks and re-introduce the overflow. */
 .capiro-vnext-root .capiro-directory-row-grid {
   display: grid;
-  grid-template-columns: 180px 210px 220px 180px 70px;
+  grid-template-columns:
+    minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 70px;
   gap: 10px;
   align-items: start;
 }
 
 /* Department of War results column is 960px with six columns (939). The grid
    shares the column-header / row contract so columns cannot drift apart. */
-.capiro-vnext-root .capiro-directory-results--dow { width: 960px; }
+.capiro-vnext-root .capiro-directory-results--dow { max-width: 960px; }
 .capiro-vnext-root .capiro-directory-row-grid--dow {
   display: grid;
-  grid-template-columns: 168px 150px 200px 110px 190px 60px;
+  grid-template-columns:
+    minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 1.5fr) 60px;
   gap: 10px;
   align-items: start;
 }
 
 /* Committee Staff roster is a five-column grid (dense rows, same dataset as
-   the hierarchy). */
-.capiro-vnext-root .capiro-directory-results--roster { width: 960px; }
+   the hierarchy). Committee Staff applies `--roster` WITHOUT the base
+   `capiro-directory-row-grid` class, so this modifier must carry every
+   responsive rule itself — it cannot inherit them from the base selector. */
+.capiro-vnext-root .capiro-directory-results--roster { max-width: 960px; }
 .capiro-vnext-root .capiro-directory-row-grid--roster {
   display: grid;
-  grid-template-columns: 200px 240px 180px 220px 60px;
+  grid-template-columns:
+    minmax(0, 1.4fr) minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(0, 1.5fr) 60px;
   gap: 10px;
   align-items: start;
 }
@@ -457,9 +485,15 @@
 .capiro-vnext-root .capiro-directory-legend__swatch--dashed { border-top: 1px dashed var(--capiro-color-info-rail); }
 .capiro-vnext-root .capiro-directory-legend__swatch--muted { border-top: 1px solid var(--capiro-color-border-quiet); }
 
+/* The canvas is the one genuinely wide diagram in this module, so it keeps a
+   horizontal scroller (handoff 941:2888: "Mobile: horizontally pannable
+   hierarchy"). The floor belongs on the SCROLLED CONTENT, never on the
+   scroller: `min-width` on the overflow-x box makes the box itself 1180px wide,
+   so it never has anything to scroll and simply pushes the page sideways. */
 .capiro-vnext-root .capiro-directory-canvas {
   overflow-x: auto;
-  min-width: 1180px;
+  overscroll-behavior-x: contain;
+  min-width: 0;
   padding: 24px;
   border: 1px solid var(--capiro-color-border-quiet);
   border-radius: var(--capiro-radius-navigation);
@@ -468,7 +502,18 @@
   flex-direction: column;
   gap: 26px;
 }
-.capiro-vnext-root .capiro-directory-canvas__tier { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.capiro-vnext-root .capiro-directory-canvas__tier {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  /* The drawn diagram width, carried by the tiers so the canvas above has
+     something to pan. Dropped at mobile (see the <=779 block): a 1180px tier is
+     centre-justified, so on a 390px screen the committee node would sit off
+     the left of the viewport with no affordance saying so. The nodes are capped
+     at 240px and wrap, so nothing becomes an unreadable miniature (941:2888). */
+  min-width: 1180px;
+}
 .capiro-vnext-root .capiro-directory-canvas__tier--staff { justify-content: flex-start; }
 .capiro-vnext-root .capiro-directory-canvas__note {
   margin: 0;
@@ -588,6 +633,10 @@
 
 .capiro-vnext-root .capiro-directory-columns__label {
   margin: 0;
+  /* A one-word label ("Organization") is wider than its track at the narrow end
+     of the desktop band; without this it paints over its neighbour. */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: var(--capiro-type-family-mono);
   font-size: 10px;
   font-weight: 500;
@@ -694,7 +743,12 @@
    the rail honest: the fixture clips, production must not. */
 .capiro-vnext-root .capiro-directory-rail {
   box-sizing: border-box;
-  flex: 1 1 0;
+  /* 374px is the reference width against a 1320px frame — 28% of it. Expressed
+     as a proportion with a hard floor, the rail holds the drawn ratio wherever
+     there is room and stops at a readable 280px instead of being squeezed to
+     nothing once the results column beside it also became fluid. Above 1179 the
+     split is a row; at or below it the split stacks and this is overridden. */
+  flex: 0 1 clamp(280px, 28%, 374px);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -823,9 +877,13 @@
 /* ── State Legislators card grid (§7.5) ─────────────────────────────────── */
 .capiro-vnext-root .capiro-directory-leg-section { display: flex; flex-direction: column; gap: 10px; }
 
+/* 3-up at the reference width, but resolved intrinsically rather than by two
+   more breakpoints: min(300px, 100%) — not a bare 300px — so the single-column
+   case at 390 floors at the container, not at 300px + gutters. */
 .capiro-vnext-root .capiro-directory-leg-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 14px;
 }
 
@@ -953,38 +1011,88 @@
 
 .capiro-vnext-root .capiro-directory-leg-card__email--none { color: var(--capiro-color-text-warning); }
 
-@media (max-width: 1180px) {
-  .capiro-vnext-root .capiro-directory-leg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 639px) {
-  .capiro-vnext-root .capiro-directory-leg-grid { grid-template-columns: minmax(0, 1fr); }
-}
+/* ── Responsive ─────────────────────────────────────────────────────────────
+   The canonical vNext boundaries, and only those: 1179 (tablet, 80px icon rail)
+   and 779 (mobile, no rail + fixed 64px bottom nav) — foundations/responsive.css.
+   This file previously used 639/1024/1180/1280, inherited from a retired set of
+   values. They were not equivalent: none of them lined up with the width at
+   which the shell actually changes, so 640-779px rendered a six-column dense
+   table in a touch layout with the bottom nav already mounted, and 1025-1179px
+   kept the table beside the profile rail inside a tablet-width content box. */
 
-/* ── Responsive — reuses the existing vNext breakpoints (responsive.css) ─── */
-@media (max-width: 1280px) {
-  .capiro-vnext-root .capiro-directory-results--congressional { width: auto; flex: 1 1 0; }
-  .capiro-vnext-root .capiro-directory-row-grid { grid-template-columns: 1.4fr 1.6fr 1.6fr 1.4fr 70px; }
-  .capiro-vnext-root .capiro-directory-results--dow { width: auto; flex: 1 1 0; }
-  .capiro-vnext-root .capiro-directory-row-grid--dow {
-    grid-template-columns: 1.4fr 1.2fr 1.6fr 0.9fr 1.5fr 60px;
+/* ── Tablet and below (<=1179): the split stacks ─────────────────────────── */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-directory-split { flex-direction: column; }
+  /* Every child of the split must reset its row-axis flexing here: once the
+     container is a column, `flex: 1 1 0` is a HEIGHT directive, and the
+     max-width ceilings would cap the table at 930/960 while the rail beside it
+     ran the full width. */
+  .capiro-vnext-root .capiro-directory-results,
+  .capiro-vnext-root .capiro-directory-hierarchy,
+  .capiro-vnext-root .capiro-directory-rail {
+    width: 100%;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+  .capiro-vnext-root .capiro-directory-header__metrics { display: none; }
+
+  /* Touch targets (>=44px) for the controls this module owns. The tablet band
+     is touch-operated too, so these are not gated on the mobile query. */
+  .capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item { height: auto; min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-directory-filter__pill { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-directory-filter__option { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-directory-toolbar__reset { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-directory-viewtoggle__btn { min-height: var(--capiro-hit-size, 44px); padding: 6px 16px; }
+  /* 40 -> 44 so the field and its clear button both clear the floor; the clear
+     button was a 12px glyph in ~2px of padding. Type size is unchanged. */
+  .capiro-vnext-root .capiro-directory-search { height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-directory-search__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--capiro-hit-size, 44px);
+    min-height: var(--capiro-hit-size, 44px);
+    padding: 0;
   }
 }
 
-@media (max-width: 1024px) {
-  .capiro-vnext-root .capiro-directory-split { flex-direction: column; }
-  .capiro-vnext-root .capiro-directory-rail { width: 100%; flex: 0 0 auto; }
-  .capiro-vnext-root .capiro-directory-header__metrics { display: none; }
-}
-
-@media (max-width: 639px) {
+/* ── Mobile (<=779): the shell drops the rail and mounts the bottom nav ───── */
+@media (max-width: 779px) {
   .capiro-vnext-root .capiro-directory-body { padding: var(--capiro-space-04) var(--capiro-space-04); }
   .capiro-vnext-root .capiro-directory-header { padding: 14px var(--capiro-space-04) 0; }
   .capiro-vnext-root .capiro-directory-header__title { font-size: 24px; line-height: 30px; }
   .capiro-vnext-root .capiro-directory-tabs { padding: 6px var(--capiro-space-04) 0; }
   .capiro-vnext-root .capiro-directory-search { width: 100%; }
-  /* Rows stack so no cell is clipped and the page never scrolls sideways. */
+
+  /* Rows stack so no cell is clipped and the page never scrolls sideways
+     (941:2888: "list/card surfaces stack to one column"). All three grids —
+     the roster modifier is applied without the base class, so it must be named
+     explicitly or it keeps a 940px track list inside a 298px row. */
   .capiro-vnext-root .capiro-directory-row-grid,
-  .capiro-vnext-root .capiro-directory-row-grid--dow { grid-template-columns: 1fr; gap: var(--capiro-space-02); }
+  .capiro-vnext-root .capiro-directory-row-grid--dow,
+  .capiro-vnext-root .capiro-directory-row-grid--roster {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--capiro-space-02);
+  }
   .capiro-vnext-root .capiro-directory-columns { display: none; }
   .capiro-vnext-root .capiro-directory-row { min-height: 0; }
+
+  /* The hierarchy stays pannable, but its tiers give up the drawn 1180px frame:
+     a centre-justified 1180px tier puts the committee node off-screen at 390. */
+  .capiro-vnext-root .capiro-directory-canvas { padding: var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-directory-canvas__tier { min-width: 0; }
+
+  /* The filter menu is anchored to the pill, floors at 220px and has no
+     right-edge clamp, so any pill starting past ~78px on a 390px screen opened
+     a menu that ran outside .uui-content — which the foundation's mobile
+     `overflow-x: clip` then cut off rather than scrolled. Anchor it to the
+     toolbar instead: full-width, below the pills, no edge to fall off. */
+  .capiro-vnext-root .capiro-directory-toolbar { position: relative; }
+  .capiro-vnext-root .capiro-directory-filter { position: static; }
+  .capiro-vnext-root .capiro-directory-filter__menu {
+    left: var(--capiro-space-03);
+    right: var(--capiro-space-03);
+    min-width: 0;
+    max-height: 50vh;
+  }
 }

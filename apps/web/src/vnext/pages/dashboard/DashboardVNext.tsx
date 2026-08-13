@@ -451,8 +451,12 @@ function SendMeriDialog({
 
 /**
  * Mobile Next Meeting (`759:2683`) — the single-card content model that replaces
- * Today & Coming Up below 640px. When nothing is scheduled the module still
- * renders its state rather than disappearing.
+ * Today & Coming Up below 780px (useIsMobile is pinned to the canonical 779
+ * boundary, so this content model and dashboard.css's mobile geometry now
+ * switch on the same pixel). The Join affordance is real, not decorative: the
+ * model resolves `nextMeeting.joinUrl` from the same `readJoinUrl` the desktop
+ * rows use. When nothing is scheduled the module still renders its state rather
+ * than disappearing.
  */
 function NextMeetingCard({ model }: { model: DashboardVNextModel }) {
   const event = model.today.nextMeeting;

@@ -227,6 +227,18 @@ export function AppShellUuiView({
   );
   const moreRoutes = navigation.primary.filter((r) => !TAB_ROUTE_IDS.includes(r.id));
 
+  /*
+   * A nav FAMILY carries no path of its own — `intelligence` is `path: null` in
+   * the route manifest because the legacy /intelligence route only redirects to
+   * Data Explorer. Rendering `to="#"` for it made the mobile Intel tab (a) go
+   * nowhere and (b) match the current location on EVERY page, so it painted as
+   * the active tab everywhere. Resolve a family to its first child that has a
+   * real path; only fall back to '#' if the manifest genuinely offers nothing.
+   * Uses manifest data only — no invented URLs.
+   */
+  const destinationOf = (route: VNextRouteDefinition): string | null =>
+    route.path ?? route.children?.find((child) => child.path)?.path ?? null;
+
   return (
     <ShellOverlayProvider>
       <div className="capiro-vnext-uui" data-collapsed={collapsed || undefined}>
@@ -271,7 +283,7 @@ export function AppShellUuiView({
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
               <Icon name={collapsed ? 'expand' : 'collapse'} size={24} />
-              {!collapsed ? <span>Collapse</span> : null}
+              {!collapsed ? <span className="uui-collapse-btn__label">Collapse</span> : null}
             </button>
           </div>
         </aside>
@@ -280,7 +292,7 @@ export function AppShellUuiView({
 
         <nav className="uui-bottomnav" aria-label="Primary navigation">
           {tabRoutes.map((route) => (
-            <NavLink key={route.id} to={route.path ?? '#'} end={route.path === '/'} className={({ isActive }) => `uui-bottomnav__item${isActive ? ' uui-bottomnav__item--current' : ''}`}>
+            <NavLink key={route.id} to={destinationOf(route) ?? '#'} end={route.path === '/'} className={({ isActive }) => `uui-bottomnav__item${isActive ? ' uui-bottomnav__item--current' : ''}`}>
               <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={22} />
               <span>{TAB_LABEL_OVERRIDES[route.id] ?? route.label}</span>
             </NavLink>
@@ -296,8 +308,8 @@ export function AppShellUuiView({
             <div className="uui-moresheet" role="dialog" aria-modal="true" aria-label="More">
               <p className="uui-moresheet__label">MORE</p>
               {moreRoutes.map((route) => (
-                route.path ? (
-                  <NavLink key={route.id} to={route.path} className="uui-nav-item" onClick={() => setMoreOpen(false)}>
+                destinationOf(route) ? (
+                  <NavLink key={route.id} to={destinationOf(route) as string} className="uui-nav-item" onClick={() => setMoreOpen(false)}>
                     <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
                     <span className="uui-nav-item__label">{route.label}</span>
                   </NavLink>

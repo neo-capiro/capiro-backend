@@ -5,7 +5,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
 }
 .capiro-vnext-root .capiro-strategies .st-library-phases--setup { box-shadow: 0 0 0 1px var(--st-warning-ring), var(--st-shadow-card); }
 
@@ -13,13 +14,31 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   margin: 8px 0 12px;
+  min-width: 0;
 }
 
-.capiro-vnext-root .capiro-strategies .st-library-tablecard { overflow: hidden; }
+/*
+ * The card was `overflow: hidden`, which turned this table's overflow into an
+ * unreachable clip: at 390px the table's ~700px of min-content left Owner,
+ * Updated and the open chevron cut off with no way to get to them. Make the
+ * card an explicit horizontal scroller instead. overflow-y stays hidden so the
+ * card's radius still clips the row hover fill; a table cannot be crushed below
+ * its min-content, so the min-width simply holds the intended column widths
+ * rather than letting five columns concertina into wrapped fragments. There is
+ * no sticky content inside this card, so promoting it to a scroll container
+ * re-anchors nothing.
+ */
+.capiro-vnext-root .capiro-strategies .st-library-tablecard {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
 .capiro-vnext-root .capiro-strategies .st-library-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 14px;
 }
