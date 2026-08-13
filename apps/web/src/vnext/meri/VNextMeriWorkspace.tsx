@@ -14,10 +14,9 @@ import { useClientFilter } from '../../state/client-filter.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import {
   appendChatMessage,
-  clearChatSession,
   getChatStateSnapshot,
+  replaceChatSession,
   setActiveConversation,
-  setChatSession,
   setConversations,
   setMeriSurfaceMode,
   useChatStore,
@@ -148,9 +147,12 @@ export function VNextMeriWorkspace() {
       }
       const hydrated = body.map(historyMessage).filter((item): item is ChatMessage => Boolean(item));
 
-      clearChatSession();
+      // Atomic: clear messages AND set sessionId in one store update so there
+      // is never a render where sessionId is null while isOpen is true (which
+      // would trigger the controller's auto-create-session effect and race
+      // with this hydration, clearing the loaded messages).
+      replaceChatSession(conversationId);
       setActiveConversation(conversationId);
-      setChatSession(conversationId);
       for (const message of hydrated) appendChatMessage(message);
       setMeriSurfaceMode('undocked');
     },
@@ -165,9 +167,8 @@ export function VNextMeriWorkspace() {
       // Close first. Otherwise the canonical controller's established
       // "open + no session => create" effect could race the state clear below.
       setMeriSurfaceMode('closed');
-      clearChatSession();
+      replaceChatSession(null);
       setActiveConversation(null);
-      setChatSession(null);
       controller.setSessionTitle('');
       setRouteError(null);
       if (location.pathname !== '/meri/new') navigate('/meri/new', { replace });
@@ -200,9 +201,8 @@ export function VNextMeriWorkspace() {
 
         if (isNewRoute) {
           setMeriSurfaceMode('closed');
-          clearChatSession();
+          replaceChatSession(null);
           setActiveConversation(null);
-          setChatSession(null);
           controller.setSessionTitle('');
           setRouteReady(true);
           return;

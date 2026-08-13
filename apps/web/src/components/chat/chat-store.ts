@@ -280,6 +280,17 @@ export function clearChatSession(): void {
   notify();
 }
 
+/**
+ * Atomically clear messages AND set the new session id in a single store
+ * update. This prevents a render where sessionId is null while isOpen is
+ * true, which would trigger the controller's auto-create-session effect
+ * and race with hydration (clearing the loaded messages).
+ */
+export function replaceChatSession(sessionId: string | null): void {
+  state = { ...state, messages: [], sessionId, isStreaming: false };
+  notify();
+}
+
 export function setActiveDraft(draft: ActiveDraftContext | null): void {
   activeDraft = draft;
 }

@@ -5,9 +5,8 @@ import { config } from '../../env.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import {
   appendChatMessage,
-  clearChatSession,
+  replaceChatSession,
   setActiveConversation,
-  setChatSession,
   setConversations,
   useChatStore,
   type MeriConversation,
@@ -73,9 +72,8 @@ export function MeriWorkspaceThreadRail({
 
   const loadConversation = useCallback(
     async (conversationId: string) => {
-      clearChatSession();
+      replaceChatSession(conversationId);
       setActiveConversation(conversationId);
-      setChatSession(conversationId);
       try {
         const response = await fetch(
           `${config.apiBaseUrl}/api/clio/conversations/${conversationId}/messages`,
