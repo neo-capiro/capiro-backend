@@ -115,7 +115,14 @@
     // published field names — a type error reaching an operator's shell here
     // would land on top of an already-provisional contract.
     "scripts/sync-tango-dibbs.ts",
-    "scripts/sync-tango-dibbs.spec.ts"
+    "scripts/sync-tango-dibbs.spec.ts",
+    // Matching producers: DIBBS/SBIR relevance scoring shipped dark (built,
+    // tested, never called) until these — the only path to visibility, since
+    // neither source has a live read-time scoring path. Dry-run by default.
+    "scripts/generate-dibbs-opportunity-candidates.ts",
+    "scripts/generate-dibbs-opportunity-candidates.spec.ts",
+    "scripts/generate-sbir-opportunity-candidates.ts",
+    "scripts/generate-sbir-opportunity-candidates.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
