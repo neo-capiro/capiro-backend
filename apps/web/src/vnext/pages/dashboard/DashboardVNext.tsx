@@ -272,7 +272,11 @@ function TodayAndComingUp({ model }: { model: DashboardVNextModel }) {
             >
               <span className="uui-dash-week__weekday">{day.weekday}</span>
               <span className="uui-dash-week__number">{day.day}</span>
-              {day.hasEvents ? <span className="uui-dash-week__dot" aria-hidden="true" /> : null}
+              <span
+                className="uui-dash-week__dot"
+                data-visible={day.hasEvents || undefined}
+                aria-hidden="true"
+              />
             </div>
           ))}
         </div>

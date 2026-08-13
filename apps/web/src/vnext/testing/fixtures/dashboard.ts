@@ -65,8 +65,8 @@ export const DASHBOARD_MODULE_STATES: Readonly<Record<string, ModuleStatus>> = {
 export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
   header: {
     greeting: 'Good Evening, Neo.',
-    eyebrow: 'ALL CLIENTS · PORTFOLIO WIDE',
-    meta: 'Monday, August 10, 2026 · 49 new signals overnight · 4 critical actions today',
+    eyebrow: '',
+    meta: 'Monday, August 10, 2026',
     refreshedLabel: 'Refreshed 3m ago',
   },
   needsAttention: {
