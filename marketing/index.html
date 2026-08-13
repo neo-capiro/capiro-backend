@@ -121,13 +121,18 @@
 <nav class="nav" id="siteNav">
   <div class="nav-inner">
     <a class="nav-logo" href="#top"><img src="/assets/logo.png" alt="Capiro" width="960" height="325"></a>
-    <div class="nav-menu">
-      <a href="#platform">Platform</a>
-      <a href="/insights">Insights</a>
-    </div>
-    <div class="nav-actions">
-      <a class="nav-signin" href="https://app.capiro.ai/sign-in" target="_blank">Sign in</a>
-      <button class="nav-cta" onclick="openModal()">Request a demo</button>
+    <button class="nav-burger" id="navBurger" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
+      <div class="nav-menu">
+        <a href="#platform" onclick="closeNav()">Platform</a>
+        <a href="/insights">Insights</a>
+      </div>
+      <div class="nav-actions">
+        <a class="nav-signin" href="https://app.capiro.ai/sign-in" target="_blank">Sign in</a>
+        <button class="nav-cta" onclick="openModal();closeNav()">Request a demo</button>
+      </div>
     </div>
   </div>
 </nav>

@@ -27,7 +27,14 @@ h1,h2,h3,p{margin:0}
 .nav-inner{max-width:1200px;margin:0 auto;padding:14px 24px;min-height:72px;display:flex;align-items:center;flex-wrap:wrap;row-gap:10px;column-gap:clamp(16px,3vw,40px)}
 .nav-logo{display:flex;align-items:center;flex:0 0 auto}
 .nav-logo img{height:24px;width:auto;display:block;filter:brightness(0) invert(1);transition:filter .3s ease}
+.nav-links{flex:1 1 auto;display:flex;align-items:center;gap:clamp(16px,3vw,40px)}
 .nav-menu{flex:1 1 auto;display:flex;align-items:center;flex-wrap:wrap;gap:clamp(14px,2.2vw,30px)}
+.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;margin-left:auto;padding:9px;background:transparent;border:0;cursor:pointer}
+.nav-burger span{display:block;height:2px;border-radius:2px;background:#FFFFFF;transition:background .3s ease,transform .2s ease,opacity .2s ease}
+.nav.is-scrolled .nav-burger span{background:#101828}
+.nav-burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-burger.open span:nth-child(2){opacity:0}
+.nav-burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 .nav-menu a,.nav-menu a:hover{font-size:15px;font-weight:500;color:rgba(255,255,255,0.92);transition:color .3s ease}
 .nav-actions{flex:0 0 auto;display:flex;align-items:center;gap:14px}
 .nav-signin,.nav-signin:hover{font-size:15px;font-weight:500;color:rgba(255,255,255,0.78);transition:color .3s ease}
@@ -85,7 +92,8 @@ h1,h2,h3,p{margin:0}
 /* ---- platform trio ---- */
 .platform{background:#F5F3EF;border-top:1px solid #E7E2D9}
 .platform-inner{max-width:1200px;margin:0 auto;padding:clamp(64px,8vw,112px) 24px}
-.platform-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:clamp(28px,3.5vw,44px)}
+/* min() keeps the 310px track from overflowing viewports narrower than it. */
+.platform-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr));gap:clamp(28px,3.5vw,44px)}
 .step-num{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.14em;color:#98A2B3}
 .step-title{margin:10px 0 0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(28px,2.9vw,38px);line-height:1.08;letter-spacing:-0.02em;color:#101828}
 .step-desc{margin:14px 0 26px;font-size:16px;line-height:1.6;color:#475467;max-width:34ch}
@@ -256,16 +264,42 @@ h1,h2,h3,p{margin:0}
 .btn-schedule,.btn-schedule:hover{display:inline-flex;align-items:center;height:48px;padding:0 24px;border-radius:8px;background:#0A1A2E;color:#FFFFFF;font-size:15px;font-weight:600}
 .btn-schedule:hover{background:#294E68}
 
-/* ---- narrow viewports ---- */
-/* The design's own responsive strategy is flex-wrap + clamp(); these only pull
-   back the hero's fixed top padding and the rail's fixed card width, which
-   clamp() alone cannot do below the phone breakpoint. */
+/* ---- responsive ---- */
+/* The design's own strategy is flex-wrap + clamp(), which carries the layout
+   down to about tablet width on its own. Below that the nav collapses to a
+   burger, and the hero's fixed insets need pulling back so the decorative
+   corner frame and the monospace strip stop colliding with the CTAs. */
+
+/* Tablet and below — nav collapses to a burger menu (toggleNav/closeNav in
+   main.js drive #navLinks / #navBurger, same as the other pages). */
+@media (max-width:768px){
+  .nav-inner{padding:12px 18px;min-height:64px;flex-wrap:nowrap}
+  .nav-burger{display:flex}
+  .nav-links{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;gap:0;padding:6px 18px 18px;background:rgba(255,255,255,0.98);backdrop-filter:blur(16px);border-bottom:1px solid #EAECF0;box-shadow:0 14px 32px rgba(16,24,40,0.12)}
+  .nav-links.open{display:flex}
+  .nav-menu{flex:0 0 auto;flex-direction:column;align-items:stretch;gap:0}
+  .nav-menu a,.nav.is-scrolled .nav-menu a{color:#344054;padding:14px 0;border-bottom:1px solid #F2F4F7}
+  .nav-actions{flex-direction:column;align-items:stretch;gap:12px;margin-top:16px}
+  .nav-signin,.nav.is-scrolled .nav-signin{color:#475467}
+  .nav-cta,.nav.is-scrolled .nav-cta{background:#0A1A2E;color:#FFFFFF;height:46px;justify-content:center}
+  /* Clear the frame's bottom corners (66px inset + 26px corner). */
+  .hero-inner{padding-bottom:120px}
+}
+
+/* Phone. */
 @media (max-width:640px){
-  .hero-inner{padding-top:140px}
-  /* Fallback is the two-row nav height: erring large keeps the corners below the
-     nav, which is the point; JS narrows it to the exact height. */
-  .hero-frame{left:14px;right:14px;top:calc(var(--nav-h,105px) + 14px);bottom:58px}
-  .hero-meta{left:18px;right:18px;font-size:10px}
+  .hero-inner{padding-top:120px;padding-bottom:136px}
+  .hero-frame{left:14px;right:14px;top:calc(var(--nav-h,73px) + 14px);bottom:96px}
+  /* The badge wraps to two lines here, so it can no longer be a fixed pill. */
+  .hero-badge{height:auto;min-height:30px;padding:6px 12px;line-height:1.3}
+  .hero-actions{gap:12px}
+  .hero-actions>*{flex:1 1 100%;justify-content:center}
+  .hero-meta{left:18px;right:18px;bottom:16px;font-size:10px;flex-direction:column;gap:6px}
+  /* Stacked, each item centres on its own text and the icons come out ragged. */
+  .audience-grid{gap:14px}
+  .audience-item{justify-content:flex-start}
   .rail-card{flex:0 0 86vw}
   .rail-media{height:auto;min-height:200px}
+  .workflow-controls{width:100%}
+  .workflow-controls .btn-dark{flex:1 1 auto;justify-content:center}
 }
