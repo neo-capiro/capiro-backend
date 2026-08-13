@@ -75,10 +75,20 @@ const read = (...p) => readFileSync(join(HERE, ...p), 'utf8').replace(/\r\n/g, '
 const header = read('templates', 'header.html');
 const footer = read('templates', 'footer.html');
 
+// The home page ships its own chrome: a light theme, a transparent-over-hero nav
+// and its own stylesheet (assets/home.css). The other six pages keep the shared
+// dark-theme header/footer and assets/styles.css untouched. Selected per page
+// via `chrome: 'home'` below.
+const CHROME = {
+  default: { header, footer },
+  home: { header: read('templates', 'header-home.html'), footer: read('templates', 'footer-home.html') },
+};
+const ICONS = read('templates', 'icons-sprite.html');
+
 // Pages, in sitemap order. slug '' => served at "/". `body` is the file under templates/pages/.
 const PAGES = [
   {
-    slug: '', out: 'index.html', body: 'home.html',
+    slug: '', out: 'index.html', body: 'home.html', chrome: 'home',
     title: 'Capiro — AI Chief of Staff & Operating System for Government Affairs',
     description: 'Capiro is the operating system for government affairs teams. Meri, your AI Chief of Staff, tracks legislation, drafts outreach, and manages every client and capability in one platform. Measured by outcomes.',
   },
@@ -176,7 +186,10 @@ mkdirSync(OUT, { recursive: true });
 
 for (const page of PAGES) {
   const canonical = canonicalFor(page.slug);
-  const head = header
+  const chrome = CHROME[page.chrome || 'default'];
+  if (!chrome) throw new Error('unknown chrome "' + page.chrome + '" for /' + page.slug);
+  const head = chrome.header
+    .replace('{{ICONS}}', ICONS)
     .replaceAll('{{TITLE}}', attr(page.title))
     .replaceAll('{{OG_TITLE}}', attr(page.title))
     .replaceAll('{{DESCRIPTION}}', attr(page.description))
@@ -186,7 +199,7 @@ for (const page of PAGES) {
     .replace('{{TRACKING_BODY}}', trackingBody())
     .replace('<!DOCTYPE html>\n', '<!DOCTYPE html>\n' + BANNER + '\n');
   const body = read('templates', 'pages', page.body);
-  writeFileSync(join(OUT, page.out), head + body + '\n' + footer);
+  writeFileSync(join(OUT, page.out), head + body + '\n' + chrome.footer);
 }
 
 const sitemap =

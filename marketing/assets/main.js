@@ -7,6 +7,34 @@
 function toggleNav(){var l=document.getElementById('navLinks'),b=document.getElementById('navBurger');if(!l)return;var open=l.classList.toggle('open');if(b){b.classList.toggle('open',open);b.setAttribute('aria-expanded',open?'true':'false');}}
 function closeNav(){var l=document.getElementById('navLinks'),b=document.getElementById('navBurger');if(l)l.classList.remove('open');if(b){b.classList.remove('open');b.setAttribute('aria-expanded','false');}}
 
+/* ---- Home nav (only present on /, which ships its own transparent-over-hero
+   nav from templates/header-home.html). Solid state kicks in past 90px. ---- */
+(function(){
+  var nav=document.getElementById('siteNav');
+  if(!nav)return;
+  var on=false;
+  function sync(){
+    var s=window.scrollY>90;
+    if(s!==on){on=s;nav.classList.toggle('is-scrolled',s);}
+  }
+  window.addEventListener('scroll',sync,{passive:true});
+  sync();
+  // The nav wraps to two rows on narrow viewports, so its height is not fixed.
+  // Publish it so the hero's corner brackets can sit below it at any width.
+  function measure(){
+    document.documentElement.style.setProperty('--nav-h',nav.offsetHeight+'px');
+  }
+  measure();
+  window.addEventListener('resize',measure,{passive:true});
+  if(window.ResizeObserver)new ResizeObserver(measure).observe(nav);
+})();
+
+/* ---- Featured-tools rail (home only) ---- */
+function scrollRail(dir){
+  var el=document.querySelector('[data-rail="workflow"]');
+  if(el)el.scrollBy({left:dir*Math.max(340,el.clientWidth*0.8),behavior:'smooth'});
+}
+
 /* ---- Insights feed (only acts when #insights-grid exists, i.e. /insights) ---- */
 var _insightsLoaded=false;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -45,7 +73,7 @@ function loadInsights(){
 }
 
 /* ---- Demo request modal ---- */
-function openModal(){document.getElementById('demoModal').classList.add('open');document.body.style.overflow='hidden';}
+function openModal(){demoError('');document.getElementById('demoModal').classList.add('open');document.body.style.overflow='hidden';}
 function closeModal(){document.getElementById('demoModal').classList.remove('open');document.body.style.overflow='';}
 function closeModalOutside(e){if(e.target===document.getElementById('demoModal'))closeModal();}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
@@ -60,6 +88,13 @@ function showDemoSuccess(){
   // LinkedIn Insight Tag event-specific conversion (conversion_id injected by build.mjs TRACKING).
   if(window.lintrk&&window._capiroLiConversionId){window.lintrk('track',{conversion_id:window._capiroLiConversionId});}
 }
+/* Validation feedback: the home modal has an inline #formError panel; the other
+   pages' modal does not, so fall back to alert() there. */
+function demoError(msg){
+  const box=document.getElementById('formError');
+  if(box){box.textContent=msg||'';box.style.display=msg?'block':'none';}
+  else if(msg){alert(msg);}
+}
 function submitDemo(){
   const first=document.getElementById('firstName').value.trim();
   const last=document.getElementById('lastName').value.trim();
@@ -67,15 +102,18 @@ function submitDemo(){
   const firm=document.getElementById('firmName').value.trim();
   const role=document.getElementById('role').value;
   const practice=document.getElementById('practiceType').value;
-  if(!first||!last||!email||!firm||!role||!practice){alert('Please fill in all required fields.');return;}
+  if(!first||!last||!email||!firm||!role||!practice){demoError('Please fill in all required fields.');return;}
   const emailReg=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailReg.test(email)){alert('Please enter a valid email address.');return;}
+  if(!emailReg.test(email)){demoError('Please enter a valid email address.');return;}
   const personal=['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','aol.com','protonmail.com','me.com'];
-  if(personal.includes(email.split('@')[1].toLowerCase())){alert('Please use your work or firm email address.');return;}
+  if(personal.includes(email.split('@')[1].toLowerCase())){demoError('Please use your work or firm email address.');return;}
+  demoError('');
+  // Optional qualifier — present in the other pages' modal, absent from the home one.
+  const clients=document.getElementById('clientCount');
   const btn=document.querySelector('.form-submit');btn.textContent='Sending...';btn.disabled=true;
   fetch('https://api.hsforms.com/submissions/v3/integration/submit/245730593/e00a7515-d4f6-4d23-8316-db797671d872',
     {method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({fields:[{name:'firstname',value:first},{name:'lastname',value:last},{name:'email',value:email},{name:'company',value:firm},{name:'jobtitle',value:role},{name:'practice_type',value:practice},{name:'active_client_count',value:document.getElementById('clientCount').value||''}],context:{pageUri:window.location.href,pageName:document.title}})})
+     body:JSON.stringify({fields:[{name:'firstname',value:first},{name:'lastname',value:last},{name:'email',value:email},{name:'company',value:firm},{name:'jobtitle',value:role},{name:'practice_type',value:practice},{name:'active_client_count',value:(clients&&clients.value)||''}],context:{pageUri:window.location.href,pageName:document.title}})})
   .then(showDemoSuccess)
   .catch(showDemoSuccess);
 }
