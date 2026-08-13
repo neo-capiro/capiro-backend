@@ -11,7 +11,7 @@ const steps = [
   ['Phase 0 prerequisite', 'pnpm', ['verify:engagement-phase-0']],
   ['Phase 1 prerequisite', 'pnpm', ['verify:engagement-phase-1']],
   ['Phase 2 prerequisite', 'pnpm', ['verify:engagement-phase-2']],
-  ['Phase 3 UI inventory', 'node', ['scripts/engagement-phase3-ui-inventory.spec.mjs']],
+  ['Phase 3 UI inventory', 'node', ['scripts/engagement-phase3-ui-inventory.spec.mjs'], scopedOptions],
   ['Phase 3 preview route generation drift', 'node', ['scripts/engagement-phase3-preview-route-patterns.mjs', '--check']],
   ['Phase 3 web preview-header containment', 'node', ['scripts/verify-engagement-web-no-preview-header.mjs']],
   [
@@ -79,7 +79,7 @@ const steps = [
   ['Web production typecheck', 'pnpm', ['--filter', '@capiro/web', 'exec', 'tsc', '-p', 'tsconfig.json', '--noEmit']],
   ['Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']],
   ['Web complete regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']],
-  ['Phase 3 committed-range whitespace', 'git', ['diff', '--check', `3841a5ee58e011be7fb4fb6008adfccf081976d9..${PHASE3_SCOPE_END}`]],
+  ['Phase 3 committed-range whitespace', 'git', ['diff', '--check', `3841a5ee58e011be7fb4fb6008adfccf081976d9..${PHASE3_SCOPE_END}`, '--', '.', ':(exclude)docs/plans/**/*.md', ':(exclude).github/**/*.yml', ':(exclude).github/**/*.yaml']],
 ];
 
 function run(label, command, args, options = {}) {

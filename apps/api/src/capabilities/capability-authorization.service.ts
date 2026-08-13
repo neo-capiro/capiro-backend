@@ -23,6 +23,14 @@ export class CapabilityAuthorizationService {
     ctx: AuthorizedCapabilityContext,
     clientId: string,
   ): Promise<AuthorizedClientSummary> {
+    if (ctx.clientScope && ctx.clientScope.clientId !== clientId) {
+      throw new CapabilityError(
+        'CAPABILITY_INVALID_SCOPE',
+        'The requested client does not match the authorized client scope.',
+        false,
+        true,
+      );
+    }
     return this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
       this.authorizeClientWithinTx(tx, ctx, clientId),
     );

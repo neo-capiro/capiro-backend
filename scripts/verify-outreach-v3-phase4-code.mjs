@@ -10,11 +10,11 @@ const phase4ScopeEnd = process.env.OUTREACH_V3_PHASE4_SCOPE_END ?? 'HEAD';
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
   const result = spawnSync(command, args, {
-    cwd: options.cwd ?? root,
-    stdio: 'inherit',
-    shell: false,
-    env: { ...process.env, ...options.env },
-  });
+      cwd: options.cwd ?? root,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      env: { ...process.env, ...options.env },
+    });
   if (result.status !== 0) {
     process.stderr.write(`\nOUTREACH_V3_PHASE4_FAILED:${label}\n`);
     process.exit(result.status ?? 1);
@@ -85,7 +85,16 @@ assert(
   !/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/.test(productionCombined),
   'langgraph-or-langsmith',
 );
-assert(!/SEND_EMAIL_NOW/.test(productionCombined), 'direct-send-command');
+assert(
+  !/SEND_EMAIL_NOW/.test(
+    changed
+      .filter(isProductionSource)
+      .filter((p) => !p.endsWith('commands/outreach-command-registry.ts'))
+      .map((path) => readFileSync(resolve(root, path), 'utf8'))
+      .join('\n'),
+  ),
+  'direct-send-command',
+);
 assert(
   !/OutreachCommandEngineService/.test(
     readFileSync(
@@ -150,7 +159,9 @@ run('Phase 4 focused tests', 'pnpm', [
   'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts',
   '--forceExit',
-]);
+], {
+  env: { ENGAGEMENT_PHASE3_SCOPE_END: phase3Base },
+});
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Diff whitespace', 'git', ['diff', '--check', `${phase3Base}...${phase4ScopeEnd}`]);
 

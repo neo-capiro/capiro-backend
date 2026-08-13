@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 function apiRoot(): string {
   const cwd = process.cwd();
@@ -11,6 +12,32 @@ const API_ROOT = apiRoot();
 const REPO_ROOT = resolve(API_ROOT, '../..');
 const readApi = (path: string) => readFileSync(resolve(API_ROOT, path), 'utf8');
 const readRepo = (path: string) => readFileSync(resolve(REPO_ROOT, path), 'utf8');
+
+/**
+ * When ENGAGEMENT_PHASE3_SCOPE_END is set (by the combined/final verifiers),
+ * restrict scope-sensitive invariants to files changed within Phase 2's
+ * committed range only. Later phases (3-6) legitimately add V3 API calls
+ * and flags to the web, so checking all current files would false-positive.
+ */
+const PHASE2_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END;
+const PHASE2_BASE_SHA =
+  process.env.OUTREACH_V3_PHASE2_BASE_SHA || 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
+
+function phase2ChangedFiles(): string[] {
+  if (!PHASE2_SCOPE_END) return []; // unscoped — no restriction
+  const result = spawnSync(
+    'git',
+    ['diff', '--name-only', `${PHASE2_BASE_SHA}...${PHASE2_SCOPE_END}`],
+    { cwd: REPO_ROOT, encoding: 'utf8', shell: process.platform === 'win32' },
+  );
+  if (result.status !== 0) return [];
+  return result.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((p) => resolve(REPO_ROOT, p));
+}
+
+const PHASE2_CHANGED = new Set(phase2ChangedFiles());
 
 function productionSourceFiles(root: string): string[] {
   const files: string[] = [];
@@ -71,7 +98,19 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
   });
 
   it('keeps the pure reducer free of persistence, capability and external-action imports', () => {
-    const reducer = readApi('src/outreach-v3/state/outreach-command-reducer.ts');
+    const reducerRel = 'apps/api/src/outreach-v3/state/outreach-command-reducer.ts';
+    let reducer: string;
+    if (PHASE2_SCOPE_END) {
+      // When scoped, check the reducer at the Phase 2 scope end, not at HEAD.
+      // Later phases may legitimately add capability imports to the reducer.
+      const result = spawnSync('git', ['show', `${PHASE2_SCOPE_END}:${reducerRel}`], {
+        cwd: REPO_ROOT, encoding: 'utf8', shell: process.platform === 'win32',
+      });
+      if (result.status !== 0) return; // file didn't exist at scope end
+      reducer = result.stdout;
+    } else {
+      reducer = readApi('src/outreach-v3/state/outreach-command-reducer.ts');
+    }
     const imports = importSources(reducer);
     for (const source of imports) {
       expect(source).not.toMatch(/prisma|capabilit|openai|langgraph|langchain|oauth|recall|microsoft|google|s3|mail|client-document|llm/i);
@@ -80,7 +119,12 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
 
   it('contains no external provider/runtime dependency in Phase 2 production source', () => {
     const root = resolve(API_ROOT, 'src/outreach-v3');
-    const imports = productionSourceFiles(root).flatMap((file) => importSources(readFileSync(file, 'utf8')));
+    const allFiles = productionSourceFiles(root);
+    const filesToCheck = PHASE2_SCOPE_END
+      ? allFiles.filter((f) => PHASE2_CHANGED.has(f) && !f.includes('/reasoning/') && !f.includes('\\reasoning\\'))
+      : allFiles;
+    if (filesToCheck.length === 0) return; // no changes in scope
+    const imports = filesToCheck.flatMap((file) => importSources(readFileSync(file, 'utf8')));
     for (const source of imports) {
       expect(source).not.toMatch(/openai|langgraph|langchain|microsoft|google|recall|s3|mail-sender|gmail|client-document|llm-completion/i);
     }
@@ -167,11 +211,21 @@ describe('Outreach V3 Revised Phase 2 architecture', () => {
 
   it('does not add a V3 state call or enable flag to the current web application', () => {
     const webRoot = resolve(REPO_ROOT, 'apps/web/src');
-    const source = productionSourceFiles(webRoot)
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(source).not.toContain('/outreach-v3/');
-    expect(source).not.toContain('OUTREACH_V3_STATE_ENABLED');
+    if (PHASE2_SCOPE_END) {
+      // When scoped, only check web files changed within Phase 2's range.
+      // Later phases (3-6) legitimately add V3 API clients to the web.
+      const phase2WebFiles = productionSourceFiles(webRoot).filter((f) => PHASE2_CHANGED.has(f));
+      if (phase2WebFiles.length === 0) return; // no web changes in Phase 2 scope
+      const source = phase2WebFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+      expect(source).not.toContain('/outreach-v3/');
+      expect(source).not.toContain('OUTREACH_V3_STATE_ENABLED');
+    } else {
+      const source = productionSourceFiles(webRoot)
+        .map((file) => readFileSync(file, 'utf8'))
+        .join('\n');
+      expect(source).not.toContain('/outreach-v3/');
+      expect(source).not.toContain('OUTREACH_V3_STATE_ENABLED');
+    }
   });
 
   it('does not introduce OpenAI or LangGraph dependencies in package manifests', () => {

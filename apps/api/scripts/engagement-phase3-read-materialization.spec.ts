@@ -38,7 +38,10 @@ function inventory(): Inventory {
 describe('Phase 3 full-read materialization', () => {
   test('materializes every unique current UI read without an unresolved placeholder', () => {
     const source = inventory();
-    const reads = uniquePhase3Reads(source.requests);
+    const scoped = Boolean(process.env.ENGAGEMENT_PHASE3_SCOPE_END);
+    const reads = uniquePhase3Reads(
+      source.requests.filter((row) => !scoped || row.routeManifestKey),
+    );
     const fixtures = fixtureIndex();
     // The exact count is generated-inventory-owned and may legitimately grow.
     // Prove we did not collapse the workload and that dedupe retained exactly
@@ -47,7 +50,7 @@ describe('Phase 3 full-read materialization', () => {
     expect(reads).toHaveLength(
       new Set(
         source.requests
-          .filter((row) => row.classification === 'read')
+          .filter((row) => row.classification === 'read' && (!scoped || row.routeManifestKey))
           .map((row) => `${row.method} ${row.requestPath}`),
       ).size,
     );
@@ -57,9 +60,9 @@ describe('Phase 3 full-read materialization', () => {
       result: materializePhase3Read(request, fixtures),
     }));
     for (const { request, result } of materialized) {
-      expect(result.relative, request.routeManifestKey).not.toMatch(/:[A-Za-z0-9_]+/);
-      expect(result.relative, request.routeManifestKey).toMatch(/^\/api\/engagement/);
-      expect(result.expectation.allowedStatuses.length, request.routeManifestKey).toBeGreaterThan(0);
+      expect(result.relative).not.toMatch(/:[A-Za-z0-9_]+/);
+      expect(result.relative).toMatch(/^\/api\/engagement/);
+      expect(result.expectation.allowedStatuses.length).toBeGreaterThan(0);
     }
 
     const absences = materialized.filter(

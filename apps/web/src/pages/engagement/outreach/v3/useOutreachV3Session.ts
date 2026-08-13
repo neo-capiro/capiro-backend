@@ -220,6 +220,10 @@ export interface OutreachV3ContextSearchInput {
   limit?: number;
 }
 
+export type OutreachV3ContextSearchResult =
+  | { source: 'memory'; result: CapabilityResult<OutreachV3MemorySearchData> }
+  | { source: 'government'; result: CapabilityResult<OutreachV3GovernmentSearchData> };
+
 export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -437,8 +441,12 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     },
   });
 
-  const contextSearchMutation = useMutation({
-    mutationFn: (input: OutreachV3ContextSearchInput) => {
+  const contextSearchMutation = useMutation<
+    OutreachV3ContextSearchResult,
+    Error,
+    OutreachV3ContextSearchInput
+  >({
+    mutationFn: (input: OutreachV3ContextSearchInput): Promise<OutreachV3ContextSearchResult> => {
       if (!sessionId) throw new Error('The Outreach session is not ready.');
       if (input.source === 'memory') {
         return searchOutreachV3Memory(api, sessionId, {
@@ -517,11 +525,9 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     const value = contextSearchMutation.data;
     if (!value) return [];
     if (value.source === 'memory') {
-      const data = value.result as CapabilityResult<OutreachV3MemorySearchData>;
-      return data.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'memory' }));
+      return value.result.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'memory' }));
     }
-    const data = value.result as CapabilityResult<OutreachV3GovernmentSearchData>;
-    return data.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'government' }));
+    return value.result.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'government' }));
   }, [contextSearchMutation.data]);
 
   const session = sessionQuery.data ?? bootstrap.data ?? null;

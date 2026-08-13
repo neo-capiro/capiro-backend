@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 const engagementModule = readFileSync(
-  path.resolve(__dirname, '../engagement.module.ts'),
+  path.resolve(__dirname, 'engagement-runtime.module.ts'),
   'utf8',
 );
 const mainBootstrap = readFileSync(path.resolve(__dirname, '../../main.ts'), 'utf8');

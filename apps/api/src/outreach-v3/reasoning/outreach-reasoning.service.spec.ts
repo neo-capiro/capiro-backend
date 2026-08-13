@@ -87,7 +87,9 @@ function harness(result = providerResult()) {
     executeReadTool: jest.fn(),
     buildInstructions: jest.fn(() => 'rules'),
   };
-  const provider = { respond: jest.fn(async () => result) };
+  const provider = {
+    respond: jest.fn(async () => result) as jest.Mock,
+  };
   const proposals = {
     createModelProposalWithinTx: jest.fn(async () => ({
       id: '00000000-0000-4000-8000-000000000020',
@@ -194,7 +196,7 @@ describe('OutreachReasoningService', () => {
         },
       },
     });
-    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+    h.provider.respond.mockImplementationOnce(async (request: any) => {
       const result = await request.executeTool('search_targets', {
         query: 'HASC',
         clientId: null,
@@ -235,7 +237,7 @@ describe('OutreachReasoningService', () => {
         },
       },
     });
-    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+    h.provider.respond.mockImplementationOnce(async (request: any) => {
       const result = await request.executeTool('search_targets', {
         query: 'HASC',
         clientId: null,
@@ -263,7 +265,7 @@ describe('OutreachReasoningService', () => {
         data: { candidates: [{ targetKey: 'directory_member:member-123', locator: targetLocator }] },
       },
     });
-    h.provider.respond.mockImplementationOnce(async (request: { executeTool: Function }) => {
+    h.provider.respond.mockImplementationOnce(async (request: any) => {
       await request.executeTool('search_targets', {
         query: 'HASC',
         clientId: null,

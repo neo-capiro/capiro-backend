@@ -23,7 +23,7 @@ interface ProbeResult {
 
 interface ProbeInit {
   method?: string;
-  headers?: Record<string, string>;
+  headers?: Record<string, string | undefined>;
   body?: unknown;
 }
 
@@ -74,7 +74,7 @@ async function probe(
   token: string | null,
   init: ProbeInit = {},
 ): Promise<ProbeResult> {
-  const requestHeaders = new Headers(init.headers);
+  const requestHeaders = new Headers(init.headers as Record<string, string> | undefined);
   if (token) requestHeaders.set('Authorization', `Bearer ${token}`);
   if (init.body !== undefined) requestHeaders.set('Content-Type', 'application/json');
   const response = await fetch(`${base}${pathname}`, {

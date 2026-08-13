@@ -1,6 +1,8 @@
 import type { TenantContext } from '@capiro/shared';
 import type { CapabilityAuthorizationService } from '../../capabilities/capability-authorization.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import type { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
+import type { OutreachContextReferenceService } from '../../capabilities/context/outreach-context-reference.service.js';
 import type { OutreachStateRepository, OutreachSessionRow } from '../persistence/outreach-state.repository.js';
 import { OutreachCommandEngineService } from './outreach-command-engine.service.js';
 
@@ -41,6 +43,8 @@ describe('OutreachCommandEngineService internal transaction boundary', () => {
       {} as PrismaService,
       repository,
       {} as CapabilityAuthorizationService,
+      {} as OutreachTargetReferenceService,
+      {} as OutreachContextReferenceService,
     );
     const batch = engine.parseNormalizeAndValidateBatch({
       batchId: '00000000-0000-4000-8000-000000000100',

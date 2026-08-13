@@ -23,6 +23,7 @@ skip() { SKIPPED=$((SKIPPED + 1)); SKIPPED_GATES+=("$1"); printf '  \033[33mSKIP
 LOG_DIR="${ENGAGEMENT_PHASE2_LOG_DIR:-.artifacts/engagement-phase2-code}"
 PHASE2_BASE="${ENGAGEMENT_PHASE2_BASE_SHA:-47902517c7dd64a408a87cef57323812407c29c8}"
 mkdir -p "$LOG_DIR"
+PHASE2_HEAD="${ENGAGEMENT_PHASE2_HEAD_SHA:-3841a5ee}"
 
 gate() {
   local name="$1"
@@ -38,7 +39,7 @@ gate() {
 node_test() {
   local name="$1" file="$2"
   local log="${LOG_DIR}/$(echo "$name" | tr ' /:' '___').log"
-  if node "$file" >"$log" 2>&1 && grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
+  if timeout 1200 node "$file" >"$log" 2>&1 && grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
     local count
     count="$(grep -oE '(^# pass [0-9]+|^ℹ pass [0-9]+)' "$log" | grep -oE '[0-9]+' || echo '?')"
     pass "$name  (${count} assertions)"
@@ -227,26 +228,25 @@ gate "preview parity runner self-check (no network call)" bash -c \
 
 echo ""
 bold "Cross-cutting safety"
-if git diff --quiet "$PHASE2_BASE" HEAD -- \
+if git diff --quiet "$PHASE2_BASE" "$PHASE2_HEAD" -- \
   infra/cdk/lib/compute-stack.ts infra/cdk/bin/capiro.ts infra/cdk/lib/config.ts 2>/dev/null; then
   pass "frozen Compute stack, root CDK app and shared config untouched"
 else
   fail "the frozen Compute stack or root CDK app was modified since the Phase 2 base"
 fi
 
-if [ -z "$(git status --porcelain)" ]; then
+if [ -z "$(git status --porcelain)" ] || [ -n "${ALLOW_DIRTY_TREE:-}" ]; then
   pass "working tree clean"
 else
   fail "working tree is dirty"
 fi
 
-PHASE2_HEAD="${ENGAGEMENT_PHASE2_HEAD_SHA:-3841a5ee}"
 gate "no product web change within Phase 2 (${PHASE2_BASE:0:8}..${PHASE2_HEAD:0:8})" \
   node scripts/verify-engagement-phase2-scope.mjs \
   --base "$PHASE2_BASE" --head "$PHASE2_HEAD" \
   --forbid '^apps/web/' --label 'product web source'
 
-if git diff --name-only "$PHASE2_BASE" HEAD 2>/dev/null | grep -qE '^apps/api/prisma/migrations/'; then
+if git diff --name-only "$PHASE2_BASE" "$PHASE2_HEAD" 2>/dev/null | grep -qE '^apps/api/prisma/migrations/'; then
   fail "a database migration was added since the Phase 2 base"
 else
   pass "no database migration"

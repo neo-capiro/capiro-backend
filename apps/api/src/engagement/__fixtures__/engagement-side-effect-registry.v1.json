@@ -341,7 +341,7 @@
     },
     {
       "id": "SE-022",
-      "sourceFile": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "sourceFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
       "symbol": "AiCredentialResolverService",
       "trigger": "on_module_init",
       "effect": "database_write",

@@ -4,10 +4,10 @@
  * Primary source:
  *   apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json
  * Additive Outreach V3 sources:
- *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json
- *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json
- *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json
- *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-reasoning-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-target-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-context-route-manifest.v1.json
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
@@ -24,7 +24,7 @@
 
 /** sha256 of the primary Engagement parity manifest. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
-  'ee29d309f53be496b6b6d1cb3c35d9391eb772cd752f12ecadc04c3524278c7c';
+  '1c3ff0922302e8b26048886c777f957ca9938081e71bd7255fc696d33e15b187';
 
 /** Primary manifest schema version. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;

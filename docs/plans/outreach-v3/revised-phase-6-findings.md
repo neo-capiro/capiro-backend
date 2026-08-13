@@ -1,8 +1,8 @@
 # Outreach V3 Revised Phase 6 — Findings Ledger
 
-**Branch:** `agent/outreach-v3-p6-conversational-ui`  
-**Base:** `835cdef35cd8ecb23faf1b100ecfc743bcd31128`  
-**PR:** #891  
+**Branch:** `agent/outreach-v3-p6-conversational-ui`
+**Base:** `835cdef35cd8ecb23faf1b100ecfc743bcd31128`
+**PR:** #891
 **Design authority:** Figma file `2aa9ipR2qOfumaixZErCfU`, page `618:1391`
 
 ## Status vocabulary

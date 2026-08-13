@@ -8,7 +8,7 @@ This addendum records findings discovered after `revised-phase-2-findings-ledger
 
 ### P2-DB-002 — P1 — session/proposal deletion was not trigger-bound
 
-**Classification:** Phase 2 defect  
+**Classification:** Phase 2 defect
 **Status:** FIXED
 
 `REVOKE DELETE` was only defense in depth because Capiro's runtime database role may inherit table-owner capabilities. State versions/events already had binding append-only triggers, but sessions/proposals could rely on grants for retention.
@@ -23,7 +23,7 @@ Repair:
 
 ### P2-API-001 — P2 — malformed strict command input could surface as 500
 
-**Classification:** Phase 2 defect  
+**Classification:** Phase 2 defect
 **Status:** FIXED
 
 Raw Zod failures from public command/batch parsing were outside `OutreachCommandError`, while the Phase 2 HTTP filter maps the domain error. Invalid caller input could therefore escape the frozen bounded 4xx command contract.
@@ -36,7 +36,7 @@ Repair:
 
 ### P2-CMD-003 — P2 — proposals lacked the direct-batch size ceiling
 
-**Classification:** Phase 2 defect  
+**Classification:** Phase 2 defect
 **Status:** FIXED
 
 Proposal creation enforced command count and individual field bounds but did not enforce the normalized 256 KiB command-list ceiling used by direct command batches.
@@ -49,7 +49,7 @@ Repair:
 
 ### P2-INT-002 — P2 — prelocked internal session identity was trusted implicitly
 
-**Classification:** Phase 2 defect  
+**Classification:** Phase 2 defect
 **Status:** FIXED
 
 `applyBatchWithinTx()` accepted an optional prelocked session for proposal Apply and assumed it matched the requested session/tenant/owner.
@@ -62,7 +62,7 @@ Repair:
 
 ### P2-AUD-001 — Blocking P2 — eager proposal supersession lacked event-ledger entries
 
-**Classification:** Phase 2 defect  
+**Classification:** Phase 2 defect
 **Status:** FIXED
 
 A successful state-advancing command terminalizes competing pending proposals against the old version. The initial implementation updated proposal status but did not guarantee a matching append-only `proposal_superseded` event for every eager transition.

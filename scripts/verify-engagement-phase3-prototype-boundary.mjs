@@ -35,7 +35,7 @@ export const FORBIDDEN_ADDED_SOURCE = [
 ];
 
 function git(args) {
-  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trim();
 }
 
 export function verifyBoundary({ changed = [], addedLines = '', deleted = [] }) {

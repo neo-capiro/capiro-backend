@@ -16,6 +16,7 @@ import { OutreachConversation } from './OutreachConversation.js';
 import type { OutreachV3Stage } from './contracts.js';
 import { useOutreachV3Session } from './useOutreachV3Session.js';
 import './outreach-v3.css';
+import './planning-surfaces.css';
 import './outreach-v3-standalone.css';
 
 export interface OutreachV3RouteProps {

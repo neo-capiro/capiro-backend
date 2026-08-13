@@ -60,8 +60,8 @@ import type {
   OutreachV3TargetCandidate,
   OutreachV3TargetCoverageResponse,
   OutreachV3TargetLocator,
-  OutreachV3TargetProfileResponse,
 } from './contracts.js';
+import type { OutreachV3TargetProfileResponse } from './target-intelligence-contracts.js';
 import type { OutreachV3ContextSearchInput } from './useOutreachV3Session.js';
 
 export interface DecisionSurfacesProps {

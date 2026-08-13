@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
+const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
 const phase4Base = '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
 const phase5ScopeEnd = process.env.OUTREACH_V3_PHASE5_SCOPE_END ?? 'HEAD';
 
@@ -175,7 +176,9 @@ run('Phase 5 focused tests', 'pnpm', [
   'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
   'src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts',
   '--forceExit',
-]);
+], {
+  env: { ENGAGEMENT_PHASE3_SCOPE_END: phase3Base },
+});
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Diff whitespace', 'git', ['diff', '--check', `${phase4Base}...${phase5ScopeEnd}`]);
 

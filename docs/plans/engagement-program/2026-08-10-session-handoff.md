@@ -1,8 +1,8 @@
 # Engagement + Outreach V3 — Session Handoff
 
-**Handoff date:** 2026-08-10  
-**Repository:** `neo-capiro/capirov2`  
-**Read first in a new session:** this file, then `canonical-remaining-work-plan.md`  
+**Handoff date:** 2026-08-10
+**Repository:** `neo-capiro/capirov2`
+**Read first in a new session:** this file, then `canonical-remaining-work-plan.md`
 **Current decision:** KEEP GOING — DO NOT MERGE OR SHIP UNTIL THE CURRENT EXACT-HEAD GATES AND INTERNAL ACCEPTANCE ARE RESOLVED.
 
 ## 1. What this handoff covers

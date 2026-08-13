@@ -354,8 +354,12 @@ function normalizeProposal(row: OutreachV3ProposalWire): OutreachV3Proposal {
       ? row.commandsJsonb
       : [];
   const commands = rawCommands.filter(isCommand);
+  const { id, status, expectedStateVersion, ...rest } = row;
   return {
-    ...row,
+    ...rest,
+    id: String(id),
+    status: String(status),
+    expectedStateVersion: Number(expectedStateVersion),
     commands,
   };
 }

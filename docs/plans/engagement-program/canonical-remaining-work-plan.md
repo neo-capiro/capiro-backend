@@ -1,9 +1,9 @@
 # Engagement Program — Canonical Remaining-Work Plan
 
-**Status:** active remaining-work authority  
-**Date:** 2026-08-10  
-**Repository:** `neo-capiro/capirov2`  
-**Execution rule:** the current repository wins over stale file/function anchors in older plans. Re-audit before editing.  
+**Status:** active remaining-work authority
+**Date:** 2026-08-10
+**Repository:** `neo-capiro/capirov2`
+**Execution rule:** the current repository wins over stale file/function anchors in older plans. Re-audit before editing.
 **Merge/deploy authority:** none unless explicitly granted in the current session.
 
 ## Objective

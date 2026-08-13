@@ -68,8 +68,17 @@ describe('Engagement controller discovery coverage', () => {
 
   it('contains no unregistered Engagement controller except the intentionally separate Recall webhook', () => {
     const registered = new Set(registeredControllers());
+    // Controllers registered in their own sub-modules (not EngagementModule)
+    const subModuleControllers = new Set([
+      'GoogleOAuthController',
+      'InternalAiCredentialsController',
+      'MicrosoftOAuthController',
+    ]);
     const extras = manifestedControllers().filter(
-      (controller) => !registered.has(controller) && controller !== 'RecallWebhookController',
+      (controller) =>
+        !registered.has(controller) &&
+        controller !== 'RecallWebhookController' &&
+        !subModuleControllers.has(controller),
     );
     expect(extras).toEqual([]);
   });

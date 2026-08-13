@@ -42,7 +42,7 @@ describe('Phase 3 external-action containment table scope', () => {
       'ai_usage_events',
       'meri_audit_ledger',
     ]) {
-      expect(isPhase3ProtectedSideEffectTable(table), table).toBe(true);
+      expect(isPhase3ProtectedSideEffectTable(table)).toBe(true);
     }
   });
 });

@@ -16,19 +16,20 @@ const ctx = {
 } as TenantContext;
 
 const sessionId = '00000000-0000-4000-8000-000000000010';
-const locator = createManualTargetLocator({
+const targetInput = {
   id: '00000000-0000-4000-8000-000000000020',
   name: 'Alex Example',
   email: 'alex@example.test',
   title: 'Policy Director',
-});
+};
+const locator = createManualTargetLocator(targetInput);
 const selected = createResolvedTargetRefV1({
   locator,
-  displayName: locator.name,
-  email: locator.email,
-  phone: locator.phone,
-  title: locator.title,
-  organization: locator.organization,
+  displayName: targetInput.name,
+  email: targetInput.email,
+  phone: null,
+  title: targetInput.title,
+  organization: null,
   clientId: null,
   jurisdiction: {
     governmentLevel: 'unknown',

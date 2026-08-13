@@ -151,7 +151,7 @@
       "title": "Client profile attachments and engagement widgets",
       "owner": "cross-surface",
       "spaRoutes": [
-        "/clients/:clientId"
+        "/clients?clientId=:clientId"
       ],
       "files": [
         "apps/web/src/pages/clients/CapabilityDrawer.tsx",
@@ -256,7 +256,7 @@
     "apps/web/src/pages/engagement/outreach/v2/jobs.ts",
     "apps/web/src/pages/engagement/outreach/v2/priorContact.ts",
     "apps/web/src/pages/engagement/outreach/v2/send-intent.ts",
-    "apps/web/src/pages/intelligence/opportunities/FundingOpportunitiesPage.tsx",
+    "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
     "apps/web/src/pages/program-element/api.ts",
     "apps/web/src/pages/settings/IntegrationsPage.tsx",
     "apps/web/src/pages/workspace/ContextBuilderPage.tsx"
@@ -1117,8 +1117,7 @@
       "routeManifestKey": "POST /api/engagement/tasks",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx",
-        "apps/web/src/pages/intelligence/opportunities/FundingOpportunitiesPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx"
       ],
       "runtimeAction": null
     },
@@ -2530,6 +2529,45 @@
       "heuristicClassification": "safe_local_write"
     },
     {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "consumerSymbol": "data",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach-v3/reasoning/conversations/:param/turns",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "data",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "consumerSymbol": "sendOutreachV3Turn",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/reasoning/conversations/:param/turns",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "send outreach v3 turn",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "consumerSymbol": "response",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/sessions",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "response",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
       "consumerFile": "apps/web/src/pages/engagement/OutreachView.tsx",
       "consumerSymbol": "deleteRecord",
       "method": "DELETE",
@@ -2855,19 +2893,6 @@
       "heuristicClassification": "external_action"
     },
     {
-      "consumerFile": "apps/web/src/pages/intelligence/opportunities/FundingOpportunitiesPage.tsx",
-      "consumerSymbol": "base",
-      "method": "POST",
-      "requestPath": "/api/engagement/tasks",
-      "routeManifestKey": "POST /api/engagement/tasks",
-      "surface": "funding-opportunities",
-      "userAction": "base",
-      "classification": "safe_local_write",
-      "classificationReason": "database-local write, no declared external action",
-      "runtimeAction": null,
-      "heuristicClassification": "safe_local_write"
-    },
-    {
       "consumerFile": "apps/web/src/pages/program-element/api.ts",
       "consumerSymbol": "getEngagementContacts",
       "method": "GET",
@@ -3063,16 +3088,23 @@
       "heuristicClassification": "external_action"
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "line": 65,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3SessionEnvelope>(outreachV3SessionPath(sessionId))).data;"
+    }
+  ],
   "totals": {
     "surfaces": 13,
     "consumerFiles": 23,
-    "requests": 146,
+    "requests": 148,
     "routesTotal": 110,
     "routesConsumed": 84,
     "routesApiOnly": 26,
-    "read": 53,
-    "safeLocalWrite": 46,
+    "read": 54,
+    "safeLocalWrite": 47,
     "externalAction": 47
   }
 }

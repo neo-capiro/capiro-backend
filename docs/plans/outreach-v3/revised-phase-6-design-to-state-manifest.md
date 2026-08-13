@@ -1,12 +1,12 @@
 # Outreach V3 Revised Phase 6 — Final Mockup and Design-to-State Manifest
 
-**Program:** Capiro Engagement API + Outreach V3  
-**Execution branch:** `agent/outreach-v3-p6-conversational-ui`  
-**Required base:** Phase 5 head `835cdef35cd8ecb23faf1b100ecfc743bcd31128`  
-**Figma file:** `2aa9ipR2qOfumaixZErCfU`  
-**Figma page:** `28 · Hi-Fi Prototype · Outreach V3` (`618:1391`)  
-**Design accepted by product owner:** 2026-08-09  
-**AWS mutation:** prohibited until separate authorization  
+**Program:** Capiro Engagement API + Outreach V3
+**Execution branch:** `agent/outreach-v3-p6-conversational-ui`
+**Required base:** Phase 5 head `835cdef35cd8ecb23faf1b100ecfc743bcd31128`
+**Figma file:** `2aa9ipR2qOfumaixZErCfU`
+**Figma page:** `28 · Hi-Fi Prototype · Outreach V3` (`618:1391`)
+**Design accepted by product owner:** 2026-08-09
+**AWS mutation:** prohibited until separate authorization
 **Merge:** prohibited until combined Phase 4–6 validation is green
 
 ## 1. Authority order

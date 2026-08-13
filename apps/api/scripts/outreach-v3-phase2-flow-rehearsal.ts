@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import type { TenantContext } from '@capiro/shared';
 import type { CapabilityAuthorizationService } from '../src/capabilities/capability-authorization.service.js';
+import type { OutreachTargetReferenceService } from '../src/capabilities/targets/outreach-target-reference.service.js';
+import type { OutreachContextReferenceService } from '../src/capabilities/context/outreach-context-reference.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { OutreachStateRepository } from '../src/outreach-v3/persistence/outreach-state.repository.js';
 import { OutreachCommandEngineService } from '../src/outreach-v3/services/outreach-command-engine.service.js';
@@ -77,7 +79,13 @@ async function main() {
       throw new Error('Unexpected client authorization call in no-client Phase 2 flow');
     },
   } as unknown as CapabilityAuthorizationService;
-  const engine = new OutreachCommandEngineService(prisma, repository, authorization);
+  const engine = new OutreachCommandEngineService(
+    prisma,
+    repository,
+    authorization,
+    {} as unknown as OutreachTargetReferenceService,
+    {} as unknown as OutreachContextReferenceService,
+  );
   const sessions = new OutreachSessionService(prisma, repository);
   const proposals = new OutreachCommandProposalService(prisma, repository, engine);
 

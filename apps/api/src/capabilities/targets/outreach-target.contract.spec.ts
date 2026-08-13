@@ -9,20 +9,21 @@ import {
 } from './outreach-target.contract.js';
 
 function resolved(id: string, email = 'person@example.test') {
-  const locator = createManualTargetLocator({
+  const input = {
     id,
     name: '  Person Example  ',
     email: ` ${email.toUpperCase()} `,
     title: ' Policy Director ',
     organization: ' Example Office ',
-  });
+  };
+  const locator = createManualTargetLocator(input);
   return createResolvedTargetRefV1({
     locator,
     displayName: 'Person Example',
-    email: locator.email,
-    phone: locator.phone,
-    title: locator.title,
-    organization: locator.organization,
+    email: input.email.trim(),
+    phone: null,
+    title: input.title,
+    organization: input.organization,
     clientId: null,
     jurisdiction: {
       governmentLevel: 'unknown',

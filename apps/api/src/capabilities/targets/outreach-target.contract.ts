@@ -192,7 +192,7 @@ export function createManualTargetLocator(input: {
     source: 'manual',
     id: input.id ?? randomUUID(),
     name: input.name,
-    email: input.email ?? null,
+    email: input.email?.trim() || null,
     phone: input.phone ?? null,
     title: input.title ?? null,
     organization: input.organization ?? null,

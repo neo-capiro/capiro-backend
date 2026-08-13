@@ -85,11 +85,7 @@ describe('Funding Opportunities route registration', () => {
     // The failure this guards against is the same silent one as above, and it is
     // WORSE for a detail link: pasted into a ticket, an unregistered detail route
     // redirects to Data Explorer, so the record looks like it was deleted.
-    render(
-      <MemoryRouter initialEntries={['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderAppWithRouter(['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']);
 
     await waitFor(() =>
       expect(screen.getByTestId('funding-opportunity-detail-page')).toBeInTheDocument(),
@@ -102,11 +98,7 @@ describe('Funding Opportunities route registration', () => {
   test('a one-segment path under opportunities still falls through to the catch-all', async () => {
     // `/intelligence/opportunities/foo` matches neither the literal list route nor
     // the two-param detail route.
-    render(
-      <MemoryRouter initialEntries={['/intelligence/opportunities/foo']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderAppWithRouter(['/intelligence/opportunities/foo']);
     await waitFor(() => expect(screen.getByTestId('data-explorer-page')).toBeInTheDocument());
   });
 

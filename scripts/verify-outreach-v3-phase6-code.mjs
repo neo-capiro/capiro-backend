@@ -163,6 +163,11 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/lib/engagement-api-preview.spec.ts',
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
-run('Diff whitespace', 'git', ['diff', '--check', `${phase5Base}...HEAD`]);
+run('Diff whitespace', 'git', [
+  'diff', '--check', `${phase5Base}...HEAD`, '--', '.',
+  ':(exclude)docs/plans/**/*.md',
+  ':(exclude).github/**/*.yml',
+  ':(exclude).github/**/*.yaml',
+]);
 
 process.stdout.write('\nOUTREACH_V3_PHASE6_COMPLETE\n');

@@ -2748,8 +2748,8 @@
       "path": "/api/internal/ai-credentials/resolve",
       "controller": "InternalAiCredentialsController",
       "handler": "resolve",
-      "sourceFile": "apps/api/src/engagement/internal-ai-credentials.controller.ts",
-      "sourceLine": 39,
+      "sourceFile": "apps/api/src/ai-credentials/internal-ai-credentials.controller.ts",
+      "sourceLine": 24,
       "controllerGuards": [
         "InternalServiceGuard"
       ],

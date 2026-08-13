@@ -1,8 +1,8 @@
 # Capiro Engagement Program — Canonical Plan Index
 
-**Last updated:** 2026-08-10  
-**Repository:** `neo-capiro/capirov2`  
-**Current active implementation stack:** Outreach V3 Phase 6 draft PR #891  
+**Last updated:** 2026-08-10
+**Repository:** `neo-capiro/capirov2`
+**Current active implementation stack:** Outreach V3 Phase 6 draft PR #891
 **Rule:** current repository contracts and the newest explicitly accepted product artifact beat stale line-number/file anchors in historical plans.
 
 ## Start here in a fresh session

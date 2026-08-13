@@ -100,7 +100,16 @@ function providerImportProblem(source, file) {
 
 export function architectureProblems() {
   const problems = [];
-  const catalog = json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json');
+  const scopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END;
+  let catalog;
+  if (scopeEnd) {
+    const result = execFileSync('git', ['show', `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`], {
+      cwd: ROOT, encoding: 'utf8',
+    });
+    catalog = JSON.parse(result);
+  } else {
+    catalog = json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json');
+  }
   problems.push(...validateCapabilityCatalog(catalog));
 
   const reverse = json(
@@ -212,9 +221,10 @@ export function architectureProblems() {
     if (!exists(requiredFile)) problems.push(`missing ${requiredFile}`);
   }
 
+  const phase1ScopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD';
   let changed = [];
   try {
-    changed = execFileSync('git', ['diff', '--name-only', `${PHASE1_BASE_SHA}..HEAD`], {
+    changed = execFileSync('git', ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`], {
       cwd: ROOT,
       encoding: 'utf8',
     })

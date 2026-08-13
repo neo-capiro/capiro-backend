@@ -48,14 +48,16 @@ test('negative control: an unreviewed infrastructure fixture fails', () => {
   );
 });
 
-test.each([
+for (const addedSource of [
   "ENGAGEMENT_EXTERNAL_ACTIONS='enabled'",
   "ENGAGEMENT_CALLBACKS_ENABLED=true",
   "ENGAGEMENT_RECALL_WEBHOOK_ENABLED='true'",
   "ENGAGEMENT_BACKGROUND_OWNER='engagement-api'",
-])('negative control: runtime enablement %s fails', (addedSource) => {
-  assert.equal(scopeIssues({ changed: [], addedSource, counts: greenCounts }).length > 0, true);
-});
+]) {
+  test(`negative control: runtime enablement ${addedSource} fails`, () => {
+    assert.equal(scopeIssues({ changed: [], addedSource, counts: greenCounts }).length > 0, true);
+  });
+}
 
 test('negative control: open P1 finding fails closeout', () => {
   assert.match(

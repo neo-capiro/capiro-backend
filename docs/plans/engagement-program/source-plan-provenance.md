@@ -1,7 +1,7 @@
 # Engagement Program — Source Plan Provenance Registry
 
-**Purpose:** make every historical Engagement/Outreach plan name discoverable from the repository and map it to current implementation truth.  
-**Current authority for remaining work:** `docs/plans/engagement-program/canonical-remaining-work-plan.md`  
+**Purpose:** make every historical Engagement/Outreach plan name discoverable from the repository and map it to current implementation truth.
+**Current authority for remaining work:** `docs/plans/engagement-program/canonical-remaining-work-plan.md`
 **Current session handoff:** `docs/plans/engagement-program/2026-08-10-session-handoff.md`
 
 ## How to use this registry

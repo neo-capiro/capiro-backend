@@ -36,18 +36,19 @@ const sessionId = '00000000-0000-4000-8000-000000000010';
 const clientId = '00000000-0000-4000-8000-000000000030';
 const blank = createBlankCampaignSpecV1();
 const blankHash = hashCampaignSpecV1(blank);
-const manualLocator = createManualTargetLocator({
+const manualTargetInput = {
   id: '00000000-0000-4000-8000-000000000099',
   name: 'Alex Example',
   email: 'alex@example.test',
-});
+};
+const manualLocator = createManualTargetLocator(manualTargetInput);
 const resolvedManualTarget = createResolvedTargetRefV1({
   locator: manualLocator,
-  displayName: manualLocator.name,
-  email: manualLocator.email,
-  phone: manualLocator.phone,
-  title: manualLocator.title,
-  organization: manualLocator.organization,
+  displayName: manualTargetInput.name,
+  email: manualTargetInput.email,
+  phone: null,
+  title: null,
+  organization: null,
   clientId: null,
   jurisdiction: {
     governmentLevel: 'unknown',
@@ -63,12 +64,13 @@ const resolvedManualTarget = createResolvedTargetRefV1({
   sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
 });
 
-const manualContextLocator = createManualContextLocator({
+const manualContextInput = {
   id: '00000000-0000-4000-8000-000000000120',
   title: 'Campaign fact supplied by user',
   text: 'Use this as an unverified campaign fact.',
   sourceLabel: 'user',
-});
+};
+const manualContextLocator = createManualContextLocator(manualContextInput);
 const manualContextSelection: OutreachContextSelectionV1 = {
   locator: manualContextLocator,
   contextClass: 'campaign_fact',
@@ -76,8 +78,8 @@ const manualContextSelection: OutreachContextSelectionV1 = {
 };
 const resolvedManualContext = createResolvedContextRefV1({
   ...manualContextSelection,
-  title: manualContextLocator.title,
-  summary: manualContextLocator.text,
+  title: manualContextInput.title,
+  summary: manualContextInput.text,
   clientId: null,
   verificationClass: 'user_supplied',
   sensitivity: 'normal',

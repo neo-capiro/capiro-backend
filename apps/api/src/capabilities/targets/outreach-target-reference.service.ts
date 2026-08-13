@@ -186,7 +186,16 @@ export class OutreachTargetReferenceService {
         chamber: chamberFromOffice(current?.officeName ?? null),
         state: current?.member?.state ?? null,
         district: current?.member?.district ?? null,
-        committees: detail.committeeAssociations.map((membership) => membership.committee.name),
+        committees: await Promise.all(
+          detail.committeeAssociations.map(async (membership) => {
+            try {
+              const committee = await this.directory.getCommitteeDetail(membership.committeeId);
+              return committee.name;
+            } catch {
+              return membership.committeeId;
+            }
+          }),
+        ),
         issueAreas: detail.issues
           .map((entry) => entry.issueName)
           .filter((value): value is string => Boolean(value)),

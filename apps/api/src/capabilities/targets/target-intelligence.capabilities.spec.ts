@@ -18,18 +18,19 @@ const ctx = {
 };
 
 function target(id: string, input: { chamber?: string; state?: string; committees?: string[] } = {}) {
-  const locator = createManualTargetLocator({
+  const targetInput = {
     id,
     name: `Person ${id}`,
     email: `${id.slice(-4)}@example.test`,
     title: 'Representative',
-  });
+  };
+  const locator = createManualTargetLocator(targetInput);
   return createResolvedTargetRefV1({
     locator,
-    displayName: locator.name,
-    email: locator.email,
+    displayName: targetInput.name,
+    email: targetInput.email,
     phone: null,
-    title: locator.title,
+    title: targetInput.title,
     organization: 'Example Office',
     clientId: null,
     jurisdiction: {

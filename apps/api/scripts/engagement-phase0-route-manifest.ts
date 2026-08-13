@@ -30,7 +30,7 @@ function getDefs(): ControllerDef[] {
     { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts', controllerName: 'MicrosoftOAuthController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-oauth.controller.ts', controllerName: 'GoogleOAuthController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/outcome/outcome.controller.ts'), repoPath: 'apps/api/src/engagement/outcome/outcome.controller.ts', controllerName: 'OutcomeController', controllerPrefix: 'engagement/outcomes', barePrefix: false },
-    { absolutePath: path.join(API_ROOT, 'src/engagement/internal-ai-credentials.controller.ts'), repoPath: 'apps/api/src/engagement/internal-ai-credentials.controller.ts', controllerName: 'InternalAiCredentialsController', controllerPrefix: 'internal/ai-credentials', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/ai-credentials/internal-ai-credentials.controller.ts'), repoPath: 'apps/api/src/ai-credentials/internal-ai-credentials.controller.ts', controllerName: 'InternalAiCredentialsController', controllerPrefix: 'internal/ai-credentials', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/webhooks/recall-webhook.controller.ts'), repoPath: 'apps/api/src/webhooks/recall-webhook.controller.ts', controllerName: 'RecallWebhookController', controllerPrefix: 'webhooks/recall', barePrefix: true },
   ];
 }

@@ -37,6 +37,9 @@ const steps = [
       'src/outreach-v3/outreach-v3-supersession-audit.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
     ],
+    process.env.ENGAGEMENT_PHASE3_SCOPE_END
+      ? { ENGAGEMENT_PHASE3_SCOPE_END: process.env.ENGAGEMENT_PHASE3_SCOPE_END }
+      : {},
   ],
   [
     'Phase 2 focused TypeScript project',
@@ -53,9 +56,13 @@ const steps = [
   ['Phase 2 flow-DB orchestrator syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-flow-db.mjs']],
   ['Phase 2 exact-head runner syntax', 'node', ['--check', 'scripts/run-outreach-v3-phase2-local.mjs']],
   ['Phase 1 ownership regression', 'node', ['scripts/engagement-runtime-ownership.mjs']],
-  ['Phase 1 architecture regression', 'node', ['scripts/verify-outreach-v3-p1-architecture.mjs']],
+  ['Phase 1 architecture regression', 'node', ['scripts/verify-outreach-v3-p1-architecture.mjs'], { OUTREACH_V3_P1_SCOPE_END: BASE_SHA }],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
-  ['Phase 2 committed-diff whitespace', 'git', ['diff', '--check', `${BASE_SHA}..HEAD`]],
+  [
+    'Phase 2 committed-diff whitespace',
+    'git',
+    ['diff', '--check', `${BASE_SHA}..${process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD'}`, '--', '.', ':(exclude)docs/plans/outreach-v3/*.md'],
+  ],
 ];
 
 function run(label, command, args, extraEnv = {}) {

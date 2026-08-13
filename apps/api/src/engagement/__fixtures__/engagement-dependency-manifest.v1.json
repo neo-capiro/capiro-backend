@@ -3,7 +3,7 @@
   "externalImporters": [
     {
       "importerFile": "apps/api/src/ai-usage/ai-credential-store.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService",
         "AiProvider"
@@ -34,7 +34,7 @@
     },
     {
       "importerFile": "apps/api/src/capiro-admin/capiro-admin.controller.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiProvider"
       ],
@@ -44,7 +44,7 @@
     },
     {
       "importerFile": "apps/api/src/capiro-admin/capiro-admin.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiProvider"
       ],
@@ -134,7 +134,7 @@
     },
     {
       "importerFile": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -164,7 +164,7 @@
     },
     {
       "importerFile": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -254,7 +254,7 @@
     },
     {
       "importerFile": "apps/api/src/meri/governed-meri-research.factory.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -264,7 +264,7 @@
     },
     {
       "importerFile": "apps/api/src/meri/meri-research.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -294,7 +294,7 @@
     },
     {
       "importerFile": "apps/api/src/meri/meri.module.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -314,7 +314,7 @@
     },
     {
       "importerFile": "apps/api/src/meri/meri.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -404,7 +404,7 @@
     },
     {
       "importerFile": "apps/api/src/tracker/notifications/tracker-summary.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -454,7 +454,7 @@
     },
     {
       "importerFile": "apps/api/src/workspace-assistant/workspace-assistant.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -466,7 +466,7 @@
   "internalImports": [
     {
       "importerFile": "apps/api/src/engagement/ai-credential-resolver.service.spec.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -475,7 +475,7 @@
       "category": "other"
     },
     {
-      "importerFile": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "importerFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
       "importedSymbols": [
         "EngagementRuntimePolicyService"
@@ -615,7 +615,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement-ai.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService",
         "ResolvedAiCredential"
@@ -992,7 +992,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement.module.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -1467,7 +1467,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "ResolvedAiCredential"
       ],
@@ -1882,7 +1882,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/generation/author-style-profile.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "ResolvedAiCredential"
       ],
@@ -2271,7 +2271,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/generation/generation-gateway.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "ResolvedAiCredential"
       ],
@@ -2614,7 +2614,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/generation/message-plan.service.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "ResolvedAiCredential"
       ],
@@ -3052,7 +3052,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.spec.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],
@@ -3072,7 +3072,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService",
         "AiProvider"
@@ -3936,7 +3936,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/outreach-model-tier.spec.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "ResolvedAiCredential"
       ],
@@ -4282,7 +4282,7 @@
     },
     {
       "importerFile": "apps/api/src/engagement/runtime/ai-credential-resolver-runtime.spec.ts",
-      "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
+      "importedFile": "apps/api/src/ai-credentials/ai-credential-resolver.service.js",
       "importedSymbols": [
         "AiCredentialResolverService"
       ],

@@ -7,7 +7,7 @@ export interface CapabilityProvenance {
   lastVerifiedAt?: string | null;
   retrievedAt: string;
   verificationClass: 'first_party' | 'authoritative' | 'derived' | 'unverified';
-  classification: 'fact' | 'inference' | 'recommendation';
+  classification: 'fact' | 'inference' | 'recommendation' | 'instruction';
 }
 
 /** Exclusions intentionally carry no inaccessible object identifiers. */

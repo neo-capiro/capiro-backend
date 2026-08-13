@@ -136,7 +136,9 @@ describe('Outreach V3 Phase 6 UI contract', () => {
   });
 
   it('has no direct preview-header literal or unauthorized browser-only Campaign Spec store', () => {
-    const files = readdirSync(DIR).filter((name) => /\.(ts|tsx)$/.test(name));
+    const files = readdirSync(DIR).filter(
+      (name) => /\.(ts|tsx)$/.test(name) && !/\.spec\.(ts|tsx)$/.test(name),
+    );
     const all = files.map((name) => source(name)).join('\n');
     expect(all).not.toContain('X-Capiro-Engagement-Preview');
     expect(all).not.toMatch(/localStorage\.setItem\([^)]*campaign/i);

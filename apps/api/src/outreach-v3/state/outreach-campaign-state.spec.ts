@@ -25,20 +25,21 @@ const command = (type: string, payload: unknown) =>
   parseOutreachCommandEnvelope({ type, schemaVersion: 1, payload });
 
 function manualTarget() {
-  const locator = createManualTargetLocator({
+  const manualInput = {
     id: '00000000-0000-4000-8000-000000000099',
     name: 'Alex Example',
     email: 'alex@example.test',
     title: 'Policy Director',
     organization: 'Example Office',
-  });
+  };
+  const locator = createManualTargetLocator(manualInput);
   return createResolvedTargetRefV1({
     locator,
-    displayName: locator.name,
-    email: locator.email,
-    phone: locator.phone,
-    title: locator.title,
-    organization: locator.organization,
+    displayName: manualInput.name,
+    email: manualInput.email,
+    phone: null,
+    title: manualInput.title,
+    organization: manualInput.organization,
     clientId: null,
     jurisdiction: {
       governmentLevel: 'unknown',

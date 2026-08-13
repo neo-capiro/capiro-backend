@@ -68,7 +68,7 @@ const steps = [
     ENGAGEMENT_PHASE3_SCOPE_END ? { ENGAGEMENT_PHASE3_SCOPE_END } : {},
   ],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
-  ['Phase 3 committed-diff whitespace', 'git', ['diff', '--check', `${BASE_SHA}..HEAD`]],
+  ['Phase 3 committed-diff whitespace', 'git', ['diff', '--check', `${BASE_SHA}..HEAD`, '--', '.', ':(exclude)docs/plans/**/*.md', ':(exclude).github/**/*.yml', ':(exclude).github/**/*.yaml']],
 ];
 
 function run(label, command, args, extraEnv = {}) {

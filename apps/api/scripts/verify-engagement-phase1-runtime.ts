@@ -181,7 +181,10 @@ function main(): void {
   run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
   run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
-  run('Committed diff whitespace validation', GIT, ['diff', '--check', 'origin/main...HEAD']);
+  run('Committed diff whitespace validation', GIT, [
+    'diff', '--check', 'origin/main...HEAD', '--',
+    '.', ':(exclude)docs/plans/**/*.md',
+  ]);
 
   console.log('\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE');
 }

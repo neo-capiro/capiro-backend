@@ -14,7 +14,7 @@ const ctx = {
 
 function harness() {
   const tx = {
-    clientPerson: { findMany: jest.fn(async () => []) },
+    clientPerson: { findMany: jest.fn(async (): Promise<unknown[]> => []) },
     engagementContact: { findMany: jest.fn(async () => []) },
     clientTargetRecommendation: { findUnique: jest.fn(async () => null) },
   };
@@ -60,13 +60,22 @@ function harness() {
   };
 }
 
-const criteria = {
-  governmentLevels: ['federal'] as const,
-  chambers: ['house'] as const,
+const criteria: {
+  governmentLevels: Array<'state' | 'agency' | 'federal' | 'local' | 'mixed'>;
+  chambers: Array<'house' | 'senate' | 'state_house' | 'state_senate'>;
+  committees: string[];
+  agencies: string[];
+  states: string[];
+  relationshipPreference: 'any' | 'mixed' | 'new';
+  includeStaff: boolean;
+  includePrincipals: boolean;
+} = {
+  governmentLevels: ['federal'],
+  chambers: ['house'],
   committees: ['Armed Services'],
   agencies: [],
   states: ['VA'],
-  relationshipPreference: 'any' as const,
+  relationshipPreference: 'any',
   includeStaff: true,
   includePrincipals: true,
 };

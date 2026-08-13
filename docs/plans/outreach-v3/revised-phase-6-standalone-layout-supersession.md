@@ -1,9 +1,9 @@
 # Outreach V3 Phase 6 — Standalone Layout Supersession
 
-**Accepted artifact:** `Outreach V3 (standalone)(2).html`  
-**Artifact sha256:** `84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453`  
-**Accepted by product owner:** 2026-08-10  
-**Applies to:** Phase 6 visual layout, responsive behavior, component placement, stage grouping, and conversation interaction  
+**Accepted artifact:** `Outreach V3 (standalone)(2).html`
+**Artifact sha256:** `84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453`
+**Accepted by product owner:** 2026-08-10
+**Applies to:** Phase 6 visual layout, responsive behavior, component placement, stage grouping, and conversation interaction
 **Does not supersede:** canonical Campaign Spec, command authorization, tenant isolation, ethical walls, reasoning proposal-only authority, or Phase 6 generation/send boundaries
 
 ## Supersession

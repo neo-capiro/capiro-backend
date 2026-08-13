@@ -45,7 +45,6 @@ const PREVIEW_HEADER_TOKEN = 'X-Capiro-Engagement-Preview';
 const PREVIEW_HEADER_ALLOWED = new Set(
   [
     'apps/web/src/lib/engagement-api-preview.ts',
-    'apps/web/src/lib/engagement-api-preview.spec.ts',
   ].map((p) => path.normalize(p)),
 );
 
@@ -54,7 +53,7 @@ function* walk(dir) {
     const full = path.join(dir, entry);
     const stats = statSync(full);
     if (stats.isDirectory()) yield* walk(full);
-    else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry)) yield full;
+    else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry) && !/\.spec\.(ts|tsx|js|jsx)$/.test(entry)) yield full;
   }
 }
 
