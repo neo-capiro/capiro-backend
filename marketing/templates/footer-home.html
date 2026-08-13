@@ -1,0 +1,104 @@
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <img src="/assets/logo.png" alt="Capiro" width="960" height="325">
+      <p class="footer-tagline">The AI-native operating system for government affairs.</p>
+      <div class="footer-social">
+        <a class="footer-chip" href="https://www.linkedin.com/company/capirohq" target="_blank">LinkedIn</a>
+        <a class="footer-chip" href="mailto:info@capiro.ai">info@capiro.ai</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Product</div>
+      <div class="footer-links">
+        <a href="/platform">Platform</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Resources</div>
+      <div class="footer-links">
+        <a href="/insights">Insights</a>
+        <a href="https://capirohq.substack.com" target="_blank">The Cycle</a>
+      </div>
+    </div>
+    <div class="footer-col wide">
+      <div class="footer-col-title">Get started</div>
+      <div class="footer-start">
+        <button class="btn-footer" onclick="openModal()">Request a demo</button>
+        <a class="footer-signin" href="https://app.capiro.ai/sign-in" target="_blank">Sign in</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 Capiro, Inc. Washington, DC. All rights reserved.</div>
+    <div class="footer-legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+  </div>
+</footer>
+<div id="demoModal" onclick="closeModalOutside(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()" aria-label="Close">
+      <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#667085"><use href="#i-x"/></svg>
+    </button>
+    <div id="modalForm">
+      <div class="modal-eyebrow">Request a demo</div>
+      <div class="modal-title">See Capiro in action.</div>
+      <p class="modal-sub">Tell us about your practice and we will be in touch within one business day.</p>
+      <div class="form-row">
+        <label class="form-field"><span>First name</span><input type="text" class="form-input" id="firstName" placeholder="First"></label>
+        <label class="form-field"><span>Last name</span><input type="text" class="form-input" id="lastName" placeholder="Last"></label>
+      </div>
+      <label class="form-field mt"><span>Work email</span><input type="email" class="form-input" id="workEmail" placeholder="you@yourfirm.com"></label>
+      <label class="form-field mt"><span>Firm or organization</span><input type="text" class="form-input" id="firmName" placeholder="Your firm name"></label>
+      <label class="form-field mt"><span>Your role</span>
+        <select class="form-select" id="role">
+          <option value="" disabled selected>Select your role</option>
+          <option value="founder-owner">Founder / Owner</option>
+          <option value="principal-partner">Principal / Partner / Managing Director</option>
+          <option value="vp-director">VP or Director, Government Affairs</option>
+          <option value="senior-associate">Senior Associate / Senior Advisor</option>
+          <option value="ga-manager">Government Affairs Manager</option>
+          <option value="policy-director">Policy Director</option>
+          <option value="chief-of-staff">Chief of Staff</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label class="form-field mt"><span>What best describes your practice?</span>
+        <select class="form-select" id="practiceType">
+          <option value="" disabled selected>Select practice type</option>
+          <option value="lobbying-firm">Lobbying / Government affairs firm</option>
+          <option value="boutique-ga">Boutique government affairs consultancy</option>
+          <option value="corporate-ga">Corporate government affairs team</option>
+          <option value="defense-contractor">Defense contractor</option>
+          <option value="trade-association">Trade association</option>
+          <option value="nonprofit-advocacy">Nonprofit / Advocacy organization</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label class="form-field mt"><span>Active lobbying clients <i>optional</i></span>
+        <select class="form-select" id="clientCount">
+          <option value="" disabled selected>Select a range</option>
+          <option value="5-10">5 to 10</option>
+          <option value="11-25">11 to 25</option>
+          <option value="26-50">26 to 50</option>
+          <option value="51-100">51 to 100</option>
+          <option value="100+">More than 100</option>
+        </select>
+      </label>
+      <div class="form-error" id="formError"></div>
+      <button class="form-submit" onclick="submitDemo()">Request a demo</button>
+      <p class="form-note">Work email required. We will respond within one business day.</p>
+    </div>
+    <div class="form-success" id="formSuccess">
+      <span class="fs-icon"><svg class="ico" width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#079455"><use href="#i-check"/></svg></span>
+      <div class="fs-title">Request received.</div>
+      <p class="fs-sub">We will be in touch within one business day.</p>
+      <div class="fs-divider"></div>
+      <div class="fs-sched-label">Schedule your demo</div>
+      <p class="fs-sched-text">Pick a time on Jordan's calendar. About 30 minutes, tailored to your practice.</p>
+      <a href="https://meetings-na2.hubspot.com/jclayton?uuid=40e2c023-c4eb-4c69-8c8a-970d15a0e0bf" target="_blank" class="btn-schedule">Choose a time</a>
+    </div>
+  </div>
+</div>
+<script src="/assets/main.js"></script>
+</body>
+</html>
