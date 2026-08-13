@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  legacyMeriWindowRedirect,
   mapPersistedAttachments,
   mapPersistedCharts,
   newestConversation,
@@ -8,6 +9,17 @@ import {
 } from './meri-route-state.js';
 
 describe('vNext Meri route state', () => {
+  test('canonicalizes legacy popup URLs and preserves only documented context', () => {
+    expect(legacyMeriWindowRedirect('?meriWindow=1')).toBe('/meri');
+    expect(
+      legacyMeriWindowRedirect(
+        '?meriWindow=1&meriPrompt=Analyze%20this&meriClient=client-123&other=discard-me',
+      ),
+    ).toBe('/meri/new?meriPrompt=Analyze+this&meriClient=client-123');
+    expect(legacyMeriWindowRedirect('?meriWindow=0')).toBeNull();
+    expect(legacyMeriWindowRedirect('?other=1')).toBeNull();
+  });
+
   test('parses only durable thread routes and fails closed on malformed encodings', () => {
     expect(threadIdFromPath('/meri/t/abc-123')).toBe('abc-123');
     expect(threadIdFromPath('/meri/t/thread%20one')).toBe('thread one');

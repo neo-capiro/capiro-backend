@@ -1,4 +1,4 @@
-import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
+import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { CapiroButton } from '../../components/actions/index.js';
 
 export interface MeriLauncherProps {
@@ -29,6 +29,10 @@ export interface MeriLauncherProps {
  * matching the pattern exactly.
  *
  * Do not re-add the leading dot; the pattern sets `showLeadingIcon={false}`.
+ *
+ * This component belongs exclusively to the vNext shell, so its default launch
+ * target is the canonical addressable `/meri` workspace. The legacy app keeps
+ * using the shared `?meriWindow=1` helper independently.
  */
 export function MeriLauncher({ label = 'Meri', onLaunch }: MeriLauncherProps) {
   return (
@@ -41,7 +45,7 @@ export function MeriLauncher({ label = 'Meri', onLaunch }: MeriLauncherProps) {
           onLaunch();
           return;
         }
-        openMeriWorkspaceWindow();
+        openVNextMeriWorkspaceWindow();
       }}
     >
       {label}

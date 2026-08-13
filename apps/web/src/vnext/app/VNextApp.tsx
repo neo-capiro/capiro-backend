@@ -1,10 +1,9 @@
-import { useLocation } from 'react-router-dom';
-import { MeriOverlay } from '../../components/chat/MeriOverlay.js';
-import { isMeriWorkspaceWindow } from '../../components/chat/meri-window.js';
+import { Navigate, useLocation } from 'react-router-dom';
 import { OnboardingGates } from '../../components/onboarding/OnboardingGates.js';
 import { TrialBanner } from '../../components/onboarding/TrialBanner.js';
 import { CapiroToastProvider } from '../components/feedback/toast.js';
 import { VNextMeriWorkspace } from '../meri/VNextMeriWorkspace.js';
+import { legacyMeriWindowRedirect } from '../meri/meri-route-state.js';
 import { AppShellUui } from '../shell/AppShellUui/index.js';
 import { VNextRouter } from './VNextRouter.js';
 import '../foundations/index.css';
@@ -16,15 +15,18 @@ import '../foundations/index.css';
  *
  * One global shell (AppShellUui) for normal vNext product pages. Meri is the
  * deliberate exception: the undocked workspace is itself a full-window shell,
- * so /meri* bypasses AppShellUui exactly like the existing popup does.
+ * so /meri* bypasses AppShellUui.
  */
 export function VNextApp() {
   const location = useLocation();
 
-  // Preserve the existing real top-level Meri workspace behavior. A Meri popup
-  // must not accidentally render another copy of the Capiro shell.
-  if (isMeriWorkspaceWindow()) {
-    return <MeriOverlay selectedClientName={null} />;
+  // Compatibility only. Older vNext callers (and stale tabs/bookmarks) may still
+  // open `/?meriWindow=1`. Never render the legacy overlay on the vNext surface:
+  // canonicalize immediately onto the addressable Meri route while preserving
+  // only the documented one-time prompt/client context.
+  const legacyMeriTarget = legacyMeriWindowRedirect(location.search);
+  if (legacyMeriTarget) {
+    return <Navigate to={legacyMeriTarget} replace />;
   }
 
   // Addressable Meri routes are their own full-window workspace. They reuse the

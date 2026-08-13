@@ -1,4 +1,9 @@
 import type { MeriConversation } from '../../components/chat/chat-store.js';
+import {
+  MERI_WINDOW_CLIENT_QUERY,
+  MERI_WINDOW_PROMPT_QUERY,
+  MERI_WINDOW_QUERY,
+} from '../../components/chat/meri-window.js';
 
 export interface PersistedAttachment {
   id: string;
@@ -19,6 +24,27 @@ export interface PersistedMessage {
   createdAt?: string;
   metadata?: { attachments?: unknown[] } | null;
   artifacts?: unknown[];
+}
+
+/**
+ * Canonicalize the legacy vNext popup URL (`?meriWindow=1`) onto the addressable
+ * Meri routes. Plain launches resolve `/meri`; contextual launches resolve
+ * record-free `/meri/new` so the one-time prompt/client context cannot be lost
+ * while `/meri` resolves the newest durable thread.
+ */
+export function legacyMeriWindowRedirect(search: string): string | null {
+  const incoming = new URLSearchParams(search);
+  if (incoming.get(MERI_WINDOW_QUERY) !== '1') return null;
+
+  const outgoing = new URLSearchParams();
+  const prompt = incoming.get(MERI_WINDOW_PROMPT_QUERY);
+  const clientId = incoming.get(MERI_WINDOW_CLIENT_QUERY);
+  if (prompt) outgoing.set(MERI_WINDOW_PROMPT_QUERY, prompt);
+  if (clientId) outgoing.set(MERI_WINDOW_CLIENT_QUERY, clientId);
+
+  const base = prompt || clientId ? '/meri/new' : '/meri';
+  const query = outgoing.toString();
+  return query ? `${base}?${query}` : base;
 }
 
 export function threadIdFromPath(pathname: string): string | null {
