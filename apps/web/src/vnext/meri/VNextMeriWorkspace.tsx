@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -23,12 +22,12 @@ import {
   type ChatMessage,
   type MeriConversation,
 } from '../../components/chat/chat-store.js';
-import { MeriWorkspaceWindow } from '../../components/chat/MeriWorkspaceWindow.js';
 import {
   useMeriChatController,
   type MeriChatController,
 } from '../../components/chat/useMeriChatController.js';
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
+import { VNextMeriShell } from './VNextMeriShell.js';
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
@@ -376,28 +375,6 @@ export function VNextMeriWorkspace() {
     [controller.handleStop],
   );
 
-  // The full-window workspace's Minimize control returns to the product shell.
-  useEffect(() => {
-    if (isIntegrationsRoute) return;
-    const onClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target?.closest('.meri-v3-minimize')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setMeriSurfaceMode('closed');
-      navigate('/');
-    };
-    document.addEventListener('click', onClick, true);
-    return () => document.removeEventListener('click', onClick, true);
-  }, [isIntegrationsRoute, navigate]);
-
-  // Do not let the Meri window's generic close handler win before the capture
-  // listener above on React synthetic clicks.
-  const stopSyntheticMinimize = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!(event.target as HTMLElement | null)?.closest('.meri-v3-minimize')) return;
-    event.stopPropagation();
-  }, []);
-
   if (me.isLoading || !routeReady) {
     return <div className="meri-v3-workspace-loading">Opening Meri…</div>;
   }
@@ -442,9 +419,9 @@ export function VNextMeriWorkspace() {
   }
 
   return (
-    <div onClickCapture={stopSyntheticMinimize}>
-      {routeError ? <div className="meri-v3-route-error" role="alert">{routeError}</div> : null}
-      <MeriWorkspaceWindow controller={vnextController} />
-    </div>
+    <>
+      {routeError ? <div className="vnext-meri__route-error" role="alert">{routeError}</div> : null}
+      <VNextMeriShell controller={vnextController} />
+    </>
   );
 }

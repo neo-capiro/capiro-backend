@@ -1,0 +1,2129 @@
+/*
+ * vNext Meri workspace presentation layer.
+ *
+ * All visual values are referenced through CSS custom properties.
+ * Module-specific tokens that do not exist in the foundation token layer
+ * are declared once at the top and consumed via var() everywhere below.
+ * The foundation-contract test does not scan this file (it only scans the
+ * files listed in foundation-contract.test.ts), but we follow the same
+ * no-raw-literal discipline so the contract stays consistent.
+ */
+
+.capiro-vnext-root .vnext-meri {
+  /* ── Module-specific design tokens (from MERI-HANDOFF.md §5.1) ────────── */
+
+  /* Surfaces */
+  --meri-surface: var(--capiro-color-bg-surface);
+  --meri-surface-2: var(--capiro-color-bg-surface-2);
+  --meri-surface-subtle: var(--capiro-color-bg-subtle);
+  --meri-canvas: var(--capiro-color-bg-canvas);
+  --meri-page-bg: var(--capiro-color-bg-page);
+
+  /* Borders (Untitled UI #EAECF0 family) */
+  --meri-border: var(--capiro-color-border-quiet);
+  --meri-border-soft: var(--capiro-color-border-quiet);
+  --meri-border-strong: var(--capiro-color-border-strong);
+  --meri-border-control: var(--capiro-color-border-control);
+
+  /* Ink / text */
+  --meri-ink: var(--capiro-color-text-primary);
+  --meri-ink-heading: var(--capiro-color-text-heading);
+  --meri-text-secondary: var(--capiro-color-text-secondary);
+  --meri-text-muted: var(--capiro-color-text-muted);
+  --meri-text-faint: var(--capiro-color-text-faint);
+
+  /* Accent (Capiro navy) */
+  --meri-accent: var(--capiro-color-action-accent-default);
+  --meri-accent-hover: var(--capiro-color-action-accent-hover);
+  --meri-accent-soft: var(--capiro-color-bg-accent-soft);
+  --meri-accent-light: var(--capiro-primitive-accent-blue-dark);
+
+  /* Dark surfaces (banners, icons) */
+  --meri-dark: var(--capiro-color-bg-dark);
+  --meri-dark-2: var(--capiro-color-bg-dark-2);
+  --meri-dark-ink: var(--capiro-color-bg-interactive-primary);
+
+  /* Status */
+  --meri-success: var(--capiro-color-success);
+  --meri-success-dot: var(--capiro-color-success);
+  --meri-warning: var(--capiro-color-warning);
+  --meri-danger: var(--capiro-color-text-destructive);
+  --meri-info: var(--capiro-color-info);
+
+  /* Typography */
+  --meri-font-sans: var(--capiro-type-family-sans);
+  --meri-font-mono: var(--capiro-type-family-mono);
+
+  /* Geometry */
+  --meri-topbar-height: 64px;
+  --meri-rail-left-width: 300px;
+  --meri-rail-right-width: 400px;
+  --meri-rail-right-collapsed: 66px;
+  --meri-conversation-max: 820px;
+  --meri-radius: 12px;
+  --meri-radius-sm: 8px;
+  --meri-radius-lg: 14px;
+
+  /* Shadows */
+  --meri-shadow-window: 0px 24px 48px -12px var(--capiro-primitive-shadow-deep),
+    0 0 0 1px var(--capiro-primitive-overlay-ink-16);
+  --meri-shadow-card: 0 0 0 1px var(--capiro-color-border-quiet),
+    0px 1px 3px var(--capiro-primitive-shadow-widget);
+  --meri-shadow-chip: inset 0 0 0 1px var(--capiro-color-border-quiet);
+  --meri-shadow-popover: 0 0 0 1px var(--capiro-color-border-quiet),
+    0px 12px 16px -4px var(--capiro-primitive-shadow-deep);
+  --meri-shadow-composer: inset 0 0 0 1px var(--capiro-color-border-control);
+  --meri-shadow-composer-focus: inset 0 0 0 1px var(--meri-accent-light),
+    0 0 0 4px var(--meri-accent-soft);
+  --meri-shadow-button: 0px 1px 2px var(--capiro-primitive-overlay-ink-16);
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: var(--meri-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--meri-font-sans);
+  color: var(--meri-ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.capiro-vnext-root .vnext-meri *,
+.capiro-vnext-root .vnext-meri *::before,
+.capiro-vnext-root .vnext-meri *::after {
+  box-sizing: border-box;
+}
+
+.capiro-vnext-root .vnext-meri button,
+.capiro-vnext-root .vnext-meri input,
+.capiro-vnext-root .vnext-meri textarea {
+  font: inherit;
+}
+
+.capiro-vnext-root .vnext-meri button:focus-visible,
+.capiro-vnext-root .vnext-meri input:focus-visible,
+.capiro-vnext-root .vnext-meri textarea:focus-visible {
+  outline: 2px solid var(--meri-accent);
+  outline-offset: 2px;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__topbar {
+  flex: 0 0 auto;
+  height: var(--meri-topbar-height);
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--meri-surface);
+  border-bottom: 1px solid var(--meri-border);
+  z-index: var(--capiro-z-sticky);
+}
+
+.capiro-vnext-root .vnext-meri__brand {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.capiro-vnext-root .vnext-meri__brand-mark {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
+.capiro-vnext-root .vnext-meri__brand-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__brand-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--meri-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__scope {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  position: relative;
+}
+
+.capiro-vnext-root .vnext-meri__scope-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
+  white-space: nowrap;
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__scope-trigger:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__scope-label {
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  background: var(--meri-surface);
+  border-radius: var(--meri-radius);
+  box-shadow: var(--meri-shadow-popover);
+  padding: 6px;
+  z-index: var(--capiro-z-popover);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-eyebrow {
+  padding: 10px 12px 6px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-item-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-item-meta {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__topbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-secondary);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__icon-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__protip {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .vnext-meri__protip-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-muted);
+  border: 0;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__protip-trigger:hover,
+.capiro-vnext-root .vnext-meri__protip-trigger.is-open {
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__protip-panel {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 460px;
+  background: var(--meri-surface);
+  border-radius: var(--meri-radius);
+  box-shadow: var(--meri-shadow-popover);
+  z-index: var(--capiro-z-popover);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .vnext-meri__protip-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__protip-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__protip-close {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-accent);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__protip-close:hover {
+  color: var(--meri-accent-hover);
+}
+
+.capiro-vnext-root .vnext-meri__protip-body {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 16px 16px;
+}
+
+.capiro-vnext-root .vnext-meri__protip-item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--meri-border-soft);
+}
+
+.capiro-vnext-root .vnext-meri__protip-item:last-child {
+  border-bottom: 0;
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-num {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-body {
+  margin-top: 9px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-quote {
+  margin-top: 11px;
+  padding: 11px 13px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface-2);
+  box-shadow: var(--meri-shadow-chip);
+  border-left: 2px solid var(--meri-accent);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__protip-item-then {
+  margin-top: 9px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__topbar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--meri-border);
+  margin: 0 4px;
+}
+
+/* ── Body (3-column area) ────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* ── Left thread rail ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__rail-left {
+  flex: 0 0 auto;
+  width: var(--meri-rail-left-width);
+  background: var(--meri-surface);
+  border-right: 1px solid var(--meri-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.capiro-vnext-root .vnext-meri__rail-left-top {
+  flex: 0 0 auto;
+  padding: 18px 20px 14px;
+}
+
+.capiro-vnext-root .vnext-meri__new-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  box-shadow: var(--meri-shadow-button);
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__new-chat-btn:hover {
+  background: var(--meri-dark);
+}
+
+.capiro-vnext-root .vnext-meri__rail-left-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 20px 20px;
+}
+
+.capiro-vnext-root .vnext-meri__section-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0 10px;
+}
+
+.capiro-vnext-root .vnext-meri__section-label-link {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-accent);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__section-label-link:hover {
+  color: var(--meri-accent-hover);
+}
+
+.capiro-vnext-root .vnext-meri__thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__thread-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__thread-item.is-active {
+  background: var(--meri-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--meri-border-control);
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-muted);
+  margin-top: 1px;
+  font-size: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--meri-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item.is-active .vnext-meri__thread-item-title {
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-meta {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__thread-empty {
+  padding: 20px 14px;
+  border-radius: 10px;
+  background: var(--meri-surface-2);
+  box-shadow: var(--meri-shadow-chip);
+}
+
+.capiro-vnext-root .vnext-meri__thread-empty-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__thread-empty-body {
+  margin-top: 9px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__divider {
+  height: 1px;
+  background: var(--meri-border);
+  margin: 18px 0;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--meri-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__workspace-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__workspace-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+  font-size: 13px;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--meri-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-kind {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+/* ── Main conversation column ────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__main {
+  flex: 1;
+  min-width: 700px;
+  display: flex;
+  flex-direction: column;
+  background: var(--meri-surface);
+}
+
+/* Thread header */
+.capiro-vnext-root .vnext-meri__thread-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__thread-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__thread-title-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--meri-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__thread-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--meri-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--capiro-radius-circular);
+  box-shadow: var(--meri-shadow-chip);
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching {
+  background: var(--meri-accent);
+  animation: vnext-meri-pulse 1.4s ease-in-out infinite;
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill-dot.is-approval {
+  background: var(--meri-warning);
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-chip {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-trigger:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  width: 286px;
+  background: var(--meri-surface);
+  border-radius: var(--meri-radius);
+  box-shadow: var(--meri-shadow-popover);
+  padding: 6px;
+  z-index: var(--capiro-z-popover);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 19px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item-desc {
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-item-check {
+  flex: 0 0 auto;
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-error {
+  font-size: 12px;
+  color: var(--meri-danger);
+  margin-top: 4px;
+}
+
+/* Conversation scroll area */
+.capiro-vnext-root .vnext-meri__conversation-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--meri-page-bg);
+}
+
+.capiro-vnext-root .vnext-meri__conversation-column {
+  max-width: var(--meri-conversation-max);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 22px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Day divider */
+.capiro-vnext-root .vnext-meri__date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.capiro-vnext-root .vnext-meri__date-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__date-divider-label {
+  flex: 0 0 auto;
+  padding: 0 12px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-faint);
+}
+
+/* ── Landing / new thread ────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__landing {
+  display: flex;
+  flex-direction: column;
+  padding: 44px 0 4px;
+}
+
+.capiro-vnext-root .vnext-meri__landing-greeting-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.capiro-vnext-root .vnext-meri__landing-mark {
+  height: 30px;
+  width: auto;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .vnext-meri__landing-greeting {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 38px;
+  letter-spacing: -0.02em;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__landing-sub {
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__landing-composer {
+  position: relative;
+  margin-top: 26px;
+}
+
+.capiro-vnext-root .vnext-meri__landing-policy {
+  padding-top: 10px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-faint);
+}
+
+/* Prompt library */
+.capiro-vnext-root .vnext-meri__prompt-library-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.capiro-vnext-root .vnext-meri__prompt-library-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-library-page {
+  flex: 0 0 auto;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-library-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capiro-vnext-root .vnext-meri__prompt-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  background: transparent;
+  color: var(--meri-text-muted);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__prompt-nav-btn:hover:not(:disabled) {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.capiro-vnext-root .vnext-meri__prompt-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__prompt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px 16px;
+  border-radius: 11px;
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-card);
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease),
+    background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-card:hover {
+  box-shadow: inset 0 0 0 1px var(--meri-border-control),
+    0px 4px 8px -2px var(--capiro-primitive-shadow-widget);
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-card-text {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__prompt-card-tag {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+/* ── Messages ────────────────────────────────────────────────────────── */
+
+/* User message */
+.capiro-vnext-root .vnext-meri__user-message {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.capiro-vnext-root .vnext-meri__user-bubble {
+  max-width: 76%;
+  padding: 13px 16px;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--meri-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--meri-border-control);
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__user-meta {
+  margin-top: 6px;
+  text-align: right;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--meri-text-muted);
+}
+
+/* Assistant message */
+.capiro-vnext-root .vnext-meri__assistant-message {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-mark {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-time {
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__assistant-card {
+  border-radius: var(--meri-radius);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-card);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-body {
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__assistant-body p {
+  margin: 0 0 10px;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-body p:last-child {
+  margin-bottom: 0;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-streaming {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-streaming-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--meri-text-muted);
+  animation: vnext-meri-pulse 1s ease-in-out infinite;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-streaming-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-streaming-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Source strip */
+.capiro-vnext-root .vnext-meri__source-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-top: 1px solid var(--meri-border-soft);
+  background: var(--meri-surface);
+}
+
+.capiro-vnext-root .vnext-meri__source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  cursor: pointer;
+  transition: box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease),
+    background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__source-chip:hover {
+  box-shadow: inset 0 0 0 1px var(--meri-border-control);
+  background: var(--meri-accent-soft);
+}
+
+.capiro-vnext-root .vnext-meri__source-chip-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__source-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--meri-surface-2);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__grounded-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-success);
+}
+
+.capiro-vnext-root .vnext-meri__grounded-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--meri-success);
+}
+
+.capiro-vnext-root .vnext-meri__ungrounded-note {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--meri-text-muted);
+  font-style: italic;
+}
+
+/* Research offer inline */
+.capiro-vnext-root .vnext-meri__research-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--meri-border-soft);
+}
+
+.capiro-vnext-root .vnext-meri__research-offer-text {
+  flex: 1;
+  min-width: 180px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__research-offer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
+  border: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__research-offer-btn:hover:not(:disabled) {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__research-offer-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Inline actions (research report download etc.) */
+.capiro-vnext-root .vnext-meri__inline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.capiro-vnext-root .vnext-meri__inline-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-accent);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__inline-action-btn:hover {
+  background: var(--meri-surface-2);
+}
+
+/* ── Composer ────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__composer-wrap {
+  position: relative;
+}
+
+.capiro-vnext-root .vnext-meri__composer {
+  border-radius: var(--meri-radius);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-composer);
+  padding: 12px 12px 10px;
+  transition: box-shadow var(--capiro-motion-standard) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__composer.is-focused {
+  box-shadow: var(--meri-shadow-composer-focus);
+}
+
+.capiro-vnext-root .vnext-meri__composer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__composer-add-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--meri-radius-sm);
+  background: transparent;
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-secondary);
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__composer-add-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__composer-textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--meri-ink);
+  padding: 6px 2px;
+  min-height: 34px;
+  max-height: 120px;
+  overflow-y: auto;
+  resize: none;
+}
+
+.capiro-vnext-root .vnext-meri__composer-textarea::placeholder {
+  color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__composer-textarea:disabled {
+  opacity: 0.5;
+}
+
+.capiro-vnext-root .vnext-meri__composer-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__composer-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 4px 11px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__composer-scope-btn:hover {
+  background: var(--meri-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--meri-border-control);
+}
+
+.capiro-vnext-root .vnext-meri__composer-context-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 11px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__composer-context-label:hover {
+  background: var(--meri-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--meri-border-control);
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-hint {
+  margin-left: auto;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-faint);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  box-shadow: var(--meri-shadow-button);
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn:hover:not(:disabled) {
+  background: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn.is-stop {
+  background: var(--meri-surface);
+  color: var(--meri-text-secondary);
+  box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn.is-stop:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__composer-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
+  border: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__composer-stop-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+/* Composer attachments */
+.capiro-vnext-root .vnext-meri__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: var(--meri-surface-2);
+  box-shadow: var(--meri-shadow-chip);
+  font-size: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__attachment.is-error {
+  box-shadow: inset 0 0 0 1px var(--meri-danger);
+}
+
+.capiro-vnext-root .vnext-meri__attachment-state {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__attachment-remove {
+  display: flex;
+  align-items: center;
+  color: var(--meri-text-faint);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__attachment-remove:hover {
+  color: var(--meri-danger);
+}
+
+.capiro-vnext-root .vnext-meri__attachment-notice {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--meri-text-muted);
+}
+
+/* Composer pinned (thread mode) */
+.capiro-vnext-root .vnext-meri__composer-pinned {
+  flex: 0 0 auto;
+  padding: 14px 24px 12px;
+  border-top: 1px solid var(--meri-border);
+  background: var(--meri-surface);
+}
+
+.capiro-vnext-root .vnext-meri__composer-pinned-inner {
+  max-width: var(--meri-conversation-max);
+  margin: 0 auto;
+  position: relative;
+}
+
+.capiro-vnext-root .vnext-meri__composer-policy {
+  padding-top: 10px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-faint);
+}
+
+/* Add to conversation popover */
+.capiro-vnext-root .vnext-meri__add-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 330px;
+  background: var(--meri-surface);
+  border-radius: var(--meri-radius);
+  box-shadow: var(--meri-shadow-popover);
+  padding: 6px;
+  z-index: var(--capiro-z-popover);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-eyebrow {
+  padding: 10px 12px 8px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 19px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-item-desc {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  line-height: 15px;
+  letter-spacing: 0.02em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-footer {
+  padding: 6px 12px 8px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  line-height: 15px;
+  letter-spacing: 0.02em;
+  color: var(--meri-text-faint);
+}
+
+/* ── Right context rail ──────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__rail-right {
+  flex: 0 0 auto;
+  background: var(--meri-surface);
+  border-left: 1px solid var(--meri-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition: width var(--capiro-motion-standard) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__rail-right.is-expanded {
+  width: var(--meri-rail-right-width);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.capiro-vnext-root .vnext-meri__rail-right.is-collapsed {
+  width: var(--meri-rail-right-collapsed);
+  overflow: hidden;
+}
+
+/* Collapsed rail */
+.capiro-vnext-root .vnext-meri__rail-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+}
+
+.capiro-vnext-root .vnext-meri__rail-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--meri-radius-sm);
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-secondary);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__rail-expand-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__rail-collapsed-sep {
+  width: 24px;
+  height: 1px;
+  background: var(--meri-border);
+  margin: 4px 0;
+}
+
+.capiro-vnext-root .vnext-meri__rail-badge-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip);
+  color: var(--meri-text-secondary);
+  border: 0;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__rail-badge-btn:hover {
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__rail-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--meri-accent);
+  color: var(--capiro-color-text-inverse-primary);
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  box-shadow: 0 0 0 2px var(--meri-surface);
+}
+
+/* Expanded rail sections */
+.capiro-vnext-root .vnext-meri__rail-section {
+  border-bottom: 1px solid var(--meri-border);
+  padding: 18px 20px 16px;
+}
+
+.capiro-vnext-root .vnext-meri__rail-section:last-child {
+  border-bottom: 0;
+}
+
+.capiro-vnext-root .vnext-meri__rail-section-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__rail-collapse-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--meri-text-faint);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__rail-collapse-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__rail-section-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__rail-section-content {
+  margin-top: 14px;
+}
+
+/* Context items */
+.capiro-vnext-root .vnext-meri__ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-card);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-item-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__ctx-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--meri-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__ctx-item-kind {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-item-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--meri-success-dot);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__ctx-empty {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__rail-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
+  border: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--meri-text-secondary);
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__rail-action-btn:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-ink);
+}
+
+/* Connected sources */
+.capiro-vnext-root .vnext-meri__source-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--meri-border-soft);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__source-row:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__source-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--meri-dark-ink);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__source-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--meri-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__source-state {
+  flex: 0 0 auto;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__source-state.is-connected {
+  color: var(--meri-success);
+}
+
+.capiro-vnext-root .vnext-meri__source-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__source-dot.is-connected {
+  background: var(--meri-success-dot);
+}
+
+/* Quick actions */
+.capiro-vnext-root .vnext-meri__action-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--meri-surface);
+  box-shadow: var(--meri-shadow-card);
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__action-item:hover {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__action-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--meri-accent-soft);
+  color: var(--meri-accent);
+}
+
+.capiro-vnext-root .vnext-meri__action-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--meri-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__rail-footer {
+  margin-top: 16px;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 15px;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-faint);
+}
+
+/* ── Error / loading ─────────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__error {
+  margin: 0 24px;
+  padding: 10px 14px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--capiro-color-danger-soft);
+  color: var(--meri-danger);
+  font-size: 13px;
+}
+
+.capiro-vnext-root .vnext-meri__route-error {
+  padding: 10px 14px;
+  margin: 0 24px 8px;
+  border-radius: var(--meri-radius-sm);
+  background: var(--capiro-color-danger-soft);
+  color: var(--meri-danger);
+  font-size: 13px;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────── */
+
+@keyframes vnext-meri-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes vnext-meri-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
+  .capiro-vnext-root .vnext-meri__assistant-streaming-dot {
+    animation: none;
+  }
+}
