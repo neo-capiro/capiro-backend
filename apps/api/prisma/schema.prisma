@@ -10093,3 +10093,86 @@ model DefenseBudgetPromotionAudit {
   @@index([planId], map: "defense_budget_promotion_audit_plan_idx")
   @@map("defense_budget_promotion_audit")
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// X Intelligence Feed — configurable X/Twitter dashboard feed
+//
+// The global cache tables (XTrackedAccount, XPostCache) are NOT tenant-scoped:
+// they store a single copy of each tracked X account's posts so 100 users
+// subscribing to @DeptofDefense share one provider fetch. The subscription
+// table (XFeedSubscription) IS tenant+user scoped and protected by RLS.
+// ──────────────────────────────────────────────────────────────────────────
+
+/// A globally-tracked X account. One row per unique X user, shared across all
+/// tenants. The server resolves @username → this row, then caches posts against
+/// it. `lastFetchedAt` drives incremental fetch (since_id) and TTL decisions.
+model XTrackedAccount {
+  id            String    @id @default(uuid()) @db.Uuid
+  xUserId       String    @map("x_user_id") @db.VarChar(64)
+  username      String    @db.VarChar(80)
+  displayName   String?   @map("display_name") @db.VarChar(255)
+  avatarUrl     String?   @map("avatar_url")
+  verified      Boolean   @default(false)
+  /// The most recent X post ID we have cached, used for since_id incremental
+  /// retrieval on the next fetch cycle.
+  lastPostId    String?   @map("last_post_id") @db.VarChar(64)
+  lastFetchedAt DateTime? @map("last_fetched_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  posts         XPostCache[]
+  subscriptions XFeedSubscription[]
+
+  @@unique([xUserId], map: "x_tracked_account_x_user_id_unique")
+  @@unique([username], map: "x_tracked_account_username_unique")
+  @@index([lastFetchedAt], map: "x_tracked_account_last_fetched_idx")
+  @@map("x_tracked_account")
+}
+
+/// Cached X posts for a tracked account. Global — one copy per X post, fanned
+/// out to subscribers by the feed endpoint. Retention-limited: expired or
+/// deleted posts are pruned by the service.
+model XPostCache {
+  id            String    @id @default(uuid()) @db.Uuid
+  accountId     String    @map("account_id") @db.Uuid
+  xPostId       String    @map("x_post_id") @db.VarChar(64)
+  text          String    @db.Text
+  createdAtX    DateTime  @map("created_at_x") @db.Timestamptz(6)
+  /// JSON media metadata from the X API response (urls, types, preview_image_url).
+  media         Json      @default("[]")
+  /// JSON public_metrics from the X API response (retweet_count, reply_count, like_count, quote_count).
+  metrics       Json      @default("{}")
+  /// Provider raw metadata, stored only where useful for rendering. Minimal.
+  rawMeta       Json      @default("{}") @map("raw_meta")
+  /// Marks posts that have been deleted on X or are otherwise unavailable.
+  unavailable   Boolean   @default(false)
+  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+
+  account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([accountId, xPostId], map: "x_post_cache_account_post_unique")
+  @@index([accountId, createdAtX], map: "x_post_cache_account_created_idx")
+  @@index([unavailable], map: "x_post_cache_unavailable_idx")
+  @@map("x_post_cache")
+}
+
+/// A user's subscription to an X account. Tenant-scoped AND user-scoped.
+/// Protected by RLS (see migration). A user can subscribe to at most 25
+/// accounts (enforced in service layer).
+model XFeedSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tenantId, userId, accountId], map: "x_feed_subscription_unique")
+  @@index([tenantId, userId], map: "x_feed_subscription_tenant_user_idx")
+  @@index([tenantId, userId, enabled], map: "x_feed_subscription_enabled_idx")
+  @@map("x_feed_subscription")
+}

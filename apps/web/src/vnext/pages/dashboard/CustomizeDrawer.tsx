@@ -38,12 +38,14 @@ const MODULE_COPY: Readonly<Record<DashboardModuleKey, { title: string; descript
   news: { title: 'News & Narrative', description: 'Subscription-driven feed' },
   today: { title: 'Today & Coming Up', description: 'Meetings and policy events' },
   work: { title: 'Work Queue', description: 'Outreach and work documents' },
+  xFeed: { title: 'X Intelligence', description: 'Configurable X/Twitter feed' },
 };
 
-const VISIBILITY_KEY: Readonly<Record<DashboardModuleKey, 'news' | 'today' | 'work'>> = {
+const VISIBILITY_KEY: Readonly<Record<DashboardModuleKey, 'news' | 'today' | 'work' | 'xFeed'>> = {
   news: 'news',
   today: 'today',
   work: 'work',
+  xFeed: 'xFeed',
 };
 
 const DENSITY_OPTIONS: ReadonlyArray<{ value: DashboardDensity; label: string }> = [
@@ -147,8 +149,8 @@ export function CustomizeDrawer({
   };
 
   const reset = () => {
-    model.setVisibility({ news: true, today: true, work: true });
-    model.setOrder(['news', 'today', 'work']);
+    model.setVisibility({ news: true, today: true, work: true, xFeed: true });
+    model.setOrder(['news', 'today', 'work', 'xFeed']);
     model.setDensity('standard');
   };
 

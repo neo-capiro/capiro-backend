@@ -48,7 +48,7 @@ export type DashboardModuleState =
 export type DashboardDensity = 'presentation' | 'standard' | 'compact';
 
 /** The optional, user-orderable modules. Needs Attention is pinned at 00. */
-export type DashboardModuleKey = 'news' | 'today' | 'work';
+export type DashboardModuleKey = 'news' | 'today' | 'work' | 'xFeed';
 
 /**
  * A module's system state as the design states it (`754:2885`): a badge, the
@@ -122,10 +122,48 @@ export interface WorkQueueEntry {
   href: string;
 }
 
+/** X Feed subscription display item. */
+export interface XFeedSubscriptionItem {
+  id: string;
+  accountId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  verified: boolean;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+/** X Feed post display item. */
+export interface XFeedPostItem {
+  id: string;
+  xPostId: string;
+  text: string;
+  createdAtX: string;
+  media: unknown[];
+  metrics: Record<string, number>;
+  authorUsername: string;
+  authorDisplayName: string | null;
+  authorAvatarUrl: string | null;
+  authorVerified: boolean;
+  xUrl: string;
+}
+
+/** X handle resolve result (preview before adding). */
+export interface XFeedResolveResult {
+  accountId: string;
+  xUserId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  verified: boolean;
+}
+
 export interface DashboardVisibility {
   today: boolean;
   work: boolean;
   news: boolean;
+  xFeed: boolean;
 }
 
 /**
@@ -145,10 +183,10 @@ const ATTENTION_ALERT_TYPES: Readonly<Record<string, { badge: string; action: st
 /** Intelligence changes that count as material funding/regulatory movement. */
 const MATERIAL_CHANGE_SEVERITIES = new Set(['critical', 'high']);
 
-const DEFAULT_VISIBILITY: DashboardVisibility = { today: true, work: true, news: true };
+const DEFAULT_VISIBILITY: DashboardVisibility = { today: true, work: true, news: true, xFeed: true };
 
 /** Drawer order 01/02/03 (`754:2789`, `754:2797`, `754:2805`). */
-const DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work'];
+const DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work', 'xFeed'];
 
 /**
  * Row budgets from the Figma layout: the modules are fixed-height cards, not
@@ -161,22 +199,22 @@ const DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work'];
  * contract (`760:2695`).
  */
 const ROW_LIMITS: Readonly<
-  Record<DashboardDensity, { attention: number; news: number; today: number; work: number }>
+  Record<DashboardDensity, { attention: number; news: number; today: number; work: number; xFeed: number }>
 > = {
-  presentation: { attention: 3, news: 3, today: 2, work: 2 },
+  presentation: { attention: 3, news: 3, today: 2, work: 2, xFeed: 3 },
   // Standard shows THREE attention rows, not four: the approved card is
   // 1120x198 = 45px header + 3 x ~51px rows. The header keeps the true total and
   // `View all` reaches the rest, so only the visible count changes here — the
   // selection taxonomy and governance logic are untouched.
-  standard: { attention: 3, news: 4, today: 3, work: 3 },
-  compact: { attention: 6, news: 6, today: 5, work: 5 },
+  standard: { attention: 3, news: 4, today: 3, work: 3, xFeed: 5 },
+  compact: { attention: 6, news: 6, today: 5, work: 5, xFeed: 8 },
 };
 
 /**
  * Mobile (`757:2622`) is a different content model, not a narrower desktop: two
  * attention rows, two stories, a single Next Meeting card and one work item.
  */
-const MOBILE_ROW_LIMITS = { attention: 2, news: 2, today: 1, work: 1 } as const;
+const MOBILE_ROW_LIMITS = { attention: 2, news: 2, today: 1, work: 1, xFeed: 3 } as const;
 
 export interface DashboardVNextModel {
   header: {
@@ -215,6 +253,18 @@ export interface DashboardVNextModel {
     };
   };
   workQueue: { status: ModuleStatus; items: WorkQueueEntry[]; total: number };
+  xFeed: {
+    status: ModuleStatus;
+    subscriptions: XFeedSubscriptionItem[];
+    posts: XFeedPostItem[];
+    filteredAccountId: string | null;
+    addSource: (username: string) => Promise<void>;
+    removeSource: (subscriptionId: string) => Promise<void>;
+    setFilter: (accountId: string | null) => void;
+    resolveHandle: (username: string) => Promise<XFeedResolveResult | null>;
+    refreshing: boolean;
+    refresh: () => void;
+  };
   visibility: DashboardVisibility;
   setVisibility: (next: DashboardVisibility) => void;
   /** User order for the optional modules; Needs Attention is never in it. */
@@ -237,6 +287,8 @@ const DASHBOARD_QUERY_KEYS = [
   'dashboard-news-custom',
   'dashboard-work-outreach',
   'dashboard-workspace-drafts',
+  'x-feed-dashboard',
+  'x-feed-subscriptions',
 ] as const;
 
 export function useDashboardVNextModel(): DashboardVNextModel {
@@ -803,6 +855,289 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     limits.work,
   ]);
 
+  /* ── X Intelligence Feed ───────────────────────────────────────────────── */
+
+  const [xFeedFilter, setXFeedFilter] = useState<string | null>(null);
+
+  const xFeedDashboard = useQuery<XFeedDashboardResponse>({
+    queryKey: ['x-feed-dashboard', xFeedFilter],
+    queryFn: async () =>
+      (
+        await api.get<XFeedDashboardResponse>('/api/intelligence/x-feed/dashboard', {
+          params: xFeedFilter ? { accountId: xFeedFilter } : {},
+        })
+      ).data,
+    staleTime: 5 * 60 * 1000,
+    enabled: visibility.xFeed,
+  });
+
+  const xFeedSubscriptions = useQuery({
+    queryKey: ['x-feed-subscriptions'],
+    queryFn: async () =>
+      (await api.get('/api/intelligence/x-feed/subscriptions')).data as XFeedSubscriptionItem[],
+    staleTime: 60_000,
+  });
+
+  const xFeedAddMutation = useMutation({
+    mutationFn: async (username: string) =>
+      (await api.post('/api/intelligence/x-feed/subscriptions', { username })).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
+      void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
+    },
+  });
+
+  const xFeedRemoveMutation = useMutation({
+    mutationFn: async (subscriptionId: string) =>
+      api.delete(`/api/intelligence/x-feed/subscriptions/${subscriptionId}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
+      void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
+    },
+  });
+
+  const xFeedRefreshMutation = useMutation({
+    mutationFn: async () => (await api.post('/api/intelligence/x-feed/refresh')).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
+    },
+  });
+
+  const xFeedModule = useMemo<DashboardVNextModel['xFeed']>(() => {
+    if (!visibility.xFeed) {
+      return {
+        status: buildStatus({
+          sources: [],
+          hidden: true,
+          emptyKind: 'empty',
+          emptyTitle: 'X Intelligence is hidden',
+          emptyBody: 'Turn the module back on from Customize Dashboard.',
+          itemCount: 0,
+        }),
+        subscriptions: [],
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async () => {},
+        removeSource: async () => {},
+        setFilter: () => {},
+        resolveHandle: async () => null,
+        refreshing: false,
+        refresh: () => {},
+      };
+    }
+
+    const data = xFeedDashboard.data;
+    const subs = (data?.subscriptions ?? xFeedSubscriptions.data ?? []) as XFeedSubscriptionItem[];
+
+    // Provider not configured — honest unavailable state, no fake posts.
+    if (data && !data.available) {
+      return {
+        status: {
+          state: 'unavailable' as DashboardModuleState,
+          meta: data.reason === 'not_configured' ? 'Not configured' : 'X API unavailable',
+          title:
+            data.reason === 'not_configured'
+              ? 'X Intelligence is not configured yet'
+              : 'X API is temporarily unavailable',
+          body:
+            data.reason === 'not_configured'
+              ? 'Add an X account to get started. The administrator may need to configure the X API token.'
+              : 'The X API could not be reached. Try again shortly.',
+          action: { label: 'Retry source', tone: 'warning' as const },
+        },
+        subscriptions: subs,
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async (username: string) => {
+          await xFeedAddMutation.mutateAsync(username);
+        },
+        removeSource: async (subscriptionId: string) => {
+          await xFeedRemoveMutation.mutateAsync(subscriptionId);
+        },
+        setFilter: setXFeedFilter,
+        resolveHandle: async (username: string) => {
+          try {
+            return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+              .data as XFeedResolveResult;
+          } catch {
+            return null;
+          }
+        },
+        refreshing: xFeedRefreshMutation.isPending,
+        refresh: () => void xFeedRefreshMutation.mutate(),
+      };
+    }
+
+    if (xFeedDashboard.isLoading || (!data && !xFeedDashboard.isError)) {
+      return {
+        status: buildStatus({
+          sources: [{ name: 'X Feed', isLoading: true, isError: false, updatedAt: xFeedDashboard.dataUpdatedAt }],
+          hidden: false,
+          emptyKind: 'empty',
+          emptyTitle: '',
+          emptyBody: '',
+          itemCount: 0,
+        }),
+        subscriptions: subs,
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async (username: string) => {
+          await xFeedAddMutation.mutateAsync(username);
+        },
+        removeSource: async (subscriptionId: string) => {
+          await xFeedRemoveMutation.mutateAsync(subscriptionId);
+        },
+        setFilter: setXFeedFilter,
+        resolveHandle: async (username: string) => {
+          try {
+            return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+              .data as XFeedResolveResult;
+          } catch {
+            return null;
+          }
+        },
+        refreshing: xFeedRefreshMutation.isPending,
+        refresh: () => void xFeedRefreshMutation.mutate(),
+      };
+    }
+
+    if (xFeedDashboard.isError) {
+      return {
+        status: {
+          state: 'unavailable' as DashboardModuleState,
+          meta: 'X Feed',
+          title: 'X Intelligence source is temporarily unavailable',
+          body: 'The X API could not be reached. Try again shortly.',
+          action: { label: 'Retry source', tone: 'warning' as const },
+        },
+        subscriptions: subs,
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async (username: string) => {
+          await xFeedAddMutation.mutateAsync(username);
+        },
+        removeSource: async (subscriptionId: string) => {
+          await xFeedRemoveMutation.mutateAsync(subscriptionId);
+        },
+        setFilter: setXFeedFilter,
+        resolveHandle: async (username: string) => {
+          try {
+            return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+              .data as XFeedResolveResult;
+          } catch {
+            return null;
+          }
+        },
+        refreshing: xFeedRefreshMutation.isPending,
+        refresh: () => void xFeedRefreshMutation.mutate(),
+      };
+    }
+
+    const posts = (data?.posts ?? []) as XFeedPostItem[];
+
+    // Empty state: no subscriptions yet → show setup CTA.
+    if (subs.filter((s) => s.enabled).length === 0) {
+      return {
+        status: {
+          state: 'empty' as DashboardModuleState,
+          meta: null,
+          title: 'Follow the people and organizations that matter to your work.',
+          body: 'Add an X account to start seeing posts in your dashboard feed.',
+          action: null,
+        },
+        subscriptions: subs,
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async (username: string) => {
+          await xFeedAddMutation.mutateAsync(username);
+        },
+        removeSource: async (subscriptionId: string) => {
+          await xFeedRemoveMutation.mutateAsync(subscriptionId);
+        },
+        setFilter: setXFeedFilter,
+        resolveHandle: async (username: string) => {
+          try {
+            return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+              .data as XFeedResolveResult;
+          } catch {
+            return null;
+          }
+        },
+        refreshing: xFeedRefreshMutation.isPending,
+        refresh: () => void xFeedRefreshMutation.mutate(),
+      };
+    }
+
+    // No posts but subscriptions exist — could be no recent tweets.
+    if (posts.length === 0) {
+      return {
+        status: {
+          state: 'empty' as DashboardModuleState,
+          meta: `${subs.filter((s) => s.enabled).length} account${subs.filter((s) => s.enabled).length === 1 ? '' : 's'}`,
+          title: 'No recent posts from your followed accounts',
+          body: 'Posts will appear here when the accounts you follow publish new content.',
+          action: { label: 'Retry source', tone: 'warning' as const },
+        },
+        subscriptions: subs,
+        posts: [],
+        filteredAccountId: xFeedFilter,
+        addSource: async (username: string) => {
+          await xFeedAddMutation.mutateAsync(username);
+        },
+        removeSource: async (subscriptionId: string) => {
+          await xFeedRemoveMutation.mutateAsync(subscriptionId);
+        },
+        setFilter: setXFeedFilter,
+        resolveHandle: async (username: string) => {
+          try {
+            return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+              .data as XFeedResolveResult;
+          } catch {
+            return null;
+          }
+        },
+        refreshing: xFeedRefreshMutation.isPending,
+        refresh: () => void xFeedRefreshMutation.mutate(),
+      };
+    }
+
+    return {
+      status: { state: 'ready' as DashboardModuleState, meta: null, title: '', body: '', action: null },
+      subscriptions: subs,
+      posts,
+      filteredAccountId: xFeedFilter,
+      addSource: async (username: string) => {
+        await xFeedAddMutation.mutateAsync(username);
+      },
+      removeSource: async (subscriptionId: string) => {
+        await xFeedRemoveMutation.mutateAsync(subscriptionId);
+      },
+      setFilter: setXFeedFilter,
+      resolveHandle: async (username: string) => {
+        try {
+          return (await api.get('/api/intelligence/x-feed/resolve', { params: { username } }))
+            .data as XFeedResolveResult;
+        } catch {
+          return null;
+        }
+      },
+      refreshing: xFeedRefreshMutation.isPending,
+      refresh: () => void xFeedRefreshMutation.mutate(),
+    };
+  }, [
+    visibility.xFeed,
+    xFeedDashboard.data,
+    xFeedDashboard.dataUpdatedAt,
+    xFeedDashboard.isError,
+    xFeedDashboard.isLoading,
+    xFeedSubscriptions.data,
+    xFeedFilter,
+    xFeedAddMutation,
+    xFeedRemoveMutation,
+    xFeedRefreshMutation,
+    api,
+  ]);
+
   /* ── Header ───────────────────────────────────────────────────────────── */
 
   const header = useMemo(() => {
@@ -834,6 +1169,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     news: newsModule,
     today: { ...today, sendMeri },
     workQueue,
+    xFeed: xFeedModule,
     visibility,
     setVisibility,
     order,
@@ -874,6 +1210,15 @@ interface DashWorkspaceDraft {
   docTitle: string;
   status: 'draft' | 'complete';
   updatedAt: string;
+}
+
+/** X Feed dashboard API response shape. */
+interface XFeedDashboardResponse {
+  available: boolean;
+  reason: string | null;
+  subscriptions: XFeedSubscriptionItem[];
+  posts: XFeedPostItem[];
+  filteredAccount: string | null;
 }
 
 interface NewsDashboardResponse {
@@ -1368,6 +1713,7 @@ function useDashboardVisibility(
         today: parsed.today !== false,
         work: parsed.work !== false,
         news: parsed.news !== false,
+        xFeed: parsed.xFeed !== false,
       });
     } catch {
       setVisibilityState(DEFAULT_VISIBILITY);

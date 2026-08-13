@@ -168,7 +168,7 @@ describe('Needs Attention module contract', () => {
     // Density changes how many rows are visible, never what they mean, so all
     // three modes must declare a budget for every module (760:2695).
     for (const mode of ['presentation', 'standard', 'compact']) {
-      expect(source).toMatch(new RegExp(`${mode}: \\{ attention: \\d+, news: \\d+, today: \\d+, work: \\d+ \\}`));
+      expect(source).toMatch(new RegExp(`${mode}: \\{ attention: \\d+, news: \\d+, today: \\d+, work: \\d+, xFeed: \\d+ \\}`));
     }
   });
 });
@@ -183,6 +183,8 @@ describe('dashboard source contract', () => {
       "'dashboard-news-custom'",
       "'dashboard-work-outreach'",
       "'dashboard-workspace-drafts'",
+      "'x-feed-dashboard'",
+      "'x-feed-subscriptions'",
     ]) {
       expect(source).toContain(key);
     }
@@ -203,8 +205,8 @@ describe('dashboard source contract', () => {
   it('keeps Needs Attention out of the reorderable set and pinned at 00', () => {
     // Customization contract (760:2683): Needs Attention is excluded from the
     // hide/reorder controls and always renders first.
-    expect(source).toContain("export type DashboardModuleKey = 'news' | 'today' | 'work'");
-    expect(source).toContain("DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work']");
+    expect(source).toContain("export type DashboardModuleKey = 'news' | 'today' | 'work' | 'xFeed'");
+    expect(source).toContain("DEFAULT_ORDER: readonly DashboardModuleKey[] = ['news', 'today', 'work', 'xFeed']");
 
     const drawer = readFileSync(resolve(process.cwd(), 'src/vnext/pages/dashboard/CustomizeDrawer.tsx'), 'utf8');
     expect(drawer).toContain('uui-dash-drawer__module--pinned');

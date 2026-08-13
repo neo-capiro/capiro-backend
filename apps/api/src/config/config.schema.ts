@@ -919,6 +919,18 @@ export const configSchema = z.object({
     .default('true')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
+  // X Intelligence Feed — application-only bearer token for the X API.
+  // Optional at API-server boot; the feed reports an honest unavailable state
+  // when it is absent. Injected ONLY into the backend runtime, never exposed
+  // to the browser.
+  X_API_BEARER_TOKEN: z.string().min(1).optional(),
+  X_API_BASE_URL: z
+    .string()
+    .url()
+    .refine((v) => new URL(v).protocol === 'https:', 'X_API_BASE_URL must use HTTPS')
+    .default('https://api.x.com/2'),
+  X_FEED_MAX_SOURCES: z.coerce.number().int().positive().default(25),
+
   // Recall webhook processing gate. Same allowlist transform.
   ENGAGEMENT_RECALL_WEBHOOK_ENABLED: z
     .string()

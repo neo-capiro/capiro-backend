@@ -8,6 +8,8 @@ import {
   type DashboardVNextModel,
   type ModuleStatus,
   type TodayEvent,
+  type XFeedPostItem,
+  type XFeedResolveResult,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
 import { JoinButton, SendMeriButton } from '../../../pages/engagement/meetings/meetings-ui.js';
 import { NotetakerConsentFields } from '../../../pages/engagement/meeting-actions.js';
@@ -38,6 +40,7 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
     news: model.visibility.news ? <NewsAndNarrative key="news" model={model} /> : null,
     today: model.visibility.today ? <TodayAndComingUp key="today" model={model} /> : null,
     work: model.visibility.work ? <WorkQueue key="work" model={model} /> : null,
+    xFeed: model.visibility.xFeed ? <XIntelligenceFeed key="xFeed" model={model} /> : null,
   };
 
   // Mobile is a different content model, not a narrower desktop (`757:2622`):
@@ -563,6 +566,272 @@ function MobileWorkQueue({ model }: { model: DashboardVNextModel }) {
       <span className="uui-dash-next__status">{item.status}</span>
     </Link>
   );
+}
+
+/* ── X Intelligence Feed ──────────────────────────────────────────────────── */
+
+function XIntelligenceFeed({ model }: { model: DashboardVNextModel }) {
+  const xFeed = model.xFeed;
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [handleInput, setHandleInput] = useState('');
+  const [resolveResult, setResolveResult] = useState<XFeedResolveResult | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const handleResolve = async () => {
+    const value = handleInput.trim();
+    if (!value) return;
+    setResolving(true);
+    setAddError(null);
+    setResolveResult(null);
+    try {
+      const result = await xFeed.resolveHandle(value);
+      if (result) {
+        setResolveResult(result);
+      } else {
+        setAddError('Account not found. Check the handle and try again.');
+      }
+    } catch {
+      setAddError('Could not resolve this X account. Try again.');
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!resolveResult) return;
+    try {
+      await xFeed.addSource(resolveResult.username);
+      setShowAddSource(false);
+      setHandleInput('');
+      setResolveResult(null);
+      setAddError(null);
+    } catch {
+      setAddError('Could not add this account. It may already be in your list.');
+    }
+  };
+
+  const handleRemove = async (subscriptionId: string) => {
+    try {
+      await xFeed.removeSource(subscriptionId);
+    } catch {
+      // Error state handled by query invalidation
+    }
+  };
+
+  const enabledSubs = xFeed.subscriptions.filter((s) => s.enabled);
+
+  return (
+    <section className="uui-dash-card uui-dash-card--xfeed" aria-label="X Intelligence">
+      <div className="uui-dash-card__head">
+        <h2 className="uui-dash-card__title">X Intelligence</h2>
+        {enabledSubs.length > 0 ? (
+          <span className="uui-dash-card__meta">
+            {enabledSubs.length} account{enabledSubs.length === 1 ? '' : 's'}
+          </span>
+        ) : null}
+        {xFeed.refreshing ? (
+          <span className="uui-dash-card__meta">Refreshing…</span>
+        ) : null}
+        <button
+          type="button"
+          className="uui-dash-card__link uui-dash-xfeed__add-btn"
+          onClick={() => setShowAddSource(true)}
+        >
+          + Add source
+        </button>
+      </div>
+
+      <ModuleStateView status={xFeed.status} onRetry={model.retry} />
+
+      {/* Following list — shows subscribed accounts as filter chips */}
+      {enabledSubs.length > 0 ? (
+        <div className="uui-dash-xfeed__following">
+          <button
+            type="button"
+            className="uui-dash-xfeed__chip"
+            data-active={!xFeed.filteredAccountId || undefined}
+            onClick={() => xFeed.setFilter(null)}
+          >
+            All
+          </button>
+          {enabledSubs.map((sub) => (
+            <span key={sub.id} className="uui-dash-xfeed__chip-wrapper">
+              <button
+                type="button"
+                className="uui-dash-xfeed__chip"
+                data-active={xFeed.filteredAccountId === sub.accountId || undefined}
+                onClick={() =>
+                  xFeed.setFilter(
+                    xFeed.filteredAccountId === sub.accountId ? null : sub.accountId,
+                  )
+                }
+              >
+                @{sub.username}
+              </button>
+              <button
+                type="button"
+                className="uui-dash-xfeed__chip-remove"
+                aria-label={`Remove @${sub.username}`}
+                onClick={() => handleRemove(sub.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Posts */}
+      {xFeed.posts.map((post) => (
+        <XFeedPostRow key={post.id} post={post} />
+      ))}
+
+      {/* Add source overlay */}
+      {showAddSource ? (
+        <div className="uui-dash-xfeed__add-overlay">
+          <div className="uui-dash-xfeed__add-panel">
+            <div className="uui-dash-xfeed__add-head">
+              <span className="uui-dash-xfeed__add-title">Add X source</span>
+              <button
+                type="button"
+                className="uui-dash-xfeed__add-close"
+                aria-label="Close"
+                onClick={() => {
+                  setShowAddSource(false);
+                  setHandleInput('');
+                  setResolveResult(null);
+                  setAddError(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="uui-dash-xfeed__add-body">
+              <input
+                className="uui-dash-xfeed__input"
+                value={handleInput}
+                onChange={(e) => setHandleInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleResolve();
+                  }
+                }}
+                placeholder="@DeptofDefense"
+                aria-label="X handle"
+                autoFocus
+              />
+              <CapiroButton
+                size="compact"
+                variant="secondary"
+                onClick={() => void handleResolve()}
+                loading={resolving}
+              >
+                Resolve
+              </CapiroButton>
+              {addError ? (
+                <p className="uui-dash-xfeed__add-error">{addError}</p>
+              ) : null}
+              {resolveResult ? (
+                <div className="uui-dash-xfeed__preview">
+                  {resolveResult.avatarUrl ? (
+                    <img
+                      src={resolveResult.avatarUrl}
+                      alt=""
+                      className="uui-dash-xfeed__avatar"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--placeholder" />
+                  )}
+                  <span className="uui-dash-xfeed__preview-copy">
+                    <span className="uui-dash-xfeed__preview-name">
+                      {resolveResult.displayName ?? resolveResult.username}
+                      {resolveResult.verified ? (
+                        <span className="uui-dash-xfeed__verified" aria-label="Verified">✓</span>
+                      ) : null}
+                    </span>
+                    <span className="uui-dash-xfeed__preview-handle">
+                      @{resolveResult.username}
+                    </span>
+                  </span>
+                  <CapiroButton size="compact" variant="primary" onClick={() => void handleAdd()}>
+                    Add
+                  </CapiroButton>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function XFeedPostRow({ post }: { post: XFeedPostItem }) {
+  const metrics = post.metrics;
+  const engagement = [
+    metrics.reply_count != null ? `${metrics.reply_count} replies` : null,
+    metrics.retweet_count != null ? `${metrics.retweet_count} reposts` : null,
+    metrics.like_count != null ? `${metrics.like_count} likes` : null,
+    metrics.quote_count != null ? `${metrics.quote_count} quotes` : null,
+  ].filter(Boolean);
+
+  return (
+    <article className="uui-dash-xfeed__post">
+      <div className="uui-dash-xfeed__post-head">
+        {post.authorAvatarUrl ? (
+          <img
+            src={post.authorAvatarUrl}
+            alt=""
+            className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--small"
+            loading="lazy"
+          />
+        ) : (
+          <span className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--placeholder uui-dash-xfeed__avatar--small" />
+        )}
+        <span className="uui-dash-xfeed__post-author">
+          <span className="uui-dash-xfeed__post-name">
+            {post.authorDisplayName ?? post.authorUsername}
+            {post.authorVerified ? (
+              <span className="uui-dash-xfeed__verified" aria-label="Verified">✓</span>
+            ) : null}
+          </span>
+          <span className="uui-dash-xfeed__post-handle">@{post.authorUsername}</span>
+        </span>
+        <span className="uui-dash-xfeed__post-time">{relativeXTime(post.createdAtX)}</span>
+      </div>
+      <p className="uui-dash-xfeed__post-text">{post.text}</p>
+      {engagement.length > 0 ? (
+        <div className="uui-dash-xfeed__post-metrics">
+          {engagement.map((metric, i) => (
+            <span key={i} className="uui-dash-xfeed__post-metric">{metric}</span>
+          ))}
+        </div>
+      ) : null}
+      <a
+        className="uui-dash-xfeed__post-link"
+        href={post.xUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        View on X →
+      </a>
+    </article>
+  );
+}
+
+function relativeXTime(iso: string): string {
+  const elapsed = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(elapsed)) return '';
+  const minutes = Math.floor(Math.abs(elapsed) / 60_000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
 }
 
 /* ── Shared system states (Figma 754:2885) ──────────────────────────────── */

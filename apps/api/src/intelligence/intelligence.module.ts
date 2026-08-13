@@ -29,6 +29,7 @@ import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { FederalRegisterModule } from '../federal-register/federal-register.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { XFeedModule } from './x-feed/x-feed.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     FederalSpendingModule,
     FederalRegisterModule,
     DirectoryModule,
+    XFeedModule,
   ],
   controllers: [
     IntelligenceController,

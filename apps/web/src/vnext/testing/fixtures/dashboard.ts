@@ -269,14 +269,26 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
       },
     ],
   },
-  visibility: { today: true, work: true, news: true },
+  visibility: { today: true, work: true, news: true, xFeed: true },
   setVisibility: () => undefined,
-  order: ['news', 'today', 'work'],
+  order: ['news', 'today', 'work', 'xFeed'],
   setOrder: () => undefined,
   density: 'standard',
   setDensity: () => undefined,
   isMobile: false,
   retry: () => undefined,
+  xFeed: {
+    status: READY,
+    subscriptions: [],
+    posts: [],
+    filteredAccountId: null,
+    addSource: async () => {},
+    removeSource: async () => {},
+    setFilter: () => {},
+    resolveHandle: async () => null,
+    refreshing: false,
+    refresh: () => {},
+  },
 };
 
 /**
