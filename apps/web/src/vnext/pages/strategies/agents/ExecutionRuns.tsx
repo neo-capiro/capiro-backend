@@ -42,6 +42,9 @@ import type {
 } from '../../../../pages/strategy/types.js';
 import { fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /*
  * Server run state → §7.9 display token + pill tone. The label is the exact
  * vocabulary token (mono — §5.1 run-state tokens); the dot carries the tone.
@@ -351,7 +354,7 @@ function RunCard({
       <div className="st-card__body">
         <div className="st-agents__card-head">
           <RunPill state={run.state} />
-          {run.strategyId ? (
+          {run.strategyId && UUID_RE.test(run.strategyId) ? (
             <button
               type="button"
               className="st-agents__link"
@@ -549,7 +552,7 @@ function RunCard({
             size="compact"
             onClick={() => {
               setConfirm(null);
-              if (run.strategyId) navigate(`/strategies/${run.strategyId}`);
+              if (run.strategyId && UUID_RE.test(run.strategyId)) navigate(`/strategies/${run.strategyId}`);
             }}
           >
             Open the editor

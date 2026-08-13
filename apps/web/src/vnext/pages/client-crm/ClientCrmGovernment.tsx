@@ -9,6 +9,9 @@ import { getClientTargets, type ClientTarget } from '../../../pages/clients/targ
 import type { StrategyListItem } from '../../../pages/strategy/types.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /**
  * Relationships / Government — Figma `906:3075`, plus the Current Target drawer
  * `907:3137`.
@@ -262,7 +265,10 @@ function CurrentTargetDrawer({
                 <button
                   type="button"
                   className="capiro-crm__row"
-                  onClick={() => navigate(`/strategies/${strategy.id}`)}
+                  onClick={() => {
+                    if (!strategy.id || !UUID_RE.test(strategy.id)) return;
+                    navigate(`/strategies/${strategy.id}`);
+                  }}
                 >
                   <span className="capiro-crm__row-main">
                     <span className="capiro-crm__row-title">{strategy.title}</span>

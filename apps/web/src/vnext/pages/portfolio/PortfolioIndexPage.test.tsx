@@ -65,12 +65,27 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
         if (overrides.summaryError) throw new Error('summary boom');
         return { data: summary };
       }
+      if (path === '/api/firm/registrant') {
+        return { data: { ldaRegistrantId: null, ldaRegistrantName: null } };
+      }
       if (path === '/api/firm/import-candidates') {
         return { data: { registrantId: 1, registrantName: 'Capiro', candidates: [] } };
+      }
+      if (path === '/api/me') {
+        return {
+          data: {
+            user: { id: 'u-1', clerkUserId: 'cu-1', email: null, firstName: 'Test', lastName: 'User', title: null, emailSignatureEnabled: false, hasEmailSignature: false, tourCompleted: true, legiwatchIntroSeen: true },
+            tenant: { id: 't-1', slug: 'test', name: 'Test' },
+            role: 'user_admin',
+            billingAdmin: false,
+            features: { meetingsV2: false, meriDockUndockUi: false },
+          },
+        };
       }
       throw new Error(`unmocked GET ${path}`);
     },
     post: async () => ({ data: { created: 0 } }),
+    put: async () => ({ data: { ldaRegistrantId: 1, ldaRegistrantName: 'Capiro' } }),
   };
 }
 
@@ -167,16 +182,18 @@ describe('PortfolioIndexPage', () => {
     renderIndex();
     await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Import with LDA'));
+    // With no firm anchor the modal opens on the firm-selection step.
     await waitFor(() =>
-      expect(screen.getByRole('dialog', { name: 'Import with LDA' })).toBeInTheDocument(),
+      expect(screen.getByRole('dialog', { name: 'Find your firm in LDA filings' })).toBeInTheDocument(),
     );
   });
 
   it('opens the import modal from a deep link (?modal=import-lda)', async () => {
     apiOverride = makeApi();
     renderIndex('?modal=import-lda');
+    // With no firm anchor the modal opens on the firm-selection step.
     await waitFor(() =>
-      expect(screen.getByRole('dialog', { name: 'Import with LDA' })).toBeInTheDocument(),
+      expect(screen.getByRole('dialog', { name: 'Find your firm in LDA filings' })).toBeInTheDocument(),
     );
   });
 });

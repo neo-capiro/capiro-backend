@@ -28,6 +28,9 @@ import type { StrategyListItem } from '../../../pages/strategy/types.js';
 import './strategies.css';
 import './strategy-library.css';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 const TYPE_LABEL: Record<string, string> = {
   appropriations: 'Appropriations ask',
   authorization: 'Authorization',
@@ -244,7 +247,12 @@ export function StrategyLibraryVNext() {
                   client={clientName(clients.data, s.clientId)}
                   owner={memberName(members.data, s.ownerUserId)}
                   watchCount={counts[s.id] ?? 0}
-                  onOpen={() => navigate(`/strategies/${s.id}`)}
+                  onOpen={() => {
+                    // Guard: never navigate with an empty/malformed id — the editor
+                    // would render "This strategy link is not valid" (PR #919).
+                    if (!s.id || !UUID_RE.test(s.id)) return;
+                    navigate(`/strategies/${s.id}`);
+                  }}
                 />
               ))}
             </tbody>

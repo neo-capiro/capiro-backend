@@ -54,6 +54,9 @@ import type {
 } from '../../../../pages/strategy/types.js';
 import { fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /* Change-set status pills: dot + text label, never colour-only (§5). */
 const CS_PILL: Record<ChangeSetStatus, { label: string; tone: string }> = {
   proposed: { label: 'Proposed', tone: 'st-pill--warning' },
@@ -422,7 +425,10 @@ function StrategyGroup({
         <button
           type="button"
           className="st-agents__link"
-          onClick={() => navigate(`/strategies/${strategyId}`)}
+          onClick={() => {
+            if (!strategyId || !UUID_RE.test(strategyId)) return;
+            navigate(`/strategies/${strategyId}`);
+          }}
         >
           {label.title}
         </button>
@@ -773,7 +779,10 @@ function AppliedRow({
             <button
               type="button"
               className="st-agents__link"
-              onClick={() => navigate(`/strategies/${cs.strategyId}`)}
+              onClick={() => {
+                if (!cs.strategyId || !UUID_RE.test(cs.strategyId)) return;
+                navigate(`/strategies/${cs.strategyId}`);
+              }}
             >
               {label.title}
             </button>

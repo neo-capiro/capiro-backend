@@ -8,6 +8,9 @@ import { CapiroDrawer } from '../../components/overlays/index.js';
 import type { StrategyDetail, StrategyListItem, StrategyNode } from '../../../pages/strategy/types.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
+/** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /**
  * Work — Figma `906:3645`, plus the Strategy detail drawer `907:3246`.
  *
@@ -199,7 +202,10 @@ export function ClientCrmWork({ client }: { client: Client }) {
         <StrategyDetailDrawer
           detail={open}
           onClose={() => setOpen(null)}
-          onOpenCanonical={() => navigate(`/strategies/${open.id}`)}
+          onOpenCanonical={() => {
+            if (!open.id || !UUID_RE.test(open.id)) return;
+            navigate(`/strategies/${open.id}`);
+          }}
         />
       ) : null}
     </div>
