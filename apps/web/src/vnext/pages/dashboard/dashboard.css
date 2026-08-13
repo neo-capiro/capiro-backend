@@ -83,12 +83,18 @@
 
 /* Week strip */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 0 24px 20px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day { position: relative; height: 56px; display: grid; place-content: center; justify-items: center; gap: 2px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day { height: 56px; display: grid; grid-template-rows: auto auto auto; align-content: center; justify-items: center; row-gap: 4px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day[data-today] { background: var(--uui-brand-tint); box-shadow: inset 0 0 0 1px var(--uui-brand-ring); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__weekday { font-size: 11px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-500); text-transform: uppercase; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__number { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day[data-today] .uui-dash-week__number { color: var(--uui-brand-hover-2); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot { position: absolute; bottom: 6px; width: 4px; height: 4px; border-radius: 999px; background: var(--uui-brand-solid); }
+/* Always in the DOM (visibility toggled, not add/removed) so every day's
+   number sits at the same height whether or not it has events — previously
+   this was position:absolute + bottom:6px, which floated the dot under the
+   centered weekday/number block regardless of that block's actual height
+   and ended up overlapping the number by ~7px instead of sitting clear of it. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot { width: 4px; height: 4px; border-radius: 999px; background: var(--uui-brand-solid); visibility: hidden; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot[data-visible] { visibility: visible; }
 
 /* Event rows */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event { display: grid; grid-template-columns: 72px minmax(0, 1fr) 160px; align-items: center; gap: 12px; min-height: 76px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
@@ -104,6 +110,12 @@
    inline styles — same mechanism dashboard.css already relied on, just
    repointed at the Untitled-UI brand instead of the Capiro-native accent. */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event--meeting {
+  /* Join + Send Meri together need ~198px at 'sm' size — wider than the
+     160px fixed column every other event row uses, which clipped the copy
+     column underneath them. auto lets the column grow to fit both buttons;
+     the title/meta column (minmax(0, 1fr)) yields the space and keeps its
+     own ellipsis truncation as the fallback. */
+  grid-template-columns: 72px minmax(0, 1fr) minmax(160px, auto);
   --accent: var(--uui-brand-solid);
   --accent-ink: var(--uui-brand-hover);
   --accent-soft: var(--uui-brand-tint);

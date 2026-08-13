@@ -802,25 +802,15 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   /* ── Header ───────────────────────────────────────────────────────────── */
 
   const header = useMemo(() => {
-    const overnight = (recentChanges.data ?? []).filter(
-      (change) => new Date(change.detectedAt).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
-    ).length;
-    
-    // Copy matches the Figma header (`751:2563`–`751:2566`).
-    const metaParts = [formatToday(), `${overnight} signals overnight`];
-    if (needsAttention.total > 0) {
-      metaParts.push(`${needsAttention.total} time-sensitive item${needsAttention.total === 1 ? '' : 's'}`);
-    }
-
     return {
       greeting: `${greetingFor(new Date())}${me.data?.user.firstName ? `, ${me.data.user.firstName}` : ''}.`,
-      eyebrow: 'COMMAND DASHBOARD · ALL CLIENTS',
-      meta: metaParts.join(' · '),
+      eyebrow: '',
+      meta: formatToday(),
       refreshedLabel: portfolioAlerts.data?.generatedAt
         ? `Refreshed ${new Date(portfolioAlerts.data.generatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
         : null,
     };
-  }, [me.data?.user.firstName, needsAttention.items, portfolioAlerts.data?.generatedAt, recentChanges.data]);
+  }, [me.data?.user.firstName, portfolioAlerts.data?.generatedAt]);
 
   return {
     header,
