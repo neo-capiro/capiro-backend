@@ -35,28 +35,32 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('intercepts Dashboard, Portfolio, Strategies, Directory and Program Elements — the vNext surfaces on os.capiro.ai', () => {
+  it('intercepts Dashboard, Portfolio, Strategies, Directory, Program Elements and LegiWatch — the vNext surfaces on os.capiro.ai', () => {
     // Dashboard (`/`), Portfolio (`/clients`), Strategies (`/strategies/*`),
-    // Directory (`/directory` + `/directory/congressional-staff`) and Program
-    // Elements (`/program-elements` + `/program-elements/:peCode`) have native
-    // vNext presentations. The Strategies module is a complete native rebuild
-    // over the same backend — no old pages/strategy/* components are rendered.
-    // Directory claims only the legacy redirect and Congressional Staff in this
-    // phase; the remaining list surfaces and all profiles stay canonical.
-    // Program Elements reuses the canonical v2 components over the same backend
-    // endpoints, re-skinned onto the vNext token layer; the static PE segments
-    // (mark-up-monitor, contacts) still fall through to canonical.
-    // LegiWatch still falls through to canonical.
+    // Directory (`/directory` + `/directory/congressional-staff`), Program
+    // Elements (`/program-elements` + `/program-elements/:peCode`) and LegiWatch
+    // (`/legiwatch` + the live hearing room) have native vNext presentations.
+    // The Strategies module is a complete native rebuild over the same backend
+    // — no old pages/strategy/* components are rendered. Directory claims only
+    // the legacy redirect and Congressional Staff in this phase; the remaining
+    // list surfaces and all profiles stay canonical. Program Elements reuses
+    // the canonical v2 components over the same backend endpoints, re-skinned
+    // onto the vNext token layer; the static PE segments (mark-up-monitor,
+    // contacts) still fall through to canonical. LegiWatch is the native vNext
+    // module (LEGIWATCH-HANDOFF §7): Hearings is the landing tab, removed
+    // surfaces (overview, watchlist) redirect to it, and the live hearing room
+    // is a full-width route with module chrome suppressed.
     const router = source('./app/VNextRouter.tsx');
     expect(router).toContain("location.pathname === '/'");
     expect(router).toContain("location.pathname === '/strategies'");
     expect(router).toContain("startsWith('/strategies/')");
-    expect(router).not.toContain("location.pathname === '/legiwatch'");
     expect(router).toContain("location.pathname === '/clients'");
     expect(router).toContain('isVNextDirectoryPath(location.pathname)');
     expect(router).toContain('<VNextDirectoryRoutes />');
     expect(router).toContain('isVNextProgramElementsPath(location.pathname)');
     expect(router).toContain('<VNextProgramElementsRoutes />');
+    expect(router).toContain('isVNextLegiWatchPath(location.pathname)');
+    expect(router).toContain('<VNextLegiWatchRoutes />');
     expect(router).toContain('<Outlet />');
   });
 
@@ -78,14 +82,21 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
     }
   });
 
-  it('grounds LegiWatch overview, digest and analytics in existing intel APIs', () => {
-    const legiwatch = source('./pages/legiwatch/VNextLegiWatchPage.tsx');
-    expect(legiwatch).toContain('intelFeedPaths.tenantFeed()');
-    expect(legiwatch).toContain("'/intel-api/upcoming-hearings'");
-    expect(legiwatch).toContain('<RadarPage />');
-    expect(legiwatch).toContain('data-figma-node="869:2502"');
-    expect(legiwatch).toContain('data-figma-node="869:4126"');
-    expect(legiwatch).toContain('data-figma-node="869:4329"');
+  it('grounds the LegiWatch vNext module in existing intel APIs', () => {
+    // The native module (LEGIWATCH-HANDOFF §7) replaces the prior Figma bridge
+    // page. It reads the canonical intel feed, upcoming-hearings and tracker
+    // endpoints through the module's own hooks — never a mock, never a new
+    // backend (§1.2), and never the old Radar page (§11.2 is read, not copied).
+    const mod = source('./pages/legiwatch/LegiWatchModule.tsx');
+    const api = source('./pages/legiwatch/lib/api.ts');
+    const hearings = source('./pages/legiwatch/hearings/HearingsTab.tsx');
+    expect(api).toContain('intelFeedPaths.tenantFeed');
+    expect(api).toContain('intelFeedPaths.feed');
+    expect(hearings).toContain('useUpcomingHearings');
+    expect(mod).not.toContain('<RadarPage />');
+    // Hearings is the landing tab; removed surfaces redirect to it (§7.2/§7.9).
+    expect(mod).toContain("REMOVED_TABS");
+    expect(mod).toContain("'hearings'");
   });
 
   it('does not ship ephemeral Figma image endpoints into vNext implementation code', () => {
@@ -93,7 +104,7 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
       './pages/strategies/StrategyLibraryVNext.tsx',
       './pages/strategies/StrategyEditorVNext.tsx',
       './pages/strategies/VNextStrategiesRoutes.tsx',
-      './pages/legiwatch/VNextLegiWatchPage.tsx',
+      './pages/legiwatch/LegiWatchModule.tsx',
       './shell/TopBar/index.tsx',
     ].map(source).join('\n');
     expect(files).not.toMatch(/figmausercontent|s3-alpha-sig|amazonaws\.com\/figma/i);
