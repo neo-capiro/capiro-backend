@@ -235,6 +235,9 @@ export function AppShellUuiView({
         <header className="uui-topbar">
           <span className="uui-topbar__brand">
             <img src="/logo.png" alt="Capiro" className="uui-topbar__wordmark" />
+            <span className="uui-topbar__divider" aria-hidden="true" />
+            <span className="uui-topbar__section">Dashboard</span>
+            <span className="uui-topbar__scope">{scopeLabel}</span>
           </span>
           <div className="uui-topbar__search">
             <GlobalSearch scopeLabel={scopeLabel} />
@@ -269,7 +272,7 @@ export function AppShellUuiView({
               onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
-              <Icon name={collapsed ? 'expand' : 'collapse'} size={16} />
+              <Icon name={collapsed ? 'expand' : 'collapse'} size={24} />
               {!collapsed ? <span>Collapse</span> : null}
             </button>
           </div>

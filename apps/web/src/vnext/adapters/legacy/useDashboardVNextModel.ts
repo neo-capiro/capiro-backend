@@ -67,15 +67,18 @@ export interface ModuleStatus {
 
 export interface AttentionItem {
   id: string;
-  /** Badge text, e.g. CRITICAL / DEADLINE / HEARING / BUDGET. */
+  /** Severity badge text, derived honestly: Critical / Deadline / Hearing / Budget / Legislative / Filing / Source. */
   kind: string;
   severity: 'critical' | 'high' | 'normal';
+  /** Humanized `source · type` eyebrow — never a raw API enum. */
   eyebrow: string;
   title: string;
   context: string | null;
   due: string | null;
   href: string | null;
   actionLabel: string;
+  /** Count of near-duplicate rows collapsed into this one (renders "+N similar"). */
+  similarCount: number;
 }
 
 export interface NewsItem {
@@ -129,13 +132,14 @@ export interface DashboardVisibility {
  * Needs Attention is restricted to externally-driven, time-sensitive work.
  * `comment_overdue` is deliberately absent: the module must not carry overdue
  * comments, generic internal reviews, assigned actions or CRM housekeeping.
+ * Badge labels are sentence case (the approved design has no mono caps).
  */
 const ATTENTION_ALERT_TYPES: Readonly<Record<string, { badge: string; action: string }>> = {
-  comment_deadline: { badge: 'DEADLINE', action: 'Open' },
-  hearing: { badge: 'HEARING', action: 'Prepare' },
-  bill_movement: { badge: 'LEGISLATIVE', action: 'Open' },
-  contract_award: { badge: 'BUDGET', action: 'Open' },
-  competitor_filing: { badge: 'FILING', action: 'Open' },
+  comment_deadline: { badge: 'Deadline', action: 'Open' },
+  hearing: { badge: 'Hearing', action: 'Prepare' },
+  bill_movement: { badge: 'Legislative', action: 'Open' },
+  contract_award: { badge: 'Budget', action: 'Open' },
+  competitor_filing: { badge: 'Filing', action: 'Open' },
 };
 
 /** Intelligence changes that count as material funding/regulatory movement. */
@@ -802,15 +806,27 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   /* ── Header ───────────────────────────────────────────────────────────── */
 
   const header = useMemo(() => {
+    const overnight = (recentChanges.data ?? []).filter(
+      (change) => new Date(change.detectedAt).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
+    ).length;
+
+    // The approved subhead is the date + counts line only — no
+    // "COMMAND DASHBOARD · ALL CLIENTS" mono-caps prefix. Sentence case,
+    // Inter, gray-500.
+    const metaParts = [formatToday(), `${overnight} signals overnight`];
+    if (needsAttention.total > 0) {
+      metaParts.push(`${needsAttention.total} time-sensitive item${needsAttention.total === 1 ? '' : 's'}`);
+    }
+
     return {
       greeting: `${greetingFor(new Date())}${me.data?.user.firstName ? `, ${me.data.user.firstName}` : ''}.`,
       eyebrow: '',
-      meta: formatToday(),
+      meta: metaParts.join(' · '),
       refreshedLabel: portfolioAlerts.data?.generatedAt
         ? `Refreshed ${new Date(portfolioAlerts.data.generatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
         : null,
     };
-  }, [me.data?.user.firstName, portfolioAlerts.data?.generatedAt]);
+  }, [me.data?.user.firstName, needsAttention.total, portfolioAlerts.data?.generatedAt, recentChanges.data]);
 
   return {
     header,
@@ -919,17 +935,24 @@ export function selectAttentionItems({
   for (const change of changes) {
     if (!MATERIAL_CHANGE_SEVERITIES.has(change.severity)) continue;
     if ((change.relatedClientIds?.length ?? 0) === 0) continue;
+    const severity = change.severity === 'critical' ? 'critical' : 'high';
     items.push({
       id: `change-${change.id}`,
-      kind: 'BUDGET',
-      severity: change.severity === 'critical' ? 'critical' : 'high',
-      eyebrow: change.source.toUpperCase(),
+      // Derive the badge from severity honestly — never BUDGET on everything.
+      kind: severity === 'critical' ? 'Critical' : 'Budget',
+      severity,
+      // Humanize the source enum at the view-model boundary
+      // (FEDERAL_REGISTER → Federal Register), never in the component.
+      eyebrow: humanizeSourceLabel(change.source),
       title: change.title,
       context: change.description || null,
       due: relativeDay(change.detectedAt),
       href: '/explorer',
       actionLabel: 'Open',
-    });
+      similarCount: 0,
+      // Grouping key: same source + same calendar day collapses near-duplicates.
+      ...attentionGroupKey(change.source, change.detectedAt),
+    } as AttentionItem & { _group: string });
   }
 
   // A failed source is itself actionable and must never be silently hidden.
@@ -937,9 +960,9 @@ export function selectAttentionItems({
   if (failedSourceReason === 'provider_unavailable' || failedSourceReason === 'not_configured') {
     items.push({
       id: 'source-news',
-      kind: 'SOURCE',
+      kind: 'Source',
       severity: 'high',
-      eyebrow: 'SOURCE FAILURE',
+      eyebrow: 'Source failure',
       title:
         failedSourceReason === 'not_configured'
           ? 'News ingestion is not configured'
@@ -948,10 +971,62 @@ export function selectAttentionItems({
       due: null,
       href: '/settings/integrations',
       actionLabel: 'Resolve',
+      similarCount: 0,
     });
   }
 
-  return items.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  return collapseSimilarAttentionItems(
+    items.sort((a, b) => severityRank(a.severity) - severityRank(b.severity)),
+  );
+}
+
+/** Internal grouping key carried on change rows until collapsed. */
+function attentionGroupKey(source: string, detectedAt: string): { _group: string } {
+  const day = new Date(detectedAt);
+  const dayKey = Number.isNaN(day.getTime()) ? detectedAt : day.toDateString();
+  return { _group: `${source}::${dayKey}` };
+}
+
+/**
+ * Collapse near-duplicate rows from the same source and day into one row with
+ * a `+N similar` affordance. Only intelligence-change rows (which carry the
+ * `_group` key) are eligible — alerts are distinct client work and never merge.
+ */
+function collapseSimilarAttentionItems(items: AttentionItem[]): AttentionItem[] {
+  const out: AttentionItem[] = [];
+  const groupIndex = new Map<string, AttentionItem>();
+  for (const item of items) {
+    const group = (item as AttentionItem & { _group?: string })._group;
+    if (!group) {
+      out.push(item);
+      continue;
+    }
+    const existing = groupIndex.get(group);
+    if (existing) {
+      existing.similarCount += 1;
+      continue;
+    }
+    const { _group: _omit, ...clean } = item as AttentionItem & { _group?: string };
+    const row: AttentionItem = { ...clean, similarCount: 0 };
+    groupIndex.set(group, row);
+    out.push(row);
+  }
+  return out;
+}
+
+/** Humanize an API source/type enum: FEDERAL_REGISTER → Federal Register, PROPOSED_RULE → Comment period. */
+function humanizeSourceLabel(value: string): string {
+  const overrides: Record<string, string> = {
+    PROPOSED_RULE: 'Comment period',
+    FINAL_RULE: 'Final rule',
+  };
+  if (overrides[value]) return overrides[value]!;
+  return value
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 function attentionFromAlert(
@@ -962,36 +1037,35 @@ function attentionFromAlert(
     alert.severity === 'critical' ? 'critical' : alert.severity === 'high' ? 'high' : 'normal';
   return {
     id: `alert-${alert.id}`,
-    // Badge names the kind of work; tone conveys severity (Figma's Status/Badge
-    // keeps those on separate axes). Collapsing every urgent row to "CRITICAL"
-    // erases the distinction the design relies on.
-    kind: mapping.badge,
+    // Severity is derived honestly: a critical alert badges Critical; otherwise
+    // the badge names the kind of work (Deadline / Hearing / …) and tone carries
+    // the urgency. Never a mono-caps BUDGET-style stamp on every row.
+    kind: severity === 'critical' ? 'Critical' : mapping.badge,
     severity,
-    eyebrow: alert.clientName.toUpperCase(),
+    // Client name in sentence case — no mono-caps eyebrow.
+    eyebrow: alert.clientName,
     title: alert.title,
     context: alert.subtitle || null,
-    // Figma renders this column as a mono uppercase stamp ("DUE AUG 16",
-    // "10:00 AM", "NEW TODAY"), not a relative phrase.
+    // Sentence-case due label (Due Aug 16 / 10:00 AM / New today), not a mono stamp.
     due: dueStamp(alert),
     href: alert.href,
     actionLabel: mapping.action,
+    similarCount: 0,
   };
 }
 
-/** Mono uppercase deadline stamp, matching Figma `751:2580`. */
+/** Sentence-case deadline label. */
 function dueStamp(alert: PortfolioAlertItem): string | null {
   const when = alert.when ? new Date(alert.when) : null;
-  if (!when || Number.isNaN(when.getTime())) return alert.countdownLabel?.toUpperCase() ?? null;
+  if (!when || Number.isNaN(when.getTime())) return alert.countdownLabel ?? null;
 
   const today = new Date();
   const sameDay = when.toDateString() === today.toDateString();
   if (sameDay) {
-    return when
-      .toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-      .toUpperCase();
+    return when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   }
-  if (when.getTime() < today.getTime()) return 'NEW TODAY';
-  return `DUE ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}`;
+  if (when.getTime() < today.getTime()) return 'New today';
+  return `Due ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 }
 
 function severityRank(severity: AttentionItem['severity']): number {

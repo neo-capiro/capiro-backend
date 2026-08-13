@@ -32,6 +32,9 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__title { margin: 0; font-size: var(--uui-text-md); line-height: var(--uui-line-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__meta { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--uui-warning-bg); color: var(--uui-warning-fg); font-size: 12px; font-weight: var(--uui-weight-medium); }
+/* Compact module-state chip on the header row (replaces the full-width
+   skeleton block a partial source used to eat). */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__state-chip { height: 22px; padding: 0 8px; font-size: 12px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link { margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); text-decoration: none; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link:hover { color: var(--uui-brand-hover-2); }
 
@@ -61,13 +64,20 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention:hover { background: var(--uui-gray-50); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention[data-current] { background: var(--uui-brand-tint); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__copy { display: grid; gap: 2px; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__title { font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Headline: 2 lines max, ellipsis at a word boundary (not mid-word). */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__title {
+  font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900);
+  overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow-wrap: break-word; word-break: break-word;
+}
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__eyebrow { font-size: 12px; color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__similar { color: var(--uui-gray-400); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__context { font-size: var(--uui-text-sm); color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention[data-severity='critical'] .uui-dash-attention__due { color: var(--uui-error-fg); font-weight: var(--uui-weight-medium); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action { justify-self: start; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: var(--uui-radius-control); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action[data-hierarchy='primary'] { background: var(--uui-brand-solid); color: var(--uui-white); }
+/* Row action buttons: the lead (primary) is metallic black; the rest stay secondary. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action[data-hierarchy='primary'] { background-image: var(--uui-btn-metal-face); box-shadow: var(--uui-btn-metal-shadow); color: var(--uui-btn-metal-fg); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action[data-hierarchy='secondary'] { background: var(--uui-white); color: var(--uui-gray-700); box-shadow: inset 0 0 0 1px var(--uui-gray-300); }
 
 /* News rows */
@@ -268,8 +278,10 @@
 /* min-width: 0 beats primitives.css's 120px min-width (see the Meri launcher
    comment in shell/AppShellUui/shell-uui.css) so Add/Reset/Done size to content. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-button { min-width: 0 !important; border-radius: var(--uui-radius-control) !important; font-family: var(--uui-font-family) !important; font-size: var(--uui-text-sm) !important; font-weight: var(--uui-weight-semibold) !important; box-shadow: none !important; padding: 0 16px !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary { background: var(--uui-brand-solid) !important; color: var(--uui-white) !important; border: none !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:hover { background: var(--uui-brand-hover) !important; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary { background-color: transparent !important; background-image: var(--uui-btn-metal-face) !important; box-shadow: var(--uui-btn-metal-shadow) !important; color: var(--uui-btn-metal-fg) !important; border: 0 !important; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:hover:not(:disabled) { background-image: var(--uui-btn-metal-face-hover) !important; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:active:not(:disabled) { background-image: var(--uui-btn-metal-face-active) !important; box-shadow: var(--uui-btn-metal-shadow-active) !important; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:disabled { background-image: none !important; background-color: var(--uui-gray-100) !important; box-shadow: none !important; color: var(--uui-gray-400) !important; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-button--secondary { background: var(--uui-white) !important; color: var(--uui-gray-700) !important; box-shadow: inset 0 0 0 1px var(--uui-gray-300) !important; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-button--secondary:hover { background: var(--uui-gray-50) !important; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-button--quiet { background: none !important; color: var(--uui-gray-500) !important; border: none !important; }

@@ -23,8 +23,25 @@
 
 .capiro-vnext-root .capiro-button--compact { height: var(--capiro-control-height-compact); }
 .capiro-vnext-root .capiro-button--standard { height: var(--capiro-control-height-standard); }
-.capiro-vnext-root .capiro-button--primary { background: var(--capiro-color-action-primary-default); color: var(--capiro-color-text-inverse-primary); }
-.capiro-vnext-root .capiro-button--primary:hover:not(:disabled) { background: var(--capiro-color-action-primary-hover); }
+/* Primary/solid = metallic black everywhere the UUI shell runs. Face/edge/
+   shadow are tokens so component CSS carries no color literal (the foundation
+   contract greps this file). Brand blue is reserved for non-button accents. */
+.capiro-vnext-root .capiro-button--primary {
+  background-color: transparent;
+  background-image: var(--uui-btn-metal-face);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg);
+  border: 0;
+  border-radius: var(--uui-radius-control, var(--capiro-radius-control));
+}
+.capiro-vnext-root .capiro-button--primary:hover:not(:disabled) { background-image: var(--uui-btn-metal-face-hover); background-color: transparent; }
+.capiro-vnext-root .capiro-button--primary:active:not(:disabled) { background-image: var(--uui-btn-metal-face-active); box-shadow: var(--uui-btn-metal-shadow-active); }
+.capiro-vnext-root .capiro-button--primary:disabled {
+  background-image: none;
+  background-color: var(--uui-gray-100, var(--capiro-color-bg-subtle));
+  box-shadow: none;
+  color: var(--uui-gray-400, var(--capiro-color-text-muted));
+}
 .capiro-vnext-root .capiro-button--secondary { background: var(--capiro-color-action-secondary-default); color: var(--capiro-color-text-primary); border: 1px solid var(--capiro-color-border-default); }
 .capiro-vnext-root .capiro-button--quiet { background: transparent; color: var(--capiro-color-text-accent); }
 .capiro-vnext-root .capiro-button:disabled,

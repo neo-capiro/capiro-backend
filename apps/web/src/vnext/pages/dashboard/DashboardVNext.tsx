@@ -125,6 +125,13 @@ function NeedsAttention({ model }: { model: DashboardVNextModel }) {
     <section className="uui-dash-card" aria-label="Needs attention">
       <div className="uui-dash-card__head">
         <h2 className="uui-dash-card__title">Needs Attention</h2>
+        {/* Partial renders as a compact chip on the header row, not a body block. */}
+        {module.status.state === 'partial' ? (
+          <span className="uui-pill uui-dash-card__state-chip" data-tone="gray">
+            <span className="uui-pill__dot" aria-hidden="true" />
+            {module.status.meta ?? 'Partial'}
+          </span>
+        ) : null}
         {module.total > 0 ? (
           <span className="uui-dash-card__badge">
             {module.total} item{module.total === 1 ? '' : 's'}
@@ -137,7 +144,10 @@ function NeedsAttention({ model }: { model: DashboardVNextModel }) {
         ) : null}
       </div>
 
-      <ModuleStateView status={module.status} onRetry={model.retry} />
+      {/* Partial is suppressed here (chip above); ready rows render underneath. */}
+      {module.status.state === 'partial' ? null : (
+        <ModuleStateView status={module.status} onRetry={model.retry} />
+      )}
 
       {module.items.map((item, index) => (
         <AttentionRow key={item.id} item={item} current={index === 0} />
@@ -147,13 +157,13 @@ function NeedsAttention({ model }: { model: DashboardVNextModel }) {
 }
 
 /**
- * Status/Badge tone axis (Figma `271:6/12/15/18`). Tone is severity; the badge
- * label is the kind of work. The two axes stay independent.
+ * Badge tone rides the severity axis; the badge label is derived honestly
+ * (Critical / Deadline / Hearing / …), never a repeated stamp.
  */
 function badgeTone(item: AttentionItem): 'error' | 'warning' | 'blue' | 'gray' {
   if (item.severity === 'critical') return 'error';
   if (item.severity === 'high') return 'warning';
-  if (item.kind === 'BUDGET') return 'blue';
+  if (item.kind === 'Budget') return 'blue';
   return 'gray';
 }
 
@@ -166,7 +176,12 @@ function AttentionRow({ item, current }: { item: AttentionItem; current: boolean
       </span>
       <span className="uui-dash-attention__copy">
         <span className="uui-dash-attention__title">{item.title}</span>
-        <span className="uui-dash-attention__eyebrow">{item.eyebrow}</span>
+        <span className="uui-dash-attention__eyebrow">
+          {item.eyebrow}
+          {item.similarCount > 0 ? (
+            <span className="uui-dash-attention__similar"> · +{item.similarCount} similar</span>
+          ) : null}
+        </span>
         {/* Mobile collapses context and due into one meta line (`759:2662`). */}
         <span className="uui-dash-attention__mobile-meta">
           {[item.context, item.due].filter(Boolean).join(' · ')}

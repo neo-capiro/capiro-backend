@@ -151,9 +151,9 @@ describe('Needs Attention module contract', () => {
 
     expect(items[0]!.id).toBe('alert-crit');
     expect(items[0]!.severity).toBe('critical');
-    // Badge names the kind of work; severity rides the tone axis instead, so an
-    // urgent comment deadline still reads DEADLINE rather than CRITICAL.
-    expect(items[0]!.kind).toBe('DEADLINE');
+    // Severity is derived honestly: a critical alert badges Critical rather
+    // than the work-kind label, so a critical comment deadline reads Critical.
+    expect(items[0]!.kind).toBe('Critical');
   });
 
   it('caps rendered rows to the card budget while reporting the true total', () => {

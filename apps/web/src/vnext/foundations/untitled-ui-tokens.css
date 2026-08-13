@@ -57,6 +57,17 @@
   --uui-focus-ring: #717bbc;
   --uui-focus-ring-outer: #d5d9eb;
 
+  /* Metallic black primary buttons. Face/edge/shadow consumed by
+     primitives.css (CapiroButton primary) and shell-uui.css (MeriLauncher) —
+     the brand blue above stays for non-button accents only. */
+  --uui-btn-metal-face: linear-gradient(180deg, #3d434b 0%, #262b31 48%, #16191d 100%);
+  --uui-btn-metal-face-hover: linear-gradient(180deg, #474e56 0%, #2e343b 48%, #1c2026 100%);
+  --uui-btn-metal-face-active: linear-gradient(180deg, #1b1f24 0%, #23282e 100%);
+  --uui-btn-metal-edge: #0b0d10;
+  --uui-btn-metal-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px #0b0d10, 0 1px 2px rgba(16,24,40,0.28);
+  --uui-btn-metal-shadow-active: inset 0 1px 2px rgba(0,0,0,0.45), inset 0 0 0 1px #0b0d10;
+  --uui-btn-metal-fg: #ffffff;
+
   /* Semantic pill families: [bg, ring, fg, dot]. */
   --uui-error-bg: #fef3f2;
   --uui-error-ring: #fecdca;
