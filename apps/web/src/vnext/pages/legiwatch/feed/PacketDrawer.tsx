@@ -194,7 +194,7 @@ export function PacketDrawer({
               </section>
 
               {/* Confidence + Unknowns side by side */}
-              <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <section className="lw-two-up">
                 <div className="lw-block">
                   <div className="lw-block__label">Confidence</div>
                   {pk?.confidence ? (

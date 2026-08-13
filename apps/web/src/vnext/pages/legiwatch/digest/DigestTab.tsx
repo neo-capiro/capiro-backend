@@ -128,7 +128,7 @@ export function DigestTab({ scope }: { scope: string }) {
             <div className="lw-rail__sect">
               <div className="lw-rail__label">Sections</div>
               {(['changed', 'decisions', 'notes'] as const).map((k) => (
-                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', fontSize: 13, cursor: 'pointer' }}>
+                <label key={k} className="lw-check" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', fontSize: 13, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={sections[k]}

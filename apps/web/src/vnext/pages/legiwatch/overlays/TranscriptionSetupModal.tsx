@@ -177,7 +177,7 @@ export function TranscriptionSetupModal({
       ) : null}
 
       {/* 6. consent */}
-      <label className="lw-block lw-block--ring" style={{ display: 'flex', gap: 12, cursor: 'pointer' }}>
+      <label className="lw-block lw-block--ring lw-check" style={{ display: 'flex', gap: 12, cursor: 'pointer' }}>
         <input
           type="checkbox"
           checked={consent}

@@ -63,8 +63,8 @@ export function Bill360Drawer({
         ) : (
           <>
             {/* header */}
-            <div className="lw-drawer__head" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="lw-drawer__head lw-b360__head">
+              <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                 <div className="lw-eyebrow">Bill 360</div>
                 <h2 style={{ margin: '4px 0 0', fontSize: 22, lineHeight: '30px', letterSpacing: '-.01em', fontWeight: 600 }}>
                   <span className="lw-mono" style={{ fontSize: 18 }}>{d.bill.num}</span> — {d.bill.title}
@@ -223,30 +223,35 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
       {lines.length === 0 ? (
         <p className="lw-state__body">No funding lines are carried by this vehicle.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left' }}>
-              {['Line', 'Request', 'Authorization', 'Appropriation', 'Delta'].map((h) => (
-                <th key={h} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((ln, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
-                <td style={{ padding: '10px 12px', fontSize: 13 }}>{String(ln.label ?? ln.peCode ?? '—')}</td>
-                {(['request', 'authorization', 'appropriation'] as const).map((k) => (
-                  <td key={k} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
-                    {ln[k] == null ? 'Not filed' : String(ln[k])}
-                  </td>
+        // Authorization and appropriation are parallel columns and must stay
+        // side by side to read correctly (§8.3), so the table scrolls inside
+        // the drawer rather than stacking or being squeezed on a phone sheet.
+        <div className="capiro-scroll-x lw-tablewrap">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ textAlign: 'left' }}>
+                {['Line', 'Request', 'Authorization', 'Appropriation', 'Delta'].map((h) => (
+                  <th key={h} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
                 ))}
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
-                  {ln.delta == null ? '—' : String(ln.delta)}
-                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {lines.map((ln, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
+                  <td style={{ padding: '10px 12px', fontSize: 13 }}>{String(ln.label ?? ln.peCode ?? '—')}</td>
+                  {(['request', 'authorization', 'appropriation'] as const).map((k) => (
+                    <td key={k} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                      {ln[k] == null ? 'Not filed' : String(ln[k])}
+                    </td>
+                  ))}
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    {ln.delta == null ? '—' : String(ln.delta)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

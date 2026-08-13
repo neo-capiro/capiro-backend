@@ -247,7 +247,11 @@ export function LiveHearingRoomVNext({ sessionId }: { sessionId: string }) {
       ) : null}
 
       <div className="lw-live">
-        {/* video feed — spans source+transcript columns at ≥1280 */}
+        {/* video feed — spans the source + transcript columns in the desktop
+            band; the grid placement of all four panels lives in legiwatch.css
+            so it can be reset when the room collapses to one column (an inline
+            gridColumn would outrank the media query and keep manufacturing
+            implicit tracks off the side of a phone). */}
         <section className="lw-video" aria-label="Committee video feed">
           <div className="lw-video__body">
             <span className="lw-video__badge lw-video__badge--live">
@@ -286,7 +290,7 @@ export function LiveHearingRoomVNext({ sessionId }: { sessionId: string }) {
         </section>
 
         {/* source & capture (left, under the feed) */}
-        <section className="lw-panel" style={{ gridColumn: 1, gridRow: 2 }}>
+        <section className="lw-panel lw-live__source">
           <div className="lw-panel__head"><h3 className="lw-panel__title">Source &amp; capture</h3></div>
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <LwPill tone="brand" size="26">{(s.sourceType ?? 'committee').toUpperCase()}</LwPill>
@@ -315,7 +319,7 @@ export function LiveHearingRoomVNext({ sessionId }: { sessionId: string }) {
         </section>
 
         {/* live transcript (centre) */}
-        <section className="lw-panel" style={{ gridColumn: 2, gridRow: 2, display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+        <section className="lw-panel lw-live__transcript" style={{ display: 'flex', flexDirection: 'column', minHeight: 420 }}>
           <div className="lw-panel__head" style={{ flexWrap: 'wrap', gap: 8 }}>
             <h3 className="lw-panel__title">Live transcript</h3>
             <span className="lw-card__meta">{persisted.length} final</span>
@@ -371,7 +375,7 @@ export function LiveHearingRoomVNext({ sessionId }: { sessionId: string }) {
         </section>
 
         {/* intelligence (right): Moments · Actions · Entities */}
-        <section className="lw-panel" style={{ gridColumn: 3, gridRow: '1 / span 2' }}>
+        <section className="lw-panel lw-live__intel">
           <div className="lw-panel__head"><h3 className="lw-panel__title">Intelligence</h3></div>
           <div style={{ maxHeight: 560, overflowY: 'auto' }}>
             <div className="lw-history__label" style={{ padding: '12px 16px 6px' }}>Moments</div>
