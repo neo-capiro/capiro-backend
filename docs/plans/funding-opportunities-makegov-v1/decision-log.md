@@ -2762,3 +2762,103 @@ scheduled job hitting this same wall daily, unattended, with no one reading the 
 processed). `walkEndpoint`'s catch block swallows the exception without logging it
 (`catch { summary.errored += 1; summary.written -= 1; }`), so the real cause is unknown from this
 run's own output. Worth a real capture-the-error pass before assuming a specific root cause.
+
+---
+
+## D-79 · 2026-08-13 · DIBBS/SBIR matching producers wired — producer-only, no live read-time path; the stale V2 Funding Opportunities gate retired
+
+A live UI audit found the Capiro tenant's own Funding Opportunities screen showing only 3 of 5 built
+sources. Root cause was three stacked, independent gaps — this entry closes two of them and records
+the decisions made while doing so.
+
+**Gap 1 — wrong page, capiro-internal only.** `/intelligence/opportunities` routed the
+`capiro-internal` tenant to `FundingOpportunitiesV2Page`, a one-off React port of a standalone HTML
+mockup (`FundingOpportunitiesV2Gate`, PR #841, committed once on 2026-08-08 and never touched since).
+It predates DIBBS/SBIR entirely and is hardcoded to `sam_gov`/`grants_gov`/`agency_forecast`. Confirmed
+dead — nothing else in the repo referenced it. **Fixed: the gate and the entire
+`apps/web/src/pages/intelligence/opportunities/v2/` directory (9 files) are deleted.** The
+`capiro-internal` tenant now renders the same real `FundingOpportunitiesPage` → `FundingOpportunityInbox`
+every other tenant already gets, which is already fully wired for all 5 `INBOX_SOURCES`. This fixes both
+`app.capiro.ai` and `os.capiro.ai` in one edit: vNext's own router has no interception for this route and
+falls through via `<Outlet/>` to the same canonical gate, so no vNext-specific frontend code was needed.
+A regression test pins a `capiro-internal` tenant to the real page (`App.funding-opportunities-nav.test.tsx`)
+— the removed gate had zero route-level tenant-branching coverage before this.
+
+**Gap 2 — no producer, for anyone, regardless of tenant.** `dibbs-relevance.ts`/`sbir-relevance.ts`
+(P41/P43) are pure, tested scoring functions that nothing outside their own specs called. Unlike
+SAM.gov/Grants.gov, DIBBS and SBIR have **no live read-time scoring path** — `client_funding_opportunity`
+held zero rows for either source, for every tenant, independent of ingestion completeness or the V2-gate
+bug above. **Decision: producer-only, matching the `forecast-relevance.ts` (P25) precedent — no live
+read-time scoring path added.** Rejected the alternative (producer + live read-time scoring, matching
+SAM/Grants' full behavior) to avoid introducing untested per-request DB joins (CAGE-award lookups,
+agency-history joins) onto the hot Inbox read path while DIBBS/SBIR ingestion is itself still incomplete
+(D-75 through D-78). This is a deliberate scope decision, not a deferred one — a future live path is a
+separate, larger change requiring its own review.
+
+**New producers**: `apps/api/scripts/generate-dibbs-opportunity-candidates.ts` and
+`generate-sbir-opportunity-candidates.ts`, mirroring `generate-sam-opportunity-candidates.ts`'s CLI shape
+(`--commit`/`--tenant`/`--client`/`--min-relevance=15`/`--resume-client`), RLS-bypass idiom, and reuse of
+`decideProducerAction` for human-decision protection and `staleAt`-never-delete. Neither modifies
+`client-opportunity-profile.builder.ts`/`.types.ts` — the existing `.sam`/`.completeness`/`.identityBasis`
+shape already covers every live signal both scorers need except one (DIBBS's CAGE-award check, colocated
+with that producer since it doesn't fit the UEI/name-shaped `AwardHistoryFacts` type).
+
+**The confidence→relevanceScore bridge.** Neither `scoreDibbsRelevance` nor `scoreSbirRelevance` returns
+a numeric score — only `recommendationConfidence` ('high'/'medium'/'low') and a boolean
+`clearsSuggestionFloor`, which `decideProducerAction` cannot consume directly (it requires a numeric
+`relevanceScore`). Bridged via `{high: 90, medium: 60, low: 30}` against the default `minRelevance: 15`.
+**Verified directly against both scorers' full rule chains, not assumed:** `clearsSuggestionFloor: true`
+never co-occurs with `recommendationConfidence: 'low'` in either function, so the boolean floor is always
+the real gate; the numeric floor only becomes load-bearing if an operator deliberately raises
+`--min-relevance` above 60. Pinned with a dedicated test in each producer's spec — if a future change to
+either scorer's rule order breaks this invariant, the producer could silently start under-suggesting
+against a raised floor, and this is the test that would catch it first.
+
+**The identity-key trap, avoided deliberately.** Both producers persist `sourceRecordKey` as the
+provider's own uuid (`tangoDibbsId`/`tangoSbirId`, via `sourceRecordIdentityColumns`) — never the
+business-key field (`solicitation`/`topicNumber`), which is not unique and is not what
+`funding-opportunity-inbox.service.ts`'s own `titlesFor` lookup joins on. Getting this wrong would pass
+every DB constraint while making every created row invisible in the inbox.
+
+**DIBBS awards structurally cannot become candidate rows.** The DIBBS producer only ever reads
+`tangoDibbsSolicitation` for candidates; `tangoDibbsAward` is read only for the CAGE-award-history check.
+`describeDibbsAwardIntelligence` has no recommendation field at all, so there is no code path by which an
+award becomes a suggestion — matching P41's original acceptance bar.
+
+**The SBIR topic→cycle join is replicated, not shared.** `program` (SBIR vs STTR) and the cycle's display
+name live on the parent cycle (`tango_sbir_solicitation`), not the topic; `scoreSbirRelevance` does not
+take `program` as a scoring input at all. The producer batches the same lookup
+`funding-opportunity-inbox.service.ts`'s `titlesFor` already does for rendering (distinct
+`solicitationNumber`s per page, one batched query) and persists `{program, cycleName}` inside
+`matchSignals` alongside the score — no new column. An orphan topic with no resolvable cycle still scores
+and persists normally, just without that display data.
+
+**SBIR's status filter runs in JS, not SQL — deliberately.** DIBBS's `isOpen` is a real boolean, so its
+SQL pre-filter (`OR: [{isOpen: null}, {isOpen: true}]`, ANDed with a `closesDate` check) is unambiguous.
+SBIR's `solicitationStatus` is a free-text field compared case-insensitively against a small closed
+vocabulary (`'closed'|'archived'|'expired'`) inside `isTopicClosed`. Replicating that vocabulary as a
+second SQL predicate risked silent divergence from the scorer's own definition of "closed" on a casing
+difference alone. Instead the SBIR producer's SQL only narrows by `closeDate`; the exact status-word
+filter runs in JS via the scorer's own exported `isTopicClosed` function — same posture as the SAM
+producer keeping its `NON_PURSUABLE_KINDS` notice-kind filter in JS rather than SQL.
+
+**Schedules shipped disabled.** `GenerateDibbsOpportunityCandidates`/`GenerateSbirOpportunityCandidates`
+added to `infra/cdk/lib/ingestion-schedule.ts`, `enabled: false`, scheduled shortly after each source's
+own sync slot (13:15/13:35 UTC, after `SyncTangoDibbs`/`SyncTangoSbir` at 13:10/13:30) — the same pattern
+`GenerateSamOpportunityCandidates` already uses. **This whole chain (sync → producer) is dormant
+end-to-end by design**: the sync schedules themselves are also still disabled pending the DIBBS/SBIR
+ingestion resume (D-75 through D-78). A human enables the chain deliberately once ingestion has actually
+progressed — this entry does not change that posture, and nothing here is expected to produce visible
+rows on capiro-dev until it is enabled and ingestion has real data behind it.
+
+**SBIR display flag scoped to `capiro-internal`, not global.** `funding_opportunities_sbir` is a
+web-side-only, per-tenant flag (`intel_feature_flag`, fails closed, no API-side guard) with no evidence
+in the repo of ever being enabled for any tenant. Enabling it is an OPERATOR step (the `enable-feature`
+verb on intel-api's task runner), separate from this code change, and deliberately scoped to
+`capiro-internal` only — not a blanket enablement for every real client tenant, which would be a larger,
+separate product decision.
+
+**What this does NOT do.** No live read-time scoring path (see above). No change to either scorer, to
+`client-opportunity-profile.builder.ts`/`.types.ts`, or to the DIBBS/SBIR ingestion scripts themselves.
+No schedule enabled, no flag flipped, no deploy to `capiro-dev` — this entry covers the code only; the
+operator steps (enabling the SBIR flag, and later the schedule chain) are separate, tracked actions.

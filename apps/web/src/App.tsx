@@ -151,12 +151,6 @@ const FundingOpportunitiesPage = lazy(async () =>
     default: m.FundingOpportunitiesPage,
   })),
 );
-// Funding Opportunities v2 (capiro-internal only — see FundingOpportunitiesV2Gate).
-const FundingOpportunitiesV2Page = lazy(async () =>
-  import('./pages/intelligence/opportunities/v2/FundingOpportunitiesV2Page.js').then((m) => ({
-    default: m.FundingOpportunitiesV2Page,
-  })),
-);
 // The deep-linkable opportunity detail. A SEPARATE lazy chunk from the list page:
 // the two are reached independently (a detail link pasted into a ticket does not
 // go via the inbox), and bundling them would make either one pay for the other.
@@ -385,7 +379,7 @@ export function App() {
                 />
               }
             >
-              <FundingOpportunitiesV2Gate />
+              <FundingOpportunitiesPage />
             </Suspense>
           }
         />
@@ -507,18 +501,6 @@ function ProgramElementWatchGate() {
   const me = useMe();
   if (me.data?.tenant.slug === 'capiro-internal') return <ProgramElementV2ProfilePage />;
   return <ProgramElementWatchPage />;
-}
-
-/**
- * Funding Opportunities v2 gate. capiro-internal renders the DS v2 workspace; every
- * other tenant keeps the legacy Ant Design surface. The route registers
- * unconditionally — only the page swaps, so the flag/role gates and the master
- * feature check inside each page still decide whether anything renders at all.
- */
-function FundingOpportunitiesV2Gate() {
-  const me = useMe();
-  if (me.data?.tenant.slug === 'capiro-internal') return <FundingOpportunitiesV2Page />;
-  return <FundingOpportunitiesPage />;
 }
 
 function BillingGate() {

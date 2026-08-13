@@ -21,6 +21,14 @@ vi.mock('./lib/billing.js', () => ({
   useBillingState: () => ({ isLoading: false, data: { billingEnabled: false } }),
 }));
 
+// The capiro-internal tenant used to be routed to a separate, stale
+// `FundingOpportunitiesV2Page` (removed — see the funding-opportunities-makegov-v1
+// decision log). Mocked here, universally, precisely because there is no longer
+// any tenant-conditional branching left to accidentally exercise differently.
+vi.mock('./lib/me.js', () => ({
+  useMe: () => ({ data: { tenant: { slug: 'capiro-internal' } } }),
+}));
+
 // The two outcomes this spec discriminates between: the new page, and the
 // /intelligence/* catch-all's redirect target.
 vi.mock('./pages/intelligence/opportunities/FundingOpportunitiesPage.js', () => ({
@@ -72,6 +80,20 @@ describe('Funding Opportunities route registration', () => {
     // `/intelligence/*`, the deep link redirects to Data Explorer rather than
     // 404ing, so the page looks "missing" instead of broken.
     expect(screen.queryByTestId('data-explorer-page')).not.toBeInTheDocument();
+  });
+
+  test('a capiro-internal tenant resolves to the real page too, not a v2 substitute', async () => {
+    // Regression pin for the removed FundingOpportunitiesV2Gate: that gate
+    // special-cased tenant.slug === 'capiro-internal' to render a stale,
+    // 3-source mockup page instead of the real, fully-wired Inbox. This test's
+    // whole module-level `useMe` mock (above) already renders every test in this
+    // file under that exact tenant — this one exists to make the guarantee
+    // explicit rather than incidental, so a future reviewer sees it stated
+    // rather than inferred from an unrelated mock choice.
+    renderAppWithRouter(['/intelligence/opportunities']);
+    await waitFor(() =>
+      expect(screen.getByTestId('funding-opportunities-page')).toBeInTheDocument(),
+    );
   });
 
   test('the /intelligence/* catch-all still redirects every other path', async () => {
