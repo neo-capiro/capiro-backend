@@ -17,6 +17,10 @@ import { ExportModule } from './export/export.module.js';
 import { ChecksModule } from './checks/checks.module.js';
 import { VersionsModule } from './versions/versions.module.js';
 import { EditLockModule } from './edit-lock/edit-lock.module.js';
+import { TemplateStudioModule } from './template-studio/template-studio.module.js';
+import { WorkspaceReasoningModule } from './workspace-reasoning/workspace-reasoning.module.js';
+import { DocumentAgentModule } from './document-agent/document-agent.module.js';
+import { DeliveryModule } from './delivery/delivery.module.js';
 
 @Module({
   imports: [
@@ -41,6 +45,15 @@ import { EditLockModule } from './edit-lock/edit-lock.module.js';
     ChecksModule,
     VersionsModule,
     EditLockModule,
+    // ── Workspace Document Agent vNext ────────────────────────────────────
+    // The new conversational document-generation experience. Gated by
+    // WORKSPACE_DOCUMENT_AGENT_VNEXT_ENABLED (env, default false). The
+    // controllers are registered but the service-level behavior is gated
+    // so existing routes remain unaffected when the flag is off.
+    WorkspaceReasoningModule,
+    DocumentAgentModule,
+    TemplateStudioModule,
+    DeliveryModule,
   ],
 })
 export class AppModule {}
