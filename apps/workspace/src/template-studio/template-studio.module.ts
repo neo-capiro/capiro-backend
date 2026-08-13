@@ -1,15 +1,16 @@
 import { Module } from '@nestjs/common';
+import { CollaboratorsModule } from '../collaborators/collaborators.module.js';
 import { TemplateStudioController } from './template-studio.controller.js';
 import { TemplateStudioService } from './template-studio.service.js';
 import { TemplateValidator } from './template-validator.js';
 
 /**
- * Template Studio module. Depends on PrismaModule (global PrismaService) and
- * CollaboratorsModule (CollaboratorsService) via their exported providers —
- * the workspace engine wires both globally, so they resolve without explicit
- * imports here (matching TemplatesModule/CollaboratorsModule conventions).
+ * Template Studio module. PrismaService is global; CollaboratorsService is
+ * scoped to CollaboratorsModule and must be imported explicitly (same pattern
+ * as CommentsModule, ContextModule, DeliveryModule, DocumentAgentModule).
  */
 @Module({
+  imports: [CollaboratorsModule],
   controllers: [TemplateStudioController],
   providers: [TemplateStudioService, TemplateValidator],
   exports: [TemplateStudioService, TemplateValidator],
