@@ -167,7 +167,6 @@ export interface AppShellUuiViewProps {
    * every other vnext page; Dashboard forces "All clients" (729:2612). */
   scopeLabel: string;
   onNavigate: (path: string) => void;
-  onOpenNotifications: () => void;
   onSignOut: () => void;
   onOpenProfile: () => void;
   /** Overrides the persisted collapse state — the vnext-visual-capture
@@ -190,7 +189,6 @@ export function AppShellUuiView({
   mailboxStatus,
   scopeLabel,
   onNavigate,
-  onOpenNotifications,
   onSignOut,
   onOpenProfile,
   initialCollapsed,
@@ -244,7 +242,7 @@ export function AppShellUuiView({
           </div>
           <div className="uui-topbar__actions">
             <MeriLauncher />
-            <NotificationBell notifications={notifications} onOpen={onOpenNotifications} />
+            <NotificationBell notifications={notifications} />
             <ProfileMenu
               identity={identity}
               onNavigate={onNavigate}
@@ -354,7 +352,6 @@ export function AppShellUui({ children }: { children: ReactNode }) {
       mailboxStatus={mailboxStatus}
       scopeLabel={clientContext.scopeLabel}
       onNavigate={navigate}
-      onOpenNotifications={() => navigate('/workspace')}
       onSignOut={() => void signOut()}
       onOpenProfile={() => openUserProfile()}
     >
