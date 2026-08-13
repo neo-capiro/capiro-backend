@@ -94,6 +94,25 @@ export function StrategyEditorVNext() {
 
   // Malformed id (not a UUID): not-found, not a retryable load error.
   if (strategyId && !validId) {
+    // TEMPORARY (remove once root cause is found — see SCRUM-181 follow-up):
+    // capture what actually reached the router so the next occurrence carries
+    // forensic detail instead of relying on catching it live. Best-effort —
+    // must never throw or block the recovery UI below.
+    try {
+      const diag = {
+        rawId: strategyId,
+        rawIdLength: strategyId.length,
+        rawIdCodePoints: Array.from(strategyId).map((c) => c.codePointAt(0)),
+        pathname: window.location.pathname,
+        search: window.location.search,
+        referrer: document.referrer,
+        capturedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem('capiro:strategy-invalid-link-diag', JSON.stringify(diag));
+      console.warn('[strategies] invalid link guard fired', diag);
+    } catch {
+      /* diagnostics only — never let this block the error UI */
+    }
     return (
       <div className="st-page">
         <CapiroErrorState

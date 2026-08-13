@@ -114,46 +114,55 @@ export function VNextStrategiesRoutes() {
     <div className="capiro-strategies" data-module="strategies">
       <StrategiesErrorBoundary>
         <Suspense fallback={<Loading />}>
+          {/* Absolute paths throughout, deliberately: this <Routes> has no
+           * ancestor <Route>+<Outlet> chain (VNextRouter renders it as a
+           * plain component off a `location.pathname` check, same as every
+           * other vNext module), so there is no relative "remaining path"
+           * context to consume — react-router matches these against the
+           * full browser pathname. A relative `index`/`":strategyId"` here
+           * previously matched bare "/strategies" itself as strategyId
+           * "strategies" (one path segment, matched with no /strategies
+           * prefix to strip), taking down the whole module. */}
           <Routes>
           {/* Library + its overlays. */}
-          <Route index element={<StrategyLibraryVNext />} />
-          <Route path="new" element={<Overlay caller={<StrategyLibraryVNext />}><NewStrategyOverlay /></Overlay>} />
-          <Route path="phases" element={<Overlay caller={<StrategyLibraryVNext />}><FirmPhasesOverlay /></Overlay>} />
+          <Route path="/strategies" element={<StrategyLibraryVNext />} />
+          <Route path="/strategies/new" element={<Overlay caller={<StrategyLibraryVNext />}><NewStrategyOverlay /></Overlay>} />
+          <Route path="/strategies/phases" element={<Overlay caller={<StrategyLibraryVNext />}><FirmPhasesOverlay /></Overlay>} />
 
           {/* Editor + its overlays. */}
-          <Route path=":strategyId" element={<StrategyEditorVNext />} />
-          <Route path=":strategyId/history" element={<Overlay caller={<StrategyEditorVNext />}><HistoryOverlay /></Overlay>} />
-          <Route path=":strategyId/export" element={<Overlay caller={<StrategyEditorVNext />}><ExportOverlay /></Overlay>} />
+          <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
+          <Route path="/strategies/:strategyId/history" element={<Overlay caller={<StrategyEditorVNext />}><HistoryOverlay /></Overlay>} />
+          <Route path="/strategies/:strategyId/export" element={<Overlay caller={<StrategyEditorVNext />}><ExportOverlay /></Overlay>} />
 
           {/* Context library + overlays. */}
           <Route
-            path="context"
+            path="/strategies/context"
             element={agentic ? <ContextLibraryVNext /> : <Navigate to="/strategies" replace />}
           />
           <Route
-            path="context/upload"
+            path="/strategies/context/upload"
             element={agentic ? <Overlay caller={<ContextLibraryVNext />}><UploadContextOverlay /></Overlay> : <Navigate to="/strategies" replace />}
           />
           <Route
-            path="context/steward"
+            path="/strategies/context/steward"
             element={agentic ? <StewardReviewVNext /> : <Navigate to="/strategies" replace />}
           />
           <Route
-            path="context/steward/:conflictId"
+            path="/strategies/context/steward/:conflictId"
             element={agentic ? <Overlay caller={<StewardReviewVNext />}><ResolveConflictOverlay /></Overlay> : <Navigate to="/strategies" replace />}
           />
           <Route
-            path="context/:documentId"
+            path="/strategies/context/:documentId"
             element={agentic ? <ContextDocumentVNext /> : <Navigate to="/strategies" replace />}
           />
 
           {/* Agents — one surface, two tabs, two routes (§4.1 #1). */}
           <Route
-            path="agents/proposals"
+            path="/strategies/agents/proposals"
             element={agentic ? <AgentsTabsVNext tab="proposals" /> : <Navigate to="/strategies" replace />}
           />
           <Route
-            path="agents/runs"
+            path="/strategies/agents/runs"
             element={agentic ? <AgentsTabsVNext tab="runs" /> : <Navigate to="/strategies" replace />}
           />
 
