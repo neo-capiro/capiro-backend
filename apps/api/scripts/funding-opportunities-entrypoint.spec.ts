@@ -9,6 +9,10 @@ describe('Funding Opportunities container commands', () => {
   test.each([
     ['generate-funding-grant-candidates', 'generate-funding-grant-candidates.ts'],
     ['generate-sam-opportunity-candidates', 'generate-sam-opportunity-candidates.ts'],
+    // Matching producers for sources with no live read-time scoring path — the
+    // ONLY path to visibility for DIBBS/SBIR (see each script's own docblock).
+    ['generate-dibbs-opportunity-candidates', 'generate-dibbs-opportunity-candidates.ts'],
+    ['generate-sbir-opportunity-candidates', 'generate-sbir-opportunity-candidates.ts'],
     ['process-funding-opportunity-lifecycle', 'process-funding-opportunity-lifecycle.ts'],
     ['backfill-sam-opportunity-fields', 'backfill-sam-opportunity-fields.ts'],
     ['backfill-funding-mapping-review', 'backfill-funding-mapping-review.ts'],

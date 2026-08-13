@@ -530,6 +530,33 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: persist SAM.gov client suggestions after SAM ingestion and promoted-field backfill (daily 11:52 UTC)',
     enabled: false,
   },
+  // DIBBS/SBIR have no live read-time scoring path (see each producer's own
+  // docblock) — these are the ONLY path to visibility for either source, not
+  // an enhancement on top of one. Scheduled shortly after each source's own
+  // sync slot (SyncTangoDibbs 13:10, SyncTangoSbir 13:30, below), same pattern
+  // as GenerateSamOpportunityCandidates running after SAM ingestion. Both
+  // declared disabled: the sync schedules they depend on are themselves still
+  // disabled pending the DIBBS/SBIR ingestion resume (decision-log D-75
+  // through D-78), so this whole chain is dormant end-to-end by design until a
+  // human deliberately advances it — not something this entry alone changes.
+  {
+    id: 'GenerateDibbsOpportunityCandidates',
+    command: ['generate-dibbs-opportunity-candidates', '--commit'],
+    cron: { minute: '15', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist DIBBS client suggestions after the DIBBS bid-board sync (daily 13:15 UTC)',
+    enabled: false,
+  },
+  {
+    id: 'GenerateSbirOpportunityCandidates',
+    command: ['generate-sbir-opportunity-candidates', '--commit'],
+    cron: { minute: '35', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist SBIR/STTR client suggestions after the SBIR/STTR sync (daily 13:35 UTC)',
+    enabled: false,
+  },
   {
     id: 'ProcessFundingOpportunityLifecycle',
     command: ['process-funding-opportunity-lifecycle', '--commit'],

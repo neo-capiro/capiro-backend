@@ -11,6 +11,10 @@ import {
   VNextProgramElementsRoutes,
 } from '../pages/program-elements/VNextProgramElementsRoutes.js';
 import {
+  isVNextLegiWatchPath,
+  VNextLegiWatchRoutes,
+} from '../pages/legiwatch/VNextLegiWatchRoutes.js';
+import {
   isWorkspaceVNextRoute,
   WorkspaceVNextRoutes,
 } from '../pages/workspace/WorkspaceVNextRoutes.js';
@@ -78,6 +82,13 @@ export function VNextRouter() {
   // through to canonical.
   if (isVNextProgramElementsPath(location.pathname)) {
     return <VNextProgramElementsRoutes />;
+  }
+
+  // LegiWatch: the native vNext module (Hearings · Feed · Bills · Digest ·
+  // Analytics) plus the live hearing room route. Tabs stay URL-addressable;
+  // removed surfaces (overview, watchlist) redirect to the Hearings landing.
+  if (isVNextLegiWatchPath(location.pathname)) {
+    return <VNextLegiWatchRoutes />;
   }
 
   // Workspace: library, creation flow, editor, studio, public share.
