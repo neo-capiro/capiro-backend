@@ -101,7 +101,6 @@ export function VNextShellVisual({
           mailboxStatus={FOUNDATION_MAILBOX_STATES[0]}
           scopeLabel="All clients"
           onNavigate={() => undefined}
-          onOpenNotifications={() => undefined}
           onSignOut={() => undefined}
           onOpenProfile={() => undefined}
           initialCollapsed={collapsed}

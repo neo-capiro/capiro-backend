@@ -10,6 +10,10 @@ import {
   isVNextProgramElementsPath,
   VNextProgramElementsRoutes,
 } from '../pages/program-elements/VNextProgramElementsRoutes.js';
+import {
+  isWorkspaceVNextRoute,
+  WorkspaceVNextRoutes,
+} from '../pages/workspace/WorkspaceVNextRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -74,6 +78,14 @@ export function VNextRouter() {
   // through to canonical.
   if (isVNextProgramElementsPath(location.pathname)) {
     return <VNextProgramElementsRoutes />;
+  }
+
+  // Workspace: library, creation flow, editor, studio, public share.
+  // The public /share/:token route is intercepted here too — it renders a
+  // shell-free entry. Authenticated workspace routes use the shared vNext
+  // shell; the editor's three-pane layout lives inside it.
+  if (isWorkspaceVNextRoute(location.pathname)) {
+    return <WorkspaceVNextRoutes />;
   }
 
   return <Outlet />;

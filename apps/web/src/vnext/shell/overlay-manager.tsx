@@ -22,6 +22,7 @@ import {
 export type ShellOverlayId =
   | 'search'
   | 'profile'
+  | 'notifications'
   | 'directory'
   | 'intelligence'
   | 'client-context'
