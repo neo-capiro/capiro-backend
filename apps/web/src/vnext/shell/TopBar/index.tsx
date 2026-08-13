@@ -64,14 +64,11 @@ function relativeTime(dateStr: string): string {
  */
 export function NotificationBell({
   notifications,
-  onOpen,
 }: {
   notifications: ShellNotificationsViewModel;
-  /** Optional side-effect on open (the panel is self-contained; not required). */
-  onOpen?: () => void;
 }) {
   const navigate = useNavigate();
-  const { isOpen, containerRef, toggle } = useShellOverlay('notifications');
+  const { isOpen, containerRef, toggle, close } = useShellOverlay('notifications');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const list = useNotifications();
@@ -80,8 +77,9 @@ export function NotificationBell({
   const respond = useRespondToInvite();
 
   const items: WsNotification[] = list.data?.items ?? [];
+  const unavailable = notifications.unavailable || list.isError;
 
-  const label = notifications.unavailable
+  const label = unavailable
     ? 'Notifications unavailable'
     : `Notifications${notifications.unread > 0 ? `, ${notifications.unread} unread` : ''}`;
 
@@ -91,6 +89,7 @@ export function NotificationBell({
       {
         onSuccess: () => {
           if (action === 'accept') {
+            close();
             navigate(`/workspace/draft/${draftId}`);
           }
         },
@@ -107,11 +106,8 @@ export function NotificationBell({
         aria-label={label}
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        data-unavailable={notifications.unavailable || undefined}
-        onClick={() => {
-          toggle(triggerRef.current);
-          onOpen?.();
-        }}
+        data-unavailable={unavailable || undefined}
+        onClick={() => toggle(triggerRef.current)}
       >
         <Bell size={18} strokeWidth={1.6} aria-hidden="true" />
         {notifications.showBadge ? (
@@ -134,6 +130,8 @@ export function NotificationBell({
 
           {list.isLoading ? (
             <p className="capiro-vnext-notif__empty">Loading…</p>
+          ) : unavailable ? (
+            <p className="capiro-vnext-notif__empty">Notifications are unavailable right now.</p>
           ) : items.length === 0 ? (
             <p className="capiro-vnext-notif__empty">No notifications</p>
           ) : (
