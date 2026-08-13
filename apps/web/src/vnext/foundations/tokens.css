@@ -184,6 +184,14 @@
 
   /* Focus, motion and layer ordering. */
   --capiro-focus-ring: 0 0 0 3px rgba(47, 99, 245, 0.22);
+  /* Inset twin of the ring above, for controls that sit inside a scroll
+     container. An outer box-shadow paints outside the border box and is
+     therefore clipped by any ancestor with overflow other than visible — a
+     horizontally scrollable tab strip is the case that matters here. The inset
+     form renders within the control's own box, so focus stays visible with no
+     change to layout geometry. Higher alpha because it composites over the
+     control's own background rather than the page. */
+  --capiro-focus-ring-inset: inset 0 0 0 2px rgba(47, 99, 245, 0.55);
   --capiro-motion-fast: 120ms;
   --capiro-motion-standard: 180ms;
   --capiro-motion-ease: cubic-bezier(0.2, 0, 0, 1);

@@ -164,7 +164,7 @@ export function PortfolioIndexPage() {
   const emptyIsFilter = (clients.data?.length ?? 0) > 0;
 
   return (
-    <div className="capiro-portfolio">
+    <div className="capiro-portfolio capiro-page">
       {/* 1 · Page header */}
       <header className="capiro-portfolio__head">
         <div>

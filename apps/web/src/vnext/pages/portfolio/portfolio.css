@@ -1,13 +1,21 @@
 /* Portfolio index (PORTFOLIO-HANDOFF §7.1). Consumes the shared vNext token
    layer — no hard-coded hex for the accent; every value references a token. */
 
+/* Adopts .capiro-page (foundations/responsive.css §2). The shell's .uui-content
+   already owns the horizontal gutter — 32px, 16px below 780 — so this page must
+   not add its own. It used to add 32px (20px below 1200) on top of it, which
+   spent ~18% of a 390px viewport on doubled gutters and squeezed the very
+   scroller the 720px clients table has to live in. Vertical rhythm is handed to
+   .capiro-page through its custom properties.
+   The old `max-width: 1360px; margin: 0 auto` never bound: .uui-content already
+   caps at --uui-content-max-w (1280px) and centres itself. */
 .capiro-portfolio {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 24px 32px 48px;
+  --capiro-page-block-start: 24px;
+  --capiro-page-block-end: 48px;
+  --capiro-page-block-end-mobile: 32px;
 }
 
 /* ── 1 · Page header ─────────────────────────────────────────────────── */
@@ -127,8 +135,13 @@
   border-color: var(--capiro-color-action-accent-default);
   box-shadow: 0 0 0 2px var(--capiro-color-bg-accent-soft);
 }
+/* Wraps for the same reason its parent toolbar does (line 112): four pills whose
+   text cannot shrink. Without this the group's minimum is the sum of all four,
+   and the pills instead break their own labels ("At risk" -> two lines) inside a
+   fixed 32px-high box. */
 .capiro-portfolio__filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--capiro-color-bg-surface);
   border: 1px solid var(--capiro-color-border-quiet);
@@ -144,6 +157,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 500;
   color: var(--capiro-color-text-muted);
@@ -198,6 +212,11 @@
   border: 1px solid var(--capiro-color-border-quiet);
   border-radius: 12px;
   overflow-x: auto;
+  /* The table keeps its 720px minimum and scrolls inside this box at every
+     width; contain the scroll chain so a swipe at the end of the table does not
+     rubber-band the page behind it. */
+  overscroll-behavior-x: contain;
+  min-width: 0;
   background: var(--capiro-color-bg-surface);
 }
 .capiro-portfolio__table {
@@ -242,6 +261,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .capiro-portfolio__tile,
 .capiro-portfolio__avatar {
@@ -265,9 +285,14 @@
   font-size: 11px;
   border-radius: 50%;
 }
+/* Client names are tenant data. In the card layout the name shares a ~326px row
+   with a 40px tile and a status badge, so a single long token has nowhere to go;
+   break it instead of widening the card past its grid track. */
 .capiro-portfolio__client-name {
   font-weight: 600;
   color: var(--capiro-color-text-heading);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .capiro-portfolio__owner {
   display: flex;
@@ -298,9 +323,13 @@
 }
 
 /* ── Card layout ─────────────────────────────────────────────────────── */
+/* minmax(min(280px, 100%), 1fr), not minmax(280px, 1fr): a bare 280px floor
+   makes the single-column case 280px wide no matter how narrow the container
+   is, so the grid overflows anything under 280px instead of collapsing. */
 .capiro-portfolio__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 16px;
 }
 .capiro-portfolio__clientcard {
@@ -398,11 +427,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-@media (max-width: 1200px) {
-  .capiro-portfolio-pe__grid {
-    grid-template-columns: 1fr;
-  }
-}
+/* Collapses to one column in the Responsive section at the bottom of this file,
+   on the canonical 1179px boundary. */
 .capiro-portfolio-pe__card {
   display: flex;
   flex-direction: column;
@@ -417,10 +443,14 @@
 .capiro-portfolio-pe__card:hover {
   background: var(--capiro-color-bg-surface-2);
 }
+/* The PE code is white-space: nowrap by design; program titles are long. Let the
+   title drop below the code rather than compete with an unshrinkable sibling. */
 .capiro-portfolio-pe__card-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
 }
 .capiro-portfolio-pe__code {
   font-size: 14px;
@@ -504,9 +534,18 @@
   border: 1px solid var(--capiro-color-border-quiet);
   border-radius: 10px;
 }
+/* The firm step puts a CapiroButton ("This is us") in this row, and .capiro-button
+   carries a hard `min-width: var(--capiro-control-min-width-button)` = 120px that
+   flex-shrink cannot cross. With the registrant name and the city/clients/filings
+   meta beside it the row has no slack left at phone width, and because
+   .capiro-portfolio-lda__list sets overflow-y: auto its overflow-x computes to
+   auto — so anything that does not fit hides behind a nested scrollbar inside the
+   modal instead of being visible. Wrapping drops the CTA onto its own line, still
+   right-aligned by its inline margin-left: auto. */
 .capiro-portfolio-lda__row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--capiro-color-border-quiet);
@@ -522,19 +561,59 @@
 .capiro-portfolio-lda__name {
   font-weight: 600;
   color: var(--capiro-color-text-heading);
+  /* Registrant names are third-party data and can contain a single token longer
+     than the row; break it rather than push the row wide. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .capiro-portfolio-lda__foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 16px;
 }
 
-@media (max-width: 1200px) {
+/* ── Responsive ──────────────────────────────────────────────────────────
+   Canonical breakpoints only (foundations/responsive.css): 1179px = tablet,
+   779px = mobile. This file used to break at 1200px, which sits inside the
+   shell's desktop band — at 1180–1200 the page collapsed its grids while the
+   shell still rendered the 272px expanded rail. Both grids were re-checked
+   across the band they moved over: at 1180 the content column is 844px, so the
+   PE grid's two cards get 414px each and the pulse band's four stats 211px
+   each, which is more than either needs. */
+
+@media (max-width: 1179px) {
   .capiro-portfolio {
-    padding: 20px 20px 40px;
+    --capiro-page-block-start: 20px;
+    --capiro-page-block-end: 40px;
   }
   .capiro-portfolio-pulse__band {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .capiro-portfolio-pe__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Touch targets from the tablet band down. These four are the module's own
+     controls; the layout toggle matters most, because `list` is the default
+     (portfolio-routing.ts) and it is the only escape from the 720px table. */
+  .capiro-portfolio__search {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__filter {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__sort select {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__layout-btn {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__linkbtn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--capiro-hit-size, 44px);
   }
 }

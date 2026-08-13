@@ -559,14 +559,19 @@ function ChangeSetCard({
           {diffs.map((d, i) => (
             <div key={i} className="st-agents__op">
               {isProposed ? (
-                <input
-                  type="checkbox"
-                  className="st-agents__op-check"
-                  checked={selected.has(i)}
-                  disabled={busy}
-                  onChange={() => toggleOp(i)}
-                  aria-label={`Select change ${i + 1}: ${d.verb} ${d.nodeTitle}`}
-                />
+                /* The label carries the mobile touch target (agents.css); the
+                   input keeps its own aria-label, and the label has no text of
+                   its own, so the accessible name is unchanged. */
+                <label className="st-agents__op-checkbox">
+                  <input
+                    type="checkbox"
+                    className="st-agents__op-check"
+                    checked={selected.has(i)}
+                    disabled={busy}
+                    onChange={() => toggleOp(i)}
+                    aria-label={`Select change ${i + 1}: ${d.verb} ${d.nodeTitle}`}
+                  />
+                </label>
               ) : (
                 <span className="st-agents__op-check-spacer" aria-hidden="true" />
               )}

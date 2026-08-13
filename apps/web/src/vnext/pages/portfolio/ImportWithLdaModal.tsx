@@ -344,7 +344,15 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
     // Review-and-confirm.
     return (
       <>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
           <p className="capiro-portfolio__meta" style={{ margin: 0 }}>
             {pending.length} matched client{pending.length === 1 ? '' : 's'} from{' '}
             <strong>{data.registrantName}</strong>. Select which to add — nothing is created until

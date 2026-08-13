@@ -245,65 +245,74 @@ function DraftsTable({
   drafts: readonly DraftSummary[];
   onOpen: (draftId: string) => void;
 }) {
+  // Seven columns whose min-content is ~600px (7 cells of horizontal padding, a
+  // fixed-width PhaseSpineMini, a status pill and mono meta text) inside a
+  // ~294px mobile content box. Seven columns is too many to card-stack without
+  // dropping data, so the table gets an explicit scroller of its own — without
+  // one it only scrolled incidentally, via .ws-vnext-library's overflow-y:auto
+  // forcing overflow-x to auto, which dragged the page header and the filter
+  // row sideways with it. .capiro-scroll-x is the shared foundation utility.
   return (
-    <table className="ws-vnext-table">
-      <thead>
-        <tr>
-          <th>Document</th>
-          <th>Client</th>
-          <th>Type</th>
-          <th>Phase</th>
-          <th>Status</th>
-          <th>Quality</th>
-          <th>Updated</th>
-        </tr>
-      </thead>
-      <tbody>
-        {drafts.map((draft) => {
-          const meta = [draft.sector, draft.documentType].filter(Boolean).join(' · ');
-          return (
-            <tr
-              key={draft.id}
-              onClick={() => onOpen(draft.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpen(draft.id);
-                }
-              }}
-              tabIndex={0}
-            >
-              <td>
-                <div className="ws-vnext-doc-title">{draft.docTitle || 'Untitled document'}</div>
-                {meta ? <div className="ws-vnext-doc-meta">{meta}</div> : null}
-              </td>
-              <td>{draft.clientName ?? '—'}</td>
-              <td>{draft.documentType ?? '—'}</td>
-              <td>
-                <PhaseSpineMini phase={draft.phase} />
-              </td>
-              <td>
-                <StatusPill status={draft.status} />
-              </td>
-              <td>
-                {draft.qualityScore == null ? (
-                  '—'
-                ) : (
+    <div className="capiro-scroll-x">
+      <table className="ws-vnext-table">
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Client</th>
+            <th>Type</th>
+            <th>Phase</th>
+            <th>Status</th>
+            <th>Quality</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drafts.map((draft) => {
+            const meta = [draft.sector, draft.documentType].filter(Boolean).join(' · ');
+            return (
+              <tr
+                key={draft.id}
+                onClick={() => onOpen(draft.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(draft.id);
+                  }
+                }}
+                tabIndex={0}
+              >
+                <td>
+                  <div className="ws-vnext-doc-title">{draft.docTitle || 'Untitled document'}</div>
+                  {meta ? <div className="ws-vnext-doc-meta">{meta}</div> : null}
+                </td>
+                <td>{draft.clientName ?? '—'}</td>
+                <td>{draft.documentType ?? '—'}</td>
+                <td>
+                  <PhaseSpineMini phase={draft.phase} />
+                </td>
+                <td>
+                  <StatusPill status={draft.status} />
+                </td>
+                <td>
+                  {draft.qualityScore == null ? (
+                    '—'
+                  ) : (
+                    <span className="ws-vnext-doc-meta" style={{ marginTop: 0 }}>
+                      {draft.qualityScore}
+                    </span>
+                  )}
+                </td>
+                <td>
                   <span className="ws-vnext-doc-meta" style={{ marginTop: 0 }}>
-                    {draft.qualityScore}
+                    {relativeTime(draft.updatedAt)}
                   </span>
-                )}
-              </td>
-              <td>
-                <span className="ws-vnext-doc-meta" style={{ marginTop: 0 }}>
-                  {relativeTime(draft.updatedAt)}
-                </span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

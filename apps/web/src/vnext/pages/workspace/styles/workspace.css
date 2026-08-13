@@ -5,9 +5,24 @@
  * phase spine, and document canvas.
  */
 
-/* ── Workspace module root ─────────────────────────────────────────────────── */
+/* ── Workspace module roots ────────────────────────────────────────────────── */
 
-.ws-vnext {
+/*
+ * TOKEN SCOPE. Every --ws-* custom property used to be declared on `.ws-vnext`
+ * alone, but only the EDITOR mounts that class (WorkspaceEditorVNext.tsx). The
+ * library (.ws-vnext-library), creation (.ws-vnext-creation), studio
+ * (.ws-vnext-studio) and share (.ws-vnext-share) roots are siblings of it, not
+ * descendants, so on those four surfaces every `var(--ws-…)` resolved to
+ * nothing: --ws-paper-max fell back to `none` (the shared document had no
+ * measure cap at all) and ~120 colour declarations fell back to
+ * transparent/inherited. The declaration block is split in two so all five
+ * roots get the tokens while only the editor keeps the editor's box model.
+ */
+.ws-vnext,
+.ws-vnext-library,
+.ws-vnext-creation,
+.ws-vnext-studio,
+.ws-vnext-share {
   /* Workspace-specific tokens that extend (not replace) the shell tokens. */
   --ws-navy: #294e68;
   --ws-ink: #101828;
@@ -41,8 +56,11 @@
   --ws-inspector-width: 356px;
   --ws-inspector-collapsed: 56px;
   --ws-paper-max: 720px;
+}
 
-  /* Layout */
+/* Editor root only. The other four surfaces are ordinary scrolling pages and
+   must not inherit the editor's `height: 100%; overflow: hidden` app frame. */
+.ws-vnext {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -85,6 +103,7 @@
 
 .ws-vnext-library__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -97,8 +116,14 @@
   flex-wrap: wrap;
 }
 
+/* Wraps rather than forcing its row wider. The studio's ViewTabs variant
+   (.ws-vnext-scope-segment__btn) reads "Blueprints / Document themes / Compare
+   versions" — ~348px natural, which alone exceeds the mobile content box. */
 .ws-vnext-scope-segment {
   display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
   background: var(--ws-sunken);
   border-radius: 7px;
   padding: 2px;
@@ -211,9 +236,13 @@
   background: currentColor;
 }
 
+/* auto-fit + minmax(min(N,100%),1fr): the bare minmax(220px,1fr) form floors
+   the single-column case at 220px and overflows anything narrower. This needs
+   no breakpoint — it reflows from 3 to 2 to 1 on its own. */
 .ws-vnext-attention-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 16px;
   margin-top: 24px;
 }
@@ -307,6 +336,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* ── Phase spine ─────────────────────────────────────────────────────────────── */
@@ -392,7 +422,8 @@
 
 .ws-vnext-phase-connector[data-active='true'] { background: var(--ws-selected-ring); }
 
-@media (max-width: 1180px) {
+/* Canonical tablet boundary (was 1180, one pixel into the desktop band). */
+@media (max-width: 1179px) {
   .ws-vnext-phase-spine {
     flex-wrap: wrap;
     gap: 4px;
@@ -409,8 +440,9 @@
 
 .ws-vnext-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 8px 16px;
   font-size: 13px;
   border-bottom: 1px solid var(--ws-line);
@@ -436,9 +468,27 @@
 
 /* ── Three-pane layout ────────────────────────────────────────────────────── */
 
+/*
+ * FLEX, not grid. As fixed grid tracks the two side panes never yielded, so the
+ * canvas got whatever was left over — and on the desktop band that is not
+ * enough. Measured with the real shell geometry (272px rail, 32px .uui-content
+ * gutter, 1280px content cap): at a 1280px viewport the canvas was 344px, which
+ * after 64px of paper-container padding and 112px of paper padding left 168px
+ * of 14.5px serif — roughly twenty characters a line. At 1180px (the first
+ * desktop pixel) it was 68px. A grid minmax() floor cannot fix this: a flexible
+ * track whose base size exceeds its resolved fr size is treated as inflexible,
+ * so the floor overflows the grid instead of squeezing the side tracks.
+ *
+ * Flex shrink does what is actually wanted. The side panes carry their design
+ * width as flex-basis and shrink from it under pressure; the canvas resists
+ * (shrink 0.5) so it keeps the lion's share, and never goes below its own
+ * content. The panes cannot shrink past their collapsed rail width. No media
+ * query is involved, so the behaviour is continuous across the desktop band
+ * instead of stepping at arbitrary widths.
+ */
 .ws-vnext-panes {
-  display: grid;
-  grid-template-columns: var(--ws-agent-panel-width) minmax(0, 1fr) var(--ws-inspector-width);
+  display: flex;
+  align-items: stretch;
   min-height: 0;
   flex: 1;
   overflow: hidden;
@@ -460,8 +510,22 @@
   background: var(--ws-page-bg);
 }
 
-.ws-vnext-pane--agent { border-right: 1px solid var(--ws-line); }
-.ws-vnext-pane--inspector { border-left: 1px solid var(--ws-line); }
+.ws-vnext-pane--agent {
+  border-right: 1px solid var(--ws-line);
+  flex: 0 1 var(--ws-agent-panel-width);
+  min-width: var(--ws-agent-panel-collapsed);
+}
+
+.ws-vnext-pane--inspector {
+  border-left: 1px solid var(--ws-line);
+  flex: 0 1 var(--ws-inspector-width);
+  min-width: var(--ws-inspector-collapsed);
+}
+
+.ws-vnext-pane--canvas {
+  flex: 1 0.5 var(--ws-canvas-basis, 520px);
+  min-width: 0;
+}
 
 /* ── Agent panel ──────────────────────────────────────────────────────────── */
 
@@ -472,8 +536,20 @@
   overflow: hidden;
 }
 
+/* `position: relative` is load-bearing: the collapse button inside this header
+   is `position: absolute; top: 10; right: 10` (WorkspaceEditorVNext.tsx). No
+   ancestor up to and including .capiro-vnext-root was positioned, so the button
+   resolved against the initial containing block and painted at the top-right of
+   the whole PAGE, under the sticky topbar — the only control that collapses the
+   agent panel was unreachable at every width. Same move the overlays already
+   make inline for their close button. */
 .ws-vnext-agent-header {
+  position: relative;
   padding: 10px 14px;
+  /* Reserves the corner the absolutely positioned collapse button occupies —
+     44px of touch target plus its 10px offset — so the label and phase name
+     never run underneath it. */
+  padding-right: 56px;
   border-bottom: 1px solid var(--ws-line);
   flex-shrink: 0;
 }
@@ -646,8 +722,11 @@
   box-shadow: 0 0 0 2px rgba(41, 78, 104, 0.1);
 }
 
+/* The agent panel shrinks under pressure now, so its composer footer (scope
+   chip + Send) must be able to take two rows rather than push the pane wider. */
 .ws-vnext-agent-composer__footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
@@ -803,10 +882,14 @@
   flex-shrink: 0;
 }
 
+/* Up to five uppercase mono facts plus a link, in a canvas that can now be as
+   narrow as the flex shrink allows. It sits inside .ws-vnext-canvas's
+   overflow:hidden, so anything that did not fit was silently cut off. */
 .ws-vnext-provenance-strip {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   padding: 6px 16px;
   font-size: 10px;
   font-family: var(--capiro-type-family-mono);
@@ -825,10 +908,20 @@
 
 .ws-vnext-provenance-strip a:hover { text-decoration: underline; }
 
+/*
+ * Percentage side padding, clamped. A percentage padding resolves against the
+ * INLINE SIZE OF THE CONTAINING BLOCK — here the canvas pane — which is exactly
+ * the measurement a container query would give us and the one thing that
+ * actually varies. 176px of fixed chrome padding (64 + 112) was the difference
+ * between a readable measure and word-per-line text on a narrow canvas; this
+ * scales it down with the canvas and back up to the designed 32/56 as soon as
+ * there is room. Container queries are not an option here — see the note in
+ * foundations/responsive.css.
+ */
 .ws-vnext-paper-container {
   flex: 1;
   overflow-y: auto;
-  padding: 32px;
+  padding: 32px clamp(12px, 4%, 32px);
   display: flex;
   justify-content: center;
 }
@@ -837,7 +930,7 @@
   max-width: var(--ws-paper-max);
   width: 100%;
   background: var(--ws-paper);
-  padding: 48px 56px;
+  padding: 48px clamp(20px, 6%, 56px);
   border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   font-family: var(--capiro-type-family-serif);
@@ -927,8 +1020,9 @@
 
 .ws-vnext-scaffold-section__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
 .ws-vnext-scaffold-section__title {
@@ -972,13 +1066,20 @@
   margin-top: 4px;
 }
 
-/* Selection bar */
+/* Selection bar.
+   Was `left: 50%; transform: translateX(-50%)`. The bar is a flex ITEM of
+   .ws-vnext-canvas (a column flexbox), so align-items:stretch already sized it
+   to 90% of the canvas starting at the left edge; `left` is only a sticky
+   constraint and could not move it, while the translate still shifted it 45% of
+   the canvas to the left, straight into .ws-vnext-canvas's overflow:hidden. The
+   quote and the first action were clipped at every width. `align-self: center`
+   is what was meant. */
 .ws-vnext-selection-bar {
   position: sticky;
   bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  align-self: center;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
@@ -998,7 +1099,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
+  min-width: 0;
+  max-width: min(300px, 100%);
 }
 
 .ws-vnext-selection-bar__action {
@@ -1023,6 +1125,7 @@
 
 .ws-vnext-gen-panel__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
@@ -1049,11 +1152,16 @@
 
 .ws-vnext-gen-stage {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 13px;
+}
+
+.ws-vnext-gen-stage > * {
+  min-width: 0;
 }
 
 .ws-vnext-gen-stage[data-status='done'] { background: var(--ws-green-bg); }
@@ -1105,12 +1213,34 @@
 
 .ws-vnext-inspector__tabs {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--ws-line);
   flex-shrink: 0;
+  /* The inspector pane can now shrink (see .ws-vnext-panes), and five equal
+     `flex: 1` tabs stop fitting their own 10px mono labels somewhere around a
+     240px pane. `flex: 1 0 auto` below keeps the desktop appearance identical —
+     the tabs still grow to fill the row — and turns the row into a scroller
+     instead of clipping the labels when it gets tight. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ws-vnext-inspector__tabs::-webkit-scrollbar { display: none; }
+
+/* The expanded inspector had NO control that set inspectorCollapsed(true) —
+   only the collapsed rail could toggle, and only in one direction. Once
+   expanded the pane could never be collapsed again at any width, and below
+   1180 (where an expanded pane is a full-screen sheet) that would have left an
+   undismissable sheet over the document. */
+.ws-vnext-inspector__collapse {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: 4px;
 }
 
 .ws-vnext-inspector-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  white-space: nowrap;
   padding: 8px 4px;
   border: 0;
   background: transparent;
@@ -1276,7 +1406,11 @@
 
 .ws-vnext-panes[data-inspector-collapsed='true'] .ws-vnext-inspector-collapsed-rail { display: flex; }
 
+/* `position: relative` for the same reason as .ws-vnext-agent-header: the
+   unresolved-conflict / blocker badge below is position:absolute, and with no
+   positioned ancestor it escaped to the page's top-right corner. */
 .ws-vnext-inspector-rail-icon {
+  position: relative;
   width: 28px;
   height: 28px;
   display: flex;
@@ -1411,6 +1545,7 @@
   border-top: 1px solid var(--ws-line);
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1426,10 +1561,14 @@
   gap: 8px;
 }
 
-/* Proposal diff */
+/* Proposal diff.
+   minmax(0, 1fr), not a bare 1fr: the sides hold JSON.stringify output whose
+   min-content width is the longest unbreakable token (ids, hashes, urls), and a
+   bare 1fr floors each track at that and scrolls the whole overlay sideways.
+   The per-side scroller is the escape hatch for a token wider than one column. */
 .ws-vnext-diff {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -1439,6 +1578,8 @@
   padding: 12px;
   font-size: 12px;
   line-height: 18px;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .ws-vnext-diff__side-label {
@@ -1463,10 +1604,15 @@
   margin: 0 auto;
 }
 
+/* Four steps plus three 40px connectors carrying 8px margins each — 168px of
+   pure connector, against ~294px of mobile content box. Wraps now, and the
+   connectors are dropped below 780 (the same move the editor's phase spine
+   already makes when it wraps). */
 .ws-vnext-creation__steps {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0;
+  gap: 8px 12px;
   margin-bottom: 32px;
 }
 
@@ -1484,6 +1630,7 @@
 .ws-vnext-creation-step__num {
   width: 24px;
   height: 24px;
+  flex-shrink: 0;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1502,6 +1649,7 @@
 .ws-vnext-creation-step-connector {
   width: 40px;
   height: 1px;
+  flex-shrink: 0;
   background: var(--ws-line);
   margin: 0 8px;
 }
@@ -1512,8 +1660,10 @@
   position: sticky;
   bottom: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 8px 12px;
   padding: 12px 0;
   border-top: 1px solid var(--ws-line);
   margin-top: 24px;
@@ -1528,11 +1678,21 @@
   height: 100%;
 }
 
+/* Used by all three studio views. The right side carries ViewTabs (three
+   segments reading "Blueprints / Document themes / Compare versions") plus
+   "New blueprint" — ~330px minimum against ~294px of mobile content, before the
+   title block gets any width at all. Wraps, exactly like the library header. */
 .ws-vnext-studio__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 24px;
+}
+
+.ws-vnext-studio__header > * {
+  min-width: 0;
 }
 
 .ws-vnext-blueprint-card {
@@ -1575,8 +1735,19 @@
 
 /* ── Public share ────────────────────────────────────────────────────────── */
 
+/*
+ * `min-height: 100%`, not 100vh. Despite the file header calling this a
+ * shell-less entry, /share/:token is NOT shell-free: App.tsx registers no
+ * /share route, so it lands on the catch-all INSIDE the BillingGate, and
+ * VNextApp wraps everything except /meri* in AppShellUui. This view therefore
+ * renders inside .capiro-vnext-root > .capiro-vnext-uui > main.uui-content,
+ * already offset by the 72px topbar and .uui-content's own padding — a full
+ * viewport height on top of that guaranteed ~170px of dead scroll past the
+ * fold at every width. It also means the shell owns the horizontal gutter and
+ * the shell's breakpoints already apply here.
+ */
 .ws-vnext-share {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--ws-page-bg);
@@ -1586,8 +1757,9 @@
 
 .ws-vnext-share__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--ws-line);
   background: var(--ws-page-bg);
@@ -1607,18 +1779,25 @@
   margin-left: auto;
 }
 
+/* The 24px side padding here is a THIRD gutter, stacked on .uui-content's
+   32/16px — 40px a side on a 390px phone, a fifth of the screen, before the
+   paper's own padding. Clamped against the container's own width so it keeps
+   the designed 24px wherever there is room and gives up first where there is
+   not. --ws-paper-max now resolves (see the token block at the top of this
+   file); it previously fell back to `none` and the shared document ran the
+   full content box with no measure cap at all. */
 .ws-vnext-share__paper {
   max-width: var(--ws-paper-max);
   margin: 32px auto;
   width: 100%;
-  padding: 0 24px;
+  padding-inline: clamp(0px, 3%, 24px);
 }
 
 .ws-vnext-share__guest-comment {
   max-width: var(--ws-paper-max);
   margin: 0 auto 32px;
   width: 100%;
-  padding: 0 24px;
+  padding-inline: clamp(0px, 3%, 24px);
 }
 
 .ws-vnext-share__comment-box textarea {
@@ -1634,8 +1813,10 @@
 
 .ws-vnext-share__comment-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-top: 6px;
 }
 
@@ -1645,7 +1826,8 @@
 }
 
 .ws-vnext-share__unavailable {
-  min-height: 100vh;
+  min-height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1713,47 +1895,6 @@
   100% { background-position: -200% 0; }
 }
 
-/* ── Responsive ─────────────────────────────────────────────────────────────── */
-
-@media (max-width: 1280px) {
-  .ws-vnext-panes {
-    --ws-agent-panel-width: 280px;
-    --ws-inspector-width: 320px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .ws-vnext-panes {
-    --ws-agent-panel-width: 260px;
-    --ws-inspector-width: 300px;
-  }
-  .ws-vnext-attention-cards {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .ws-vnext-panes {
-    grid-template-columns: 1fr;
-  }
-  .ws-vnext-pane--agent,
-  .ws-vnext-pane--inspector {
-    display: none;
-  }
-  .ws-vnext-panes[data-agent-collapsed='true'] .ws-vnext-pane--agent,
-  .ws-vnext-panes[data-inspector-collapsed='true'] .ws-vnext-pane--inspector {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    background: var(--ws-page-bg);
-  }
-  .ws-vnext-paper-container { padding: 16px; }
-  .ws-vnext-paper { padding: 24px; }
-}
 
 /* ── Template Studio — editor, themes, compare ─────────────────────────────── */
 
@@ -1765,6 +1906,7 @@
 
 .ws-vnext-studio__header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
@@ -1858,10 +2000,15 @@
 
 .ws-vnext-studio__editor-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 16px;
   gap: 16px;
+}
+
+.ws-vnext-studio__editor-header > * {
+  min-width: 0;
 }
 
 .ws-vnext-studio__editor-title-block h1 {
@@ -1878,6 +2025,7 @@
 
 .ws-vnext-studio__editor-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -2026,8 +2174,10 @@
 
 .ws-vnext-studio__step-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .ws-vnext-studio__step-head h2 {
@@ -2097,7 +2247,8 @@
 
 .ws-vnext-studio__theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -2234,15 +2385,17 @@
 
 .ws-vnext-studio__theme-editor-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--ws-line);
 }
 
 .ws-vnext-studio__theme-editor-body {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
 }
@@ -2281,6 +2434,7 @@
 
 .ws-vnext-studio__compare-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -2303,7 +2457,7 @@
 
 .ws-vnext-studio__compare-split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -2328,9 +2482,137 @@
   background: #fff;
 }
 
-@media (max-width: 900px) {
-  .ws-vnext-studio__editor-body { flex-direction: column; }
-  .ws-vnext-studio__step-rail { width: 100%; flex-direction: row; overflow-x: auto; }
-  .ws-vnext-studio__theme-editor-body { grid-template-columns: 1fr; }
-  .ws-vnext-studio__compare-split { grid-template-columns: 1fr; }
+/* The 900px block that used to live here has been folded into the canonical
+   1179/779 queries in the Responsive section below. That section MUST stay last
+   in this file: its rules are single-class selectors, so they tie with the base
+   rules above on specificity and win only on source order. Moving it earlier
+   silently kills the Template Studio theme-editor, step-rail and compare-split
+   rules. */
+
+/* ── Responsive ───────────────────────────────────────────────────────────────
+ *
+ * Two canonical boundaries only (see foundations/responsive.css):
+ *   max-width: 1179px  tablet — shell rail collapses to 80px
+ *   max-width:  779px  mobile — no rail, fixed 64px bottom nav
+ *
+ * This module used to restack at 768 while the shell drops its rail at 779,
+ * leaving a 769-779 seam in which the three-pane row still allocated 560px of
+ * side panes inside a 737px content box (canvas ~177px). The 1280/1024 pane
+ * width steps are gone entirely — the panes now shrink continuously via flex,
+ * so there is nothing left for them to step.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1179px) {
+  /*
+   * PANE SHEETS — the selectors here used to be inverted. Both side panes were
+   * display:none by default and were shown as a fixed inset:0 sheet only when
+   * data-*-collapsed='true', i.e. when the user had COLLAPSED them. Every
+   * collapse/expand control lives inside those subtrees, so in the default
+   * state (both false) the Document Agent conversation, the composer and the
+   * whole Inspector were unreachable with no control anywhere to bring them
+   * back; and the one control the collapsed sheet did expose set collapsed to
+   * false, which hid it for good.
+   *
+   * Right way round: a COLLAPSED pane stays in flow as its 56px rail — that
+   * rail IS the affordance — and an EXPANDED pane is the full-screen sheet,
+   * dismissed by its own collapse button. The editor additionally defaults both
+   * panes to collapsed below 1180 (WorkspaceEditorVNext.tsx); without that the
+   * first paint in this band would be two stacked sheets over the document.
+   *
+   * The sheet deliberately covers the shell's bottom nav (z-index 20). That is
+   * acceptable for a modal sheet precisely because it is now dismissible.
+   */
+  .ws-vnext-panes:not([data-agent-collapsed='true']) .ws-vnext-pane--agent,
+  .ws-vnext-panes:not([data-inspector-collapsed='true']) .ws-vnext-pane--inspector {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    border: 0;
+    background: var(--ws-page-bg);
+  }
+
+  /* Touch targets. These controls are 24-30px tall by design and the Figma
+     stages hold >=44px on every interactive element at tablet and mobile. The
+     hit area grows; nothing else moves, because each of these already sits in a
+     row sized by its own padding. */
+  .ws-vnext-btn--sm,
+  .ws-vnext-scope-segment button,
+  .ws-vnext-scope-segment__btn,
+  .ws-vnext-packet-tab,
+  .ws-vnext-packet-tab__add,
+  .ws-vnext-inspector-tab,
+  .ws-vnext-collapse-btn,
+  .ws-vnext-quick-rev-chip,
+  .ws-vnext-assumption-card__btn,
+  .ws-vnext-studio__btn--ghost {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+  .ws-vnext-collapse-btn,
+  .ws-vnext-packet-tab__add {
+    min-width: var(--capiro-hit-size, 44px);
+  }
+  .ws-vnext-inspector-rail-icon {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+
+  /* 320px of controls beside a 480px preview paper needs ~816px; the tablet
+     band tops out at 907px of studio content and falls away fast. */
+  .ws-vnext-studio__theme-editor-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 779px) {
+  /*
+   * The shell owns the horizontal gutter (16px here). These four page roots
+   * each add another 32px, so a 390px phone spent 96px — a quarter of the
+   * screen — on nested gutters before any content. Vertical rhythm is kept.
+   */
+  .ws-vnext-library,
+  .ws-vnext-creation,
+  .ws-vnext-studio {
+    padding-inline: 0;
+  }
+
+  /* Four steps + three connectors is 168px of pure connector against ~358px of
+     content; the wrapped steps read fine without them, exactly as the editor's
+     phase spine already does when it wraps. */
+  .ws-vnext-creation-step-connector {
+    display: none;
+  }
+
+  .ws-vnext-paper {
+    padding-block: 28px;
+  }
+
+  /* Full-bleed sheet, matching every other vNext overlay below 780
+     (foundations/responsive.css §7). .ws-vnext-overlay is a module-local class,
+     so the foundation's .capiro-modal/.capiro-drawer rules never reached it. */
+  .ws-vnext-overlay-scrim {
+    padding: 0;
+  }
+  .ws-vnext-overlay {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .ws-vnext-diff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-vnext-studio__editor-body {
+    flex-direction: column;
+  }
+  .ws-vnext-studio__step-rail {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .ws-vnext-studio__compare-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

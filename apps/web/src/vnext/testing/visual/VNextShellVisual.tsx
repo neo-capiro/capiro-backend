@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { AppShellUuiView } from '../../shell/AppShellUui/index.js';
@@ -28,6 +29,21 @@ import '../../pages/client-crm/client-crm.css';
  * VNextShellScaffold/CapiroSidebar/CapiroTopBar are retired from production
  * but still exist as files if a future session needs to compare against them.
  */
+/**
+ * `AppShellUuiView` renders the real `NotificationBell`, which runs its own
+ * `useNotifications()` query rather than reading the injected `notifications`
+ * view-model. That needs a QueryClient in context or the tree throws. Retries
+ * and refetches are off so the harness stays offline and deterministic; the
+ * query fails immediately against the stubbed (token-less) client and the bell
+ * renders its real "unavailable" state.
+ */
+const harnessQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, refetchOnWindowFocus: false, refetchInterval: false, gcTime: Infinity },
+    mutations: { retry: false },
+  },
+});
+
 const visualRoutes = VNEXT_ROUTE_MANIFEST.filter((route) => route.id !== 'settings');
 const settingsRoute = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'settings') ?? null;
 
@@ -92,8 +108,9 @@ export function VNextShellVisual({
       : DASHBOARD_VISUAL_FIXTURE;
 
   return (
-    <MemoryRouter initialEntries={[SCREEN_ROUTES[screen]]}>
-      <div className="capiro-vnext-root">
+    <QueryClientProvider client={harnessQueryClient}>
+      <MemoryRouter initialEntries={[SCREEN_ROUTES[screen]]}>
+        <div className="capiro-vnext-root">
         <AppShellUuiView
           navigation={{ primary: visualRoutes, settings: settingsRoute, loading: false }}
           identity={fixtureIdentity}
@@ -141,7 +158,8 @@ export function VNextShellVisual({
             </div>
           )}
         </AppShellUuiView>
-      </div>
-    </MemoryRouter>
+        </div>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }

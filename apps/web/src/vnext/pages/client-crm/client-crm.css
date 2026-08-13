@@ -205,10 +205,15 @@
 .capiro-vnext-root .capiro-crm__focus {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--capiro-space-02);
-  height: 36px;
-  padding: 0 var(--crm-gutter);
-  overflow: hidden;
+  /* Was `height: 36px; overflow: hidden`, which silently CLIPPED any focus
+     chip past the right edge — the chips are white-space:nowrap, so they never
+     shrank and the last one simply disappeared with no affordance to reach it.
+     min-height keeps the Figma 36px row whenever the chips fit on one line and
+     lets the row grow instead of hiding data when they do not. */
+  min-height: 36px;
+  padding: 4px var(--crm-gutter);
 }
 
 .capiro-vnext-root .capiro-crm__focus .capiro-crm__meta { margin-right: 4px; }
@@ -247,6 +252,12 @@
   border: 0;
   background: transparent;
   padding: 0 var(--capiro-space-04);
+  /* min-width REPLACES the flex automatic minimum size, so without the two
+     lines below every tab shrank to 64px and its label spilled across the
+     neighbour instead of producing the scroll width the overflow-x rule in the
+     responsive section is there to scroll. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   min-width: 64px;
   font-family: inherit;
   font-size: var(--crm-body-sm-size);
@@ -284,6 +295,11 @@
 
 .capiro-vnext-root .capiro-crm__subtab {
   appearance: none;
+  /* Same reasoning as .capiro-crm__tab: the pills must keep their label width
+     so the sub-rail can scroll rather than crush. "Government relationships"
+     and the six Intelligence views exceed the content width well before 780. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   height: 32px;
   padding: 0 var(--capiro-space-03);
   border: 1px solid var(--crm-quiet);
@@ -319,7 +335,13 @@
 .capiro-vnext-root .capiro-crm__page-head {
   display: flex;
   align-items: flex-start;
-  gap: var(--capiro-space-04);
+  /* The trailing control is either a button or a full-width search input
+     (VNextClientPicker, Files). At 390 the input's own minimum plus the title's
+     longest word exceed the content width, so the row wraps instead of pushing
+     the page into horizontal scroll. Above ~700 nothing wraps and the desktop
+     geometry is untouched. */
+  flex-wrap: wrap;
+  gap: var(--capiro-space-03) var(--capiro-space-04);
   margin-bottom: 14px;
 }
 
@@ -370,7 +392,8 @@
 .capiro-vnext-root .capiro-crm__card-head {
   display: flex;
   align-items: center;
-  gap: var(--capiro-space-03);
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02) var(--capiro-space-03);
   min-height: 28px;
   /* Attention rail starts at y=55: 13 padding + 28 head + 14. */
   margin-bottom: 14px;
@@ -492,8 +515,13 @@
   align-items: center;
   gap: var(--capiro-space-03);
   flex-wrap: wrap;
-  /* Matches a plain value line so the 24px chip does not grow the row. */
-  height: 18px;
+  /* Matches a plain value line so the 24px chip does not grow the row — but as
+     a MINIMUM, not a fixed height. The row is allowed to wrap and this cell is
+     one of two `.capiro-crm__fields` columns (~174px at 1280), while the value
+     plus the brief chip needs ~187px: with `height: 18px` the wrapped chip
+     rendered below the box, past the card's 19px bottom padding and across its
+     border. Costs 6px of Figma-exact height only when it actually wraps. */
+  min-height: 18px;
 }
 
 /* ── Needs attention (908:2931) — 45px rows with a 4px leading rail ──────── */
@@ -712,14 +740,28 @@
 
 /* ── Responsive contract (§5) ────────────────────────────────────────────── */
 
-/* 1200–1439: the shell collapses its own rail to 72px; cards compress to their
-   documented minimums and the two-column arrangements are preserved. */
-@media (max-width: 1439px) {
-  .capiro-vnext-root .capiro-crm { --crm-gutter: 20px; --crm-gap: 16px; }
-}
+/*
+ * BREAKPOINTS. This file used to key off 1199/1439 and carried a comment
+ * claiming the shell "collapses its own rail to 72px" at 1200. That was wrong
+ * in both numbers: the shell collapses at max-width 1179 and its rails are
+ * 272/80, not 280/72 (shell-uui.css, foundations/responsive.css). The 1199
+ * queries have been moved onto the canonical 1179 boundary so the page body
+ * restacks exactly when the rail becomes an icon rail; the only band that
+ * changes behaviour is 1180–1199, which now renders the same two-column
+ * arrangement it already rendered at 1200 (content is ~844px either way).
+ *
+ * The old 1439 query, which only retuned --crm-gutter/--crm-gap, is folded into
+ * the 1179 query below rather than surviving as a third boundary: nothing
+ * reflowed across 1439, so the only effect is that 1180–1439 now keeps the
+ * Figma-exact 24/20 spacing it was designed with instead of the compressed
+ * 20/16 pair, which costs about 6px of card interior and breaks nothing.
+ */
 
-/* 1024–1199: stack the two-column regions once their minimum widths fail. */
-@media (max-width: 1199px) {
+/* ≤1179 — tablet: the shell shows an 80px icon rail. Compress the spacing
+   customs and stack the two-column regions once their minimum widths fail. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-crm { --crm-gutter: 20px; --crm-gap: 16px; }
+
   .capiro-vnext-root .capiro-crm__grid--profile,
   .capiro-vnext-root .capiro-crm__grid--even { grid-template-columns: minmax(0, 1fr); }
 
@@ -907,6 +949,7 @@
 
 .capiro-vnext-root .capiro-crm-fill__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--capiro-space-02);
   padding-top: var(--capiro-space-03);
 }
@@ -934,7 +977,22 @@
   padding: 0;
 }
 
-.capiro-vnext-root .capiro-crm__org-tree { justify-content: center; }
+/*
+ * NOT `justify-content: center`. Centred flex content that overflows its scroll
+ * container cannot be scrolled back to on the start side — scrollLeft cannot go
+ * negative — so the leftmost branch was permanently unreachable. Three 208px
+ * sibling cards plus gaps need ~656px and the canvas card is ~620px interior at
+ * 1280, so this was already losing a branch on a DESKTOP viewport, not only on
+ * a phone. `width: max-content` + auto inline margins centre the tree while it
+ * fits and left-align it the moment it does not, which is what makes the whole
+ * tree reachable through .capiro-crm__org-scroll.
+ */
+.capiro-vnext-root .capiro-crm__org-tree {
+  justify-content: flex-start;
+  width: max-content;
+  max-width: none;
+  margin-inline: auto;
+}
 
 .capiro-vnext-root .capiro-crm__org-node {
   display: flex;
@@ -1125,9 +1183,16 @@
   font-family: var(--capiro-type-family-sans);
 }
 
+/*
+ * This row only ever lives inside a drawer, whose width is min(480px, 100%) —
+ * a function of the OVERLAY, not of the viewport. Stacking it on a viewport
+ * media query was therefore answering the wrong question: it went single-column
+ * on a 1024px tablet where the drawer is still a comfortable 480px, and stayed
+ * two-column nowhere it mattered. auto-fit measures the box it is actually in.
+ */
 .capiro-vnext-root .capiro-crm-form__row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: var(--capiro-space-03);
 }
 
@@ -1156,9 +1221,8 @@
   outline-offset: -1px;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 1179px) {
   .capiro-vnext-root .capiro-crm__grid--org { grid-template-columns: minmax(0, 1fr); }
-  .capiro-vnext-root .capiro-crm-form__row { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── History (906:3360) / Government (906:3075) / Work (906:3645) ────────── */
@@ -1272,7 +1336,10 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  /* minmax(min(240px, 100%), 1fr), not minmax(240px, 1fr): a bare 240px floor
+     overflows any container narrower than 240 — the file card's interior is
+     224px at a 320px viewport. */
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: var(--capiro-space-03);
 }
 
@@ -1286,7 +1353,189 @@
   align-items: flex-start;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 1179px) {
   .capiro-vnext-root .capiro-crm__grid--history,
   .capiro-vnext-root .capiro-crm__grid--files { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Scoped override for a canonical component ───────────────────────────── */
+
+/*
+ * ClientCrmCapabilities deliberately mounts the CANONICAL CapabilityDrawer
+ * (src/pages/clients/CapabilityDrawer.tsx) rather than re-implementing the
+ * editor, and that drawer renders IN FLOW inside .capiro-crm__body — no portal,
+ * no overlay. Its panel is `width: 560px; min-width: 560px` in src/theme.css,
+ * which is a file shared with production app.capiro.ai and must not be edited
+ * on this branch. At 390 that is a 560px block in a ~334px body: the
+ * foundation's overflow-x:clip safety net stops the page scrolling and
+ * therefore cuts ~226px of the editor — including form fields — clean off.
+ *
+ * min(560px, 100%) is the same idiom .capiro-overlay-panel uses. It is
+ * identical to the canonical rule at every width where 560px fits, so the
+ * production surface is unaffected and only the vNext CRM subtree is retargeted.
+ * The drawer's INTERNAL geometry is still canonical and unaudited — see the
+ * residual risk note in this change's summary.
+ */
+.capiro-vnext-root .capiro-crm .cap-drawer {
+  width: min(560px, 100%);
+  min-width: 0;
+}
+
+/* ── Touch targets, ≤1179 (tablet and mobile) ────────────────────────────── */
+
+/*
+ * The Figma stages hold >=44px on every interactive element at tablet and
+ * mobile and the LegiWatch handoff states it as a rule, so these grow IN FLOW
+ * rather than through an overlaid ::after. An overlay was the first instinct —
+ * it preserves the Figma-exact density — but these controls sit 8px apart in
+ * .capiro-crm__row-side and .capiro-crm__event-head, and two 44px overlays on
+ * 14px labels 8px apart intersect. Move and Delete on a file row are 8px apart
+ * and one of them is destructive; overlapping their hit areas is worse than
+ * spending the vertical pixels.
+ */
+@media (max-width: 1179px) {
+  /* The 42px strip cannot host a 44px control. */
+  .capiro-vnext-root .capiro-crm__identity,
+  .capiro-vnext-root .capiro-crm__tabs { height: auto; }
+  .capiro-vnext-root .capiro-crm__identity { min-height: 42px; }
+  .capiro-vnext-root .capiro-crm__tab { min-height: var(--capiro-hit-size, 44px); }
+
+  .capiro-vnext-root .capiro-crm__more {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+
+  /* Sub-rail: scroll rather than crush, and clear the 1px-offset focus ring
+     that the scroll container would otherwise clip at the top edge. */
+  .capiro-vnext-root .capiro-crm__subtabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-top: 2px;
+  }
+  .capiro-vnext-root .capiro-crm__subtab {
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: var(--capiro-space-04);
+  }
+
+  /* Move / Delete on every file row, Pin / Settle / Open on every history
+     event, and the card-head actions. 10px line-height on its own is a 14px
+     target. */
+  .capiro-vnext-root .capiro-crm__card-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: var(--capiro-space-02);
+  }
+
+  /* The nine kind filters in Relationship history. */
+  .capiro-vnext-root .capiro-crm__pill--action {
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: 14px;
+  }
+
+  /* The clickable label is the target, and it is 18px tall inside a 44px row. */
+  .capiro-vnext-root .capiro-crm__level-toggle { min-height: var(--capiro-hit-size, 44px); }
+
+  .capiro-vnext-root .capiro-crm-form__input { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-crm-fill__check { width: 24px; height: 24px; }
+
+  /*
+   * Every action in this module is size="compact", which is 32px from the
+   * shared --capiro-control-height-compact token. The real cause lives in
+   * components/primitives.css, which this branch must not touch, so the fix is
+   * scoped to the CRM subtree — including its drawers and modals, which are
+   * in-tree descendants of .capiro-crm (there are no createPortal calls in
+   * src/vnext). Reported as an out-of-scope root cause.
+   */
+  .capiro-vnext-root .capiro-crm .capiro-button--compact {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}
+
+/* ── Mobile, ≤779 ────────────────────────────────────────────────────────── */
+
+/*
+ * The Client CRM handoff (1244:4240) declares 1024 the minimum supported
+ * viewport and defers mobile to "a separate mobile spec" that does not exist.
+ * This band is therefore DERIVED from the desktop composition, not drawn: same
+ * modules, same content, same named text styles (the Figma responsive stages
+ * were verified to reuse identical type at every stage), only geometry changes.
+ * Nothing is dropped and no field is invented to make a row fit.
+ */
+@media (max-width: 779px) {
+  /*
+   * The shell's .uui-content already spends 16px a side here. The CRM's own
+   * 20px gutter on top of that costs 72px of a 390px screen — nearly a fifth —
+   * so the page's share is trimmed rather than doubling the shell's.
+   */
+  .capiro-vnext-root .capiro-crm { --crm-gutter: 12px; --crm-gap: 12px; }
+
+  /*
+   * Identity restacks to: mark + name + status / account owner + Fill with Meri
+   * / overflow. Nothing is hidden — the row simply cannot hold ~540px of
+   * unshrinkable content (two nowrap pills, a button and a 44px icon) in 334px.
+   */
+  .capiro-vnext-root .capiro-crm__identity {
+    flex-wrap: wrap;
+    row-gap: var(--capiro-space-02);
+    padding-bottom: var(--capiro-space-02);
+  }
+  /* flex-basis 0 keeps the name out of the line-breaking calculation, so the
+     status pill stays on row one and the name ellipsises into what is left of
+     it instead of pushing the pill onto a line of its own. */
+  .capiro-vnext-root .capiro-crm__name { flex: 1 1 0; }
+  /* The spacer would otherwise compete with the name for the free space on
+     row one and open a gap in the middle of the identity. */
+  .capiro-vnext-root .capiro-crm__identity-spacer { display: none; }
+  /*
+   * Keeps the overflow button on the trailing edge of whichever row it lands
+   * on. Without it the button sits mid-row and its menu — anchored right:0 to
+   * this wrapper and 220px wide — opens off the left edge of the screen.
+   */
+  .capiro-vnext-root .capiro-crm__more-wrap { margin-inline-start: auto; }
+
+  /*
+   * Four tracks in a ~294px card interior are ~61px each, while single
+   * unbreakable label words rendered by .capiro-crm__meta are wider
+   * ("Opportunities" ~86px, "MILESTONES" ~66px) and spilled into the
+   * neighbouring metric. Two tracks at ~141px hold every label in the set.
+   */
+  .capiro-vnext-root .capiro-crm__metrics {
+    grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  }
+
+  /*
+   * Needs attention: the dot, four gaps, the kind badge, the date and the
+   * status consumed ~214px of a ~287px row, leaving the 1fr title about nine
+   * characters before it ellipsised. The trailing pair drops to a second grid
+   * row so the title keeps the full width.
+   */
+  .capiro-vnext-root .capiro-crm__attention-row {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    row-gap: 2px;
+    padding-block: var(--capiro-space-02);
+  }
+  .capiro-vnext-root .capiro-crm__attention-when { grid-column: 2; text-align: left; }
+  .capiro-vnext-root .capiro-crm__attention-status { grid-column: 3; }
+
+  /*
+   * Record rows: .capiro-crm__row-side is flex:0 0 auto and never shrinks, so
+   * the trailing cluster (TRL + MRL + "n PE" + funding ask on a capability;
+   * LINKED + INDEXED + Move + Delete on a file; the status badge in
+   * VNextClientPicker) left ~60px for the record's own name. Letting the row
+   * wrap gives the name the full width and the actions their own line.
+   */
+  .capiro-vnext-root .capiro-crm__row {
+    flex-wrap: wrap;
+    row-gap: var(--capiro-space-02);
+    padding-block: var(--capiro-space-02);
+  }
+  .capiro-vnext-root .capiro-crm__row-main { flex: 1 1 160px; }
+  /* 44px actions need more than 8px between them once they are side by side. */
+  .capiro-vnext-root .capiro-crm__row-side { gap: var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-crm__event-head { column-gap: var(--capiro-space-04); }
+
+  /* The history filter row holds 44px pills now; 8px between rows of them is
+     not enough to read as separate controls. */
+  .capiro-vnext-root .capiro-crm__filters { row-gap: var(--capiro-space-03); }
 }

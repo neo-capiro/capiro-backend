@@ -9,10 +9,10 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash { display: block; }
 
 /* Header */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 24px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 24px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash__greeting { margin: 0; font-size: var(--uui-text-display-sm); line-height: var(--uui-line-display-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); letter-spacing: -0.01em; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash__meta { margin: 6px 0 0; font-size: var(--uui-text-body); line-height: var(--uui-line-body); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash__header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; flex-shrink: 0; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash__refreshed { font-size: var(--uui-text-sm); color: var(--uui-gray-500); white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash__customize {
   height: 40px; padding: 0 16px; border: 1px solid var(--uui-gray-300); border-radius: var(--uui-radius-control);
@@ -28,14 +28,21 @@
 
 /* Cards */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card { min-width: 0; background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-card); overflow: hidden; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__head { display: flex; align-items: center; gap: 10px; padding: 20px 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__title { margin: 0; font-size: var(--uui-text-md); line-height: var(--uui-line-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
+/* Wraps, and the two text units that must stay legible refuse to break inside
+   themselves. Without this the head has no slack anywhere it lands in a narrow
+   column: "Today & Coming Up" + "Open Engagement" already needs ~280px against
+   the ~261px right column at a 1180px viewport, and at 390 the Needs Attention
+   head in its 'partial' state needs ~376px against 326. min-width:auto on the
+   h2 and the link resolves to min-content, so they were the pieces that broke —
+   rendering as "Needs / Attention" and "View / all". */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px 24px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__title { margin: 0; font-size: var(--uui-text-md); line-height: var(--uui-line-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__meta { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--uui-warning-bg); color: var(--uui-warning-fg); font-size: 12px; font-weight: var(--uui-weight-medium); }
 /* Compact module-state chip on the header row (replaces the full-width
    skeleton block a partial source used to eat). */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__state-chip { height: 22px; padding: 0 8px; font-size: 12px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link { margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link { position: relative; margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); text-decoration: none; white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link:hover { color: var(--uui-brand-hover-2); }
 
 /* Generic pill — badges, status chips, module state badges (all share one
@@ -106,26 +113,41 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot { width: 4px; height: 4px; border-radius: 999px; background: var(--uui-brand-solid); visibility: hidden; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot[data-visible] { visibility: visible; }
 
-/* Event rows */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event { display: grid; grid-template-columns: 72px minmax(0, 1fr) 160px; align-items: center; gap: 12px; min-height: 76px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
+/* Event rows
+   Intrinsically wrapping, NOT a fixed track list. The card these rows live in
+   is the narrow column of .uui-dash__columns, whose width is a function of the
+   1.6538fr/1fr ratio and the 1280px content cap — never of the viewport. At a
+   1280px viewport that column is ~347px, so the old
+   `72px minmax(0,1fr) 160px` left the title/meta column 347-48-72-160-24 = 43px
+   (and ~5px on meeting rows, whose action track grew to fit Join + Send Meri).
+   Titles are nowrap+ellipsis, so they rendered as three characters and an
+   ellipsis on every desktop width. No media query can see that condition and
+   container queries are barred, so the row wraps on its own: the 140px
+   flex-basis on the copy makes the action cluster drop to a second line instead
+   of starving the copy, and the copy then grows into the whole first line. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 12px; min-height: 76px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__time { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy { display: grid; gap: 2px; min-width: 0; }
+/* min-width rather than a fixed basis: the time column still lines up row to
+   row, but a long label ("Mon 18") grows instead of overflowing its box. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__time { flex: 0 0 auto; min-width: 72px; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy { display: grid; gap: 2px; flex: 1 1 140px; min-width: 0; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event__title { font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meta { font-size: 12px; color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__action { justify-self: end; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy-link { display: grid; min-width: 0; color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meeting-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+/* margin-left:auto, not justify-self:end — the row is a flex container now, and
+   an auto margin also right-aligns the cluster on whichever line it wraps to. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__action { flex: 0 0 auto; margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy-link { display: grid; flex: 1 1 140px; min-width: 0; color: inherit; text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meeting-actions { display: flex; flex: 0 0 auto; margin-left: auto; align-items: center; justify-content: flex-end; gap: 8px; }
 /* JoinButton/SendMeriButton read colors from these exact variable names via
    inline styles — same mechanism dashboard.css already relied on, just
    repointed at the Untitled-UI brand instead of the Capiro-native accent. */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-event--meeting {
-  /* Join + Send Meri together need ~198px at 'sm' size — wider than the
-     160px fixed column every other event row uses, which clipped the copy
-     column underneath them. auto lets the column grow to fit both buttons;
-     the title/meta column (minmax(0, 1fr)) yields the space and keeps its
-     own ellipsis truncation as the fallback. */
-  grid-template-columns: 72px minmax(0, 1fr) minmax(160px, auto);
+  /* No track override any more: Join + Send Meri together need ~198px, which
+     the flex row above resolves by wrapping the pair onto its own line rather
+     than by taking that width out of the title. The custom properties below
+     must stay — JoinButton and SendMeriButton read these exact names through
+     inline styles (pages/engagement/meetings/meetings-ui.tsx), so dropping the
+     rule would strip both buttons of their brand colours. */
   --accent: var(--uui-brand-solid);
   --accent-ink: var(--uui-brand-hover);
   --accent-soft: var(--uui-brand-tint);
@@ -150,15 +172,21 @@
    Seven named states from useDashboardVNextModel. A failed source keeps the
    module visible and never reads as empty. */
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__head { display: flex; align-items: center; gap: 12px; width: 100%; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__meta { margin-left: auto; font-size: 12px; color: var(--uui-gray-500); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; width: 100%; }
+/* The meta IS the source fact the state contract requires ("Portfolio alerts ·
+   Intelligence changes" in the unavailable state), so it must never be the
+   thing that disappears. nowrap + .uui-dash-card{overflow:hidden} clipped it
+   both at 390 in the full-width Needs Attention card and on desktop inside the
+   ~299px right column. It wraps instead; margin-left:auto still right-aligns
+   it whenever it shares the line with the state pill. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__meta { margin-left: auto; min-width: 0; font-size: 12px; color: var(--uui-gray-500); white-space: normal; overflow-wrap: anywhere; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__title { margin: 0; font-size: var(--uui-text-body); line-height: var(--uui-line-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__body { margin: 0; font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span { height: 8px; border-radius: 4px; background: var(--uui-gray-100); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span:first-child { background: var(--uui-gray-200); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span:last-child { width: 58%; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action { padding: 0; border: 0; background: none; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action { position: relative; align-self: flex-start; padding: 0; border: 0; background: none; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); cursor: pointer; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='warning'] { color: var(--uui-warning-fg); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='accent'] { color: var(--uui-brand-hover); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='success'] { color: var(--uui-success-fg); }
@@ -173,7 +201,9 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-next--work .uui-dash-next__eyebrow { color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-next__title { display: block; margin-top: 8px; font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-next__meta { display: block; margin-top: 4px; font-size: 12px; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__action { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; border-radius: var(--uui-radius-control); background: var(--uui-brand-solid); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-white); }
+/* 44px, matching the drawn mobile Join (72x44) — this module only ever renders
+   below 780, so there is no desktop geometry to preserve here. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__action { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 14px; border-radius: var(--uui-radius-control); background: var(--uui-brand-solid); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-white); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-next__status { position: absolute; top: 18px; right: 16px; font-size: 12px; color: var(--uui-gray-500); }
 
 /* ── Density (760:2695) — spacing and item count only, never meaning ─────── */
@@ -192,8 +222,12 @@
 /* ── Tablet stage (auto-collapsed rail, 780–1179px) ──────────────────────── */
 @media (max-width: 1179px) {
   .capiro-vnext-root .capiro-vnext-uui .uui-dash__columns { grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); }
-  /* The Due column is dropped; the action stays. */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention { grid-template-columns: 96px minmax(0, 1fr) 96px; }
+  /* The Due column is dropped; badge, copy, context and action all stay — so
+     the track list must be FOUR wide, not three. It was three, and with only
+     __due hidden the row still had four in-flow children: the action fell into
+     an implicit second row underneath the badge at every width from 780 to
+     1179. */
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention { grid-template-columns: 96px minmax(0, 1fr) minmax(0, 140px) 96px; }
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due { display: none; }
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-news { grid-template-columns: 64px minmax(0, 1fr); }
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__thumb { width: 64px; height: 56px; }
@@ -214,6 +248,11 @@
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__head { padding: 16px; }
   /* Badge leads, then title/eyebrow/meta stacked; no action row (759:2658). */
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 8px; padding: 16px; }
+  /* Grid blockifies the inline-flex badge and justify-self then resolves to
+     stretch, so in the single-column mobile grid the severity pill became a
+     full-card-width bar with its label hugging the left edge. Scoped to this
+     block so the 110px/96px desktop and tablet tracks are untouched. */
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention > .uui-pill { justify-self: start; }
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__context,
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due,
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action { display: none; }
@@ -238,12 +277,22 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__section-head { display: flex; align-items: baseline; gap: 12px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__label { flex: 1; margin: 0; font-size: 12px; font-weight: var(--uui-weight-semibold); letter-spacing: 0.03em; text-transform: uppercase; color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__hint { margin: 0; font-size: 12px; color: var(--uui-gray-400); white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module { display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 12px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); background: var(--uui-white); }
+/* min-height, not height: the pinned row's meta ("External and time-sensitive
+   signals") measures ~200px against ~206px of available track at 390 — it fits
+   today with no margin at all, and a hard height would clip it rather than let
+   the row grow. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 12px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); background: var(--uui-white); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module--pinned { background: var(--uui-brand-tint); box-shadow: inset 0 0 0 1px var(--uui-brand-ring); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module[data-dragging] { opacity: .5; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip { width: 22px; color: var(--uui-gray-400); font-size: 14px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module--pinned .uui-dash-drawer__grip { color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip--button { padding: 0; border: 0; background: none; text-align: left; cursor: grab; }
+/* The grip is the ONLY route to reorder on touch — HTML5 dragstart never fires
+   from a touch on the parent [draggable] div, so this button and its arrow-key
+   handler are the whole affordance. With padding:0 inside a centred flex row it
+   was a 22x17px box. Stretching it to the row height costs no geometry (the
+   glyph stays where it was drawn) and the ≤1179 block below adds the 44px hit
+   area on top. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip--button { position: relative; display: inline-flex; flex-shrink: 0; align-self: stretch; align-items: center; justify-content: flex-start; padding: 0; border: 0; background: none; text-align: left; cursor: grab; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__index { width: 22px; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-400); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module-copy { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module-title { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); }
@@ -260,10 +309,19 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row[data-checked] .uui-dash-drawer__check { background: var(--uui-brand-solid); box-shadow: inset 0 0 0 1px var(--uui-brand-solid); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-label { flex: 1; min-width: 0; font-size: var(--uui-text-sm); color: var(--uui-gray-700); }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action { width: 44px; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action--button { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+/* Sole entry point to custom-source editing, and unlike the eight topic rows
+   above it the row itself is not a button — so this control has to carry the
+   target. padding:0 in a centred flex row made it 44x15px. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action--button { position: relative; display: inline-flex; flex-shrink: 0; align-self: stretch; align-items: center; justify-content: flex-start; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__sources { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 10px 10px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--uui-gray-300); font-size: 12px; color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source button { padding: 0; border: 0; background: none; font-size: 13px; line-height: 1; color: var(--uui-gray-400); cursor: pointer; }
+/* Custom sources are free text with no maxLength, and a fixed-height nowrap
+   pill with no max-width pushed the drawer body sideways past ~45 characters
+   (__body is overflow-y:auto, so its overflow-x computes to auto and the whole
+   drawer gained a horizontal scrollbar). min-height preserves the single-line
+   geometry; a long source now grows a taller pill instead. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; max-width: 100%; padding: 4px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--uui-gray-300); font-size: 12px; color: var(--uui-gray-700); overflow-wrap: anywhere; }
+/* The only way to delete a custom source, and it was an ~8x13px box. */
+.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source button { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 24px; height: 24px; margin-right: -6px; padding: 0; border: 0; background: none; font-size: 13px; line-height: 1; color: var(--uui-gray-400); cursor: pointer; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add { display: flex; gap: 8px; width: 100%; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: var(--uui-radius-control); box-shadow: var(--uui-shadow-input); background: var(--uui-white); font: inherit; font-size: var(--uui-text-sm); color: var(--uui-gray-900); border: none; }
 .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input:focus-visible { box-shadow: var(--uui-shadow-focus); outline: none; }
@@ -289,6 +347,47 @@
 
 @media (max-width: 779px) {
   .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer { width: 100%; }
+}
+
+/* ── Touch targets, tablet + mobile (≤1179) ──────────────────────────────────
+   The surface-wide 44px rule. Controls that can simply grow do; the rest get an
+   overlaid hit area so the drawn geometry does not move. This restates
+   foundations' .capiro-hit mechanism rather than using the class because that
+   utility only arms below 780 and the rule covers tablet as well —
+   `max(100%, 44px)` means a control already wider than 44px is not stretched
+   sideways, only given the height. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash__customize { height: 44px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__close { width: 44px; height: 44px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row { height: auto; min-height: 44px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density { height: 48px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density-option { height: 44px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input { height: 44px; }
+  /*
+   * Send Meri and the row Join link cannot use the ::after overlay below —
+   * .uui-dash-send-meri::after is already the decorative caret glyph
+   * (dashboard.css:159), and a second ::after is not possible. Measured live at
+   * 390px: the button box was 123x36, so it failed the 44px rule while the
+   * overlay-based controls beside it passed. These are real buttons in a
+   * wrapping flex row, so growing them is safe — nothing is displaced.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-send-meri,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meeting-actions > a { min-height: var(--capiro-hit-size, 44px); }
+
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link::after,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action::after,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip--button::after,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action--button::after,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source button::after,
+  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: max(100%, var(--capiro-hit-size, 44px));
+    height: max(100%, var(--capiro-hit-size, 44px));
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* CapiroModal (Send Meri consent dialog) — same reuse-and-restyle approach. */

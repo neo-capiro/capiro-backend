@@ -290,7 +290,15 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
                 className="vnext-meri__scope-menu"
                 role="menu"
                 aria-label="Conversation scope"
-                style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0 }}
+                /* transform must be cleared too: the class centres the topbar
+                   copy of this menu with translateX(-50%), which here shifted
+                   it 150px left of its trigger. */
+                style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 6px)',
+                  left: 0,
+                  transform: 'none',
+                }}
               >
                 <button
                   type="button"

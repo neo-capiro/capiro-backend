@@ -211,49 +211,55 @@ function BlueprintList() {
       {error && <ErrorState message={error} onRetry={load} />}
 
       {blueprints && !loading && !error && (
-        <table className="ws-vnext-table ws-vnext-studio__table">
-          <thead>
-            <tr>
-              <th>Blueprint</th>
-              <th>Scope</th>
-              <th>Document type</th>
-              <th>Status</th>
-              <th>Pinned docs</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {blueprints.length === 0 && (
+        /* Six columns (~485px min-content: six cells of horizontal padding, a
+           "Capiro global" scope badge, a version rollup and a formatted date)
+           inside a ~294px mobile content box, with nothing declaring a scroll
+           container. Same treatment as the library table. */
+        <div className="capiro-scroll-x">
+          <table className="ws-vnext-table ws-vnext-studio__table">
+            <thead>
               <tr>
-                <td colSpan={6} className="ws-vnext-studio__empty">
-                  No blueprints yet.
-                </td>
+                <th>Blueprint</th>
+                <th>Scope</th>
+                <th>Document type</th>
+                <th>Status</th>
+                <th>Pinned docs</th>
+                <th>Updated</th>
               </tr>
-            )}
-            {blueprints.map((bp) => (
-              <tr
-                key={bp.blueprintId}
-                onClick={() => openBlueprint(bp)}
-                className="ws-vnext-studio__row"
-              >
-                <td>
-                  <div className="ws-vnext-doc-title">{bp.name}</div>
-                  {bp.description && <div className="ws-vnext-doc-meta">{bp.description}</div>}
-                </td>
-                <td>
-                  <ScopeBadge scope={bp.scope} />
-                </td>
-                <td>{bp.documentType ?? '—'}</td>
-                <td>{rollupStatus(bp.versions)}</td>
-                <td>
-                  {/* GAPS §11: list route does not return pinnedDocCount. */}
-                  {bp.pinnedDocCount == null ? '—' : String(bp.pinnedDocCount)}
-                </td>
-                <td>{formatDate(bp.updatedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {blueprints.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="ws-vnext-studio__empty">
+                    No blueprints yet.
+                  </td>
+                </tr>
+              )}
+              {blueprints.map((bp) => (
+                <tr
+                  key={bp.blueprintId}
+                  onClick={() => openBlueprint(bp)}
+                  className="ws-vnext-studio__row"
+                >
+                  <td>
+                    <div className="ws-vnext-doc-title">{bp.name}</div>
+                    {bp.description && <div className="ws-vnext-doc-meta">{bp.description}</div>}
+                  </td>
+                  <td>
+                    <ScopeBadge scope={bp.scope} />
+                  </td>
+                  <td>{bp.documentType ?? '—'}</td>
+                  <td>{rollupStatus(bp.versions)}</td>
+                  <td>
+                    {/* GAPS §11: list route does not return pinnedDocCount. */}
+                    {bp.pinnedDocCount == null ? '—' : String(bp.pinnedDocCount)}
+                  </td>
+                  <td>{formatDate(bp.updatedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

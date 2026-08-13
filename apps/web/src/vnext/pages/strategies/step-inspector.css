@@ -44,7 +44,7 @@
 
 .capiro-vnext-root .capiro-strategies .st-inspector__fields { display: flex; flex-direction: column; gap: 8px; margin: 0; }
 .capiro-vnext-root .capiro-strategies .st-inspector__fields > div {
-  display: flex; justify-content: space-between; gap: 12px;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px;
   background: var(--st-gray-50); border-radius: 8px; padding: 10px 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-inspector__fields dt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--st-gray-500); }
@@ -52,13 +52,19 @@
 
 .capiro-vnext-root .capiro-strategies .st-inspector__evidence { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .capiro-vnext-root .capiro-strategies .st-inspector__evidence li {
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 10px;
   border: 1px solid var(--st-gray-200); border-radius: 8px; padding: 10px 12px;
 }
-.capiro-vnext-root .capiro-strategies .st-inspector__evidence-title { font-size: 13px; font-weight: 500; color: var(--st-gray-900); }
-.capiro-vnext-root .capiro-strategies .st-inspector__evidence-ref { font-size: 11px; color: var(--st-gray-500); }
+.capiro-vnext-root .capiro-strategies .st-inspector__evidence-title { font-size: 13px; font-weight: 500; color: var(--st-gray-900); min-width: 0; }
+/* A provenance ref is a machine identifier (path, hash, source line) with no
+   break opportunities — the one string in this pane that can push the panel
+   wider than itself. */
+.capiro-vnext-root .capiro-strategies .st-inspector__evidence-ref {
+  font-size: 11px; color: var(--st-gray-500);
+  min-width: 0; overflow-wrap: anywhere; word-break: normal;
+}
 
-.capiro-vnext-root .capiro-strategies .st-inspector__actions { display: flex; gap: 10px; }
+.capiro-vnext-root .capiro-strategies .st-inspector__actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .capiro-vnext-root .capiro-strategies .st-inspector__actions .capiro-button { flex: 1; }
 
 .capiro-vnext-root .capiro-strategies .st-meri-suggestion {
@@ -83,3 +89,61 @@
   padding: 0 12px; font: inherit; font-size: 14px; color: var(--st-gray-900); background: var(--st-white);
 }
 .capiro-vnext-root .capiro-strategies .st-newstep select:focus-visible, .st-newstep input:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+
+/* ══ Responsive ═══════════════════════════════════════════════════════════
+   Canonical boundaries only (foundations/responsive.css): 1179 tablet,
+   779 mobile. Strategies has no drawn responsive stage in Figma; what the
+   inspector becomes below desktop is derived here, not transcribed.
+
+   WHAT THE MULTI-PANE EDITOR BECOMES:
+     >=1180  unchanged — 380px pane beside the timeline.
+     780–1179  a full-width panel BELOW the timeline (strategy-editor.css puts
+               .st-editor into a column). Still in flow, still in DOM order, so
+               tab order stays timeline -> inspector.
+     <=779   a full-height sheet fixed over the editor, stopping 64px short of
+               the shell's fixed bottom nav so the nav stays usable. On a phone
+               the inspector IS the screen: a panel appended below a timeline
+               the user has scrolled into would give no feedback at all when a
+               step is tapped, and stacking it above the timeline would break
+               visual/tab order agreement. */
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-strategies .st-inspector {
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--st-gray-200);
+  }
+  /* Touch-target floor: on a stacked/sheet layout this is the only affordance
+     that dismisses the panel. */
+  .capiro-vnext-root .capiro-strategies .st-inspector__close {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-vnext-root .capiro-strategies .st-inspector__tabs button {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-strategies .st-inspector {
+    position: fixed;
+    inset: 0 0 var(--capiro-bottomnav-h, 64px) 0;
+    z-index: 30;
+    width: auto;
+    height: auto;
+    max-height: none;
+    border-top: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* The sheet is its own scrollport, so pin the header: close must stay
+     reachable however far the body is scrolled. */
+  .capiro-vnext-root .capiro-strategies .st-inspector__head {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+    background: var(--st-white);
+  }
+}

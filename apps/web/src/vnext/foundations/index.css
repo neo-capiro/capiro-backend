@@ -2,5 +2,9 @@
 @import './reset.css';
 @import './typography.css';
 @import './elevation.css';
-@import './responsive.css';
 @import '../components/primitives.css';
+/* Last on purpose: responsive.css's mobile overlay rules (section 7) must win
+   the tie against primitives.css's equal-specificity .capiro-modal /
+   .capiro-drawer sizing. Import order is the only tiebreak at equal
+   specificity. */
+@import './responsive.css';

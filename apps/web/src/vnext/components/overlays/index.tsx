@@ -82,7 +82,13 @@ function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'ope
         aria-label={title}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-          <h2 className="capiro-vnext-heading" style={{ fontSize: 17 }}>{title}</h2>
+          {/* Titles are built at the call site from live data ("Data health —
+              {client.name}", "Fill with Meri — {clientName}"). A flex item's
+              automatic minimum size is its min-content width, so a single long
+              unbreakable token would push the close button out of the panel;
+              .capiro-wrap-anywhere sets min-width:0 and lets it break. The close
+              button holds its square via .capiro-icon-button's flex:0 0 auto. */}
+          <h2 className="capiro-vnext-heading capiro-wrap-anywhere" style={{ fontSize: 17 }}>{title}</h2>
           <CapiroIconButton label="Close" icon="×" onClick={onClose} />
         </div>
         {children}

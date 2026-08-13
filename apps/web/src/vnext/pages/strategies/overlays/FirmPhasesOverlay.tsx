@@ -253,8 +253,8 @@ export function FirmPhasesOverlay() {
                     value={row.label}
                     onChange={(event) => updateRow(row._key, { label: event.target.value })}
                   />
-                  <span style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--st-gray-500)' }}>
+                  <span className="st-phase-row__editor">
+                    <span className="st-phase-row__fields">
                       FY{fyInput(row, 'startFy', 'start')} Q{qInput(row, 'startQ', 'start')}
                       <span aria-hidden="true">→</span>
                       FY{fyInput(row, 'endFy', 'end')} Q{qInput(row, 'endQ', 'end')}

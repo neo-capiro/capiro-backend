@@ -28,10 +28,15 @@
 .capiro-vnext-root .capiro-strategies .st-steward__title-row {
   display: flex;
   align-items: flex-end;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 14px 28px;
 }
+/* A real flex-basis (not 0) is what makes the row wrap instead of squeezing:
+   with basis 0 the line never overflows, so the picker beside it just ate the
+   title. Grow is still 1 and the picker's is 0, so the wide layout — title
+   takes the slack, picker stays at 200px — is unchanged. */
 .capiro-vnext-root .capiro-strategies .st-steward__title-block {
-  flex: 1;
+  flex: 1 1 260px;
   min-width: 0;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__eyebrow {
@@ -55,9 +60,10 @@
   line-height: 1.5;
   color: var(--st-gray-600);
 }
+/* The client picker was unshrinkable at 200px, which left the title block ~74px
+   of a 302px header. It now takes a row of its own before that happens. */
 .capiro-vnext-root .capiro-strategies .st-steward__title-row .capiro-field {
-  flex-shrink: 0;
-  min-width: 200px;
+  flex: 0 1 200px;
 }
 
 /* ---- body ---------------------------------------------------------------- */
@@ -123,7 +129,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-hint {
   flex: 1;
-  min-width: 220px;
+  min-width: min(220px, 100%);
   font-size: 12px;
   line-height: 1.5;
   color: var(--st-accent-deep-label);
@@ -267,9 +273,14 @@
   font-weight: 600;
   color: var(--st-gray-900);
 }
+/* Candidate A / candidate B side by side wherever there is room for both, one
+   per row when there is not. Intrinsic, so it needs no breakpoint of its own:
+   the old `max-width: 1100px` step stacked them through the whole tablet band
+   even at a 780px-wide card, where two 380px cards fit fine. */
 .capiro-vnext-root .capiro-strategies .st-steward__candidates {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate {
@@ -360,9 +371,12 @@
 }
 
 /* conflict actions + inline confirms */
+/* Two kit buttons at their 120px floor land within ~6px of the card's inner
+   width on a 390px screen — close enough that any label change overflows it. */
 .capiro-vnext-root .capiro-strategies .st-steward__conflict-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__confirm {
@@ -444,9 +458,32 @@
   background: var(--st-accent-tint);
 }
 
-/* responsive: candidates stack */
-@media (max-width: 1100px) {
-  .capiro-vnext-root .capiro-strategies .st-steward__candidates {
-    grid-template-columns: minmax(0, 1fr);
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * The old `max-width: 1100px` candidates step is gone — `.st-steward__candidates`
+ * above is intrinsic now and covers every width without a query. What is left
+ * is the mobile band, on the canonical 779 boundary.
+ */
+@media (max-width: 779px) {
+  /* The shell already spends 16px a side; a second 28px gutter took 88px of a
+     390px screen. Bottom-nav clearance is the shell's (it reserves 64px on
+     .capiro-vnext-uui below 780), so this only touches the inline axis. */
+  .capiro-vnext-root .capiro-strategies .st-steward__header { padding-inline: 16px; }
+  .capiro-vnext-root .capiro-strategies .st-steward__body { padding-inline: 16px; }
+
+  /* Search takes its own row rather than a fixed 160px input. */
+  .capiro-vnext-root .capiro-strategies .st-steward__search {
+    display: flex;
+    flex: 1 1 100%;
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-vnext-root .capiro-strategies .st-steward__search input {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* Touch target (>=44px) for the per-fact reject control. */
+  .capiro-vnext-root .capiro-strategies .st-steward__reject {
+    min-height: var(--capiro-hit-size, 44px);
   }
 }

@@ -13,7 +13,8 @@
 .capiro-strategies .st-ctxbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   padding: 10px 28px;
   background: var(--st-white);
   border-bottom: 1px solid var(--st-gray-200);
@@ -77,9 +78,10 @@
 .capiro-strategies .st-ctxlib__title-row {
   display: flex;
   align-items: flex-end;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 14px 28px;
 }
-.capiro-strategies .st-ctxlib__title-block { flex-shrink: 0; }
+.capiro-strategies .st-ctxlib__title-block { flex: 0 1 auto; min-width: 0; }
 .capiro-strategies .st-ctxlib__eyebrow {
   font-size: 11px;
   font-weight: 700;
@@ -95,15 +97,18 @@
   color: var(--st-gray-900);
 }
 .capiro-strategies .st-ctxlib__lede {
-  flex: 1;
+  flex: 1 1 260px;
   max-width: 520px;
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--st-gray-600);
 }
+/* Two kit buttons = a hard 250px (the 120px button floor). It has to be able
+   to take a row of its own rather than push the title off the header. */
 .capiro-strategies .st-ctxlib__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   flex-shrink: 0;
 }
@@ -207,8 +212,12 @@
   font-size: 13px;
   color: var(--st-gray-900);
 }
+/* One pill per client, plus a five-item state filter — both groups are wider
+   than a phone. The toolbar around them already wraps; the groups did not. */
 .capiro-strategies .st-ctxlib__pill-group {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 4px;
   padding: 3px;
   background: var(--st-white);
@@ -423,9 +432,52 @@
   color: var(--st-gray-500);
 }
 
-/* responsive: collapse the rail under the documents column */
-@media (max-width: 1100px) {
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * Migrated from the module's old 1100px step onto the canonical 1179/779
+ * boundaries (foundations/responsive.css). 1100 was 79px short of the shell's
+ * own rail boundary, so between 1101 and 1179 the page ran the desktop
+ * composition against a tablet content width; that band now stacks with the
+ * rest of the tablet range.
+ */
+
+/* tablet: collapse the contract rail under the documents column */
+@media (max-width: 1179px) {
   .capiro-strategies .st-ctxlib__grid { grid-template-columns: minmax(0, 1fr); }
   .capiro-strategies .st-ctxlib__rail { position: static; }
   .capiro-strategies .st-ctxlib__band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 779px) {
+  /* The shell's .uui-content already spends 16px a side here. A second 28px
+     gutter took 88px of a 390px screen; 16px leaves the stat cards a usable
+     track. Bottom-nav clearance is the shell's (it reserves 64px on
+     .capiro-vnext-uui below 780), so this only touches the inline axis. */
+  .capiro-strategies .st-ctxbar { padding-inline: 16px; }
+  .capiro-strategies .st-ctxlib__header { padding-inline: 16px; }
+  .capiro-strategies .st-ctxlib__body { padding-inline: 16px; }
+
+  /* A stat is `30px value + uppercase label`; two of those in ~145px tracks
+     overflowed their own cards. One card per row. */
+  .capiro-strategies .st-ctxlib__band { grid-template-columns: minmax(0, 1fr); }
+
+  /* Row: copy + state pills on line one, updated stamp + chevron on line two.
+     Nothing is dropped, and the DOM order is unchanged so the reading and tab
+     order still run copy → pills → stamp → chevron. */
+  .capiro-strategies .st-ctxlib__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px 12px;
+  }
+  .capiro-strategies .st-ctxlib__row-updated { align-self: center; }
+
+  /* Search takes its own full row instead of a fixed 150px input. */
+  .capiro-strategies .st-ctxlib__search {
+    display: flex;
+    flex: 1 1 100%;
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-strategies .st-ctxlib__search input { width: 100%; min-width: 0; flex: 1; }
+
+  /* Touch targets (>=44px) — the filter pills are the primary control here. */
+  .capiro-strategies .st-ctxlib__pill { min-height: var(--capiro-hit-size, 44px); }
 }
