@@ -13,14 +13,15 @@ import {
 /**
  * Configure Hierarchy — Figma `907:3028`.
  *
- * Two jobs: choose which levels the org chart shows, and clear the review
- * queue. Both write through the same hierarchy endpoint the drawer uses, so a
- * placement made here is indistinguishable from one made anywhere else.
+ * This is the hierarchy placement-review workflow. Every placement writes
+ * through the same hierarchy endpoint the person drawer uses, so an update
+ * made here is indistinguishable from one made anywhere else.
  *
  * The rule set itself is read-only: title inference lives in the API
  * (`client-hierarchy.helpers.ts`), and a per-client rule editor is not in the
- * contract. The levels and their example titles are shown so the behaviour is
- * legible rather than magic.
+ * contract. The level definitions and their example titles are shown so the
+ * behaviour is legible rather than magic. They are not a local display
+ * preference: the chart always renders every populated level.
  */
 export function ConfigureHierarchyModal({
   model,
@@ -29,19 +30,8 @@ export function ConfigureHierarchyModal({
   model: OrganizationModel;
   onClose: () => void;
 }) {
-  const [visible, setVisible] = useState<Set<HierarchyLevel>>(
-    () => new Set(HIERARCHY_LEVELS),
-  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const toggleLevel = (level: HierarchyLevel) =>
-    setVisible((previous) => {
-      const next = new Set(previous);
-      if (next.has(level)) next.delete(level);
-      else next.add(level);
-      return next;
-    });
 
   const place = async (id: string, level: HierarchyLevel | null) => {
     setBusyId(id);
@@ -70,21 +60,13 @@ export function ConfigureHierarchyModal({
           </p>
         </div>
 
-        <p className="capiro-crm__meta capiro-crm__setting-head">Visible levels</p>
+        <p className="capiro-crm__meta capiro-crm__setting-head">Level definitions</p>
         <ul className="capiro-crm__levels">
           {HIERARCHY_LEVELS.map((level) => {
             const count = model.people.filter((person) => person.hierarchyLevel === level).length;
             return (
               <li key={level} className="capiro-crm__level">
-                <label className="capiro-crm__level-toggle">
-                  <input
-                    type="checkbox"
-                    checked={visible.has(level)}
-                    onChange={() => toggleLevel(level)}
-                    className="capiro-crm-fill__check"
-                  />
-                  <span className="capiro-crm__level-label">{LEVEL_META[level].label}</span>
-                </label>
+                <span className="capiro-crm__level-label">{LEVEL_META[level].label}</span>
                 <span className="capiro-crm__meta capiro-crm__level-examples">
                   {LEVEL_META[level].examples}
                 </span>

@@ -450,7 +450,7 @@ function MoveToFolderModal({
 }
 
 function folderOf(file: ClientAttachment): string | null {
-  const value = (file as ClientAttachment & { folder?: string | null }).folder;
+  const value = file.folder;
   return value?.trim() ? value : null;
 }
 

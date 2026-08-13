@@ -19,13 +19,25 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
  * repeated; this screen adds the description, the account facts, derived
  * attention, and the two pulses.
  */
-export function ClientCrmOverview({ client }: { client: Client }) {
+export function ClientCrmOverview({
+  client,
+  onEditProfile,
+}: {
+  client: Client;
+  onEditProfile?: () => void;
+}) {
   const model = useClientCrmOverviewModel(client);
-  return <ClientCrmOverviewView model={model} />;
+  return <ClientCrmOverviewView model={model} onEditProfile={onEditProfile} />;
 }
 
 /** Presentation half, kept data-free so the visual harness can render it. */
-export function ClientCrmOverviewView({ model }: { model: ClientCrmOverviewModel }) {
+export function ClientCrmOverviewView({
+  model,
+  onEditProfile,
+}: {
+  model: ClientCrmOverviewModel;
+  onEditProfile?: () => void;
+}) {
   return (
     <div className="capiro-crm__body">
       <div className="capiro-crm__page-head">
@@ -36,13 +48,13 @@ export function ClientCrmOverviewView({ model }: { model: ClientCrmOverviewModel
           </p>
         </div>
         <span className="capiro-crm__page-head-spacer" />
-        <CapiroButton variant="secondary" size="compact">
+        <CapiroButton variant="secondary" size="compact" onClick={onEditProfile} disabled={!onEditProfile}>
           Edit profile
         </CapiroButton>
       </div>
 
       <div className="capiro-crm__grid capiro-crm__grid--profile">
-        <ClientProfileCard model={model} />
+        <ClientProfileCard model={model} onEditProfile={onEditProfile} />
         <AccountCard model={model} />
       </div>
 
@@ -132,7 +144,13 @@ function Region({
 
 /* ──────────────────────── client profile (908:2899) ──────────────────────── */
 
-function ClientProfileCard({ model }: { model: ClientCrmOverviewModel }) {
+function ClientProfileCard({
+  model,
+  onEditProfile,
+}: {
+  model: ClientCrmOverviewModel;
+  onEditProfile?: () => void;
+}) {
   const { profile } = model;
   return (
     <section className="capiro-crm__card capiro-elevation-widget" aria-labelledby="crm-profile-title">
@@ -140,7 +158,12 @@ function ClientProfileCard({ model }: { model: ClientCrmOverviewModel }) {
         <h3 className="capiro-crm__card-title" id="crm-profile-title">
           Client profile
         </h3>
-        <button type="button" className="capiro-crm__card-action">
+        <button
+          type="button"
+          className="capiro-crm__card-action"
+          onClick={onEditProfile}
+          disabled={!onEditProfile}
+        >
           Edit
         </button>
       </div>

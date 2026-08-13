@@ -32,7 +32,12 @@ import {
   type IntelligenceView,
 } from './client-crm-routing.js';
 import { ClientCrmOverview } from './ClientCrmOverview.js';
-import type { Client } from '../../../pages/clients/clientTypes.js';
+import { ClientFormModal } from '../../../pages/clients/ClientFormModal.js';
+import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
+import { useApi } from '../../../lib/use-api.js';
+import { useMe } from '../../../lib/me.js';
+import { hasAtLeast } from '@capiro/shared';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import './client-crm.css';
 
 /**
@@ -70,6 +75,9 @@ export function ClientCrmPage({ client }: { client: Client }) {
 
   const [fillOpen, setFillOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const me = useMe();
+  const canManageClients = Boolean(me.data && hasAtLeast(me.data.role, 'user_admin'));
 
   return (
     <div className="capiro-crm" data-tab={route.tab} data-view={route.view ?? undefined}>
@@ -80,7 +88,13 @@ export function ClientCrmPage({ client }: { client: Client }) {
         onFillWithMeri={() => setFillOpen(true)}
         onDataHealth={() => setHealthOpen(true)}
       />
-      <ClientCrmBody client={client} route={route} onNavigate={goTo} />
+      <ClientCrmBody
+        client={client}
+        route={route}
+        onNavigate={goTo}
+        onEditProfile={() => setEditing(true)}
+        canManageClients={canManageClients}
+      />
       {/* Mounted only while open: the enrichment hook must not start polling —
           or hold a query subscription — for a drawer nobody has opened. */}
       {fillOpen ? (
@@ -94,6 +108,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
       {healthOpen ? (
         <ClientDataHealthDrawer client={client} onClose={() => setHealthOpen(false)} />
       ) : null}
+      {editing ? <ClientProfileEditor client={client} onClose={() => setEditing(false)} /> : null}
     </div>
   );
 }
@@ -311,10 +326,14 @@ function ClientCrmBody({
   client,
   route,
   onNavigate,
+  onEditProfile,
+  canManageClients,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+  onEditProfile: () => void;
+  canManageClients: boolean;
 }) {
   const views =
     route.tab === 'relationships'
@@ -349,7 +368,12 @@ function ClientCrmBody({
         </div>
       ) : null}
 
-      <ClientCrmSurface client={client} route={route} />
+      <ClientCrmSurface
+        client={client}
+        route={route}
+        onEditProfile={canManageClients ? onEditProfile : undefined}
+        canManageClients={canManageClients}
+      />
     </div>
   );
 }
@@ -357,16 +381,20 @@ function ClientCrmBody({
 function ClientCrmSurface({
   client,
   route,
+  onEditProfile,
+  canManageClients,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
+  onEditProfile?: () => void;
+  canManageClients: boolean;
 }) {
-  if (route.tab === 'overview') return <ClientCrmOverview client={client} />;
+  if (route.tab === 'overview') return <ClientCrmOverview client={client} onEditProfile={onEditProfile} />;
   // §13 — the capability surface has no vNext design yet, but every field and
   // its advocacy history must stay editable. This mounts the canonical drawer.
   if (route.tab === 'capabilities') return <ClientCrmCapabilities client={client} />;
   if (route.tab === 'relationships') {
-    if (route.view === 'government') return <ClientCrmGovernment client={client} />;
+    if (route.view === 'government') return <ClientCrmGovernment client={client} canManage={canManageClients} />;
     if (route.view === 'history') return <ClientCrmHistory client={client} />;
     return <ClientCrmOrganization client={client} />;
   }
@@ -381,6 +409,90 @@ function ClientCrmSurface({
   }
   if (route.tab === 'files') return <ClientCrmFiles client={client} />;
   return <NotYetImplemented tab={route.tab} view={route.view} />;
+}
+
+/** Reuse the canonical edit wizard and its update contract instead of creating
+ * a second profile payload or losing optional fields. */
+function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () => void }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const update = useMutation({
+    mutationFn: async (submission: ClientFormSubmit) => {
+      const updated = (await api.put<Client>(`/api/clients/${client.id}`, submission.payload)).data;
+      if (submission.logo) await uploadClientLogo(api, updated.id, submission.logo);
+      if (submission.documents.length) await uploadClientDocuments(api, updated.id, submission.documents);
+      return (await api.get<Client>(`/api/clients/${updated.id}`)).data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData(['client', updated.id], updated);
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+      void qc.invalidateQueries({ queryKey: ['client', updated.id] });
+      onClose();
+    },
+  });
+
+  return (
+    <ClientFormModal
+      open
+      mode="edit"
+      client={client}
+      submitting={update.isPending}
+      onCancel={onClose}
+      onSubmit={(submission) => update.mutate(submission)}
+    />
+  );
+}
+
+async function uploadClientLogo(
+  api: ReturnType<typeof useApi>,
+  clientId: string,
+  file: File,
+) {
+  const presigned = (
+    await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+      `/api/clients/${clientId}/logo/upload-url`,
+      { contentType: file.type, contentLength: file.size },
+    )
+  ).data;
+  await uploadToS3(presigned, file);
+  await api.post(`/api/clients/${clientId}/logo/confirm`, {
+    s3Key: presigned.s3Key,
+    contentType: file.type,
+  });
+}
+
+async function uploadClientDocuments(
+  api: ReturnType<typeof useApi>,
+  clientId: string,
+  files: File[],
+) {
+  for (const file of files) {
+    const contentType = file.type || 'application/octet-stream';
+    const presigned = (
+      await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+        '/api/engagement/attachments/upload-url',
+        { clientId, fileName: file.name, contentType, contentLength: file.size },
+      )
+    ).data;
+    await uploadToS3(presigned, file);
+    await api.post('/api/engagement/attachments/confirm', {
+      clientId,
+      fileName: file.name,
+      contentType,
+      s3Key: presigned.s3Key,
+    });
+  }
+}
+
+async function uploadToS3(
+  presigned: { url: string; fields: Record<string, string> },
+  file: File,
+) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(presigned.fields)) form.append(key, value);
+  form.append('file', file);
+  const response = await fetch(presigned.url, { method: 'POST', body: form });
+  if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
 }
 
 /**

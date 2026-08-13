@@ -56,6 +56,10 @@ export function resolvedAllowedOrigins(rawWebOrigin: string | undefined): Set<st
       'https://capiro.ai',
       'https://www.capiro.ai',
       'https://onboarding.capiro.ai',
+      // os.capiro.ai is the isolated vNext presentation surface. It shares
+      // this API with app.capiro.ai, so authenticated browser mutations must
+      // receive the same CORS permission without widening to arbitrary hosts.
+      'https://os.capiro.ai',
     ]
       .map((origin) => origin.trim())
       .filter(Boolean),

@@ -14,6 +14,11 @@ import { ClientCrmPage } from './ClientCrmPage.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
 // The body surfaces issue real queries; the shell is what is under test.
+// Page-level edit authorization is driven by /api/me in the real app; the shell
+// harness stays Clerk-free and provides an administrator response explicitly.
+vi.mock('../../../lib/me.js', () => ({
+  useMe: () => ({ data: { role: 'user_admin' } }),
+}));
 vi.mock('./ClientCrmOverview.js', () => ({
   ClientCrmOverview: () => <div data-testid="overview-surface">overview</div>,
 }));

@@ -124,11 +124,14 @@ describe('configureApiHttpApp', () => {
       expect(origins.has('http://localhost:5173')).toBe(true);
     });
 
-    it('includes capiro.ai production origins', () => {
+    it('includes the production web surfaces', () => {
       const origins = resolvedAllowedOrigins(undefined);
       expect(origins.has('https://capiro.ai')).toBe(true);
       expect(origins.has('https://www.capiro.ai')).toBe(true);
       expect(origins.has('https://onboarding.capiro.ai')).toBe(true);
+      // os.capiro.ai is the isolated vNext web surface. It uses the same API
+      // host as app.capiro.ai, so browser writes must pass this allowlist.
+      expect(origins.has('https://os.capiro.ai')).toBe(true);
     });
 
     it('uses WEB_ORIGIN when provided', () => {

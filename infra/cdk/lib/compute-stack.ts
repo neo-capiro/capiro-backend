@@ -579,7 +579,10 @@ export class ComputeStack extends cdk.Stack {
       // bootstrap (before Clerk instance is created) so the API skips issuer
       // validation, acceptable until clerkJwtIssuer is filled in config.ts.
       ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
-      WEB_ORIGIN: `https://${cfg.appHost},https://${cfg.wildcardHost.replace('*', 'acmelobby')}`,
+      // The isolated vNext surface is served from os.capiro.ai but uses this
+      // API through the shared ALB. Keep it explicit (not a wildcard) so it
+      // can perform authenticated browser mutations without broadening CORS.
+      WEB_ORIGIN: `https://${cfg.appHost},https://${cfg.wildcardHost.replace('*', 'acmelobby')},https://os.capiro.ai`,
       ASSETS_BUCKET: assetsStack.bucket.bucketName,
       AWS_REGION_DEFAULT: this.region,
       GOVINFO_CACHE_BUCKET: `capiro-govinfo-cache-${this.account}-${this.region}`,
