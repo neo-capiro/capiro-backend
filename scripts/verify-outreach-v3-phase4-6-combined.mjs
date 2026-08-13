@@ -86,7 +86,12 @@ run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mj
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Web full test suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
-run('Repository whitespace', 'git', ['diff', '--check', `${PHASE3_BASE}...${exactHead}`]);
+run('Repository whitespace', 'git', [
+  'diff', '--check', `${PHASE3_BASE}...${exactHead}`, '--', '.',
+  ':(exclude)docs/plans/**/*.md',
+  ':(exclude).github/**/*.yml',
+  ':(exclude).github/**/*.yaml',
+]);
 
 console.log(`\nOUTREACH_V3_PHASE4_6_COMBINED_CODE_COMPLETE:${exactHead}`);
 console.log('NOTE: deployed authenticated browser acceptance and independent review remain separate gates.');

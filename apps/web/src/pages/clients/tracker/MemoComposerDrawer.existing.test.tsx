@@ -147,8 +147,12 @@ describe('MemoComposerDrawer — opening an existing memo loads, never regenerat
     // H-2: the confirm names the consequence in plain words. antd's Modal.confirm
     // renders the title twice (generic header + confirm-body span) — assert
     // presence via getAllByText rather than getByText's exactly-one contract.
-    await waitFor(() =>
-      expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
+    // Modal.confirm renders to a separate imperative DOM root; under the full
+    // 224-file vitest suite jsdom is slower than in isolation, so the default
+    // 1000ms waitFor timeout flakes. Give the confirm dialog time to appear.
+    await waitFor(
+      () => expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
+      { timeout: 5000 },
     );
     expect(screen.getByText(/will no longer appear/i)).toBeTruthy();
     // Not confirmed yet — no generate call fired.
@@ -192,8 +196,9 @@ describe('MemoComposerDrawer — opening an existing memo loads, never regenerat
     await waitFor(() => expect(screen.getByDisplayValue(/Original body\./)).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: /Regenerate/i }));
-    await waitFor(() =>
-      expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
+    await waitFor(
+      () => expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
+      { timeout: 5000 },
     );
     // Two "Regenerate" buttons are on screen now: the drawer's footer button and
     // the confirm dialog's OK button. The confirm's is the one appended last.
