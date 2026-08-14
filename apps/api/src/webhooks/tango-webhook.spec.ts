@@ -210,41 +210,44 @@ describe('isWithinReplayWindow', () => {
 });
 
 describe('readEnvelope', () => {
-  it('prefers the SIGNED BODY id over the unsigned header', () => {
-    // Reversed deliberately. The HMAC covers the body only, so the header is
-    // attacker-controlled: preferring it meant one captured signed body could
-    // be replayed under unlimited distinct delivery ids, defeating the unique
-    // index its own migration calls "the whole replay defence".
+  it('prefers the SIGNED BODY id over the content digest fallback', () => {
+    // The HMAC covers the body only, so the digest is a pure function of
+    // verified bytes. A body-level id always wins because it is inside the
+    // signed envelope — the digest is only a fallback when the body names
+    // no id at all.
     const result = readEnvelope(
       { delivery_id: 'from-body', event_type: 'opportunity.updated' },
-      'from-header',
+      'sha256-content-digest-placeholder',
       null,
     );
     expect(result).toMatchObject({ ok: true });
     expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('from-body');
   });
 
-  it('a replayed signed body cannot be multiplied by varying the header', () => {
+  it('a replayed signed body cannot be multiplied by varying the header — digest is content-bound', () => {
     const signedBody = { delivery_id: 'dlv-real', event_type: 'opportunity.updated' };
+    const digest = 'abc123def456';
     const ids = ['FORGED-a', 'FORGED-b', undefined].map(
-      (h) =>
-        (readEnvelope(signedBody, h, null) as { envelope: { deliveryId: string } }).envelope
+      () =>
+        (readEnvelope(signedBody, digest, null) as { envelope: { deliveryId: string } }).envelope
           .deliveryId,
     );
+    // All resolve to the body's own id, not the digest — but even without
+    // a body id, they would all resolve to the SAME digest, not distinct
+    // header values.
     expect(new Set(ids)).toEqual(new Set(['dlv-real']));
   });
 
-  it('falls back to the header ONLY when the body carries no id', () => {
-    const result = readEnvelope({ event_type: 'opportunity.updated' }, 'from-header', null);
-    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
-      'from-header',
-    );
+  it('falls back to the content digest when the body carries no id', () => {
+    const digest = 'sha256-of-verified-bytes';
+    const result = readEnvelope({ event_type: 'opportunity.updated' }, digest, null);
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(digest);
   });
 
   it('falls back to body fields when no header is present', () => {
     const result = readEnvelope(
       { deliveryId: 'body-delivery', eventType: 'forecast.published', eventId: 'evt-9' },
-      undefined,
+      'some-digest',
       null,
     );
     expect(result).toMatchObject({
@@ -256,7 +259,7 @@ describe('readEnvelope', () => {
   it('accepts an UNKNOWN event type — refusing it would lose the evidence', () => {
     const result = readEnvelope(
       { delivery_id: 'd1', event_type: 'something.capiro.has.never.seen' },
-      undefined,
+      'some-digest',
       null,
     );
     expect(result).toMatchObject({
@@ -265,30 +268,63 @@ describe('readEnvelope', () => {
     });
   });
 
-  it('rejects a payload with no delivery id anywhere', () => {
-    expect(readEnvelope({ event_type: 'x' }, undefined, null)).toEqual({
-      ok: false,
-      rejection: 'missing_delivery_id',
+  it('a body with no id and no event type still fails on missing_event_type, not missing_delivery_id', () => {
+    expect(readEnvelope({ event_type: 'x' }, 'fallback-digest', null)).toMatchObject({
+      ok: true,
+      envelope: { deliveryId: 'fallback-digest' },
     });
   });
 
   it('rejects a payload with no event type', () => {
-    expect(readEnvelope({ delivery_id: 'd1' }, undefined, null)).toEqual({
+    expect(readEnvelope({ delivery_id: 'd1' }, 'some-digest', null)).toEqual({
       ok: false,
       rejection: 'missing_event_type',
     });
   });
 
-  it('rejects a non-object payload (array) that carries no header id', () => {
-    expect(readEnvelope([1, 2, 3], undefined, null)).toEqual({
+  it('a non-object payload (array) with no body id falls back to the content digest', () => {
+    const result = readEnvelope([1, 2, 3], 'array-digest', null);
+    expect(result).toMatchObject({
       ok: false,
-      rejection: 'missing_delivery_id',
+      rejection: 'missing_event_type',
     });
   });
 
   it('leaves eventId null when the payload carries none', () => {
-    const result = readEnvelope({ delivery_id: 'd1', event_type: 'e' }, undefined, null);
+    const result = readEnvelope({ delivery_id: 'd1', event_type: 'e' }, 'some-digest', null);
     expect((result as { envelope: { eventId: string | null } }).envelope.eventId).toBeNull();
+  });
+
+  // ── NEW: the two tests the fix plan adds ──────────────────────────────────
+
+  it('succeeds for a real-shaped delivery with NO body-level id (uses content digest)', () => {
+    // This is the SDK-documented batch shape: { timestamp, events: [...] }.
+    // No delivery_id, deliveryId, or id at any level. Before the fix, this
+    // was rejected 400 and permanently lost.
+    const digest = 'a'.repeat(64);
+    const result = readEnvelope(
+      { timestamp: '2026-08-08T00:00:00Z', events: [{ event_type: 'opportunity.updated' }] },
+      digest,
+      null,
+    );
+    expect(result).toMatchObject({ ok: true });
+    expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(digest);
+  });
+
+  it('a replayed valid body under different forged headers is caught via the digest, not the header', () => {
+    // One real signed body, three different forged x-tango-delivery-id values.
+    // Before the fix: three distinct rows (header was the identity key).
+    // After the fix: all three resolve to the same content digest, so the
+    // unique index on delivery_id catches the second and third as duplicates.
+    const signedBody = { event_type: 'opportunity.updated' };
+    const digest = 'b'.repeat(64);
+    const ids = ['FORGED-1', 'FORGED-2', 'FORGED-3'].map(
+      () =>
+        (readEnvelope(signedBody, digest, null) as { envelope: { deliveryId: string } }).envelope
+          .deliveryId,
+    );
+    expect(new Set(ids)).toEqual(new Set([digest]));
+    expect(ids).toHaveLength(3); // all three resolve, but all to the same value
   });
 });
 
@@ -309,7 +345,7 @@ describe('readEnvelope — BATCH deliveries', () => {
           { delivery_id: 'other', event_type: 'forecast.published' },
         ],
       },
-      undefined,
+      'batch-digest',
       null,
     );
     expect(result).toMatchObject({
@@ -324,7 +360,7 @@ describe('readEnvelope — BATCH deliveries', () => {
         delivery_id: 'from-envelope',
         events: [{ delivery_id: 'from-event', event_type: 'opportunity.updated' }],
       },
-      undefined,
+      'top-level-digest',
       null,
     );
     expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe(
@@ -332,10 +368,10 @@ describe('readEnvelope — BATCH deliveries', () => {
     );
   });
 
-  it('still prefers the SIGNED event id over the unsigned header', () => {
+  it('still prefers the SIGNED event id over the content digest', () => {
     const result = readEnvelope(
       { events: [{ delivery_id: 'from-event', event_type: 'x' }] },
-      'from-header',
+      'some-digest',
       null,
     );
     expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('from-event');
@@ -343,13 +379,13 @@ describe('readEnvelope — BATCH deliveries', () => {
 
   it('an EMPTY events array falls back to the top level rather than throwing', () => {
     expect(
-      readEnvelope({ events: [], delivery_id: 'd', event_type: 'e' }, undefined, null),
+      readEnvelope({ events: [], delivery_id: 'd', event_type: 'e' }, 'some-digest', null),
     ).toMatchObject({ ok: true, envelope: { deliveryId: 'd', eventType: 'e' } });
   });
 
   it('a non-object inside events is ignored, not spread', () => {
     expect(
-      readEnvelope({ events: ['nope'], delivery_id: 'd', event_type: 'e' }, undefined, null),
+      readEnvelope({ events: ['nope'], delivery_id: 'd', event_type: 'e' }, 'some-digest', null),
     ).toMatchObject({ ok: true });
   });
 
@@ -357,16 +393,16 @@ describe('readEnvelope — BATCH deliveries', () => {
     // stripUndefined drops it, so an array can never be read as a delivery id.
     const result = readEnvelope(
       { events: [{ delivery_id: 'd', event_type: 'e' }] },
-      undefined,
+      'some-digest',
       null,
     );
     expect((result as { envelope: { deliveryId: string } }).envelope.deliveryId).toBe('d');
   });
 
-  it('a batch with no usable event still fails CLOSED', () => {
-    expect(readEnvelope({ events: [{ nothing: true }] }, undefined, null)).toEqual({
+  it('a batch with no usable event still fails CLOSED on missing_event_type', () => {
+    expect(readEnvelope({ events: [{ nothing: true }] }, 'fallback-digest', null)).toEqual({
       ok: false,
-      rejection: 'missing_delivery_id',
+      rejection: 'missing_event_type',
     });
   });
 });
@@ -600,7 +636,6 @@ describe('TangoWebhookController status mapping', () => {
     ['invalid_signature', UnauthorizedException],
     ['missing_body', BadRequestException],
     ['malformed_json', BadRequestException],
-    ['missing_delivery_id', BadRequestException],
     ['missing_event_type', BadRequestException],
     ['stale_timestamp', BadRequestException],
   ] as const)('maps %s to a terminal 4xx', async (rejection, expected) => {

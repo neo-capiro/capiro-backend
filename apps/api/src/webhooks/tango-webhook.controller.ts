@@ -115,8 +115,6 @@ function rejectionToHttp(rejection: TangoWebhookRejection): Error {
       return new BadRequestException('Expected raw body');
     case 'malformed_json':
       return new BadRequestException('Malformed JSON payload');
-    case 'missing_delivery_id':
-      return new BadRequestException('Missing delivery id');
     case 'missing_event_type':
       return new BadRequestException('Missing event type');
     case 'stale_timestamp':

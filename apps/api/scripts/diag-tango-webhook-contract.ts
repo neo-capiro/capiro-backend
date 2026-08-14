@@ -114,7 +114,7 @@ export function compareContract(sample: TangoWebhookSample): ContractFinding[] {
     actual: idKeys.length === 0 ? '(no keys observed)' : idKeys.join(', '),
     agrees: hasIdKey,
     consequence:
-      'Without one, the receiver falls back to the delivery header. If the provider sends neither, every delivery is refused `missing_delivery_id` — so confirm the header is sent.',
+      'Without one, the receiver falls back to the SHA-256 content digest of the verified body. If the provider sends none of these keys, the digest is used as the delivery identity — no delivery is ever refused for a missing id.',
   });
 
   const KNOWN_TYPE_KEYS = ['event_type', 'eventType', 'event', 'type'];
