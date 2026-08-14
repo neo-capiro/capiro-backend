@@ -4,6 +4,7 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { config } from '../../env.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
+import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
 
 const PROMPT_LIBRARY = [
   { text: 'What changed across my clients this week?', tag: 'PORTFOLIO · ALL CLIENTS' },
@@ -129,6 +130,7 @@ export function VNextMeriConversation({
     ? `SCOPED · ${selectedClient.name.toUpperCase()}`
     : 'PORTFOLIO · ALL CLIENTS';
   const modeLabel = controller.orchestratorTier?.toUpperCase() ?? null;
+  const activeConversationId = controller.activeConversationId;
 
   return (
     <>
@@ -140,7 +142,9 @@ export function VNextMeriConversation({
               <span className="vnext-meri__thread-title">{threadTitle}</span>
               <span className="vnext-meri__thread-sub">{threadSub}</span>
             </div>
-            {modeLabel ? (
+            {activeConversationId ? (
+              <VNextMeriReasoningControl conversationId={activeConversationId} />
+            ) : modeLabel ? (
               <span className="vnext-meri__mode-pill">
                 <span className="vnext-meri__mode-pill-dot" />
                 <span className="vnext-meri__mode-pill-label">{modeLabel}</span>
