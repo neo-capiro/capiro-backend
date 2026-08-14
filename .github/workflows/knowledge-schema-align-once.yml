@@ -1,0 +1,43 @@
+name: Knowledge Schema Alignment (one-time branch helper)
+
+on:
+  push:
+    branches:
+      - feat/phase-1-knowledge-events
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    if: ${{ !contains(github.event.head_commit.message, '[knowledge-schema-aligned]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/phase-1-knowledge-events
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Append Knowledge Plane models and relations
+        run: node scripts/align-knowledge-plane-prisma-schema.mjs
+
+      - name: Format and validate Prisma schema
+        run: |
+          npx --yes prisma@5.22.0 format --schema apps/api/prisma/schema.prisma
+          npx --yes prisma@5.22.0 validate --schema apps/api/prisma/schema.prisma
+
+      - name: Commit aligned schema
+        run: |
+          if git diff --quiet -- apps/api/prisma/schema.prisma; then
+            echo "Knowledge Plane schema is already aligned."
+            exit 0
+          fi
+          git config user.name "capiro-knowledge-schema-bot"
+          git config user.email "neo@capiro.ai"
+          git add apps/api/prisma/schema.prisma
+          git commit -m "chore(prisma): align knowledge plane models [knowledge-schema-aligned]"
+          git push origin HEAD:feat/phase-1-knowledge-events
