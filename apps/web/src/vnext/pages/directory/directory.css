@@ -397,6 +397,44 @@
 .capiro-vnext-root .capiro-directory-results__eyebrow { color: var(--capiro-color-text-accent); }
 .capiro-vnext-root .capiro-directory-results__count { color: var(--capiro-color-text-secondary); }
 
+/* Directory-wide staff total. Deliberately a separate, quieter line from the
+   count: `totals.staff` is fixed at cache-build time and does not respond to
+   filters, so fusing it into the count would read as "this many matched". */
+.capiro-vnext-root .capiro-directory-results__note {
+  margin: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--capiro-color-text-muted);
+}
+
+/* Expand/collapse every office on the page. Sits at the far end of the results
+   header so it reads as an action on the list, not on any one office. */
+.capiro-vnext-root .capiro-directory-results__expand {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--capiro-color-text-accent);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-directory-results__expand:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
 /* Column header (937:2742) + rows (937:2748) share one grid so the columns
    cannot drift apart. Widths and the 10px gap come from the fixture. */
 /* Tracks are proportional, not fixed px. The fixture widths (180/210/220/180)
@@ -407,10 +445,23 @@
    minmax(0, Nfr) rather than a bare Nfr: the column-header cells are <p>s with
    no overflow of their own, so their min-content width would otherwise floor
    the tracks and re-introduce the overflow. */
+/* Congressional Staff reads offices with their roster nested beneath, so each
+   line is two nested grids: a 26px disclosure lane, then the content tracks.
+   Header and rows use the same pair of classes, which is what stops the columns
+   drifting once a caret sits in front of them. The identity track is a little
+   wider than the others' 1.4 because it now carries a 32px headshot as well as
+   two lines of copy. */
+.capiro-vnext-root .capiro-directory-hierarchy-grid {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
 .capiro-vnext-root .capiro-directory-row-grid {
   display: grid;
   grid-template-columns:
-    minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 70px;
+    minmax(0, 1.6fr) minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1.4fr) 70px;
   gap: 10px;
   align-items: start;
 }
@@ -671,6 +722,137 @@
   background: var(--capiro-color-bg-selected);
 }
 
+/* ── Congressional Staff hierarchy rows ─────────────────────────────────────
+   Every other Directory surface renders `.capiro-directory-row` as a single
+   <button>. Congressional Staff cannot: it needs a disclosure caret beside the
+   row body, and a button may not contain a button. So its rows are <div>s
+   holding two sibling buttons, and the rules below re-home the interactive
+   chrome onto the inner one. The base class is deliberately left untouched —
+   DoW, Committee Staff and State Legislators still depend on it. */
+.capiro-vnext-root .capiro-directory-row--office,
+.capiro-vnext-root .capiro-directory-row--staff {
+  cursor: default;
+}
+
+.capiro-vnext-root .capiro-directory-row__select {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-directory-row__select:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
+/* Disclosure caret. Expanding an office and selecting it are different
+   actions, so this is a real button with its own label and expanded state. */
+.capiro-vnext-root .capiro-directory-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+  /* The triangle glyphs are small for their point size; at the mono-10 used
+     elsewhere in the row they read as specks rather than a direction. */
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .capiro-directory-caret:hover {
+  border-color: var(--capiro-color-border-default);
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-caret:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
+.capiro-vnext-root .capiro-directory-caret[aria-expanded='true'] {
+  border-color: var(--capiro-color-border-default);
+  color: var(--capiro-color-text-accent);
+}
+
+/* Roster block: the staffers of one office. The [hidden] override is required,
+   not redundant — `display: flex` here outranks the UA's `[hidden]` rule. */
+.capiro-vnext-root .capiro-directory-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capiro-vnext-root .capiro-directory-roster[hidden] { display: none; }
+
+.capiro-vnext-root .capiro-directory-roster__empty {
+  margin: 0;
+  padding: 10px 14px 10px 50px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.6px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* Nested staffer rows sit on the quieter surface and keep the header's column
+   alignment; the step-in is carried by the guide rail and the indented name,
+   not by shifting the whole grid out of register with its header. */
+.capiro-vnext-root .capiro-directory-row--staff {
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-directory-row--staff .capiro-directory-cell--person {
+  padding-left: 14px;
+}
+
+/* Guide rail + elbow tying each staffer to the caret of their office — the
+   same relationship drawing the Outreach recipient picker uses. It occupies the
+   caret lane, so it lines up under the parent caret by construction. */
+.capiro-vnext-root .capiro-directory-branch {
+  position: relative;
+  align-self: stretch;
+  min-height: 26px;
+}
+
+.capiro-vnext-root .capiro-directory-branch::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: -13px;
+  bottom: -13px;
+  width: 2px;
+  background: var(--capiro-color-icon-accent);
+  opacity: 0.3;
+}
+
+.capiro-vnext-root .capiro-directory-branch::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 22px;
+  width: 14px;
+  height: 2px;
+  background: var(--capiro-color-icon-accent);
+  opacity: 0.3;
+}
+
 .capiro-vnext-root .capiro-directory-cell {
   display: flex;
   flex-direction: column;
@@ -683,6 +865,25 @@
 .capiro-vnext-root .capiro-directory-cell--identity {
   padding: 0;
   border-radius: 7px;
+}
+
+/* Identity cell for a hierarchy row: mark beside a two-line stack. Members
+   carry a real headshot here; staff photos are null on the list contract, so
+   they fall back to initials rather than borrowing their member's face. */
+.capiro-vnext-root .capiro-directory-cell--person {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+}
+
+.capiro-vnext-root .capiro-directory-cell--person .capiro-identity-mark { flex: 0 0 auto; }
+
+.capiro-vnext-root .capiro-directory-cell__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .capiro-vnext-root .capiro-directory-cell__primary,

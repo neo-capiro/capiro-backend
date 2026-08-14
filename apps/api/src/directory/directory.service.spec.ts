@@ -259,3 +259,105 @@ describe('DirectoryService.getAllCommitteeMemberships (WS-G)', () => {
     expect(result).toEqual([]);
   });
 });
+
+/**
+ * Directory vNext renders offices, not staffers, so the Role and Issue Area
+ * pills have to narrow a *member* list. Neither value exists on a member, so
+ * both are answered from the office's own roster — an office qualifies when any
+ * one staffer does. This is the DIR-8 filter gap #918 logged: without it the
+ * member-first list could only offer the subset of filters that happen to be
+ * member attributes, and the two pills stayed inert placeholders.
+ */
+describe('DirectoryService.getContacts staff-derived role + issue filters', () => {
+  const staff = (id: string, fullName: string, roles: string[], issueAreas: string[]) => ({
+    id,
+    fullName,
+    title: 'Staffer',
+    roles,
+    issueAreas,
+    email: `${id}@house.gov`,
+    phone: '202-555-0100',
+    officeLocation: 'Personal office',
+  });
+
+  const contact = (id: string, memberName: string, staffRoster: ReturnType<typeof staff>[]) => ({
+    id,
+    memberId: Number(id.replace('member-', '')),
+    fullName: `Rep. ${memberName}`,
+    memberName,
+    title: 'Member of Congress',
+    office: `${memberName} office`,
+    chamber: 'House',
+    state: 'VA',
+    district: '10',
+    party: 'D',
+    partyName: 'Democrat',
+    gender: 'F',
+    region: 'South',
+    isFreshman: false,
+    focusAreas: [],
+    committees: [],
+    committeeLeadership: [],
+    leadershipPositions: [],
+    caucuses: [],
+    educationInstitutions: [],
+    phone: '202-555-0000',
+    email: '',
+    contactFormUrl: '',
+    staff: staffRoster,
+    lastTouchpoint: '',
+  });
+
+  const CONTACTS = [
+    contact('member-1', 'Elaine Morgan', [
+      staff('staff-1', 'Grace Hopper', ['Legislative Director'], ['Defense']),
+      staff('staff-2', 'Marcus Ellery', ['Chief of Staff'], ['Trade']),
+    ]),
+    contact('member-2', 'Theodore Vance', [
+      staff('staff-3', 'Priya Raghunathan', ['Policy Advisor'], ['Health']),
+    ]),
+    contact('member-3', 'Danielle Okafor', []),
+  ];
+
+  function makeService(): DirectoryService {
+    const config = { get: jest.fn().mockReturnValue('us-east-1') } as any;
+    const service = new DirectoryService(config, {} as any, {} as any);
+    jest.spyOn(service as any, 'getDirectoryData').mockResolvedValue({
+      sourceId: 'test-snapshot',
+      contacts: CONTACTS,
+      totals: { all: 3, house: 3, senate: 0, governors: 0, staff: 3 },
+      availableStates: ['VA'],
+      availableFilters: {},
+    } as any);
+    return service;
+  }
+
+  test('an office matches when any staffer carries the role', async () => {
+    const result = await makeService().getContacts({ role: 'Chief of Staff' });
+    // Matched by staff-2, whose office is member-1 — the member's own fields
+    // say nothing about the role.
+    expect(result.contacts.map((c) => c.id)).toEqual(['member-1']);
+    expect(result.total).toBe(1);
+  });
+
+  test('an office matches when any staffer covers the issue', async () => {
+    const result = await makeService().getContacts({ issue: 'Health' });
+    expect(result.contacts.map((c) => c.id)).toEqual(['member-2']);
+  });
+
+  test('role and issue must be satisfied by the office, not necessarily one staffer', async () => {
+    const result = await makeService().getContacts({ role: 'Chief of Staff', issue: 'Defense' });
+    // staff-1 has the issue and staff-2 the role; the office carries both.
+    expect(result.contacts.map((c) => c.id)).toEqual(['member-1']);
+  });
+
+  test('an office with no roster cannot match a staff-derived filter', async () => {
+    const result = await makeService().getContacts({ role: 'Legislative Director' });
+    expect(result.contacts.map((c) => c.id)).not.toContain('member-3');
+  });
+
+  test('omitting both filters leaves every office in place', async () => {
+    const result = await makeService().getContacts({});
+    expect(result.total).toBe(3);
+  });
+});

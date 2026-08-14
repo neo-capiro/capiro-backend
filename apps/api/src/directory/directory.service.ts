@@ -211,6 +211,16 @@ export interface DirectoryQuery {
   district?: string | string[];
   education?: string | string[];
   region?: string;
+  /**
+   * Staff-derived office filters. A member has no role or issue of their own —
+   * an office matches when *any* staffer on its roster does, which is the same
+   * predicate `getStaffers` applies to a single staffer row. They exist so a
+   * member-first list (Directory vNext Congressional Staff) can carry the Role
+   * and Issue Area pills without narrowing to a staffer-first list, and they
+   * close the DIR-8 filter gap #918 logged.
+   */
+  issue?: string | string[];
+  role?: string | string[];
   sort?: string;
   page?: string | number;
   pageSize?: string | number;
@@ -336,6 +346,12 @@ export interface DirectoryAvailableFilters {
   leadership: string[];
   committees: string[];
   issues: string[];
+  /**
+   * Functional staffer roles across every office — the value source for the
+   * Role filter. Derived the same way `issues` is: a member has no role of
+   * their own, so the vocabulary comes from the rosters.
+   */
+  roles: string[];
   caucuses: string[];
   states: string[];
   districts: string[];
@@ -2454,6 +2470,8 @@ export class DirectoryService implements OnModuleInit {
     const states = this.normalizeMultiFilter(query.state);
     const districts = this.normalizeMultiFilter(query.district);
     const education = this.normalizeMultiFilter(query.education);
+    const issues = this.normalizeMultiFilter(query.issue);
+    const roles = this.normalizeMultiFilter(query.role);
     const normalizedQuery = String(query.q ?? '')
       .trim()
       .toLowerCase();
@@ -2501,6 +2519,17 @@ export class DirectoryService implements OnModuleInit {
       const matchesEducation =
         education.length === 0 ||
         contact.educationInstitutions.some((institution) => education.includes(institution));
+      // Role and issue live on the roster, never on the member, so the office
+      // qualifies on the strength of a single matching staffer. The same
+      // staffer set is what the client then shows nested under the office —
+      // matching here and narrowing there must use the same predicate. Both
+      // short-circuit when unset, so an unfiltered read never walks a roster.
+      const matchesIssue =
+        issues.length === 0 ||
+        contact.staff.some((staff) => staff.issueAreas.some((area) => issues.includes(area)));
+      const matchesRole =
+        roles.length === 0 ||
+        contact.staff.some((staff) => staff.roles.some((role) => roles.includes(role)));
 
       // Cheap structured filters first; only build search blobs if those pass.
       if (
@@ -2515,7 +2544,9 @@ export class DirectoryService implements OnModuleInit {
           matchesLeadership &&
           matchesCommittee &&
           matchesCaucus &&
-          matchesEducation
+          matchesEducation &&
+          matchesIssue &&
+          matchesRole
         )
       ) {
         return false;
@@ -2674,6 +2705,11 @@ export class DirectoryService implements OnModuleInit {
       // CRS issue taxonomy, derived from staffer issue tags across all members.
       issues: uniqueSorted(
         contacts.flatMap((contact) => contact.staff.flatMap((staffer) => staffer.issueAreas)),
+      ),
+      // Same derivation for roles, so the Role filter offers exactly the values
+      // the `role` query parameter can actually match.
+      roles: uniqueSorted(
+        contacts.flatMap((contact) => contact.staff.flatMap((staffer) => staffer.roles)),
       ),
       // Caucus & Education have no backing data in the current snapshot (the
       // LegiStorm pull omits those endpoints). Emit empty arrays so the response

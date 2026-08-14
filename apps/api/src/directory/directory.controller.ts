@@ -45,6 +45,9 @@ export class DirectoryController {
     @Query('state') state?: string | string[],
     @Query('district') district?: string | string[],
     @Query('education') education?: string | string[],
+    // Staff-derived: an office matches when any staffer on its roster does.
+    @Query('issue') issue?: string | string[],
+    @Query('role') role?: string | string[],
     @Query('sort') sort?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
@@ -62,6 +65,8 @@ export class DirectoryController {
       state,
       district,
       education,
+      issue,
+      role,
       sort,
       page,
       pageSize,
