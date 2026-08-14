@@ -6,11 +6,13 @@ on:
       - feat/phase-1-knowledge-events
     paths:
       - 'apps/api/src/knowledge/**'
+      - 'apps/api/src/engagement/google/**'
+      - 'apps/api/src/engagement/microsoft/**'
+      - 'apps/api/scripts/drain-mailbox-knowledge.ts'
+      - 'apps/api/prisma/schema.prisma'
       - 'apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/**'
       - 'apps/api/prisma/migrations/20261120060000_knowledge_evidence/**'
       - 'apps/api/prisma/migrations/20261120070000_mailbox_knowledge_ingestion/**'
-      - 'scripts/align-knowledge-plane-prisma-schema.mjs'
-      - 'scripts/align-mailbox-knowledge-prisma-schema.mjs'
       - 'scripts/verify-knowledge-plane-migrations.sh'
       - 'scripts/verify-mailbox-knowledge-migration.sh'
       - '.github/workflows/knowledge-plane-ci.yml'
@@ -18,12 +20,13 @@ on:
     branches: [main]
     paths:
       - 'apps/api/src/knowledge/**'
+      - 'apps/api/src/engagement/google/**'
+      - 'apps/api/src/engagement/microsoft/**'
+      - 'apps/api/scripts/drain-mailbox-knowledge.ts'
       - 'apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/**'
       - 'apps/api/prisma/migrations/20261120060000_knowledge_evidence/**'
       - 'apps/api/prisma/migrations/20261120070000_mailbox_knowledge_ingestion/**'
       - 'apps/api/prisma/schema.prisma'
-      - 'scripts/align-knowledge-plane-prisma-schema.mjs'
-      - 'scripts/align-mailbox-knowledge-prisma-schema.mjs'
       - 'scripts/verify-knowledge-plane-migrations.sh'
       - 'scripts/verify-mailbox-knowledge-migration.sh'
       - '.github/workflows/knowledge-plane-ci.yml'
@@ -51,7 +54,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
+      DATABASE_URL: postgresql://capiro:***@localhost:5432/capiro_ci
     steps:
       - uses: actions/checkout@v4
 
@@ -71,10 +74,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Align and validate Prisma schema
+      - name: Validate Prisma schema
         run: |
-          node scripts/align-knowledge-plane-prisma-schema.mjs
-          node scripts/align-mailbox-knowledge-prisma-schema.mjs
           pnpm --filter @capiro/api exec prisma format --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma

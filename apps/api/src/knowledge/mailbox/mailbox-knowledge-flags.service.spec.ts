@@ -26,11 +26,9 @@ describe('MailboxKnowledgeFlagsService', () => {
 
   test('bounds worker controls', () => {
     process.env.MAILBOX_KNOWLEDGE_BATCH_SIZE = '10000';
-    process.env.MAILBOX_KNOWLEDGE_POLL_INTERVAL_MS = '1';
     process.env.MAILBOX_KNOWLEDGE_MAX_ATTEMPTS = '-4';
     const flags = new MailboxKnowledgeFlagsService();
     expect(flags.batchSize()).toBe(100);
-    expect(flags.pollIntervalMs()).toBe(1_000);
     expect(flags.maxAttempts()).toBe(1);
   });
 });

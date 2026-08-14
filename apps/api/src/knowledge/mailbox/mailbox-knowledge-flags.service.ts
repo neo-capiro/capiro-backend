@@ -10,10 +10,6 @@ export class MailboxKnowledgeFlagsService {
       readBooleanFlag('MAILBOX_KNOWLEDGE_INGEST_ENABLED');
   }
 
-  pollIntervalMs(): number {
-    return readBoundedInteger('MAILBOX_KNOWLEDGE_POLL_INTERVAL_MS', 5_000, 1_000, 300_000);
-  }
-
   batchSize(): number {
     return readBoundedInteger('MAILBOX_KNOWLEDGE_BATCH_SIZE', 10, 1, 100);
   }

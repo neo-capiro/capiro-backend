@@ -279,6 +279,10 @@ model Tenant {
   assuranceFeedbackCandidates        AssuranceFeedbackCandidate[]
   assuranceEvalFixtures              AssuranceEvalFixture[]
 
+  knowledgeEvents                    KnowledgeEvent[]
+  knowledgeAssertions                KnowledgeAssertion[]
+  knowledgeEvidence                  KnowledgeEvidence[]
+  knowledgeMailboxJobs               KnowledgeMailboxJob[]
   @@map("tenants")
 }
 
@@ -343,6 +347,7 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
 
+  knowledgeAssertionsCreated         KnowledgeAssertion[] @relation("KnowledgeAssertionCreatedBy")
   @@map("users")
 }
 
@@ -924,6 +929,7 @@ model MailMessage {
   @@index([tenantId, fromEmail], map: "mail_messages_tenant_from_idx")
   @@index([tenantId, receivedAt], map: "mail_messages_tenant_received_idx")
   @@index([threadId, removedAt, receivedAt], map: "mail_messages_thread_removed_received_idx")
+  knowledgeJobs KnowledgeMailboxJob[]
   @@map("mail_messages")
 }
 
@@ -10175,4 +10181,155 @@ model XFeedSubscription {
   @@index([tenantId, userId], map: "x_feed_subscription_tenant_user_idx")
   @@index([tenantId, userId, enabled], map: "x_feed_subscription_enabled_idx")
   @@map("x_feed_subscription")
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Enterprise Context Plane — Phase 1/2 knowledge substrate
+//
+// KnowledgeEvent is immutable source evidence. KnowledgeAssertion is an
+// atomic temporal interpretation anchored to that evidence. Governed
+// memory_items remain the curated human-readable projection.
+// ─────────────────────────────────────────────────────────────────────────
+
+model KnowledgeEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  idempotencyKey    String   @map("idempotency_key") @db.VarChar(64)
+  sourceType        String   @map("source_type") @db.VarChar(96)
+  sourceId          String   @map("source_id") @db.VarChar(512)
+  sourceVersion     String?  @map("source_version") @db.VarChar(160)
+  sourceContentHash String   @map("source_content_hash") @db.VarChar(64)
+  eventType         String   @map("event_type") @db.VarChar(96)
+  occurredAt        DateTime @map("occurred_at") @db.Timestamptz(6)
+  observedAt        DateTime @map("observed_at") @db.Timestamptz(6)
+  ingestedAt        DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  actorRefs         Json     @default("[]") @map("actor_refs")
+  entityRefs        Json     @default("[]") @map("entity_refs")
+  clientRefs        Json     @default("[]") @map("client_refs")
+  sensitivity       String   @default("normal") @db.VarChar(96)
+  accessScope       Json     @default("{\"kind\":\"tenant\"}") @map("access_scope")
+  evidenceLocator   Json     @map("evidence_locator")
+  metadata          Json     @default("{}")
+  originTraceId     String?  @map("origin_trace_id") @db.VarChar(160)
+  status            String   @default("active") @db.VarChar(24)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_events_tenant_fkey")
+  assertions  KnowledgeAssertion[]  @relation("KnowledgeAssertionOriginEvent")
+  evidence    KnowledgeEvidence[]   @relation("KnowledgeEvidenceEvent")
+  mailboxJobs KnowledgeMailboxJob[]
+
+  @@unique([tenantId, id], map: "knowledge_events_tenant_identity_unique")
+  @@unique([tenantId, idempotencyKey], map: "knowledge_events_idempotency_unique")
+  @@index([tenantId, occurredAt(sort: Desc), id(sort: Desc)], map: "knowledge_events_tenant_occurred_idx")
+  @@index([tenantId, sourceType, sourceId, sourceVersion], map: "knowledge_events_tenant_source_idx")
+  @@index([tenantId, eventType, observedAt(sort: Desc)], map: "knowledge_events_tenant_type_observed_idx")
+  @@index([actorRefs], type: Gin, map: "knowledge_events_actor_refs_gin")
+  @@index([entityRefs], type: Gin, map: "knowledge_events_entity_refs_gin")
+  @@index([clientRefs], type: Gin, map: "knowledge_events_client_refs_gin")
+  @@map("knowledge_events")
+}
+
+model KnowledgeAssertion {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  idempotencyKey         String    @map("idempotency_key") @db.VarChar(64)
+  originEventId          String    @map("origin_event_id") @db.Uuid
+  subjectType            String    @map("subject_type") @db.VarChar(96)
+  subjectId              String    @map("subject_id") @db.VarChar(512)
+  predicate              String    @db.VarChar(96)
+  objectType             String    @map("object_type") @db.VarChar(96)
+  objectId               String?   @map("object_id") @db.VarChar(512)
+  objectValue            Json?     @map("object_value")
+  assertionClass         String    @map("assertion_class") @db.VarChar(32)
+  confidence             Decimal   @db.Decimal(5, 4)
+  authority              String    @db.VarChar(32)
+  observedAt             DateTime  @map("observed_at") @db.Timestamptz(6)
+  validFrom              DateTime  @map("valid_from") @db.Timestamptz(6)
+  validUntil             DateTime? @map("valid_until") @db.Timestamptz(6)
+  status                 String    @default("active") @db.VarChar(24)
+  conflictStatus         String    @default("none") @map("conflict_status") @db.VarChar(24)
+  conflictGroupId        String?   @map("conflict_group_id") @db.Uuid
+  supersedesAssertionId  String?   @map("supersedes_assertion_id") @db.Uuid
+  contradictsAssertionId String?   @map("contradicts_assertion_id") @db.Uuid
+  sensitivity            String    @default("normal") @db.VarChar(96)
+  accessScope            Json      @default("{\"kind\":\"tenant\"}") @map("access_scope")
+  createdBy              String?   @map("created_by") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_tenant_fkey")
+  originEvent    KnowledgeEvent      @relation("KnowledgeAssertionOriginEvent", fields: [originEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_origin_event_fkey")
+  createdByUser  User?               @relation("KnowledgeAssertionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "knowledge_assertions_created_by_fkey")
+  evidence       KnowledgeEvidence[] @relation("KnowledgeEvidenceAssertion")
+
+  supersedes     KnowledgeAssertion?  @relation("KnowledgeAssertionSupersession", fields: [supersedesAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_supersedes_fkey")
+  supersededBy   KnowledgeAssertion[] @relation("KnowledgeAssertionSupersession")
+
+  contradicts    KnowledgeAssertion?  @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
+  contradictedBy KnowledgeAssertion[] @relation("KnowledgeAssertionContradiction")
+
+  @@unique([tenantId, id], map: "knowledge_assertions_tenant_identity_unique")
+  @@unique([tenantId, idempotencyKey], map: "knowledge_assertions_idempotency_unique")
+  @@index([tenantId, subjectType, subjectId, predicate, validFrom(sort: Desc)], map: "knowledge_assertions_tenant_subject_idx")
+  @@index([tenantId, objectType, objectId], map: "knowledge_assertions_tenant_object_idx")
+  @@index([tenantId, assertionClass, observedAt(sort: Desc)], map: "knowledge_assertions_tenant_class_idx")
+  @@index([tenantId, originEventId], map: "knowledge_assertions_origin_event_idx")
+  @@index([tenantId, conflictGroupId], map: "knowledge_assertions_conflict_group_idx")
+  @@index([tenantId, validFrom(sort: Desc), validUntil], map: "knowledge_assertions_temporal_idx")
+  @@index([objectValue], type: Gin, map: "knowledge_assertions_object_value_gin")
+  @@map("knowledge_assertions")
+}
+
+// Enterprise Context Plane — Phase 3 immutable excerpt-level provenance.
+model KnowledgeEvidence {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  assertionId String   @map("assertion_id") @db.Uuid
+  eventId     String   @map("event_id") @db.Uuid
+  sourceType  String   @map("source_type") @db.VarChar(96)
+  sourceId    String   @map("source_id") @db.VarChar(512)
+  excerpt     String   @db.Text
+  startOffset Int      @map("start_offset")
+  endOffset   Int      @map("end_offset")
+  contentHash String   @map("content_hash") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_evidence_tenant_fkey")
+  assertion KnowledgeAssertion @relation("KnowledgeEvidenceAssertion", fields: [assertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_evidence_assertion_fkey")
+  event     KnowledgeEvent     @relation("KnowledgeEvidenceEvent", fields: [eventId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_evidence_event_fkey")
+
+  @@unique([tenantId, assertionId, eventId, contentHash, startOffset, endOffset], map: "knowledge_evidence_identity_unique")
+  @@index([tenantId, assertionId, createdAt, id], map: "knowledge_evidence_assertion_idx")
+  @@index([tenantId, eventId, createdAt, id], map: "knowledge_evidence_event_idx")
+  @@index([tenantId, sourceType, sourceId], map: "knowledge_evidence_source_idx")
+  @@map("knowledge_evidence")
+}
+
+// Enterprise Context Plane — Phase 4 asynchronous mailbox ingestion outbox.
+model KnowledgeMailboxJob {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  mailMessageId        String    @map("mail_message_id") @db.Uuid
+  sourceRevision       String    @map("source_revision") @db.VarChar(64)
+  status               String    @default("pending") @db.VarChar(24)
+  attemptCount         Int       @default(0) @map("attempt_count")
+  availableAt          DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  lockedAt             DateTime? @map("locked_at") @db.Timestamptz(6)
+  lockedBy             String?   @map("locked_by") @db.VarChar(160)
+  lastError            String?   @map("last_error") @db.Text
+  relevance            Json?
+  resultEventId        String?   @map("result_event_id") @db.Uuid
+  processedContentHash String?   @map("processed_content_hash") @db.VarChar(64)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_tenant_fkey")
+  mailMessage MailMessage     @relation(fields: [mailMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_message_fkey")
+  resultEvent KnowledgeEvent? @relation(fields: [resultEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_event_fkey")
+
+  @@unique([tenantId, mailMessageId, sourceRevision], map: "knowledge_mailbox_jobs_identity_unique")
+  @@index([tenantId, mailMessageId, createdAt(sort: Desc)], map: "knowledge_mailbox_jobs_tenant_message_idx")
+  // Partial operational indexes are created by the SQL migration because Prisma
+  // cannot represent WHERE predicates on indexes without changing their meaning.
+  @@map("knowledge_mailbox_jobs")
 }

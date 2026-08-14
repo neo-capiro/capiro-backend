@@ -968,7 +968,9 @@ export class GoogleSyncService {
     // Computed once, before the transaction: used for BOTH association scoring
     // and the stored MailMessage row below, so extractGmailBodyText's MIME
     // walk never runs twice for the same message.
-    const bodyText = extractGmailBodyText(message.payload) ?? clean(message.snippet);
+    const extractedBody = extractGmailBodyText(message.payload);
+    const bodyText = extractedBody ?? clean(message.snippet);
+    const bodyCompleteness = extractedBody ? 'full' : 'preview';
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -1094,6 +1096,7 @@ export class GoogleSyncService {
               folder,
               internetMessageId,
               labelIds: message.labelIds ?? [],
+              bodyCompleteness,
             } as Prisma.InputJsonValue,
           },
           create: {
@@ -1120,6 +1123,7 @@ export class GoogleSyncService {
               folder,
               internetMessageId,
               labelIds: message.labelIds ?? [],
+              bodyCompleteness,
             } as Prisma.InputJsonValue,
           },
         });

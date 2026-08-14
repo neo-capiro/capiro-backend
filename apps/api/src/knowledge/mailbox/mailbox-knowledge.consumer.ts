@@ -1,10 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { KnowledgeEventService } from '../events/knowledge-event.service.js';
 import { MailboxKnowledgeFlagsService } from './mailbox-knowledge-flags.service.js';
 import { MailboxKnowledgeRepository } from './mailbox-knowledge.repository.js';
@@ -24,14 +19,17 @@ import {
 
 /**
  * Asynchronous Phase 4 consumer. Provider sync commits mail + its outbox row;
- * this worker later creates immutable KnowledgeEvents. No model or extraction
- * call occurs here—Phase 5/6 consume the event handoff.
+ * an out-of-band worker later creates immutable KnowledgeEvents. No model or
+ * extraction call occurs here—Phase 5/6 consume the event handoff.
+ *
+ * apps/api has no in-process scheduler for this path. The HTTP process must
+ * not poll knowledge_mailbox_jobs; drain-mailbox-knowledge is the established
+ * worker verb and loads tenant-scoped source rows from Postgres by id.
  */
 @Injectable()
-export class MailboxKnowledgeConsumer implements OnModuleInit, OnModuleDestroy {
+export class MailboxKnowledgeConsumer {
   private readonly logger = new Logger(MailboxKnowledgeConsumer.name);
   private readonly workerId = `${process.env.HOSTNAME ?? 'local'}:${process.pid}:${randomUUID()}`;
-  private timer: NodeJS.Timeout | null = null;
   private draining = false;
 
   constructor(
@@ -42,31 +40,6 @@ export class MailboxKnowledgeConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly threads: MailboxThreadService,
     private readonly events: KnowledgeEventService,
   ) {}
-
-  onModuleInit(): void {
-    if (!this.flags.enabled()) {
-      this.logger.log('Mailbox knowledge ingestion is disabled by feature flags.');
-      return;
-    }
-    this.timer = setInterval(() => {
-      void this.drainOnce().catch((error: unknown) => {
-        this.logger.error(
-          `Mailbox knowledge drain failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      });
-    }, this.flags.pollIntervalMs());
-    this.timer.unref();
-    void this.drainOnce().catch((error: unknown) => {
-      this.logger.error(
-        `Initial mailbox knowledge drain failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    });
-  }
-
-  onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-  }
 
   async drainOnce(): Promise<MailboxKnowledgeDrainResult> {
     const result: MailboxKnowledgeDrainResult = {
@@ -220,36 +193,10 @@ function insufficient(reason: string): MailboxRelevanceResult {
 
 /**
  * A provider preview may be useful for UI rendering, but it is not the source
- * body Phase 3 evidence offsets must bind to. Google rows are eligible only
- * when the MIME-derived body differs from Gmail's stored provider snippet (or
- * an explicit future completeness marker says full). Outlook is preview-only
- * today and remains disabled unless a full Graph body is stored explicitly.
+ * body Phase 3 evidence offsets must bind to. Both Gmail and Microsoft rows
+ * are eligible only when sync stamped an explicit bodyCompleteness=full marker.
+ * Previews, snippets, and inferred body/snippet inequality are never evidence.
  */
 export function hasAuthoritativeProviderBody(message: MailboxMessageRecord): boolean {
-  const completeness = message.metadata.bodyCompleteness;
-  if (completeness === 'full') return true;
-  if (completeness === 'preview') return false;
-
-  const rawBody = message.raw?.body;
-  if (
-    rawBody &&
-    typeof rawBody === 'object' &&
-    !Array.isArray(rawBody) &&
-    typeof rawBody.content === 'string' &&
-    rawBody.content.trim().length > 0
-  ) {
-    return true;
-  }
-
-  if (message.source !== 'google') return false;
-  const body = bodyProbe(message.bodyText);
-  const rawSnippet = message.raw?.snippet;
-  if (!body || typeof rawSnippet !== 'string') return false;
-  return body !== bodyProbe(rawSnippet);
-}
-
-function bodyProbe(value: unknown): string {
-  return typeof value === 'string'
-    ? value.replace(/\r\n?/g, '\n').replace(/\s+/g, ' ').trim()
-    : '';
+  return message.metadata.bodyCompleteness === 'full';
 }

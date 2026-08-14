@@ -62,7 +62,7 @@ function message(bodyText: string): MailboxMessageRecord {
     hasAttachments: false,
     removedAt: null,
     removedReason: null,
-    metadata: { internetMessageId: '<message-1@example.com>' },
+    metadata: { internetMessageId: '<message-1@example.com>', bodyCompleteness: 'full' },
     raw: { snippet: 'Please protect PE 0605053A…' },
     attachments: [],
     createdAt: new Date('2026-08-14T13:00:30Z'),
@@ -95,7 +95,6 @@ function harness(input: {
     enabled: jest.fn(() => input.enabled ?? true),
     batchSize: jest.fn(() => 10),
     maxAttempts: jest.fn(() => 8),
-    pollIntervalMs: jest.fn(() => 5_000),
   } as unknown as MailboxKnowledgeFlagsService;
   const append = jest.fn(async (_tenantId: string, eventInput: Record<string, unknown>) => {
     if (input.appendError) throw input.appendError;
@@ -213,6 +212,7 @@ describe('MailboxKnowledgeConsumer', () => {
   test('refuses a Gmail provider snippet that was stored as body text', async () => {
     const preview = message('This is only a provider snippet and not the complete authoritative body.');
     preview.raw = { snippet: preview.bodyText };
+    preview.metadata = { ...preview.metadata, bodyCompleteness: 'preview' };
     const { consumer, append, skip } = harness({ message: preview });
     const result = await consumer.drainOnce();
     expect(result.skipped).toBe(1);
@@ -230,6 +230,7 @@ describe('MailboxKnowledgeConsumer', () => {
     );
     preview.source = 'outlook';
     preview.raw = { bodyPreview: preview.bodyText };
+    preview.metadata = { ...preview.metadata, bodyCompleteness: 'preview' };
     const { consumer, append, skip } = harness({ message: preview });
     const result = await consumer.drainOnce();
     expect(result.skipped).toBe(1);
