@@ -81,23 +81,53 @@ if [ "$FAST" -eq 1 ]; then
   skip "Phase 1 DB-free verifier" "--fast"
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
-  # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE (every gate already
-  # passed) and still return a non-zero exit — or hang — from Windows nested
-  # process teardown (STATUS_DLL_INIT_FAILED 0xC0000142 / 3221225794). Bound
-  # the wait, then accept COMPLETE without FAILED as pass. Any
-  # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains a real fail.
+  # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang or return
+  # non-zero on Windows nested teardown (0xC0000142). Do not wait on pnpm's
+  # exit: poll the log, then kill the process tree when COMPLETE/FAILED lands.
+  # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains fail-closed.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
+  : >"$p1_log"
   set +e
-  # 25m bound: full nested Phase 1 is typically 8–15m on this host.
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 1500 pnpm verify:engagement-phase-1 >"$p1_log" 2>&1
-    p1_rc=$?
-  else
-    pnpm verify:engagement-phase-1 >"$p1_log" 2>&1
+  pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
+  p1_pid=$!
+  p1_deadline=$((SECONDS + 1500))
+  p1_rc=124
+  while kill -0 "$p1_pid" 2>/dev/null; do
+    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null || \
+       grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log" 2>/dev/null; then
+      # Give a brief moment for a clean exit, then reap.
+      sleep 2
+      if kill -0 "$p1_pid" 2>/dev/null; then
+        kill "$p1_pid" 2>/dev/null
+        sleep 1
+        kill -9 "$p1_pid" 2>/dev/null
+        # Best-effort: also stop leftover node children on Windows.
+        if command -v taskkill.exe >/dev/null 2>&1; then
+          taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
+        fi
+      fi
+      wait "$p1_pid" 2>/dev/null
+      p1_rc=$?
+      break
+    fi
+    if [ "$SECONDS" -ge "$p1_deadline" ]; then
+      kill "$p1_pid" 2>/dev/null
+      sleep 1
+      kill -9 "$p1_pid" 2>/dev/null
+      if command -v taskkill.exe >/dev/null 2>&1; then
+        taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
+      fi
+      wait "$p1_pid" 2>/dev/null
+      p1_rc=124
+      break
+    fi
+    sleep 5
+  done
+  if ! kill -0 "$p1_pid" 2>/dev/null; then
+    wait "$p1_pid" 2>/dev/null
     p1_rc=$?
   fi
   set -e
-  # timeout(1) uses 124 on expiry.
   if [ "$p1_rc" -eq 0 ]; then
     pass "Phase 1 DB-free verifier"
   elif grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
