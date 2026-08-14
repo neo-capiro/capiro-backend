@@ -16,6 +16,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
 import './styles/workspace.css';
 import './styles/workspace-audit.css';
+import './styles/workspace-editor-audit.css';
 
 const WorkspaceLibraryVNext = lazy(() =>
   import('./library/WorkspaceLibraryVNext.js').then((module) => ({
@@ -28,8 +29,8 @@ const WorkspaceCreationVNext = lazy(() =>
   })),
 );
 const WorkspaceEditorVNext = lazy(() =>
-  import('./editor/WorkspaceEditorVNext.js').then((module) => ({
-    default: module.WorkspaceEditorVNext,
+  import('./editor/WorkspaceEditorStabilized.js').then((module) => ({
+    default: module.WorkspaceEditorStabilized,
   })),
 );
 const WorkspaceStudioVNext = lazy(() =>
