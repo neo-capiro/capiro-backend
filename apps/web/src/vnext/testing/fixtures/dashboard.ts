@@ -144,6 +144,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         clients: 'Overland AI',
         url: 'https://example.com/1',
         imageUrl: null,
+        summary:
+          'Procurement signal strengthens the near-term case for Ground Robotics and related autonomy work.',
+        publishedAt: new Date(Date.now() - 3 * 3600_000).toISOString(),
         publishedLabel: '3h ago',
       },
       {
@@ -154,6 +157,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         clients: 'Overland AI, Boresight',
         url: 'https://example.com/2',
         imageUrl: null,
+        summary:
+          'HAC-D subcommittee markup notice posted with the reduction carried against the Ground Robotics line.',
+        publishedAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
         publishedLabel: '6h ago',
       },
       {
@@ -164,6 +170,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         clients: 'Aperture Defense',
         url: 'https://example.com/3',
         imageUrl: null,
+        summary:
+          'Witnesses pressed the panel on sustainment risk and autonomous resupply timelines.',
+        publishedAt: new Date(Date.now() - 9 * 3600_000).toISOString(),
         publishedLabel: '9h ago',
       },
       {
@@ -174,6 +183,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
         clients: 'Perseus Defense',
         url: 'https://example.com/4',
         imageUrl: null,
+        summary:
+          'Guidance clarifies responsible-AI review gates for rapid acquisition pathways.',
+        publishedAt: new Date(Date.now() - 14 * 3600_000).toISOString(),
         publishedLabel: '14h ago',
       },
     ],
@@ -279,8 +291,56 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
   retry: () => undefined,
   xFeed: {
     status: READY,
-    subscriptions: [],
-    posts: [],
+    subscriptions: [
+      {
+        id: 's1',
+        accountId: 'acct-1',
+        username: 'k_reyes_defense',
+        displayName: 'Kayla Reyes',
+        avatarUrl: null,
+        verified: false,
+        enabled: true,
+        sortOrder: 0,
+      },
+      {
+        id: 's2',
+        accountId: 'acct-2',
+        username: 'approps_watch',
+        displayName: 'Approps Watch',
+        avatarUrl: null,
+        verified: false,
+        enabled: true,
+        sortOrder: 1,
+      },
+    ],
+    posts: [
+      {
+        id: 'p1',
+        xPostId: 'xp-1',
+        text: 'Approps staff tell me the FY27 defense mark lands Thursday. Ground robotics is one of three accounts to watch.',
+        createdAtX: new Date(Date.now() - 2 * 60_000).toISOString(),
+        media: [],
+        metrics: {},
+        authorUsername: 'k_reyes_defense',
+        authorDisplayName: 'Kayla Reyes',
+        authorAvatarUrl: null,
+        authorVerified: false,
+        xUrl: 'https://x.com/k_reyes_defense/status/1',
+      },
+      {
+        id: 'p2',
+        xPostId: 'xp-2',
+        text: 'HAC-D subcommittee markup notice posted: Aug 18, 10:00 AM, Rayburn 2358.',
+        createdAtX: new Date(Date.now() - 42 * 60_000).toISOString(),
+        media: [],
+        metrics: {},
+        authorUsername: 'approps_watch',
+        authorDisplayName: 'Approps Watch',
+        authorAvatarUrl: null,
+        authorVerified: false,
+        xUrl: 'https://x.com/approps_watch/status/2',
+      },
+    ],
     filteredAccountId: null,
     addSource: async () => {},
     removeSource: async () => {},

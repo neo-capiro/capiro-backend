@@ -1,909 +1,394 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { Form } from 'antd';
 import {
   useDashboardVNextModel,
   type AttentionItem,
-  type DashboardModuleKey,
   type DashboardVNextModel,
-  type ModuleStatus,
   type TodayEvent,
   type XFeedPostItem,
-  type XFeedResolveResult,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
-import { JoinButton, SendMeriButton } from '../../../pages/engagement/meetings/meetings-ui.js';
-import { NotetakerConsentFields } from '../../../pages/engagement/meeting-actions.js';
-import { CapiroModal } from '../../components/overlays/index.js';
-import { CapiroButton } from '../../components/actions/index.js';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CustomizeDrawer } from './CustomizeDrawer.js';
 import './dashboard.css';
 
-/**
- * Dashboard vNext, reskinned onto the purchased Untitled UI kit
- * (`Capiro Dashboard - Untitled UI.dc.html`, Figma `748:2503`).
- *
- * This is a presentation-only reskin. useDashboardVNextModel and every
- * behavioral guarantee it carries (endpoint ownership, the Needs Attention
- * allowlist, the 7-state contract, all-client scope, Send Meri) are
- * completely unchanged — see IMPLEMENTATION_CONTRACT.md, which still governs
- * this component even though its class names no longer match the doc's
- * literal CSS selectors. Ship gate `760:2736` still applies.
- */
+type WireFilter = 'all' | 'x' | 'news';
+type WireItem =
+  | { type: 'x'; id: string; at: number; item: XFeedPostItem }
+  | { type: 'news'; id: string; at: number; item: DashboardVNextModel['news']['items'][number] };
+
+type AttentionTone = 'error' | 'warning' | 'blue';
+
+const DASH_V2_VARS = {
+  '--dash-link': '#363F72',
+  '--dash-link-hover': '#293056',
+  '--dash-brand': '#3E4784',
+  '--dash-brand-tint': '#EAECF5',
+  '--dash-brand-ring': '#B3B8DB',
+  '--dash-brand-mid': '#717BBC',
+  '--dash-focus': '#4E5BA6',
+  '--dash-focus-outer': '#D5D9EB',
+  '--dash-metal-face': 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)',
+  '--dash-metal-face-hover': 'linear-gradient(180deg,#4A5462 0%,#252F3C 46%,#161D26 100%)',
+  '--dash-metal-shadow': 'inset 0 1px 0 rgba(255,255,255,.14), 0px 1px 2px rgba(16,24,40,.12)',
+} as CSSProperties;
+
 export function DashboardVNext() {
-  const model = useDashboardVNextModel();
-  return <DashboardVNextView model={model} />;
+  return <DashboardVNextView model={useDashboardVNextModel()} />;
 }
 
-/** Presentation half, kept data-free so the visual harness can render it. */
 export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
-  const modules: Record<DashboardModuleKey, ReactNode> = {
-    news: model.visibility.news ? <NewsAndNarrative key="news" model={model} /> : null,
-    today: model.visibility.today ? <TodayAndComingUp key="today" model={model} /> : null,
-    work: model.visibility.work ? <WorkQueue key="work" model={model} /> : null,
-    xFeed: model.visibility.xFeed ? <XIntelligenceFeed key="xFeed" model={model} /> : null,
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeSection, setCustomizeSection] = useState<'x' | null>(null);
+  const [wireFilter, setWireFilter] = useState<WireFilter>('all');
+  const [selectedAttentionId, setSelectedAttentionId] = useState<string | null>(null);
+  const [clearedAttentionIds, setClearedAttentionIds] = useState<Set<string>>(() => new Set());
+  const [clearingAttentionIds, setClearingAttentionIds] = useState<Set<string>>(() => new Set());
+  const [showAllAttention, setShowAllAttention] = useState(false);
+  const [densityChanging, setDensityChanging] = useState(false);
+
+  const attentionItems = model.needsAttention.items.filter((item) => !clearedAttentionIds.has(item.id));
+  const criticalCount = attentionItems.filter((item) => item.severity === 'critical').length;
+  const visibleAttention = showAllAttention ? attentionItems : attentionItems.slice(0, 4);
+  const laneOrder = model.order.filter((key): key is 'today' | 'work' => key === 'today' || key === 'work');
+  const wireEnabled = model.visibility.news || model.visibility.xFeed;
+  const hasWorkLane = model.visibility.today || model.visibility.work;
+
+  // Dashboard v2 exposes The Wire as one lane toggle. Normalize any old v1
+  // preference where News and X were independently hidden so the new contract
+  // cannot render a half-enabled Wire after upgrade.
+  useEffect(() => {
+    if (model.visibility.news === model.visibility.xFeed) return;
+    model.setVisibility({ ...model.visibility, news: wireEnabled, xFeed: wireEnabled });
+  }, [model, wireEnabled]);
+
+  const wireItems = useMemo(() => {
+    const xItems: WireItem[] = model.xFeed.posts.map((item) => ({
+      type: 'x', id: `x-${item.id}`, at: Date.parse(item.createdAtX) || 0, item,
+    }));
+    const newsItems: WireItem[] = model.news.items.map((item) => ({
+      type: 'news', id: `news-${item.id}`, at: Date.parse(item.publishedAt ?? '') || relativeLabelEpoch(item.publishedLabel), item,
+    }));
+    return [...xItems, ...newsItems].sort((a, b) => b.at - a.at);
+  }, [model.news.items, model.xFeed.posts]);
+
+  const wireLimit = model.density === 'presentation' ? 6 : 8;
+  const wireWindow = wireItems.filter((item) => item.at >= Date.now() - 24 * 60 * 60 * 1000);
+  const filteredWire = wireWindow
+    .filter((item) => wireFilter === 'all' || item.type === wireFilter)
+    .slice(0, wireLimit);
+
+  const setDensityAnimated = (next: DashboardVNextModel['density']) => {
+    if (next === model.density || densityChanging) return;
+    setDensityChanging(true);
+    window.setTimeout(() => {
+      model.setDensity(next);
+      window.setTimeout(() => setDensityChanging(false), 95);
+    }, 95);
   };
 
-  // Mobile is a different content model, not a narrower desktop (`757:2622`):
-  // a single Next Meeting card stands in for Today & Coming Up, and the Work
-  // Queue collapses to its lead item.
-  if (model.isMobile) {
-    return (
-      <div className="uui-dash" data-density={model.density} data-viewport="mobile">
-        <DashboardHeader model={model} />
-        <div className="uui-dash__content">
-          <NeedsAttention model={model} />
-          {model.order.map((key) =>
-            key === 'today'
-              ? model.visibility.today && <NextMeetingCard key="today" model={model} />
-              : key === 'work'
-                ? model.visibility.work && <MobileWorkQueue key="work" model={model} />
-                : modules[key],
+  const doRefresh = () => {
+    if (model.xFeed.refreshing) return;
+    model.xFeed.refresh();
+    model.retry();
+  };
+
+  const clearAttention = (item: AttentionItem) => {
+    if (clearingAttentionIds.has(item.id)) return;
+    setClearingAttentionIds((current) => new Set([...current, item.id]));
+    window.setTimeout(() => {
+      setClearedAttentionIds((current) => new Set([...current, item.id]));
+      setClearingAttentionIds((current) => { const next = new Set(current); next.delete(item.id); return next; });
+      if (selectedAttentionId === item.id) setSelectedAttentionId(null);
+      if (item.href) window.location.assign(item.href);
+    }, 260);
+  };
+
+  return (
+    <div
+      className="dashv2"
+      data-density={model.density}
+      data-two-lane={wireEnabled && hasWorkLane || undefined}
+      data-density-changing={densityChanging || undefined}
+      style={DASH_V2_VARS}
+    >
+      <section className="dashv2-console">
+        <div className="dashv2-head">
+          <div className="dashv2-head__copy">
+            <h1>{model.header.greeting}</h1>
+            <span className="dashv2-head__date"><span className="dashv2-head__date-long">{formatLongDate()}</span><span className="dashv2-head__date-short">{formatShortDate()}</span></span>
+          </div>
+          <div className="dashv2-head__actions">
+            <button className="dashv2-refresh" type="button" onClick={doRefresh} disabled={model.xFeed.refreshing} title="Refresh dashboard sources">
+              <DashboardIcon name="RefreshCw01" size={18} className={model.xFeed.refreshing ? 'dashv2-spin' : undefined} />
+              <span>{model.xFeed.refreshing ? 'Refreshing…' : (model.header.refreshedLabel || 'Refresh')}</span>
+            </button>
+            <button className="dashv2-primary" type="button" onClick={() => { setCustomizeSection(null); setCustomizeOpen(true); }}>
+              <DashboardIcon name="Sliders02" size={18} />
+              <span>Customize</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="dashv2-triage" aria-label="Needs attention">
+          <div className="dashv2-triage__eyebrow">
+            <span>NEEDS ATTENTION</span>
+            <span key={`${attentionItems.length}-${criticalCount}`} className="dashv2-pill dashv2-triage__count" data-tone={criticalCount > 0 ? 'error' : 'warning'}>
+              <span className="dashv2-pill__dot" />
+              {attentionCountBase(model, attentionItems.length)}{criticalCount > 0 && model.needsAttention.status.state !== 'loading' && model.needsAttention.status.state !== 'unavailable' ? <span className="dashv2-triage__critical"> · {criticalCount} critical</span> : null}
+            </span>
+            <span className="dashv2-triage__spacer" />
+            {attentionItems.length > 4 ? (
+              <button type="button" className="dashv2-link" onClick={() => setShowAllAttention((value) => !value)}>
+                {showAllAttention ? 'Show first four' : `View all ${attentionItems.length}`}
+              </button>
+            ) : null}
+          </div>
+
+          {model.needsAttention.status.state === 'loading' ? (
+            <div className="dashv2-allclear" data-state="loading">Loading time-sensitive signals…</div>
+          ) : model.needsAttention.status.state === 'unavailable' ? (
+            <div className="dashv2-source-state"><strong>Needs Attention is temporarily unavailable</strong><span>{model.needsAttention.status.meta ?? 'A required source did not respond.'}</span><button type="button" className="dashv2-link" onClick={model.retry}>Retry source</button></div>
+          ) : attentionItems.length === 0 ? (
+            <div className="dashv2-allclear">
+              <span className="dashv2-allclear__dot" />
+              <strong>Nothing time-sensitive right now.</strong>
+              <span>Next source check will appear here automatically.</span>
+              <span className="dashv2-triage__spacer" />
+              <button type="button" className="dashv2-link dashv2-link--success" onClick={model.retry}>Check now</button>
+            </div>
+          ) : (
+            <div className="dashv2-triage__grid" role="list">
+              {visibleAttention.map((item) => (
+                <TriageTile
+                  key={item.id}
+                  item={item}
+                  selected={selectedAttentionId === item.id}
+                  clearing={clearingAttentionIds.has(item.id)}
+                  onSelect={() => setSelectedAttentionId((current) => current === item.id ? null : item.id)}
+                  onAction={() => clearAttention(item)}
+                />
+              ))}
+            </div>
           )}
         </div>
-      </div>
-    );
-  }
+      </section>
 
-  // Desktop/tablet keep the designed two-column body: News leads the wide
-  // column and the remaining modules stack on the right, in user order.
-  const ordered = model.order.filter((key) => modules[key] !== null);
-  const lead = ordered.find((key) => key === 'news') ?? ordered[0];
-  const rest = ordered.filter((key) => key !== lead);
-
-  return (
-    <div className="uui-dash" data-density={model.density}>
-      <DashboardHeader model={model} />
-
-      <div className="uui-dash__content">
-        {/* Needs Attention is permanently pinned first and is not hideable. */}
-        <NeedsAttention model={model} />
-
-        <div className="uui-dash__columns">
-          {lead ? modules[lead] : null}
-          <div className="uui-dash__stack">{rest.map((key) => modules[key])}</div>
+      <div className="dashv2-grid">
+        <div className="dashv2-worklane">
+          {laneOrder.map((key) => {
+            if (key === 'today' && model.visibility.today) {
+              return <ChronologicalSpine key="today" model={model} selectedAttentionId={selectedAttentionId} onSelectAttention={setSelectedAttentionId} />;
+            }
+            if (key === 'work' && model.visibility.work) return <WorkQueue key="work" model={model} />;
+            return null;
+          })}
         </div>
+        {wireEnabled ? (
+          <Wire
+            model={model}
+            filter={wireFilter}
+            onFilter={setWireFilter}
+            items={filteredWire}
+            windowItems={wireWindow}
+            onManage={() => { setCustomizeSection('x'); setCustomizeOpen(true); }}
+            onRefresh={doRefresh}
+          />
+        ) : null}
       </div>
+
+      {customizeOpen ? <CustomizeDrawer model={model} initialSection={customizeSection} onClose={() => { setCustomizeOpen(false); setCustomizeSection(null); }} onDensityChange={setDensityAnimated} /> : null}
     </div>
   );
 }
 
-function DashboardHeader({ model }: { model: DashboardVNextModel }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
+function TriageTile({ item, selected, clearing, onSelect, onAction }: { item: AttentionItem; selected: boolean; clearing: boolean; onSelect: () => void; onAction: () => void }) {
+  const tone = attentionTone(item);
   return (
-    <header className="uui-dash__header">
-      <div className="uui-dash__header-copy">
-        <h1 className="uui-dash__greeting">{model.header.greeting}</h1>
-        <p className="uui-dash__meta">{model.header.eyebrow ? `${model.header.eyebrow} · ` : ''}{model.header.meta}</p>
+    <div
+      role="listitem"
+      tabIndex={0}
+      className="dashv2-tile"
+      data-tone={tone}
+      data-selected={selected || undefined}
+      data-clearing={clearing || undefined}
+      onClick={onSelect}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(); } }}
+    >
+      <div className="dashv2-tile__top">
+        <span className="dashv2-tone-dot" />
+        <span className="dashv2-tile__kind">{item.kind}</span>
+        <span className="dashv2-triage__spacer" />
+        <span className="dashv2-tile__due">{item.due ?? ''}</span>
       </div>
-
-      <div className="uui-dash__header-actions">
-        {model.header.refreshedLabel ? (
-          <span className="uui-dash__refreshed">{model.header.refreshedLabel}</span>
-        ) : null}
-        <button
-          ref={triggerRef}
-          type="button"
-          className="uui-dash__customize"
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          onClick={() => setOpen(true)}
-        >
-          Customize
+      <div className="dashv2-tile__title">{item.title}</div>
+      <div className="dashv2-tile__bottom">
+        <span className="dashv2-tile__context">{[item.eyebrow, item.context].filter(Boolean).join(' · ')}</span>
+        <button type="button" className="dashv2-tile__action" onClick={(event) => { event.stopPropagation(); onAction(); }}>
+          {item.actionLabel}
         </button>
       </div>
-
-      {open ? <CustomizeDrawer model={model} onClose={() => setOpen(false)} /> : null}
-    </header>
-  );
-}
-
-/* ── Needs Attention ─────────────────────────────────────────────────────── */
-
-function NeedsAttention({ model }: { model: DashboardVNextModel }) {
-  const module = model.needsAttention;
-
-  return (
-    <section className="uui-dash-card" aria-label="Needs attention">
-      <div className="uui-dash-card__head">
-        <h2 className="uui-dash-card__title">Needs Attention</h2>
-        {/* Partial renders as a compact chip on the header row, not a body block. */}
-        {module.status.state === 'partial' ? (
-          <span className="uui-pill uui-dash-card__state-chip" data-tone="gray">
-            <span className="uui-pill__dot" aria-hidden="true" />
-            {module.status.meta ?? 'Partial'}
-          </span>
-        ) : null}
-        {module.total > 0 ? (
-          <span className="uui-dash-card__badge">
-            {module.total} item{module.total === 1 ? '' : 's'}
-          </span>
-        ) : null}
-        {module.total > 0 ? (
-          <Link className="uui-dash-card__link" to="/explorer">
-            View all
-          </Link>
-        ) : null}
-      </div>
-
-      {/* Partial is suppressed here (chip above); ready rows render underneath. */}
-      {module.status.state === 'partial' ? null : (
-        <ModuleStateView status={module.status} onRetry={model.retry} />
-      )}
-
-      {module.items.map((item, index) => (
-        <AttentionRow key={item.id} item={item} current={index === 0} />
-      ))}
-    </section>
-  );
-}
-
-/**
- * Badge tone rides the severity axis; the badge label is derived honestly
- * (Critical / Deadline / Hearing / …), never a repeated stamp.
- */
-function badgeTone(item: AttentionItem): 'error' | 'warning' | 'blue' | 'gray' {
-  if (item.severity === 'critical') return 'error';
-  if (item.severity === 'high') return 'warning';
-  if (item.kind === 'Budget') return 'blue';
-  return 'gray';
-}
-
-function AttentionRow({ item, current }: { item: AttentionItem; current: boolean }) {
-  const body = (
-    <>
-      <span className="uui-pill" data-tone={badgeTone(item)}>
-        <span className="uui-pill__dot" aria-hidden="true" />
-        {item.kind}
-      </span>
-      <span className="uui-dash-attention__copy">
-        <span className="uui-dash-attention__title">{item.title}</span>
-        <span className="uui-dash-attention__eyebrow">
-          {item.eyebrow}
-          {item.similarCount > 0 ? (
-            <span className="uui-dash-attention__similar"> · +{item.similarCount} similar</span>
-          ) : null}
-        </span>
-        {/* Mobile collapses context and due into one meta line (`759:2662`). */}
-        <span className="uui-dash-attention__mobile-meta">
-          {[item.context, item.due].filter(Boolean).join(' · ')}
-        </span>
-      </span>
-      <span className="uui-dash-attention__context">{item.context}</span>
-      <span className="uui-dash-attention__due">{item.due}</span>
-      <span className="uui-dash-attention__action" data-hierarchy={current ? 'primary' : 'secondary'}>
-        {item.actionLabel}
-      </span>
-    </>
-  );
-
-  // Exactly one primary action per decision region: the lead row is "current"
-  // and owns the solid button; every other row gets the outlined one.
-  return item.href ? (
-    <Link
-      className="uui-dash-attention"
-      data-severity={item.severity}
-      data-current={current || undefined}
-      to={item.href}
-    >
-      {body}
-    </Link>
-  ) : (
-    <div
-      className="uui-dash-attention"
-      data-severity={item.severity}
-      data-current={current || undefined}
-    >
-      {body}
     </div>
   );
 }
 
-/* ── News & Narrative ────────────────────────────────────────────────────── */
-
-function NewsAndNarrative({ model }: { model: DashboardVNextModel }) {
-  const module = model.news;
-
+function ChronologicalSpine({ model, selectedAttentionId, onSelectAttention }: { model: DashboardVNextModel; selectedAttentionId: string | null; onSelectAttention: (id: string | null) => void }) {
+  const groups = groupEvents(model.today.events);
+  const todayCount = groups.today.length;
+  const aheadCount = groups.tomorrow.length + groups.later.length;
   return (
-    <section className="uui-dash-card uui-dash-card--news" aria-label="News and narrative">
-      <div className="uui-dash-card__head">
-        <h2 className="uui-dash-card__title">News &amp; Narrative</h2>
-        <span className="uui-dash-card__meta">{module.meta}</span>
-        <Link className="uui-dash-card__link" to="/explorer">
-          Customize feed
-        </Link>
+    <section className="dashv2-card dashv2-spine" aria-label="Today and coming up">
+      <header className="dashv2-card__head dashv2-spine__head">
+        <h2>Today &amp; Coming Up</h2>
+        <span className="dashv2-pill dashv2-pill--gray">{todayCount} today · {aheadCount} ahead</span>
+        <span className="dashv2-triage__spacer" />
+        <Link className="dashv2-link" to="/engagement">Open calendar</Link>
+      </header>
+      <div className="dashv2-spine__body">
+        <SpineGroup label={`TODAY · ${dayHeading(new Date())}`} events={groups.today} today model={model} selectedAttentionId={selectedAttentionId} onSelectAttention={onSelectAttention} />
+        <SpineGroup label={`TOMORROW · ${dayHeading(addDays(new Date(), 1))}`} events={groups.tomorrow} model={model} selectedAttentionId={selectedAttentionId} onSelectAttention={onSelectAttention} />
+        <SpineGroup label="LATER THIS WEEK" events={groups.later} week model={model} selectedAttentionId={selectedAttentionId} onSelectAttention={onSelectAttention} />
       </div>
-
-      <ModuleStateView status={module.status} onRetry={model.retry} />
-
-      {module.items.map((item) => (
-        <a
-          key={item.id}
-          className="uui-dash-news"
-          href={item.url}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          <span className="uui-dash-news__thumb" aria-hidden="true">
-            {item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" /> : null}
-          </span>
-          <span className="uui-dash-news__copy">
-            <span className="uui-dash-news__source">{item.source}</span>
-            <span className="uui-dash-news__title">{item.title}</span>
-            <span className="uui-dash-news__reason">{item.reason}</span>
-            {/* Tablet and mobile fold relevance and clients into one line. */}
-            <span className="uui-dash-news__narrow-meta">
-              {[item.reason, item.clients].filter(Boolean).join(' · ')}
-            </span>
-          </span>
-          <span className="uui-dash-news__client">{item.clients}</span>
-        </a>
-      ))}
     </section>
   );
 }
 
-/* ── Today & Coming Up ───────────────────────────────────────────────────── */
-
-function TodayAndComingUp({ model }: { model: DashboardVNextModel }) {
-  const module = model.today;
-
+function SpineGroup({ label, events, today = false, week = false, model, selectedAttentionId, onSelectAttention }: { label: string; events: TodayEvent[]; today?: boolean; week?: boolean; model: DashboardVNextModel; selectedAttentionId: string | null; onSelectAttention: (id: string | null) => void }) {
   return (
-    <section className="uui-dash-card" aria-label="Today and coming up">
-      <div className="uui-dash-card__head">
-        <h2 className="uui-dash-card__title">Today &amp; Coming Up</h2>
-        <Link className="uui-dash-card__link" to="/engagement">
-          Open Engagement
-        </Link>
-      </div>
-
-      {/* The week strip is desktop-only: the tablet artifact (`758:2831`) drops
-          it and goes straight to the event list. */}
-      {module.week.length > 0 ? (
-        <div className="uui-dash-week">
-          {module.week.map((day) => (
-            <div
-              key={day.id}
-              className="uui-dash-week__day"
-              data-today={day.today || undefined}
-            >
-              <span className="uui-dash-week__weekday">{day.weekday}</span>
-              <span className="uui-dash-week__number">{day.day}</span>
-              <span
-                className="uui-dash-week__dot"
-                data-visible={day.hasEvents || undefined}
-                aria-hidden="true"
-              />
-            </div>
-          ))}
-        </div>
+    <div className="dashv2-spine-group" data-today={today || undefined} data-week={week || undefined}>
+      <div className="dashv2-spine-group__label"><span>{label}</span><i /></div>
+      <div className="dashv2-spine-group__rows">
+      <div className="dashv2-spine-group__rail" />
+      {today ? (
+        <div className="dashv2-now"><span>NOW</span><i className="dashv2-now__node"/><b/><time>{new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></div>
       ) : null}
-
-      <ModuleStateView status={module.status} onRetry={model.retry} />
-
-      {module.events.map((event) => (
-        <EventRow key={event.id} event={event} onSendMeri={() => module.sendMeri.open(event.id)} />
-      ))}
-
-      <SendMeriDialog
-        sendMeri={module.sendMeri}
-        event={module.events.find((event) => event.id === module.sendMeri.targetEventId) ?? null}
-      />
-    </section>
-  );
-}
-
-function eventActionLabel(action: DashboardVNextModel['today']['events'][number]['action']) {
-  if (action === 'join') return 'Join';
-  if (action === 'prepare') return 'Prepare';
-  if (action === 'brief') return 'Brief';
-  return 'Open';
-}
-
-function EventRow({
-  event,
-  onSendMeri,
-}: {
-  event: TodayEvent;
-  onSendMeri: () => void;
-}) {
-  const copy = (
-    <span className="uui-dash-event__copy">
-      <span className="uui-dash-event__title">{event.title}</span>
-      <span className="uui-dash-event__meta">{event.meta}</span>
-    </span>
-  );
-
-  // Hearings, comment deadlines and other tracked (non-meeting) items keep the
-  // single Prepare/Open/Brief action the row has always had — Join/Send Meri
-  // only apply to real meetings, per the rule that a tracked item never gets a
-  // fabricated meeting action just because it sits in the same list.
-  if (!event.isMeeting) {
-    const body = (
-      <>
-        <span className="uui-dash-event__time">{event.time}</span>
-        {copy}
-        <span className="uui-dash-event__action">{eventActionLabel(event.action)}</span>
-      </>
-    );
-    if (event.action === 'join' && event.joinUrl) {
-      return (
-        <a className="uui-dash-event" href={event.joinUrl} target="_blank" rel="noreferrer noopener">
-          {body}
-        </a>
-      );
-    }
-    return event.href ? (
-      <Link className="uui-dash-event" to={event.href}>
-        {body}
-      </Link>
-    ) : (
-      <div className="uui-dash-event">{body}</div>
-    );
-  }
-
-  // Real meetings: Join and Send Meri are independent controls, not one
-  // row-wide link, so each keeps its own click target and stops propagation
-  // (both JoinButton and SendMeriButton already do this) rather than also
-  // firing row navigation.
-  return (
-    <div className="uui-dash-event uui-dash-event--meeting">
-      <span className="uui-dash-event__time">{event.time}</span>
-      {event.href ? (
-        <Link className="uui-dash-event__copy-link" to={event.href}>
-          {copy}
-        </Link>
-      ) : (
-        copy
-      )}
-      <span className="uui-dash-event__meeting-actions">
-        <JoinButton m={{ isVirtual: event.isVirtual, joinLink: event.joinUrl }} size="sm" />
-        <SendMeriButton
-          m={{ isVirtual: event.isVirtual, joinLink: event.joinUrl, meri: event.meri }}
-          size="sm"
-          className="uui-dash-send-meri"
-          onClick={onSendMeri}
-        />
-      </span>
+      {events.length === 0 ? <div className="dashv2-spine-empty">{today ? 'Nothing scheduled today' : 'Nothing scheduled'}</div> : null}
+      {events.map((event) => {
+        const attention = matchAttention(event, model.needsAttention.items);
+        const selectable = Boolean(attention);
+        const selected = attention?.id === selectedAttentionId;
+        const kind = event.isMeeting ? 'meeting' : (event.title.toLowerCase().includes('hearing') ? 'hearing' : 'deadline');
+        const content = (
+          <>
+            <span className="dashv2-spine-row__time">{week ? weekDayToken(event) : event.time}</span>
+            <i className="dashv2-spine-row__node" data-kind={kind}/>
+            <span className="dashv2-spine-row__copy"><strong>{event.title}</strong><span>{stripDayPrefix(event.meta)}</span></span>
+            {event.isMeeting && event.action === 'join' && event.joinUrl ? <a className="dashv2-secondary dashv2-spine-row__action" href={event.joinUrl} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()}>Join</a> : null}
+            {!event.isMeeting && kind === 'hearing' ? <Link className="dashv2-secondary dashv2-spine-row__action" to={event.href ?? '/legiwatch'} onClick={(e)=>e.stopPropagation()}>Brief</Link> : null}
+          </>
+        );
+        return selectable ? (
+          <div key={event.id} role="button" tabIndex={0} className="dashv2-spine-row dashv2-spine-row--selectable" data-selected={selected || undefined} onClick={() => onSelectAttention(selected ? null : attention!.id)} onKeyDown={(keyEvent) => { if (keyEvent.key === 'Enter' || keyEvent.key === ' ') { keyEvent.preventDefault(); onSelectAttention(selected ? null : attention!.id); } }}>{content}</div>
+        ) : event.href ? (
+          <Link key={event.id} to={event.href} className="dashv2-spine-row">{content}</Link>
+        ) : <div key={event.id} className="dashv2-spine-row">{content}</div>;
+      })}
+      </div>
     </div>
   );
 }
-
-/**
- * Send Meri consent dialog. Reuses the exact `POST …/notetaker` mutation
- * (`model.today.sendMeri`) and the compliance-reviewed consent copy
- * (`NotetakerConsentFields`, meeting-actions.tsx) that HomePage's dashboard
- * strip already dispatches — not a forked copy or a new endpoint.
- *
- * `NotetakerConsentFields` is an antd `Form.Item` tree (it needs Form context
- * to bind its fields), so this is a deliberate, narrow exception to vNext's
- * antd-free rule: the dialog chrome (CapiroModal, CapiroButton) is vNext, but
- * the fields themselves render with antd's own Form.Item spacing/typography
- * because that is the literal reused component, not a re-skin of it. Forking
- * this copy is explicitly what the compliance review prohibits.
- */
-function SendMeriDialog({
-  sendMeri,
-  event,
-}: {
-  sendMeri: DashboardVNextModel['today']['sendMeri'];
-  event: TodayEvent | null;
-}) {
-  const [form] = Form.useForm();
-  const authorized = Form.useWatch('authorizedToRecord', form);
-  const notified = Form.useWatch('allPartiesWillBeNotified', form);
-  const open = Boolean(event);
-  const eventId = event?.id;
-  const joinUrl = event?.joinUrl;
-
-  // antd only reads `initialValues` on the Form's first mount, and this dialog
-  // stays mounted (just toggling `open`) across different meetings — so a
-  // second meeting opened after the first would otherwise keep showing the
-  // first meeting's typed values. Re-seed explicitly on every new target,
-  // matching HomePage's own openNotetaker(meeting) => setFieldsValue(...).
-  useEffect(() => {
-    if (!eventId) return;
-    form.resetFields();
-    form.setFieldsValue({ meetingUrl: joinUrl ?? '' });
-  }, [eventId, joinUrl, form]);
-
-  return (
-    <CapiroModal open={open} title="Send Meri to take notes?" onClose={sendMeri.close}>
-      {event ? (
-        <Form form={form} layout="vertical" onFinish={(values) => sendMeri.submit(values.meetingUrl)}>
-          <NotetakerConsentFields />
-          <div className="uui-dash-send-meri-dialog__actions">
-            <CapiroButton variant="secondary" onClick={sendMeri.close} disabled={sendMeri.pending}>
-              Cancel
-            </CapiroButton>
-            <CapiroButton
-              variant="primary"
-              onClick={() => form.submit()}
-              disabled={!(authorized && notified) || sendMeri.pending}
-              loading={sendMeri.pending}
-            >
-              Send Meri
-            </CapiroButton>
-          </div>
-        </Form>
-      ) : null}
-    </CapiroModal>
-  );
-}
-
-/**
- * Mobile Next Meeting (`759:2683`) — the single-card content model that replaces
- * Today & Coming Up below 780px (useIsMobile is pinned to the canonical 779
- * boundary, so this content model and dashboard.css's mobile geometry now
- * switch on the same pixel). The Join affordance is real, not decorative: the
- * model resolves `nextMeeting.joinUrl` from the same `readJoinUrl` the desktop
- * rows use. When nothing is scheduled the module still renders its state rather
- * than disappearing.
- */
-function NextMeetingCard({ model }: { model: DashboardVNextModel }) {
-  const event = model.today.nextMeeting;
-
-  if (!event) {
-    return (
-      <section className="uui-dash-card" aria-label="Next meeting">
-        <ModuleStateView status={model.today.status} onRetry={model.retry} />
-      </section>
-    );
-  }
-
-  const action = (
-    <span className="uui-dash-next__action">{eventActionLabel(event.action)}</span>
-  );
-
-  const body = (
-    <>
-      <span className="uui-dash-next__eyebrow">NEXT MEETING · {event.time}</span>
-      <span className="uui-dash-next__title">{event.title}</span>
-      <span className="uui-dash-next__meta">{event.meta}</span>
-      {action}
-    </>
-  );
-
-  if (event.action === 'join' && event.joinUrl) {
-    return (
-      <a
-        className="uui-dash-next"
-        aria-label="Next meeting"
-        href={event.joinUrl}
-        target="_blank"
-        rel="noreferrer noopener"
-      >
-        {body}
-      </a>
-    );
-  }
-
-  return event.href ? (
-    <Link className="uui-dash-next" aria-label="Next meeting" to={event.href}>
-      {body}
-    </Link>
-  ) : (
-    <div className="uui-dash-next" aria-label="Next meeting">
-      {body}
-    </div>
-  );
-}
-
-/* ── Work Queue ──────────────────────────────────────────────────────────── */
 
 function WorkQueue({ model }: { model: DashboardVNextModel }) {
-  const module = model.workQueue;
-
+  const limit = model.density === 'presentation' ? 3 : model.density === 'compact' ? 5 : 4;
+  const rows = model.workQueue.items.slice(0, limit);
   return (
-    <section className="uui-dash-card" aria-label="Work queue">
-      <div className="uui-dash-card__head">
-        <h2 className="uui-dash-card__title">Work Queue</h2>
-        {module.total > 0 ? <span className="uui-dash-card__meta">{module.total} open</span> : null}
-        <Link className="uui-dash-card__link" to="/workspace">
-          View all
-        </Link>
-      </div>
-
-      <ModuleStateView status={module.status} onRetry={model.retry} />
-
-      {module.items.map((item) => (
-        <Link key={item.id} className="uui-dash-work" to={item.href}>
-          <span className="uui-pill" data-tone="gray">{item.kind}</span>
-          <span className="uui-dash-work__title">{item.title}</span>
-          <span className="uui-pill" data-tone={workStatusTone(item.status)}>{item.status}</span>
+    <section className="dashv2-card dashv2-work" aria-label="Work queue">
+      <header className="dashv2-card__head dashv2-work__head"><h2>Work Queue</h2><span className="dashv2-pill dashv2-pill--gray">{model.workQueue.total}</span><span className="dashv2-triage__spacer"/><Link className="dashv2-link" to="/workspace">View all</Link></header>
+      {rows.length === 0 ? <div className="dashv2-empty">No open drafts</div> : rows.map((item) => (
+        <Link key={item.id} className="dashv2-work-row" to={item.href}>
+          <span className="dashv2-work-row__kind">{item.kind}</span>
+          <span className="dashv2-work-row__title">{item.title}</span>
+          <span className="dashv2-pill dashv2-pill--gray" data-tone={item.status.toLowerCase().includes('ready') ? 'success' : undefined}><span className="dashv2-pill__dot"/>{item.status}</span>
         </Link>
       ))}
     </section>
   );
 }
 
-/** Purely cosmetic: color the status pill by its own text, never a new field. */
-function workStatusTone(status: string): 'success' | 'blue' | 'warning' | 'gray' {
-  const lower = status.toLowerCase();
-  if (lower.includes('ready') || lower.includes('sent')) return 'success';
-  if (lower.includes('progress')) return 'blue';
-  if (lower.includes('needs') || lower.includes('draft')) return 'warning';
-  return 'gray';
+function Wire({ model, filter, onFilter, items, windowItems, onManage, onRefresh }: { model: DashboardVNextModel; filter: WireFilter; onFilter: (next: WireFilter)=>void; items: WireItem[]; windowItems: WireItem[]; onManage: ()=>void; onRefresh: ()=>void }) {
+  const xCount = windowItems.filter((item) => item.type === 'x').length;
+  const newsCount = windowItems.filter((item) => item.type === 'news').length;
+  const xKnown = sourceCountKnown(model.xFeed.status.state, xCount);
+  const newsKnown = sourceCountKnown(model.news.status.state, newsCount);
+  const countLabel = filter === 'x'
+    ? (xKnown ? `${xCount} posts` : 'X unavailable')
+    : filter === 'news'
+      ? (newsKnown ? `${newsCount} stories` : 'News unavailable')
+      : ([xKnown ? `${xCount} posts` : null, newsKnown ? `${newsCount} stories` : null].filter(Boolean).join(' · ') || 'Sources updating');
+  return (
+    <aside className="dashv2-card dashv2-wire" aria-label="The Wire">
+      <header className="dashv2-wire__head"><h2>The Wire</h2><span className="dashv2-pill dashv2-pill--gray">{countLabel}</span><span className="dashv2-triage__spacer"/><span className="dashv2-wire__window"><span className="dashv2-wire__desktop">Last </span>24 hours</span></header>
+      <div className="dashv2-wire__filters"><div className="dashv2-segmented">{(['all','x','news'] as const).map((value)=><button key={value} type="button" data-selected={filter===value||undefined} onClick={()=>onFilter(value)}>{value==='all'?'All':value==='x'?'X':'News'}</button>)}</div><button type="button" className="dashv2-link" onClick={onManage}>Manage accounts</button></div>
+      <div className="dashv2-wire__list">
+        {filter !== 'news' ? <SourceBanner source="x" status={model.xFeed.status.state} hasSubscriptions={model.xFeed.subscriptions.some((sub) => sub.enabled)} onCustomize={onManage} onRetry={onRefresh} /> : null}
+        {filter !== 'x' ? <SourceBanner source="news" status={model.news.status.state} hasSubscriptions={model.news.preferences.policyTopics.length > 0 || model.news.preferences.customTopics.length > 0} onCustomize={onManage} onRetry={model.retry} /> : null}
+        {items.length === 0 ? <div className="dashv2-wire-empty"><strong>Nothing on this filter</strong><span>No items were returned in the current window.</span></div> : items.map((entry) => entry.type === 'x' ? <XWireRow key={entry.id} post={entry.item}/> : <NewsWireRow key={entry.id} item={entry.item} compact={model.density==='compact'}/>) }
+      </div>
+      <footer className="dashv2-wire__foot"><span>{model.xFeed.subscriptions.length} accounts · {model.news.preferences.policyTopics.length} news topics · read-only{wireStaleDisclosure(model)}</span><span className="dashv2-triage__spacer"/><button type="button" className="dashv2-link" onClick={onRefresh}>Refresh</button></footer>
+    </aside>
+  );
 }
 
-/** Mobile collapses the queue to its lead item with no card header (`759:2689`). */
-function MobileWorkQueue({ model }: { model: DashboardVNextModel }) {
-  const item = model.workQueue.items[0];
+function SourceBanner({ source, status, hasSubscriptions, onCustomize, onRetry }: { source: 'x'|'news'; status: string; hasSubscriptions: boolean; onCustomize: ()=>void; onRetry: ()=>void }) {
+  if (status === 'ready' || status === 'stale') return null;
+  const loading = status === 'loading' || status === 'partial';
+  const empty = status === 'empty' || status === 'all-clear';
+  if (source === 'x' && empty && hasSubscriptions) return null;
+  const title = source === 'x' ? (loading ? 'Refreshing X posts' : empty ? 'No X accounts subscribed' : 'X source is temporarily unavailable') : (loading ? 'Refreshing news' : empty ? 'No stories match these subscriptions' : 'News source is temporarily unavailable');
+  const body = source === 'x' ? (loading ? 'Subscribed accounts are being polled. News items are unaffected.' : empty ? 'Add the public accounts you want this dashboard to monitor.' : 'Showing news only. No X posts are being counted as zero.') : (loading ? 'Relevance is being re-scored against your client and issue profiles.' : empty ? 'Adjust news topics in Customize to widen this feed.' : 'The news source is not responding. X posts are unaffected.');
+  const action = empty ? onCustomize : onRetry;
+  return <div className="dashv2-banner" data-state={loading?'loading':empty?'empty':'unavailable'}><span className="dashv2-banner__icon">{source==='x'?'X':'N'}</span><span><strong>{title}</strong><small>{body}</small>{!loading ? <button type="button" className="dashv2-link" onClick={action}>{empty ? (source==='x'?'Add accounts':'Customize feed') : 'Retry source'}</button> : null}</span></div>;
+}
 
-  if (!item) {
-    return (
-      <section className="uui-dash-card" aria-label="Work queue">
-        <ModuleStateView status={model.workQueue.status} onRetry={model.retry} />
-      </section>
-    );
+function XWireRow({ post }: { post: XFeedPostItem }) {
+  const initials = initialsOf(post.authorDisplayName ?? post.authorUsername);
+  return <a className="dashv2-wire-row" href={post.xUrl} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark">{post.authorAvatarUrl?<img src={post.authorAvatarUrl} alt=""/>:<span className="dashv2-avatar">{initials}</span>}</span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{post.authorDisplayName ?? post.authorUsername}</strong><i className="dashv2-xchip">X</i></span><span className="dashv2-wire-row__byline">@{post.authorUsername} · {relativeTime(post.createdAtX)}</span><span className="dashv2-wire-row__body">{post.text}</span><span className="dashv2-wire-row__foot"><span/><b>View post</b></span></span></a>;
+}
+
+function NewsWireRow({ item, compact }: { item: DashboardVNextModel['news']['items'][number]; compact: boolean }) {
+  const source = item.source.split(' · ')[0] || item.source;
+  const byline = relativeTime(item.publishedAt ?? '') || item.publishedLabel;
+  return <a className="dashv2-wire-row" href={item.url} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark"><span className="dashv2-outlet">{initialsOf(source)}</span></span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{source}</strong></span><span className="dashv2-wire-row__byline">{byline}</span><span className="dashv2-wire-row__headline">{item.title}</span>{!compact && item.summary ? <span className="dashv2-wire-row__body dashv2-wire-row__body--news">{item.summary}</span> : null}<span className="dashv2-wire-row__foot">{item.clients && item.reason ? <span className="dashv2-pill dashv2-pill--brand">{item.reason}</span> : <span/>}<b>Read story</b></span></span></a>;
+}
+
+function groupEvents(events: TodayEvent[]) {
+  const today: TodayEvent[] = [], tomorrow: TodayEvent[] = [], later: TodayEvent[] = [];
+  const now = new Date();
+  const tomorrowDate = addDays(now, 1);
+  for (const event of events) {
+    const eventDate = event.startsAt ? new Date(event.startsAt) : null;
+    if (eventDate && !Number.isNaN(eventDate.getTime())) {
+      if (eventDate.toDateString() === now.toDateString()) today.push(event);
+      else if (eventDate.toDateString() === tomorrowDate.toDateString()) tomorrow.push(event);
+      else later.push(event);
+      continue;
+    }
+    const first = event.meta.split(' · ')[0]?.trim().toUpperCase();
+    const tomorrowCode = tomorrowDate.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase();
+    if (first === tomorrowCode) tomorrow.push(event);
+    else if (first && /^[A-Z]{3}$/.test(first)) later.push(event);
+    else today.push(event);
   }
-
-  return (
-    <Link className="uui-dash-next uui-dash-next--work" aria-label="Work queue" to={item.href}>
-      <span className="uui-dash-next__eyebrow">{item.kind}</span>
-      <span className="uui-dash-next__title">{item.title}</span>
-      <span className="uui-dash-next__status">{item.status}</span>
-    </Link>
-  );
+  return { today, tomorrow, later };
 }
-
-/* ── X Intelligence Feed ──────────────────────────────────────────────────── */
-
-function XIntelligenceFeed({ model }: { model: DashboardVNextModel }) {
-  const xFeed = model.xFeed;
-  const [showAddSource, setShowAddSource] = useState(false);
-  const [handleInput, setHandleInput] = useState('');
-  const [resolveResult, setResolveResult] = useState<XFeedResolveResult | null>(null);
-  const [resolving, setResolving] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-
-  const handleResolve = async () => {
-    const value = handleInput.trim();
-    if (!value) return;
-    setResolving(true);
-    setAddError(null);
-    setResolveResult(null);
-    try {
-      const result = await xFeed.resolveHandle(value);
-      if (result) {
-        setResolveResult(result);
-      } else {
-        setAddError('Account not found. Check the handle and try again.');
-      }
-    } catch {
-      setAddError('Could not resolve this X account. Try again.');
-    } finally {
-      setResolving(false);
-    }
-  };
-
-  const handleAdd = async () => {
-    if (!resolveResult) return;
-    try {
-      await xFeed.addSource(resolveResult.username);
-      setShowAddSource(false);
-      setHandleInput('');
-      setResolveResult(null);
-      setAddError(null);
-    } catch {
-      setAddError('Could not add this account. It may already be in your list.');
-    }
-  };
-
-  const handleRemove = async (subscriptionId: string) => {
-    try {
-      await xFeed.removeSource(subscriptionId);
-    } catch {
-      // Error state handled by query invalidation
-    }
-  };
-
-  const enabledSubs = xFeed.subscriptions.filter((s) => s.enabled);
-
-  return (
-    <section className="uui-dash-card uui-dash-card--xfeed" aria-label="X Intelligence">
-      <div className="uui-dash-card__head">
-        <h2 className="uui-dash-card__title">X Intelligence</h2>
-        {enabledSubs.length > 0 ? (
-          <span className="uui-dash-card__meta">
-            {enabledSubs.length} account{enabledSubs.length === 1 ? '' : 's'}
-          </span>
-        ) : null}
-        {xFeed.refreshing ? (
-          <span className="uui-dash-card__meta">Refreshing…</span>
-        ) : null}
-        <button
-          type="button"
-          className="uui-dash-card__link uui-dash-xfeed__add-btn"
-          onClick={() => setShowAddSource(true)}
-        >
-          + Add source
-        </button>
-      </div>
-
-      <ModuleStateView status={xFeed.status} onRetry={model.retry} />
-
-      {/* Following list — shows subscribed accounts as filter chips */}
-      {enabledSubs.length > 0 ? (
-        <div className="uui-dash-xfeed__following">
-          <button
-            type="button"
-            className="uui-dash-xfeed__chip"
-            data-active={!xFeed.filteredAccountId || undefined}
-            onClick={() => xFeed.setFilter(null)}
-          >
-            All
-          </button>
-          {enabledSubs.map((sub) => (
-            <span key={sub.id} className="uui-dash-xfeed__chip-wrapper">
-              <button
-                type="button"
-                className="uui-dash-xfeed__chip"
-                data-active={xFeed.filteredAccountId === sub.accountId || undefined}
-                onClick={() =>
-                  xFeed.setFilter(
-                    xFeed.filteredAccountId === sub.accountId ? null : sub.accountId,
-                  )
-                }
-              >
-                @{sub.username}
-              </button>
-              <button
-                type="button"
-                className="uui-dash-xfeed__chip-remove"
-                aria-label={`Remove @${sub.username}`}
-                onClick={() => handleRemove(sub.id)}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Posts */}
-      {xFeed.posts.map((post) => (
-        <XFeedPostRow key={post.id} post={post} />
-      ))}
-
-      {/* Add source overlay */}
-      {showAddSource ? (
-        <div className="uui-dash-xfeed__add-overlay">
-          <div className="uui-dash-xfeed__add-panel">
-            <div className="uui-dash-xfeed__add-head">
-              <span className="uui-dash-xfeed__add-title">Add X source</span>
-              <button
-                type="button"
-                className="uui-dash-xfeed__add-close"
-                aria-label="Close"
-                onClick={() => {
-                  setShowAddSource(false);
-                  setHandleInput('');
-                  setResolveResult(null);
-                  setAddError(null);
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="uui-dash-xfeed__add-body">
-              <input
-                className="uui-dash-xfeed__input"
-                value={handleInput}
-                onChange={(e) => setHandleInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleResolve();
-                  }
-                }}
-                placeholder="@DeptofDefense"
-                aria-label="X handle"
-                autoFocus
-              />
-              <CapiroButton
-                size="compact"
-                variant="secondary"
-                onClick={() => void handleResolve()}
-                loading={resolving}
-              >
-                Resolve
-              </CapiroButton>
-              {addError ? (
-                <p className="uui-dash-xfeed__add-error">{addError}</p>
-              ) : null}
-              {resolveResult ? (
-                <div className="uui-dash-xfeed__preview">
-                  {resolveResult.avatarUrl ? (
-                    <img
-                      src={resolveResult.avatarUrl}
-                      alt=""
-                      className="uui-dash-xfeed__avatar"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--placeholder" />
-                  )}
-                  <span className="uui-dash-xfeed__preview-copy">
-                    <span className="uui-dash-xfeed__preview-name">
-                      {resolveResult.displayName ?? resolveResult.username}
-                      {resolveResult.verified ? (
-                        <span className="uui-dash-xfeed__verified" aria-label="Verified">✓</span>
-                      ) : null}
-                    </span>
-                    <span className="uui-dash-xfeed__preview-handle">
-                      @{resolveResult.username}
-                    </span>
-                  </span>
-                  <CapiroButton size="compact" variant="primary" onClick={() => void handleAdd()}>
-                    Add
-                  </CapiroButton>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+function matchAttention(event: TodayEvent, items: AttentionItem[]) { const byHref = event.href ? items.find((item)=>item.href===event.href) : undefined; if (byHref) return byHref; const title=event.title.toLowerCase(); return items.find((item)=>title.includes(item.title.toLowerCase())||item.title.toLowerCase().includes(title)); }
+function weekDayToken(event: TodayEvent) {
+  if (event.startsAt) {
+    const date = new Date(event.startsAt);
+    if (!Number.isNaN(date.getTime())) return `${date.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase()} ${date.getDate()}`;
+  }
+  const day=(event.meta.split(' · ')[0] ?? '').trim().toUpperCase();
+  const match=event.time.match(/(\d{1,2})(?!.*\d)/);
+  return [day, match?.[1]].filter(Boolean).join(' ') || event.time;
 }
-
-function XFeedPostRow({ post }: { post: XFeedPostItem }) {
-  const metrics = post.metrics;
-  const engagement = [
-    metrics.reply_count != null ? `${metrics.reply_count} replies` : null,
-    metrics.retweet_count != null ? `${metrics.retweet_count} reposts` : null,
-    metrics.like_count != null ? `${metrics.like_count} likes` : null,
-    metrics.quote_count != null ? `${metrics.quote_count} quotes` : null,
-  ].filter(Boolean);
-
-  return (
-    <article className="uui-dash-xfeed__post">
-      <div className="uui-dash-xfeed__post-head">
-        {post.authorAvatarUrl ? (
-          <img
-            src={post.authorAvatarUrl}
-            alt=""
-            className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--small"
-            loading="lazy"
-          />
-        ) : (
-          <span className="uui-dash-xfeed__avatar uui-dash-xfeed__avatar--placeholder uui-dash-xfeed__avatar--small" />
-        )}
-        <span className="uui-dash-xfeed__post-author">
-          <span className="uui-dash-xfeed__post-name">
-            {post.authorDisplayName ?? post.authorUsername}
-            {post.authorVerified ? (
-              <span className="uui-dash-xfeed__verified" aria-label="Verified">✓</span>
-            ) : null}
-          </span>
-          <span className="uui-dash-xfeed__post-handle">@{post.authorUsername}</span>
-        </span>
-        <span className="uui-dash-xfeed__post-time">{relativeXTime(post.createdAtX)}</span>
-      </div>
-      <p className="uui-dash-xfeed__post-text">{post.text}</p>
-      {engagement.length > 0 ? (
-        <div className="uui-dash-xfeed__post-metrics">
-          {engagement.map((metric, i) => (
-            <span key={i} className="uui-dash-xfeed__post-metric">{metric}</span>
-          ))}
-        </div>
-      ) : null}
-      <a
-        className="uui-dash-xfeed__post-link"
-        href={post.xUrl}
-        target="_blank"
-        rel="noreferrer noopener"
-      >
-        View on X →
-      </a>
-    </article>
-  );
-}
-
-function relativeXTime(iso: string): string {
-  const elapsed = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(elapsed)) return '';
-  const minutes = Math.floor(Math.abs(elapsed) / 60_000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
-
-/* ── Shared system states (Figma 754:2885) ──────────────────────────────── */
-
-/**
- * The seven named states from useDashboardVNextModel (loading/ready/partial/
- * stale/unavailable/empty/all-clear). Each one carries the source fact that
- * justifies it — a failed source is never rendered as empty and a missing
- * value is never rendered as zero (`760:2692`).
- */
-function ModuleStateView({ status, onRetry }: { status: ModuleStatus; onRetry: () => void }) {
-  if (status.state === 'ready') return null;
-
-  const showsSkeleton = status.state === 'loading' || status.state === 'partial';
-
-  return (
-    <div className="uui-dash-state" data-state={status.state}>
-      <div className="uui-dash-state__head">
-        <span className="uui-pill" data-tone={STATE_TONES[status.state]}>
-          <span className="uui-pill__dot" aria-hidden="true" />
-          {STATE_LABELS[status.state]}
-        </span>
-        {status.meta ? <span className="uui-dash-state__meta">{status.meta}</span> : null}
-      </div>
-
-      {status.title ? <p className="uui-dash-state__title">{status.title}</p> : null}
-      {status.body ? <p className="uui-dash-state__body">{status.body}</p> : null}
-
-      {showsSkeleton ? (
-        <div className="uui-dash-state__skeleton" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      ) : null}
-
-      {status.action ? (
-        status.action.tone === 'warning' ? (
-          <button
-            type="button"
-            className="uui-dash-state__action"
-            data-tone="warning"
-            onClick={onRetry}
-          >
-            {status.action.label} →
-          </button>
-        ) : (
-          <Link className="uui-dash-state__action" data-tone={status.action.tone} to="/explorer">
-            {status.action.label} →
-          </Link>
-        )
-      ) : null}
-    </div>
-  );
-}
-
-const STATE_LABELS: Readonly<Record<ModuleStatus['state'], string>> = {
-  loading: 'Loading',
-  ready: '',
-  partial: 'Partial',
-  stale: 'Stale',
-  unavailable: 'Source unavailable',
-  empty: 'Empty',
-  'all-clear': 'All clear',
-};
-
-const STATE_TONES: Readonly<Record<ModuleStatus['state'], 'gray' | 'warning' | 'success'>> = {
-  loading: 'gray',
-  ready: 'gray',
-  partial: 'gray',
-  stale: 'warning',
-  unavailable: 'warning',
-  empty: 'gray',
-  'all-clear': 'success',
-};
+function stripDayPrefix(meta: string) { const parts=meta.split(' · '); return parts[0] && /^[A-Za-z]{3}$/.test(parts[0]) ? parts.slice(1).join(' · ') : meta; }
+function attentionTone(item: AttentionItem): AttentionTone { if (item.severity==='critical') return 'error'; if (item.kind.toLowerCase().includes('hearing')) return 'blue'; return 'warning'; }
+function addDays(date: Date, days: number) { const next=new Date(date); next.setDate(next.getDate()+days); return next; }
+function dayHeading(date: Date) { return date.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}).toUpperCase(); }
+function formatLongDate() { return new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function formatShortDate() { return new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
+function sourceCountKnown(state: string, count: number) { return count > 0 || state === 'ready' || state === 'empty' || state === 'all-clear' || state === 'stale'; }
+function wireStaleDisclosure(model: DashboardVNextModel) { const stale=[model.xFeed.status.state==='stale'?'X cached':null,model.news.status.state==='stale'?'News cached':null].filter(Boolean); return stale.length ? ` · ${stale.join(' · ')}` : ''; }
+function attentionCountBase(model: DashboardVNextModel, count: number) { const state=model.needsAttention.status.state; if(state==='loading') return 'Refreshing'; if(state==='unavailable') return 'Source unavailable'; if(state==='partial') return `${count}+ open`; return `${count} open`; }
+function relativeTime(iso: string) { const ms=Date.now()-Date.parse(iso); if(!Number.isFinite(ms)) return ''; const minutes=Math.max(0,Math.floor(ms/60000)); if(minutes<60)return `${minutes}m`; const hours=Math.floor(minutes/60); if(hours<24)return `${hours}h`; return `${Math.floor(hours/24)}d`; }
+function relativeLabelEpoch(label: string) { const m=label.match(/(\d+)\s*(m|h|d)/i); if(!m||!m[1]||!m[2])return Date.now(); const amount=Number(m[1]); const unit=m[2].toLowerCase(); const scale=unit==='m'?60000:unit==='h'?3600000:86400000; return Date.now()-amount*scale; }
+function initialsOf(value: string) { return value.split(/\s+/).filter(Boolean).slice(0,2).map((part)=>part[0]?.toUpperCase()).join('') || '—'; }

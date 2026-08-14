@@ -47,25 +47,25 @@
 
   /* Brand — Capiro blue. Used for buttons, links, PE codes, progress fills,
      active tab underline, and count chips. */
-  --uui-brand-solid: #294e68;
-  --uui-brand-hover: #1f3d52;
+  --uui-brand-solid: #3e4784;
+  --uui-brand-hover: #363f72;
   /* Deepest shade — pressed states and the topbar's accent underline. */
-  --uui-brand-deep: #1c3a4e;
-  --uui-brand-hover-2: #1c3a4e;
-  --uui-brand-tint: #edf3f7;
-  --uui-brand-ring: #c3d5e1;
+  --uui-brand-deep: #293056;
+  --uui-brand-hover-2: #293056;
+  --uui-brand-tint: #eaecf5;
+  --uui-brand-ring: #b3b8db;
   --uui-focus-ring: #717bbc;
   --uui-focus-ring-outer: #d5d9eb;
 
   /* Metallic black primary buttons. Face/edge/shadow consumed by
      primitives.css (CapiroButton primary) and shell-uui.css (MeriLauncher) —
      the brand blue above stays for non-button accents only. */
-  --uui-btn-metal-face: linear-gradient(180deg, #3d434b 0%, #262b31 48%, #16191d 100%);
-  --uui-btn-metal-face-hover: linear-gradient(180deg, #474e56 0%, #2e343b 48%, #1c2026 100%);
-  --uui-btn-metal-face-active: linear-gradient(180deg, #1b1f24 0%, #23282e 100%);
-  --uui-btn-metal-edge: #0b0d10;
-  --uui-btn-metal-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px #0b0d10, 0 1px 2px rgba(16,24,40,0.28);
-  --uui-btn-metal-shadow-active: inset 0 1px 2px rgba(0,0,0,0.45), inset 0 0 0 1px #0b0d10;
+  --uui-btn-metal-face: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  --uui-btn-metal-face-hover: linear-gradient(180deg, #4a5462 0%, #252f3c 46%, #161d26 100%);
+  --uui-btn-metal-face-active: linear-gradient(180deg, #1b2430 0%, #0e141c 100%);
+  --uui-btn-metal-edge: #0e141c;
+  --uui-btn-metal-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0px 1px 2px rgba(16,24,40,0.12);
+  --uui-btn-metal-shadow-active: inset 0 1px 2px rgba(0,0,0,0.32), 0px 1px 2px rgba(16,24,40,0.08);
   --uui-btn-metal-fg: #ffffff;
 
   /* Semantic pill families: [bg, ring, fg, dot]. */

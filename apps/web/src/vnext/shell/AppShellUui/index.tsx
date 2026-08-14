@@ -272,7 +272,7 @@ export function AppShellUuiView({
             <MailboxSyncStatusView status={mailboxStatus} onClick={() => onNavigate('/settings/integrations')} />
             {navigation.settings?.path ? (
               <NavLink to={navigation.settings.path} className="uui-nav-item">
-                <Icon name="grid" className="uui-nav-item__icon" />
+                <Icon name="settings" className="uui-nav-item__icon" />
                 <span className="uui-nav-item__label">{navigation.settings.label}</span>
               </NavLink>
             ) : null}

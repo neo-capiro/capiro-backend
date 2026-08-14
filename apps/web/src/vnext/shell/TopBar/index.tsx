@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import type { ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
 import type { ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
 import {
@@ -109,7 +109,7 @@ export function NotificationBell({
         data-unavailable={unavailable || undefined}
         onClick={() => toggle(triggerRef.current)}
       >
-        <Bell size={18} strokeWidth={1.6} aria-hidden="true" />
+        <DashboardIcon name="Bell01" size={20} />
         {notifications.showBadge ? (
           <span className="capiro-vnext-bell__count" aria-hidden="true">
             {notifications.badgeLabel}

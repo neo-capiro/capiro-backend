@@ -38,6 +38,7 @@
   font-family: var(--uui-font-family);
   font-size: var(--uui-text-body);
   line-height: var(--uui-line-body);
+  transition: grid-template-columns 180ms cubic-bezier(.2,0,0,1);
 }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] {
   grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr);
@@ -55,16 +56,16 @@
   border-bottom: 1px solid var(--uui-gray-200);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 40;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__brand { display: flex; align-items: center; gap: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__brand { display: flex; align-items: center; gap: 16px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__wordmark { height: 26px; display: block; }
 /* 1px vertical divider between the wordmark and the section label. */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider { width: 1px; height: 24px; background: var(--uui-gray-200); flex-shrink: 0; }
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__section { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); white-space: nowrap; }
 /* "All clients" scope pill. */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px;
+  display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px;
   background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200);
   font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); white-space: nowrap;
 }
@@ -89,7 +90,7 @@
   justify-content: center;
   width: min(480px, 40vw);
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
 /* Reused GlobalSearch, restyled — 40px tall, radius 8, 16px input, ⌘K chip. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger {
@@ -100,7 +101,7 @@
   background: var(--uui-white) !important;
   box-shadow: var(--uui-shadow-input) !important;
   color: var(--uui-gray-500) !important;
-  padding: 0 12px !important;
+  padding: 0 14px !important;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -138,7 +139,7 @@
  */
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher {
   min-width: 0 !important;
-  width: 88px !important;
+  width: auto !important;
   height: 40px !important;
   background-color: transparent !important;
   background-image: var(--uui-btn-metal-face) !important;
@@ -148,7 +149,8 @@
   border-radius: var(--uui-radius-control) !important;
   font-weight: var(--uui-weight-semibold) !important;
   font-size: var(--uui-text-sm) !important;
-  padding: 0 14px !important;
+  padding: 0 16px !important;
+  gap: 6px !important;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:hover:not(:disabled) {
   background-image: var(--uui-btn-metal-face-hover) !important;
@@ -164,6 +166,21 @@
   color: var(--uui-gray-400) !important;
 }
 
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher-wrap { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu {
+  position: absolute; top: 48px; right: 0; width: 300px; padding: 6px; z-index: 50;
+  border-radius: var(--uui-radius-card); background: var(--uui-white); box-shadow: var(--uui-shadow-popover);
+  animation: uuiShellFade 120ms ease;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu__label { padding: 10px 12px 6px; font-size: 12px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu > button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--uui-radius-control); background: transparent; text-align: left; font-size: var(--uui-text-sm); color: var(--uui-gray-700); cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu > button:hover { background: var(--uui-gray-50); }
+@keyframes uuiShellFade { from { opacity: 0; } to { opacity: 1; } }
+
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline { display: flex; align-items: center; gap: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline .capiro-mailbox-status__indicator { position: static; width: 10px; height: 10px; margin-left: 0; flex: 0 0 auto; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { margin-top: 4px; }
+
 /* Reused NotificationBell */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell {
   position: relative; width: 40px; height: 40px; border-radius: var(--uui-radius-control);
@@ -172,14 +189,15 @@
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell:hover { background: var(--uui-gray-50); }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell__count {
-  position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 3px;
+  position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--uui-brand-solid); color: var(--uui-white);
   font-size: 10px; font-weight: var(--uui-weight-semibold); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--uui-white);
 }
 
 /* Reused ProfileMenu — avatar 40px initials on the brand tint; name 14px/600
    gray-900; role 14px/400 gray-600. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px; border-radius: var(--uui-radius-control); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger { display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 4px; border-radius: var(--uui-radius-control); }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger:hover { background: var(--uui-gray-50); }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar {
   width: 40px; height: 40px; border-radius: 999px; background: var(--uui-brand-tint); color: var(--uui-brand-hover);
@@ -300,33 +318,43 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item--disabled { opacity: 0.6; cursor: not-allowed; }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-nested { display: none; }
 
-.capiro-vnext-root .capiro-vnext-uui .uui-rail__footer { display: flex; flex-direction: column; border-top: 1px solid var(--uui-gray-200); padding-top: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__footer { display: flex; flex-direction: column; border-top: 0; padding-top: 0; }
 /* Mailbox block shares the rail's 24px icon + 16px/600 label metrics. The
    glyph is sized up to 24px to sit in the nav-icon slot. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px; border-radius: 6px;
-  background: none; border: none; text-align: left;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0; width: 100%; padding: 16px; margin-bottom: 16px; border-radius: 12px;
+  background: var(--uui-gray-50); border: none; text-align: left; box-shadow: inset 0 0 0 1px var(--uui-gray-200);
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-gray-50); }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__glyph { font-size: 20px; line-height: 1; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--uui-gray-500); flex-shrink: 0; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; }
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status__copy { display: none; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status { display: none; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-success-dot); margin-left: auto; }
 .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px; border-radius: 6px; background: none; border: none;
-  color: var(--uui-gray-700); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); text-align: left;
+  color: var(--uui-gray-600); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); text-align: left;
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover { background: var(--uui-gray-50); }
 
 /* Content */
 .capiro-vnext-root .capiro-vnext-uui .uui-content { grid-area: content; padding: 32px; max-width: var(--uui-content-max-w); width: 100%; margin: 0 auto; }
 
+@media (max-width: 999px) {
+  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: none; }
+}
+@media (max-width: 879px) {
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider,
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__section,
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope { display: none; }
+}
+
 /* Mobile bottom nav (< 780px) + tablet rail auto-collapse (780-1179px) */
 .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav { display: none; }
 .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim { display: none; }
 
 @media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search { width: min(340px, 40vw); }
   .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr); }
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label,
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { display: none; }
@@ -344,8 +372,7 @@
    * [data-collapsed] does, keyed on width instead of state.
    */
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__copy { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status { justify-content: center; padding: 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status { display: none; }
   .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn { justify-content: center; padding: 12px; }
   .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn__label { display: none; }
 }
@@ -395,13 +422,13 @@
 
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav {
     display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: var(--uui-white);
-    border-top: 1px solid var(--uui-gray-200); z-index: 20;
+    border-top: 1px solid var(--uui-gray-200); z-index: 40;
   }
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    color: var(--uui-gray-500); font-size: 11px; background: none; border: none; text-decoration: none;
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 0 12px;
+    color: var(--uui-gray-500); font-size: 12px; font-weight: var(--uui-weight-semibold); background: none; border: none; text-decoration: none;
   }
-  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-brand-solid); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-brand-hover); }
 
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim {
     display: flex; position: fixed; inset: 0; background: var(--uui-scrim); align-items: flex-end; z-index: 40;

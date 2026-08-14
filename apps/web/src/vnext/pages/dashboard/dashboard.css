@@ -1,536 +1,286 @@
-/*
- * Dashboard vNext — Untitled UI reskin (`Capiro Dashboard - Untitled UI.dc.html`,
- * Figma 748:2503). Scoped under .capiro-vnext-root .capiro-vnext-uui — the
- * latter is the global shell's root (shell/AppShellUui/index.tsx), shared
- * with every other vnext page now. These uui-dash-* classes are still
- * Dashboard-content-only; only the shell-scoping prefix is shared.
- */
+/* Dashboard v2 — literal geometry from Capiro Dashboard v2 prototype. */
+/* Dashboard route owns the full 1440px prototype canvas; the generic vNext
+   content wrapper normally caps every page at 1280px and adds 32px padding. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.dashv2) { max-width: none; padding: 0; margin: 0; }
 
-.capiro-vnext-root .capiro-vnext-uui .uui-dash { display: block; }
-
-/* Header */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__greeting { margin: 0; font-size: var(--uui-text-display-sm); line-height: var(--uui-line-display-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); letter-spacing: -0.01em; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__meta { margin: 6px 0 0; font-size: var(--uui-text-body); line-height: var(--uui-line-body); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; flex-shrink: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__refreshed { font-size: var(--uui-text-sm); color: var(--uui-gray-500); white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__customize {
-  height: 40px; padding: 0 16px; border: 1px solid var(--uui-gray-300); border-radius: var(--uui-radius-control);
-  background: var(--uui-white); box-shadow: var(--uui-shadow-button); color: var(--uui-gray-700);
-  font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); cursor: pointer; white-space: nowrap;
+.capiro-vnext-root .capiro-vnext-uui .dashv2 {
+  min-height: 100%;
+  background: var(--uui-gray-50);
+  color: var(--uui-gray-900);
+  font-family: var(--uui-font-family);
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__customize:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 *,
+.capiro-vnext-root .capiro-vnext-uui .dashv2 *::before,
+.capiro-vnext-root .capiro-vnext-uui .dashv2 *::after { box-sizing: border-box; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 button,
+.capiro-vnext-root .capiro-vnext-uui .dashv2 a { font: inherit; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 button { border: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 :focus-visible { outline: 2px solid var(--dash-focus); outline-offset: 2px; border-radius: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 .capiro-button--secondary { background: var(--uui-white); color: var(--uui-gray-700); border: 0; box-shadow: var(--uui-shadow-input); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2 .capiro-button--secondary:hover:not(:disabled) { background: var(--uui-gray-50); }
 
-/* Content grid */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__content { display: flex; flex-direction: column; gap: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__columns { display: grid; grid-template-columns: 1.6538fr 1fr; gap: 24px; align-items: start; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash__stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+@keyframes uiSlide { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes uiFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes uiPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes uiTick { 0% { transform: scale(1); } 38% { transform: scale(1.16); } 100% { transform: scale(1); } }
+@keyframes uiSpin { to { transform: rotate(360deg); } }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spin { animation: uiSpin 900ms linear infinite; }
 
-/* Cards */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card { min-width: 0; background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-card); overflow: hidden; }
-/* Wraps, and the two text units that must stay legible refuse to break inside
-   themselves. Without this the head has no slack anywhere it lands in a narrow
-   column: "Today & Coming Up" + "Open Engagement" already needs ~280px against
-   the ~261px right column at a 1180px viewport, and at 390 the Needs Attention
-   head in its 'partial' state needs ~376px against 326. min-width:auto on the
-   h2 and the link resolves to min-content, so they were the pieces that broke —
-   rendering as "Needs / Attention" and "View / all". */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__title { margin: 0; font-size: var(--uui-text-md); line-height: var(--uui-line-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__meta { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--uui-warning-bg); color: var(--uui-warning-fg); font-size: 12px; font-weight: var(--uui-weight-medium); }
-/* Compact module-state chip on the header row (replaces the full-width
-   skeleton block a partial source used to eat). */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__state-chip { height: 22px; padding: 0 8px; font-size: 12px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link { position: relative; margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); text-decoration: none; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link:hover { color: var(--uui-brand-hover-2); }
+/* Console head */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-console { background: var(--uui-white); border-bottom: 1px solid var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head { max-width: 1440px; margin: 0 auto; padding: 18px 32px 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head__copy { display: flex; align-items: baseline; gap: 16px; min-width: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head h1 { margin: 0; font-size: 22px; line-height: 30px; font-weight: 600; letter-spacing: -.01em; color: var(--uui-gray-900); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head__date { font-size: 14px; line-height: 20px; color: var(--uui-gray-600); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head__date-short { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-head__actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-refresh,
+.capiro-vnext-root .capiro-vnext-uui .dashv2-primary,
+.capiro-vnext-root .capiro-vnext-uui .dashv2-secondary { height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px; border-radius: 8px; white-space: nowrap; cursor: pointer; font-size: 14px; line-height: 20px; font-weight: 600; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-refresh { gap: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-refresh,
+.capiro-vnext-root .capiro-vnext-uui .dashv2-secondary { background: var(--uui-white); color: var(--uui-gray-700); box-shadow: var(--uui-shadow-input); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-refresh:hover,
+.capiro-vnext-root .capiro-vnext-uui .dashv2-secondary:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-refresh:disabled { cursor: default; color: var(--dash-link); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-primary { color: var(--uui-white); background-image: var(--dash-metal-face); box-shadow: var(--dash-metal-shadow); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-primary:hover { background-image: var(--dash-metal-face-hover); }
 
-/* Generic pill — badges, status chips, module state badges (all share one
-   [bg/ring/fg/dot] recipe, verified live against the kit's PILL table). */
-.capiro-vnext-root .capiro-vnext-uui .uui-pill {
-  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px;
-  font-size: 12px; line-height: var(--uui-line-xs); font-weight: var(--uui-weight-medium); white-space: nowrap;
-  background: var(--uui-gray-pill-bg); box-shadow: inset 0 0 0 1px var(--uui-gray-pill-ring); color: var(--uui-gray-pill-fg);
+/* Generic */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-link { padding: 0; background: transparent; color: var(--dash-link); text-decoration: none; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-link:hover { color: var(--dash-link-hover); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-link--success { color: var(--uui-success-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage__spacer { flex: 1; min-width: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill { height: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px 0 6px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: 0 0 auto; background: var(--uui-gray-pill-bg); box-shadow: inset 0 0 0 1px var(--uui-gray-pill-ring); color: var(--uui-gray-pill-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--uui-gray-pill-dot); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='error'] { background: var(--uui-error-bg); box-shadow: inset 0 0 0 1px var(--uui-error-ring); color: var(--uui-error-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='error'] .dashv2-pill__dot { background: var(--uui-error-dot); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='warning'] { background: var(--uui-warning-bg); box-shadow: inset 0 0 0 1px var(--uui-warning-ring); color: var(--uui-warning-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='warning'] .dashv2-pill__dot { background: var(--uui-warning-dot); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='success'] { background: var(--uui-success-bg); box-shadow: inset 0 0 0 1px var(--uui-success-ring); color: var(--uui-success-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill[data-tone='success'] .dashv2-pill__dot { background: var(--uui-success-dot); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill--gray { padding: 0 8px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-pill--brand { padding: 0 8px; background: var(--dash-brand-tint); box-shadow: inset 0 0 0 1px var(--dash-brand-ring); color: var(--dash-link); }
+
+/* Triage ribbon */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage { max-width: 1440px; margin: 0 auto; padding: 16px 32px 20px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage__eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--uui-gray-500); font-size: 12px; font-weight: 600; letter-spacing: .06em; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage__critical { letter-spacing: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage__count { transform-origin: left center; animation: uiTick 320ms cubic-bezier(.2,0,0,1); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-triage__grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile { min-width: 0; max-height: 140px; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); cursor: pointer; overflow: hidden; transition: max-height 260ms cubic-bezier(.2,0,0,1), opacity 170ms ease, background 130ms ease, box-shadow 130ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-selected] { background: var(--dash-brand-tint); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-clearing] { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-selected][data-tone='error'] { box-shadow: inset 0 0 0 2px var(--uui-error-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-selected][data-tone='warning'] { box-shadow: inset 0 0 0 2px var(--uui-warning-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-selected][data-tone='blue'] { box-shadow: inset 0 0 0 2px var(--uui-blue-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__top,.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__bottom { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tone-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='error'] .dashv2-tone-dot { background: var(--uui-error-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='warning'] .dashv2-tone-dot { background: var(--uui-warning-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='blue'] .dashv2-tone-dot { background: var(--uui-blue-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__kind { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='error'] .dashv2-tile__kind,.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='error'] .dashv2-tile__action { color: var(--uui-error-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='warning'] .dashv2-tile__kind,.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='warning'] .dashv2-tile__action { color: var(--uui-warning-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='blue'] .dashv2-tile__kind,.capiro-vnext-root .capiro-vnext-uui .dashv2-tile[data-tone='blue'] .dashv2-tile__action { color: var(--uui-blue-tone); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__due { font-size: 12px; font-weight: 500; color: var(--uui-gray-500); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__title { max-height: 40px; overflow: hidden; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--uui-gray-900); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__context { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-tile__action { flex: 0 0 auto; padding: 0; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-allclear { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 10px; background: var(--uui-success-bg); box-shadow: inset 0 0 0 1px var(--uui-success-ring); color: var(--uui-gray-600); font-size: 14px; animation: uiFade 200ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-allclear strong { color: var(--uui-success-fg); font-weight: 600; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-allclear__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--uui-success-dot); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-allclear[data-state='loading'] { background: var(--dash-brand-tint); box-shadow: inset 0 0 0 1px var(--dash-brand-ring); color: var(--dash-link); }
+
+.capiro-vnext-root .capiro-vnext-uui .dashv2-source-state { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 10px; background: var(--uui-warning-bg); box-shadow: inset 0 0 0 1px var(--uui-warning-ring); animation: uiFade 180ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-source-state strong { font-size: 14px; font-weight: 600; color: var(--uui-warning-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-source-state > span { min-width: 0; flex: 1; font-size: 14px; color: var(--uui-gray-600); }
+
+/* Work grid / cards */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-grid { max-width: 1440px; width: 100%; margin: 0 auto; padding: 24px 32px 32px; display: grid; grid-template-columns: minmax(0,1fr); gap: 24px; align-items: start; opacity: 1; transition: opacity 130ms cubic-bezier(.2,0,0,1); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density-changing] .dashv2-grid { opacity: .28; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-two-lane] .dashv2-grid { grid-template-columns: minmax(0,1.15fr) minmax(360px,1fr); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-worklane { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-card { min-width: 0; background: var(--uui-white); border-radius: 12px; box-shadow: var(--uui-shadow-card); overflow: hidden; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-card__head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-card h2,.capiro-vnext-root .capiro-vnext-uui .dashv2-wire h2 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: var(--uui-gray-900); }
+
+/* Spine */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine__head { padding: 20px 24px 16px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine__body { padding: 0 24px 20px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__rows { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__label { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 14px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--uui-gray-500); white-space: nowrap; background: var(--uui-white); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group:first-child .dashv2-spine-group__label { padding-top: 6px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__label i { flex: 1; height: 1px; background: var(--uui-gray-100); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__rail { position: absolute; left: 73.5px; top: 8px; bottom: 8px; width: 1px; background: var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-now { position: relative; display: flex; align-items: center; gap: 14px; padding: 4px 0 10px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-now > span { width: 68px; text-align: right; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--dash-brand); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-now__node { width: 11px; height: 11px; border-radius: 50%; background: var(--dash-brand); box-shadow: 0 0 0 3px var(--uui-white); z-index: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-now b { height: 1px; flex: 1; background: var(--dash-brand-ring); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-now time { font-size: 12px; font-weight: 500; color: var(--uui-gray-500); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row { width: 100%; display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; color: inherit; background: transparent; text-decoration: none; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='presentation'] .dashv2-spine-row { padding-top: 13px; padding-bottom: 13px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='compact'] .dashv2-spine-row { padding-top: 7px; padding-bottom: 7px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row--selectable { margin: 0 -8px; width: calc(100% + 16px); padding-left: 8px; padding-right: 8px; border-radius: 8px; cursor: pointer; transition: background 130ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row--selectable:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row--selectable[data-selected] { background: var(--dash-brand-tint); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__time { width: 68px; flex: 0 0 68px; text-align: right; padding-top: 1px; font-size: 14px; font-weight: 600; color: var(--uui-gray-700); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__node { width: 11px; height: 11px; margin-top: 5px; border-radius: 50%; background: var(--uui-white); box-shadow: inset 0 0 0 2px var(--dash-brand-ring), 0 0 0 3px var(--uui-white); flex: 0 0 11px; z-index: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__node[data-kind='hearing'] { background: var(--uui-blue-tone); box-shadow: 0 0 0 3px var(--uui-white); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__node[data-kind='deadline'] { background: var(--uui-warning-tone); box-shadow: 0 0 0 3px var(--uui-white); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__copy strong { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--uui-gray-900); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__copy span { margin-top: 2px; font-size: 14px; line-height: 20px; color: var(--uui-gray-600); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group[data-today] .dashv2-spine-row__copy span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__action { height: 36px; padding: 0 14px; flex: 0 0 auto; font-size: 14px; font-weight: 600; text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-empty { margin-left: 93px; padding: 10px 0; font-size: 14px; color: var(--uui-gray-600); }
+
+/* Work Queue */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-work__head { padding: 20px 24px; border-bottom: 1px solid var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-work-row { display: grid; grid-template-columns: 104px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 13px 24px; border-bottom: 1px solid var(--uui-gray-100); color: inherit; text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='presentation'] .dashv2-work-row { padding-top: 15px; padding-bottom: 15px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='compact'] .dashv2-work-row { padding-top: 9px; padding-bottom: 9px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-work-row:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-work-row__kind { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-work-row__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-empty { padding: 20px 24px; font-size: 14px; color: var(--uui-gray-600); }
+
+/* Wire */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire { min-width: 0; display: flex; flex-direction: column; position: sticky; top: 24px; max-height: calc(100vh - 120px); min-height: 480px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__head { flex: 0 0 auto; padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__window { font-size: 12px; color: var(--uui-gray-500); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__filters { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-segmented { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-segmented button { padding: 6px 12px; border-radius: 6px; background: transparent; color: var(--uui-gray-500); cursor: pointer; font-size: 13px; font-weight: 600; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-segmented button[data-selected] { background: var(--uui-white); box-shadow: 0 0 0 1px var(--uui-gray-200), 0px 1px 2px var(--uui-gray-200); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__filters > .dashv2-link { margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__list { flex: 1; min-height: 0; overflow-y: auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row { display: flex; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--uui-gray-100); color: inherit; text-decoration: none; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='presentation'] .dashv2-wire-row { padding-top: 18px; padding-bottom: 18px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2[data-density='compact'] .dashv2-wire-row { padding-top: 10px; padding-bottom: 10px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__mark { width: 32px; flex: 0 0 32px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__mark img,.capiro-vnext-root .capiro-vnext-uui .dashv2-avatar,.capiro-vnext-root .capiro-vnext-uui .dashv2-outlet { width: 32px; height: 32px; display: grid; place-items: center; object-fit: cover; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__mark img,.capiro-vnext-root .capiro-vnext-uui .dashv2-avatar { border-radius: 50%; background: var(--uui-gray-100); color: var(--uui-gray-600); font-size: 11px; font-weight: 700; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-outlet { border-radius: 8px; background: var(--uui-gray-100); box-shadow: inset 0 0 0 1px var(--uui-gray-200); color: var(--uui-gray-600); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__name strong { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-xchip { width: 17px; height: 17px; display: inline-grid; place-items: center; border-radius: 4px; background: var(--uui-gray-900); color: var(--uui-white); font-size: 11px; line-height: 1; font-weight: 700; font-style: normal; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__byline { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 19px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__headline { margin-top: 3px; font-size: 15px; line-height: 21px; font-weight: 600; color: var(--uui-gray-900); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__body { margin-top: 3px; font-size: 14px; line-height: 20px; color: var(--uui-gray-700); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__body--news { color: var(--uui-gray-600); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__foot { min-height: 22px; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__foot > span:first-child { flex: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__foot b { font-size: 13px; font-weight: 600; color: var(--dash-link); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire__foot { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); background: var(--uui-gray-50); font-size: 12px; color: var(--uui-gray-500); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner { display: flex; gap: 12px; margin: 16px 16px 0; padding: 14px; border-radius: 10px; animation: uiFade 180ms ease; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner[data-state='loading'] { background: var(--dash-brand-tint); box-shadow: inset 0 0 0 1px var(--dash-brand-ring); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner[data-state='unavailable'] { background: var(--uui-warning-bg); box-shadow: inset 0 0 0 1px var(--uui-warning-ring); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner__icon { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 32px; border-radius: 8px; background: var(--uui-white); color: var(--dash-link); font-size: 12px; font-weight: 700; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner[data-state='loading'] .dashv2-banner__icon { animation: uiPulse 1.2s ease-in-out infinite; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner > span:last-child { display: flex; flex-direction: column; align-items: flex-start; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner strong { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner small { margin-top: 2px; font-size: 13px; line-height: 19px; color: var(--uui-gray-600); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-banner .dashv2-link { margin-top: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-empty { display: flex; flex-direction: column; gap: 4px; padding: 24px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-empty strong { font-size: 14px; font-weight: 600; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-wire-empty span { font-size: 14px; color: var(--uui-gray-600); }
+
+/* Drawer */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-scrim { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: var(--uui-scrim); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer { width: 440px; max-width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--uui-white); box-shadow: var(--uui-shadow-elevation); animation: uiSlide 200ms cubic-bezier(.2,0,0,1); overflow: hidden; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__body { min-height: 0; flex: 1; overflow-y: auto; padding: 24px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header { display: flex; align-items: flex-start; gap: 16px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-feature-icon { display: grid; place-items: center; border-radius: 10px; background: var(--dash-brand-tint); color: var(--dash-link); box-shadow: inset 0 0 0 1px var(--dash-brand-ring); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-feature-icon--lg { width: 48px; height: 48px; flex: 0 0 48px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header-copy { min-width: 0; flex: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header h2 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header p { margin: 4px 0 0; font-size: 14px; line-height: 20px; color: var(--uui-gray-600); text-wrap: pretty; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-icon-button { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 8px; background: transparent; color: var(--uui-gray-500); cursor: pointer; font-size: 24px; line-height: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-icon-button:hover { background: var(--uui-gray-50); color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__divider { height: 1px; background: var(--uui-gray-200); margin: 24px 0 20px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__section-head strong { flex: 1; font-size: 14px; font-weight: 600; color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__section-head span { font-size: 14px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card { min-height: 72px; display: flex; align-items: center; gap: 12px; padding: 16px; margin-bottom: 12px; border-radius: 12px; background: var(--uui-white); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card--pinned { background: var(--dash-brand-tint); box-shadow: inset 0 0 0 2px var(--dash-brand); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card[data-dragging] { opacity: .45; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card__copy,.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card > span:first-child { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card strong { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-card small { font-size: 14px; line-height: 20px; color: var(--uui-gray-600); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drag { width: 20px; padding: 0; background: transparent; color: var(--uui-gray-400); cursor: grab; font-size: 20px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-switch { position: relative; width: 44px; height: 24px; flex: 0 0 44px; border-radius: 9999px; background: var(--uui-gray-100); cursor: pointer; transition: background 140ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-switch[data-on] { background: var(--dash-brand); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-switch i { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--uui-white); box-shadow: var(--uui-shadow-knob); transition: left 140ms ease; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-switch[data-on] i { left: 22px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__helper { margin: -2px 0 12px; font-size: 13px; line-height: 19px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-avatar--tiny { width: 28px; height: 28px; flex: 0 0 28px; font-size: 10px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account__copy small { font-size: 12px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account__remove { width: 28px; height: 28px; border-radius: 6px; background: transparent; color: var(--uui-gray-500); cursor: pointer; font-size: 18px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-account__remove:hover { background: var(--uui-white); color: var(--uui-error-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-add-row { display: flex; gap: 8px; margin-top: 10px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-add-row input { min-width: 0; flex: 1; height: 40px; padding: 0 12px; border: 0; outline: none; border-radius: 8px; background: var(--uui-white); box-shadow: var(--uui-shadow-input); color: var(--uui-gray-900); font-size: 14px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-add-row input:focus { box-shadow: var(--uui-shadow-focus); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__error { margin: 8px 0 0; font-size: 13px; color: var(--uui-error-fg); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-topic-list { display: grid; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-topic { display: flex; align-items: center; gap: 12px; padding: 8px 0; background: transparent; color: var(--uui-gray-700); cursor: pointer; font-size: 14px; font-weight: 500; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-check { width: 20px; height: 20px; display: grid; place-items: center; flex: 0 0 20px; border-radius: 6px; background: var(--uui-white); box-shadow: inset 0 0 0 1px var(--uui-gray-300); color: transparent; font-size: 13px; font-weight: 700; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-check[data-checked] { background: var(--dash-brand-tint); box-shadow: inset 0 0 0 1px var(--dash-brand); color: var(--dash-brand); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-custom-sources { margin-top: 12px; padding: 12px 16px; display: flex; align-items: center; background: var(--uui-gray-50); border-radius: 8px; color: var(--uui-gray-600); font-size: 14px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-custom-sources .dashv2-link { margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density { width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; background: transparent; cursor: pointer; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-radio { width: 20px; height: 20px; display: grid; place-items: center; flex: 0 0 20px; border-radius: 50%; background: var(--uui-white); box-shadow: inset 0 0 0 1px var(--uui-gray-300); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density[aria-pressed='true'] .dashv2-radio { background: var(--dash-brand-tint); box-shadow: inset 0 0 0 1px var(--dash-brand); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-radio i { width: 8px; height: 8px; border-radius: 50%; background: var(--dash-brand); opacity: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density[aria-pressed='true'] .dashv2-radio i { opacity: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density > span:last-child { display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density strong { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-density small { margin-top: 2px; font-size: 14px; line-height: 20px; color: var(--uui-gray-600); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__footer { display: flex; gap: 12px; flex: 0 0 auto; padding: 0 24px 24px; background: var(--uui-white); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__footer .capiro-button { flex: 1; min-width: 0; height: 44px; padding: 0 18px; justify-content: center; font-size: 16px; line-height: 24px; border-radius: 8px; }
+
+@media (min-width: 1360px) { .capiro-vnext-root .capiro-vnext-uui .dashv2[data-two-lane] .dashv2-grid { grid-template-columns: minmax(0,1.42fr) minmax(400px,1fr); } }
+@media (max-width: 1099px) {
+  .capiro-vnext-root .capiro-vnext-uui .dashv2[data-two-lane] .dashv2-grid { grid-template-columns: minmax(0,1fr); }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-wire { position: static; max-height: 760px; min-height: auto; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-triage__grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-gray-pill-dot); flex-shrink: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='error'] { background: var(--uui-error-bg); box-shadow: inset 0 0 0 1px var(--uui-error-ring); color: var(--uui-error-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='error'] .uui-pill__dot { background: var(--uui-error-dot); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='warning'] { background: var(--uui-warning-bg); box-shadow: inset 0 0 0 1px var(--uui-warning-ring); color: var(--uui-warning-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='warning'] .uui-pill__dot { background: var(--uui-warning-dot); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='success'] { background: var(--uui-success-bg); box-shadow: inset 0 0 0 1px var(--uui-success-ring); color: var(--uui-success-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='success'] .uui-pill__dot { background: var(--uui-success-dot); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='blue'] { background: var(--uui-blue-bg); box-shadow: inset 0 0 0 1px var(--uui-blue-ring); color: var(--uui-blue-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-pill[data-tone='blue'] .uui-pill__dot { background: var(--uui-blue-dot); }
-
-/* Needs Attention rows */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention {
-  position: relative; display: grid; grid-template-columns: 110px minmax(0, 1fr) 180px 90px 96px;
-  align-items: center; gap: 16px; min-height: 68px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200);
-  color: inherit; text-decoration: none;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention[data-current] { background: var(--uui-brand-tint); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__copy { display: grid; gap: 2px; min-width: 0; }
-/* Headline: 2 lines max, ellipsis at a word boundary (not mid-word). */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__title {
-  font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900);
-  overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  overflow-wrap: break-word; word-break: break-word;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__eyebrow { font-size: 12px; color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__similar { color: var(--uui-gray-400); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__context { font-size: var(--uui-text-sm); color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention[data-severity='critical'] .uui-dash-attention__due { color: var(--uui-error-fg); font-weight: var(--uui-weight-medium); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action { justify-self: start; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: var(--uui-radius-control); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); }
-/* Row action buttons: the lead (primary) is metallic black; the rest stay secondary. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action[data-hierarchy='primary'] { background-image: var(--uui-btn-metal-face); box-shadow: var(--uui-btn-metal-shadow); color: var(--uui-btn-metal-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action[data-hierarchy='secondary'] { background: var(--uui-white); color: var(--uui-gray-700); box-shadow: inset 0 0 0 1px var(--uui-gray-300); }
-
-/* News rows */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news { display: grid; grid-template-columns: 96px minmax(0, 1fr) 120px; align-items: center; gap: 16px; padding: 20px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__thumb { width: 96px; height: 92px; border-radius: var(--uui-radius-control); background: var(--uui-gray-100); overflow: hidden; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__thumb img { width: 100%; height: 100%; object-fit: cover; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__copy { display: grid; gap: 4px; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__source { font-size: 12px; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__title { font-size: var(--uui-text-body); line-height: 22px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__reason { font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__client { justify-self: end; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); text-align: right; }
-
-/* Week strip */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 0 24px 20px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day { height: 56px; display: grid; grid-template-rows: auto auto auto; align-content: center; justify-items: center; row-gap: 4px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day[data-today] { background: var(--uui-brand-tint); box-shadow: inset 0 0 0 1px var(--uui-brand-ring); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__weekday { font-size: 11px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-500); text-transform: uppercase; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__number { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__day[data-today] .uui-dash-week__number { color: var(--uui-brand-hover-2); }
-/* Always in the DOM (visibility toggled, not add/removed) so every day's
-   number sits at the same height whether or not it has events — previously
-   this was position:absolute + bottom:6px, which floated the dot under the
-   centered weekday/number block regardless of that block's actual height
-   and ended up overlapping the number by ~7px instead of sitting clear of it. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot { width: 4px; height: 4px; border-radius: 999px; background: var(--uui-brand-solid); visibility: hidden; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-week__dot[data-visible] { visibility: visible; }
-
-/* Event rows
-   Intrinsically wrapping, NOT a fixed track list. The card these rows live in
-   is the narrow column of .uui-dash__columns, whose width is a function of the
-   1.6538fr/1fr ratio and the 1280px content cap — never of the viewport. At a
-   1280px viewport that column is ~347px, so the old
-   `72px minmax(0,1fr) 160px` left the title/meta column 347-48-72-160-24 = 43px
-   (and ~5px on meeting rows, whose action track grew to fit Join + Send Meri).
-   Titles are nowrap+ellipsis, so they rendered as three characters and an
-   ellipsis on every desktop width. No media query can see that condition and
-   container queries are barred, so the row wraps on its own: the 140px
-   flex-basis on the copy makes the action cluster drop to a second line instead
-   of starving the copy, and the copy then grows into the whole first line. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 12px; min-height: 76px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event:hover { background: var(--uui-gray-50); }
-/* min-width rather than a fixed basis: the time column still lines up row to
-   row, but a long label ("Mon 18") grows instead of overflowing its box. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__time { flex: 0 0 auto; min-width: 72px; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy { display: grid; gap: 2px; flex: 1 1 140px; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__title { font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meta { font-size: 12px; color: var(--uui-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* margin-left:auto, not justify-self:end — the row is a flex container now, and
-   an auto margin also right-aligns the cluster on whichever line it wraps to. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__action { flex: 0 0 auto; margin-left: auto; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__copy-link { display: grid; flex: 1 1 140px; min-width: 0; color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meeting-actions { display: flex; flex: 0 0 auto; margin-left: auto; align-items: center; justify-content: flex-end; gap: 8px; }
-/* JoinButton/SendMeriButton read colors from these exact variable names via
-   inline styles — same mechanism dashboard.css already relied on, just
-   repointed at the Untitled-UI brand instead of the Capiro-native accent. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-event--meeting {
-  /* No track override any more: Join + Send Meri together need ~198px, which
-     the flex row above resolves by wrapping the pair onto its own line rather
-     than by taking that width out of the title. The custom properties below
-     must stay — JoinButton and SendMeriButton read these exact names through
-     inline styles (pages/engagement/meetings/meetings-ui.tsx), so dropping the
-     rule would strip both buttons of their brand colours. */
-  --accent: var(--uui-brand-solid);
-  --accent-ink: var(--uui-brand-hover);
-  --accent-soft: var(--uui-brand-tint);
-  --bg-sunken: var(--uui-gray-50);
-  --border-1: var(--uui-gray-200);
-  --ink-3: var(--uui-gray-700);
-  --font-sans: var(--uui-font-family);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-send-meri::after { content: '▾'; margin-left: 2px; font-size: 10px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-send-meri-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-
-/* Work queue rows */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-work { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 12px 24px; border-top: 1px solid var(--uui-gray-200); color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-work:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-work__title { flex: 1; min-width: 0; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* The folded meta lines only exist below the desktop stage. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__mobile-meta,
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-news__narrow-meta { display: none; }
-
-/* ── System states (754:2885) ─────────────────────────────────────────────
-   Seven named states from useDashboardVNextModel. A failed source keeps the
-   module visible and never reads as empty. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; width: 100%; }
-/* The meta IS the source fact the state contract requires ("Portfolio alerts ·
-   Intelligence changes" in the unavailable state), so it must never be the
-   thing that disappears. nowrap + .uui-dash-card{overflow:hidden} clipped it
-   both at 390 in the full-width Needs Attention card and on desktop inside the
-   ~299px right column. It wraps instead; margin-left:auto still right-aligns
-   it whenever it shares the line with the state pill. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__meta { margin-left: auto; min-width: 0; font-size: 12px; color: var(--uui-gray-500); white-space: normal; overflow-wrap: anywhere; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__title { margin: 0; font-size: var(--uui-text-body); line-height: var(--uui-line-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__body { margin: 0; font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span { height: 8px; border-radius: 4px; background: var(--uui-gray-100); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span:first-child { background: var(--uui-gray-200); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__skeleton span:last-child { width: 58%; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action { position: relative; align-self: flex-start; padding: 0; border: 0; background: none; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='warning'] { color: var(--uui-warning-fg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='accent'] { color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action[data-tone='success'] { color: var(--uui-success-fg); }
-/* STALE and SOURCE UNAVAILABLE raise the whole card's ring (754:2919). */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card:has(.uui-dash-state[data-state='stale']),
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-card:has(.uui-dash-state[data-state='unavailable']) { box-shadow: var(--uui-shadow-card-warning); }
-
-/* ── Mobile single-card modules (759:2683, 759:2689) ─────────────────────── */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next { position: relative; display: block; min-height: 88px; padding: 16px 100px 16px 16px; background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-card); color: inherit; text-decoration: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next--work { min-height: 76px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__eyebrow { display: block; font-size: 11px; font-weight: var(--uui-weight-semibold); letter-spacing: 0.02em; color: var(--uui-brand-hover); text-transform: uppercase; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next--work .uui-dash-next__eyebrow { color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__title { display: block; margin-top: 8px; font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__meta { display: block; margin-top: 4px; font-size: 12px; color: var(--uui-gray-500); }
-/* 44px, matching the drawn mobile Join (72x44) — this module only ever renders
-   below 780, so there is no desktop geometry to preserve here. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__action { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 14px; border-radius: var(--uui-radius-control); background: var(--uui-brand-solid); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-white); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-next__status { position: absolute; top: 18px; right: 16px; font-size: 12px; color: var(--uui-gray-500); }
-
-/* ── Density (760:2695) — spacing and item count only, never meaning ─────── */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='presentation'] .uui-dash-attention { min-height: 84px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='presentation'] .uui-dash-news { padding-top: 24px; padding-bottom: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='presentation'] .uui-dash-event { min-height: 84px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='presentation'] .uui-dash-work { min-height: 76px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='compact'] .uui-dash-attention { min-height: 52px; padding-top: 8px; padding-bottom: 8px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='compact'] .uui-dash-news { padding-top: 12px; padding-bottom: 12px; }
-/* Compact tightens the relevance line but must not drop it: acceptance D
-   (760:2755) requires every story to explain its relevance. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='compact'] .uui-dash-news__reason { font-size: 12px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='compact'] .uui-dash-event { min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash[data-density='compact'] .uui-dash-work { min-height: 48px; padding-top: 8px; padding-bottom: 8px; }
-
-/* ── Tablet stage (auto-collapsed rail, 780–1179px) ──────────────────────── */
-@media (max-width: 1179px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__columns { grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); }
-  /* The Due column is dropped; badge, copy, context and action all stay — so
-     the track list must be FOUR wide, not three. It was three, and with only
-     __due hidden the row still had four in-flow children: the action fell into
-     an implicit second row underneath the badge at every width from 780 to
-     1179. */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention { grid-template-columns: 96px minmax(0, 1fr) minmax(0, 140px) 96px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news { grid-template-columns: 64px minmax(0, 1fr); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__thumb { width: 64px; height: 56px; }
-  /* Relevance and clients fold into one meta line. */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__reason,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__client { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__narrow-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--uui-gray-500); }
-  /* The week strip is desktop-only. */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-week { display: none; }
-}
-
-/* ── Mobile stage (bottom tab bar, < 780px) ──────────────────────────────── */
 @media (max-width: 779px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__header { flex-direction: column; align-items: stretch; gap: 12px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__greeting { font-size: 24px; line-height: 32px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__header-actions { justify-content: space-between; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__columns { grid-template-columns: minmax(0, 1fr); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__head { padding: 16px; }
-  /* Badge leads, then title/eyebrow/meta stacked; no action row (759:2658). */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 8px; padding: 16px; }
-  /* Grid blockifies the inline-flex badge and justify-self then resolves to
-     stretch, so in the single-column mobile grid the severity pill became a
-     full-card-width bar with its label hugging the left edge. Scoped to this
-     block so the 110px/96px desktop and tablet tracks are untouched. */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention > .uui-pill { justify-self: start; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__context,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__due,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__action { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__mobile-meta { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--uui-gray-500); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-attention__title { white-space: normal; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news { grid-template-columns: 56px minmax(0, 1fr); padding: 16px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__thumb { width: 56px; height: 56px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-news__client { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head { padding: 18px 16px 0; align-items: flex-start; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__copy { width: 100%; gap: 10px; flex-wrap: wrap; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head h1 { font-size: 20px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__date { font-size: 13px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__date-long { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__date-short { display: inline; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__actions { margin-left: 0; width: 100%; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-head__actions > button { flex: 1; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-triage { padding: 16px 16px 20px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-triage__critical { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-triage__eyebrow > .dashv2-link { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-triage__grid { display: flex; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-tile { min-width: 250px; flex: 0 0 250px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-grid { padding: 24px 16px 32px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__time,.capiro-vnext-root .capiro-vnext-uui .dashv2-now > span { width: 58px; flex-basis: 58px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__rail { left: 63.5px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-row__action { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-work-row { grid-template-columns: 0 minmax(0,1fr) auto; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-work-row__kind { overflow: hidden; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-wire { max-height: 620px; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-wire__desktop { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer { width: 100%; }
 }
-
-/* ── Customize drawer (754:2766) ─────────────────────────────────────────── */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__scrim { position: fixed; inset: 0; z-index: 50; display: flex; justify-content: flex-end; background: var(--uui-scrim); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer { display: flex; flex-direction: column; width: 440px; max-width: 100%; height: 100%; background: var(--uui-white); box-shadow: var(--uui-shadow-card); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 24px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__header { display: flex; flex-direction: column; gap: 6px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__title { margin: 0; font-size: var(--uui-text-md); line-height: var(--uui-line-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: var(--uui-radius-control); background: var(--uui-gray-50); color: var(--uui-gray-500); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__close:hover { background: var(--uui-gray-100); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__description { margin: 0; font-size: var(--uui-text-sm); line-height: var(--uui-line-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__divider { height: 1px; background: var(--uui-gray-200); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__section-head { display: flex; align-items: baseline; gap: 12px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__label { flex: 1; margin: 0; font-size: 12px; font-weight: var(--uui-weight-semibold); letter-spacing: 0.03em; text-transform: uppercase; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__hint { margin: 0; font-size: 12px; color: var(--uui-gray-400); white-space: nowrap; }
-/* min-height, not height: the pinned row's meta ("External and time-sensitive
-   signals") measures ~200px against ~206px of available track at 390 — it fits
-   today with no margin at all, and a hard height would clip it rather than let
-   the row grow. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 12px; border-radius: var(--uui-radius-control); box-shadow: inset 0 0 0 1px var(--uui-gray-200); background: var(--uui-white); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module--pinned { background: var(--uui-brand-tint); box-shadow: inset 0 0 0 1px var(--uui-brand-ring); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module[data-dragging] { opacity: .5; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip { width: 22px; color: var(--uui-gray-400); font-size: 14px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module--pinned .uui-dash-drawer__grip { color: var(--uui-brand-hover); }
-/* The grip is the ONLY route to reorder on touch — HTML5 dragstart never fires
-   from a touch on the parent [draggable] div, so this button and its arrow-key
-   handler are the whole affordance. With padding:0 inside a centred flex row it
-   was a 22x17px box. Stretching it to the row height costs no geometry (the
-   glyph stays where it was drawn) and the ≤1179 block below adds the 44px hit
-   area on top. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip--button { position: relative; display: inline-flex; flex-shrink: 0; align-self: stretch; align-items: center; justify-content: flex-start; padding: 0; border: 0; background: none; text-align: left; cursor: grab; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__index { width: 22px; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-400); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module-copy { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module-title { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__module-meta { font-size: 12px; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__pinned-pill { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--uui-white); box-shadow: inset 0 0 0 1px var(--uui-brand-ring); font-size: 11px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch { position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 0; border: none; border-radius: 999px; background: var(--uui-gray-200); cursor: pointer; transition: background 0.15s ease; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch[aria-checked='true'] { background: var(--uui-brand-solid); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 999px; background: var(--uui-white); box-shadow: var(--uui-shadow-knob); transition: transform 0.15s ease; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch[aria-checked='true'] .uui-dash-drawer__switch-knob { transform: translateX(16px); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid { display: flex; flex-direction: column; gap: 4px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row[data-checked] { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__check { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--uui-gray-300); background: var(--uui-white); font-size: 11px; line-height: 1; color: var(--uui-white); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row[data-checked] .uui-dash-drawer__check { background: var(--uui-brand-solid); box-shadow: inset 0 0 0 1px var(--uui-brand-solid); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-label { flex: 1; min-width: 0; font-size: var(--uui-text-sm); color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action { width: 44px; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); }
-/* Sole entry point to custom-source editing, and unlike the eight topic rows
-   above it the row itself is not a button — so this control has to carry the
-   target. padding:0 in a centred flex row made it 44x15px. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action--button { position: relative; display: inline-flex; flex-shrink: 0; align-self: stretch; align-items: center; justify-content: flex-start; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__sources { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 10px 10px; }
-/* Custom sources are free text with no maxLength, and a fixed-height nowrap
-   pill with no max-width pushed the drawer body sideways past ~45 characters
-   (__body is overflow-y:auto, so its overflow-x computes to auto and the whole
-   drawer gained a horizontal scrollbar). min-height preserves the single-line
-   geometry; a long source now grows a taller pill instead. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; max-width: 100%; padding: 4px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--uui-gray-300); font-size: 12px; color: var(--uui-gray-700); overflow-wrap: anywhere; }
-/* The only way to delete a custom source, and it was an ~8x13px box. */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source button { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 24px; height: 24px; margin-right: -6px; padding: 0; border: 0; background: none; font-size: 13px; line-height: 1; color: var(--uui-gray-400); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add { display: flex; gap: 8px; width: 100%; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: var(--uui-radius-control); box-shadow: var(--uui-shadow-input); background: var(--uui-white); font: inherit; font-size: var(--uui-text-sm); color: var(--uui-gray-900); border: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input:focus-visible { box-shadow: var(--uui-shadow-focus); outline: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density { display: flex; height: 40px; padding: 2px; border-radius: var(--uui-radius-control); background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density-option { flex: 1; height: 36px; border: 0; border-radius: 6px; background: none; font-size: var(--uui-text-sm); color: var(--uui-gray-500); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density-option[aria-pressed='true'] { background: var(--uui-white); box-shadow: var(--uui-shadow-card); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__footer { display: flex; align-items: center; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--uui-gray-200); background: var(--uui-white); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__footer > :last-child { margin-left: auto; }
-
-/* CapiroButton reused for Add/Reset/Done — restyled the same way MeriLauncher
-   is in shell/AppShellUui/shell-uui.css: reuse the real behavior, override the look. */
-/* min-width: 0 beats primitives.css's 120px min-width (see the Meri launcher
-   comment in shell/AppShellUui/shell-uui.css) so Add/Reset/Done size to content. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-button { min-width: 0 !important; border-radius: var(--uui-radius-control) !important; font-family: var(--uui-font-family) !important; font-size: var(--uui-text-sm) !important; font-weight: var(--uui-weight-semibold) !important; box-shadow: none !important; padding: 0 16px !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary { background-color: transparent !important; background-image: var(--uui-btn-metal-face) !important; box-shadow: var(--uui-btn-metal-shadow) !important; color: var(--uui-btn-metal-fg) !important; border: 0 !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:hover:not(:disabled) { background-image: var(--uui-btn-metal-face-hover) !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:active:not(:disabled) { background-image: var(--uui-btn-metal-face-active) !important; box-shadow: var(--uui-btn-metal-shadow-active) !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--primary:disabled { background-image: none !important; background-color: var(--uui-gray-100) !important; box-shadow: none !important; color: var(--uui-gray-400) !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--secondary { background: var(--uui-white) !important; color: var(--uui-gray-700) !important; box-shadow: inset 0 0 0 1px var(--uui-gray-300) !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--secondary:hover { background: var(--uui-gray-50) !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--quiet { background: none !important; color: var(--uui-gray-500) !important; border: none !important; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-button--quiet:hover { background: var(--uui-gray-50) !important; }
-
-@media (max-width: 779px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer { width: 100%; }
-}
-
-/* ── Touch targets, tablet + mobile (≤1179) ──────────────────────────────────
-   The surface-wide 44px rule. Controls that can simply grow do; the rest get an
-   overlaid hit area so the drawn geometry does not move. This restates
-   foundations' .capiro-hit mechanism rather than using the class because that
-   utility only arms below 780 and the rule covers tablet as well —
-   `max(100%, 44px)` means a control already wider than 44px is not stretched
-   sideways, only given the height. */
-@media (max-width: 1179px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash__customize { height: 44px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__close { width: 44px; height: 44px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-row { height: auto; min-height: 44px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density { height: 48px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__density-option { height: 44px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source-add input { height: 44px; }
-  /*
-   * Send Meri and the row Join link cannot use the ::after overlay below —
-   * .uui-dash-send-meri::after is already the decorative caret glyph
-   * (dashboard.css:159), and a second ::after is not possible. Measured live at
-   * 390px: the button box was 123x36, so it failed the 44px rule while the
-   * overlay-based controls beside it passed. These are real buttons in a
-   * wrapping flex row, so growing them is safe — nothing is displaced.
-   */
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-send-meri,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-event__meeting-actions > a { min-height: var(--capiro-hit-size, 44px); }
-
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-card__link::after,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-state__action::after,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grip--button::after,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__grid-action--button::after,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__source button::after,
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-drawer__switch::after {
-    content: '';
-    position: absolute;
-    inset-inline-start: 50%;
-    inset-block-start: 50%;
-    width: max(100%, var(--capiro-hit-size, 44px));
-    height: max(100%, var(--capiro-hit-size, 44px));
-    transform: translate(-50%, -50%);
-  }
-}
-
-/* CapiroModal (Send Meri consent dialog) — same reuse-and-restyle approach. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-modal { border-radius: var(--uui-radius-card) !important; box-shadow: var(--uui-shadow-card) !important; font-family: var(--uui-font-family); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-modal .capiro-vnext-heading { color: var(--uui-gray-900) !important; font-weight: var(--uui-weight-semibold) !important; }
-
-/* ── X Intelligence Feed ─────────────────────────────────────────────────── */
-
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-btn {
-  background: none; border: none; color: var(--uui-brand); cursor: pointer;
-  font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-btn:hover { color: var(--uui-brand-hover); }
-
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__following {
-  display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px;
-  border-top: 1px solid var(--uui-gray-200);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__chip-wrapper {
-  display: inline-flex; align-items: center; gap: 2px;
-  border-radius: 999px; background: var(--uui-gray-50);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__chip {
-  background: none; border: none; cursor: pointer;
-  padding: 4px 10px; border-radius: 999px;
-  font-size: var(--uui-text-sm); color: var(--uui-gray-700);
-  font-weight: var(--uui-weight-medium);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__chip[data-active] {
-  background: var(--uui-brand); color: var(--uui-white);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__chip-remove {
-  background: none; border: none; cursor: pointer;
-  padding: 0 6px; border-radius: 999px; font-size: 14px;
-  color: var(--uui-gray-400); line-height: 1;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__chip-remove:hover { color: var(--uui-error-fg); }
-
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post {
-  border-top: 1px solid var(--uui-gray-200); padding: 16px 24px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-head {
-  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__avatar {
-  width: 40px; height: 40px; border-radius: 999px; flex-shrink: 0;
-  object-fit: cover;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__avatar--small { width: 32px; height: 32px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__avatar--placeholder {
-  background: var(--uui-gray-200); display: inline-block;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-author {
-  display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-name {
-  font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
-  color: var(--uui-gray-900); display: inline-flex; align-items: center; gap: 4px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-handle {
-  font-size: var(--uui-text-sm); color: var(--uui-gray-500);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-time {
-  font-size: var(--uui-text-sm); color: var(--uui-gray-400);
-  white-space: nowrap; flex-shrink: 0;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-text {
-  margin: 0 0 8px; font-size: var(--uui-text-sm); line-height: var(--uui-line-body);
-  color: var(--uui-gray-700); white-space: pre-wrap; word-break: break-word;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-metrics {
-  display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-metric {
-  font-size: var(--uui-text-sm); color: var(--uui-gray-400);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-link {
-  font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
-  color: var(--uui-brand); text-decoration: none;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post-link:hover { color: var(--uui-brand-hover); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__verified {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 999px;
-  background: var(--uui-blue-bg); color: var(--uui-blue-fg);
-  font-size: 10px; font-weight: var(--uui-weight-semibold);
-}
-
-/* Add source overlay */
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-overlay {
-  position: relative; border-top: 1px solid var(--uui-gray-200);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-panel {
-  padding: 16px 24px; background: var(--uui-gray-50);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-head {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-title {
-  font-size: var(--uui-text-md); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-close {
-  background: none; border: none; cursor: pointer; font-size: 20px;
-  color: var(--uui-gray-400); line-height: 1;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-close:hover { color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-body {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__input {
-  flex: 1; min-width: 180px; height: 40px; padding: 0 12px;
-  border: 1px solid var(--uui-gray-300); border-radius: var(--uui-radius-control);
-  font-size: var(--uui-text-sm); color: var(--uui-gray-900);
-  background: var(--uui-white);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__input:focus {
-  outline: none; border-color: var(--uui-brand);
-  box-shadow: 0 0 0 3px var(--uui-brand-tint);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-error {
-  width: 100%; margin: 4px 0 0; font-size: var(--uui-text-sm); color: var(--uui-error-fg);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__preview {
-  width: 100%; display: flex; align-items: center; gap: 12px;
-  margin-top: 12px; padding: 12px;
-  background: var(--uui-white); border-radius: var(--uui-radius-control);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__preview-copy {
-  display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__preview-name {
-  font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
-  color: var(--uui-gray-900); display: inline-flex; align-items: center; gap: 4px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__preview-handle {
-  font-size: var(--uui-text-sm); color: var(--uui-gray-500);
-}
-
-/* Mobile: reduce padding, smaller avatars */
-@media (max-width: 779px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__post { padding: 12px 16px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__following { padding: 8px 16px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-dash-xfeed__add-panel { padding: 12px 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .capiro-vnext-uui .dashv2 *,
+  .capiro-vnext-root .capiro-vnext-uui .dashv2 *::before,
+  .capiro-vnext-root .capiro-vnext-uui .dashv2 *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }

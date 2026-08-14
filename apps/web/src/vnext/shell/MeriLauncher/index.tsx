@@ -1,54 +1,48 @@
 import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { CapiroButton } from '../../components/actions/index.js';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
+import { useShellOverlay } from '../overlay-manager.js';
 
 export interface MeriLauncherProps {
   label?: string;
   onLaunch?: () => void;
 }
 
-/**
- * Meri launcher.
- *
- * `Pattern/Shell/TopBar vNext` (`1124:2682`) composes this from `Button/Main`
- * as Compact + Primary + Default with **both icon slots off**, so it is the
- * design system's button rather than a bespoke shell control. Reusing
- * `CapiroButton` also satisfies the Dashboard handoff spec's explicit
- * instruction not to redraw design-system components.
- *
- * That resolves a four-way disagreement in the Figma file, which had already
- * produced one shipped bug:
- *  - `Shell/MeriLauncher`'s bound radius variable reads 10px
- *  - that component's own reference screenshot reads as a full pill
- *  - the canonical app frames (`722:2502`, `843:2502`, `869:2502`) show a
- *    cobalt pill with a leading dot
- *  - `Pattern/Shell/TopBar vNext` renders a dark-ink 8px button, no dot
- *
- * Neo ruled the top-bar pattern normative, so the `border-radius: 999px` pill
- * shipped in `a3dbce1d` was a regression and is reverted here. Compact+Primary
- * resolves to `#131a24` at 32px with an 8px radius and Elevation/Control —
- * matching the pattern exactly.
- *
- * Do not re-add the leading dot; the pattern sets `showLeadingIcon={false}`.
- *
- * This component belongs exclusively to the vNext shell, so its default launch
- * target is the canonical addressable `/meri` workspace. The legacy app keeps
- * using the shared `?meriWindow=1` helper independently.
- */
+const MERI_PROMPTS = [
+  'Summarize overnight signals',
+  'Draft a client update',
+  'Prepare me for my next hearing',
+] as const;
+
 export function MeriLauncher({ label = 'Meri', onLaunch }: MeriLauncherProps) {
+  const { isOpen, containerRef, toggle, close } = useShellOverlay('meri');
+  const launch = () => {
+    close();
+    if (onLaunch) onLaunch();
+    else openVNextMeriWorkspaceWindow();
+  };
+
   return (
-    <CapiroButton
-      variant="primary"
-      size="compact"
-      className="capiro-meri-launcher"
-      onClick={() => {
-        if (onLaunch) {
-          onLaunch();
-          return;
-        }
-        openVNextMeriWorkspaceWindow();
-      }}
-    >
-      {label}
-    </CapiroButton>
+    <div className="capiro-meri-launcher-wrap" ref={containerRef}>
+      <CapiroButton
+        variant="primary"
+        size="standard"
+        className="capiro-meri-launcher"
+        leadingIcon={<DashboardIcon name="Stars02" size={18} />}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        onClick={(event) => toggle(event.currentTarget)}
+      >
+        {label}
+      </CapiroButton>
+      {isOpen ? (
+        <div className="capiro-meri-menu" role="menu" aria-label="Ask Meri">
+          <div className="capiro-meri-menu__label">Ask Meri</div>
+          {MERI_PROMPTS.map((prompt) => (
+            <button key={prompt} type="button" role="menuitem" onClick={launch}>{prompt}</button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
 import { useShellOverlay } from '../overlay-manager.js';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 
 export interface GlobalSearchProps {
   placeholder?: string;
@@ -22,7 +22,7 @@ export interface GlobalSearchProps {
  * rows. The missing contract is recorded in IMPLEMENTATION_CONTRACT.md §5.
  */
 export function GlobalSearch({
-  placeholder = 'Search clients, issues, programs, people…',
+  placeholder = 'Search clients, issues, programs, people',
   shortcut = '⌘K',
   scopeLabel = 'All clients',
 }: GlobalSearchProps) {
@@ -57,7 +57,7 @@ export function GlobalSearch({
         aria-haspopup="dialog"
         onClick={() => open(triggerRef.current)}
       >
-        <Search size={14} strokeWidth={1.8} aria-hidden="true" />
+        <DashboardIcon name="SearchLg" size={20} />
         <span className="capiro-global-search__placeholder">{placeholder}</span>
         <span className="capiro-global-search__shortcut" aria-hidden="true">{shortcut}</span>
       </button>
@@ -69,7 +69,7 @@ export function GlobalSearch({
           aria-label="Global search"
         >
           <div className="capiro-global-search__input-row">
-            <Search size={14} strokeWidth={1.8} aria-hidden="true" />
+            <DashboardIcon name="SearchLg" size={20} />
             <input
               ref={inputRef}
               className="capiro-global-search__input"

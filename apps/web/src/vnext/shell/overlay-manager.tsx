@@ -21,6 +21,7 @@ import {
  */
 export type ShellOverlayId =
   | 'search'
+  | 'meri'
   | 'profile'
   | 'notifications'
   | 'directory'

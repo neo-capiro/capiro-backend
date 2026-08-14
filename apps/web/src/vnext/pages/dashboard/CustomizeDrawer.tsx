@@ -1,29 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
 import { CapiroButton } from '../../components/actions/index.js';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import type {
   DashboardDensity,
-  DashboardModuleKey,
   DashboardVNextModel,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
 import type { NewsPolicyTopic } from '../../../pages/dashboard/DashboardNewsAndNarrative.js';
 
-/**
- * Customize Dashboard drawer (Figma `754:2766`), reskinned onto Untitled UI.
- *
- * A full-height right drawer — not a popover. It owns the three concerns the
- * customization contract (`760:2679`) keeps separate: module layout
- * (visibility plus order — both drag and Up/Down-arrow reordering are real
- * and wired to model.setOrder; this is not the "not yet implemented" state an
- * older doc in this same folder describes), news subscriptions, and
- * information density.
- *
- * The subscription rows below render the *real* topic taxonomy from
- * `DashboardNewsAndNarrative`, not the mockup's illustrative labels: the
- * design fixes the row geometry, the product fixes which categories exist.
- */
-
-const TOPIC_ROWS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
+const TOPICS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
   { value: 'legislation', label: 'Legislation' },
   { value: 'hearings', label: 'Hearings & markups' },
   { value: 'regulation', label: 'Regulation' },
@@ -33,369 +17,146 @@ const TOPIC_ROWS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
   { value: 'state', label: 'State policy' },
   { value: 'executive', label: 'Executive actions' },
 ];
-
-const MODULE_COPY: Readonly<Record<DashboardModuleKey, { title: string; description: string }>> = {
-  news: { title: 'News & Narrative', description: 'Subscription-driven feed' },
-  today: { title: 'Today & Coming Up', description: 'Meetings and policy events' },
-  work: { title: 'Work Queue', description: 'Outreach and work documents' },
-  xFeed: { title: 'X Intelligence', description: 'Configurable X/Twitter feed' },
-};
-
-const VISIBILITY_KEY: Readonly<Record<DashboardModuleKey, 'news' | 'today' | 'work' | 'xFeed'>> = {
-  news: 'news',
-  today: 'today',
-  work: 'work',
-  xFeed: 'xFeed',
-};
-
-const DENSITY_OPTIONS: ReadonlyArray<{ value: DashboardDensity; label: string }> = [
-  { value: 'presentation', label: 'Presentation' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'compact', label: 'Compact' },
+const DENSITIES: ReadonlyArray<{ value: DashboardDensity; label: string; sub: string }> = [
+  { value: 'presentation', label: 'Presentation', sub: 'More breathing room · fewer rows' },
+  { value: 'standard', label: 'Standard', sub: 'Balanced spacing and context' },
+  { value: 'compact', label: 'Compact', sub: 'More rows · news summaries hidden' },
 ];
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
+type WorkKey = 'today' | 'work';
 
-export function CustomizeDrawer({
-  model,
-  onClose,
-}: {
-  model: DashboardVNextModel;
-  onClose: () => void;
-}) {
+export function CustomizeDrawer({ model, onClose, onDensityChange, initialSection }: { model: DashboardVNextModel; onClose: () => void; onDensityChange?: (next: DashboardDensity) => void; initialSection?: 'x' | null }) {
   const panelRef = useRef<HTMLElement | null>(null);
-  const [dragging, setDragging] = useState<DashboardModuleKey | null>(null);
-  const [editingSources, setEditingSources] = useState(false);
-  const [customDraft, setCustomDraft] = useState('');
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  const xSectionRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState<WorkKey | null>(null);
+  const [xDraft, setXDraft] = useState('');
+  const [xError, setXError] = useState<string | null>(null);
+  const [addingX, setAddingX] = useState(false);
+  const [editingCustom, setEditingCustom] = useState(false);
+  const [customDraft, setCustomDraft] = useState(() => model.news.preferences.customTopics.join(', '));
+  const workOrder = model.order.filter((key): key is WorkKey => key === 'today' || key === 'work');
+  const wireEnabled = model.visibility.news || model.visibility.xFeed;
+  const prefs = model.news.preferences;
 
-  // Same overlay contract as CapiroDrawer: Escape closes, focus is trapped and
-  // restored, and the page behind cannot scroll.
   useEffect(() => {
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     panelRef.current?.focus();
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
+    if (initialSection === 'x') window.requestAnimationFrame(() => xSectionRef.current?.scrollIntoView({ block: 'start' }));
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab' || !panelRef.current) return;
-      const focusable = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((element) => element.tabIndex !== -1);
-      if (focusable.length === 0) return;
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.tabIndex !== -1);
+      if (!focusable.length) return;
+      const first = focusable[0]!, last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = oldOverflow; previous?.focus(); };
+  }, [initialSection, onClose]);
 
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
-    };
-  }, []);
-
-  const move = (key: DashboardModuleKey, delta: number) => {
-    const current = [...model.order];
-    const from = current.indexOf(key);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= current.length) return;
-    current.splice(to, 0, ...current.splice(from, 1));
-    model.setOrder(current);
+  const setWorkOrder = (next: WorkKey[]) => {
+    const rest = model.order.filter((key) => key !== 'today' && key !== 'work');
+    model.setOrder([...next, ...rest]);
   };
-
-  const dropOn = (target: DashboardModuleKey) => {
+  const dropOn = (target: WorkKey) => {
     if (!dragging || dragging === target) return;
-    const current = [...model.order].filter((key) => key !== dragging);
-    current.splice(model.order.indexOf(target), 0, dragging);
-    model.setOrder(current);
+    const next = workOrder.filter((key) => key !== dragging);
+    next.splice(workOrder.indexOf(target), 0, dragging);
+    setWorkOrder(next);
     setDragging(null);
   };
-
-  const preferences = model.news.preferences;
+  const move = (key: WorkKey, delta: number) => {
+    const next = [...workOrder];
+    const from = next.indexOf(key), to = from + delta;
+    if (from < 0 || to < 0 || to >= next.length) return;
+    [next[from], next[to]] = [next[to]!, next[from]!];
+    setWorkOrder(next);
+  };
+  const addX = async () => {
+    const username = xDraft.trim().replace(/^@+/, '');
+    if (!username) return;
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(username)) { setXError('Enter a valid X username (letters, numbers, underscore; 15 characters max).'); return; }
+    if (model.xFeed.subscriptions.some((sub) => sub.username.toLowerCase() === username.toLowerCase())) {
+      setXError(`@${username} is already in your feed.`); return;
+    }
+    setAddingX(true); setXError(null);
+    try { await model.xFeed.addSource(username); setXDraft(''); }
+    catch { setXError('Could not add this account. Check the handle and try again.'); }
+    finally { setAddingX(false); }
+  };
   const toggleTopic = (topic: NewsPolicyTopic) => {
-    const active = preferences.policyTopics.includes(topic);
-    model.news.setPreferences({
-      ...preferences,
-      policyTopics: active
-        ? preferences.policyTopics.filter((value) => value !== topic)
-        : [...preferences.policyTopics, topic],
-    });
+    const checked = prefs.policyTopics.includes(topic);
+    model.news.setPreferences({ ...prefs, policyTopics: checked ? prefs.policyTopics.filter((value) => value !== topic) : [...prefs.policyTopics, topic] });
   };
-
-  const addCustomSource = () => {
-    const value = customDraft.trim();
-    if (!value || preferences.customTopics.includes(value)) return;
-    model.news.setPreferences({ ...preferences, customTopics: [...preferences.customTopics, value] });
-    setCustomDraft('');
+  const saveCustomTopics = () => {
+    const customTopics = customDraft.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 20).map((value) => value.slice(0, 120));
+    model.news.setPreferences({ ...model.news.preferences, customTopics });
+    setEditingCustom(false);
   };
-
   const reset = () => {
-    model.setVisibility({ news: true, today: true, work: true, xFeed: true });
-    model.setOrder(['news', 'today', 'work', 'xFeed']);
+    model.setVisibility({ today: true, work: true, news: true, xFeed: true });
+    model.setOrder(['today', 'work', 'news', 'xFeed']);
     model.setDensity('standard');
   };
 
-  const densityLabel =
-    DENSITY_OPTIONS.find((option) => option.value === model.density)?.label ?? 'Standard';
-
   return (
-    <div
-      className="uui-dash-drawer__scrim"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        ref={panelRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Customize Dashboard"
-        className="uui-dash-drawer"
-      >
-        <div className="uui-dash-drawer__body">
-          <header className="uui-dash-drawer__header">
-            <div className="uui-dash-drawer__header-row">
-              <h2 className="uui-dash-drawer__title">Customize Dashboard</h2>
-              <button
-                type="button"
-                className="uui-dash-drawer__close"
-                aria-label="Close"
-                onClick={onClose}
-              >
-                <X size={18} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-            </div>
-            <p className="uui-dash-drawer__description">
-              Choose optional modules, their order, feed subscriptions, and information density.
-              Needs Attention remains pinned.
-            </p>
+    <div className="dashv2-drawer-scrim" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <section ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Customize Dashboard" className="dashv2-drawer">
+        <div className="dashv2-drawer__body">
+          <header className="dashv2-drawer__header">
+            <span className="dashv2-feature-icon dashv2-feature-icon--lg" aria-hidden="true"><DashboardIcon name="Sliders02" size={24} /></span>
+            <span className="dashv2-drawer__header-copy"><h2>Customize Dashboard</h2><p>Lanes, wire subscriptions and density. Needs Attention stays pinned to the top strip.</p></span>
+            <button type="button" className="dashv2-icon-button" aria-label="Close" onClick={onClose}><DashboardIcon name="XClose" size={20} /></button>
           </header>
+          <div className="dashv2-drawer__divider" />
 
-          <div className="uui-dash-drawer__section-head">
-            <p className="uui-dash-drawer__label">Pinned module</p>
-            <p className="uui-dash-drawer__hint">Always visible</p>
-          </div>
+          <SectionHead label="Pinned strip" hint="Always visible" />
+          <div className="dashv2-drawer-card dashv2-drawer-card--pinned"><span><strong>Needs Attention</strong><small>Four triage tiles under the greeting</small></span><span className="dashv2-pill dashv2-pill--brand">Pinned</span></div>
 
-          {/* Needs Attention is excluded from hide/reorder and always renders
-              first, per the customization contract (`760:2683`). */}
-          <div className="uui-dash-drawer__module uui-dash-drawer__module--pinned">
-            <span className="uui-dash-drawer__grip" aria-hidden="true">
-              ⠿
-            </span>
-            <span className="uui-dash-drawer__index">00</span>
-            <span className="uui-dash-drawer__module-copy">
-              <span className="uui-dash-drawer__module-title">Needs Attention</span>
-              <span className="uui-dash-drawer__module-meta">
-                External and time-sensitive signals
-              </span>
-            </span>
-            <span className="uui-dash-drawer__pinned-pill">Pinned</span>
-          </div>
-
-          <div className="uui-dash-drawer__section-head">
-            <p className="uui-dash-drawer__label">Optional modules</p>
-            <p className="uui-dash-drawer__hint">Drag to reorder</p>
-          </div>
-
-          {model.order.map((key, index) => {
-            const copy = MODULE_COPY[key];
-            const visible = model.visibility[VISIBILITY_KEY[key]];
-            return (
-              <div
-                key={key}
-                className="uui-dash-drawer__module"
-                data-dragging={dragging === key || undefined}
-                draggable
-                onDragStart={() => setDragging(key)}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => dropOn(key)}
-              >
-                {/* Drag is the designed affordance; arrow keys make the same
-                    reorder reachable without a pointer. */}
-                <button
-                  type="button"
-                  className="uui-dash-drawer__grip uui-dash-drawer__grip--button"
-                  aria-label={`Reorder ${copy.title}. Position ${index + 1} of ${model.order.length}. Use arrow keys.`}
-                  onKeyDown={(event) => {
-                    if (event.key === 'ArrowUp') {
-                      event.preventDefault();
-                      move(key, -1);
-                    } else if (event.key === 'ArrowDown') {
-                      event.preventDefault();
-                      move(key, 1);
-                    }
-                  }}
-                >
-                  <span aria-hidden="true">⠿</span>
-                </button>
-                <span className="uui-dash-drawer__index">{`0${index + 1}`}</span>
-                <span className="uui-dash-drawer__module-copy">
-                  <span className="uui-dash-drawer__module-title">{copy.title}</span>
-                  <span className="uui-dash-drawer__module-meta">{copy.description}</span>
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={visible}
-                  aria-label={`Show ${copy.title}`}
-                  className="uui-dash-drawer__switch"
-                  onClick={() =>
-                    model.setVisibility({
-                      ...model.visibility,
-                      [VISIBILITY_KEY[key]]: !visible,
-                    })
-                  }
-                >
-                  <span className="uui-dash-drawer__switch-knob" aria-hidden="true" />
-                </button>
-              </div>
-            );
+          <SectionHead label="Work lane" hint="Drag to reorder" />
+          {workOrder.map((key) => {
+            const title = key === 'today' ? 'Today & Coming Up' : 'Work Queue';
+            const sub = key === 'today' ? 'Chronological meetings and deadlines' : 'Outreach and work documents';
+            const visible = key === 'today' ? model.visibility.today : model.visibility.work;
+            return <div key={key} className="dashv2-drawer-card dashv2-drawer-card--module" draggable data-dragging={dragging === key || undefined} onDragStart={() => setDragging(key)} onDragEnd={() => setDragging(null)} onDragOver={(e) => e.preventDefault()} onDrop={() => dropOn(key)}>
+              <button type="button" className="dashv2-drag" aria-label={`Reorder ${title}`} onKeyDown={(e) => { if (e.key === 'ArrowUp') { e.preventDefault(); move(key,-1); } if (e.key === 'ArrowDown') { e.preventDefault(); move(key,1); } }}><DashboardIcon name="DotsGrid" size={20} /></button>
+              <span className="dashv2-drawer-card__copy"><strong>{title}</strong><small>{sub}</small></span>
+              <Switch checked={visible} label={`Show ${title}`} onClick={() => model.setVisibility({ ...model.visibility, [key]: !visible })} />
+            </div>;
           })}
 
-          <div className="uui-dash-drawer__divider" />
+          <SectionHead label="The Wire" hint="Right lane" />
+          <div className="dashv2-drawer-card dashv2-drawer-card--module"><span className="dashv2-drawer-card__copy"><strong>The Wire</strong><small>Right lane · X posts and news, newest first</small></span><Switch checked={wireEnabled} label="Show The Wire" onClick={() => model.setVisibility({ ...model.visibility, news: !wireEnabled, xFeed: !wireEnabled })}/></div>
 
-          <div className="uui-dash-drawer__section-head">
-            <p className="uui-dash-drawer__label">News &amp; Narrative</p>
-            <p className="uui-dash-drawer__hint">Subscriptions</p>
-          </div>
+          <div className="dashv2-drawer__divider" />
+          <div ref={xSectionRef} className="dashv2-drawer-anchor" />
+          <SectionHead label="X accounts" hint={`${model.xFeed.subscriptions.length} subscribed`} />
+          <p className="dashv2-drawer__helper">Posts are read-only and refresh with the dashboard.</p>
+          {model.xFeed.subscriptions.map((sub) => <div key={sub.id} className="dashv2-account"><span className="dashv2-avatar dashv2-avatar--tiny">{initials(sub.displayName ?? sub.username)}</span><span className="dashv2-account__copy"><strong>@{sub.username}</strong>{sub.displayName ? <small>{sub.displayName}</small> : null}</span><button type="button" className="dashv2-account__remove" aria-label={`Remove @${sub.username}`} onClick={() => void model.xFeed.removeSource(sub.id)}><DashboardIcon name="XClose" size={16} /></button></div>)}
+          <div className="dashv2-add-row"><input value={xDraft} onChange={(e)=>setXDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();void addX();}}} placeholder="@username" aria-label="X username"/><CapiroButton variant="secondary" size="standard" disabled={addingX} onClick={() => void addX()}>{addingX?'Adding…':'Add'}</CapiroButton></div>
+          {xError ? <p className="dashv2-drawer__error">{xError}</p> : null}
 
-          <div className="uui-dash-drawer__grid">
-            {TOPIC_ROWS.map((topic) => {
-              const checked = preferences.policyTopics.includes(topic.value);
-              return (
-                <button
-                  key={topic.value}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  className="uui-dash-drawer__grid-row"
-                  data-checked={checked || undefined}
-                  onClick={() => toggleTopic(topic.value)}
-                >
-                  <span className="uui-dash-drawer__check" aria-hidden="true">
-                    {checked ? '✓' : null}
-                  </span>
-                  <span className="uui-dash-drawer__grid-label">{topic.label}</span>
-                  <span className="uui-dash-drawer__grid-action" />
-                </button>
-              );
-            })}
+          <div className="dashv2-drawer__divider" />
+          <SectionHead label="News subscriptions" hint="Topics" />
+          <div className="dashv2-topic-list">{TOPICS.map((topic) => { const checked=prefs.policyTopics.includes(topic.value); return <button key={topic.value} type="button" className="dashv2-topic" role="checkbox" aria-checked={checked} onClick={()=>toggleTopic(topic.value)}><span className="dashv2-check" data-checked={checked||undefined}><DashboardIcon name="Check" size={14} /></span><span>{topic.label}</span></button>; })}</div>
+          <div className="dashv2-custom-sources"><span>{prefs.customTopics.length} custom source{prefs.customTopics.length===1?'':'s'}</span><button type="button" className="dashv2-link" onClick={() => { setCustomDraft(prefs.customTopics.join(', ')); setEditingCustom((value) => !value); }}>{editingCustom ? 'Cancel' : 'Edit'}</button></div>
+          {editingCustom ? <div className="dashv2-add-row dashv2-add-row--custom"><input value={customDraft} onChange={(e)=>setCustomDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();saveCustomTopics();}}} placeholder="policy topic, committee, organization" aria-label="Custom news sources"/><CapiroButton variant="secondary" size="standard" onClick={saveCustomTopics}>Save</CapiroButton></div> : null}
 
-            <div
-              className="uui-dash-drawer__grid-row"
-              data-checked={preferences.customTopics.length > 0 || undefined}
-            >
-              <span className="uui-dash-drawer__check" aria-hidden="true">
-                {preferences.customTopics.length > 0 ? '✓' : null}
-              </span>
-              <span className="uui-dash-drawer__grid-label">
-                {preferences.customTopics.length === 1
-                  ? '1 custom source'
-                  : `${preferences.customTopics.length} custom sources`}
-              </span>
-              <button
-                type="button"
-                className="uui-dash-drawer__grid-action uui-dash-drawer__grid-action--button"
-                aria-expanded={editingSources}
-                onClick={() => setEditingSources((open) => !open)}
-              >
-                {editingSources ? 'Done' : 'Edit'}
-              </button>
-            </div>
-
-            {editingSources ? (
-              <div className="uui-dash-drawer__sources">
-                {preferences.customTopics.map((source) => (
-                  <span key={source} className="uui-dash-drawer__source">
-                    {source}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${source}`}
-                      onClick={() =>
-                        model.news.setPreferences({
-                          ...preferences,
-                          customTopics: preferences.customTopics.filter((value) => value !== source),
-                        })
-                      }
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <div className="uui-dash-drawer__source-add">
-                  <input
-                    value={customDraft}
-                    onChange={(event) => setCustomDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        addCustomSource();
-                      }
-                    }}
-                    placeholder="Add a custom source or topic"
-                    aria-label="Add a custom source or topic"
-                  />
-                  <CapiroButton size="compact" variant="secondary" onClick={addCustomSource}>
-                    Add
-                  </CapiroButton>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="uui-dash-drawer__divider" />
-
-          <div className="uui-dash-drawer__section-head">
-            <p className="uui-dash-drawer__label">Information density</p>
-            <p className="uui-dash-drawer__hint">Current: {densityLabel}</p>
-          </div>
-
-          <div className="uui-dash-drawer__density" role="group" aria-label="Information density">
-            {DENSITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className="uui-dash-drawer__density-option"
-                aria-pressed={model.density === option.value}
-                onClick={() => model.setDensity(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <div className="dashv2-drawer__divider" />
+          <SectionHead label="Information density" hint={`Current: ${capitalize(model.density)}`} />
+          {DENSITIES.map((option) => <button key={option.value} type="button" className="dashv2-density" aria-pressed={model.density===option.value} onClick={()=> (onDensityChange ?? model.setDensity)(option.value)}><span className="dashv2-radio"><i /></span><span><strong>{option.label}</strong><small>{option.sub}</small></span></button>)}
         </div>
-
-        <footer className="uui-dash-drawer__footer">
-          <CapiroButton size="compact" variant="quiet" onClick={reset}>
-            Reset
-          </CapiroButton>
-          <CapiroButton size="compact" variant="primary" onClick={onClose}>
-            Done
-          </CapiroButton>
-        </footer>
+        <footer className="dashv2-drawer__footer"><CapiroButton variant="secondary" size="standard" onClick={reset}>Reset</CapiroButton><CapiroButton variant="primary" size="standard" onClick={onClose}>Done</CapiroButton></footer>
       </section>
     </div>
   );
 }
+
+function SectionHead({ label, hint }: { label: string; hint: string }) { return <div className="dashv2-drawer__section-head"><strong>{label}</strong><span>{hint}</span></div>; }
+function Switch({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) { return <button type="button" role="switch" aria-checked={checked} aria-label={label} className="dashv2-switch" data-on={checked||undefined} onClick={onClick}><i /></button>; }
+function initials(value: string){return value.split(/\s+/).filter(Boolean).slice(0,2).map((part)=>part[0]?.toUpperCase()).join('')||'—';}
+function capitalize(value:string){return value.slice(0,1).toUpperCase()+value.slice(1);}

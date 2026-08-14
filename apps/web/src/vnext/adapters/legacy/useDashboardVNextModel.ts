@@ -89,11 +89,16 @@ export interface NewsItem {
   clients: string;
   url: string;
   imageUrl: string | null;
+  summary?: string | null;
+  /** Raw provider instant used by Dashboard v2 to interleave X + news exactly. */
+  publishedAt?: string;
   publishedLabel: string;
 }
 
 export interface TodayEvent {
   id: string;
+  /** Raw instant retained for Dashboard v2 day grouping/date labels. */
+  startsAt?: string;
   time: string;
   title: string;
   meta: string;
@@ -496,7 +501,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       itemCount: ordered.length,
     });
 
-    return { status, items: ordered.slice(0, limits.attention), total: ordered.length };
+    // Dashboard v2 owns the four-tile ribbon budget and its View all expansion.
+    // Keep the adapter semantically complete so density never becomes truth.
+    return { status, items: ordered, total: ordered.length };
   }, [
     portfolioAlerts.data,
     portfolioAlerts.dataUpdatedAt,
@@ -594,6 +601,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       clients: item.clientMatches.map((client) => client.name).join(', '),
       url: item.url,
       imageUrl: item.imageUrl,
+      summary: item.summary ?? null,
+      publishedAt: item.publishedAt,
       publishedLabel: relativeDay(item.publishedAt),
     }));
 
@@ -629,7 +638,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
           body: 'Preserve the last good result, display its age, and offer a controlled retry.',
           action: { label: 'Retry source', tone: 'warning' as const },
         },
-        items: items.slice(0, limits.news),
+        // The Wire applies one combined density cap after X + news are interleaved.
+        items,
         meta,
         unavailableReason: null,
       };
@@ -638,7 +648,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     return {
       ...base,
       status: { state: 'ready' as DashboardModuleState, meta: null, title: '', body: '', action: null },
-      items: items.slice(0, limits.news),
+      items,
       meta,
       unavailableReason: null,
     };
@@ -695,6 +705,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       dated.push({
         at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
         id: `meeting-${meeting.id}`,
+        startsAt: meeting.startsAt,
         time: formatTime(meeting.startsAt),
         title: meeting.subject,
         meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
@@ -715,6 +726,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       dated.push({
         at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
         id: `coming-${item.id}`,
+        startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
         time: item.time ?? formatDayShort(item.date),
         title: item.title,
         meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
@@ -746,9 +758,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         .filter((event) => event.at !== Number.MAX_SAFE_INTEGER)
         .map((event) => new Date(event.at).toDateString()),
     );
-    const events: TodayEvent[] = upcoming
-      .slice(0, limits.today)
-      .map(({ at: _at, ...event }) => event);
+    // Dashboard v2 owns TODAY / TOMORROW / LATER THIS WEEK grouping.
+    const events: TodayEvent[] = upcoming.map(({ at: _at, ...event }) => event);
 
     // Mobile shows the next *meeting*, not the next tracked policy event, so
     // pick the first joinable/preparable item rather than events[0].
@@ -841,7 +852,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       return { status, items: [], total: items.length };
     }
 
-    return { status, items: items.slice(0, limits.work), total: items.length };
+    // Dashboard v2 applies its 3 / 4 / 5 density budget in the Work Queue view.
+    return { status, items, total: items.length };
   }, [
     outreach.data,
     outreach.dataUpdatedAt,
@@ -1229,6 +1241,7 @@ interface NewsDashboardResponse {
     source: string;
     url: string;
     imageUrl: string | null;
+    summary?: string | null;
     publishedAt: string;
     clientMatches: Array<{ id: string; name: string }>;
     relevanceReason: string;
