@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHASE4_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120070000_mailbox_knowledge_ingestion/migration.sql"
+DROP_CREATED_BY_FKEY_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120080000_drop_knowledge_assertions_created_by_fkey/migration.sql"
+INCREMENTAL_ONLY_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120090000_mailbox_knowledge_incremental_only/migration.sql"
 
 TENANT_ONE="11111111-1111-4111-8111-111111111111"
 CONNECTION_ONE="99999999-9999-4999-8999-999999999991"
@@ -12,6 +14,8 @@ THREAD_ONE="99999999-9999-4999-8999-999999999992"
 MESSAGE_ONE="99999999-9999-4999-8999-999999999993"
 MESSAGE_MANUAL="99999999-9999-4999-8999-999999999994"
 MESSAGE_REMOVED="99999999-9999-4999-8999-999999999995"
+MESSAGE_BACKFILL="99999999-9999-4999-8999-999999999996"
+MESSAGE_TRUNCATED="99999999-9999-4999-8999-999999999997"
 EVENT_TWO="55555555-5555-4555-8555-555555555555"
 
 psql_cmd() {
@@ -82,6 +86,34 @@ CREATE TABLE engagement_attachments (
 SQL
 
 psql_cmd -f "$PHASE4_MIGRATION"
+psql_cmd -f "$DROP_CREATED_BY_FKEY_MIGRATION"
+psql_cmd -f "$INCREMENTAL_ONLY_MIGRATION"
+
+# Prove created_by remains and the FK is gone.
+psql_cmd <<SQL
+DO \$\$
+DECLARE
+  has_column BOOLEAN;
+  has_fkey BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'knowledge_assertions' AND column_name = 'created_by'
+  ) INTO has_column;
+  IF NOT has_column THEN
+    RAISE EXCEPTION 'created_by column was removed; it must remain as an immutable audit UUID';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'knowledge_assertions_created_by_fkey'
+  ) INTO has_fkey;
+  IF has_fkey THEN
+    RAISE EXCEPTION 'knowledge_assertions_created_by_fkey still exists after drop migration';
+  END IF;
+END
+\$\$;
+SQL
 
 psql_cmd <<SQL
 INSERT INTO engagement_connections (
@@ -141,7 +173,7 @@ VALUES (
   '[{"email":"neo@capiro.ai","name":"Neo"}]'::jsonb,
   '2026-08-14T13:00:00Z',
   'Please protect PE 0605053A and avoid leading with autonomy.',
-  '{"folder":"inbox"}'::jsonb,
+  '{"folder":"inbox","bodyCompleteness":"full","mailboxSyncMode":"incremental"}'::jsonb,
   '{"snippet":"Please protect PE 0605053A..."}'::jsonb
 );
 
@@ -156,6 +188,90 @@ BEGIN
     AND status = 'pending';
   IF queued <> 1 THEN
     RAISE EXCEPTION 'expected one incremental mailbox job, found %', queued;
+  END IF;
+END
+\$\$;
+
+-- Explicit backfill mode must create ZERO knowledge jobs (no date heuristic).
+INSERT INTO mail_messages (
+  id,
+  tenant_id,
+  thread_id,
+  connection_id,
+  source,
+  external_id,
+  subject,
+  from_email,
+  to_recipients_jsonb,
+  received_at,
+  body_text,
+  metadata_jsonb
+)
+VALUES (
+  '$MESSAGE_BACKFILL'::uuid,
+  '$TENANT_ONE'::uuid,
+  '$THREAD_ONE'::uuid,
+  '$CONNECTION_ONE'::uuid,
+  'google',
+  'gmail-backfill-one',
+  'Historical backfill mail',
+  'jane@example.com',
+  '[{"email":"neo@capiro.ai","name":"Neo"}]'::jsonb,
+  '2026-08-14T12:00:00Z',
+  'Please protect PE 0605053A during historical mailbox load.',
+  '{"folder":"inbox","bodyCompleteness":"full","mailboxSyncMode":"backfill"}'::jsonb
+);
+
+DO \$\$
+DECLARE
+  queued INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO queued
+  FROM knowledge_mailbox_jobs
+  WHERE mail_message_id = '$MESSAGE_BACKFILL'::uuid;
+  IF queued <> 0 THEN
+    RAISE EXCEPTION 'backfill mailbox row unexpectedly queued % knowledge jobs', queued;
+  END IF;
+END
+\$\$;
+
+-- Truncated bodies (storage-cap) must never enqueue even when incremental.
+INSERT INTO mail_messages (
+  id,
+  tenant_id,
+  thread_id,
+  connection_id,
+  source,
+  external_id,
+  subject,
+  from_email,
+  received_at,
+  body_text,
+  metadata_jsonb
+)
+VALUES (
+  '$MESSAGE_TRUNCATED'::uuid,
+  '$TENANT_ONE'::uuid,
+  '$THREAD_ONE'::uuid,
+  '$CONNECTION_ONE'::uuid,
+  'outlook',
+  'graph-truncated-one',
+  'Truncated body',
+  'a@acme.com',
+  '2026-08-14T14:00:00Z',
+  'Truncated body content that is not complete evidence.',
+  '{"folder":"inbox","bodyCompleteness":"truncated","mailboxSyncMode":"incremental"}'::jsonb
+);
+
+DO \$\$
+DECLARE
+  queued INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO queued
+  FROM knowledge_mailbox_jobs
+  WHERE mail_message_id = '$MESSAGE_TRUNCATED'::uuid;
+  IF queued <> 0 THEN
+    RAISE EXCEPTION 'truncated body unexpectedly queued % knowledge jobs', queued;
   END IF;
 END
 \$\$;

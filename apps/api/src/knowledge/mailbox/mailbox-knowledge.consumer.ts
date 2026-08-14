@@ -195,7 +195,8 @@ function insufficient(reason: string): MailboxRelevanceResult {
  * A provider preview may be useful for UI rendering, but it is not the source
  * body Phase 3 evidence offsets must bind to. Both Gmail and Microsoft rows
  * are eligible only when sync stamped an explicit bodyCompleteness=full marker.
- * Previews, snippets, and inferred body/snippet inequality are never evidence.
+ * Previews, truncated storage-cap bodies, snippets, and inferred body/snippet
+ * inequality are never evidence. Knowledge ingestion accepts only explicit full.
  */
 export function hasAuthoritativeProviderBody(message: MailboxMessageRecord): boolean {
   return message.metadata.bodyCompleteness === 'full';

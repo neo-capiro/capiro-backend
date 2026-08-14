@@ -6,6 +6,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHASE12_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/migration.sql"
 PHASE3_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120060000_knowledge_evidence/migration.sql"
+DROP_CREATED_BY_FKEY_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120080000_drop_knowledge_assertions_created_by_fkey/migration.sql"
 
 TENANT_ONE="11111111-1111-4111-8111-111111111111"
 TENANT_TWO="22222222-2222-4222-8222-222222222222"
@@ -63,6 +64,35 @@ SQL
 
 psql_cmd -f "$PHASE12_MIGRATION"
 psql_cmd -f "$PHASE3_MIGRATION"
+psql_cmd -f "$DROP_CREATED_BY_FKEY_MIGRATION"
+
+# created_by remains; the FK must be gone so user deletion cannot mutate assertions.
+psql_cmd <<SQL
+DO \$\$
+DECLARE
+  has_column BOOLEAN;
+  has_fkey BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'knowledge_assertions'
+      AND column_name = 'created_by'
+  ) INTO has_column;
+  IF NOT has_column THEN
+    RAISE EXCEPTION 'created_by column missing after drop-fkey migration';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'knowledge_assertions_created_by_fkey'
+  ) INTO has_fkey;
+  IF has_fkey THEN
+    RAISE EXCEPTION 'knowledge_assertions_created_by_fkey still present';
+  END IF;
+END
+\$\$;
+SQL
 
 psql_cmd <<SQL
 INSERT INTO tenants (id) VALUES

@@ -189,6 +189,14 @@ describe('Phase 4 mailbox knowledge provider pipelines', () => {
         }),
       ),
     ).toBe(false);
+    expect(
+      hasAuthoritativeProviderBody(
+        gmailMessage({
+          metadata: { bodyCompleteness: 'truncated' },
+          bodyText: `${GMAIL_BODY}${'x'.repeat(100)}`,
+        }),
+      ),
+    ).toBe(false);
   });
 
   test('Gmail sync -> durable job -> worker -> normalization -> relevance -> KnowledgeEvent', async () => {

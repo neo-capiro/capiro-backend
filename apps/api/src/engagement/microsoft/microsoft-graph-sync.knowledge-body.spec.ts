@@ -49,6 +49,14 @@ function setup() {
 const FULL_BODY =
   'Please protect PE 0605053A and avoid leading with autonomy in our committee outreach. This is the complete authoritative Microsoft Graph body, not the short preview.';
 
+type Persist = (
+  tenantId: string,
+  connectionId: string,
+  folder: string,
+  message: unknown,
+  syncMode: 'incremental' | 'backfill',
+) => Promise<string>;
+
 describe('resolveGraphAuthoritativeBody', () => {
   test('treats a non-empty Graph body as the complete authoritative source', () => {
     const resolved = resolveGraphAuthoritativeBody({
@@ -81,30 +89,38 @@ describe('resolveGraphAuthoritativeBody', () => {
     expect(resolved.bodyCompleteness).toBe('preview');
     expect(resolved.bodyText).toBe(FULL_BODY);
   });
+
+  test('oversized Graph bodies are truncated and never stamped full', () => {
+    const huge = 'B'.repeat(100_001);
+    const resolved = resolveGraphAuthoritativeBody({
+      bodyPreview: 'preview',
+      body: { contentType: 'text', content: huge },
+    });
+    expect(resolved.bodyCompleteness).toBe('truncated');
+    expect(resolved.bodyText?.endsWith('\n\n[truncated]')).toBe(true);
+    expect(resolved.bodyText?.length).toBe(100_000 + '\n\n[truncated]'.length);
+  });
 });
 
 describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body', () => {
   test('persists the authoritative Graph body and an explicit full completeness marker', async () => {
     const { service, association, upsert } = setup();
-    const outcome = await (
-      service as unknown as {
-        persistGraphMessage: (
-          tenantId: string,
-          connectionId: string,
-          folder: string,
-          message: unknown,
-        ) => Promise<string>;
-      }
-    ).persistGraphMessage('tenant-1', 'conn-1', 'inbox', {
-      id: 'msg-1',
-      conversationId: 'conv-1',
-      subject: 'FY28 Ground Robotics strategy',
-      bodyPreview: 'Please protect PE 0605053A…',
-      body: { contentType: 'text', content: FULL_BODY },
-      from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
-      toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
-      receivedDateTime: '2026-08-14T13:00:00Z',
-    });
+    const outcome = await (service as unknown as { persistGraphMessage: Persist }).persistGraphMessage(
+      'tenant-1',
+      'conn-1',
+      'inbox',
+      {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        subject: 'FY28 Ground Robotics strategy',
+        bodyPreview: 'Please protect PE 0605053A…',
+        body: { contentType: 'text', content: FULL_BODY },
+        from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
+        toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
+        receivedDateTime: '2026-08-14T13:00:00Z',
+      },
+      'incremental',
+    );
 
     expect(outcome).toBe('matched');
     expect(association.associate).toHaveBeenCalledWith(
@@ -119,40 +135,103 @@ describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body
     expect(upserted.create.bodyText).toBe(FULL_BODY);
     expect(upserted.update.bodyText).toBe(FULL_BODY);
     expect(upserted.create.metadata).toEqual(
-      expect.objectContaining({ bodyCompleteness: 'full', bodyContentType: 'text' }),
+      expect.objectContaining({
+        bodyCompleteness: 'full',
+        bodyContentType: 'text',
+        mailboxSyncMode: 'incremental',
+      }),
     );
     expect(upserted.update.metadata).toEqual(
-      expect.objectContaining({ bodyCompleteness: 'full', bodyContentType: 'text' }),
+      expect.objectContaining({
+        bodyCompleteness: 'full',
+        bodyContentType: 'text',
+        mailboxSyncMode: 'incremental',
+      }),
     );
     expect(upserted.create.raw.body).toEqual({ contentType: 'text' });
   });
 
   test('keeps mailbox UI on the preview when Graph did not return a full body', async () => {
     const { service, upsert } = setup();
-    await (
-      service as unknown as {
-        persistGraphMessage: (
-          tenantId: string,
-          connectionId: string,
-          folder: string,
-          message: unknown,
-        ) => Promise<string>;
-      }
-    ).persistGraphMessage('tenant-1', 'conn-1', 'inbox', {
-      id: 'msg-preview',
-      conversationId: 'conv-1',
-      subject: 'Preview only',
-      bodyPreview: 'This is only the short Microsoft Graph body preview.',
-      from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
-      toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
-      receivedDateTime: '2026-08-14T13:00:00Z',
-    });
+    await (service as unknown as { persistGraphMessage: Persist }).persistGraphMessage(
+      'tenant-1',
+      'conn-1',
+      'inbox',
+      {
+        id: 'msg-preview',
+        conversationId: 'conv-1',
+        subject: 'Preview only',
+        bodyPreview: 'This is only the short Microsoft Graph body preview.',
+        from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
+        toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
+        receivedDateTime: '2026-08-14T13:00:00Z',
+      },
+      'incremental',
+    );
 
     const upserted = upsert.mock.calls[0]?.[0] as {
       create: { bodyText: string | null; metadata: Record<string, unknown> };
     };
     expect(upserted.create.bodyText).toBe('This is only the short Microsoft Graph body preview.');
-    expect(upserted.create.metadata).toEqual(expect.objectContaining({ bodyCompleteness: 'preview' }));
+    expect(upserted.create.metadata).toEqual(
+      expect.objectContaining({ bodyCompleteness: 'preview', mailboxSyncMode: 'incremental' }),
+    );
+  });
+
+  test('oversized Graph bodies persist as truncated, never full', async () => {
+    const { service, upsert } = setup();
+    const huge = 'C'.repeat(100_001);
+    await (service as unknown as { persistGraphMessage: Persist }).persistGraphMessage(
+      'tenant-1',
+      'conn-1',
+      'inbox',
+      {
+        id: 'msg-huge',
+        conversationId: 'conv-1',
+        subject: 'Huge',
+        bodyPreview: 'preview',
+        body: { contentType: 'text', content: huge },
+        from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
+        toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
+        receivedDateTime: '2026-08-14T13:00:00Z',
+      },
+      'incremental',
+    );
+
+    const upserted = upsert.mock.calls[0]?.[0] as {
+      create: { bodyText: string | null; metadata: Record<string, unknown> };
+    };
+    expect(upserted.create.bodyText?.endsWith('\n\n[truncated]')).toBe(true);
+    expect(upserted.create.metadata).toEqual(
+      expect.objectContaining({ bodyCompleteness: 'truncated', mailboxSyncMode: 'incremental' }),
+    );
+  });
+
+  test('stamps explicit backfill mode on Graph persistence', async () => {
+    const { service, upsert } = setup();
+    await (service as unknown as { persistGraphMessage: Persist }).persistGraphMessage(
+      'tenant-1',
+      'conn-1',
+      'inbox',
+      {
+        id: 'msg-bf',
+        conversationId: 'conv-1',
+        subject: 'Backfill',
+        bodyPreview: 'p',
+        body: { contentType: 'text', content: FULL_BODY },
+        from: { emailAddress: { address: 'a@acme.com', name: 'A' } },
+        toRecipients: [{ emailAddress: { address: 'me@firm.com', name: 'Me' } }],
+        receivedDateTime: '2026-08-14T13:00:00Z',
+      },
+      'backfill',
+    );
+
+    const upserted = upsert.mock.calls[0]?.[0] as {
+      create: { metadata: Record<string, unknown> };
+    };
+    expect(upserted.create.metadata).toEqual(
+      expect.objectContaining({ bodyCompleteness: 'full', mailboxSyncMode: 'backfill' }),
+    );
   });
 
   test('does not change the requested Microsoft OAuth scopes to fetch mail bodies', () => {
@@ -163,7 +242,7 @@ describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body
       require('node:path').join(__dirname, 'microsoft-graph-sync.service.ts'),
       'utf8',
     );
-    expect(source).toContain("/me/messages/${");
+    expect(source).toContain('/me/messages/${');
     expect(source).toContain('$select=id,body');
     expect(source).toContain("'bodyPreview'");
     expect(source).not.toMatch(/\$select=[^`']*\bbody\b[^`']*delta/);

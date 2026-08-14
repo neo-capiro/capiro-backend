@@ -134,9 +134,15 @@ describe('MicrosoftGraphSyncService — association runs outside the advisory lo
 
     const outcome = await (
       service as unknown as {
-        persistGraphMessage: (t: string, c: string, folder: string, m: unknown) => Promise<string>;
+        persistGraphMessage: (
+          t: string,
+          c: string,
+          folder: string,
+          m: unknown,
+          syncMode: 'incremental' | 'backfill',
+        ) => Promise<string>;
       }
-    ).persistGraphMessage('tenant-1', 'conn-1', 'inbox', message);
+    ).persistGraphMessage('tenant-1', 'conn-1', 'inbox', message, 'incremental');
 
     expect(outcome).toBe('matched');
     expect(association.associate).toHaveBeenCalledTimes(1);

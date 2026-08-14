@@ -43,6 +43,33 @@ describe('Phase 4 mailbox knowledge architecture contract', () => {
     expect(migration).not.toMatch(/INSERT INTO\s+"knowledge_mailbox_jobs"[\s\S]+SELECT[\s\S]+FROM\s+"mail_messages"/i);
   });
 
+  test('incremental-only outbox gate refuses backfill and non-full bodies', () => {
+    const gate = readFileSync(
+      repositoryPath(
+        'prisma/migrations/20261120090000_mailbox_knowledge_incremental_only/migration.sql',
+      ),
+      'utf8',
+    );
+    expect(gate).toContain("metadata_jsonb ->> 'mailboxSyncMode'");
+    expect(gate).toContain("IS DISTINCT FROM 'incremental'");
+    expect(gate).toContain("metadata_jsonb ->> 'bodyCompleteness'");
+    expect(gate).toContain("IS DISTINCT FROM 'full'");
+    expect(gate).toContain('"metadata_jsonb"');
+    expect(gate).not.toMatch(/received_at\s*[<>]=|sent_at\s*[<>]=|interval\s+'/i);
+  });
+
+  test('drops knowledge_assertions_created_by_fkey while keeping created_by', () => {
+    const dropFkey = readFileSync(
+      repositoryPath(
+        'prisma/migrations/20261120080000_drop_knowledge_assertions_created_by_fkey/migration.sql',
+      ),
+      'utf8',
+    );
+    expect(dropFkey).toContain('DROP CONSTRAINT IF EXISTS "knowledge_assertions_created_by_fkey"');
+    expect(dropFkey).not.toMatch(/DROP COLUMN\s+"created_by"/i);
+    expect(dropFkey).toMatch(/COMMENT ON COLUMN "knowledge_assertions"."created_by"/);
+  });
+
   test('keeps provider sync asynchronous and claims work safely across workers', () => {
     expect(repository).toContain('FOR UPDATE SKIP LOCKED');
     expect(repository).toContain("status = 'processing'");

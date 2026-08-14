@@ -765,7 +765,12 @@ export class GoogleSyncService {
           stats.scanned += 1;
           try {
             const message = await this.gmailGet(accessToken, ref.id);
-            const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+            const outcome = await this.persistGmailMessage(
+              tenantId,
+              connection.id,
+              message,
+              'backfill',
+            );
             stats.matched += outcome === 'matched' ? 1 : 0;
             stats.skipped += outcome === 'skipped' ? 1 : 0;
           } catch (err) {
@@ -868,7 +873,12 @@ export class GoogleSyncService {
           stats.removed += 1;
           continue;
         }
-        const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+        const outcome = await this.persistGmailMessage(
+          tenantId,
+          connection.id,
+          message,
+          'incremental',
+        );
         stats.matched += outcome === 'matched' ? 1 : 0;
         stats.skipped += outcome === 'skipped' ? 1 : 0;
       } catch (err) {
@@ -933,6 +943,14 @@ export class GoogleSyncService {
     tenantId: string,
     connectionId: string,
     message: GmailMessage,
+    /**
+     * Explicit mailbox sync mode from the caller. Backfill must never be
+     * inferred from dates — the history.list path is always incremental and
+     * the messages.list page chain is always backfill. Stamped into metadata
+     * so the knowledge outbox trigger can refuse backfill rows without a
+     * date heuristic.
+     */
+    syncMode: MailboxSyncMode,
   ): Promise<'matched' | 'skipped'> {
     if (!message.id) return 'skipped';
     // Folder + sent-ness come from the message's own labels now that a single
@@ -968,9 +986,18 @@ export class GoogleSyncService {
     // Computed once, before the transaction: used for BOTH association scoring
     // and the stored MailMessage row below, so extractGmailBodyText's MIME
     // walk never runs twice for the same message.
-    const extractedBody = extractGmailBodyText(message.payload);
-    const bodyText = extractedBody ?? clean(message.snippet);
-    const bodyCompleteness = extractedBody ? 'full' : 'preview';
+    //
+    // Completeness is three-valued: MIME-derived bodies under the storage cap
+    // are `full`; MIME-derived bodies that hit the 100k cap are `truncated`
+    // (never `full`); snippet fallback remains `preview`. Knowledge ingestion
+    // accepts only explicit `full`.
+    const extractedBody = extractGmailBodyResult(message.payload);
+    const bodyText = extractedBody?.text ?? clean(message.snippet);
+    const bodyCompleteness: MailBodyCompleteness = extractedBody
+      ? extractedBody.truncated
+        ? 'truncated'
+        : 'full'
+      : 'preview';
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -1097,6 +1124,7 @@ export class GoogleSyncService {
               internetMessageId,
               labelIds: message.labelIds ?? [],
               bodyCompleteness,
+              mailboxSyncMode: syncMode,
             } as Prisma.InputJsonValue,
           },
           create: {
@@ -1124,6 +1152,7 @@ export class GoogleSyncService {
               internetMessageId,
               labelIds: message.labelIds ?? [],
               bodyCompleteness,
+              mailboxSyncMode: syncMode,
             } as Prisma.InputJsonValue,
           },
         });
@@ -1499,6 +1528,18 @@ function getHeader(headers: GmailHeader[], name: string): string | null {
 const GMAIL_BODY_MAX_CHARS = 100_000;
 const GMAIL_BODY_TRUNCATION_MARKER = '\n\n[truncated]';
 
+/** Three-valued body completeness stamped into mail_messages.metadata. */
+export type MailBodyCompleteness = 'full' | 'truncated' | 'preview';
+
+/** Explicit provider sync mode stamped into mail_messages.metadata. */
+export type MailboxSyncMode = 'incremental' | 'backfill';
+
+export interface GmailBodyExtractionResult {
+  text: string;
+  /** True when the MIME-derived body exceeded the 100k storage cap. */
+  truncated: boolean;
+}
+
 function decodeGmailBodyData(data: string): string {
   return Buffer.from(data, 'base64url').toString('utf8');
 }
@@ -1521,10 +1562,14 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
-function truncateGmailBody(text: string): string {
-  return text.length > GMAIL_BODY_MAX_CHARS
-    ? text.slice(0, GMAIL_BODY_MAX_CHARS) + GMAIL_BODY_TRUNCATION_MARKER
-    : text;
+function truncateGmailBody(text: string): { text: string; truncated: boolean } {
+  if (text.length <= GMAIL_BODY_MAX_CHARS) {
+    return { text, truncated: false };
+  }
+  return {
+    text: text.slice(0, GMAIL_BODY_MAX_CHARS) + GMAIL_BODY_TRUNCATION_MARKER,
+    truncated: true,
+  };
 }
 
 /** Depth-first search for the first part matching `mimeType`, skipping any
@@ -1562,12 +1607,24 @@ function findPreferredGmailTextPart(payload: GmailMessagePart | undefined): Gmai
  * same as no body at all; the caller falls back to the snippet. Remains
  * synchronous: fetching the attachment is gmailGet's job. Exported so it is
  * unit-testable without a live Gmail fetch.
+ *
+ * Bodies that exceed the 100k storage cap are truncated and reported as such.
+ * Callers must stamp bodyCompleteness=`truncated` (never `full`) for those rows.
  */
-export function extractGmailBodyText(payload: GmailMessagePart | undefined): string | null {
+export function extractGmailBodyResult(
+  payload: GmailMessagePart | undefined,
+): GmailBodyExtractionResult | null {
   const part = findPreferredGmailTextPart(payload);
   if (!part?.body?.data) return null;
   const decoded = decodeGmailBodyData(part.body.data);
-  return truncateGmailBody(part.mimeType === 'text/html' ? stripHtmlToText(decoded) : decoded);
+  const plain = part.mimeType === 'text/html' ? stripHtmlToText(decoded) : decoded;
+  const capped = truncateGmailBody(plain);
+  return { text: capped.text, truncated: capped.truncated };
+}
+
+/** Convenience wrapper: MIME body text only (or null). Truncation still applies. */
+export function extractGmailBodyText(payload: GmailMessagePart | undefined): string | null {
+  return extractGmailBodyResult(payload)?.text ?? null;
 }
 
 /** Deep copy of the message with every body.data cleared, preserving the MIME
