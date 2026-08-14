@@ -123,7 +123,14 @@ export interface DibbsRelevanceInput {
   exactNsnMatch: boolean;
   /** DORMANT — no client part store exists. See the file doc; pass `false`. */
   exactPartNumberMatch: boolean;
-  /** LIVE. A `tango_dibbs_award` whose `awardeeCage`/`awardeeCageCode` is this client's own recorded CAGE. */
+  /** LIVE, and WEAK BY RULE (P1-4/B-1): a `tango_dibbs_award` whose
+   * `awardeeCage`/`awardeeCageCode` is this client's own recorded CAGE — ANY
+   * award, with zero correlation to THIS item's NSN, part number, or
+   * nomenclature. Cannot clear the suggestion floor alone. It CAN raise
+   * confidence to 'high' when paired with a genuine exact NSN/part match
+   * (Rule 4) — a real corroborating fact once real evidence already exists,
+   * never a substitute for it.
+   */
   priorCageAwardHistory: boolean;
   /** DORMANT — nothing stores a client's DLA buyer history. See the file doc; pass `false`. */
   buyerHistory: boolean;
@@ -272,16 +279,26 @@ export function scoreDibbsRelevance(input: DibbsRelevanceInput): DibbsRelevanceR
     };
   }
 
-  // ── Rule 4: an exact part-level match, or a prior award on this CAGE ────
-  const hasStrongMatch = input.exactNsnMatch || input.exactPartNumberMatch || input.priorCageAwardHistory;
+  // ── Rule 4: an exact part-level match ───────────────────────────────────
+  //
+  // ONLY exact NSN/part-number evidence lives here. `priorCageAwardHistory` is
+  // deliberately NOT part of `hasStrongMatch` — see P1-4/B-1
+  // (docs/plans/funding-opportunities-makegov-v1/independent-review/band-b-matching-scoring.md,
+  // FIX-PLAN-dibbs-sbir-scoring.md): `hasPriorCageAward` (the generate script)
+  // proves this CAGE won SOME DLA award, with zero correlation to THIS item's
+  // NSN, part number, or nomenclature. Treating it as strong let it clear the
+  // floor alone for 10 of 10 unrelated real solicitations, for a client whose
+  // one real award was for an unrelated part (a shipping-cover plate; the
+  // floor-clearing items included fibrous rope and multi-leg slings).
+  const hasStrongMatch = input.exactNsnMatch || input.exactPartNumberMatch;
   if (hasStrongMatch) {
-    const partLevel = input.exactNsnMatch || input.exactPartNumberMatch;
     return {
       machineRecommendation: 'pursue',
-      recommendationConfidence: partLevel && input.priorCageAwardHistory ? 'high' : 'medium',
-      primaryReason: partLevel
-        ? 'An exact part-level match against this client\'s recorded parts.'
-        : "A prior DLA award to this client's own CAGE code on this kind of item.",
+      // A prior CAGE award is real corroboration ONCE a genuine part-level
+      // match already exists — it cannot manufacture the match, but it can
+      // still raise confidence in one that's already there.
+      recommendationConfidence: input.priorCageAwardHistory ? 'high' : 'medium',
+      primaryReason: 'An exact part-level match against this client\'s recorded parts.',
       primaryRisk: imminent && days != null ? `The quote window closes in ${days} day${days === 1 ? '' : 's'}.` : null,
       recommendedNextAction: strongAction(input, imminent, days),
       reasonCodes: codes,
@@ -290,19 +307,32 @@ export function scoreDibbsRelevance(input: DibbsRelevanceInput): DibbsRelevanceR
     };
   }
 
-  // ── Rule 5: weak evidence only — capability text and/or a buyer match ───
+  // ── Rule 5: weak evidence only — capability text, prior CAGE award, ─────
+  // and/or a buyer match. NONE of these ties the client to THIS item.
   //
   // P41's acceptance, stated directly: generic manufacturing terms are weak.
   // "We make brackets" against a nomenclature reading "BRACKET, ANGLE" is a
-  // coincidence of vocabulary, not evidence this client makes THIS part, so it
-  // is worth showing and not worth suggesting.
-  const capabilityOnly = substantive.length === 1 && substantive[0] === 'capability_text_match';
+  // coincidence of vocabulary, not evidence this client makes THIS part. A
+  // prior CAGE award (P1-4/B-1) is the same shape of problem by a different
+  // mechanism: `hasPriorCageAward` has no NSN/part/nomenclature correlation at
+  // all, so "this CAGE won some DLA award" is exactly as unspecific to this
+  // item as a capability-text coincidence is. Both are worth showing to a
+  // reviewer; neither is worth manufacturing a suggestion from.
+  const hasCageHistory = substantive.includes('prior_cage_award_history');
+  const hasCapabilityText = substantive.includes('capability_text_match');
+  const primaryReason = hasCageHistory && hasCapabilityText
+    ? "This client's CAGE code has DLA award history, and the item's nomenclature matches the " +
+      "client's capability text — neither ties this client to this specific NSN or part number."
+    : hasCageHistory
+      ? "This client's CAGE code has DLA award history, but not on this NSN, part number, or item."
+      : hasCapabilityText
+        ? "The item's nomenclature matches the client's capability text, which is a vocabulary " +
+          "match and not part-level evidence."
+        : 'Some evidence ties this item to the client, but no exact part-level match.';
   return {
     machineRecommendation: 'monitor',
     recommendationConfidence: 'low',
-    primaryReason: capabilityOnly
-      ? "The item's nomenclature matches the client's capability text, which is a vocabulary match and not part-level evidence."
-      : 'Some evidence ties this item to the client, but no exact part-level match or prior award.',
+    primaryReason,
     primaryRisk: null,
     recommendedNextAction: partGap
       ? 'Confirm with the client whether they supply this NSN, and record their part numbers so this can be matched rather than guessed.'

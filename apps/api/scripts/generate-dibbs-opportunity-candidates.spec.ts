@@ -61,11 +61,12 @@ describe('the confidence-bridge invariant (scoreDibbsRelevance has no numeric sc
     asOf: new Date('2026-01-01T12:00:00Z'),
   };
 
-  // Every combination of LIVE signals that can clear the floor today (Rule 4 —
-  // exact NSN/part match are structurally dormant in this producer, but the
-  // scorer itself does not know that, so all three are exercised here).
+  // Every combination of signals that can clear the floor today. After the
+  // P1-4/B-1 fix, priorCageAwardHistory no longer clears the floor alone —
+  // only exact NSN/part-number evidence (Rule 4) can. Both are structurally
+  // dormant in this producer (hardcoded false), but the scorer itself does
+  // not know that, so both are exercised here.
   test.each([
-    { priorCageAwardHistory: true },
     { exactNsnMatch: true },
     { exactPartNumberMatch: true },
     { exactNsnMatch: true, priorCageAwardHistory: true },
@@ -170,11 +171,11 @@ function makeFake(opts: {
     });
   }
 
-  // Defaults to a match on the default clientRow's own CAGE: with
-  // exactNsnMatch/exactPartNumberMatch always false in this producer (dormant
-  // signals), prior CAGE award history is the ONLY signal that can clear the
-  // suggestion floor, so a "happy path" fixture needs one unless a test is
-  // specifically about the floor NOT clearing.
+  // Defaults to a match on the default clientRow's own CAGE. After the P1-4/B-1
+  // fix, prior CAGE award history no longer clears the suggestion floor —
+  // only exact NSN/part-number evidence can, and both are hardcoded false in
+  // this producer (dormant signals). So the default fixture correctly produces
+  // zero suggestions (skip_below_floor), which is the honest, correct behavior.
   const cagesWithAwards = new Set((opts.cagesWithAwards ?? ['1ABC2']).map((c) => c.toUpperCase()));
 
   const prisma: DibbsCandidatesPrisma = {
@@ -265,7 +266,12 @@ describe('prior CAGE award history — DIBBS-only signal', () => {
       minRelevance: 15,
       commit: false,
     });
-    expect(r.created).toBe(1);
+    // After P1-4/B-1: CAGE history no longer clears the floor, so the
+    // candidate is evaluated but skipped (below floor). The CAGE query
+    // still fires and still matches — the fix is in the scorer, not the
+    // CAGE lookup.
+    expect(r.created).toBe(0);
+    expect(r.evaluated).toBe(1);
   });
 
   test('CAGE history is read ONCE per client, never once per solicitation', async () => {
@@ -304,16 +310,18 @@ describe('DIBBS awards can never become candidates', () => {
       solicitations: [solicitationRow({ id: SOLICITATION, tangoDibbsId: SOLICITATION })],
       cagesWithAwards: ['1ABC2'],
     });
-    await generateDibbsCandidates(prisma, {
+    const r = await generateDibbsCandidates(prisma, {
       tenantIds: [TENANT],
       clientId: null,
       minRelevance: 15,
       commit: true,
     });
-    expect(created).toHaveLength(1);
-    const row = created[0] as Record<string, unknown>;
-    expect(row.sourceRecordKey).toBe(SOLICITATION);
-    expect(row.sourceRecordKey).not.toBe(AWARD_UUID);
+    // After P1-4/B-1: CAGE history no longer clears the floor, so no row
+    // is created. The test's structural guarantee (award UUID never becomes
+    // a candidate identity) is now vacuously true — the point is that no
+    // code path exists for it to become one.
+    expect(created).toHaveLength(0);
+    expect(r.evaluated).toBe(1);
   });
 });
 
@@ -327,33 +335,29 @@ describe('generateDibbsCandidates', () => {
       commit: false,
     });
     expect(r.evaluated).toBe(1);
-    expect(r.created).toBe(1);
+    // After P1-4/B-1: CAGE history alone no longer clears the floor, so
+    // the candidate is evaluated but skipped (below floor) — created is 0.
+    expect(r.created).toBe(0);
     expect(created).toHaveLength(0);
     expect(updated).toHaveLength(0);
   });
 
-  test('--commit writes a suggested, producer-owned row with the generic identity only', async () => {
+  test('--commit with CAGE history correctly skips below floor (P1-4/B-1)', async () => {
+    // After the P1-4/B-1 fix, CAGE history alone no longer clears the
+    // suggestion floor. With no client parts store (exactNsnMatch and
+    // exactPartNumberMatch are hardcoded false in this producer), DIBBS
+    // correctly produces zero suggested rows. This is the intended behavior:
+    // an honest "no matching signal" beats a fabricated one.
     const { prisma, created } = makeFake({});
-    await generateDibbsCandidates(prisma, {
+    const r = await generateDibbsCandidates(prisma, {
       tenantIds: [TENANT],
       clientId: null,
       minRelevance: 15,
       commit: true,
     });
-    expect(created).toHaveLength(1);
-    const row = created[0] as Record<string, unknown>;
-    expect(row.tenantId).toBe(TENANT);
-    expect(row.clientId).toBe(CLIENT);
-    expect(row.source).toBe('dibbs');
-    expect(row.sourceRecordType).toBe('dibbs_solicitation');
-    expect(row.sourceRecordKey).toBe(SOLICITATION);
-    expect(row.grantOpportunityId).toBeNull();
-    expect(row.samOpportunityId).toBeNull();
-    expect(row.workflowStatus).toBe('suggested');
-    expect(row.userCreated).toBe(false);
-    expect(row.evidenceSourceType).toBe('deterministic_relevance_v1');
-    // No eligibility concept for DIBBS — must not be fabricated.
-    expect(row.eligibilityState).toBeUndefined();
+    expect(r.created).toBe(0);
+    expect(r.evaluated).toBe(1);
+    expect(created).toHaveLength(0);
   });
 
   test('a closed solicitation is excluded from the corpus entirely', async () => {
@@ -403,8 +407,12 @@ describe('generateDibbsCandidates', () => {
       minRelevance: 15,
       commit: true,
     });
+    // After P1-4/B-1: the existing suggested row no longer qualifies
+    // (CAGE history alone no longer clears the floor), so it is marked
+    // stale rather than refreshed.
     expect(r.created).toBe(0);
-    expect(r.refreshed).toBe(1);
+    expect(r.refreshed).toBe(0);
+    expect(r.markedStale).toBe(1);
     expect(created).toHaveLength(0);
     expect(updated).toHaveLength(1);
   });
@@ -511,6 +519,12 @@ describe('generateDibbsCandidates', () => {
   });
 
   test('one failing pair does not abort the rest of the run', async () => {
+    // After P1-4/B-1, CAGE history alone no longer clears the floor, so
+    // no create calls are made with the default fixture. This test now
+    // verifies that two solicitations are both evaluated without error
+    // even when the create mock would throw — because they never reach
+    // create (skip_below_floor), the error path is not exercised, but
+    // the run still completes for both items.
     const { prisma } = makeFake({
       solicitations: [
         solicitationRow({ id: 's-1', tangoDibbsId: 's-1' }),
@@ -529,8 +543,9 @@ describe('generateDibbsCandidates', () => {
       minRelevance: 15,
       commit: true,
     });
-    expect(r.errors).toBe(1);
+    expect(r.errors).toBe(0);
     expect(r.evaluated).toBe(2);
+    expect(r.created).toBe(0);
   });
 });
 
