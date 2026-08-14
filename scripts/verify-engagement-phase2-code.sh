@@ -103,14 +103,12 @@ if [ "$FAST" -eq 1 ]; then
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
   # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang forever on
-  # Windows nested teardown (0xC0000142). Force line-buffered stdout so the
-  # COMPLETE marker hits the log before hang, poll for it, then reap the tree.
+  # Windows nested teardown (0xC0000142). Poll the log for COMPLETE/FAILED and
+  # advance immediately — never block on pnpm exit or wait(1) after kill.
   # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains fail-closed.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
   : >"$p1_log"
   set +e
-  # stdbuf -oL -eL: without this, redirected Node output is fully buffered and
-  # COMPLETE may only flush on process exit — which never comes after DLL teardown.
   if command -v stdbuf >/dev/null 2>&1; then
     stdbuf -oL -eL pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
   else
@@ -129,8 +127,8 @@ else
       break
     fi
     if ! kill -0 "$p1_pid" 2>/dev/null; then
-      wait "$p1_pid" 2>/dev/null
-      p1_rc=$?
+      # Non-blocking reap: do not wait (can hang after Windows DLL teardown).
+      p1_rc=1
       break
     fi
     if [ "$SECONDS" -ge "$p1_deadline" ]; then
@@ -139,14 +137,13 @@ else
     fi
     sleep 5
   done
-  # Always reap the process tree after decision so a hung teardown cannot stall Phase 2.
-  if kill -0 "$p1_pid" 2>/dev/null; then
-    if command -v taskkill.exe >/dev/null 2>&1; then
-      taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
-    fi
-    kill -9 "$p1_pid" 2>/dev/null || true
-    wait "$p1_pid" 2>/dev/null || true
+  # Fire-and-forget kill of the process tree. Never wait.
+  if command -v taskkill.exe >/dev/null 2>&1; then
+    taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
   fi
+  kill -9 "$p1_pid" 2>/dev/null || true
+  # Detach any residual wait state so the shell does not block on a zombie.
+  disown "$p1_pid" 2>/dev/null || true
   set -e
   if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
      ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
