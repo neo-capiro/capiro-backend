@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { config } from '../../env.js';
+import { MeriIcon } from './meri-icons.js';
+import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeSubline } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
@@ -20,34 +22,6 @@ const PROMPT_LIBRARY = [
   { text: 'Turn the latest meeting debrief into follow-ups with owners and dates', tag: 'MEETING · DEBRIEF' },
   { text: 'Which grants is this client eligible for, and name the criteria met', tag: 'GRANTS · ELIGIBILITY' },
 ] as const;
-
-function formatTime(value: Date | string | undefined): string {
-  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
-  if (!Number.isFinite(date.getTime())) return 'TIME UNKNOWN';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-function dateDividerLabel(value: Date | string | undefined): string {
-  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
-  if (!Number.isFinite(date.getTime())) return 'DATE UNKNOWN';
-  const now = new Date();
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  const daysAgo = Math.round((today - target) / 86_400_000);
-  const dayLabel =
-    daysAgo === 0
-      ? 'TODAY'
-      : daysAgo === 1
-        ? 'YESTERDAY'
-        : date
-            .toLocaleDateString([], {
-              month: 'short',
-              day: 'numeric',
-              ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
-            })
-            .toUpperCase();
-  return `${dayLabel} · ${formatTime(date)}`;
-}
 
 function greetingFor(name: string): string {
   const hour = new Date().getHours();
@@ -71,7 +45,6 @@ function proposalOutcome(value: unknown): string | null {
 
 interface VNextMeriConversationProps {
   controller: MeriChatController;
-  userLabel: string;
   greetingName: string;
   tenantName: string;
   onOpenIntegrations: () => void;
@@ -79,7 +52,6 @@ interface VNextMeriConversationProps {
 
 export function VNextMeriConversation({
   controller,
-  userLabel,
   greetingName,
   tenantName,
   onOpenIntegrations,
@@ -126,10 +98,24 @@ export function VNextMeriConversation({
   const threadTitle = hasThread
     ? controller.sessionTitle.trim() || 'Untitled thread'
     : 'New thread';
-  const threadSub = selectedClient
-    ? `SCOPED · ${selectedClient.name.toUpperCase()}`
-    : 'PORTFOLIO · ALL CLIENTS';
-  const modeLabel = controller.orchestratorTier?.toUpperCase() ?? null;
+  const threadSub = threadScopeSubline(selectedClient?.name ?? null);
+  const researching = Boolean(controller.isStreaming || controller.researchAwaitingAnswers);
+  const approval = controller.pendingApprovals.length > 0 && !controller.isStreaming;
+  const modeLabel = approval
+    ? 'APPROVAL'
+    : researching
+      ? controller.researchAwaitingAnswers
+        ? 'CLARIFYING'
+        : 'RESEARCHING'
+      : hasThread
+        ? 'STANDARD'
+        : 'NEW';
+  const canvasMode = researching || approval ? 'busy' : hasThread ? 'standard' : 'empty';
+  const kindIcon = threadKindIcon({
+    isNew: !hasThread,
+    isResearch: researching,
+    hasArtifact: controller.messages.some((message) => (message.chartArtifacts?.length ?? 0) > 0),
+  });
   const activeConversationId = controller.activeConversationId;
 
   return (
@@ -137,24 +123,40 @@ export function VNextMeriConversation({
       <main className="vnext-meri__main">
         {hasThread ? (
           <div className="vnext-meri__thread-header">
-            <span className="vnext-meri__thread-icon">●</span>
+            <span className="vnext-meri__thread-icon">
+              <MeriIcon name={kindIcon} size={15} color="#101828" />
+            </span>
             <div className="vnext-meri__thread-title-block">
               <span className="vnext-meri__thread-title">{threadTitle}</span>
               <span className="vnext-meri__thread-sub">{threadSub}</span>
             </div>
+            <span className={`vnext-meri__mode-pill is-${modeLabel.toLowerCase()}`}>
+              <span
+                className={`vnext-meri__mode-pill-dot${
+                  modeLabel === 'RESEARCHING' ? ' is-researching' : modeLabel === 'APPROVAL' ? ' is-approval' : ''
+                }`}
+              />
+              <span className="vnext-meri__mode-pill-label">{modeLabel}</span>
+            </span>
             {activeConversationId ? (
               <VNextMeriReasoningControl conversationId={activeConversationId} />
-            ) : modeLabel ? (
-              <span className="vnext-meri__mode-pill">
-                <span className="vnext-meri__mode-pill-dot" />
-                <span className="vnext-meri__mode-pill-label">{modeLabel}</span>
-              </span>
             ) : null}
+            <button type="button" className="vnext-meri__thread-action" aria-label="Bookmark thread" disabled title="Bookmark is not available yet.">
+              <MeriIcon name="BookmarkAdd" size={16} color="#667085" />
+            </button>
+            <button type="button" className="vnext-meri__thread-action" aria-label="Thread actions" disabled title="Thread overflow is not available yet.">
+              <MeriIcon name="DotsHorizontal" size={16} color="#667085" />
+            </button>
           </div>
         ) : null}
 
-        <div className="vnext-meri__conversation-scroll" ref={scrollRef} role="log" aria-live="polite">
-          <div className="vnext-meri__conversation-column">
+        <div
+          className={`vnext-meri__conversation-scroll is-${canvasMode}`}
+          ref={scrollRef}
+          role="log"
+          aria-live="polite"
+        >
+          <div className="vnext-meri__conversation-column" data-meri-column>
             {controller.metaError ? (
               <div className="vnext-meri__error" role="alert">
                 {controller.metaError}
@@ -173,18 +175,7 @@ export function VNextMeriConversation({
             {!hasThread ? (
               <div className="vnext-meri__landing">
                 <div className="vnext-meri__landing-greeting-row">
-                  <span
-                    className="vnext-meri__landing-mark"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      fontWeight: 700,
-                      fontSize: 24,
-                      color: 'var(--meri-accent)',
-                    }}
-                  >
-                    Meri
-                  </span>
+                  <img className="vnext-meri__landing-mark" src={MERI_LOGO_SRC} alt="Meri" height={26} />
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <span className="vnext-meri__landing-greeting">
                       {greetingFor(greetingName)}
@@ -216,7 +207,7 @@ export function VNextMeriConversation({
                       onClick={() => setLibraryPage((page) => Math.max(0, page - 1))}
                       aria-label="Previous prompts"
                     >
-                      ←
+                      <MeriIcon name="ChevronLeft" size={14} color="#98A2B3" />
                     </button>
                     <button
                       type="button"
@@ -225,7 +216,7 @@ export function VNextMeriConversation({
                       onClick={() => setLibraryPage((page) => Math.min(promptPages - 1, page + 1))}
                       aria-label="More prompts"
                     >
-                      →
+                      <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
                     </button>
                   </div>
                 </div>
@@ -247,29 +238,30 @@ export function VNextMeriConversation({
               </div>
             ) : (
               <>
-                {messages.length > 0 ? (
-                  <div className="vnext-meri__date-divider">
-                    <span className="vnext-meri__date-divider-line" />
-                    <span className="vnext-meri__date-divider-label">
-                      {dateDividerLabel(messages[0]?.createdAt)}
-                    </span>
-                    <span className="vnext-meri__date-divider-line" />
-                  </div>
-                ) : null}
-
                 {messages.map((message, index) => {
                   const isLastAssistant =
                     message.role === 'assistant' && index === messages.length - 1;
+                  const previous = messages[index - 1];
+                  const showDivider =
+                    index === 0 || localDayKey(previous?.createdAt) !== localDayKey(message.createdAt);
                   return (
-                    <VNextMeriMessage
-                      key={message.id}
-                      message={message}
-                      isLastAssistant={isLastAssistant}
-                      isStreaming={isStreaming}
-                      controller={controller}
-                      selectedClientName={selectedClient?.name ?? null}
-                      userLabel={userLabel}
-                    />
+                    <div key={message.id}>
+                      {showDivider ? (
+                        <div className="vnext-meri__date-divider">
+                          <span className="vnext-meri__date-divider-line" />
+                          <span className="vnext-meri__date-divider-label">
+                            {dayDividerLabel(message.createdAt)}
+                          </span>
+                          <span className="vnext-meri__date-divider-line" />
+                        </div>
+                      ) : null}
+                      <VNextMeriMessage
+                        message={message}
+                        isLastAssistant={isLastAssistant}
+                        isStreaming={isStreaming}
+                        controller={controller}
+                      />
+                    </div>
                   );
                 })}
 
@@ -343,7 +335,7 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
             fontSize: 13,
           }}
         >
-          ?
+          <MeriIcon name="HelpCircle" size={13} color="#ffffff" />
         </span>
         <span
           style={{
@@ -465,7 +457,7 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
             marginTop: 1,
           }}
         >
-          🔒
+          <MeriIcon name="Lock01" size={13} color="#ffffff" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span

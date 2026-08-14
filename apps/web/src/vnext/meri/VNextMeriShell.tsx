@@ -3,6 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { MERI_LOGO_SRC } from './meri-presentation.js';
+import {
+  readRailPrefs,
+  readWindowChrome,
+  writeRailPrefs,
+  writeWindowChrome,
+  type MeriContextSection,
+  type MeriWindowChrome,
+} from './meri-prefs.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
 import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 import { VNextMeriConversation } from './VNextMeriConversation.js';
@@ -11,6 +20,11 @@ import './vnext-meri.css';
 
 interface VNextMeriShellProps {
   controller: MeriChatController;
+  historyError: string | null;
+  onRetryHistory: () => void;
+  onArchiveThread: (conversationId: string) => Promise<void>;
+  onRenameThread: (conversationId: string, title: string) => Promise<void>;
+  onRestoreThread: (conversationId: string) => Promise<void>;
 }
 
 function displayName(me: ReturnType<typeof useMe>['data']): string {
@@ -24,13 +38,6 @@ function shortGreetingName(me: ReturnType<typeof useMe>['data']): string {
   return me?.user.firstName?.trim() || displayName(me);
 }
 
-/**
- * Mirrors `useIsMobile` in adapters/legacy/useDashboardVNextModel.ts, pinned to
- * a canonical vNext breakpoint (foundations/responsive.css). Meri needs the
- * boundary in JS, not only in CSS: the context rail's collapsed and expanded
- * presentations are two different trees in VNextMeriContextRail, so a media
- * query could only squeeze the expanded tree, never swap it for the icon strip.
- */
 function useMatchesWidth(query: string): boolean {
   const [matches, setMatches] = useState(false);
 
@@ -46,26 +53,40 @@ function useMatchesWidth(query: string): boolean {
   return matches;
 }
 
-export function VNextMeriShell({ controller }: VNextMeriShellProps) {
+export function VNextMeriShell({
+  controller,
+  historyError,
+  onRetryHistory,
+  onArchiveThread,
+  onRenameThread,
+  onRestoreThread,
+}: VNextMeriShellProps) {
   const me = useMe();
   const navigate = useNavigate();
-  const [railCollapsed, setRailCollapsed] = useState(false);
+  const storedRail = readRailPrefs();
+  const [windowChrome, setWindowChrome] = useState<MeriWindowChrome>(() => readWindowChrome());
+  const [railCollapsed, setRailCollapsed] = useState(storedRail.collapsed);
+  const [openSection, setOpenSection] = useState<MeriContextSection | null>(storedRail.openSection);
   const [threadSearch, setThreadSearch] = useState('');
   const threadSearchRef = useRef<HTMLInputElement>(null);
 
-  // The context rail defaults to the icon strip at tablet and below, where two
-  // full rails would leave the transcript narrower than either of them. This
-  // only fires when the boundary is actually crossed, so an explicit expand or
-  // collapse by the user still stands within a band.
   const isTabletDown = useMatchesWidth('(max-width: 1179px)');
   const lastBandRef = useRef<boolean | null>(null);
   useEffect(() => {
     if (lastBandRef.current === isTabletDown) return;
     lastBandRef.current = isTabletDown;
+    if (readRailPrefs().collapsed === false && !isTabletDown) return;
     setRailCollapsed(isTabletDown);
   }, [isTabletDown]);
 
-  const personName = displayName(me.data);
+  useEffect(() => {
+    writeWindowChrome(windowChrome);
+  }, [windowChrome]);
+
+  useEffect(() => {
+    writeRailPrefs({ collapsed: railCollapsed, openSection });
+  }, [openSection, railCollapsed]);
+
   const greetingName = shortGreetingName(me.data);
   const tenantName = me.data?.tenant.name ?? 'Capiro';
 
@@ -97,40 +118,84 @@ export function VNextMeriShell({ controller }: VNextMeriShellProps) {
     navigate('/meri/integrations');
   };
 
+  const expandSection = (section: MeriContextSection) => {
+    setRailCollapsed(false);
+    setOpenSection(section);
+  };
+
+  if (windowChrome === 'docked') {
+    return (
+      <div className="vnext-meri-page" data-meri-page>
+        <button
+          type="button"
+          className="vnext-meri-docked"
+          onClick={() => setWindowChrome('undocked')}
+        >
+          <span className="vnext-meri-docked__mark">
+            <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
+          </span>
+          <span className="vnext-meri-docked__copy">
+            <span className="vnext-meri-docked__title">Meri is docked</span>
+            <span className="vnext-meri-docked__hint">CLICK TO REOPEN THE WORKSPACE</span>
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <ManagedMcpAppsProvider>
-      <div className="vnext-meri" aria-label="Meri workspace">
-        <VNextMeriTopBar
-          controller={controller}
-          me={me.data}
-          onNewChat={handleNewChat}
-          onSearch={() => threadSearchRef.current?.focus()}
-        />
-
-        <div className="vnext-meri__body">
-          <VNextMeriThreadRail
+      <div
+        className={`vnext-meri-page${windowChrome === 'maximized' ? ' is-maximized' : ''}`}
+        data-meri-page
+      >
+        <div className="vnext-meri" data-meri-window aria-label="Meri workspace">
+          <VNextMeriTopBar
             controller={controller}
+            me={me.data}
+            windowChrome={windowChrome}
             onNewChat={handleNewChat}
-            onOpenIntegrations={handleOpenIntegrations}
-            searchQuery={threadSearch}
-            onSearchQueryChange={setThreadSearch}
-            searchInputRef={threadSearchRef}
+            onSearch={() => threadSearchRef.current?.focus()}
+            onDock={() => setWindowChrome('docked')}
+            onToggleMaximize={() =>
+              setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
+            }
+            onClose={() => navigate('/')}
           />
 
-          <VNextMeriConversation
-            controller={controller}
-            userLabel={personName}
-            greetingName={greetingName}
-            tenantName={tenantName}
-            onOpenIntegrations={handleOpenIntegrations}
-          />
+          <div className="vnext-meri__body">
+            <VNextMeriThreadRail
+              controller={controller}
+              historyError={historyError}
+              onRetryHistory={onRetryHistory}
+              onNewChat={handleNewChat}
+              onOpenIntegrations={handleOpenIntegrations}
+              onArchiveThread={onArchiveThread}
+              onRenameThread={onRenameThread}
+              onRestoreThread={onRestoreThread}
+              searchQuery={threadSearch}
+              onSearchQueryChange={setThreadSearch}
+              searchInputRef={threadSearchRef}
+              onOpenPalette={() => threadSearchRef.current?.focus()}
+            />
 
-          <VNextMeriContextRail
-            controller={controller}
-            collapsed={railCollapsed}
-            onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
-            onOpenIntegrations={handleOpenIntegrations}
-          />
+            <VNextMeriConversation
+              controller={controller}
+              greetingName={greetingName}
+              tenantName={tenantName}
+              onOpenIntegrations={handleOpenIntegrations}
+            />
+
+            <VNextMeriContextRail
+              controller={controller}
+              collapsed={railCollapsed}
+              openSection={openSection}
+              onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
+              onExpandSection={expandSection}
+              onSectionChange={setOpenSection}
+              onOpenIntegrations={handleOpenIntegrations}
+            />
+          </div>
         </div>
       </div>
     </ManagedMcpAppsProvider>

@@ -93,6 +93,8 @@ export function VNextMeriWorkspace() {
   const [routeClients, setRouteClients] = useState<ClientOption[]>([]);
   const [routeClientsError, setRouteClientsError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEpoch, setHistoryEpoch] = useState(0);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const pendingSendRef = useRef<SendArgs | null>(null);
   const handledContextRef = useRef<string | null>(null);
@@ -276,6 +278,7 @@ export function VNextMeriWorkspace() {
     let cancelled = false;
     setRouteReady(false);
     setRouteError(null);
+    setHistoryError(null);
     setRouteClientsError(null);
 
     void (async () => {
@@ -285,7 +288,16 @@ export function VNextMeriWorkspace() {
           loadConversations(),
         ]);
         if (cancelled || sequence !== bootSequenceRef.current) return;
-        if (historyResult.status === 'rejected') throw historyResult.reason;
+        if (historyResult.status === 'rejected') {
+          const message = errorMessage(historyResult.reason, 'Conversation history could not be loaded.');
+          setHistoryError(message);
+          setConversations([]);
+          if (isNewRoute || isIntegrationsRoute) {
+            setRouteReady(true);
+            return;
+          }
+          throw historyResult.reason;
+        }
 
         const clients = clientsResult.status === 'fulfilled' ? clientsResult.value : [];
         setRouteClients(clients);
@@ -375,6 +387,7 @@ export function VNextMeriWorkspace() {
     loadConversations,
     navigate,
     requestedThreadId,
+    historyEpoch,
   ]);
 
   // First Send is the durable creation boundary for `/meri/new`. A synchronous
@@ -522,6 +535,47 @@ export function VNextMeriWorkspace() {
     await prepareRecordFreeNewThread(true);
   }, [controller.archiveConversation, prepareRecordFreeNewThread]);
 
+  const archiveThread = useCallback(
+    async (conversationId: string) => {
+      const response = await fetch(
+        `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/archive`,
+        { method: 'PATCH', headers: await authHeaders() },
+      );
+      if (!response.ok) throw new Error(`Archive failed (${response.status}).`);
+    },
+    [authHeaders],
+  );
+
+  const restoreThread = useCallback(
+    async (conversationId: string) => {
+      const response = await fetch(
+        `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/restore`,
+        { method: 'PATCH', headers: await authHeaders() },
+      );
+      if (!response.ok) throw new Error(`Restore failed (${response.status}).`);
+      setHistoryEpoch((value) => value + 1);
+    },
+    [authHeaders],
+  );
+
+  const renameThread = useCallback(
+    async (conversationId: string, title: string) => {
+      const response = await fetch(
+        `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}`,
+        {
+          method: 'PATCH',
+          headers: await authHeaders(),
+          body: JSON.stringify({ title }),
+        },
+      );
+      if (!response.ok) throw new Error(`Rename failed (${response.status}).`);
+      const existing = conversations.find((conversation) => conversation.id === conversationId);
+      if (existing) upsertConversation({ ...existing, title });
+      if (conversationId === activeConversationId) controller.setSessionTitle(title);
+    },
+    [activeConversationId, authHeaders, controller, conversations],
+  );
+
   const changeSessionClient = useCallback(
     async (clientId: string) => {
       if (!getChatStateSnapshot().activeConversationId) {
@@ -631,7 +685,14 @@ export function VNextMeriWorkspace() {
   return (
     <>
       {routeError ? <div className="vnext-meri__route-error" role="alert">{routeError}</div> : null}
-      <VNextMeriShell controller={vnextController} />
+      <VNextMeriShell
+        controller={vnextController}
+        historyError={historyError}
+        onRetryHistory={() => setHistoryEpoch((value) => value + 1)}
+        onArchiveThread={archiveThread}
+        onRenameThread={renameThread}
+        onRestoreThread={restoreThread}
+      />
     </>
   );
 }

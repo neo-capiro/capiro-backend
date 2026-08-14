@@ -15,20 +15,15 @@ import type {
 } from '../../components/chat/chat-store.js';
 import { MessageFeedback } from '../../components/chat/MessageFeedback.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
-
-function formatTime(value: Date | string | undefined): string {
-  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
-  if (!Number.isFinite(date.getTime())) return 'TIME UNKNOWN';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
+import { MeriIcon } from './meri-icons.js';
+import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
+import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
   controller: MeriChatController;
-  selectedClientName: string | null;
-  userLabel: string;
 }
 
 export function VNextMeriMessage({
@@ -36,20 +31,13 @@ export function VNextMeriMessage({
   isLastAssistant,
   isStreaming,
   controller,
-  selectedClientName,
-  userLabel,
 }: VNextMeriMessageProps) {
   if (message.role === 'user') {
     return (
-      <div>
-        <div className="vnext-meri__user-message">
-          <div className="vnext-meri__user-bubble">
-            <AttachmentList attachments={message.attachments} />
-            {message.content}
-          </div>
-        </div>
-        <div className="vnext-meri__user-meta">
-          {userLabel.toUpperCase()} · {formatTime(message.createdAt)}
+      <div className="vnext-meri__user-message">
+        <div className="vnext-meri__user-bubble" data-meri-user-bubble>
+          <AttachmentList attachments={message.attachments} />
+          {message.content}
         </div>
       </div>
     );
@@ -61,7 +49,6 @@ export function VNextMeriMessage({
       isLastAssistant={isLastAssistant}
       isStreaming={isStreaming}
       controller={controller}
-      selectedClientName={selectedClientName}
     />
   );
 }
@@ -71,13 +58,11 @@ function VNextMeriAssistantMessage({
   isLastAssistant,
   isStreaming,
   controller,
-  selectedClientName,
 }: {
   message: ChatMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
   controller: MeriChatController;
-  selectedClientName: string | null;
 }) {
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
@@ -103,35 +88,35 @@ function VNextMeriAssistantMessage({
     [citationMap],
   );
 
+  const markdownSource = visibleMarkdown(message.content, messageIsStreaming);
   const verificationLabel = message.groundingCaveat?.findings.length
     ? 'REVIEW FLAGGED'
     : message.verification?.totalCount
       ? message.verification.unsupportedCount === 0
-        ? 'VERIFIED'
+        ? 'GROUNDED'
         : 'PARTIAL SUPPORT'
       : citations.length > 0
-        ? 'SOURCES ATTACHED'
+        ? 'GROUNDED'
         : null;
 
   return (
     <div className="vnext-meri__assistant-message">
       <div className="vnext-meri__assistant-heading">
-        <span className="vnext-meri__assistant-mark">M</span>
-        <span className="vnext-meri__assistant-time">
-          {formatTime(message.createdAt)}
-          {selectedClientName ? ` · SCOPED TO ${selectedClientName.toUpperCase()}` : ''}
+        <span className="vnext-meri__assistant-mark">
+          <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
         </span>
+        <span className="vnext-meri__assistant-time">{formatRecordTime(message.createdAt)}</span>
       </div>
       <div className="vnext-meri__assistant-card">
-        <div className="vnext-meri__assistant-body">
+        <div className="vnext-meri__assistant-body" data-meri-answer-body>
           <AttachmentList attachments={message.attachments} />
-          {message.content ? (
+          {markdownSource ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize]}
               components={markdownComponents}
             >
-              {message.content}
+              {markdownSource}
             </ReactMarkdown>
           ) : messageIsStreaming ? (
             <StreamingDots />
@@ -209,6 +194,7 @@ function VNextMeriAssistantMessage({
                 void controller.handleRunResearchOffer(message.id, researchOffer.topic)
               }
             >
+              <MeriIcon name="SearchLg" size={14} color="#101828" />
               RUN DEEP RESEARCH
             </button>
           </div>
@@ -252,7 +238,7 @@ function VNextMeriAssistantMessage({
         {citations.length > 0 ? (
           <div className="vnext-meri__source-strip">
             {visibleCitations.map((citation) => (
-              <SourceChip
+              <VNextMeriSourceChip
                 key={`${citation.n}-${citation.id}`}
                 citation={citation}
                 onOpen={setActiveCitation}
@@ -264,13 +250,18 @@ function VNextMeriAssistantMessage({
                 className="vnext-meri__source-more"
                 onClick={() => setSourcesExpanded((expanded) => !expanded)}
               >
-                {sourcesExpanded ? 'SHOW FEWER' : `+${citations.length - 3} SOURCES`}
+                {sourcesExpanded ? 'FEWER SOURCES' : `+${citations.length - 3} SOURCES`}
+                <MeriIcon
+                  name={sourcesExpanded ? 'ChevronUp' : 'ChevronDown'}
+                  size={12}
+                  color="#667085"
+                />
               </button>
             ) : null}
             <span style={{ flex: 1 }} />
             {verificationLabel ? (
               <span className="vnext-meri__grounded-stamp">
-                <span className="vnext-meri__grounded-dot" />
+                <MeriIcon name="ShieldTick" size={13} color="#027A48" />
                 {verificationLabel}
               </span>
             ) : null}
@@ -279,6 +270,11 @@ function VNextMeriAssistantMessage({
           <div className="vnext-meri__source-strip">
             <span className="vnext-meri__ungrounded-note">
               No retrieved sources were attached to this answer.
+            </span>
+            <span style={{ flex: 1 }} />
+            <span className="vnext-meri__ungrounded-stamp">
+              <MeriIcon name="AlertCircle" size={13} color="#B54708" />
+              NOT GROUNDED
             </span>
           </div>
         ) : null}
@@ -292,7 +288,8 @@ function VNextMeriAssistantMessage({
             <span style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6 }}>
               {activeCitation.url ? (
                 <a href={activeCitation.url} target="_blank" rel="noopener noreferrer">
-                  Open source ↗
+                  Open source
+                  <MeriIcon name="ArrowUpRight" size={13} color="#101828" />
                 </a>
               ) : null}
               <button
@@ -369,27 +366,6 @@ function StreamingDots() {
   );
 }
 
-function SourceChip({
-  citation,
-  onOpen,
-}: {
-  citation: MeriCitation;
-  onOpen: (citation: MeriCitation) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="vnext-meri__source-chip"
-      title={citation.title}
-      onClick={() => onOpen(citation)}
-    >
-      <span className="vnext-meri__source-chip-label">
-        {citation.n} · {citation.title}
-      </span>
-    </button>
-  );
-}
-
 function injectCitations(
   children: ReactNode,
   citationMap: Map<number, MeriCitation>,
@@ -431,16 +407,16 @@ function buildMarkdownComponents(
 ): Components {
   const withCitations = (children: ReactNode) => injectCitations(children, citationMap, onOpen);
   return {
-    p: ({ children }) => <p className="chat-md-p">{withCitations(children)}</p>,
-    li: ({ children }) => <li>{withCitations(children)}</li>,
-    h1: ({ children }) => <h1 className="chat-md-h chat-md-h1">{withCitations(children)}</h1>,
-    h2: ({ children }) => <h2 className="chat-md-h chat-md-h2">{withCitations(children)}</h2>,
-    h3: ({ children }) => <h3 className="chat-md-h chat-md-h3">{withCitations(children)}</h3>,
-    h4: ({ children }) => <h4 className="chat-md-h chat-md-h4">{withCitations(children)}</h4>,
-    ul: ({ children }) => <ul className="chat-md-list">{children}</ul>,
-    ol: ({ children }) => <ol className="chat-md-list">{children}</ol>,
+    p: ({ children }) => <p className="vnext-meri-md__p">{withCitations(children)}</p>,
+    li: ({ children }) => <li className="vnext-meri-md__li">{withCitations(children)}</li>,
+    h1: ({ children }) => <h1 className="vnext-meri-md__h">{withCitations(children)}</h1>,
+    h2: ({ children }) => <h2 className="vnext-meri-md__h">{withCitations(children)}</h2>,
+    h3: ({ children }) => <h3 className="vnext-meri-md__h">{withCitations(children)}</h3>,
+    h4: ({ children }) => <h4 className="vnext-meri-md__h">{withCitations(children)}</h4>,
+    ul: ({ children }) => <ul className="vnext-meri-md__list">{children}</ul>,
+    ol: ({ children }) => <ol className="vnext-meri-md__list is-ordered">{children}</ol>,
     blockquote: ({ children }) => (
-      <blockquote className="chat-md-quote">{withCitations(children)}</blockquote>
+      <blockquote className="vnext-meri-md__quote">{withCitations(children)}</blockquote>
     ),
     a: ({ href, children }) => (
       <a href={href} target="_blank" rel="noopener noreferrer">
@@ -451,17 +427,17 @@ function buildMarkdownComponents(
       className?.includes('language-') ? (
         <code className={className}>{children}</code>
       ) : (
-        <code className="chat-md-code">{children}</code>
+        <code className="vnext-meri-md__code">{children}</code>
       ),
-    pre: ({ children }) => <pre className="chat-md-pre">{children}</pre>,
+    pre: ({ children }) => <pre className="vnext-meri-md__pre">{children}</pre>,
     table: ({ children }) => (
-      <div className="chat-md-table-wrap">
-        <table className="chat-md-table">{children}</table>
+      <div className="vnext-meri-md__table-wrap">
+        <table className="vnext-meri-md__table">{children}</table>
       </div>
     ),
     th: ({ children }) => <th>{withCitations(children)}</th>,
     td: ({ children }) => <td>{withCitations(children)}</td>,
-    strong: ({ children }) => <strong>{withCitations(children)}</strong>,
-    em: ({ children }) => <em>{withCitations(children)}</em>,
+    strong: ({ children }) => <strong className="vnext-meri-md__strong">{withCitations(children)}</strong>,
+    em: ({ children }) => <em className="vnext-meri-md__em">{withCitations(children)}</em>,
   };
 }

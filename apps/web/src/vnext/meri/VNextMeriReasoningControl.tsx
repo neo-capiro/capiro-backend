@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
+import { MeriIcon } from './meri-icons.js';
 
 const REASONING_MODES = [
   { mode: 'fast', label: 'Fast', description: 'Quick answers and direct lookups.' },
@@ -106,8 +107,8 @@ export function VNextMeriReasoningControl({
         aria-expanded={open}
         aria-label={`Reasoning mode: ${selected.label}`}
       >
-        <span className="vnext-meri__mode-pill-dot" aria-hidden="true" />
-        <span className="vnext-meri__reasoning-label">MODE · {selected.label.toUpperCase()} ▾</span>
+        <span className="vnext-meri__reasoning-label">MODE · {selected.label.toUpperCase()}</span>
+        <MeriIcon name="ChevronDown" size={12} color="#98A2B3" />
       </button>
       {open ? (
         <div className="vnext-meri__reasoning-menu" role="menu" aria-label="Reasoning mode">
@@ -117,7 +118,7 @@ export function VNextMeriReasoningControl({
               role="menuitemradio"
               aria-checked={option.mode === mode}
               key={option.mode}
-              className="vnext-meri__reasoning-menu-item"
+              className={`vnext-meri__reasoning-menu-item${option.mode === mode ? ' is-selected' : ''}`}
               disabled={saving}
               onClick={() => void chooseMode(option.mode)}
             >
@@ -126,7 +127,7 @@ export function VNextMeriReasoningControl({
                 <span className="vnext-meri__reasoning-menu-item-desc">{option.description}</span>
               </span>
               <span className="vnext-meri__reasoning-menu-item-check" aria-hidden="true">
-                {option.mode === mode ? '✓' : ''}
+                {option.mode === mode ? <MeriIcon name="Check" size={14} color="#101828" /> : null}
               </span>
             </button>
           ))}

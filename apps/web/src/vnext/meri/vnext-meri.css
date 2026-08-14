@@ -9,34 +9,51 @@
  * no-raw-literal discipline so the contract stays consistent.
  */
 
+.capiro-vnext-root .vnext-meri-page,
 .capiro-vnext-root .vnext-meri {
-  /* ── Module-specific design tokens (from MERI-HANDOFF.md §5.1) ────────── */
-
-  /* Surfaces */
-  --meri-surface: var(--capiro-color-bg-surface);
-  --meri-surface-2: var(--capiro-color-bg-surface-2);
-  --meri-surface-subtle: var(--capiro-color-bg-subtle);
-  --meri-canvas: var(--capiro-color-bg-canvas);
-  --meri-page-bg: var(--capiro-color-bg-page);
+  /* ── Module-specific design tokens (from the pixel-parity spec) ────────── */
+  --m-page-backdrop: #E7ECF1;
+  --m-surface: #ffffff;
+  --m-canvas-standard: #ffffff;
+  --m-canvas-busy: #F9FAFB;
+  --m-border: #EAECF0;
+  --m-border-strong: #D0D5DD;
+  --m-hairline: #F2F4F7;
+  --m-hover: #F9FAFB;
+  --m-text: #101828;
+  --m-text-body: #344054;
+  --m-text-muted: #475467;
+  --m-text-meta: #667085;
+  --m-text-faint: #98A2B3;
+  --m-metal-bg: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --m-metal-bg-hover: linear-gradient(180deg, #4A5462 0%, #252F3C 46%, #161D26 100%);
+  --m-metal-bg-active: linear-gradient(180deg, #2B3340 0%, #141A22 46%, #080C11 100%);
+  --m-metal-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --m-metal-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  --m-surface-deep: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --m-surface-deep-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --m-accent-tint: #F2F4F7;
+  --m-focus-ring: #344054;
+  --meri-surface: var(--m-surface);
+  --meri-surface-2: var(--m-hover);
+  --meri-surface-subtle: var(--m-hairline);
+  --meri-canvas: var(--m-canvas-standard);
+  --meri-page-bg: var(--m-page-backdrop);
 
   /* Borders (Untitled UI #EAECF0 family) */
-  --meri-border: var(--capiro-color-border-quiet);
-  --meri-border-soft: var(--capiro-color-border-quiet);
-  --meri-border-strong: var(--capiro-color-border-strong);
-  --meri-border-control: var(--capiro-color-border-control);
-
-  /* Ink / text */
-  --meri-ink: var(--capiro-color-text-primary);
-  --meri-ink-heading: var(--capiro-color-text-heading);
-  --meri-text-secondary: var(--capiro-color-text-secondary);
-  --meri-text-muted: var(--capiro-color-text-muted);
-  --meri-text-faint: var(--capiro-color-text-faint);
-
-  /* Accent (Capiro navy) */
-  --meri-accent: var(--capiro-color-action-accent-default);
-  --meri-accent-hover: var(--capiro-color-action-accent-hover);
-  --meri-accent-soft: var(--capiro-color-bg-accent-soft);
-  --meri-accent-light: var(--capiro-primitive-accent-blue-dark);
+  --meri-border: var(--m-border);
+  --meri-border-soft: var(--m-hairline);
+  --meri-border-strong: var(--m-border-strong);
+  --meri-border-control: var(--m-border-strong);
+  --meri-ink: var(--m-text);
+  --meri-ink-heading: var(--m-text);
+  --meri-text-secondary: var(--m-text-body);
+  --meri-text-muted: var(--m-text-meta);
+  --meri-text-faint: var(--m-text-faint);
+  --meri-accent: var(--m-text);
+  --meri-accent-hover: #0E141C;
+  --meri-accent-soft: var(--m-accent-tint);
+  --meri-accent-light: var(--m-text-faint);
 
   /* Dark surfaces (banners, icons) */
   --meri-dark: var(--capiro-color-bg-dark);
@@ -50,9 +67,8 @@
   --meri-danger: var(--capiro-color-text-destructive);
   --meri-info: var(--capiro-color-info);
 
-  /* Typography */
-  --meri-font-sans: var(--capiro-type-family-sans);
-  --meri-font-mono: var(--capiro-type-family-mono);
+  --meri-font-sans: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --meri-font-mono: 'IBM Plex Mono', monospace;
 
   /* Geometry */
   --meri-topbar-height: 64px;
@@ -76,18 +92,27 @@
   --meri-shadow-composer-focus: inset 0 0 0 1px var(--meri-accent-light),
     0 0 0 4px var(--meri-accent-soft);
   --meri-shadow-button: 0px 1px 2px var(--capiro-primitive-overlay-ink-16);
+}
 
-  /* ── Layout ─────────────────────────────────────────────────────────── */
+.capiro-vnext-root .vnext-meri-page {
+  min-height: 100vh;
+  background: var(--m-page-backdrop);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 20px;
+}
 
+.capiro-vnext-root .vnext-meri-page.is-maximized {
+  padding: 0;
+}
+
+.capiro-vnext-root .vnext-meri {
   position: relative;
   width: 100%;
-  /* 100vh is the LARGE viewport on mobile browsers: the URL/toolbar chrome
-     overlays its bottom, which is exactly where the pinned composer sits, and
-     `overflow: hidden` below means it cannot be scrolled back into reach.
-     100dvh tracks the visible area; the vh line stays as the fallback. */
-  height: 100vh;
-  height: 100dvh;
-  background: var(--meri-surface);
+  max-width: 1560px;
+  height: min(940px, calc(100vh - 40px));
+  background: var(--m-surface);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -95,7 +120,18 @@
   color: var(--meri-ink);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
   text-rendering: optimizeLegibility;
+  border-radius: 14px;
+  box-shadow: 0px 24px 48px -12px rgba(16, 24, 40, 0.18), 0 0 0 1px rgba(16, 24, 40, 0.06);
+}
+
+.capiro-vnext-root .vnext-meri-page.is-maximized .vnext-meri {
+  max-width: 100%;
+  height: 100vh;
+  border-radius: 0;
 }
 
 .capiro-vnext-root .vnext-meri *,
@@ -113,8 +149,9 @@
 .capiro-vnext-root .vnext-meri button:focus-visible,
 .capiro-vnext-root .vnext-meri input:focus-visible,
 .capiro-vnext-root .vnext-meri textarea:focus-visible {
-  outline: 2px solid var(--meri-accent);
+  outline: 2px solid #344054;
   outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* ── Top bar ──────────────────────────────────────────────────────────── */
@@ -150,11 +187,15 @@
   background: var(--meri-border);
 }
 
-.capiro-vnext-root .vnext-meri__brand-label {
+.capiro-vnext-root .vnext-meri__brand-workspace {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--meri-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__brand-label {
+  color: var(--m-text-muted);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -2388,5 +2429,694 @@
   .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
   .capiro-vnext-root .vnext-meri__assistant-streaming-dot {
     animation: none;
+  }
+}
+
+/* ── Pixel-parity additions ─────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri-page,
+.capiro-vnext-root .vnext-meri {
+  scrollbar-width: thin;
+  scrollbar-color: #D0D5DD transparent;
+}
+
+.capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar,
+.capiro-vnext-root .vnext-meri ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar-thumb,
+.capiro-vnext-root .vnext-meri ::-webkit-scrollbar-thumb {
+  background: #D0D5DD;
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar-track,
+.capiro-vnext-root .vnext-meri ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar-button,
+.capiro-vnext-root .vnext-meri ::-webkit-scrollbar-button {
+  display: none;
+}
+
+.capiro-vnext-root .vnext-meri-docked {
+  margin: auto 28px 28px auto;
+  display: inline-flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 20px 0 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--m-surface-deep);
+  box-shadow: var(--m-surface-deep-sheen), 0px 20px 24px -4px rgba(16, 24, 40, 0.18),
+    0px 8px 8px -4px rgba(16, 24, 40, 0.06);
+  gap: 12px;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri-docked__mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #101828;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capiro-vnext-root .vnext-meri-docked__mark img {
+  width: 13px;
+  height: auto;
+  filter: invert(1);
+}
+
+.capiro-vnext-root .vnext-meri-docked__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri-docked__title {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri-docked__hint {
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu {
+  top: 56px;
+  z-index: 60;
+}
+
+.capiro-vnext-root .vnext-meri__scope-menu-item.is-selected {
+  background: #F2F4F7;
+}
+
+.capiro-vnext-root .vnext-meri__avatar {
+  width: auto;
+  height: auto;
+  padding-left: 4px;
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.capiro-vnext-root .vnext-meri__avatar-status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #12B76A;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__chrome-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__chrome-btn:hover {
+  background: #F9FAFB;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__chrome-btn--close:hover {
+  background: #FEF3F2;
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__new-chat-btn {
+  display: inline-flex;
+  width: auto;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen), var(--m-metal-shadow);
+  gap: 7px;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__new-chat-btn:hover {
+  background-image: var(--m-metal-bg-hover);
+}
+
+.capiro-vnext-root .vnext-meri__rail-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  margin-bottom: 10px;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+}
+
+.capiro-vnext-root .vnext-meri__rail-search:focus-within {
+  box-shadow: inset 0 0 0 1px #98A2B3, 0 0 0 3px #F2F4F7;
+}
+
+.capiro-vnext-root .vnext-meri__rail-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__rail-search input::placeholder {
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__rail-search-clear {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: #98A2B3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__section-empty {
+  padding: 20px 14px;
+  border-radius: 10px;
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+}
+
+.capiro-vnext-root .vnext-meri__section-empty-label,
+.capiro-vnext-root .vnext-meri__thread-empty-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__section-empty-body,
+.capiro-vnext-root .vnext-meri__thread-empty-body {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 19px;
+  color: #475467;
+}
+
+.capiro-vnext-root .vnext-meri__search-everything {
+  margin-top: 9px;
+  border: 0;
+  background: transparent;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  color: #101828;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__thread-group-label {
+  padding: 14px 0 8px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__thread-group-label.is-first {
+  padding-top: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item.is-active {
+  background: #F2F4F7;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-icon {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+  background: transparent;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item:hover .vnext-meri__row-menu-btn,
+.capiro-vnext-root .vnext-meri__thread-item:focus-within .vnext-meri__row-menu-btn,
+.capiro-vnext-root .vnext-meri__thread-item.is-menu-open .vnext-meri__row-menu-btn {
+  opacity: 1;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  width: 200px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, 0.1);
+  z-index: 45;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-item:hover {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-item.is-danger {
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-item.is-danger:hover {
+  background: #FEF3F2;
+}
+
+.capiro-vnext-root .vnext-meri__row-menu-rule {
+  display: block;
+  height: 1px;
+  margin: 4px 6px;
+  background: #EAECF0;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 17, 29, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-dialog {
+  width: 420px;
+  padding: 22px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0px 20px 24px -4px rgba(16, 24, 40, 0.14);
+}
+
+.capiro-vnext-root .vnext-meri__confirm-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #FEF3F2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-title {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-body {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #475467;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-cancel,
+.capiro-vnext-root .vnext-meri__confirm-delete {
+  height: 38px;
+  border-radius: 8px;
+  border: 0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-cancel {
+  padding: 0 14px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-delete {
+  padding: 0 16px;
+  background: #B42318;
+  color: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__confirm-delete:hover {
+  background: #912018;
+}
+
+.capiro-vnext-root .vnext-meri__undo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 20px;
+  border-top: 1px solid #EAECF0;
+  font-size: 12px;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__thread-action {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #667085;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capiro-vnext-root .vnext-meri__thread-action:hover:not(:disabled) {
+  background: #F9FAFB;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill.is-standard,
+.capiro-vnext-root .vnext-meri__mode-pill.is-new {
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill.is-researching,
+.capiro-vnext-root .vnext-meri__mode-pill.is-clarifying {
+  background: #F2F4F7;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+}
+
+.capiro-vnext-root .vnext-meri__mode-pill.is-approval {
+  background: #FFFAEB;
+  box-shadow: inset 0 0 0 1px #FEDF89;
+}
+
+.capiro-vnext-root .vnext-meri__conversation-scroll.is-standard,
+.capiro-vnext-root .vnext-meri__conversation-scroll.is-empty {
+  background: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__conversation-scroll.is-busy {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__user-bubble {
+  background: #F2F4F7;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-mark {
+  background: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__assistant-mark img {
+  width: 13px;
+  height: auto;
+  filter: invert(1);
+}
+
+.capiro-vnext-root .vnext-meri__ungrounded-note {
+  font-style: normal;
+  font-size: 13px;
+  line-height: 20px;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__ungrounded-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: #B54708;
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn {
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen), var(--m-metal-shadow);
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn.is-empty {
+  opacity: 0.55;
+}
+
+.capiro-vnext-root .vnext-meri__composer-send-btn:disabled {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__composer.is-focused {
+  box-shadow: inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F4F7;
+}
+
+.capiro-vnext-root .vnext-meri__action-label {
+  color: #344054;
+  font-weight: 400;
+}
+
+.capiro-vnext-root .vnext-meri__action-label.is-strong {
+  color: #101828;
+  font-weight: 500;
+}
+
+.capiro-vnext-root .vnext-meri__action-tile {
+  background: #F2F4F7;
+}
+
+.capiro-vnext-root .vnext-meri__source-state.is-error {
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__source-dot.is-error {
+  background: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__rail-badge {
+  background-image: var(--m-metal-bg);
+}
+
+.capiro-vnext-root .vnext-meri-md__p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: #344054;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri-md__p + .vnext-meri-md__p {
+  margin-top: 10px;
+}
+
+.capiro-vnext-root .vnext-meri-md__strong {
+  font-weight: 600;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri-md__em {
+  font-style: italic;
+  font-family: inherit;
+}
+
+.capiro-vnext-root .vnext-meri-md__code {
+  font-family: var(--meri-font-mono);
+  font-size: 12.5px;
+  color: #344054;
+  background: #F2F4F7;
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+.capiro-vnext-root .vnext-meri-md__pre {
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-family: var(--meri-font-mono);
+  font-size: 12.5px;
+  line-height: 20px;
+  color: #344054;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.capiro-vnext-root .vnext-meri-md__list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capiro-vnext-root .vnext-meri-md__li {
+  position: relative;
+  padding-left: 15px;
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri-md__list:not(.is-ordered) .vnext-meri-md__li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: #101828;
+}
+
+.capiro-vnext-root .vnext-meri-md__list.is-ordered {
+  counter-reset: meri-ol;
+}
+
+.capiro-vnext-root .vnext-meri-md__list.is-ordered .vnext-meri-md__li {
+  counter-increment: meri-ol;
+}
+
+.capiro-vnext-root .vnext-meri-md__list.is-ordered .vnext-meri-md__li::before {
+  content: counter(meri-ol);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri-md__h {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri-md__quote {
+  padding: 11px 13px;
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+  border-left: 2px solid #101828;
+  font-size: 13px;
+  line-height: 20px;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri-md__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.capiro-vnext-root .vnext-meri-md__table th {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #667085;
+  padding: 8px 10px;
+  border-bottom: 1px solid #EAECF0;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri-md__table td {
+  font-size: 13px;
+  color: #344054;
+  padding: 9px 10px;
+  border-bottom: 1px solid #F2F4F7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .vnext-meri * {
+    animation: none !important;
+    transition: none !important;
   }
 }

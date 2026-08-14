@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MeResponse } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { IdentityMark, identityInitials } from '../components/identity/index.js';
+import { MeriIcon } from './meri-icons.js';
+import { MERI_LOGO_SRC } from './meri-presentation.js';
+import type { MeriWindowChrome } from './meri-prefs.js';
 
 interface VNextMeriTopBarProps {
   controller: MeriChatController;
   me: MeResponse | undefined;
+  windowChrome: MeriWindowChrome;
   onNewChat: () => void;
   onSearch: () => void;
+  onDock: () => void;
+  onToggleMaximize: () => void;
+  onClose: () => void;
 }
 
 const PRO_TIPS = [
@@ -29,8 +37,12 @@ const PRO_TIPS = [
 export function VNextMeriTopBar({
   controller,
   me,
+  windowChrome,
   onNewChat,
   onSearch,
+  onDock,
+  onToggleMaximize,
+  onClose,
 }: VNextMeriTopBarProps) {
   const [scopeOpen, setScopeOpen] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
@@ -44,13 +56,7 @@ export function VNextMeriTopBar({
   const firstName = me?.user.firstName?.trim() ?? '';
   const lastName = me?.user.lastName?.trim() ?? '';
   const fullName = `${firstName} ${lastName}`.trim() || me?.user.email?.split('@')[0] || 'User';
-  const initials = fullName
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
+  const initials = identityInitials(fullName);
 
   useEffect(() => {
     if (!scopeOpen) return;
@@ -84,20 +90,17 @@ export function VNextMeriTopBar({
   return (
     <header className="vnext-meri__topbar">
       <div className="vnext-meri__brand">
-        <span
+        <img
           className="vnext-meri__brand-mark"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontWeight: 700,
-            fontSize: 18,
-            color: 'var(--meri-accent)',
-          }}
-        >
-          Meri
-        </span>
+          src={MERI_LOGO_SRC}
+          alt="Meri"
+          height={26}
+        />
         <span className="vnext-meri__brand-divider" />
-        <span className="vnext-meri__brand-label">Undocked Workspace</span>
+        <span className="vnext-meri__brand-workspace">
+          <MeriIcon name="LayoutAlt01" size={16} color="#98A2B3" />
+          <span className="vnext-meri__brand-label">Undocked Workspace</span>
+        </span>
       </div>
 
       <div className="vnext-meri__scope" ref={scopeRef}>
@@ -109,8 +112,9 @@ export function VNextMeriTopBar({
           aria-haspopup="menu"
           aria-expanded={scopeOpen}
         >
+          <MeriIcon name="Building01" size={14} color="#101828" />
           <span className="vnext-meri__scope-label">{scopeLabel}</span>
-          <span style={{ color: 'var(--meri-text-faint)' }}>▾</span>
+          <MeriIcon name="ChevronDown" size={14} color="#98A2B3" />
         </button>
         {scopeOpen ? (
           <div className="vnext-meri__scope-menu" role="menu" aria-label="Conversation scope">
@@ -120,7 +124,9 @@ export function VNextMeriTopBar({
                 type="button"
                 role="menuitem"
                 key={client.id}
-                className="vnext-meri__scope-menu-item"
+                className={`vnext-meri__scope-menu-item${
+                  client.id === selectedClientValue ? ' is-selected' : ''
+                }`}
                 onClick={() => {
                   setScopeOpen(false);
                   void changeSessionClient(client.id);
@@ -133,7 +139,9 @@ export function VNextMeriTopBar({
             <button
               type="button"
               role="menuitem"
-              className="vnext-meri__scope-menu-item"
+              className={`vnext-meri__scope-menu-item${
+                !selectedClientValue ? ' is-selected' : ''
+              }`}
               onClick={() => {
                 setScopeOpen(false);
                 void changeSessionClient('');
@@ -156,7 +164,7 @@ export function VNextMeriTopBar({
           aria-label="Search threads"
           onClick={onSearch}
         >
-          🔍
+          <MeriIcon name="SearchLg" size={17} color="#475467" />
         </button>
         <button
           type="button"
@@ -165,7 +173,7 @@ export function VNextMeriTopBar({
           aria-label="Start a new chat"
           onClick={onNewChat}
         >
-          +
+          <MeriIcon name="Plus" size={17} color="#475467" />
         </button>
         <button
           type="button"
@@ -174,7 +182,7 @@ export function VNextMeriTopBar({
           aria-label="Open Meri help"
           onClick={() => setTipOpen(true)}
         >
-          ?
+          <MeriIcon name="HelpCircle" size={17} color="#475467" />
         </button>
 
         <span className="vnext-meri__protip" ref={tipRef}>
@@ -185,7 +193,8 @@ export function VNextMeriTopBar({
             aria-haspopup="dialog"
             aria-expanded={tipOpen}
           >
-            💡 PRO TIP
+            <MeriIcon name="Lightbulb02" size={15} />
+            PRO TIP
           </button>
           {tipOpen ? (
             <div
@@ -223,8 +232,48 @@ export function VNextMeriTopBar({
         </span>
 
         <span className="vnext-meri__avatar" aria-label={fullName}>
-          {initials || 'U'}
+          <IdentityMark
+            kind="person"
+            size="sm"
+            name={fullName}
+            initials={initials === '—' ? 'NM' : initials}
+          />
+          <span className="vnext-meri__avatar-status" aria-hidden="true" />
         </span>
+
+        <span className="vnext-meri__topbar-divider" />
+
+        <button
+          type="button"
+          className="vnext-meri__chrome-btn"
+          title="Dock Meri"
+          aria-label="Dock Meri"
+          onClick={onDock}
+        >
+          <MeriIcon name="Minus" size={16} color="#667085" />
+        </button>
+        <button
+          type="button"
+          className="vnext-meri__chrome-btn"
+          title={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
+          aria-label={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
+          onClick={onToggleMaximize}
+        >
+          <MeriIcon
+            name={windowChrome === 'maximized' ? 'Minimize01' : 'Maximize01'}
+            size={15}
+            color="#667085"
+          />
+        </button>
+        <button
+          type="button"
+          className="vnext-meri__chrome-btn vnext-meri__chrome-btn--close"
+          title="Close Meri"
+          aria-label="Close Meri"
+          onClick={onClose}
+        >
+          <MeriIcon name="XClose" size={16} color="#667085" />
+        </button>
       </div>
     </header>
   );

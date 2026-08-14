@@ -40,7 +40,79 @@ Save is disabled with explanation.
 | Command palette (⌘K) | The vNext shell registers the ⌘K shortcut as a no-op. The prototype specifies a full command palette searching threads, context items, connected sources, and actions. | Build the command palette component with real search over threads/context/sources/actions. | ⌘K does nothing visible; no incorrect behavior. |
 | Source detail sheet | Source chips in the message source strip are clickable buttons but do not open the source-detail sheet (the sheet is not yet built). | Build the source-detail sheet (`?panel=source&id=:sourceId`) with provenance, evidence, and the include-in-context toggle. | Source chips are present and accessible but their click target is a no-op. |
 | Context management sheet | The "Manage context" button in the right rail is a no-op. The context sheet (`?panel=context`) is not yet built. | Build the manage-conversation-context sheet with server-side search, included/suggested context, and apply/cancel. | The button is visible but does not open the sheet. |
-| Rail collapse persistence | The context rail collapse state is component-level (useState) and does not persist per user across sessions. | Persist the collapse preference via the window-state preference endpoint or a logged adapter. | Collapse resets on refresh; no data issue. |
+| Rail collapse persistence | Browser-local via `meri-prefs.ts` (`capiro.meri.vnext.context-rail`). No per-user preference endpoint. | Add a per-user preference API if chrome must follow the user across devices. | Collapse/section state is device-local. |
+
+## Gaps opened by Meri v3 undocked pixel-parity (2026-08-14)
+
+### GAP-MERI-WINDOW-CHROME — window chrome is not persisted server-side
+- **Module / surface:** Meri undocked workspace — dock / maximise / restore
+- **What the UI needs:** per-user `undocked | maximized | docked`
+- **Proposed contract:** GET/PUT `/api/clio/preferences/meri-window` → `{ chrome }`
+- **Evidence of absence:** grepped `apps/api/src/meri` and `apps/web/src/components/chat` for window-preference / undocked persistence endpoints; only in-memory `chat-store` surfaceMode + localStorage in `MeriOverlay.tsx` exist.
+- **Shipped instead:** named adapter `apps/web/src/vnext/meri/meri-prefs.ts` (`readWindowChrome` / `writeWindowChrome`)
+- **Blocking?** No — degrades across devices
+- **Estimated backend surface:** 1 preference field, 2 endpoints
+- **Owner:** unassigned
+
+### GAP-MERI-SAVED-PROMPTS — no saved-prompt list for the rail
+- **Module / surface:** Thread rail → SAVED PROMPTS
+- **What the UI needs:** user-owned saved prompt rows
+- **Proposed contract:** reuse whatever the current app uses for the prompt library / firm skills; do not invent one
+- **Evidence of absence:** grepped `apps/web/src/vnext/meri` and `apps/web/src/components/chat` for saved-prompt adapters; rail previously used hardcoded strings. No dedicated list endpoint is wired to this rail.
+- **Shipped instead:** distinct empty state (`NO SAVED PROMPTS`) — no fabricated rows
+- **Blocking?** No
+- **Estimated backend surface:** confirm existing skills/library list or add one
+- **Owner:** unassigned
+
+### GAP-MERI-WORKSPACES — no workspace list for the rail
+- **Module / surface:** Thread rail → WORKSPACES
+- **What the UI needs:** named workspace rows with kind + add
+- **Proposed contract:** reuse existing workspace / connected-app list if one is the product meaning of this section
+- **Evidence of absence:** no Meri workspace-list adapter in `vnext/meri` or `components/chat`
+- **Shipped instead:** distinct empty state (`NO WORKSPACES YET`); add control opens integrations
+- **Blocking?** No
+- **Estimated backend surface:** confirm existing list or add one
+- **Owner:** unassigned
+
+### GAP-MERI-DUPLICATE-CONTEXT — duplicate context to new chat
+- **Module / surface:** Thread row menu
+- **What the UI needs:** copy current thread context into a new chat
+- **Proposed contract:** TBD — no existing verb found
+- **Evidence of absence:** grepped `apps/api/src/meri` for duplicate/clone conversation; only archive/restore/update title exist
+- **Shipped instead:** menu item visible and disabled with an honest title
+- **Blocking?** No
+- **Estimated backend surface:** 1 mutation
+- **Owner:** unassigned
+
+### GAP-MERI-GROUNDING-STATEMENT — `groundingStatement` is not on the chat message
+- **Module / surface:** Assistant source strip (ungrounded)
+- **What the UI needs:** render the server's `groundingStatement` verbatim
+- **Proposed contract:** include `groundingStatement` on persisted messages and the stream
+- **Evidence of absence:** `ChatMessage` in `chat-store.ts` has citations / verification / groundingCaveat only; `meri-route-state.ts` `PersistedMessage` has no field; stream handler in `useMeriChatController.ts` has no `groundingStatement` event
+- **Shipped instead:** existing honest copy “No retrieved sources were attached to this answer.” plus `NOT GROUNDED` stamp. Not client-composed as a substitute for a server sentence.
+- **Blocking?** No for ship; yes for exact §6.4 wording
+- **Estimated backend surface:** 1 field on message DTO + stream
+- **Owner:** unassigned
+
+### GAP-MERI-PERSISTED-CITATIONS — history hydration drops citations
+- **Module / surface:** Assistant source strip after refresh
+- **What the UI needs:** persisted `sourceRefs` / citations on `/messages`
+- **Proposed contract:** map whatever the messages DTO already returns
+- **Evidence of absence:** `historyMessage()` in `VNextMeriWorkspace.tsx` only maps attachments + chart artifacts
+- **Shipped instead:** live stream citations still render; hydrated history shows the ungrounded strip unless the DTO is extended in this adapter later
+- **Blocking?** No for this presentation pass (no payload-shape change)
+- **Estimated backend surface:** confirm DTO; if present, map it
+- **Owner:** unassigned
+
+### GAP-MERI-TITLE-FIRST-MESSAGE — list DTO has latest, not first, user text
+- **Module / surface:** Recent row titles
+- **What the UI needs:** first user message when title is `Chat session`
+- **Proposed contract:** list rows include `firstUserMessage` or a generated title
+- **Evidence of absence:** `MeriConversation.latestMessage` only
+- **Shipped instead:** fallback to `latestMessage.body` trimmed to 48 chars
+- **Blocking?** No
+- **Estimated backend surface:** 1 optional list field
+- **Owner:** unassigned
 
 ## §2. Generation-mode persistence — **unconfirmed**
 
