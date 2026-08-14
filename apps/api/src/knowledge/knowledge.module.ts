@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { Prismodule } from '../prisma/prisma.module.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
 import { AssertionConflictService } from './assertions/assertion-conflict.service.js';
 import { AssertionConsolidationService } from './assertions/assertion-consolidation.service.js';
 import { KnowledgeAssertionRepository } from './assertions/knowledge-assertion.repository.js';
@@ -9,8 +9,14 @@ import { KnowledgeEvidenceValidatorService } from './evidence/knowledge-evidence
 import { KnowledgeEvidenceService } from './evidence/knowledge-evidence.service.js';
 import { KnowledgeEventRepository } from './events/knowledge-event.repository.js';
 import { KnowledgeEventService } from './events/knowledge-event.service.js';
+import { MailboxKnowledgeConsumer } from './mailbox/mailbox-knowledge.consumer.js';
+import { MailboxKnowledgeFlagsService } from './mailbox/mailbox-knowledge-flags.service.js';
+import { MailboxKnowledgeRepository } from './mailbox/mailbox-knowledge.repository.js';
+import { MailboxNormalizerService } from './mailbox/mailbox-normalizer.service.js';
+import { MailboxRelevanceService } from './mailbox/mailbox-relevance.service.js';
+import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
 
-/** Lower-level evidence and atomic-assertion substrate beneath governed memory_items. */
+/** Lower-level evidence, assertions, and incremental mailbox substrate beneath memory_items. */
 @Module({
   imports: [PrismaModule],
   providers: [
@@ -23,6 +29,12 @@ import { KnowledgeEventService } from './events/knowledge-event.service.js';
     KnowledgeAssertionService,
     AssertionConflictService,
     AssertionConsolidationService,
+    MailboxKnowledgeFlagsService,
+    MailboxKnowledgeRepository,
+    MailboxNormalizerService,
+    MailboxRelevanceService,
+    MailboxThreadService,
+    MailboxKnowledgeConsumer,
   ],
   exports: [
     KnowledgeEventService,
@@ -30,6 +42,10 @@ import { KnowledgeEventService } from './events/knowledge-event.service.js';
     KnowledgeAssertionService,
     AssertionConflictService,
     AssertionConsolidationService,
+    MailboxNormalizerService,
+    MailboxRelevanceService,
+    MailboxThreadService,
+    MailboxKnowledgeConsumer,
   ],
 })
 export class KnowledgeModule {}

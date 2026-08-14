@@ -21,8 +21,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Append Knowledge Plane models and relations
-        run: node scripts/align-knowledge-plane-prisma-schema.mjs
+      - name: Align Knowledge Plane Prisma models and relations
+        run: |
+          node scripts/align-knowledge-plane-prisma-schema.mjs
+          node scripts/align-mailbox-knowledge-prisma-schema.mjs
 
       - name: Format and validate Prisma schema
         run: |
@@ -38,5 +40,5 @@ jobs:
           git config user.name "capiro-knowledge-schema-bot"
           git config user.email "neo@capiro.ai"
           git add apps/api/prisma/schema.prisma
-          git commit -m "chore(prisma): align knowledge plane models [knowledge-schema-aligned]"
+          git commit -m "chore(prisma): align phase 4 mailbox knowledge schema [knowledge-schema-aligned]"
           git push origin HEAD:feat/phase-1-knowledge-events
