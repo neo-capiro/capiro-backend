@@ -148,11 +148,11 @@ describe('MemoComposerDrawer — opening an existing memo loads, never regenerat
     // renders the title twice (generic header + confirm-body span) — assert
     // presence via getAllByText rather than getByText's exactly-one contract.
     // Modal.confirm renders to a separate imperative DOM root; under the full
-    // 224-file vitest suite jsdom is slower than in isolation, so the default
-    // 1000ms waitFor timeout flakes. Give the confirm dialog time to appear.
+    // 224-file vitest suite jsdom is slower than in isolation (and even a 5s
+    // budget can flake after hundreds of prior files). Timing tolerance only.
     await waitFor(
       () => expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
-      { timeout: 5000 },
+      { timeout: 15000 },
     );
     expect(screen.getByText(/will no longer appear/i)).toBeTruthy();
     // Not confirmed yet — no generate call fired.
@@ -198,7 +198,7 @@ describe('MemoComposerDrawer — opening an existing memo loads, never regenerat
     fireEvent.click(screen.getByRole('button', { name: /Regenerate/i }));
     await waitFor(
       () => expect(screen.getAllByText(/Regenerate this memo\?/i).length).toBeGreaterThan(0),
-      { timeout: 5000 },
+      { timeout: 15000 },
     );
     // Two "Regenerate" buttons are on screen now: the drawer's footer button and
     // the confirm dialog's OK button. The confirm's is the one appended last.
