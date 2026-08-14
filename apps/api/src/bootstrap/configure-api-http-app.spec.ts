@@ -24,6 +24,11 @@ async function createApp(opts: ConfigureApiHttpAppOptions): Promise<INestApplica
 describe('configureApiHttpApp', () => {
   let app: INestApplication;
 
+  // NestFactory.create + supertest under the full Phase 1 30-suite jest run
+  // on Windows can exceed the default 5000ms per-test budget even though the
+  // same cases finish in <1s in isolation. Timing tolerance only.
+  const nestBootTimeoutMs = 15000;
+
   afterEach(async () => {
     if (app) await app.close();
   });
@@ -38,36 +43,52 @@ describe('configureApiHttpApp', () => {
       defaultJsonLimit: '1mb',
     };
 
-    it('sets the global prefix to /api excluding /health and /webhooks/*', async () => {
-      app = await createApp(mainOpts);
-      const res = await request(app.getHttpServer()).get('/health');
-      expect(res.status).toBe(404);
-    });
+    it(
+      'sets the global prefix to /api excluding /health and /webhooks/*',
+      async () => {
+        app = await createApp(mainOpts);
+        const res = await request(app.getHttpServer()).get('/health');
+        expect(res.status).toBe(404);
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('does NOT add engagement-api identity headers', async () => {
-      app = await createApp(mainOpts);
-      const res = await request(app.getHttpServer()).get('/api/nonexistent');
-      expect(res.headers['x-capiro-service']).toBeUndefined();
-      expect(res.headers['x-capiro-release-sha']).toBeUndefined();
-    });
+    it(
+      'does NOT add engagement-api identity headers',
+      async () => {
+        app = await createApp(mainOpts);
+        const res = await request(app.getHttpServer()).get('/api/nonexistent');
+        expect(res.headers['x-capiro-service']).toBeUndefined();
+        expect(res.headers['x-capiro-release-sha']).toBeUndefined();
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('registers the Clerk raw-body parser on /webhooks/clerk', async () => {
-      app = await createApp(mainOpts);
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/clerk')
-        .set('Content-Type', 'application/json')
-        .send('{"test":true}');
-      expect(res.status).toBe(404);
-    });
+    it(
+      'registers the Clerk raw-body parser on /webhooks/clerk',
+      async () => {
+        app = await createApp(mainOpts);
+        const res = await request(app.getHttpServer())
+          .post('/webhooks/clerk')
+          .set('Content-Type', 'application/json')
+          .send('{"test":true}');
+        expect(res.status).toBe(404);
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('registers the email-signature large body parser (32mb)', async () => {
-      app = await createApp(mainOpts);
-      const res = await request(app.getHttpServer())
-        .post('/api/me/email-signature')
-        .set('Content-Type', 'application/json')
-        .send('{"html":"<p>signature</p>"}');
-      expect(res.status).toBe(404);
-    });
+    it(
+      'registers the email-signature large body parser (32mb)',
+      async () => {
+        app = await createApp(mainOpts);
+        const res = await request(app.getHttpServer())
+          .post('/api/me/email-signature')
+          .set('Content-Type', 'application/json')
+          .send('{"html":"<p>signature</p>"}');
+        expect(res.status).toBe(404);
+      },
+      nestBootTimeoutMs,
+    );
   });
 
   describe('engagement-api options', () => {
@@ -81,37 +102,53 @@ describe('configureApiHttpApp', () => {
       defaultJsonLimit: '1mb',
     };
 
-    it('adds exact service and release identity on every response', async () => {
-      app = await createApp(engagementOpts);
-      const res = await request(app.getHttpServer()).get('/health');
-      expect(res.headers['x-capiro-service']).toBe('engagement-api');
-      expect(res.headers['x-capiro-release-sha']).toBe(releaseSha);
-    });
+    it(
+      'adds exact service and release identity on every response',
+      async () => {
+        app = await createApp(engagementOpts);
+        const res = await request(app.getHttpServer()).get('/health');
+        expect(res.headers['x-capiro-service']).toBe('engagement-api');
+        expect(res.headers['x-capiro-release-sha']).toBe(releaseSha);
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('adds both identity headers even on 404s', async () => {
-      app = await createApp(engagementOpts);
-      const res = await request(app.getHttpServer()).get('/api/nonexistent');
-      expect(res.headers['x-capiro-service']).toBe('engagement-api');
-      expect(res.headers['x-capiro-release-sha']).toBe(releaseSha);
-    });
+    it(
+      'adds both identity headers even on 404s',
+      async () => {
+        app = await createApp(engagementOpts);
+        const res = await request(app.getHttpServer()).get('/api/nonexistent');
+        expect(res.headers['x-capiro-service']).toBe('engagement-api');
+        expect(res.headers['x-capiro-release-sha']).toBe(releaseSha);
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('does NOT register the Clerk raw-body parser', async () => {
-      app = await createApp(engagementOpts);
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/clerk')
-        .set('Content-Type', 'application/json')
-        .send('{"test":true}');
-      expect(res.status).toBe(404);
-    });
+    it(
+      'does NOT register the Clerk raw-body parser',
+      async () => {
+        app = await createApp(engagementOpts);
+        const res = await request(app.getHttpServer())
+          .post('/webhooks/clerk')
+          .set('Content-Type', 'application/json')
+          .send('{"test":true}');
+        expect(res.status).toBe(404);
+      },
+      nestBootTimeoutMs,
+    );
 
-    it('does NOT register the email-signature large body parser', async () => {
-      app = await createApp(engagementOpts);
-      const res = await request(app.getHttpServer())
-        .post('/api/me/email-signature')
-        .set('Content-Type', 'application/json')
-        .send('{"html":"<p>signature</p>"}');
-      expect(res.status).toBe(404);
-    });
+    it(
+      'does NOT register the email-signature large body parser',
+      async () => {
+        app = await createApp(engagementOpts);
+        const res = await request(app.getHttpServer())
+          .post('/api/me/email-signature')
+          .set('Content-Type', 'application/json')
+          .send('{"html":"<p>signature</p>"}');
+        expect(res.status).toBe(404);
+      },
+      nestBootTimeoutMs,
+    );
   });
 
   describe('resolvedAllowedOrigins', () => {
