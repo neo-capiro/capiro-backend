@@ -1,0 +1,121 @@
+/* Stabilization additions for Workspace vNext.
+ * Kept separate from the prototype-derived module sheet so the audit patch is
+ * reviewable and does not reset existing visual work.
+ */
+
+.ws-vnext-table-shell {
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ws-vnext-library-skeleton-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 24px;
+  align-items: center;
+  min-height: 64px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ws-line);
+}
+
+.ws-vnext-library-skeleton-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-vnext-library-phase-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ws-body);
+}
+
+.ws-vnext-sector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ws-vnext-sector-chips button {
+  appearance: none;
+  border: 1px solid var(--ws-control-ring);
+  border-radius: 9999px;
+  background: #fff;
+  color: var(--ws-body);
+  padding: 5px 10px;
+  font: 500 12px/1.2 var(--capiro-type-family-sans);
+  cursor: pointer;
+}
+
+.ws-vnext-sector-chips button:hover,
+.ws-vnext-sector-chips button[data-active='true'] {
+  border-color: var(--ws-selected-ring);
+  background: var(--ws-selected);
+  color: var(--ws-navy);
+}
+
+.ws-vnext-library-count {
+  margin-left: auto;
+  color: var(--ws-muted);
+  font: 500 10px/1.4 var(--capiro-type-family-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ws-vnext-attention-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ws-vnext-attention-card {
+  border: 1px solid var(--ws-line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px;
+}
+
+.ws-vnext-attention-card__count {
+  margin-bottom: 10px;
+  color: var(--ws-ink);
+  font: 600 26px/1 var(--capiro-type-family-sans);
+}
+
+.ws-vnext-attention-card__label {
+  color: var(--ws-ink);
+  font: 600 13px/1.4 var(--capiro-type-family-sans);
+}
+
+.ws-vnext-attention-card__desc {
+  margin-top: 4px;
+  color: var(--ws-muted);
+  font: 400 12px/1.5 var(--capiro-type-family-sans);
+}
+
+.ws-vnext-share__comment-error,
+.ws-vnext-share__comment-success {
+  margin-top: 8px;
+  font: 500 12px/1.4 var(--capiro-type-family-sans);
+}
+
+.ws-vnext-share__comment-error {
+  color: var(--ws-red);
+}
+
+.ws-vnext-share__comment-success {
+  color: var(--ws-green);
+}
+
+@media (max-width: 900px) {
+  .ws-vnext-attention-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-vnext-library-count {
+    width: 100%;
+    margin-left: 0;
+  }
+}
