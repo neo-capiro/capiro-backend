@@ -1,23 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   App,
-  Avatar,
   Button,
   Card,
-  Col,
   Drawer,
   Dropdown,
   Empty,
   Input,
-  Modal,
   Pagination,
   Popover,
-  Row,
   Segmented,
   Select,
   Space,
   Spin,
-  Tabs,
   Tag,
   Typography,
   type MenuProps,
@@ -28,19 +23,17 @@ import {
   CheckOutlined,
   DownOutlined,
   HomeOutlined,
-  LinkOutlined,
   MailOutlined,
   PhoneOutlined,
   SearchOutlined,
-  SendOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
-import { decodeHtmlEntities } from '../../lib/html-entities.js';
 import { getAcquisitionPersonnel, getAcquisitionPersonnelDetail } from '../program-element/api.js';
 import type { AcquisitionPersonnelDetail } from '../program-element/types.js';
+import { DirectoryMemberProfileModal } from './DirectoryMemberProfileModal.js';
 import { DowDirectoryResults, DowPersonDrawer } from './DowDirectoryResults.js';
 import {
   StateLegislatorResults,
@@ -55,7 +48,6 @@ import {
   type DirectoryCommitteesResponse,
   type DirectoryCommitteeStaffer,
   type DirectoryCommitteeStaffResponse,
-  type DirectoryContactNote,
   type DirectoryEntry,
   type DirectoryStaffer,
   type DirectoryStaffersResponse,
@@ -86,18 +78,19 @@ function partyColor(party: Party): string {
   return 'default';
 }
 
-function partyLabel(party: Party): string {
+/** Exported: shared with `DirectoryMemberProfileModal`, which renders member cards too. */
+export function partyLabel(party: Party): string {
   if (party === 'D') return 'Democrat';
   if (party === 'R') return 'Republican';
   return 'Independent';
 }
 
-function partyShortCode(party: Party): string | null {
+export function partyShortCode(party: Party): string | null {
   if (party === 'D' || party === 'R' || party === 'I') return party;
   return null;
 }
 
-function stateDistrict(entry: DirectoryEntry): string {
+export function stateDistrict(entry: DirectoryEntry): string {
   const state = entry.state || '';
   const district = entry.district || '';
   if (!state) return district;
@@ -105,13 +98,13 @@ function stateDistrict(entry: DirectoryEntry): string {
   return district || state;
 }
 
-function genderLabel(gender: DirectoryEntry['gender']): string {
+export function genderLabel(gender: DirectoryEntry['gender']): string {
   if (gender === 'F') return 'Female';
   if (gender === 'M') return 'Male';
   return 'Unknown';
 }
 
-function initials(name: string): string {
+export function initials(name: string): string {
   return name
     .split(' ')
     .map((part) => part[0])
@@ -120,28 +113,9 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function yearFromDate(date: string): string {
+export function yearFromDate(date: string): string {
   if (!date) return 'Unknown';
   return date.slice(0, 4);
-}
-
-function romanNumeral(value: number | null): string {
-  return value === 1 ? 'I' : value === 2 ? 'II' : value === 3 ? 'III' : '';
-}
-
-function formatNoteDate(date: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(date));
-}
-
-function noteAuthor(note: DirectoryContactNote): string {
-  const fullName = [note.createdBy?.firstName, note.createdBy?.lastName].filter(Boolean).join(' ');
-  return fullName || note.createdBy?.email || 'Former user';
 }
 
 function buildApiParams(filters: {
@@ -1051,392 +1025,11 @@ export function DirectoryPage() {
         </>
       )}
 
-      <Modal
-        className="directory-profile-modal"
-        width={1120}
+      <DirectoryMemberProfileModal
+        entry={selectedEntry}
         open={selectedEntry !== null}
-        onCancel={closeEntryProfile}
-        footer={null}
-        title={null}
-        destroyOnClose
-      >
-        {selectedEntry ? (
-          <>
-            <div style={{ marginBottom: 8 }}>
-              <Link to={`/directory/members/${encodeURIComponent(selectedEntry.id)}`}>
-                Open full profile ↗
-              </Link>
-            </div>
-            <section className="directory-profile-hero">
-              <Avatar
-                src={selectedEntry.photoUrl || undefined}
-                size={86}
-                shape="square"
-                className="directory-profile-photo"
-              >
-                {initials(selectedEntry.memberName)}
-              </Avatar>
-              <div className="directory-profile-main">
-                <Space size={8} wrap className="directory-profile-pills">
-                  <Tag className="directory-profile-member-tag">
-                    {selectedEntry.chamber || 'Member'}
-                  </Tag>
-                  {partyShortCode(selectedEntry.party) ? (
-                    <span
-                      className={`party-pill ${partyShortCode(selectedEntry.party)!.toLowerCase()}`}
-                      title={partyLabel(selectedEntry.party)}
-                    >
-                      {partyShortCode(selectedEntry.party)}
-                    </span>
-                  ) : null}
-                  {stateDistrict(selectedEntry) ? (
-                    <span className="state-pill num">{stateDistrict(selectedEntry)}</span>
-                  ) : null}
-                </Space>
-                <Typography.Title level={2}>{selectedEntry.fullName}</Typography.Title>
-                <Typography.Text>{selectedEntry.title}</Typography.Text>
-                <Typography.Text type="secondary">
-                  Serving in {selectedEntry.chamber} since{' '}
-                  {yearFromDate(selectedEntry.servingSince)}
-                </Typography.Text>
-              </div>
-              <Space className="directory-profile-actions" wrap>
-                <Button
-                  aria-label="Copy email"
-                  onClick={() => copyContact(selectedEntry.email, 'Email')}
-                >
-                  <MailOutlined />
-                </Button>
-                <Button
-                  aria-label="Copy phone"
-                  onClick={() => copyContact(selectedEntry.phone, 'Phone')}
-                >
-                  <PhoneOutlined />
-                </Button>
-                {selectedEntry.contactFormUrl ? (
-                  <Button href={selectedEntry.contactFormUrl} target="_blank" rel="noreferrer">
-                    Contact Form
-                  </Button>
-                ) : null}
-              </Space>
-            </section>
-
-            <Tabs
-              className="directory-profile-tabs"
-              defaultActiveKey="contact"
-              items={[
-                {
-                  key: 'contact',
-                  label: 'Contact',
-                  children: (
-                    <Row gutter={[24, 24]}>
-                      <Col xs={24} lg={15}>
-                        <Typography.Title level={4}>Contact</Typography.Title>
-                        <div className="directory-contact-panel">
-                          <div>
-                            <Typography.Text strong>Main Office</Typography.Text>
-                            <Typography.Paragraph>
-                              {selectedEntry.officeLocation || 'No public office address listed'}
-                            </Typography.Paragraph>
-                            <div className="directory-profile-contact-lines">
-                              <CopyableTextRow
-                                label="Phone"
-                                value={selectedEntry.phone}
-                                emptyText="N/A"
-                                onCopy={copyContact}
-                              />
-                              <Typography.Text>Fax: {selectedEntry.fax || 'N/A'}</Typography.Text>
-                              <CopyableTextRow
-                                label="Email"
-                                value={selectedEntry.email}
-                                emptyText="No public email listed"
-                                onCopy={copyContact}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Typography.Text strong>Official Links</Typography.Text>
-                            <Space
-                              direction="vertical"
-                              size={4}
-                              style={{ display: 'flex', marginTop: 8 }}
-                            >
-                              {selectedEntry.officialLinks.slice(0, 8).map((link) => (
-                                <a
-                                  key={`${link.type}-${link.url}`}
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  {link.label}
-                                </a>
-                              ))}
-                            </Space>
-                          </div>
-                        </div>
-
-                        <Typography.Title level={4} style={{ marginTop: 28 }}>
-                          Office Locations
-                        </Typography.Title>
-                        <div className="directory-address-list">
-                          {selectedEntry.addresses.map((address) => (
-                            <div key={address.id} className="directory-address-row">
-                              <Typography.Text strong>{address.title || 'Office'}</Typography.Text>
-                              <Typography.Text>
-                                {[
-                                  address.address1,
-                                  address.address2,
-                                  address.city,
-                                  address.state,
-                                  address.zip,
-                                ]
-                                  .filter(Boolean)
-                                  .join(', ')}
-                              </Typography.Text>
-                              <Typography.Text type="secondary">
-                                {address.phone || 'No phone'}{' '}
-                                {address.fax ? `| Fax ${address.fax}` : ''}
-                              </Typography.Text>
-                            </div>
-                          ))}
-                        </div>
-                      </Col>
-                      <Col xs={24} lg={9}>
-                        <Card className="directory-side-card" title="Snapshot">
-                          <Space direction="vertical" size={10} style={{ display: 'flex' }}>
-                            <Typography.Text>
-                              Party: {selectedEntry.partyName} ({selectedEntry.party})
-                            </Typography.Text>
-                            <Typography.Text>
-                              Gender: {genderLabel(selectedEntry.gender)}
-                            </Typography.Text>
-                            <Typography.Text>Region: {selectedEntry.region}</Typography.Text>
-                            {selectedEntry.senateClass ? (
-                              <Typography.Text>
-                                Senate class: {romanNumeral(selectedEntry.senateClass)}
-                              </Typography.Text>
-                            ) : null}
-                            {selectedEntry.outgoingStatus ? (
-                              <Typography.Text type="warning">
-                                {selectedEntry.outgoingStatus}
-                              </Typography.Text>
-                            ) : null}
-                            <Typography.Text>
-                              Last source update: {selectedEntry.lastTouchpoint}
-                            </Typography.Text>
-                          </Space>
-                        </Card>
-                        {selectedEntry.topIssues.length > 0 ? (
-                          <Card
-                            className="directory-side-card"
-                            title="Top issues by staff coverage"
-                          >
-                            <Space size={[8, 8]} wrap>
-                              {selectedEntry.topIssues.map((entry) => (
-                                <Tag key={entry.issue} color="blue">
-                                  {entry.issue} · {entry.stafferCount}
-                                </Tag>
-                              ))}
-                            </Space>
-                            <Typography.Paragraph
-                              type="secondary"
-                              style={{ fontSize: 11, margin: '10px 0 0', lineHeight: 1.4 }}
-                            >
-                              Number of this office's staffers tagged to each issue — a proxy for
-                              where the office invests, not a complete policy position.
-                            </Typography.Paragraph>
-                          </Card>
-                        ) : null}
-                        <DirectoryNotesPanel entry={selectedEntry} />
-                        <DirectoryRepresentationPanel entry={selectedEntry} />
-                        <DirectoryFecPanel entry={selectedEntry} />
-                      </Col>
-                    </Row>
-                  ),
-                },
-                {
-                  key: 'staff',
-                  label: 'Staff',
-                  children: (
-                    <div>
-                      <Typography.Title level={4}>
-                        {selectedEntry.fullName}'s Staff
-                      </Typography.Title>
-                      <div className="directory-staff-list">
-                        {selectedEntry.staff.length > 0 ? (
-                          <>
-                            <div className="directory-staff-header" aria-hidden="true">
-                              <span>Staffer</span>
-                              <span>Roles &amp; Issue Areas</span>
-                              <span>Phone</span>
-                              <span>Email</span>
-                            </div>
-                            {selectedEntry.staff.map((staffer) => (
-                              <div key={staffer.id} className="directory-staff-row">
-                                <div className="directory-staff-person">
-                                  <Typography.Text strong>
-                                    <Link to={`/directory/staff/${encodeURIComponent(staffer.id)}`}>
-                                      {staffer.fullName}
-                                    </Link>
-                                  </Typography.Text>
-                                  <Typography.Text type="secondary">
-                                    {staffer.title}
-                                  </Typography.Text>
-                                </div>
-                                <Space className="directory-staff-tags" size={[6, 6]} wrap>
-                                  {staffer.roles.slice(0, 2).map((role) => (
-                                    <Tag key={`${staffer.id}-${role}`}>{role}</Tag>
-                                  ))}
-                                  {staffer.issueAreas.slice(0, 3).map((issue) => (
-                                    <Tag key={`${staffer.id}-${issue}`} color="blue">
-                                      {issue}
-                                    </Tag>
-                                  ))}
-                                </Space>
-                                <StaffContactValue
-                                  icon={<PhoneOutlined />}
-                                  label="Phone"
-                                  value={staffer.phone || selectedEntry.phone}
-                                  emptyText="None listed"
-                                  onCopy={copyContact}
-                                />
-                                <StaffContactValue
-                                  icon={<MailOutlined />}
-                                  label="Email"
-                                  value={staffer.email}
-                                  emptyText="None listed"
-                                  onCopy={copyContact}
-                                />
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          <Empty description="No staff records in source snapshot" />
-                        )}
-                      </div>
-                    </div>
-                  ),
-                },
-                {
-                  key: 'bio',
-                  label: 'Bio',
-                  children: (
-                    <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                      {selectedEntry.bio.narrative ? (
-                        <Card size="small" className="directory-bio-card">
-                          <Typography.Text type="secondary">Biography</Typography.Text>
-                          <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-line' }}>
-                            {selectedEntry.bio.narrative}
-                          </Typography.Paragraph>
-                        </Card>
-                      ) : null}
-                      <Row gutter={[24, 16]}>
-                        {[
-                          ['Born', selectedEntry.bio.dob],
-                          ['Birthplace', selectedEntry.bio.birthplace],
-                          ['Hometown', selectedEntry.bio.hometown],
-                          ['Occupation', selectedEntry.bio.occupation],
-                          ['Education', selectedEntry.bio.education],
-                          ['Military Service', selectedEntry.bio.military],
-                          ['Political Family', selectedEntry.bio.relatives],
-                          ['Race', selectedEntry.bio.race],
-                          ['Religion', selectedEntry.bio.religion],
-                          ['Pronunciation', selectedEntry.bio.pronunciation],
-                        ]
-                          .filter(([, value]) => value)
-                          .map(([label, value]) => (
-                            <Col xs={24} sm={12} lg={8} key={label}>
-                              <Card size="small" className="directory-bio-card">
-                                <Typography.Text type="secondary">{label}</Typography.Text>
-                                <Typography.Paragraph>{value || 'N/A'}</Typography.Paragraph>
-                              </Card>
-                            </Col>
-                          ))}
-                      </Row>
-                    </Space>
-                  ),
-                },
-                {
-                  key: 'committees',
-                  label: 'Committees',
-                  children: (
-                    <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                      {selectedEntry.committeeLeadership.length > 0 ? (
-                        <div>
-                          <Typography.Text strong>Leadership roles</Typography.Text>
-                          <Space size={[8, 8]} wrap style={{ display: 'flex', marginTop: 8 }}>
-                            {selectedEntry.committeeLeadership.map((role) => (
-                              <Tag key={role} color="gold" className="directory-large-tag">
-                                {role}
-                              </Tag>
-                            ))}
-                          </Space>
-                        </div>
-                      ) : null}
-                      <div>
-                        {selectedEntry.committeeLeadership.length > 0 ? (
-                          <Typography.Text strong>All committees</Typography.Text>
-                        ) : null}
-                        <Space size={[8, 8]} wrap style={{ display: 'flex', marginTop: 8 }}>
-                          {selectedEntry.committees.length > 0 ? (
-                            selectedEntry.committees.map((committee) => (
-                              <Tag key={committee} className="directory-large-tag">
-                                {committee}
-                              </Tag>
-                            ))
-                          ) : (
-                            <Empty description="No committee data in source snapshot" />
-                          )}
-                        </Space>
-                      </div>
-                    </Space>
-                  ),
-                },
-                {
-                  key: 'leadership',
-                  label: 'Leadership',
-                  children: (
-                    <Space direction="vertical" size={12} style={{ display: 'flex' }}>
-                      {selectedEntry.leadershipPositions.length > 0 ? (
-                        selectedEntry.leadershipPositions.map((position) => (
-                          <Card key={position} size="small" className="directory-leadership-card">
-                            <Typography.Text strong>{position}</Typography.Text>
-                          </Card>
-                        ))
-                      ) : (
-                        <Empty description="No current leadership roles in source snapshot" />
-                      )}
-                    </Space>
-                  ),
-                },
-                {
-                  key: 'links',
-                  label: 'Links',
-                  children: (
-                    <div className="directory-link-grid">
-                      {selectedEntry.officialLinks.map((link) => (
-                        <a
-                          key={`${link.type}-${link.url}`}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <LinkOutlined /> {link.label}
-                        </a>
-                      ))}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'news',
-                  label: 'News',
-                  children: <DirectoryNewsPanel entry={selectedEntry} />,
-                },
-              ]}
-            />
-          </>
-        ) : null}
-      </Modal>
+        onClose={closeEntryProfile}
+      />
 
       <DowPersonDrawer
         open={selectedDowPersonId !== null}
@@ -2313,7 +1906,8 @@ function CopyContactLine({
   );
 }
 
-function CopyableTextRow({
+/** Exported: shared with `DirectoryMemberProfileModal`'s Contact tab. */
+export function CopyableTextRow({
   label,
   value,
   emptyText,
@@ -2352,7 +1946,8 @@ function CopyableTextRow({
   );
 }
 
-function StaffContactValue({
+/** Exported: shared with `DirectoryMemberProfileModal`'s Staff tab. */
+export function StaffContactValue({
   icon,
   label,
   value,
@@ -2384,388 +1979,5 @@ function StaffContactValue({
         />
       ) : null}
     </span>
-  );
-}
-
-function DirectoryNotesPanel({ entry }: { entry: DirectoryEntry }) {
-  const { message } = App.useApp();
-  const api = useApi();
-  const queryClient = useQueryClient();
-  const [body, setBody] = useState('');
-
-  const notes = useQuery<DirectoryContactNote[]>({
-    queryKey: ['directory-contact-notes', entry.id],
-    queryFn: async () =>
-      (
-        await api.get<DirectoryContactNote[]>(
-          `/api/directory/contacts/${encodeURIComponent(entry.id)}/notes`,
-        )
-      ).data,
-    staleTime: 15_000,
-  });
-
-  const createNote = useMutation({
-    mutationFn: async () =>
-      (
-        await api.post<DirectoryContactNote>(
-          `/api/directory/contacts/${encodeURIComponent(entry.id)}/notes`,
-          {
-            body,
-            directoryContactName: entry.fullName,
-          },
-        )
-      ).data,
-    onSuccess: async () => {
-      setBody('');
-      await queryClient.invalidateQueries({ queryKey: ['directory-contact-notes', entry.id] });
-      message.success('Note added.');
-    },
-    onError: (error) => {
-      message.error((error as Error).message || 'Could not add note.');
-    },
-  });
-
-  const trimmedBody = body.trim();
-
-  return (
-    <Card className="directory-side-card directory-notes-card" title="Notes">
-      <Space direction="vertical" size={12} style={{ display: 'flex' }}>
-        <Input.TextArea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Add a tenant-visible note"
-          maxLength={4000}
-          showCount
-          autoSize={{ minRows: 3, maxRows: 7 }}
-        />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          loading={createNote.isPending}
-          disabled={!trimmedBody}
-          onClick={() => createNote.mutate()}
-        >
-          Add note
-        </Button>
-
-        {notes.isLoading ? <Spin size="small" /> : null}
-
-        {!notes.isLoading && (notes.data?.length ?? 0) === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notes yet" />
-        ) : null}
-
-        <div className="directory-note-list">
-          {(notes.data ?? []).map((note) => (
-            <div key={note.id} className="directory-note-preview">
-              <Typography.Paragraph>{note.body}</Typography.Paragraph>
-              <Typography.Text type="secondary">
-                {formatNoteDate(note.createdAt)} by {noteAuthor(note)}
-              </Typography.Text>
-            </div>
-          ))}
-        </div>
-      </Space>
-    </Card>
-  );
-}
-
-interface MemberNewsItem {
-  id: string;
-  title: string;
-  link: string;
-  publishedAt: string | null;
-  summary: string;
-}
-
-interface MemberNewsPayload {
-  contactId: string;
-  memberName: string;
-  newsPressUrl: string | null;
-  rssFeedUrl: string | null;
-  rssSource: string | null;
-  items: MemberNewsItem[];
-  lastSyncedAt: string | null;
-  feedError: 'no_feed' | null;
-}
-
-function formatNewsDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-/**
- * News tab: the member's recent press releases, pre-ingested into member_press_item
- * every ~3 days by the sync-member-press job (no live fetch on profile view). Each
- * item shows title + date + the feed's summary and links out to the full release.
- */
-function DirectoryNewsPanel({ entry }: { entry: DirectoryEntry }) {
-  const api = useApi();
-
-  const query = useQuery<MemberNewsPayload>({
-    queryKey: ['directory-contact-news', entry.id],
-    queryFn: async () =>
-      (
-        await api.get<MemberNewsPayload>(
-          `/api/directory/contacts/${encodeURIComponent(entry.id)}/news`,
-        )
-      ).data,
-    staleTime: 5 * 60_000,
-  });
-
-  const data = query.data;
-  const items = data?.items ?? [];
-
-  const links = (
-    <Space size={8} wrap style={{ marginBottom: 12 }}>
-      {data?.newsPressUrl ? (
-        <Button
-          size="small"
-          icon={<LinkOutlined />}
-          href={data.newsPressUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Press page
-        </Button>
-      ) : null}
-      {data?.rssFeedUrl ? (
-        <Button
-          size="small"
-          icon={<LinkOutlined />}
-          href={data.rssFeedUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          RSS feed
-        </Button>
-      ) : null}
-    </Space>
-  );
-
-  if (query.isLoading) {
-    return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <Spin />
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <>
-        {links}
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            data?.feedError === 'no_feed' && !data?.newsPressUrl
-              ? 'No news feed or press page on file for this member.'
-              : 'No recent press releases.'
-          }
-        >
-          {data?.newsPressUrl ? (
-            <Button type="primary" href={data.newsPressUrl} target="_blank" rel="noreferrer">
-              Open press page
-            </Button>
-          ) : null}
-        </Empty>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {links}
-      <div className="directory-news-list">
-        {items.map((item) => (
-          <div key={item.id} className="directory-news-item">
-            <a
-              className="directory-news-item-title"
-              href={item.link || data?.newsPressUrl || undefined}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {decodeHtmlEntities(item.title)}
-            </a>
-            {item.publishedAt ? (
-              <div className="directory-news-item-date">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {formatNewsDate(item.publishedAt)}
-                </Typography.Text>
-              </div>
-            ) : null}
-            {item.summary ? (
-              <Typography.Paragraph
-                type="secondary"
-                style={{ margin: '4px 0 0' }}
-                ellipsis={{ rows: 3 }}
-              >
-                {decodeHtmlEntities(item.summary)}
-              </Typography.Paragraph>
-            ) : null}
-          </div>
-        ))}
-      </div>
-      {data?.lastSyncedAt ? (
-        <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 12 }}>
-          Updated {formatNewsDate(data.lastSyncedAt)}
-        </Typography.Text>
-      ) : null}
-    </>
-  );
-}
-
-interface MemberFecSummary {
-  contactId: string;
-  memberName: string | null;
-  matchQuality: 'name_approximate';
-  clients: Array<{
-    clientId: string;
-    clientName: string;
-    mappedEmployer: string;
-    totalAmount: number;
-    contributionCount: number;
-    latestContributionDate: string | null;
-  }>;
-  summary: { totalAmount: number; contributionCount: number; clientCount: number };
-  disclaimer: string;
-}
-
-function formatUsd(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-interface MemberRepresentationSummary {
-  clients: Array<{
-    clientId: string;
-    clientName: string;
-    facilities: Array<{ id: string; name: string }>;
-  }>;
-}
-
-/**
- * District Impact Engine (Phase 1 M1.4) — "Represents client facilities":
- * every client (tenant-wide) with a facility in this member's district.
- * Deterministic (bioguideId + district join) — NOT name-matched like the FEC
- * panel below, so no approximate-match disclaimer is needed.
- */
-function DirectoryRepresentationPanel({ entry }: { entry: DirectoryEntry }) {
-  const api = useApi();
-  const query = useQuery<MemberRepresentationSummary>({
-    queryKey: ['directory-contact-representation', entry.id],
-    queryFn: async () =>
-      (
-        await api.get<MemberRepresentationSummary>(
-          `/api/directory/contacts/${encodeURIComponent(entry.id)}/representation-summary`,
-        )
-      ).data,
-    staleTime: 5 * 60_000,
-  });
-  const clients = query.data?.clients ?? [];
-  if (!query.isLoading && clients.length === 0) return null;
-  return (
-    <Card className="directory-side-card" title="Represents client facilities">
-      <Space direction="vertical" size={10} style={{ display: 'flex' }}>
-        {query.isLoading ? (
-          <Spin size="small" />
-        ) : (
-          clients.map((c) => (
-            <div key={c.clientId} className="directory-note-preview">
-              <Typography.Text strong>{c.clientName}</Typography.Text>
-              <div>
-                <Space size={[6, 6]} wrap>
-                  {c.facilities.map((f) => (
-                    <Tag key={f.id}>{f.name}</Tag>
-                  ))}
-                </Space>
-              </div>
-            </div>
-          ))
-        )}
-      </Space>
-    </Card>
-  );
-}
-
-/**
- * Member-scoped FEC relationship: contributions to this member from the tenant's
- * mapped clients' employers. APPROXIMATE (name-matched) — clearly labeled — and
- * wrapped in the API-provided compliance disclaimer. Read-only context only.
- */
-function DirectoryFecPanel({ entry }: { entry: DirectoryEntry }) {
-  const api = useApi();
-  const query = useQuery<MemberFecSummary>({
-    queryKey: ['directory-contact-fec', entry.id],
-    queryFn: async () =>
-      (
-        await api.get<MemberFecSummary>(
-          `/api/directory/contacts/${encodeURIComponent(entry.id)}/fec-summary`,
-        )
-      ).data,
-    staleTime: 5 * 60_000,
-  });
-
-  const data = query.data;
-  const hasData = (data?.clients.length ?? 0) > 0;
-
-  return (
-    <Card
-      className="directory-side-card"
-      title={
-        <Space size={8}>
-          <span>Client FEC relationship</span>
-          <Tag color="default" style={{ fontSize: 10 }}>
-            approximate · name-matched
-          </Tag>
-        </Space>
-      }
-    >
-      <Space direction="vertical" size={10} style={{ display: 'flex' }}>
-        {query.isLoading ? (
-          <Spin size="small" />
-        ) : hasData ? (
-          <>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {formatUsd(data!.summary.totalAmount)} across {data!.summary.contributionCount}{' '}
-              contribution
-              {data!.summary.contributionCount !== 1 ? 's' : ''} from {data!.summary.clientCount}{' '}
-              mapped client
-              {data!.summary.clientCount !== 1 ? 's' : ''}.
-            </Typography.Text>
-            <div className="directory-note-list">
-              {data!.clients.map((c) => (
-                <div key={c.clientId} className="directory-note-preview">
-                  <Space
-                    style={{ justifyContent: 'space-between', display: 'flex', width: '100%' }}
-                  >
-                    <Typography.Text strong>{c.clientName}</Typography.Text>
-                    <Tag color="green">{formatUsd(c.totalAmount)}</Tag>
-                  </Space>
-                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                    via employer {c.mappedEmployer} · {c.contributionCount} contribution
-                    {c.contributionCount !== 1 ? 's' : ''}
-                  </Typography.Text>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No contributions from your mapped clients matched this member."
-          />
-        )}
-
-        <Typography.Paragraph type="secondary" style={{ fontSize: 10, margin: 0, lineHeight: 1.4 }}>
-          {data?.disclaimer ??
-            'Source: public FEC filings, for informational purposes only — not legal or campaign-finance advice. ' +
-              'Matches are approximate (by candidate name) and reflect individual filers, legally distinct from ' +
-              'corporate/PAC giving. Not a recommendation to make any contribution. Verify at FEC.gov.'}
-        </Typography.Paragraph>
-      </Space>
-    </Card>
   );
 }

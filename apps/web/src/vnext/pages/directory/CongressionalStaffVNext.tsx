@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DirectoryEntry, DirectoryStaffMember } from '../../../pages/directory/directoryData.js';
+import { DirectoryMemberProfileModal } from '../../../pages/directory/DirectoryMemberProfileModal.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
@@ -101,6 +102,15 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
   const { search, filters, results, pagination, selection } = model;
   const { total, staffTotal, offices, isInitialLoading, isRefetching } = results;
   const { page, totalPages, pageSize } = pagination;
+
+  // A staffer has no equivalent on canonical's own Directory list — clicking
+  // one there only ever navigates to the plain staff page, so `onOpenProfile`
+  // (below) already matches it. A member does have a richer equivalent: the
+  // same 7-tab modal canonical opens from its own list. `open` is derived from
+  // the current selection, not just this flag, so switching to a staffer or
+  // clearing the selection closes it automatically — the same thing canonical
+  // gets for free from tying its own modal to `selectedEntry !== null`.
+  const [memberProfileOpen, setMemberProfileOpen] = useState(false);
 
   return (
     <DirectoryShell
@@ -293,8 +303,15 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
           selection={selection.selected}
           detail={selection.detail}
           onOpenProfile={selection.onOpenProfile}
+          onOpenMemberProfile={() => setMemberProfileOpen(true)}
         />
       </div>
+
+      <DirectoryMemberProfileModal
+        entry={selection.selected?.kind === 'member' ? selection.selected.member : null}
+        open={memberProfileOpen && selection.selected?.kind === 'member'}
+        onClose={() => setMemberProfileOpen(false)}
+      />
     </DirectoryShell>
   );
 }
@@ -450,10 +467,14 @@ function SelectedProfileRail({
   selection,
   detail,
   onOpenProfile,
+  onOpenMemberProfile,
 }: {
   selection: CongressionalSelection | null;
   detail: CongressionalStaffDetailModel;
+  /** Staff: navigates to the canonical staff page — canonical has no richer equivalent. */
   onOpenProfile: (selection: CongressionalSelection) => void;
+  /** Member: opens the same 7-tab modal canonical's own list uses. */
+  onOpenMemberProfile: () => void;
 }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
@@ -566,7 +587,11 @@ function SelectedProfileRail({
       ) : null}
 
       <div className="capiro-directory-rail__actions">
-        <CapiroButton variant="primary" size="compact" onClick={() => onOpenProfile(selection)}>
+        <CapiroButton
+          variant="primary"
+          size="compact"
+          onClick={() => (isMember ? onOpenMemberProfile() : onOpenProfile(selection))}
+        >
           Open full profile
         </CapiroButton>
         <CapiroButton size="compact" onClick={() => void copyEmail()} disabled={!email}>

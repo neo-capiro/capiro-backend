@@ -142,6 +142,18 @@ function resolveWith(contacts: DirectoryEntry[], total = contacts.length, staffT
         },
       });
     }
+    // The member profile modal's four side panels — shaped to match their real
+    // contracts (an array for notes, `.clients`/`.items` for the rest) rather
+    // than falling through to STAFF_DETAIL, whose unrelated shape crashes
+    // DirectoryNotesPanel's `.map` the moment its query resolves.
+    if (url.endsWith('/notes')) return Promise.resolve({ data: [] });
+    if (url.endsWith('/news')) return Promise.resolve({ data: { items: [] } });
+    if (url.endsWith('/representation-summary')) return Promise.resolve({ data: { clients: [] } });
+    if (url.endsWith('/fec-summary')) {
+      return Promise.resolve({
+        data: { clients: [], summary: { totalAmount: 0, contributionCount: 0, clientCount: 0 } },
+      });
+    }
     return Promise.resolve({ data: STAFF_DETAIL });
   });
 }
@@ -511,17 +523,46 @@ describe('Congressional Staff vNext — search, filters, selection', () => {
     expect(within(rail).getByText('No one selected')).toBeTruthy();
   });
 
-  test('Open full profile resolves to the route for the kind of identity selected', async () => {
+  /**
+   * A staffer has no richer canonical equivalent than the plain profile page —
+   * that route is already parity, so "Open full profile" keeps navigating
+   * there. A member does have a richer equivalent (the 7-tab modal canonical's
+   * own list opens), so the same button opens that instead of navigating away
+   * from the list — matching canonical's own behaviour, where the modal is the
+   * default and the full-page route is only its "Open full profile ↗" escape
+   * hatch.
+   */
+  test('Open full profile opens the rich modal for a member, and still navigates for a staffer', async () => {
     resolveWith([member()]);
     const { unmount } = renderScreen('/directory/congressional-staff?profile=member-1');
     fireEvent.click(await screen.findByRole('button', { name: 'Open full profile' }));
-    expect(await screen.findByText('member profile route')).toBeTruthy();
+    // The modal's own escape hatch — proof this is the rich view, not the plain route.
+    expect(await screen.findByRole('link', { name: /Open full profile ↗/ })).toBeTruthy();
+    expect(screen.queryByText('member profile route')).toBeNull();
     unmount();
 
     resolveWith([member()]);
     renderScreen('/directory/congressional-staff?profile=staff-800');
     fireEvent.click(await screen.findByRole('button', { name: 'Open full profile' }));
     expect(await screen.findByText('staff profile route')).toBeTruthy();
+  });
+
+  test('the member profile modal has a working close control, and stays local rather than navigating', async () => {
+    resolveWith([member()]);
+    renderScreen('/directory/congressional-staff?profile=member-1');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open full profile' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: 'Rep. Elaine Morgan' })).toBeTruthy();
+
+    // Closing is local UI state (`onClose` flips a boolean), not a navigation —
+    // the route underneath must never change. Ant Design's own exit animation
+    // is its concern, not this wiring's: asserting the control exists and is
+    // wired to something clickable is what's actually new here.
+    const closeButton = within(dialog).getByRole('button', { name: 'Close' });
+    expect(closeButton).toBeEnabled();
+    fireEvent.click(closeButton);
+    expect(screen.queryByText('member profile route')).toBeNull();
   });
 
   test('a staffer selected from the URL resolves even while their office is collapsed', async () => {
