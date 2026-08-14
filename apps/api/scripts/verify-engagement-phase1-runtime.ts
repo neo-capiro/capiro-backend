@@ -59,12 +59,13 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
   // Windows nested spawn under the long Phase 2/4-6 verifier chain can
-  // intermittently return STATUS_DLL_INIT_FAILED (0xC0000142 / 3221225794)
-  // from tsc/vitest/node child processes even when the same command is green
-  // in isolation. Retry that specific native crash only — do not retry real
-  // typecheck/test failures. After the first DLL crash on Windows, fall back
-  // to shell:true so CreateProcess resolves through cmd (capacity/resolution
-  // only; same argv).
+  // intermittently:
+  //   - return STATUS_DLL_INIT_FAILED (0xC0000142 / 3221225794)
+  //   - crash tinypool/vitest workers ("Worker exited unexpectedly") with exit 1
+  // even when the same command is green in isolation. Retry only those
+  // infrastructure crash signatures — not real assertion failures.
+  // After the first infrastructure crash on Windows, fall back to shell:true
+  // so CreateProcess resolves through cmd (capacity/resolution only; same argv).
   const dllInitFailed = new Set([3221225794, -1073741502]);
   const maxAttempts = 4;
   let lastStatus: number | null = null;
@@ -73,20 +74,36 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
     const result = spawnSync(resolved.command, resolved.args, {
       cwd,
       env: { ...process.env, CI: 'true' },
-      stdio: 'inherit',
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
       shell: useShell,
       windowsHide: true,
+      maxBuffer: 64 * 1024 * 1024,
     });
     if (result.error) throw result.error;
+    const stdout = result.stdout ?? '';
+    const stderr = result.stderr ?? '';
+    if (stdout) process.stdout.write(stdout);
+    if (stderr) process.stderr.write(stderr);
     lastStatus = result.status;
     if (result.status === 0) return;
-    if (attempt < maxAttempts && result.status != null && dllInitFailed.has(result.status)) {
+
+    const combinedOut = `${stdout}\n${stderr}`;
+    const isDllCrash = result.status != null && dllInitFailed.has(result.status);
+    // Vitest/tinypool worker death surfaces as exit 1 with this signature —
+    // not as the raw Windows status code.
+    const isWorkerCrash =
+      /Worker exited unexpectedly/i.test(combinedOut) ||
+      /tinypool.*onUnexpectedExit/i.test(combinedOut);
+    const isInfraCrash = isDllCrash || isWorkerCrash;
+
+    if (attempt < maxAttempts && isInfraCrash) {
       if (process.platform === 'win32') useShell = true;
-      const delayMs = 1500 * attempt;
+      const delayMs = 2000 * attempt;
       console.warn(
-        `==> ${label}: Windows native crash status ${String(result.status)} (attempt ${attempt}/${maxAttempts}); retrying in ${delayMs}ms shell=${String(useShell)}`,
+        `==> ${label}: infrastructure crash (status=${String(result.status)} worker=${String(isWorkerCrash)} dll=${String(isDllCrash)}) attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms shell=${String(useShell)}`,
       );
-      spawnSync(process.execPath, ['-e', `setTimeout(() => {}, ${delayMs})`], {
+      spawnSync(process.execPath, ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`], {
         stdio: 'ignore',
         windowsHide: true,
       });
