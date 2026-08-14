@@ -7,7 +7,7 @@
  * manifest, regression, build failure, skipped suite, or web-routing drift.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
 import * as path from 'node:path';
 
 const API_DIR = path.resolve(__dirname, '..');
@@ -229,13 +229,15 @@ function main(): void {
     '.', ':(exclude)docs/plans/**/*.md',
   ]);
 
-  console.log('\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE');
+  // Write COMPLETE unbuffered so redirected nested logs see it before Windows
+  // process teardown can hang the parent (stdbuf alone is not enough for Node).
+  writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
 }
 
 try {
   main();
 } catch (error) {
-  console.error('\nENGAGEMENT_PHASE1_DB_FREE_FAILED');
+  writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
   console.error(error instanceof Error ? error.stack ?? error.message : String(error));
   process.exit(1);
 }

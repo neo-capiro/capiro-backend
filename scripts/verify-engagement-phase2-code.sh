@@ -82,13 +82,19 @@ if [ "$FAST" -eq 1 ]; then
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
   # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang forever on
-  # Windows nested teardown (0xC0000142). Poll the log for COMPLETE/FAILED and
-  # stop waiting as soon as either lands — do not block on pnpm exit.
+  # Windows nested teardown (0xC0000142). Force line-buffered stdout so the
+  # COMPLETE marker hits the log before hang, poll for it, then reap the tree.
   # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains fail-closed.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
   : >"$p1_log"
   set +e
-  pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
+  # stdbuf -oL -eL: without this, redirected Node output is fully buffered and
+  # COMPLETE may only flush on process exit — which never comes after DLL teardown.
+  if command -v stdbuf >/dev/null 2>&1; then
+    stdbuf -oL -eL pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
+  else
+    pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
+  fi
   p1_pid=$!
   p1_deadline=$((SECONDS + 1500))
   p1_rc=124
@@ -121,16 +127,9 @@ else
     wait "$p1_pid" 2>/dev/null || true
   fi
   set -e
-  if [ "$p1_rc" -eq 0 ] || \
-     { grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
-       ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; }; then
-    if [ "$p1_rc" -eq 0 ] && ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log"; then
-      # exited 0 without marker is unexpected but gate() previously treated rc=0 as pass;
-      # require COMPLETE for honesty.
-      fail "Phase 1 DB-free verifier  (exit 0 without COMPLETE; see $p1_log)"
-    else
-      pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
-    fi
+  if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
+     ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
+    pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
   else
     fail "Phase 1 DB-free verifier  (see $p1_log)"
   fi
