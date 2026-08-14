@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import {
   attachmentKindIcon,
   truncateFilenameMiddle,
@@ -13,6 +19,7 @@ interface VNextMeriComposerProps {
   variant: 'landing' | 'pinned';
   /** Whether the thread has messages (affects placeholder). */
   hasThread: boolean;
+  onOpenIntegrations: () => void;
 }
 
 function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
@@ -23,9 +30,15 @@ function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
   );
 }
 
-export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriComposerProps) {
+export function VNextMeriComposer({
+  controller,
+  variant,
+  hasThread,
+  onOpenIntegrations,
+}: VNextMeriComposerProps) {
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -47,9 +60,10 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
   } = controller;
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
-  const canSend = draft.trim().length > 0 && !isStreaming && !uploadsInFlight;
+  const busy = isStreaming || submitting;
+  const canSend = draft.trim().length > 0 && !busy && !uploadsInFlight;
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
-  const scopeLabel = selectedClient ? selectedClient.name.toUpperCase() : 'THREAD';
+  const scopeLabel = selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS';
   const contextLabel = selectedClient
     ? `${selectedClient.name.toUpperCase()} · CAPIRO CONTEXT`
     : 'CAPIRO SOURCES IN CONTEXT';
@@ -79,25 +93,47 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
     const onPointerDown = (event: PointerEvent) => {
       if (!addRef.current?.contains(event.target as Node)) setAddOpen(false);
     };
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setAddOpen(false);
+    };
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [addOpen]);
 
   const submit = useCallback(
-    (forced?: string) => {
+    async (forced?: string) => {
       const content = (forced ?? draft).trim();
-      if (!content || isStreaming || uploadsInFlight) return;
-      void sendMessage(content);
+      if (!content || busy || uploadsInFlight) return;
+
+      // Clear optimistically so accepted messages feel immediate, but restore
+      // the exact text when route-level creation rejects the send. The old
+      // composer discarded the user's first prompt even when no thread existed.
+      setSubmitting(true);
       setDraft('');
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      try {
+        await sendMessage(content);
+      } catch {
+        setDraft((current) => current || content);
+        window.setTimeout(() => textareaRef.current?.focus(), 0);
+      } finally {
+        setSubmitting(false);
+      }
     },
-    [draft, isStreaming, uploadsInFlight, sendMessage],
+    [busy, draft, sendMessage, uploadsInFlight],
   );
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter confirms an IME composition on many keyboards. Sending that event
+    // truncated Japanese/Chinese/Korean input before the browser committed it.
+    if (event.nativeEvent.isComposing) return;
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      submit();
+      void submit();
     }
   };
 
@@ -108,6 +144,7 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
           <div className="vnext-meri__add-popover-eyebrow">ADD TO CONVERSATION</div>
           <button
             type="button"
+            role="menuitem"
             className="vnext-meri__add-popover-item"
             onClick={() => {
               setAddOpen(false);
@@ -118,67 +155,43 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Upload file</span>
               <span className="vnext-meri__add-popover-item-desc">
-                ATTACH DOCUMENTS OR DATA
+                ATTACH DOCUMENTS, DATA, OR IMAGES
               </span>
             </span>
           </button>
           <button
             type="button"
+            role="menuitem"
             className="vnext-meri__add-popover-item"
-            onClick={() => setAddOpen(false)}
+            onClick={() => {
+              setAddOpen(false);
+              setDraft((current) => (current ? `${current}\n\nNote: ` : 'Note: '));
+              window.setTimeout(() => textareaRef.current?.focus(), 0);
+            }}
           >
             <span className="vnext-meri__add-popover-tile">N</span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Add note</span>
-              <span className="vnext-meri__add-popover-item-desc">CAPTURE A THOUGHT OR IDEA</span>
+              <span className="vnext-meri__add-popover-item-desc">CAPTURE CONTEXT IN THIS TURN</span>
             </span>
           </button>
           <button
             type="button"
+            role="menuitem"
             className="vnext-meri__add-popover-item"
-            onClick={() => setAddOpen(false)}
+            onClick={() => {
+              setAddOpen(false);
+              onOpenIntegrations();
+            }}
           >
-            <span className="vnext-meri__add-popover-tile">H</span>
+            <span className="vnext-meri__add-popover-tile">C</span>
             <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect HubSpot</span>
-              <span className="vnext-meri__add-popover-item-desc">PULL CRM RECORDS</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="vnext-meri__add-popover-item"
-            onClick={() => setAddOpen(false)}
-          >
-            <span className="vnext-meri__add-popover-tile">S</span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
-              <span className="vnext-meri__add-popover-item-desc">BROWSE TEAM DOCUMENTS</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="vnext-meri__add-popover-item"
-            onClick={() => setAddOpen(false)}
-          >
-            <span className="vnext-meri__add-popover-tile">A</span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect Airtable</span>
-              <span className="vnext-meri__add-popover-item-desc">ATTACH BASE CONTEXT</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="vnext-meri__add-popover-item"
-            onClick={() => setAddOpen(false)}
-          >
-            <span className="vnext-meri__add-popover-tile">W</span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
-              <span className="vnext-meri__add-popover-item-desc">REUSE CONTENT OR CHATS</span>
+              <span className="vnext-meri__add-popover-item-label">Manage connected apps</span>
+              <span className="vnext-meri__add-popover-item-desc">HUBSPOT, AIRTABLE, AND MORE</span>
             </span>
           </button>
           <div className="vnext-meri__add-popover-footer">
-            EVERYTHING ADDED HERE IS SCOPED TO THIS THREAD AND LOGGED
+            FILES ARE SCOPED TO THIS TURN · APP ACCESS FOLLOWS TENANT POLICY
           </div>
         </div>
       ) : null}
@@ -243,8 +256,11 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
             type="button"
             className="vnext-meri__composer-add-btn"
             title="Add to conversation"
-            disabled={isStreaming}
-            onClick={() => setAddOpen((open) => !open)}
+            disabled={busy}
+            onClick={() => {
+              setScopeOpen(false);
+              setAddOpen((open) => !open);
+            }}
             aria-haspopup="menu"
             aria-expanded={addOpen}
           >
@@ -254,14 +270,17 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
             ref={textareaRef}
             rows={1}
             value={draft}
-            disabled={isStreaming}
+            disabled={busy}
             placeholder={
               hasThread
                 ? 'Ask about this thread, or draft an action…'
                 : 'Ask across your clients, or start a piece of work…'
             }
             aria-label="Message Meri"
-            onFocus={() => setFocused(true)}
+            onFocus={() => {
+              setFocused(true);
+              setAddOpen(false);
+            }}
             onBlur={() => setFocused(false)}
             onChange={(event) => setDraft(event.target.value)}
             onInput={(event) => {
@@ -279,7 +298,11 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
             <button
               type="button"
               className="vnext-meri__composer-scope-btn"
-              onClick={() => setScopeOpen((open) => !open)}
+              disabled={busy}
+              onClick={() => {
+                setAddOpen(false);
+                setScopeOpen((open) => !open);
+              }}
               aria-haspopup="menu"
               aria-expanded={scopeOpen}
             >
@@ -290,27 +313,21 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
                 className="vnext-meri__scope-menu"
                 role="menu"
                 aria-label="Conversation scope"
-                /* transform must be cleared too: the class centres the topbar
-                   copy of this menu with translateX(-50%), which here shifted
-                   it 150px left of its trigger. */
+                /* The shared class is topbar-centred (`top: 44px` plus a
+                   translate). Clear every opposing property for the composer
+                   copy so it stays anchored above its own trigger. */
                 style={{
                   position: 'absolute',
+                  top: 'auto',
                   bottom: 'calc(100% + 6px)',
                   left: 0,
                   transform: 'none',
                 }}
               >
-                <button
-                  type="button"
-                  className="vnext-meri__scope-menu-item"
-                  onClick={() => setScopeOpen(false)}
-                >
-                  <span className="vnext-meri__scope-menu-item-label">This thread</span>
-                  <span className="vnext-meri__scope-menu-item-meta">THREAD SOURCES</span>
-                </button>
                 {clients.map((client) => (
                   <button
                     type="button"
+                    role="menuitem"
                     key={client.id}
                     className="vnext-meri__scope-menu-item"
                     onClick={() => {
@@ -324,6 +341,7 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
                 ))}
                 <button
                   type="button"
+                  role="menuitem"
                   className="vnext-meri__scope-menu-item"
                   onClick={() => {
                     setScopeOpen(false);
@@ -339,12 +357,10 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
             ) : null}
           </div>
 
-          <button type="button" className="vnext-meri__composer-context-label">
-            {contextLabel}
-          </button>
+          <span className="vnext-meri__composer-context-label">{contextLabel}</span>
 
           <span className="vnext-meri__composer-send-hint">
-            {isStreaming ? '■ STOP' : '⏎ SEND'}
+            {isStreaming ? '■ STOP' : submitting ? 'STARTING…' : '⏎ SEND'}
           </span>
 
           {isStreaming ? (
@@ -359,9 +375,9 @@ export function VNextMeriComposer({ controller, variant, hasThread }: VNextMeriC
           ) : (
             <button
               type="button"
-              className={`vnext-meri__composer-send-btn${canSend ? '' : ''}`}
+              className={`vnext-meri__composer-send-btn${canSend ? ' is-ready' : ''}`}
               disabled={!canSend}
-              onClick={() => submit()}
+              onClick={() => void submit()}
               aria-label="Send"
             >
               ↑

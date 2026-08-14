@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import {
+  useManagedMcpApps,
+  type ManagedApp,
+} from '../../components/chat/managed-mcp-apps.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 
 interface VNextMeriContextRailProps {
@@ -14,6 +18,15 @@ const QUICK_ACTIONS = [
   { icon: 'C', label: 'Compare budget marks' },
 ];
 
+const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
+
+function appStatus(app: ManagedApp): string {
+  if (app.connected) return 'CONNECTED';
+  if (app.status === 'needs_reauth') return 'RECONNECT';
+  if (app.status === 'error') return 'ERROR';
+  return app.available ? 'AVAILABLE' : 'UNAVAILABLE';
+}
+
 export function VNextMeriContextRail({
   controller,
   collapsed,
@@ -23,20 +36,41 @@ export function VNextMeriContextRail({
   const [ctxOpen, setCtxOpen] = useState(true);
   const [srcOpen, setSrcOpen] = useState(true);
   const [actOpen, setActOpen] = useState(true);
+  const managed = useManagedMcpApps();
 
-  // Context items: derived from the controller's staged attachments and
-  // active conversation. The context store is not yet wired from the
-  // orchestrator (see GAPS.md), so we show the explicit empty state rather
-  // than fabricating items.
-  const contextItems: { title: string; kind: string }[] = [];
+  // The previous rail always displayed zero active context even when files were
+  // staged or restored with a durable message. Derive the list from the same
+  // controller payload that is actually sent to Meri and deduplicate by server
+  // attachment id (falling back to the local upload id while a file is pending).
+  const contextItems = useMemo(() => {
+    const items = new Map<string, { id: string; title: string; kind: string }>();
+    for (const attachment of controller.stagedAttachments) {
+      if (UNUSABLE_ATTACHMENT_STATES.has(attachment.status)) continue;
+      const key = attachment.id || attachment.localId;
+      items.set(key, {
+        id: key,
+        title: attachment.filename,
+        kind:
+          attachment.status === 'uploading'
+            ? 'UPLOADING'
+            : String(attachment.kind || 'file').replace(/_/g, ' ').toUpperCase(),
+      });
+    }
+    for (const message of controller.messages) {
+      for (const attachment of message.attachments ?? []) {
+        if (UNUSABLE_ATTACHMENT_STATES.has(attachment.status)) continue;
+        items.set(attachment.id, {
+          id: attachment.id,
+          title: attachment.filename,
+          kind: String(attachment.kind || 'file').replace(/_/g, ' ').toUpperCase(),
+        });
+      }
+    }
+    return [...items.values()];
+  }, [controller.messages, controller.stagedAttachments]);
 
-  // Connected sources: the managed MCP apps hook is available through the
-  // integrations page, but for the rail we show a static representation of
-  // what the tenant has. A gap exists for live source count (GAPS.md).
-  const connectedSources = [
-    { letter: 'H', name: 'HubSpot', connected: false },
-    { letter: 'A', name: 'Airtable', connected: false },
-  ];
+  const connectedSources = managed?.apps ?? [];
+  const connectedCount = connectedSources.filter((source) => source.connected).length;
 
   if (collapsed) {
     return (
@@ -70,7 +104,7 @@ export function VNextMeriContextRail({
             onClick={onToggle}
           >
             🔗
-            <span className="vnext-meri__rail-badge">{connectedSources.length}</span>
+            <span className="vnext-meri__rail-badge">{connectedCount}</span>
           </button>
           <button
             type="button"
@@ -92,7 +126,6 @@ export function VNextMeriContextRail({
       aria-label="Context panel"
     >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Active Context */}
         <div className="vnext-meri__rail-section">
           <div className="vnext-meri__rail-section-head">
             <button
@@ -107,6 +140,7 @@ export function VNextMeriContextRail({
               type="button"
               className="vnext-meri__rail-section-toggle"
               onClick={() => setCtxOpen((open) => !open)}
+              aria-expanded={ctxOpen}
             >
               <span className="vnext-meri__section-label">ACTIVE CONTEXT</span>
               <span style={{ color: 'var(--meri-text-faint)' }}>{ctxOpen ? '▾' : '▸'}</span>
@@ -116,39 +150,34 @@ export function VNextMeriContextRail({
             <div className="vnext-meri__rail-section-content">
               {contextItems.length > 0 ? (
                 <div className="vnext-meri__ctx-list">
-                  {contextItems.map((item, i) => (
-                    <div key={i} className="vnext-meri__ctx-item">
+                  {contextItems.map((item) => (
+                    <div key={item.id} className="vnext-meri__ctx-item">
                       <span className="vnext-meri__ctx-item-tile">●</span>
                       <div className="vnext-meri__ctx-item-body">
                         <span className="vnext-meri__ctx-item-title">{item.title}</span>
                         <span className="vnext-meri__ctx-item-kind">{item.kind}</span>
                       </div>
-                      <span className="vnext-meri__ctx-item-dot" title="Verified" />
+                      <span className="vnext-meri__ctx-item-dot" title="Included in this thread" />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="vnext-meri__ctx-empty">
-                  No context included. Meri will answer from client scope alone.
+                  No files are included. Add a file from the composer when this thread needs
+                  document-specific context.
                 </div>
               )}
-              <button
-                type="button"
-                className="vnext-meri__rail-action-btn"
-              >
-                ⚙ Manage context
-              </button>
             </div>
           ) : null}
         </div>
 
-        {/* Connected Sources */}
         <div className="vnext-meri__rail-section">
           <div className="vnext-meri__rail-section-head">
             <button
               type="button"
               className="vnext-meri__rail-section-toggle"
               onClick={() => setSrcOpen((open) => !open)}
+              aria-expanded={srcOpen}
             >
               <span className="vnext-meri__section-label">CONNECTED SOURCES</span>
               <span style={{ color: 'var(--meri-text-faint)' }}>{srcOpen ? '▾' : '▸'}</span>
@@ -156,27 +185,37 @@ export function VNextMeriContextRail({
           </div>
           {srcOpen ? (
             <div className="vnext-meri__rail-section-content">
-              <div>
-                {connectedSources.map((source) => (
-                  <button
-                    type="button"
-                    key={source.name}
-                    className="vnext-meri__source-row"
-                    onClick={onOpenIntegrations}
-                  >
-                    <span className="vnext-meri__source-tile">{source.letter}</span>
-                    <span className="vnext-meri__source-name">{source.name}</span>
-                    <span
-                      className={`vnext-meri__source-state${source.connected ? ' is-connected' : ''}`}
+              {managed?.loading && connectedSources.length === 0 ? (
+                <div className="vnext-meri__ctx-empty">Loading connected apps…</div>
+              ) : connectedSources.length === 0 ? (
+                <div className="vnext-meri__ctx-empty">
+                  {managed?.error || 'No managed apps are configured for this tenant.'}
+                </div>
+              ) : (
+                <div>
+                  {connectedSources.map((source) => (
+                    <button
+                      type="button"
+                      key={source.id}
+                      className="vnext-meri__source-row"
+                      onClick={onOpenIntegrations}
                     >
-                      {source.connected ? 'CONNECTED' : 'AVAILABLE'}
-                    </span>
-                    <span
-                      className={`vnext-meri__source-dot${source.connected ? ' is-connected' : ''}`}
-                    />
-                  </button>
-                ))}
-              </div>
+                      <span className="vnext-meri__source-tile">
+                        {source.name.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="vnext-meri__source-name">{source.name}</span>
+                      <span
+                        className={`vnext-meri__source-state${source.connected ? ' is-connected' : ''}`}
+                      >
+                        {appStatus(source)}
+                      </span>
+                      <span
+                        className={`vnext-meri__source-dot${source.connected ? ' is-connected' : ''}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className="vnext-meri__rail-action-btn"
@@ -188,12 +227,12 @@ export function VNextMeriContextRail({
           ) : null}
         </div>
 
-        {/* Quick Actions */}
         <div className="vnext-meri__rail-section">
           <button
             type="button"
             className="vnext-meri__rail-section-toggle"
             onClick={() => setActOpen((open) => !open)}
+            aria-expanded={actOpen}
           >
             <span className="vnext-meri__section-label">QUICK ACTIONS</span>
             <span style={{ color: 'var(--meri-text-faint)' }}>{actOpen ? '▾' : '▸'}</span>
@@ -206,6 +245,7 @@ export function VNextMeriContextRail({
                     type="button"
                     key={action.label}
                     className="vnext-meri__action-item"
+                    disabled={controller.isStreaming}
                     onClick={() => void controller.sendMessage(action.label)}
                   >
                     <span className="vnext-meri__action-tile">{action.icon}</span>

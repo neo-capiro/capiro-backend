@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
@@ -49,6 +50,8 @@ export function VNextMeriShell({ controller }: VNextMeriShellProps) {
   const me = useMe();
   const navigate = useNavigate();
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [threadSearch, setThreadSearch] = useState('');
+  const threadSearchRef = useRef<HTMLInputElement>(null);
 
   // The context rail defaults to the icon strip at tablet and below, where two
   // full rails would leave the transcript narrower than either of them. This
@@ -74,12 +77,11 @@ export function VNextMeriShell({ controller }: VNextMeriShellProps) {
     };
   }, []);
 
-  // ⌘K shortcut — could open a palette in the future
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        // Command palette is a future milestone; for now, focus is a no-op.
+        threadSearchRef.current?.focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -87,6 +89,7 @@ export function VNextMeriShell({ controller }: VNextMeriShellProps) {
   }, []);
 
   const handleNewChat = () => {
+    setThreadSearch('');
     void controller.handleNewSession();
   };
 
@@ -95,30 +98,41 @@ export function VNextMeriShell({ controller }: VNextMeriShellProps) {
   };
 
   return (
-    <div className="vnext-meri" aria-label="Meri workspace">
-      <VNextMeriTopBar controller={controller} me={me.data} onNewChat={handleNewChat} />
-
-      <div className="vnext-meri__body">
-        <VNextMeriThreadRail
+    <ManagedMcpAppsProvider>
+      <div className="vnext-meri" aria-label="Meri workspace">
+        <VNextMeriTopBar
           controller={controller}
+          me={me.data}
           onNewChat={handleNewChat}
-          onOpenIntegrations={handleOpenIntegrations}
+          onSearch={() => threadSearchRef.current?.focus()}
         />
 
-        <VNextMeriConversation
-          controller={controller}
-          userLabel={personName}
-          greetingName={greetingName}
-          tenantName={tenantName}
-        />
+        <div className="vnext-meri__body">
+          <VNextMeriThreadRail
+            controller={controller}
+            onNewChat={handleNewChat}
+            onOpenIntegrations={handleOpenIntegrations}
+            searchQuery={threadSearch}
+            onSearchQueryChange={setThreadSearch}
+            searchInputRef={threadSearchRef}
+          />
 
-        <VNextMeriContextRail
-          controller={controller}
-          collapsed={railCollapsed}
-          onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
-          onOpenIntegrations={handleOpenIntegrations}
-        />
+          <VNextMeriConversation
+            controller={controller}
+            userLabel={personName}
+            greetingName={greetingName}
+            tenantName={tenantName}
+            onOpenIntegrations={handleOpenIntegrations}
+          />
+
+          <VNextMeriContextRail
+            controller={controller}
+            collapsed={railCollapsed}
+            onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
+            onOpenIntegrations={handleOpenIntegrations}
+          />
+        </div>
       </div>
-    </div>
+    </ManagedMcpAppsProvider>
   );
 }

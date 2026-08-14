@@ -6,6 +6,7 @@ interface VNextMeriTopBarProps {
   controller: MeriChatController;
   me: MeResponse | undefined;
   onNewChat: () => void;
+  onSearch: () => void;
 }
 
 const PRO_TIPS = [
@@ -25,7 +26,12 @@ const PRO_TIPS = [
   },
 ];
 
-export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarProps) {
+export function VNextMeriTopBar({
+  controller,
+  me,
+  onNewChat,
+  onSearch,
+}: VNextMeriTopBarProps) {
   const [scopeOpen, setScopeOpen] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -66,7 +72,10 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setTipOpen(false);
+      if (event.key === 'Escape') {
+        setTipOpen(false);
+        setScopeOpen(false);
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -95,6 +104,7 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
         <button
           type="button"
           className="vnext-meri__scope-trigger"
+          disabled={controller.isStreaming}
           onClick={() => setScopeOpen((open) => !open)}
           aria-haspopup="menu"
           aria-expanded={scopeOpen}
@@ -108,6 +118,7 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
             {clients.map((client) => (
               <button
                 type="button"
+                role="menuitem"
                 key={client.id}
                 className="vnext-meri__scope-menu-item"
                 onClick={() => {
@@ -121,6 +132,7 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
             ))}
             <button
               type="button"
+              role="menuitem"
               className="vnext-meri__scope-menu-item"
               onClick={() => {
                 setScopeOpen(false);
@@ -140,7 +152,9 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
         <button
           type="button"
           className="vnext-meri__icon-btn"
-          title="Search — ⌘K"
+          title="Search threads — ⌘K"
+          aria-label="Search threads"
+          onClick={onSearch}
         >
           🔍
         </button>
@@ -148,6 +162,7 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
           type="button"
           className="vnext-meri__icon-btn"
           title="New chat"
+          aria-label="Start a new chat"
           onClick={onNewChat}
         >
           +
@@ -155,7 +170,9 @@ export function VNextMeriTopBar({ controller, me, onNewChat }: VNextMeriTopBarPr
         <button
           type="button"
           className="vnext-meri__icon-btn"
-          title="Help"
+          title="Meri help"
+          aria-label="Open Meri help"
+          onClick={() => setTipOpen(true)}
         >
           ?
         </button>

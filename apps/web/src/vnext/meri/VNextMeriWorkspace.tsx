@@ -16,8 +16,10 @@ import {
   getChatStateSnapshot,
   replaceChatSession,
   setActiveConversation,
+  setChatSession,
   setConversations,
   setMeriSurfaceMode,
+  upsertConversation,
   useChatStore,
   type ChatMessage,
   type MeriConversation,
@@ -31,9 +33,11 @@ import { VNextMeriShell } from './VNextMeriShell.js';
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
+  meriContextRequest,
   newestConversation,
   normalizeConversation,
   threadIdFromPath,
+  withoutMeriContext,
   type PersistedMessage,
 } from './meri-route-state.js';
 
@@ -59,13 +63,17 @@ function historyMessage(value: unknown): ChatMessage | null {
   };
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 /**
  * vNext route adapter for the existing MeriV3 conversation runtime.
  *
  * The canonical controller remains untouched. This adapter owns durable URL
  * semantics and one deliberate lifecycle difference: `/meri/new` stays
  * record-free until the first user Send. The existing controller still owns
- * creation, streaming, stop/abort, attachments, research, actions and memory.
+ * streaming, stop/abort, attachments, research, actions and memory.
  */
 export function VNextMeriWorkspace() {
   const me = useMe();
@@ -83,8 +91,11 @@ export function VNextMeriWorkspace() {
 
   const [routeReady, setRouteReady] = useState(false);
   const [routeClients, setRouteClients] = useState<ClientOption[]>([]);
+  const [routeClientsError, setRouteClientsError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
   const pendingSendRef = useRef<SendArgs | null>(null);
+  const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -158,11 +169,75 @@ export function VNextMeriWorkspace() {
     [authHeaders],
   );
 
+  /**
+   * Create the durable row at the vNext first-Send boundary without calling the
+   * canonical `handleNewSession` reset. That reset intentionally clears staged
+   * attachments; invoking it after the user had already uploaded files made the
+   * first turn lose those files. This uses the same endpoint and store contract
+   * as the controller while leaving the controller's staged payload intact for
+   * its subsequent `sendMessage` call.
+   */
+  const createRecordFreeSession = useCallback(async (): Promise<string> => {
+    const response = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        clientId: selectedClientId || undefined,
+        title: 'Chat session',
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `Conversation creation failed (${response.status}).`);
+    }
+    const data = (await response.json()) as {
+      id?: unknown;
+      title?: unknown;
+      clientId?: unknown;
+      updatedAt?: unknown;
+    };
+    if (typeof data.id !== 'string' || !data.id) {
+      throw new Error('Conversation creation returned an unexpected response.');
+    }
+
+    const createdClientId = typeof data.clientId === 'string' ? data.clientId : null;
+    const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
+    const createdClient = createdClientId
+      ? (availableClients.find((client) => client.id === createdClientId) ?? null)
+      : null;
+    upsertConversation({
+      id: data.id,
+      title:
+        typeof data.title === 'string' && data.title.trim() ? data.title : 'Chat session',
+      clientId: createdClientId,
+      client: createdClient,
+      latestMessage: null,
+      updatedAt:
+        typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+    });
+    setChatSession(data.id);
+    setActiveConversation(data.id);
+    return data.id;
+  }, [authHeaders, controller.clients, routeClients, selectedClientId]);
+
   const prepareRecordFreeNewThread = useCallback(
     async (replace = false) => {
       pendingSendRef.current = null;
+      setIsCreatingThread(false);
       setRouteReady(false);
       controller.handleStop();
+      // A deliberate New Chat must not carry staged files or mode state from the
+      // previous thread. Integrations navigation does not call this reset, so a
+      // user can still configure an app and return to an in-progress new turn.
+      for (const attachment of controller.stagedAttachments) {
+        controller.removeStagedAttachment(attachment.localId);
+      }
+      controller.setWriteMode(false);
+      controller.setResearchMode(false);
+      controller.setResearchAwaitingAnswers(false);
+      controller.setResearchQuestions([]);
+      controller.researchSessionRef.current = null;
+      controller.setActiveArtifact(null);
       // Close first. Otherwise the canonical controller's established
       // "open + no session => create" effect could race the state clear below.
       setMeriSurfaceMode('closed');
@@ -173,22 +248,50 @@ export function VNextMeriWorkspace() {
       if (location.pathname !== '/meri/new') navigate('/meri/new', { replace });
       else setRouteReady(true);
     },
-    [controller.handleStop, controller.setSessionTitle, location.pathname, navigate],
+    [
+      controller.handleStop,
+      controller.removeStagedAttachment,
+      controller.researchSessionRef,
+      controller.setActiveArtifact,
+      controller.setResearchAwaitingAnswers,
+      controller.setResearchMode,
+      controller.setResearchQuestions,
+      controller.setSessionTitle,
+      controller.setWriteMode,
+      controller.stagedAttachments,
+      location.pathname,
+      navigate,
+    ],
   );
 
-  // Bootstrap each URL from server-authoritative thread/client state.
+  // Bootstrap each URL from server-authoritative thread/client state. A client
+  // roster outage must not block a general Meri thread, while conversation
+  // history remains required for durable route resolution.
   useEffect(() => {
     const sequence = ++bootSequenceRef.current;
     let cancelled = false;
     setRouteReady(false);
     setRouteError(null);
+    setRouteClientsError(null);
 
     void (async () => {
       try {
-        const [clients, history] = await Promise.all([loadClients(), loadConversations()]);
+        const [clientsResult, historyResult] = await Promise.allSettled([
+          loadClients(),
+          loadConversations(),
+        ]);
         if (cancelled || sequence !== bootSequenceRef.current) return;
+        if (historyResult.status === 'rejected') throw historyResult.reason;
+
+        const clients = clientsResult.status === 'fulfilled' ? clientsResult.value : [];
         setRouteClients(clients);
-        setConversations(history);
+        setRouteClientsError(
+          clientsResult.status === 'rejected'
+            ? errorMessage(clientsResult.reason, 'Client scope could not be loaded.')
+            : null,
+        );
+        setConversations(historyResult.value);
+        const history = historyResult.value;
 
         if (isIntegrationsRoute) {
           // Integrations is addressable but must not select/create a conversation
@@ -240,7 +343,7 @@ export function VNextMeriWorkspace() {
       } catch (error) {
         if (cancelled || sequence !== bootSequenceRef.current) return;
         setMeriSurfaceMode('closed');
-        setRouteError(error instanceof Error ? error.message : 'Meri could not be opened.');
+        setRouteError(errorMessage(error, 'Meri could not be opened.'));
         setRouteReady(true);
       }
     })();
@@ -260,7 +363,8 @@ export function VNextMeriWorkspace() {
     requestedThreadId,
   ]);
 
-  // First Send is the durable creation boundary for `/meri/new`.
+  // First Send is the durable creation boundary for `/meri/new`. A synchronous
+  // ref lock closes the double-click gap before React can publish the busy state.
   const sendMessage = useCallback(
     async (...args: SendArgs) => {
       if (controller.sessionId) {
@@ -268,16 +372,32 @@ export function VNextMeriWorkspace() {
         await controller.sendMessage(...args);
         return;
       }
-      if (pendingSendRef.current) return;
+      if (pendingSendRef.current || isCreatingThread) {
+        throw new Error('Meri is still creating this thread. Your message was not duplicated.');
+      }
+
       pendingSendRef.current = args;
+      setIsCreatingThread(true);
       setRouteError(null);
-      await controller.handleNewSession();
+      try {
+        await createRecordFreeSession();
+      } catch (error) {
+        pendingSendRef.current = null;
+        setIsCreatingThread(false);
+        const message = errorMessage(error, 'Meri could not create the thread. Nothing was sent.');
+        setRouteError(message);
+        throw new Error(message);
+      }
+
       if (!getChatStateSnapshot().sessionId) {
         pendingSendRef.current = null;
-        setRouteError('Meri could not create the thread. Nothing was sent.');
+        setIsCreatingThread(false);
+        const message = 'Meri could not create the thread. Nothing was sent.';
+        setRouteError(message);
+        throw new Error(message);
       }
     },
-    [controller.handleNewSession, controller.sendMessage, controller.sessionId],
+    [controller.sendMessage, controller.sessionId, createRecordFreeSession, isCreatingThread],
   );
 
   useEffect(() => {
@@ -287,14 +407,81 @@ export function VNextMeriWorkspace() {
     setMeriSurfaceMode('undocked');
     const target = `/meri/t/${encodeURIComponent(controller.sessionId)}`;
     if (location.pathname !== target) navigate(target, { replace: true });
-    void controller.sendMessage(...pending);
+    void controller.sendMessage(...pending).catch((error) => {
+      setRouteError(errorMessage(error, 'Meri could not send this message.'));
+    });
+    setIsCreatingThread(false);
   }, [controller.sendMessage, controller.sessionId, location.pathname, navigate]);
 
-  // The shared thread rail writes the selected durable conversation into the
-  // store. Reflect successful selection in the URL so Back/Forward/refresh keep
-  // the same thread. Integrations remains independent of thread selection.
+  // Consume contextual vNext launches exactly once. Client scope is validated
+  // before the URL is cleared or a turn is sent; an unavailable client fails
+  // closed rather than silently sending the prompt across the whole portfolio.
+  useEffect(() => {
+    if (!routeReady || !isNewRoute) return;
+    const request = meriContextRequest(location.search);
+    if (!request) {
+      handledContextRef.current = null;
+      return;
+    }
+    const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}`;
+    if (handledContextRef.current === requestKey) return;
+
+    const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
+    if (request.clientId) {
+      if (routeClientsError && availableClients.length === 0) {
+        handledContextRef.current = requestKey;
+        navigate(
+          { pathname: location.pathname, search: withoutMeriContext(location.search) },
+          { replace: true },
+        );
+        setRouteError('Client scope could not be verified. Nothing was sent.');
+        return;
+      }
+      if (!availableClients.some((client) => client.id === request.clientId)) {
+        handledContextRef.current = requestKey;
+        navigate(
+          { pathname: location.pathname, search: withoutMeriContext(location.search) },
+          { replace: true },
+        );
+        setRouteError('The selected client is no longer available. Nothing was sent.');
+        return;
+      }
+      if (selectedClientId !== request.clientId) {
+        setSelectedClientId(request.clientId);
+        return;
+      }
+    }
+
+    handledContextRef.current = requestKey;
+    navigate(
+      { pathname: location.pathname, search: withoutMeriContext(location.search) },
+      { replace: true },
+    );
+    if (!request.prompt) return;
+    void sendMessage(request.prompt).catch((error) => {
+      setRouteError(errorMessage(error, 'Meri could not send the contextual request.'));
+    });
+  }, [
+    controller.clients,
+    isNewRoute,
+    location.pathname,
+    location.search,
+    navigate,
+    routeClients,
+    routeClientsError,
+    routeReady,
+    selectedClientId,
+    sendMessage,
+    setSelectedClientId,
+  ]);
+
+  // Keep store-driven selections addressable, but never override a deliberate
+  // route-first thread switch while the new URL is still hydrating. Without the
+  // requested-id guard, the previous active id could immediately navigate the
+  // browser back to the old thread before the bootstrap effect completed.
   useEffect(() => {
     if (!routeReady || !activeConversationId || isIntegrationsRoute || isNewRoute) return;
+    if (requestedThreadId && requestedThreadId !== activeConversationId) return;
     const target = `/meri/t/${encodeURIComponent(activeConversationId)}`;
     if (location.pathname !== target) navigate(target, { replace: false });
   }, [
@@ -303,6 +490,7 @@ export function VNextMeriWorkspace() {
     isNewRoute,
     location.pathname,
     navigate,
+    requestedThreadId,
     routeReady,
   ]);
 
@@ -340,6 +528,7 @@ export function VNextMeriWorkspace() {
         ...controller,
         clients: effectiveClients,
         selectedClientValue: effectiveSelectedClient,
+        isStreaming: controller.isStreaming || isCreatingThread,
         sendMessage,
         handleNewSession,
         archiveConversation,
@@ -352,6 +541,7 @@ export function VNextMeriWorkspace() {
       effectiveClients,
       effectiveSelectedClient,
       handleNewSession,
+      isCreatingThread,
       sendMessage,
     ],
   );

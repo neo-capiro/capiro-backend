@@ -26,6 +26,35 @@ export interface PersistedMessage {
   artifacts?: unknown[];
 }
 
+export interface MeriContextRequest {
+  prompt: string;
+  clientId: string | null;
+}
+
+/**
+ * Read the documented one-time vNext launch context from a route query.
+ *
+ * A client-only request is valid: it opens a record-free `/meri/new` landing
+ * page with that client selected but does not create a conversation until the
+ * user sends. Empty values are treated as absent so a stale `?meriPrompt=` URL
+ * cannot accidentally create a blank turn.
+ */
+export function meriContextRequest(search: string): MeriContextRequest | null {
+  const incoming = new URLSearchParams(search);
+  const prompt = incoming.get(MERI_WINDOW_PROMPT_QUERY)?.trim() ?? '';
+  const clientId = incoming.get(MERI_WINDOW_CLIENT_QUERY)?.trim() || null;
+  return prompt || clientId ? { prompt, clientId } : null;
+}
+
+/** Remove one-time Meri launch context while preserving unrelated route state. */
+export function withoutMeriContext(search: string): string {
+  const outgoing = new URLSearchParams(search);
+  outgoing.delete(MERI_WINDOW_PROMPT_QUERY);
+  outgoing.delete(MERI_WINDOW_CLIENT_QUERY);
+  const query = outgoing.toString();
+  return query ? `?${query}` : '';
+}
+
 /**
  * Canonicalize the legacy vNext popup URL (`?meriWindow=1`) onto the addressable
  * Meri routes. Plain launches resolve `/meri`; contextual launches resolve
@@ -36,13 +65,12 @@ export function legacyMeriWindowRedirect(search: string): string | null {
   const incoming = new URLSearchParams(search);
   if (incoming.get(MERI_WINDOW_QUERY) !== '1') return null;
 
+  const context = meriContextRequest(search);
   const outgoing = new URLSearchParams();
-  const prompt = incoming.get(MERI_WINDOW_PROMPT_QUERY);
-  const clientId = incoming.get(MERI_WINDOW_CLIENT_QUERY);
-  if (prompt) outgoing.set(MERI_WINDOW_PROMPT_QUERY, prompt);
-  if (clientId) outgoing.set(MERI_WINDOW_CLIENT_QUERY, clientId);
+  if (context?.prompt) outgoing.set(MERI_WINDOW_PROMPT_QUERY, context.prompt);
+  if (context?.clientId) outgoing.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
 
-  const base = prompt || clientId ? '/meri/new' : '/meri';
+  const base = context ? '/meri/new' : '/meri';
   const query = outgoing.toString();
   return query ? `${base}?${query}` : base;
 }
