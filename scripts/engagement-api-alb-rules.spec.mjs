@@ -130,6 +130,8 @@ function run(command, box, env = {}) {
     out = execFileSync('bash', [SCRIPT, command], {
       cwd: ROOT,
       encoding: 'utf8',
+      // Windows nested bash+fake-aws can hang after long parent runs; bound each call.
+      timeout: 120_000,
       env: {
         ...process.env,
         AWS_BIN: box.shim,
@@ -144,8 +146,8 @@ function run(command, box, env = {}) {
       },
     });
   } catch (error) {
-    status = error.status ?? 1;
-    out = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    status = error.status ?? (error.code === 'ETIMEDOUT' ? 124 : 1);
+    out = `${error.stdout ?? ''}${error.stderr ?? ''}${error.code === 'ETIMEDOUT' ? '\nETIMEDOUT\n' : ''}`;
   }
   const calls = readFileSync(path.join(box.dir, 'calls.log'), 'utf8').split('\n').filter(Boolean);
   const state = JSON.parse(readFileSync(box.stateFile, 'utf8'));

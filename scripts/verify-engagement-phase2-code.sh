@@ -39,13 +39,34 @@ gate() {
 node_test() {
   local name="$1" file="$2"
   local log="${LOG_DIR}/$(echo "$name" | tr ' /:' '___').log"
-  if timeout 1200 node "$file" >"$log" 2>&1 && grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
-    local count
-    count="$(grep -oE '(^# pass [0-9]+|^ℹ pass [0-9]+)' "$log" | grep -oE '[0-9]+' || echo '?')"
-    pass "$name  (${count} assertions)"
-  else
-    fail "$name  (see $log)"
-  fi
+  # Windows nested node:test can die mid-suite (DLL teardown / hung bash child)
+  # without writing a TAP summary. Retry twice when there is no fail/pass summary;
+  # a real "# fail N" (N>0) fails immediately.
+  local attempt=1
+  local max_attempts=3
+  while [ "$attempt" -le "$max_attempts" ]; do
+    : >"$log"
+    set +e
+    timeout 1200 node "$file" >"$log" 2>&1
+    local rc=$?
+    set -e
+    if grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
+      local count
+      count="$(grep -oE '(^# pass [0-9]+|^ℹ pass [0-9]+)' "$log" | grep -oE '[0-9]+' || echo '?')"
+      pass "$name  (${count} assertions)"
+      return 0
+    fi
+    if grep -qE '(^# fail [1-9]|^ℹ fail [1-9])' "$log"; then
+      fail "$name  (see $log)"
+      return 1
+    fi
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      echo "  retry $attempt/$max_attempts for $name (rc=$rc; no TAP summary — Windows infra)" >&2
+      sleep 3
+    fi
+    attempt=$((attempt + 1))
+  done
+  fail "$name  (see $log)"
 }
 
 ts_test() {
