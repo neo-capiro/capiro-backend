@@ -81,9 +81,9 @@ if [ "$FAST" -eq 1 ]; then
   skip "Phase 1 DB-free verifier" "--fast"
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
-  # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang or return
-  # non-zero on Windows nested teardown (0xC0000142). Do not wait on pnpm's
-  # exit: poll the log, then kill the process tree when COMPLETE/FAILED lands.
+  # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang forever on
+  # Windows nested teardown (0xC0000142). Poll the log for COMPLETE/FAILED and
+  # stop waiting as soon as either lands — do not block on pnpm exit.
   # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains fail-closed.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
   : >"$p1_log"
@@ -92,47 +92,45 @@ else
   p1_pid=$!
   p1_deadline=$((SECONDS + 1500))
   p1_rc=124
-  while kill -0 "$p1_pid" 2>/dev/null; do
-    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null || \
-       grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log" 2>/dev/null; then
-      # Give a brief moment for a clean exit, then reap.
-      sleep 2
-      if kill -0 "$p1_pid" 2>/dev/null; then
-        kill "$p1_pid" 2>/dev/null
-        sleep 1
-        kill -9 "$p1_pid" 2>/dev/null
-        # Best-effort: also stop leftover node children on Windows.
-        if command -v taskkill.exe >/dev/null 2>&1; then
-          taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
-        fi
-      fi
+  while true; do
+    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null; then
+      p1_rc=0
+      break
+    fi
+    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log" 2>/dev/null; then
+      p1_rc=1
+      break
+    fi
+    if ! kill -0 "$p1_pid" 2>/dev/null; then
       wait "$p1_pid" 2>/dev/null
       p1_rc=$?
       break
     fi
     if [ "$SECONDS" -ge "$p1_deadline" ]; then
-      kill "$p1_pid" 2>/dev/null
-      sleep 1
-      kill -9 "$p1_pid" 2>/dev/null
-      if command -v taskkill.exe >/dev/null 2>&1; then
-        taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
-      fi
-      wait "$p1_pid" 2>/dev/null
       p1_rc=124
       break
     fi
     sleep 5
   done
-  if ! kill -0 "$p1_pid" 2>/dev/null; then
-    wait "$p1_pid" 2>/dev/null
-    p1_rc=$?
+  # Always reap the process tree after decision so a hung teardown cannot stall Phase 2.
+  if kill -0 "$p1_pid" 2>/dev/null; then
+    if command -v taskkill.exe >/dev/null 2>&1; then
+      taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
+    fi
+    kill -9 "$p1_pid" 2>/dev/null || true
+    wait "$p1_pid" 2>/dev/null || true
   fi
   set -e
-  if [ "$p1_rc" -eq 0 ]; then
-    pass "Phase 1 DB-free verifier"
-  elif grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
-       ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
-    pass "Phase 1 DB-free verifier  (COMPLETE after Windows teardown rc=${p1_rc})"
+  if [ "$p1_rc" -eq 0 ] || \
+     { grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
+       ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; }; then
+    if [ "$p1_rc" -eq 0 ] && ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log"; then
+      # exited 0 without marker is unexpected but gate() previously treated rc=0 as pass;
+      # require COMPLETE for honesty.
+      fail "Phase 1 DB-free verifier  (exit 0 without COMPLETE; see $p1_log)"
+    else
+      pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
+    fi
   else
     fail "Phase 1 DB-free verifier  (see $p1_log)"
   fi
