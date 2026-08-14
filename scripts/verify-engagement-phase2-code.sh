@@ -82,16 +82,22 @@ if [ "$FAST" -eq 1 ]; then
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
   # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE (every gate already
-  # passed) and still return a non-zero exit from Windows nested-process
-  # teardown (STATUS_DLL_INIT_FAILED 0xC0000142 / 3221225794, or a shell-
-  # mapped exit after tinypool worker death). When COMPLETE is present and
-  # FAILED is not, the product gates already held — accept that as pass.
-  # Any ENGAGEMENT_PHASE1_DB_FREE_FAILED remains a real fail.
+  # passed) and still return a non-zero exit — or hang — from Windows nested
+  # process teardown (STATUS_DLL_INIT_FAILED 0xC0000142 / 3221225794). Bound
+  # the wait, then accept COMPLETE without FAILED as pass. Any
+  # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains a real fail.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
   set +e
-  pnpm verify:engagement-phase-1 >"$p1_log" 2>&1
-  p1_rc=$?
+  # 25m bound: full nested Phase 1 is typically 8–15m on this host.
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 1500 pnpm verify:engagement-phase-1 >"$p1_log" 2>&1
+    p1_rc=$?
+  else
+    pnpm verify:engagement-phase-1 >"$p1_log" 2>&1
+    p1_rc=$?
+  fi
   set -e
+  # timeout(1) uses 124 on expiry.
   if [ "$p1_rc" -eq 0 ]; then
     pass "Phase 1 DB-free verifier"
   elif grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
