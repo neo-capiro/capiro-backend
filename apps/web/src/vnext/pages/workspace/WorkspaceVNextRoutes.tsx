@@ -11,6 +11,7 @@ import {
   useLayoutEffect,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
 import './styles/workspace.css';
@@ -61,7 +62,7 @@ function normalizePath(pathname: string): string {
   return pathname;
 }
 
-export function isWorkspaceVNextPath(pathname: string): boolean {
+export function isWorkspaceVNextRoute(pathname: string): boolean {
   const path = normalizePath(pathname);
   return (
     STATIC_VNEXT_ROUTES.has(path) ||
@@ -156,11 +157,12 @@ function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
   return null;
 }
 
-export function WorkspaceVNextRoutes({ pathname }: { pathname: string }) {
+export function WorkspaceVNextRoutes({ pathname }: { pathname?: string } = {}) {
+  const location = useLocation();
   return (
     <WorkspaceApiBoundary>
       <Suspense fallback={<WorkspaceLoading />}>
-        <RoutedWorkspaceContent pathname={pathname} />
+        <RoutedWorkspaceContent pathname={pathname ?? location.pathname} />
       </Suspense>
     </WorkspaceApiBoundary>
   );
