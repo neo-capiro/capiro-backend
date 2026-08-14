@@ -6,6 +6,7 @@ import { AssertionConsolidationService } from './assertion-consolidation.service
 const TENANT_ID = '11111111-1111-4111-8111-111111111111';
 const TARGET_ID = '22222222-2222-4222-8222-222222222222';
 const EVENT_ID = '33333333-3333-4333-8333-333333333333';
+const SOURCE_TEXT = 'The new goal is FY28 funding for PE 0605053A.';
 
 function replacementInput() {
   return {
@@ -19,11 +20,23 @@ function replacementInput() {
     assertionClass: 'goal' as const,
     confidence: 1,
     authority: 'human_confirmed' as const,
+    evidence: [
+      {
+        eventId: EVENT_ID,
+        sourceType: 'user_correction',
+        sourceId: 'correction-123',
+        excerpt: SOURCE_TEXT,
+        startOffset: 0,
+        endOffset: SOURCE_TEXT.length,
+        contentHash: 'a'.repeat(64),
+        sourceText: SOURCE_TEXT,
+      },
+    ],
   };
 }
 
 describe('AssertionConsolidationService', () => {
-  test('appends a replacement while retaining the superseded assertion id', async () => {
+  test('appends a replacement while retaining the superseded assertion and new proof', async () => {
     const append = jest.fn(async () => ({ id: 'created' }) as KnowledgeAssertionRecord);
     const assertions = {
       findById: jest.fn(async () => ({ id: TARGET_ID }) as KnowledgeAssertionRecord),
@@ -35,7 +48,10 @@ describe('AssertionConsolidationService', () => {
 
     expect(append).toHaveBeenCalledWith(
       TENANT_ID,
-      expect.objectContaining({ supersedesAssertionId: TARGET_ID }),
+      expect.objectContaining({
+        supersedesAssertionId: TARGET_ID,
+        evidence: replacementInput().evidence,
+      }),
     );
   });
 

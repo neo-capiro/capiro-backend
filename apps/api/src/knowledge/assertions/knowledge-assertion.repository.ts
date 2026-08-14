@@ -1,10 +1,13 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { KnowledgeEvidenceRepository } from '../evidence/knowledge-evidence.repository.js';
 import type {
   KnowledgeAssertionRecord,
   KnowledgeJsonObject,
   KnowledgeJsonValue,
   NormalizedKnowledgeAssertionInput,
+  NormalizedKnowledgeEvidenceInput,
 } from '../knowledge.types.js';
 
 interface KnowledgeAssertionRow {
@@ -35,138 +38,56 @@ interface KnowledgeAssertionRow {
   created_at: Date;
 }
 
+interface EvidenceCountRow {
+  evidence_count: number;
+}
+
 /**
  * Tenant-bound append-only persistence for atomic KnowledgeAssertions.
  * All raw SQL repeats tenant_id because the application role can bypass RLS.
  */
 @Injectable()
 export class KnowledgeAssertionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly evidence: KnowledgeEvidenceRepository,
+  ) {}
 
-  async append(
+  /**
+   * Assertion and excerpt-level proof share one tenant transaction. The
+   * deferred database constraint is a second guard against evidence-less facts.
+   */
+  async appendWithEvidence(
     tenantId: string,
     input: NormalizedKnowledgeAssertionInput,
+    evidenceInputs: readonly NormalizedKnowledgeEvidenceInput[],
   ): Promise<KnowledgeAssertionRecord> {
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const inserted = await tx.$queryRaw<KnowledgeAssertionRow[]>`
-        INSERT INTO knowledge_assertions (
-          tenant_id,
-          idempotency_key,
-          origin_event_id,
-          subject_type,
-          subject_id,
-          predicate,
-          object_type,
-          object_id,
-          object_value,
-          assertion_class,
-          confidence,
-          authority,
-          observed_at,
-          valid_from,
-          valid_until,
-          status,
-          conflict_status,
-          conflict_group_id,
-          supersedes_assertion_id,
-          contradicts_assertion_id,
-          sensitivity,
-          access_scope,
-          created_by
-        )
-        VALUES (
-          ${tenantId}::uuid,
-          ${input.idempotencyKey},
-          ${input.originEventId}::uuid,
-          ${input.subjectType},
-          ${input.subjectId},
-          ${input.predicate},
-          ${input.objectType},
-          ${input.objectId},
-          CAST(${input.objectValue === null ? null : JSON.stringify(input.objectValue)} AS jsonb),
-          ${input.assertionClass},
-          ${input.confidence},
-          ${input.authority},
-          ${input.observedAt},
-          ${input.validFrom},
-          ${input.validUntil},
-          ${input.status},
-          ${input.conflictStatus},
-          ${input.conflictGroupId}::uuid,
-          ${input.supersedesAssertionId}::uuid,
-          ${input.contradictsAssertionId}::uuid,
-          ${input.sensitivity},
-          CAST(${JSON.stringify(input.accessScope)} AS jsonb),
-          ${input.createdBy}::uuid
-        )
-        ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
-        RETURNING
-          id,
-          tenant_id,
-          idempotency_key,
-          origin_event_id,
-          subject_type,
-          subject_id,
-          predicate,
-          object_type,
-          object_id,
-          object_value,
-          assertion_class,
-          confidence,
-          authority,
-          observed_at,
-          valid_from,
-          valid_until,
-          status,
-          conflict_status,
-          conflict_group_id,
-          supersedes_assertion_id,
-          contradicts_assertion_id,
-          sensitivity,
-          access_scope,
-          created_by,
-          created_at
-      `;
-      if (inserted[0]) return mapAssertion(inserted[0]);
+    if (evidenceInputs.length === 0) {
+      throw new InternalServerErrorException('Knowledge assertion evidence is required.');
+    }
 
-      const existing = await tx.$queryRaw<KnowledgeAssertionRow[]>`
-        SELECT
-          id,
-          tenant_id,
-          idempotency_key,
-          origin_event_id,
-          subject_type,
-          subject_id,
-          predicate,
-          object_type,
-          object_id,
-          object_value,
-          assertion_class,
-          confidence,
-          authority,
-          observed_at,
-          valid_from,
-          valid_until,
-          status,
-          conflict_status,
-          conflict_group_id,
-          supersedes_assertion_id,
-          contradicts_assertion_id,
-          sensitivity,
-          access_scope,
-          created_by,
-          created_at
-        FROM knowledge_assertions
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const assertion = await this.insertOrFind(tx, tenantId, input);
+      await this.evidence.appendManyInTransaction(
+        tx,
+        tenantId,
+        assertion.id,
+        evidenceInputs,
+      );
+
+      const proof = await tx.$queryRaw<EvidenceCountRow[]>`
+        SELECT COUNT(*)::int AS evidence_count
+        FROM knowledge_evidence
         WHERE tenant_id = ${tenantId}::uuid
-          AND idempotency_key = ${input.idempotencyKey}
-        LIMIT 1
+          AND assertion_id = ${assertion.id}::uuid
+          AND event_id = ${assertion.originEventId}::uuid
       `;
-      if (!existing[0]) {
+      if ((proof[0]?.evidence_count ?? 0) < 1) {
         throw new InternalServerErrorException(
-          'Knowledge assertion append did not return a row.',
+          'Knowledge assertion transaction produced no durable origin evidence.',
         );
       }
-      return mapAssertion(existing[0]);
+      return assertion;
     });
   }
 
@@ -209,6 +130,132 @@ export class KnowledgeAssertionRepository {
       `;
       return rows[0] ? mapAssertion(rows[0]) : null;
     });
+  }
+
+  private async insertOrFind(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    input: NormalizedKnowledgeAssertionInput,
+  ): Promise<KnowledgeAssertionRecord> {
+    const inserted = await tx.$queryRaw<KnowledgeAssertionRow[]>`
+      INSERT INTO knowledge_assertions (
+        tenant_id,
+        idempotency_key,
+        origin_event_id,
+        subject_type,
+        subject_id,
+        predicate,
+        object_type,
+        object_id,
+        object_value,
+        assertion_class,
+        confidence,
+        authority,
+        observed_at,
+        valid_from,
+        valid_until,
+        status,
+        conflict_status,
+        conflict_group_id,
+        supersedes_assertion_id,
+        contradicts_assertion_id,
+        sensitivity,
+        access_scope,
+        created_by
+      )
+      VALUES (
+        ${tenantId}::uuid,
+        ${input.idempotencyKey},
+        ${input.originEventId}::uuid,
+        ${input.subjectType},
+        ${input.subjectId},
+        ${input.predicate},
+        ${input.objectType},
+        ${input.objectId},
+        CAST(${input.objectValue === null ? null : JSON.stringify(input.objectValue)} AS jsonb),
+        ${input.assertionClass},
+        ${input.confidence},
+        ${input.authority},
+        ${input.observedAt},
+        ${input.validFrom},
+        ${input.validUntil},
+        ${input.status},
+        ${input.conflictStatus},
+        ${input.conflictGroupId}::uuid,
+        ${input.supersedesAssertionId}::uuid,
+        ${input.contradictsAssertionId}::uuid,
+        ${input.sensitivity},
+        CAST(${JSON.stringify(input.accessScope)} AS jsonb),
+        ${input.createdBy}::uuid
+      )
+      ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+      RETURNING
+        id,
+        tenant_id,
+        idempotency_key,
+        origin_event_id,
+        subject_type,
+        subject_id,
+        predicate,
+        object_type,
+        object_id,
+        object_value,
+        assertion_class,
+        confidence,
+        authority,
+        observed_at,
+        valid_from,
+        valid_until,
+        status,
+        conflict_status,
+        conflict_group_id,
+        supersedes_assertion_id,
+        contradicts_assertion_id,
+        sensitivity,
+        access_scope,
+        created_by,
+        created_at
+    `;
+    if (inserted[0]) return mapAssertion(inserted[0]);
+
+    const existing = await tx.$queryRaw<KnowledgeAssertionRow[]>`
+      SELECT
+        id,
+        tenant_id,
+        idempotency_key,
+        origin_event_id,
+        subject_type,
+        subject_id,
+        predicate,
+        object_type,
+        object_id,
+        object_value,
+        assertion_class,
+        confidence,
+        authority,
+        observed_at,
+        valid_from,
+        valid_until,
+        status,
+        conflict_status,
+        conflict_group_id,
+        supersedes_assertion_id,
+        contradicts_assertion_id,
+        sensitivity,
+        access_scope,
+        created_by,
+        created_at
+      FROM knowledge_assertions
+      WHERE tenant_id = ${tenantId}::uuid
+        AND idempotency_key = ${input.idempotencyKey}
+      LIMIT 1
+    `;
+    if (!existing[0]) {
+      throw new InternalServerErrorException(
+        'Knowledge assertion append did not return a row.',
+      );
+    }
+    return mapAssertion(existing[0]);
   }
 }
 

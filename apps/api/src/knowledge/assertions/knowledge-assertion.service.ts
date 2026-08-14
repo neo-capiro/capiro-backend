@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { KnowledgeEvidenceValidatorService } from '../evidence/knowledge-evidence-validator.service.js';
 import { KnowledgeEventService } from '../events/knowledge-event.service.js';
 import {
   KNOWLEDGE_ASSERTION_CLASSES,
@@ -11,6 +12,7 @@ import {
   type KnowledgeJsonObject,
   type KnowledgeJsonValue,
   type NormalizedKnowledgeAssertionInput,
+  type NormalizedKnowledgeEvidenceInput,
 } from '../knowledge.types.js';
 import {
   assertJsonValue,
@@ -27,14 +29,15 @@ import {
 import { KnowledgeAssertionRepository } from './knowledge-assertion.repository.js';
 
 /**
- * Creates immutable atomic interpretations of KnowledgeEvent evidence.
- * A durable assertion cannot be written without an existing origin event.
+ * Creates immutable atomic interpretations and their exact source proof.
+ * No assertion can commit without at least one validated KnowledgeEvidence row.
  */
 @Injectable()
 export class KnowledgeAssertionService {
   constructor(
     private readonly assertions: KnowledgeAssertionRepository,
     private readonly events: KnowledgeEventService,
+    private readonly evidenceValidator: KnowledgeEvidenceValidatorService,
   ) {}
 
   async append(
@@ -42,18 +45,33 @@ export class KnowledgeAssertionService {
     input: AppendKnowledgeAssertionInput,
   ): Promise<KnowledgeAssertionRecord> {
     const normalizedTenantId = requireUuid(tenantId, 'tenantId');
+    if (!Array.isArray(input.evidence) || input.evidence.length === 0) {
+      throw new BadRequestException('A durable KnowledgeAssertion requires evidence.');
+    }
+
     const originEventId = requireUuid(input.originEventId, 'originEventId');
-    const event = await this.events.findById(normalizedTenantId, originEventId);
-    if (!event) throw new NotFoundException('Origin KnowledgeEvent not found.');
-    if (event.status !== 'active') {
+    const originEvent = await this.events.findById(normalizedTenantId, originEventId);
+    if (!originEvent) throw new NotFoundException('Origin KnowledgeEvent not found.');
+    if (originEvent.status !== 'active') {
       throw new BadRequestException('Assertions require an active origin KnowledgeEvent.');
     }
 
-    const normalized = await this.normalizeAssertion(normalizedTenantId, event, {
+    const normalized = await this.normalizeAssertion(normalizedTenantId, originEvent, {
       ...input,
       originEventId,
     });
-    return this.assertions.append(normalizedTenantId, normalized);
+    const normalizedEvidence = await this.normalizeEvidence(
+      normalizedTenantId,
+      originEvent,
+      normalized,
+      input,
+    );
+
+    return this.assertions.appendWithEvidence(
+      normalizedTenantId,
+      normalized,
+      normalizedEvidence,
+    );
   }
 
   async findById(
@@ -64,6 +82,62 @@ export class KnowledgeAssertionService {
       requireUuid(tenantId, 'tenantId'),
       requireUuid(assertionId, 'assertionId'),
     );
+  }
+
+  private async normalizeEvidence(
+    tenantId: string,
+    originEvent: KnowledgeEventRecord,
+    assertion: NormalizedKnowledgeAssertionInput,
+    input: AppendKnowledgeAssertionInput,
+  ): Promise<NormalizedKnowledgeEvidenceInput[]> {
+    const eventCache = new Map<string, KnowledgeEventRecord>([[originEvent.id, originEvent]]);
+    const uniqueEvidence = new Map<string, NormalizedKnowledgeEvidenceInput>();
+    let originEventSupported = false;
+
+    for (const [index, evidenceInput] of input.evidence.entries()) {
+      const eventId = requireUuid(evidenceInput.eventId, `evidence[${index}].eventId`);
+      let event = eventCache.get(eventId);
+      if (!event) {
+        const loaded = await this.events.findById(tenantId, eventId);
+        if (!loaded) {
+          throw new NotFoundException(`KnowledgeEvidence[${index}] event not found.`);
+        }
+        event = loaded;
+        eventCache.set(eventId, event);
+      }
+
+      if (
+        event.sensitivity !== assertion.sensitivity ||
+        !jsonEquals(event.accessScope, assertion.accessScope)
+      ) {
+        throw new BadRequestException(
+          'All evidence must share the assertion sensitivity and access scope.',
+        );
+      }
+
+      const normalized = this.evidenceValidator.normalize(
+        tenantId,
+        event,
+        { ...evidenceInput, eventId },
+        index,
+      );
+      if (eventId === originEvent.id) originEventSupported = true;
+
+      const identity = [
+        normalized.eventId,
+        normalized.contentHash,
+        normalized.startOffset,
+        normalized.endOffset,
+      ].join(':');
+      uniqueEvidence.set(identity, normalized);
+    }
+
+    if (!originEventSupported) {
+      throw new BadRequestException(
+        'At least one evidence excerpt must come from the origin KnowledgeEvent.',
+      );
+    }
+    return [...uniqueEvidence.values()];
   }
 
   private async normalizeAssertion(
@@ -100,7 +174,7 @@ export class KnowledgeAssertionService {
 
     const observedAt = requireDate(input.observedAt ?? event.observedAt, 'observedAt');
     if (observedAt.getTime() < event.occurredAt.getTime()) {
-      throw new BadRequestException('observedAt cannot be before the origin event occurred.');
+      throw new BadRequestException('observedAt cannot be before the origin KnowledgeEvent occurred.');
     }
     const validFrom = requireDate(input.validFrom ?? observedAt, 'validFrom');
     const validUntil = input.validUntil == null ? null : requireDate(input.validUntil, 'validUntil');

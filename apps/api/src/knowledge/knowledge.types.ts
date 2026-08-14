@@ -14,6 +14,16 @@ export interface KnowledgeRef {
   metadata?: KnowledgeJsonObject;
 }
 
+export const DISALLOWED_KNOWLEDGE_FACTUAL_SOURCE_TYPES = [
+  'assistant_answer',
+  'llm_output',
+  'meri_answer',
+  'model_answer',
+  'model_output',
+] as const;
+export type DisallowedKnowledgeFactualSourceType =
+  (typeof DISALLOWED_KNOWLEDGE_FACTUAL_SOURCE_TYPES)[number];
+
 export const KNOWLEDGE_EVENT_STATUSES = ['active', 'withdrawn'] as const;
 export type KnowledgeEventStatus = (typeof KNOWLEDGE_EVENT_STATUSES)[number];
 
@@ -98,6 +108,41 @@ export interface KnowledgeEventRecord extends NormalizedKnowledgeEventInput {
   createdAt: Date;
 }
 
+/**
+ * Exact source proof proposed for one assertion.
+ *
+ * `sourceText` is the canonical source text whose SHA-256 is stored on the
+ * KnowledgeEvent. It is used only for validation and is never copied into the
+ * evidence ledger. Offsets use JavaScript string (UTF-16 code-unit) semantics.
+ */
+export interface AppendKnowledgeEvidenceInput {
+  eventId: string;
+  sourceType: string;
+  sourceId: string;
+  excerpt: string;
+  startOffset: number;
+  endOffset: number;
+  contentHash: string;
+  sourceText: string;
+}
+
+export interface NormalizedKnowledgeEvidenceInput {
+  eventId: string;
+  sourceType: string;
+  sourceId: string;
+  excerpt: string;
+  startOffset: number;
+  endOffset: number;
+  contentHash: string;
+}
+
+export interface KnowledgeEvidenceRecord extends NormalizedKnowledgeEvidenceInput {
+  id: string;
+  tenantId: string;
+  assertionId: string;
+  createdAt: Date;
+}
+
 export interface AppendKnowledgeAssertionInput {
   originEventId: string;
   subjectType: string;
@@ -120,6 +165,7 @@ export interface AppendKnowledgeAssertionInput {
   sensitivity?: string;
   accessScope?: KnowledgeJsonObject;
   createdBy?: string | null;
+  evidence: AppendKnowledgeEvidenceInput[];
 }
 
 export interface NormalizedKnowledgeAssertionInput {
@@ -151,4 +197,14 @@ export interface KnowledgeAssertionRecord extends NormalizedKnowledgeAssertionIn
   id: string;
   tenantId: string;
   createdAt: Date;
+}
+
+export interface KnowledgeEvidenceProvenanceEntry {
+  evidence: KnowledgeEvidenceRecord;
+  event: KnowledgeEventRecord;
+}
+
+export interface KnowledgeAssertionProvenance {
+  assertion: KnowledgeAssertionRecord;
+  evidence: KnowledgeEvidenceProvenanceEntry[];
 }

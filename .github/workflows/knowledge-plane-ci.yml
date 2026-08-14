@@ -1,0 +1,78 @@
+name: Knowledge Plane CI
+
+on:
+  push:
+    branches:
+      - feat/phase-1-knowledge-events
+    paths:
+      - 'apps/api/src/knowledge/**'
+      - 'apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/**'
+      - 'apps/api/prisma/migrations/20261120060000_knowledge_evidence/**'
+      - 'scripts/align-knowledge-plane-prisma-schema.mjs'
+      - 'scripts/verify-knowledge-plane-migrations.sh'
+      - '.github/workflows/knowledge-plane-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/knowledge/**'
+      - 'apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/**'
+      - 'apps/api/prisma/migrations/20261120060000_knowledge_evidence/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'scripts/align-knowledge-plane-prisma-schema.mjs'
+      - 'scripts/verify-knowledge-plane-migrations.sh'
+      - '.github/workflows/knowledge-plane-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rehearse Knowledge Plane migrations
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          bash scripts/verify-knowledge-plane-migrations.sh
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Align and validate Prisma schema
+        run: |
+          node scripts/align-knowledge-plane-prisma-schema.mjs
+          pnpm --filter @capiro/api exec prisma format --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Typecheck API
+        run: pnpm --filter @capiro/api exec tsc --noEmit
+
+      - name: Test Knowledge Plane
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge

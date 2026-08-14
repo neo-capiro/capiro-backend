@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { KnowledgeEventRepository } from './knowledge-event.repository.js';
 import {
+  DISALLOWED_KNOWLEDGE_FACTUAL_SOURCE_TYPES,
   KNOWLEDGE_EVENT_STATUSES,
   type AppendKnowledgeEventInput,
   type KnowledgeEventRecord,
@@ -19,14 +20,6 @@ import {
   requireUuid,
   sha256Identity,
 } from '../knowledge.helpers.js';
-
-const DISALLOWED_FACTUAL_SOURCE_TYPES = new Set([
-  'assistant_answer',
-  'llm_output',
-  'meri_answer',
-  'model_answer',
-  'model_output',
-]);
 
 /** Append-only service for source observations that feed the Knowledge Plane. */
 @Injectable()
@@ -47,13 +40,19 @@ export class KnowledgeEventService {
   }
 }
 
+export function isDisallowedKnowledgeFactualSourceType(sourceType: string): boolean {
+  return DISALLOWED_KNOWLEDGE_FACTUAL_SOURCE_TYPES.some(
+    (candidate) => candidate === sourceType,
+  );
+}
+
 export function normalizeKnowledgeEvent(
   tenantId: string,
   input: AppendKnowledgeEventInput,
   observedNow: Date = new Date(),
 ): NormalizedKnowledgeEventInput {
   const sourceType = requireToken(input.sourceType, 'sourceType');
-  if (DISALLOWED_FACTUAL_SOURCE_TYPES.has(sourceType)) {
+  if (isDisallowedKnowledgeFactualSourceType(sourceType)) {
     throw new BadRequestException(
       'AI-generated answers cannot be persisted as factual KnowledgeEvent evidence.',
     );

@@ -154,6 +154,11 @@ export function sha256Identity(value: KnowledgeJsonObject): string {
   return createHash('sha256').update(stableStringify(value)).digest('hex');
 }
 
+/** SHA-256 of canonical source text, encoded as UTF-8. */
+export function sha256Text(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
 export function jsonEquals(left: KnowledgeJsonValue, right: KnowledgeJsonValue): boolean {
   return stableStringify(left) === stableStringify(right);
 }
@@ -163,7 +168,11 @@ function sortJson(value: KnowledgeJsonValue): KnowledgeJsonValue {
   if (value && typeof value === 'object') {
     const sorted: KnowledgeJsonObject = {};
     for (const key of Object.keys(value).sort()) {
-      sorted[key] = sortJson(value[key]);
+      const entry = value[key];
+      if (entry === undefined) {
+        throw new BadRequestException(`Stable JSON value ${key} cannot be undefined.`);
+      }
+      sorted[key] = sortJson(entry);
     }
     return sorted;
   }
