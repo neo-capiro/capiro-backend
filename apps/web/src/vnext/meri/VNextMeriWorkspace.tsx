@@ -144,6 +144,10 @@ export function VNextMeriWorkspace() {
    */
   const hydrateConversation = useCallback(
     async (conversationId: string): Promise<void> => {
+      // A route transition is a hard boundary for transient turn state. Stop
+      // the old stream and discard its attachments/proposals before fetching the
+      // destination so no late event or staged file can cross into this thread.
+      controller.discardRouteState();
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/messages`,
         { headers: await authHeaders() },
@@ -166,7 +170,7 @@ export function VNextMeriWorkspace() {
       for (const message of hydrated) appendChatMessage(message);
       setMeriSurfaceMode('undocked');
     },
-    [authHeaders],
+    [authHeaders, controller.discardRouteState],
   );
 
   /**
@@ -295,13 +299,21 @@ export function VNextMeriWorkspace() {
 
         if (isIntegrationsRoute) {
           // Integrations is addressable but must not select/create a conversation
-          // merely because the settings screen was opened.
+          // merely because the settings screen was opened. The return path stays
+          // on the same draft or durable thread, so only the in-flight stream is
+          // stopped; staged files remain with their original pending turn.
+          controller.invalidateRouteStream();
           setMeriSurfaceMode('closed');
           setRouteReady(true);
           return;
         }
 
         if (isNewRoute) {
+          // A durable thread → new route is a hard boundary. Returning from
+          // integrations to an already-record-free draft is not: its staged
+          // attachment remains part of that pending first turn.
+          if (getChatStateSnapshot().activeConversationId) controller.discardRouteState();
+          else controller.invalidateRouteStream();
           setMeriSurfaceMode('closed');
           replaceChatSession(null);
           setActiveConversation(null);
@@ -352,6 +364,8 @@ export function VNextMeriWorkspace() {
       cancelled = true;
     };
   }, [
+    controller.discardRouteState,
+    controller.invalidateRouteStream,
     controller.setSessionTitle,
     hydrateConversation,
     isIntegrationsRoute,
@@ -426,9 +440,13 @@ export function VNextMeriWorkspace() {
     const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}`;
     if (handledContextRef.current === requestKey) return;
 
-    const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
+    // A contextual client launch is authorized only by the route bootstrap's
+    // fresh `/api/clients` response. The controller roster can belong to the
+    // previously selected thread, so it is not sufficient evidence for this
+    // one-time client-scoped request.
+    const availableClients = routeClients;
     if (request.clientId) {
-      if (routeClientsError && availableClients.length === 0) {
+      if (routeClientsError || availableClients.length === 0) {
         handledContextRef.current = requestKey;
         navigate(
           { pathname: location.pathname, search: withoutMeriContext(location.search) },
@@ -553,8 +571,10 @@ export function VNextMeriWorkspace() {
     ) {
       return `/meri/t/${encodeURIComponent(activeConversationId)}`;
     }
-    const recent = newestConversation(conversations);
-    return recent ? `/meri/t/${encodeURIComponent(recent.id)}` : '/meri/new';
+    // Integrations must return a record-free draft to `/meri/new` when no
+    // durable thread was active. Sending a staged file to the newest unrelated
+    // thread would cross both turn and client boundaries.
+    return '/meri/new';
   }, [activeConversationId, conversations]);
 
   useEffect(

@@ -337,6 +337,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const location = useLocation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Every route/session boundary invalidates the previous async stream. Abort
+  // alone cannot prevent a read that had already resolved from dispatching one
+  // last SSE event into a newly selected conversation.
+  const streamEpochRef = useRef(0);
 
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -814,7 +818,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // ── Deep Research (in-chat) ────────────────────────────────────────────
   // Reads an SSE stream from a research endpoint, dispatching each event.
   const consumeResearchStream = useCallback(
-    async (path: string, controller: AbortController, onEvent: (e: ResearchSseEvent) => void) => {
+    async (
+      path: string,
+      controller: AbortController,
+      onEvent: (e: ResearchSseEvent) => void,
+      streamEpoch = streamEpochRef.current,
+    ) => {
       const res = await fetch(`${config.apiBaseUrl}${path}`, {
         method: 'POST',
         headers: await authHeaders(),
@@ -863,6 +872,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
+          if (streamEpoch !== streamEpochRef.current) break outer;
           if (!line.startsWith('data: ')) continue;
           const jsonStr = line.slice(6).trim();
           if (!jsonStr) continue;
@@ -875,6 +885,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           onEvent(event);
           if (event.type === 'done') break outer;
         }
+      }
+      if (streamEpoch !== streamEpochRef.current) {
+        throw new DOMException('Meri route changed', 'AbortError');
       }
     },
     [authHeaders],
@@ -889,6 +902,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
 
       try {
         if (!researchSessionRef.current) {
@@ -903,6 +917,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           });
           if (!created.ok) throw new Error(`Could not start research (HTTP ${created.status})`);
           const { id } = (await created.json()) as { id: string };
+          // A route change may happen while research creation is awaiting the
+          // server. Do not start its plan stream or write a session id into the
+          // destination thread once that request's epoch has been invalidated.
+          if (streamEpoch !== streamEpochRef.current) return;
           researchSessionRef.current = id;
 
           let planText = '';
@@ -929,14 +947,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             } else if (e.type === 'error') {
               updateChatMessage(assistantId, `Error: ${e.message}`);
             }
-          });
+          }, streamEpoch);
           // Render clarifying questions as an inline answer form (Claude-style),
           // not as text the user has to reply to free-form.
           setResearchQuestions(questions);
           setResearchAwaitingAnswers(questions.length > 0);
           if (questions.length === 0) {
             // No questions — go straight to the run.
-            await executeResearchRun(controller);
+            await executeResearchRun(controller, undefined, streamEpoch);
           }
           return;
         }
@@ -951,7 +969,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
         setResearchAwaitingAnswers(false);
         setResearchQuestions([]);
-        await executeResearchRun(controller, assistantId);
+        await executeResearchRun(controller, assistantId, streamEpoch);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         updateChatMessage(
@@ -962,7 +980,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         setResearchAwaitingAnswers(false);
         setResearchQuestions([]);
       } finally {
-        setStreaming(false);
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     // executeResearchRun is stable via useCallback below; deps kept minimal.
@@ -990,7 +1008,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // message, threading tool steps into the trust timeline and the report text
   // into the message body. Records the finished session id for export actions.
   const executeResearchRun = useCallback(
-    async (controller: AbortController, existingAssistantId?: string) => {
+    async (
+      controller: AbortController,
+      existingAssistantId?: string,
+      streamEpoch = streamEpochRef.current,
+    ) => {
+      if (streamEpoch !== streamEpochRef.current) return;
       const id = researchSessionRef.current;
       if (!id) return;
       const assistantId = existingAssistantId ?? generateId();
@@ -1015,8 +1038,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (parts.length > 0) updateChatMessage(assistantId, parts.join('\n\n'));
       };
       try {
-        await consumeResearchStream(`/api/clio/research/${id}/stream`, controller, (e) => {
-          if (e.type === 'step') {
+        await consumeResearchStream(
+          `/api/clio/research/${id}/stream`,
+          controller,
+          (e) => {
+            if (e.type === 'step') {
             const label = e.label || e.tool;
             setTrustSteps((prev) => [...prev, { tool: e.tool, label, status: 'running' as const }]);
           } else if (e.type === 'source') {
@@ -1054,10 +1080,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           } else if (e.type === 'report' && typeof e.body === 'string') {
             report = e.body;
             updateChatMessage(assistantId, report);
-          } else if (e.type === 'error') {
-            updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
-          }
-        });
+            } else if (e.type === 'error') {
+              updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
+            }
+          },
+          streamEpoch,
+        );
       } catch (err) {
         // A stalled or dropped stream must end as a readable failure, not as a
         // message stuck on the last progress line. A user-initiated Stop keeps
@@ -1096,18 +1124,19 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
       try {
         await fetch(`${config.apiBaseUrl}/api/clio/research/${id}/clarify`, {
           method: 'POST',
           headers: await authHeaders(),
           body: JSON.stringify({ answers: skipped ? {} : answers }),
         });
-        await executeResearchRun(controller);
+        await executeResearchRun(controller, undefined, streamEpoch);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         researchSessionRef.current = null;
       } finally {
-        setStreaming(false);
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     [authHeaders, executeResearchRun, isStreaming],
@@ -1216,6 +1245,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
 
       try {
         const streamPayload: Record<string, unknown> = mode
@@ -1254,6 +1284,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           buffer = lines.pop() ?? '';
 
           for (const line of lines) {
+            // A route switch can race one final fulfilled reader.read(). Ignore
+            // that stale event rather than letting the former thread mutate the
+            // currently selected thread's shared controller state.
+            if (streamEpoch !== streamEpochRef.current) break outer;
             if (!line.startsWith('data: ')) continue;
             const jsonStr = line.slice(6).trim();
             if (!jsonStr) continue;
@@ -1438,7 +1472,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (err instanceof Error && err.name === 'AbortError') return;
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
-        setStreaming(false);
+        // An older stream must never unlock a newly-selected thread or a newer
+        // request that is now in progress.
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     [
@@ -1503,6 +1539,48 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     },
     [authHeaders, messages],
   );
+
+  /**
+   * Discard transient, per-turn state before the vNext router changes thread.
+   *
+   * Staged attachment ids belong to a single prospective user turn. Leaving
+   * them in the shared controller while a route moves from one thread/client to
+   * another could attach the prior thread's files to the next Send. Aborting
+   * also stops an old SSE request before it can project transient execution
+   * state (plans, trust steps, proposals, or an artifact) into the next thread.
+   * Durable messages and conversations intentionally remain untouched.
+   */
+  const invalidateRouteStream = useCallback(() => {
+    // Keep durable conversation-scoped UI (notably pending approvals and staged
+    // draft attachments) intact when navigating to integrations and back. The
+    // epoch is the authority that prevents the cancelled request from delivering
+    // a late event afterward; transient execution state belongs to that request.
+    streamEpochRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setTrustSteps([]);
+    setPlanSteps([]);
+    setOrchestratorIntent(null);
+    setOrchestratorTier(null);
+    setOrchestratorConflict(null);
+    setOrchestratorTemplate(null);
+    setActiveArtifact(null);
+    setResearchAwaitingAnswers(false);
+    setResearchQuestions([]);
+    researchSessionRef.current = null;
+  }, []);
+
+  const discardRouteState = useCallback(() => {
+    // A different conversation is a hard ownership boundary. Unlike a detour to
+    // integrations, nothing transient from the old session may cross this line.
+    invalidateRouteStream();
+    setStagedAttachments([]);
+    setAttachmentNotice(null);
+    setPendingApprovals([]);
+    setApprovingProposalId(null);
+    setResearchOffers({});
+  }, [invalidateRouteStream]);
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
@@ -1990,6 +2068,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     fetchResearchExport,
     submitResearchAnswers,
     handleStop,
+    invalidateRouteStream,
+    discardRouteState,
     handleAttachFiles,
     removeStagedAttachment,
     setWriteMode,
