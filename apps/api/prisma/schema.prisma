@@ -279,10 +279,11 @@ model Tenant {
   assuranceFeedbackCandidates        AssuranceFeedbackCandidate[]
   assuranceEvalFixtures              AssuranceEvalFixture[]
 
-  knowledgeEvents                    KnowledgeEvent[]
-  knowledgeAssertions                KnowledgeAssertion[]
-  knowledgeEvidence                  KnowledgeEvidence[]
-  knowledgeMailboxJobs               KnowledgeMailboxJob[]
+  knowledgeEvents      KnowledgeEvent[]
+  knowledgeAssertions  KnowledgeAssertion[]
+  knowledgeEvidence    KnowledgeEvidence[]
+  knowledgeMailboxJobs KnowledgeMailboxJob[]
+
   @@map("tenants")
 }
 
@@ -347,7 +348,6 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
 
-  knowledgeAssertionsCreated         KnowledgeAssertion[] @relation("KnowledgeAssertionCreatedBy")
   @@map("users")
 }
 
@@ -920,16 +920,16 @@ model MailMessage {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  thread      MailThread             @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  connection  IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  attachments EngagementAttachment[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread        MailThread             @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  connection    IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  attachments   EngagementAttachment[]
+  knowledgeJobs KnowledgeMailboxJob[]
 
   @@unique([tenantId, source, externalId], map: "mail_messages_tenant_source_external_key")
   @@index([tenantId, fromEmail], map: "mail_messages_tenant_from_idx")
   @@index([tenantId, receivedAt], map: "mail_messages_tenant_received_idx")
   @@index([threadId, removedAt, receivedAt], map: "mail_messages_thread_removed_received_idx")
-  knowledgeJobs KnowledgeMailboxJob[]
   @@map("mail_messages")
 }
 
@@ -2758,7 +2758,7 @@ model ClientPerson {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  reportsTo    ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
+  reportsTo     ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
   directReports ClientPerson[] @relation("ClientPersonReportsTo")
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
@@ -7328,7 +7328,7 @@ model TangoSbirSolicitation {
   /// The provider's own flag for a cycle outside the normal schedule.
   outOfCycle Boolean? @map("out_of_cycle")
 
-  activity String?
+  activity           String?
   /// The provider's own lifecycle word, stored as stated. Never rewritten into
   /// "open"/"closed", and never derived from endDate.
   solicitationStatus String? @map("solicitation_status")
@@ -7402,7 +7402,7 @@ model TangoSbirTopic {
   openDate    DateTime? @map("open_date") @db.Date
   closeDate   DateTime? @map("close_date") @db.Date
 
-  activity String?
+  activity           String?
   /// The provider's own lifecycle word for the parent solicitation, stored as
   /// stated. A closed topic is still stored - P42's acceptance is that it stays
   /// REFERENCE-ONLY, which is a rule about what may pursue it, not a reason to
@@ -9698,25 +9698,25 @@ model DefenseBudgetPromotionPlan {
 /// exclusive storage modes; a DB CHECK enforces exactly one, so a family whose
 /// plans outgrow a row can move to object storage without a schema change.
 model DefenseBudgetProjectionPlan {
-  id                   String   @id @default(uuid()) @db.Uuid
-  projectionPlanId     String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
-  recordSchemaVersion  String   @map("record_schema_version")
-  schemaVersion        String   @map("schema_version")
-  family               String
-  cycleId              String   @map("cycle_id")
-  fiscalYear           Int      @map("fiscal_year")
-  contentSha256        String   @map("content_sha256") @db.Char(64)
-  producerVersion      String   @map("producer_version")
-  certificationId      String?  @map("certification_id")
-  certificationSha256  String   @map("certification_sha256") @db.Char(64)
-  artifactSetSha256    String   @map("artifact_set_sha256") @db.Char(64)
-  status               String   @db.VarChar(32)
-  conflictCount        Int      @map("conflict_count")
-  unsupportedCount     Int      @map("unsupported_count")
-  planDocument         Json?    @map("plan_document")
-  planLocator          String?  @map("plan_locator")
-  planByteSha256       String?  @map("plan_byte_sha256") @db.Char(64)
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @default(uuid()) @db.Uuid
+  projectionPlanId    String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
+  recordSchemaVersion String   @map("record_schema_version")
+  schemaVersion       String   @map("schema_version")
+  family              String
+  cycleId             String   @map("cycle_id")
+  fiscalYear          Int      @map("fiscal_year")
+  contentSha256       String   @map("content_sha256") @db.Char(64)
+  producerVersion     String   @map("producer_version")
+  certificationId     String?  @map("certification_id")
+  certificationSha256 String   @map("certification_sha256") @db.Char(64)
+  artifactSetSha256   String   @map("artifact_set_sha256") @db.Char(64)
+  status              String   @db.VarChar(32)
+  conflictCount       Int      @map("conflict_count")
+  unsupportedCount    Int      @map("unsupported_count")
+  planDocument        Json?    @map("plan_document")
+  planLocator         String?  @map("plan_locator")
+  planByteSha256      String?  @map("plan_byte_sha256") @db.Char(64)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([cycleId, family, fiscalYear], map: "defense_budget_projection_plan_scope_idx")
   @@index([contentSha256], map: "defense_budget_projection_plan_content_idx")
@@ -10139,20 +10139,20 @@ model XTrackedAccount {
 /// out to subscribers by the feed endpoint. Retention-limited: expired or
 /// deleted posts are pruned by the service.
 model XPostCache {
-  id            String    @id @default(uuid()) @db.Uuid
-  accountId     String    @map("account_id") @db.Uuid
-  xPostId       String    @map("x_post_id") @db.VarChar(64)
-  text          String    @db.Text
-  createdAtX    DateTime  @map("created_at_x") @db.Timestamptz(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  xPostId     String   @map("x_post_id") @db.VarChar(64)
+  text        String   @db.Text
+  createdAtX  DateTime @map("created_at_x") @db.Timestamptz(6)
   /// JSON media metadata from the X API response (urls, types, preview_image_url).
-  media         Json      @default("[]")
+  media       Json     @default("[]")
   /// JSON public_metrics from the X API response (retweet_count, reply_count, like_count, quote_count).
-  metrics       Json      @default("{}")
+  metrics     Json     @default("{}")
   /// Provider raw metadata, stored only where useful for rendering. Minimal.
-  rawMeta       Json      @default("{}") @map("raw_meta")
+  rawMeta     Json     @default("{}") @map("raw_meta")
   /// Marks posts that have been deleted on X or are otherwise unavailable.
-  unavailable   Boolean   @default(false)
-  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  unavailable Boolean  @default(false)
+  fetchedAt   DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
 
   account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -10166,14 +10166,14 @@ model XPostCache {
 /// Protected by RLS (see migration). A user can subscribe to at most 25
 /// accounts (enforced in service layer).
 model XFeedSubscription {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  accountId   String   @map("account_id") @db.Uuid
-  enabled     Boolean  @default(true)
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  accountId String   @map("account_id") @db.Uuid
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -10257,13 +10257,14 @@ model KnowledgeAssertion {
   createdBy              String?   @map("created_by") @db.Uuid
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_tenant_fkey")
-  originEvent    KnowledgeEvent      @relation("KnowledgeAssertionOriginEvent", fields: [originEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_origin_event_fkey")
-  createdByUser  User?               @relation("KnowledgeAssertionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "knowledge_assertions_created_by_fkey")
-  evidence       KnowledgeEvidence[] @relation("KnowledgeEvidenceAssertion")
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_tenant_fkey")
+  originEvent KnowledgeEvent      @relation("KnowledgeAssertionOriginEvent", fields: [originEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_origin_event_fkey")
+  // Note: No relation to User on createdBy to ensure ON DELETE SET NULL never mutates immutable assertions
+  // The User may be deleted, but createdBy retains the historical UUID.
+  evidence    KnowledgeEvidence[] @relation("KnowledgeEvidenceAssertion")
 
-  supersedes     KnowledgeAssertion?  @relation("KnowledgeAssertionSupersession", fields: [supersedesAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_supersedes_fkey")
-  supersededBy   KnowledgeAssertion[] @relation("KnowledgeAssertionSupersession")
+  supersedes   KnowledgeAssertion?  @relation("KnowledgeAssertionSupersession", fields: [supersedesAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_supersedes_fkey")
+  supersededBy KnowledgeAssertion[] @relation("KnowledgeAssertionSupersession")
 
   contradicts    KnowledgeAssertion?  @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
   contradictedBy KnowledgeAssertion[] @relation("KnowledgeAssertionContradiction")
