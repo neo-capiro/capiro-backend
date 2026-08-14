@@ -23,8 +23,8 @@ const WorkspaceLibraryVNext = lazy(() =>
   })),
 );
 const WorkspaceCreationVNext = lazy(() =>
-  import('./creation/WorkspaceCreationVNext.js').then((module) => ({
-    default: module.WorkspaceCreationVNext,
+  import('./creation/WorkspaceCreationStabilized.js').then((module) => ({
+    default: module.WorkspaceCreationStabilized,
   })),
 );
 const WorkspaceEditorVNext = lazy(() =>
