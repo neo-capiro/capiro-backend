@@ -60,27 +60,36 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
   // Windows nested spawn under the long Phase 2/4-6 verifier chain can
   // intermittently return STATUS_DLL_INIT_FAILED (0xC0000142 / 3221225794)
-  // from tsc/node child processes even when the same command is green in
-  // isolation. Retry that specific native crash only — do not retry real
-  // typecheck/test failures.
+  // from tsc/vitest/node child processes even when the same command is green
+  // in isolation. Retry that specific native crash only — do not retry real
+  // typecheck/test failures. After the first DLL crash on Windows, fall back
+  // to shell:true so CreateProcess resolves through cmd (capacity/resolution
+  // only; same argv).
   const dllInitFailed = new Set([3221225794, -1073741502]);
-  const maxAttempts = 3;
+  const maxAttempts = 4;
   let lastStatus: number | null = null;
+  let useShell = false;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const result = spawnSync(resolved.command, resolved.args, {
       cwd,
       env: { ...process.env, CI: 'true' },
       stdio: 'inherit',
-      shell: false,
+      shell: useShell,
       windowsHide: true,
     });
     if (result.error) throw result.error;
     lastStatus = result.status;
     if (result.status === 0) return;
     if (attempt < maxAttempts && result.status != null && dllInitFailed.has(result.status)) {
+      if (process.platform === 'win32') useShell = true;
+      const delayMs = 1500 * attempt;
       console.warn(
-        `==> ${label}: Windows native crash status ${String(result.status)} (attempt ${attempt}/${maxAttempts}); retrying`,
+        `==> ${label}: Windows native crash status ${String(result.status)} (attempt ${attempt}/${maxAttempts}); retrying in ${delayMs}ms shell=${String(useShell)}`,
       );
+      spawnSync(process.execPath, ['-e', `setTimeout(() => {}, ${delayMs})`], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
       continue;
     }
     throw new Error(`${label} failed with exit code ${String(result.status)}`);
