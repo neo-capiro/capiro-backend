@@ -1,48 +1,49 @@
 /**
- * Workspace Document Agent vNext — API client layer.
- * All routes are under /workspace-api (the existing Workspace prefix).
- * Every mutation that requires expectedRevision reads it from the cached state
- * immediately before the call — never from a component prop captured at mount.
+ * Workspace Document Agent vNext — API surface.
+ *
+ * Authenticated routes are transported through the canonical Clerk-aware
+ * client by `transport-bridge.ts`. This file owns endpoint names and typed
+ * request/response contracts; it does not invent workflow state.
  */
-
 import type {
+  AgentMessage,
+  AgentProposal,
   AgentState,
   AgentStateResponse,
-  AgentMessage,
-  SendMessageRequest,
-  SendMessageResponse,
-  AgentProposal,
-  QualityResponse,
-  GenerationStatusResponse,
-  ContextItem,
-  DraftSummary,
-  Draft,
-  DraftDocument,
-  RecommendResponse,
-  CatalogResponse,
   BlueprintSummary,
   BlueprintVersion,
-  PreflightResponse,
-  ShareLinkResponse,
-  PublicShareDocument,
-  AgentError,
-  GenerationMode,
-  OutlineSection,
-  WorkspaceComment,
+  CatalogResponse,
   Collaborator,
+  ContextItem,
+  Draft,
+  DraftDocument,
+  DraftSummary,
   DraftVersion,
   EditLock,
+  GenerationMode,
+  GenerationStatusResponse,
+  OutlineSection,
+  PreflightResponse,
+  PublicShareDocument,
+  QualityResponse,
+  RecommendResponse,
+  SendMessageRequest,
+  SendMessageResponse,
+  ShareLinkResponse,
+  WorkspaceComment,
+  AgentError,
 } from '../types/agent.js';
 
 const API_BASE = '/workspace-api';
 
-// ── Fetch wrapper ────────────────────────────────────────────────────────────
+type PatchAgentData = Partial<
+  Pick<AgentState, 'documentType' | 'blueprintPin' | 'theme' | 'goal' | 'phase' | 'status'>
+> & {
+  generation?: { mode: GenerationMode };
+};
 
-async function apiFetch<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -50,56 +51,60 @@ async function apiFetch<T>(
     ...options,
   });
 
-  if (!res.ok) {
-    let errorBody: AgentError;
+  if (!response.ok) {
+    let body: AgentError;
     try {
-      errorBody = await res.json();
+      body = (await response.json()) as AgentError;
     } catch {
-      errorBody = {
-        statusCode: res.status,
-        message: res.statusText,
-        code: String(res.status),
+      body = {
+        statusCode: response.status,
+        message: response.statusText,
+        code: String(response.status),
       };
     }
-    throw Object.assign(new Error(errorBody.message || res.statusText), {
-      statusCode: res.status,
-      code: errorBody.code || String(res.status),
-      body: errorBody,
+    throw Object.assign(new Error(body.message || response.statusText), {
+      statusCode: response.status,
+      code: body.code || String(response.status),
+      body,
     });
   }
 
-  // 204 No Content
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
 function post<T>(path: string, body?: unknown): Promise<T> {
-  return apiFetch<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+  return apiFetch<T>(path, {
+    method: 'POST',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 function put<T>(path: string, body?: unknown): Promise<T> {
-  return apiFetch<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined });
+  return apiFetch<T>(path, {
+    method: 'PUT',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 function patch<T>(path: string, body?: unknown): Promise<T> {
-  return apiFetch<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined });
+  return apiFetch<T>(path, {
+    method: 'PATCH',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 function del<T>(path: string): Promise<T> {
   return apiFetch<T>(path, { method: 'DELETE' });
 }
 
-// ── Catalog & Recommendation ────────────────────────────────────────────────
-
 export const api = {
-  // Catalog
   getCatalog: (): Promise<CatalogResponse> =>
     apiFetch<CatalogResponse>('/document-agent/catalog'),
 
   recommend: (goal: string, client?: string): Promise<RecommendResponse> =>
     post<RecommendResponse>('/document-agent/recommend', { goal, client }),
 
-  // Agent state
   getAgentState: (draftId: string): Promise<AgentStateResponse> =>
     apiFetch<AgentStateResponse>(`/drafts/${draftId}/agent`),
 
@@ -107,8 +112,17 @@ export const api = {
     draftId: string,
     data: {
       documentType?: { id: string; label: string; product: string };
-      blueprintPin?: { blueprintId: string; versionId: string; version: number; definitionHash: string };
-      theme?: { id: string; name: string; settings: Record<string, unknown> };
+      blueprintPin?: {
+        blueprintId: string;
+        versionId: string;
+        version: number;
+        definitionHash: string;
+      };
+      theme?: {
+        id: string;
+        name: string;
+        settings: Record<string, unknown>;
+      };
       goal?: string;
     },
   ): Promise<AgentStateResponse> =>
@@ -117,43 +131,81 @@ export const api = {
   patchAgent: (
     draftId: string,
     expectedRevision: number,
-    data: Record<string, unknown>,
+    data: PatchAgentData,
   ): Promise<AgentStateResponse> =>
-    patch<AgentStateResponse>(`/drafts/${draftId}/agent`, { expectedRevision, ...data }),
+    patch<AgentStateResponse>(`/drafts/${draftId}/agent`, {
+      expectedRevision,
+      ...data,
+    }),
 
-  // Messages
   getMessages: (draftId: string): Promise<{ messages: AgentMessage[] }> =>
-    apiFetch<{ messages: AgentMessage[] }>(`/drafts/${draftId}/agent/messages`),
+    apiFetch<{ messages: AgentMessage[] }>(
+      `/drafts/${draftId}/agent/messages`,
+    ),
 
-  sendMessage: (draftId: string, data: SendMessageRequest): Promise<SendMessageResponse> =>
+  sendMessage: (
+    draftId: string,
+    data: SendMessageRequest,
+  ): Promise<SendMessageResponse> =>
     post<SendMessageResponse>(`/drafts/${draftId}/agent/messages`, data),
 
-  // Brief
   updateBrief: (
     draftId: string,
     expectedRevision: number,
     fields: Record<string, unknown>,
   ): Promise<AgentStateResponse> =>
-    put<AgentStateResponse>(`/drafts/${draftId}/agent/brief`, { expectedRevision, ...fields }),
+    put<AgentStateResponse>(`/drafts/${draftId}/agent/brief`, {
+      expectedRevision,
+      ...fields,
+    }),
 
-  synthesizeBrief: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/synthesize`, { expectedRevision }),
+  synthesizeBrief: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/synthesize`, {
+      expectedRevision,
+    }),
 
-  approveBrief: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/approve`, { expectedRevision }),
+  approveBrief: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/approve`, {
+      expectedRevision,
+    }),
 
-  reopenBrief: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/reopen`, { expectedRevision }),
+  reopenBrief: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/brief/reopen`, {
+      expectedRevision,
+    }),
 
-  // Context
-  recommendContext: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/recommend`, { expectedRevision }),
+  recommendContext: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/recommend`, {
+      expectedRevision,
+    }),
 
-  analyzeContext: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/analyze`, { expectedRevision }),
+  analyzeContext: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/analyze`, {
+      expectedRevision,
+    }),
 
-  approveContext: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/approve`, { expectedRevision }),
+  approveContext: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/approve`, {
+      expectedRevision,
+    }),
 
   patchContextItem: (
     draftId: string,
@@ -168,42 +220,64 @@ export const api = {
   getContextUsed: (draftId: string): Promise<unknown> =>
     apiFetch<unknown>(`/drafts/${draftId}/context-used`),
 
-  addContextItem: (draftId: string, data: Record<string, unknown>): Promise<unknown> =>
-    post<unknown>(`/drafts/${draftId}/context`, data),
+  addContextItem: (
+    draftId: string,
+    data: Record<string, unknown>,
+  ): Promise<unknown> => post<unknown>(`/drafts/${draftId}/context`, data),
 
   removeContextItem: (draftId: string, itemId: string): Promise<unknown> =>
     del<unknown>(`/drafts/${draftId}/context/${itemId}`),
 
-  // Outline
-  generateOutline: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/outline/generate`, { expectedRevision }),
+  generateOutline: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/outline/generate`, {
+      expectedRevision,
+    }),
 
   updateOutline: (
     draftId: string,
     expectedRevision: number,
     sections: OutlineSection[],
   ): Promise<AgentStateResponse> =>
-    put<AgentStateResponse>(`/drafts/${draftId}/agent/outline`, { expectedRevision, sections }),
+    put<AgentStateResponse>(`/drafts/${draftId}/agent/outline`, {
+      expectedRevision,
+      sections,
+    }),
 
   reviseOutline: (
     draftId: string,
     expectedRevision: number,
     instruction: string,
   ): Promise<{ proposalId: string; type: string }> =>
-    post<{ proposalId: string; type: string }>(`/drafts/${draftId}/agent/outline/revise`, {
+    post<{ proposalId: string; type: string }>(
+      `/drafts/${draftId}/agent/outline/revise`,
+      { expectedRevision, instruction },
+    ),
+
+  approveOutline: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/outline/approve`, {
       expectedRevision,
-      instruction,
     }),
 
-  approveOutline: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/outline/approve`, { expectedRevision }),
-
-  // Proposals
   getProposals: (draftId: string): Promise<{ proposals: AgentProposal[] }> =>
-    apiFetch<{ proposals: AgentProposal[] }>(`/drafts/${draftId}/agent/proposals`),
+    apiFetch<{ proposals: AgentProposal[] }>(
+      `/drafts/${draftId}/agent/proposals`,
+    ),
 
-  acceptProposal: (draftId: string, proposalId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/proposals/${proposalId}/accept`, { expectedRevision }),
+  acceptProposal: (
+    draftId: string,
+    proposalId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(
+      `/drafts/${draftId}/agent/proposals/${proposalId}/accept`,
+      { expectedRevision },
+    ),
 
   rejectProposal: (
     draftId: string,
@@ -211,12 +285,11 @@ export const api = {
     expectedRevision: number,
     note?: string,
   ): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/proposals/${proposalId}/reject`, {
-      expectedRevision,
-      note,
-    }),
+    post<AgentStateResponse>(
+      `/drafts/${draftId}/agent/proposals/${proposalId}/reject`,
+      { expectedRevision, note },
+    ),
 
-  // Generation
   generate: (
     draftId: string,
     expectedRevision: number,
@@ -230,22 +303,29 @@ export const api = {
     }),
 
   getGeneration: (draftId: string): Promise<GenerationStatusResponse> =>
-    apiFetch<GenerationStatusResponse>(`/drafts/${draftId}/agent/generation`),
+    apiFetch<GenerationStatusResponse>(
+      `/drafts/${draftId}/agent/generation`,
+    ),
 
   retryGeneration: (
     draftId: string,
     expectedRevision: number,
     sectionIds?: string[],
   ): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/generation/retry`, {
-      expectedRevision,
-      sectionIds,
-    }),
+    post<AgentStateResponse>(
+      `/drafts/${draftId}/agent/generation/retry`,
+      { expectedRevision, sectionIds },
+    ),
 
-  cancelGeneration: (draftId: string, expectedRevision: number): Promise<AgentStateResponse> =>
-    post<AgentStateResponse>(`/drafts/${draftId}/agent/generation/cancel`, { expectedRevision }),
+  cancelGeneration: (
+    draftId: string,
+    expectedRevision: number,
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(
+      `/drafts/${draftId}/agent/generation/cancel`,
+      { expectedRevision },
+    ),
 
-  // Quality
   getQuality: (draftId: string): Promise<QualityResponse> =>
     apiFetch<QualityResponse>(`/drafts/${draftId}/agent/quality`),
 
@@ -255,18 +335,21 @@ export const api = {
     expectedRevision: number,
     instruction?: string,
   ): Promise<{ proposalId: string }> =>
-    post<{ proposalId: string }>(`/drafts/${draftId}/agent/quality/issues/${issueId}/fix`, {
-      expectedRevision,
-      instruction,
-    }),
+    post<{ proposalId: string }>(
+      `/drafts/${draftId}/agent/quality/issues/${issueId}/fix`,
+      { expectedRevision, instruction },
+    ),
 
-  // Delivery
   preflight: (draftId: string): Promise<PreflightResponse> =>
     post<PreflightResponse>(`/drafts/${draftId}/delivery/preflight`),
 
   createApprovalRequest: (
     draftId: string,
-    params: { idempotencyKey?: string; notes?: string; versionId?: string },
+    params: {
+      idempotencyKey?: string;
+      notes?: string;
+      versionId?: string;
+    },
   ): Promise<unknown> =>
     post<unknown>(`/drafts/${draftId}/delivery/approval-requests`, params),
 
@@ -276,95 +359,149 @@ export const api = {
     decision: 'approved' | 'rejected',
     note?: string,
   ): Promise<unknown> =>
-    post<unknown>(`/drafts/${draftId}/delivery/approval-requests/${requestId}/decision`, {
-      decision,
-      note,
-    }),
+    post<unknown>(
+      `/drafts/${draftId}/delivery/approval-requests/${requestId}/decision`,
+      { decision, note },
+    ),
 
   createShareLink: (
     draftId: string,
-    params: { idempotencyKey?: string; expiresInDays?: number; label?: string; versionId?: string },
+    params: {
+      idempotencyKey?: string;
+      expiresInDays?: number;
+      label?: string;
+      versionId?: string;
+    },
   ): Promise<ShareLinkResponse> =>
     post<ShareLinkResponse>(`/drafts/${draftId}/delivery/share-links`, params),
 
-  revokeShareLink: (draftId: string, shareLinkId: string): Promise<unknown> =>
+  revokeShareLink: (
+    draftId: string,
+    shareLinkId: string,
+  ): Promise<unknown> =>
     del<unknown>(`/drafts/${draftId}/delivery/share-links/${shareLinkId}`),
 
-  // Public share (no auth)
   getPublicShare: (token: string): Promise<PublicShareDocument> =>
-    apiFetch<PublicShareDocument>(`/public/workspace-share/${token}`),
+    apiFetch<PublicShareDocument>(
+      `/public/workspace-share/${encodeURIComponent(token)}`,
+    ),
 
   addGuestComment: (token: string, text: string): Promise<unknown> =>
-    post<unknown>(`/public/workspace-share/${token}/comments`, { text }),
+    post<unknown>(
+      `/public/workspace-share/${encodeURIComponent(token)}/comments`,
+      { text },
+    ),
 
-  // Drafts
-  listDrafts: (params?: { scope?: string; sector?: string }): Promise<{ drafts: DraftSummary[] }> => {
-    const qs = new URLSearchParams();
-    if (params?.scope) qs.set('scope', params.scope);
-    if (params?.sector) qs.set('sector', params.sector);
-    const q = qs.toString();
-    return apiFetch<{ drafts: DraftSummary[] }>(`/drafts${q ? `?${q}` : ''}`);
+  listDrafts: (params?: {
+    scope?: 'all' | 'mine' | 'shared' | string;
+    sector?: string;
+  }): Promise<{ drafts: DraftSummary[] }> => {
+    const query = new URLSearchParams();
+    if (params?.scope) query.set('scope', params.scope);
+    if (params?.sector) query.set('sector', params.sector);
+    const suffix = query.toString();
+    return apiFetch<{ drafts: DraftSummary[] }>(
+      `/drafts${suffix ? `?${suffix}` : ''}`,
+    );
   },
 
   getDraft: (draftId: string): Promise<Draft> =>
     apiFetch<Draft>(`/drafts/${draftId}`),
 
-  createDraft: (data: { docTitle?: string; sector?: string }): Promise<{ id: string }> =>
-    post<{ id: string }>('/drafts', data),
+  createDraft: (data: {
+    docTitle?: string;
+    industry?: string | null;
+    product?: string | null;
+    client?: string | null;
+    sector?: string;
+  }): Promise<{ id: string }> => post<{ id: string }>('/drafts', data),
 
   deleteDraft: (draftId: string): Promise<unknown> =>
     del<unknown>(`/drafts/${draftId}`),
 
-  // Documents
-  getDocuments: (draftId: string): Promise<{ documents: DraftDocument[] }> =>
-    apiFetch<{ documents: DraftDocument[] }>(`/drafts/${draftId}/documents`),
+  getDocuments: (
+    draftId: string,
+  ): Promise<{ documents: DraftDocument[] }> =>
+    apiFetch<{ documents: DraftDocument[] }>(
+      `/drafts/${draftId}/documents`,
+    ),
 
-  createDocument: (draftId: string, data: { title: string }): Promise<DraftDocument> =>
+  createDocument: (
+    draftId: string,
+    data: { title?: string; name?: string; ordinal?: number },
+  ): Promise<DraftDocument> =>
     post<DraftDocument>(`/drafts/${draftId}/documents`, data),
 
   patchDocument: (
     draftId: string,
     docId: string,
-    data: { title?: string; body?: string },
+    data: {
+      title?: string;
+      name?: string;
+      ordinal?: number;
+      body?: string | Record<string, unknown>;
+    },
   ): Promise<DraftDocument> =>
     patch<DraftDocument>(`/drafts/${draftId}/documents/${docId}`, data),
 
   deleteDocument: (draftId: string, docId: string): Promise<unknown> =>
     del<unknown>(`/drafts/${draftId}/documents/${docId}`),
 
-  // Comments
-  getComments: (documentId: string): Promise<{ comments: WorkspaceComment[] }> =>
-    apiFetch<{ comments: WorkspaceComment[] }>(`/documents/${documentId}/comments`),
+  getComments: (
+    documentId: string,
+  ): Promise<{ comments: WorkspaceComment[] }> =>
+    apiFetch<{ comments: WorkspaceComment[] }>(
+      `/documents/${documentId}/comments`,
+    ),
 
   addComment: (
     documentId: string,
-    data: { text: string; parentId?: string },
+    data: {
+      text?: string;
+      body?: string;
+      parentId?: string;
+      quote?: string;
+      anchor?: Record<string, unknown>;
+    },
   ): Promise<WorkspaceComment> =>
     post<WorkspaceComment>(`/documents/${documentId}/comments`, data),
 
   patchComment: (
     documentId: string,
     commentId: string,
-    data: { resolved?: boolean; text?: string },
+    data: { resolved?: boolean; text?: string; body?: string },
   ): Promise<WorkspaceComment> =>
-    patch<WorkspaceComment>(`/documents/${documentId}/comments/${commentId}`, data),
+    patch<WorkspaceComment>(
+      `/documents/${documentId}/comments/${commentId}`,
+      data,
+    ),
 
-  deleteComment: (documentId: string, commentId: string): Promise<unknown> =>
-    del<unknown>(`/documents/${documentId}/comments/${commentId}`),
-
-  suggestEdit: (
+  deleteComment: (
     documentId: string,
     commentId: string,
   ): Promise<unknown> =>
-    post<unknown>(`/documents/${documentId}/comments/${commentId}/suggest`),
+    del<unknown>(`/documents/${documentId}/comments/${commentId}`),
 
-  // Collaborators
-  getCollaborators: (draftId: string): Promise<{ collaborators: Collaborator[] }> =>
-    apiFetch<{ collaborators: Collaborator[] }>(`/drafts/${draftId}/collaborators`),
+  suggestEdit: (documentId: string, commentId: string): Promise<unknown> =>
+    post<unknown>(
+      `/documents/${documentId}/comments/${commentId}/suggest`,
+    ),
+
+  getCollaborators: (
+    draftId: string,
+  ): Promise<{ collaborators: Collaborator[] }> =>
+    apiFetch<{ collaborators: Collaborator[] }>(
+      `/drafts/${draftId}/collaborators`,
+    ),
 
   addCollaborator: (
     draftId: string,
-    data: { email: string; role: string },
+    data: {
+      subjectId?: string;
+      email?: string;
+      name?: string;
+      role: string;
+    },
   ): Promise<Collaborator> =>
     post<Collaborator>(`/drafts/${draftId}/collaborators`, data),
 
@@ -373,22 +510,31 @@ export const api = {
     collaboratorId: string,
     data: { role?: string },
   ): Promise<Collaborator> =>
-    patch<Collaborator>(`/drafts/${draftId}/collaborators/${collaboratorId}`, data),
+    patch<Collaborator>(
+      `/drafts/${draftId}/collaborators/${collaboratorId}`,
+      data,
+    ),
 
-  removeCollaborator: (draftId: string, collaboratorId: string): Promise<unknown> =>
-    del<unknown>(`/drafts/${draftId}/collaborators/${collaboratorId}`),
+  removeCollaborator: (
+    draftId: string,
+    collaboratorId: string,
+  ): Promise<unknown> =>
+    del<unknown>(
+      `/drafts/${draftId}/collaborators/${collaboratorId}`,
+    ),
 
-  // Versions
   getVersions: (draftId: string): Promise<{ versions: DraftVersion[] }> =>
     apiFetch<{ versions: DraftVersion[] }>(`/drafts/${draftId}/versions`),
 
-  createVersion: (draftId: string, data: { label?: string }): Promise<DraftVersion> =>
+  createVersion: (
+    draftId: string,
+    data: { label?: string; authorKind?: 'meri' | 'person' },
+  ): Promise<DraftVersion> =>
     post<DraftVersion>(`/drafts/${draftId}/versions`, data),
 
   restoreVersion: (draftId: string, versionId: string): Promise<unknown> =>
     post<unknown>(`/drafts/${draftId}/versions/${versionId}/restore`),
 
-  // Edit Lock
   getLock: (draftId: string): Promise<EditLock> =>
     apiFetch<EditLock>(`/drafts/${draftId}/lock`),
 
@@ -407,56 +553,98 @@ export const api = {
   takeOverLock: (draftId: string): Promise<EditLock> =>
     post<EditLock>(`/drafts/${draftId}/lock/take-over`),
 
-  // Export
   exportDocx: (draftId: string, part?: string): string =>
-    `${API_BASE}/drafts/${draftId}/export/docx${part ? `?part=${part}` : ''}`,
+    `${API_BASE}/drafts/${draftId}/export/docx${
+      part ? `?part=${encodeURIComponent(part)}` : ''
+    }`,
 
   exportPdf: (draftId: string, part?: string): string =>
-    `${API_BASE}/drafts/${draftId}/export/pdf${part ? `?part=${part}` : ''}`,
+    `${API_BASE}/drafts/${draftId}/export/pdf${
+      part ? `?part=${encodeURIComponent(part)}` : ''
+    }`,
 
-  // Template Studio — Blueprints
   listBlueprints: (): Promise<{ blueprints: BlueprintSummary[] }> =>
-    apiFetch<{ blueprints: BlueprintSummary[] }>('/template-studio/blueprints'),
+    apiFetch<{ blueprints: BlueprintSummary[] }>(
+      '/template-studio/blueprints',
+    ),
 
-  getBlueprint: (blueprintId: string): Promise<BlueprintSummary & { versions: BlueprintVersion[] }> =>
-    apiFetch<BlueprintSummary & { versions: BlueprintVersion[] }>(`/template-studio/blueprints/${blueprintId}`),
+  getBlueprint: (
+    blueprintId: string,
+  ): Promise<BlueprintSummary & { versions: BlueprintVersion[] }> =>
+    apiFetch<BlueprintSummary & { versions: BlueprintVersion[] }>(
+      `/template-studio/blueprints/${blueprintId}`,
+    ),
 
-  createBlueprint: (data: Record<string, unknown>): Promise<BlueprintSummary> =>
+  createBlueprint: (
+    data: Record<string, unknown>,
+  ): Promise<BlueprintSummary> =>
     post<BlueprintSummary>('/template-studio/blueprints', data),
 
-  cloneBlueprint: (blueprintId: string, data?: Record<string, unknown>): Promise<BlueprintVersion> =>
-    post<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/clone`, data),
+  cloneBlueprint: (
+    blueprintId: string,
+    data?: Record<string, unknown>,
+  ): Promise<BlueprintVersion> =>
+    post<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/clone`,
+      data,
+    ),
 
-  createBlueprintVersion: (blueprintId: string, data?: Record<string, unknown>): Promise<BlueprintVersion> =>
-    post<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/versions`, data),
+  createBlueprintVersion: (
+    blueprintId: string,
+    data?: Record<string, unknown>,
+  ): Promise<BlueprintVersion> =>
+    post<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/versions`,
+      data,
+    ),
 
-  getVersion: (blueprintId: string, versionId: string): Promise<BlueprintVersion> =>
-    apiFetch<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/versions/${versionId}`),
+  getVersion: (
+    blueprintId: string,
+    versionId: string,
+  ): Promise<BlueprintVersion> =>
+    apiFetch<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/versions/${versionId}`,
+    ),
 
   updateVersion: (
     blueprintId: string,
     versionId: string,
     data: Record<string, unknown>,
   ): Promise<BlueprintVersion> =>
-    patch<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/versions/${versionId}`, data),
+    patch<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/versions/${versionId}`,
+      data,
+    ),
 
   testVersion: (blueprintId: string, versionId: string): Promise<unknown> =>
-    post<unknown>(`/template-studio/blueprints/${blueprintId}/versions/${versionId}/test`),
+    post<unknown>(
+      `/template-studio/blueprints/${blueprintId}/versions/${versionId}/test`,
+    ),
 
-  publishVersion: (blueprintId: string, versionId: string): Promise<BlueprintVersion> =>
-    post<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/versions/${versionId}/publish`),
+  publishVersion: (
+    blueprintId: string,
+    versionId: string,
+  ): Promise<BlueprintVersion> =>
+    post<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/versions/${versionId}/publish`,
+    ),
 
-  retireVersion: (blueprintId: string, versionId: string): Promise<BlueprintVersion> =>
-    post<BlueprintVersion>(`/template-studio/blueprints/${blueprintId}/versions/${versionId}/retire`),
+  retireVersion: (
+    blueprintId: string,
+    versionId: string,
+  ): Promise<BlueprintVersion> =>
+    post<BlueprintVersion>(
+      `/template-studio/blueprints/${blueprintId}/versions/${versionId}/retire`,
+    ),
 
   compareVersions: (blueprintId: string): Promise<unknown> =>
-    apiFetch<unknown>(`/template-studio/blueprints/${blueprintId}/compare`),
+    apiFetch<unknown>(
+      `/template-studio/blueprints/${blueprintId}/compare`,
+    ),
 
-  // Anonymize
   detectAnonymize: (draftId: string): Promise<unknown> =>
     post<unknown>(`/drafts/${draftId}/anonymize/detect`),
 
-  // Promote to memory
   promoteToMemory: (draftId: string): Promise<unknown> =>
     post<unknown>(`/drafts/${draftId}/promote-memory`),
 };
