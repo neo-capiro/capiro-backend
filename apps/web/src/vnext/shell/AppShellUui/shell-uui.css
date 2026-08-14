@@ -166,17 +166,6 @@
   color: var(--uui-gray-400) !important;
 }
 
-.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher-wrap { position: relative; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu {
-  position: absolute; top: 48px; right: 0; width: 300px; padding: 6px; z-index: 50;
-  border-radius: var(--uui-radius-card); background: var(--uui-white); box-shadow: var(--uui-shadow-popover);
-  animation: uuiShellFade 120ms ease;
-}
-.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu__label { padding: 10px 12px 6px; font-size: 12px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu > button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--uui-radius-control); background: transparent; text-align: left; font-size: var(--uui-text-sm); color: var(--uui-gray-700); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-meri-menu > button:hover { background: var(--uui-gray-50); }
-@keyframes uuiShellFade { from { opacity: 0; } to { opacity: 1; } }
-
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline { display: flex; align-items: center; gap: 8px; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline .capiro-mailbox-status__indicator { position: static; width: 10px; height: 10px; margin-left: 0; flex: 0 0 auto; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { margin-top: 4px; }
