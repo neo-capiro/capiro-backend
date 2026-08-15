@@ -66,9 +66,11 @@ function harness() {
 
   const registerGlobalPublicEntity = jest.fn(async () => ENTITY);
   const linkTenantIdentity = jest.fn(async () => ENTITY);
+  const mergeTenantPrivateEntity = jest.fn(async () => ENTITY);
   const registration = {
     registerGlobalPublicEntity,
     linkTenantIdentity,
+    mergeTenantPrivateEntity,
   } as unknown as CanonicalEntityRegistrationService;
 
   return {
@@ -78,6 +80,7 @@ function harness() {
     registerTenantPrivateEntity,
     registerGlobalPublicEntity,
     linkTenantIdentity,
+    mergeTenantPrivateEntity,
   };
 }
 
@@ -217,6 +220,89 @@ describe('CanonicalSourceAdapterService', () => {
     expect(result.status).toBe('ambiguous');
     expect(resolve).not.toHaveBeenCalled();
     expect(registerTenantPrivateEntity).not.toHaveBeenCalled();
+  });
+
+  test('converges one tenant-private placeholder into a verified global identity', async () => {
+    const {
+      service,
+      previewResolution,
+      resolve,
+      mergeTenantPrivateEntity,
+    } = harness();
+    const privateEntity: CanonicalEntityRecord = {
+      ...ENTITY,
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      tenantId: TENANT_ID,
+      identityScope: 'tenant_private',
+      canonicalName: 'Tenant RTX placeholder',
+      normalizedName: 'tenant rtx placeholder',
+    };
+    const candidates = [
+      {
+        entity: ENTITY,
+        confidence: 1,
+        resolutionMethod: 'identifier_exact' as const,
+        reasons: ['exact public identifier'],
+        provenance: [],
+      },
+      {
+        entity: privateEntity,
+        confidence: 1,
+        resolutionMethod: 'identifier_exact' as const,
+        reasons: ['existing CRM identifier'],
+        provenance: [],
+      },
+    ];
+    previewResolution
+      .mockResolvedValueOnce(
+        preview({
+          status: 'ambiguous',
+          candidates,
+          requiresUserConfirmation: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        preview({
+          status: 'ambiguous',
+          candidates,
+          requiresUserConfirmation: true,
+        }),
+      );
+    resolve.mockResolvedValue(
+      resolution({ status: 'resolved', entity: ENTITY, confidence: 1 }),
+    );
+
+    const result = await service.syncConfirmedClientMapping({
+      id: 'mapping-1',
+      tenantId: TENANT_ID,
+      clientId: 'client-1',
+      clientName: 'RTX',
+      source: 'contracting',
+      externalId: 'contractor-1',
+      externalName: 'RTX Corporation',
+      confirmed: true,
+      reviewStatus: 'confirmed',
+      matchBasis: 'exact_uei',
+      matchTier: 1,
+      publicIdentifiers: [
+        {
+          type: 'uei',
+          value: 'ABCDEF123456',
+          sourceType: 'federal_contractor',
+          sourceId: 'contractor-1',
+        },
+      ],
+    });
+
+    expect(result.entityId).toBe(ENTITY.id);
+    expect(mergeTenantPrivateEntity).toHaveBeenCalledWith(
+      TENANT_ID,
+      expect.objectContaining({
+        sourceEntityId: privateEntity.id,
+        targetEntityId: ENTITY.id,
+        reasonCode: 'confirmed_public_mapping',
+      }),
+    );
   });
 
   test('promotes only confirmed reviewed public mappings', async () => {

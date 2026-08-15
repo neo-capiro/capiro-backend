@@ -47,21 +47,27 @@ function input() {
 
 function harness(existing: CanonicalEntityRecord[] = []) {
   const findGlobalByIdentifiers = jest.fn(async () => existing);
+  const findGlobalByExactName = jest.fn(async () => [] as CanonicalEntityRecord[]);
   const createGlobalPublicEntity = jest.fn(async () => ENTITY);
   const attachGlobalIdentity = jest.fn(async () => ENTITY);
   const attachTenantPrivateIdentity = jest.fn(async () => ENTITY);
+  const mergeTenantPrivateEntity = jest.fn(async () => ENTITY);
   const repository = {
     findGlobalByIdentifiers,
+    findGlobalByExactName,
     createGlobalPublicEntity,
     attachGlobalIdentity,
     attachTenantPrivateIdentity,
+    mergeTenantPrivateEntity,
   } as unknown as CanonicalEntityRegistrationRepository;
   return {
     service: new CanonicalEntityRegistrationService(repository),
     findGlobalByIdentifiers,
+    findGlobalByExactName,
     createGlobalPublicEntity,
     attachGlobalIdentity,
     attachTenantPrivateIdentity,
+    mergeTenantPrivateEntity,
   };
 }
 
@@ -130,6 +136,30 @@ describe('CanonicalEntityRegistrationService', () => {
         ],
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('refuses a same-name global duplicate when identifiers do not corroborate', async () => {
+    const { service, findGlobalByExactName, createGlobalPublicEntity } = harness();
+    findGlobalByExactName.mockResolvedValue([ENTITY]);
+
+    await expect(service.registerGlobalPublicEntity(input())).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(createGlobalPublicEntity).not.toHaveBeenCalled();
+  });
+
+  test('delegates deterministic tenant-private convergence to the merge ledger', async () => {
+    const { service, mergeTenantPrivateEntity } = harness();
+
+    await expect(
+      service.mergeTenantPrivateEntity('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
+        sourceEntityId: '22222222-2222-4222-8222-222222222222',
+        targetEntityId: ENTITY.id,
+        reasonCode: 'confirmed_public_mapping',
+        provenance: [{ sourceType: 'client_intel_mapping', sourceId: 'mapping-1' }],
+      }),
+    ).resolves.toEqual(ENTITY);
+    expect(mergeTenantPrivateEntity).toHaveBeenCalledTimes(1);
   });
 
   test('links tenant-private source identity to an existing visible entity', async () => {

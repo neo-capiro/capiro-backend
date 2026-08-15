@@ -22,6 +22,7 @@ import type {
   AttachEntityIdentityInput,
   GlobalIdentifierLookupInput,
   RegisterGlobalPublicEntityInput,
+  MergeTenantPrivateEntityInput,
 } from './canonical-entity-registration.types.js';
 
 interface CanonicalEntityRow {
@@ -100,6 +101,43 @@ export class CanonicalEntityRegistrationRepository {
          AND entity.tenant_id IS NULL
          AND entity.status = 'active'
         ORDER BY entity.canonical_name, entity.id
+      `;
+      return rows.map(mapEntity);
+    });
+  }
+
+  async findGlobalByExactName(
+    entityTypeInput: string,
+    canonicalName: string,
+  ): Promise<CanonicalEntityRecord[]> {
+    const entityType = normalizeEntityType(entityTypeInput);
+    const normalizedName = normalizeEntityText(canonicalName);
+    if (!entityType || !normalizedName) return [];
+
+    return this.prisma.withSystem(async (tx) => {
+      const rows = await tx.$queryRaw<CanonicalEntityRow[]>`
+        SELECT
+          id,
+          tenant_id,
+          identity_scope,
+          entity_type,
+          canonical_name,
+          normalized_name,
+          status,
+          resolution_confidence,
+          resolution_method,
+          metadata,
+          merged_into_entity_id,
+          created_at,
+          updated_at
+        FROM canonical_entities
+        WHERE identity_scope = 'global_public'
+          AND tenant_id IS NULL
+          AND status = 'active'
+          AND entity_type = ${entityType}
+          AND normalized_name = ${normalizedName}
+        ORDER BY id
+        LIMIT 25
       `;
       return rows.map(mapEntity);
     });
@@ -244,6 +282,126 @@ export class CanonicalEntityRegistrationRepository {
       }
 
       return mapEntity(entity);
+    });
+  }
+
+  async mergeTenantPrivateEntity(
+    tenantId: string,
+    input: MergeTenantPrivateEntityInput,
+  ): Promise<CanonicalEntityRecord> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const targets = await tx.$queryRaw<CanonicalEntityRow[]>`
+        SELECT
+          id, tenant_id, identity_scope, entity_type, canonical_name,
+          normalized_name, status, resolution_confidence, resolution_method,
+          metadata, merged_into_entity_id, created_at, updated_at
+        FROM canonical_entities
+        WHERE id = ${input.targetEntityId}::uuid
+          AND status = 'active'
+          AND (identity_scope = 'global_public' OR tenant_id = ${tenantId}::uuid)
+        FOR UPDATE
+      `;
+      const target = targets[0];
+      if (!target) {
+        throw new NotFoundException('Canonical merge target is not visible to this tenant.');
+      }
+
+      const sources = await tx.$queryRaw<CanonicalEntityRow[]>`
+        SELECT
+          id, tenant_id, identity_scope, entity_type, canonical_name,
+          normalized_name, status, resolution_confidence, resolution_method,
+          metadata, merged_into_entity_id, created_at, updated_at
+        FROM canonical_entities
+        WHERE id = ${input.sourceEntityId}::uuid
+          AND tenant_id = ${tenantId}::uuid
+          AND identity_scope = 'tenant_private'
+          AND status = 'active'
+        FOR UPDATE
+      `;
+      const source = sources[0];
+      if (!source) {
+        throw new NotFoundException('Canonical merge source is not an active tenant-private entity.');
+      }
+      if (source.entity_type !== target.entity_type) {
+        throw new ConflictException('Canonical merge requires matching entity types.');
+      }
+
+      await tx.$executeRaw`
+        WITH withdrawn AS (
+          UPDATE entity_aliases
+          SET status = 'withdrawn'
+          WHERE entity_id = ${source.id}::uuid
+            AND tenant_id = ${tenantId}::uuid
+            AND identity_scope = 'tenant_private'
+            AND status = 'active'
+          RETURNING alias, normalized_alias, source_type, source_id, confidence, verified_at
+        )
+        INSERT INTO entity_aliases (
+          entity_id, tenant_id, identity_scope, alias, normalized_alias,
+          source_type, source_id, confidence, verified_at, status
+        )
+        SELECT
+          ${target.id}::uuid, ${tenantId}::uuid, 'tenant_private', alias,
+          normalized_alias, source_type, source_id, confidence, verified_at, 'active'
+        FROM withdrawn
+        ON CONFLICT DO NOTHING
+      `;
+
+      await tx.$executeRaw`
+        WITH withdrawn AS (
+          UPDATE entity_identifiers
+          SET status = 'withdrawn'
+          WHERE entity_id = ${source.id}::uuid
+            AND tenant_id = ${tenantId}::uuid
+            AND identity_scope = 'tenant_private'
+            AND status = 'active'
+          RETURNING identifier_type, identifier_value, normalized_value,
+                    source_type, source_id, confidence, verified_at
+        )
+        INSERT INTO entity_identifiers (
+          entity_id, tenant_id, identity_scope, identifier_type,
+          identifier_value, normalized_value, source_type, source_id,
+          confidence, verified_at, status
+        )
+        SELECT
+          ${target.id}::uuid, ${tenantId}::uuid, 'tenant_private',
+          identifier_type, identifier_value, normalized_value, source_type,
+          source_id, confidence, verified_at, 'active'
+        FROM withdrawn
+        ON CONFLICT DO NOTHING
+      `;
+
+      await tx.$executeRaw`
+        INSERT INTO canonical_entity_merges (
+          tenant_id, source_entity_id, target_entity_id, actor_user_id,
+          reason_code, reason, provenance
+        )
+        VALUES (
+          ${tenantId}::uuid,
+          ${source.id}::uuid,
+          ${target.id}::uuid,
+          ${input.actorUserId ?? null}::uuid,
+          ${normalizeIdentifierType(input.reasonCode)},
+          ${input.reason?.trim() || null},
+          CAST(${JSON.stringify(input.provenance ?? [])} AS jsonb)
+        )
+      `;
+
+      const merged = await tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE canonical_entities
+        SET status = 'merged',
+            merged_into_entity_id = ${target.id}::uuid,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${source.id}::uuid
+          AND tenant_id = ${tenantId}::uuid
+          AND status = 'active'
+        RETURNING id
+      `;
+      if (!merged[0]) {
+        throw new ConflictException('Canonical merge source changed concurrently.');
+      }
+
+      return mapEntity(target);
     });
   }
 

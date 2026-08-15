@@ -12,6 +12,7 @@ import type { CanonicalEntityRecord } from './entity-resolution.types.js';
 import {
   GLOBAL_AUTHORITATIVE_IDENTIFIER_TYPES,
   type LinkTenantIdentityInput,
+  type MergeTenantPrivateEntityInput,
   type RegisterGlobalPublicEntityInput,
 } from './canonical-entity-registration.types.js';
 import { CanonicalEntityRegistrationRepository } from './canonical-entity-registration.repository.js';
@@ -92,7 +93,28 @@ export class CanonicalEntityRegistrationService {
       return this.repository.attachGlobalIdentity(match.id, input);
     }
 
+    const exactNameMatches = await this.repository.findGlobalByExactName(
+      entityType,
+      input.canonicalName,
+    );
+    if (exactNameMatches.length > 0) {
+      throw new ConflictException(
+        'An exact-name global entity already exists without matching authoritative identifiers; human reconciliation is required.',
+      );
+    }
+
     return this.repository.createGlobalPublicEntity(input);
+  }
+
+  async mergeTenantPrivateEntity(
+    tenantId: string,
+    input: MergeTenantPrivateEntityInput,
+  ): Promise<CanonicalEntityRecord> {
+    if (input.sourceEntityId === input.targetEntityId) {
+      throw new BadRequestException('Canonical merge source and target must differ.');
+    }
+    assertAuthoritativeSource(input.reasonCode);
+    return this.repository.mergeTenantPrivateEntity(tenantId, input);
   }
 
   async linkTenantIdentity(

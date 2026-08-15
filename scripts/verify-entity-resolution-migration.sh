@@ -6,6 +6,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHASE5_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120100000_universal_entity_resolution/migration.sql"
 HARDENING_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120110000_universal_entity_resolution_hardening/migration.sql"
+MERGE_MIGRATION="$ROOT_DIR/apps/api/prisma/migrations/20261120120000_canonical_entity_merge_ledger/migration.sql"
 
 TENANT_ONE="11111111-1111-4111-8111-111111111111"
 TENANT_TWO="22222222-2222-4222-8222-222222222222"
@@ -19,6 +20,15 @@ ACTOR_ONE="99999999-9999-4999-8999-999999999999"
 
 psql_cmd() {
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 "$@"
+}
+
+expect_failure() {
+  local label="$1"
+  shift
+  if "$@"; then
+    echo "ERROR: expected failure succeeded: $label" >&2
+    exit 1
+  fi
 }
 
 psql_cmd <<SQL
@@ -60,6 +70,7 @@ SQL
 
 psql_cmd -f "$PHASE5_MIGRATION"
 psql_cmd -f "$HARDENING_MIGRATION"
+psql_cmd -f "$MERGE_MIGRATION"
 
 psql_cmd <<SQL
 INSERT INTO tenants (id) VALUES
@@ -460,11 +471,15 @@ then
   exit 1
 fi
 
-# Merges are type-safe and tenant-safe.
+# Merges are type-safe, tenant-safe, and require append-only lineage.
 if psql_cmd <<SQL
-UPDATE canonical_entities
-SET status = 'merged', merged_into_entity_id = '$GLOBAL_PERSON'::uuid
-WHERE id = '$TENANT_ONE_ORG'::uuid;
+INSERT INTO canonical_entity_merges (
+  tenant_id, source_entity_id, target_entity_id, reason_code, provenance
+)
+VALUES (
+  '$TENANT_ONE'::uuid, '$TENANT_ONE_ORG'::uuid, '$GLOBAL_PERSON'::uuid,
+  'confirmed_public_mapping', '[]'::jsonb
+);
 SQL
 then
   echo "ERROR: cross-type merge unexpectedly committed." >&2
@@ -472,21 +487,66 @@ then
 fi
 
 if psql_cmd <<SQL
-UPDATE canonical_entities
-SET status = 'merged', merged_into_entity_id = '$TENANT_TWO_ORG'::uuid
-WHERE id = '$TENANT_ONE_ORG'::uuid;
+INSERT INTO canonical_entity_merges (
+  tenant_id, source_entity_id, target_entity_id, reason_code, provenance
+)
+VALUES (
+  '$TENANT_ONE'::uuid, '$TENANT_ONE_ORG'::uuid, '$TENANT_TWO_ORG'::uuid,
+  'confirmed_public_mapping', '[]'::jsonb
+);
 SQL
 then
   echo "ERROR: cross-tenant merge unexpectedly committed." >&2
   exit 1
 fi
 
-# A private source may safely converge on a verified global identity.
-psql_cmd <<SQL
+if psql_cmd <<SQL
 UPDATE canonical_entities
 SET status = 'merged', merged_into_entity_id = '$GLOBAL_ORG'::uuid
 WHERE id = '$TENANT_ONE_ORG'::uuid;
 SQL
+then
+  echo "ERROR: merge without lineage unexpectedly committed." >&2
+  exit 1
+fi
+
+# A private source may safely converge on a verified global identity when the
+# append-only lineage row is committed in the same transaction.
+psql_cmd <<SQL
+BEGIN;
+INSERT INTO canonical_entity_merges (
+  tenant_id, source_entity_id, target_entity_id, actor_user_id, reason_code,
+  reason, provenance
+)
+VALUES (
+  '$TENANT_ONE'::uuid, '$TENANT_ONE_ORG'::uuid, '$GLOBAL_ORG'::uuid,
+  '$ACTOR_ONE'::uuid, 'confirmed_public_mapping', 'Reviewed exact UEI',
+  '[{"sourceType":"client_intel_mapping","sourceId":"mapping-1"}]'::jsonb
+);
+UPDATE canonical_entities
+SET status = 'merged', merged_into_entity_id = '$GLOBAL_ORG'::uuid
+WHERE id = '$TENANT_ONE_ORG'::uuid;
+COMMIT;
+SQL
+
+if psql_cmd <<SQL
+UPDATE canonical_entity_merges
+SET reason = 'rewritten'
+WHERE source_entity_id = '$TENANT_ONE_ORG'::uuid;
+SQL
+then
+  echo "ERROR: immutable merge lineage unexpectedly updated." >&2
+  exit 1
+fi
+
+if psql_cmd <<SQL
+DELETE FROM canonical_entity_merges
+WHERE source_entity_id = '$TENANT_ONE_ORG'::uuid;
+SQL
+then
+  echo "ERROR: immutable merge lineage unexpectedly deleted." >&2
+  exit 1
+fi
 
 # Ordinary tenant sessions may not create globally reusable identity.
 if psql_cmd <<SQL

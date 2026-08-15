@@ -16,7 +16,8 @@ export type CanonicalSourceSyncStatus =
   | 'ambiguous'
   | 'skipped'
   | 'would_link'
-  | 'would_create';
+  | 'would_create'
+  | 'failed';
 
 export interface CanonicalSourceSyncResult {
   sourceKind: CanonicalSourceKind;

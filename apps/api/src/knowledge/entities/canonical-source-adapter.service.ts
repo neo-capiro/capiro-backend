@@ -231,20 +231,23 @@ export class CanonicalSourceAdapterService {
       entityTypeHint: 'organization',
       identifiers: asLookupIdentifiers(source.publicIdentifiers),
     });
-    if (preview.status === 'ambiguous') {
-      return fromAmbiguous(
-        'confirmed_client_mapping',
-        source.id,
-        preview,
-        'Public identifiers conflict with multiple visible entities.',
-      );
-    }
     if (options.dryRun) {
+      if (preview.status === 'ambiguous' && !findConvergencePair(preview, source.tenantId)) {
+        return fromAmbiguous(
+          'confirmed_client_mapping',
+          source.id,
+          preview,
+          'Public identifiers conflict with multiple visible entities.',
+        );
+      }
+      const existingGlobal = preview.candidates.find(
+        (candidate) => candidate.entity.identityScope === 'global_public',
+      )?.entity;
       return {
         sourceKind: 'confirmed_client_mapping',
         sourceId: source.id,
-        status: preview.status === 'resolved' ? 'would_link' : 'would_create',
-        entityId: preview.entity?.id ?? null,
+        status: existingGlobal ? 'would_link' : 'would_create',
+        entityId: existingGlobal?.id ?? null,
         resolutionId: null,
         candidates: preview.candidates,
         reason: null,
@@ -265,6 +268,50 @@ export class CanonicalSourceAdapterService {
       aliases: source.publicAliases ?? [],
       identifiers: source.publicIdentifiers,
     });
+
+    const postRegistrationPreview = await this.resolver.preview(source.tenantId, {
+      query: source.clientName,
+      actorUserId: options.actorUserId ?? null,
+      entityTypeHint: 'organization',
+      identifiers: asLookupIdentifiers(source.publicIdentifiers),
+    });
+    if (postRegistrationPreview.status === 'ambiguous') {
+      const convergence = findConvergencePair(
+        postRegistrationPreview,
+        source.tenantId,
+        entity.id,
+      );
+      if (!convergence) {
+        const ambiguous = await this.resolver.resolve(source.tenantId, {
+          query: source.clientName,
+          actorUserId: options.actorUserId ?? null,
+          entityTypeHint: 'organization',
+          identifiers: asLookupIdentifiers(source.publicIdentifiers),
+        });
+        return fromAmbiguous(
+          'confirmed_client_mapping',
+          source.id,
+          ambiguous,
+          'Public identifiers conflict with multiple visible entities.',
+        );
+      }
+
+      await this.registration.mergeTenantPrivateEntity(source.tenantId, {
+        sourceEntityId: convergence.privateEntityId,
+        targetEntityId: convergence.globalEntityId,
+        actorUserId: options.actorUserId ?? null,
+        reasonCode: 'confirmed_public_mapping',
+        reason: `Confirmed ${source.source} mapping ${source.id}`,
+        provenance: [
+          {
+            sourceType: 'client_intel_mapping',
+            sourceId: source.id,
+            matchBasis: source.matchBasis ?? null,
+            matchTier: source.matchTier ?? null,
+          },
+        ],
+      });
+    }
 
     const resolution = await this.resolver.resolve(source.tenantId, {
       query: source.clientName,
@@ -300,7 +347,12 @@ export class CanonicalSourceAdapterService {
     return {
       sourceKind: 'confirmed_client_mapping',
       sourceId: source.id,
-      status: preview.status === 'resolved' ? 'linked' : 'created',
+      status:
+        preview.candidates.some(
+          (candidate) => candidate.entity.identityScope === 'global_public',
+        )
+          ? 'linked'
+          : 'created',
       entityId: entity.id,
       resolutionId: resolution.resolutionId,
       candidates: resolution.candidates,
@@ -464,6 +516,34 @@ function asLookupIdentifiers(
   values: readonly EntityIdentifierRegistrationInput[],
 ): EntityIdentifierInput[] {
   return values.map((value) => ({ type: value.type, value: value.value }));
+}
+
+function findConvergencePair(
+  preview: EntityResolutionPreview,
+  tenantId: string,
+  expectedGlobalEntityId?: string,
+): { globalEntityId: string; privateEntityId: string } | null {
+  const uniqueEntities = new Map(
+    preview.candidates.map((candidate) => [candidate.entity.id, candidate.entity]),
+  );
+  const entities = [...uniqueEntities.values()];
+  const globals = entities.filter(
+    (entity) =>
+      entity.identityScope === 'global_public' &&
+      (!expectedGlobalEntityId || entity.id === expectedGlobalEntityId),
+  );
+  const privates = entities.filter(
+    (entity) =>
+      entity.identityScope === 'tenant_private' && entity.tenantId === tenantId,
+  );
+  if (globals.length !== 1 || privates.length !== 1 || entities.length !== 2) {
+    return null;
+  }
+  if (globals[0]!.entityType !== privates[0]!.entityType) return null;
+  return {
+    globalEntityId: globals[0]!.id,
+    privateEntityId: privates[0]!.id,
+  };
 }
 
 function safeDomain(value: string | null | undefined): string | null {

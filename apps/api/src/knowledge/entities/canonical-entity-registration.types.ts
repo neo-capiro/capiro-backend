@@ -54,3 +54,12 @@ export interface CanonicalSourceRegistrationResult {
   resolutionId: string | null;
   candidates: EntityResolutionCandidate[];
 }
+
+export interface MergeTenantPrivateEntityInput {
+  sourceEntityId: string;
+  targetEntityId: string;
+  actorUserId?: string | null;
+  reasonCode: string;
+  reason?: string | null;
+  provenance?: readonly Record<string, unknown>[];
+}
