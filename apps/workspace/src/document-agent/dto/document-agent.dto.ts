@@ -1,7 +1,17 @@
 // DTOs for the document-agent module. All mutation DTOs include `expectedRevision`
 // for optimistic concurrency control.
 
-import { IsArray, IsInt, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 /** Recommend a document setup. */
 export class RecommendDocumentSetupDto {
@@ -29,6 +39,7 @@ export class PatchAgentDto {
   @IsOptional() @IsObject() blueprintPin?: Record<string, unknown>;
   @IsOptional() @IsObject() theme?: Record<string, unknown>;
   @IsOptional() @IsObject() goal?: Record<string, unknown>;
+  @IsOptional() @IsObject() generation?: { mode?: 'quick' | 'standard' | 'max' };
   @IsOptional() @IsString() phase?: string;
   @IsOptional() @IsString() status?: string;
 }
@@ -101,6 +112,15 @@ export class ApproveContextDto {
 /** Patch a context item's payload (extends WsContextItem.payload). */
 export class PatchContextItemDto {
   @IsObject() payload!: Record<string, unknown>;
+  @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
+}
+
+/** Resolve one source conflict explicitly. */
+export class ResolveContextConflictDto {
+  @IsInt() @Min(0) expectedRevision!: number;
+  @IsString() @MinLength(1) resolution!: string;
+  @IsOptional() @IsString() keptItemId?: string;
+  @IsOptional() @IsArray() excludedItemIds?: string[];
 }
 
 /** Generate the outline. */
@@ -143,7 +163,8 @@ export class DecideProposalDto {
 /** Generate the document. */
 export class GenerateDto {
   @IsInt() @Min(0) expectedRevision!: number;
-  @IsOptional() @IsString() mode?: 'quick' | 'standard' | 'max';
+  @IsOptional() @IsString() @IsIn(['quick', 'standard', 'max'])
+  mode?: 'quick' | 'standard' | 'max';
   @IsOptional() @IsString() idempotencyKey?: string;
 }
 

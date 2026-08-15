@@ -1,107 +1,170 @@
 /**
- * Workspace vNext route interception.
+ * Exact route ownership for Workspace vNext.
  *
- * Intercepts /workspace, /workspace/new, /workspace/:draftId, /workspace/:draftId/run,
- * /workspace/studio, /workspace/studio/:blueprintId/:versionId and /share/:token.
- *
- * Falls through to the canonical Outlet for any workspace route that doesn't
- * have a vNext presentation yet, preserving existing app.capiro.ai behaviour.
+ * Static legacy Workspace routes must continue to fall through to the existing
+ * application. Dynamic vNext draft routes are UUID-only so strings such as
+ * "library", "draft" and "preview" can never be mistaken for draft IDs.
  */
+import {
+  lazy,
+  Suspense,
+  useLayoutEffect,
+  type ReactNode,
+} from 'react';
+import { useLocation } from 'react-router-dom';
+import { useApi } from '../../../lib/use-api.js';
+import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
+import './styles/workspace.css';
+import './styles/workspace-audit.css';
+import './styles/workspace-editor-audit.css';
 
-import { lazy, Suspense } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+const WorkspaceLibraryVNext = lazy(() =>
+  import('./library/WorkspaceLibraryVNext.js').then((module) => ({
+    default: module.WorkspaceLibraryVNext,
+  })),
+);
+const WorkspaceCreationVNext = lazy(() =>
+  import('./creation/WorkspaceCreationStabilized.js').then((module) => ({
+    default: module.WorkspaceCreationStabilized,
+  })),
+);
+const WorkspaceEditorVNext = lazy(() =>
+  import('./editor/WorkspaceEditorStabilized.js').then((module) => ({
+    default: module.WorkspaceEditorStabilized,
+  })),
+);
+const WorkspaceStudioVNext = lazy(() =>
+  import('./studio/WorkspaceStudioVNext.js').then((module) => ({
+    default: module.WorkspaceStudioVNext,
+  })),
+);
 
-const WorkspaceLibraryVNext = lazy(async () => ({
-  default: (await import('./library/WorkspaceLibraryVNext.js')).WorkspaceLibraryVNext,
-}));
+const UUID_SOURCE =
+  '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}';
+const DRAFT_ROUTE = new RegExp(`^/workspace/(${UUID_SOURCE})/?$`);
+const RUN_ROUTE = new RegExp(`^/workspace/(${UUID_SOURCE})/run/?$`);
+const STUDIO_EDITOR_ROUTE = new RegExp(
+  `^/workspace/studio/(${UUID_SOURCE})/(${UUID_SOURCE})/?$`,
+);
 
-const WorkspaceCreationVNext = lazy(async () => ({
-  default: (await import('./creation/WorkspaceCreationVNext.js')).WorkspaceCreationVNext,
-}));
+const STATIC_VNEXT_ROUTES = new Set([
+  '/workspace',
+  '/workspace/',
+  '/workspace/new',
+  '/workspace/new/',
+  '/workspace/shares',
+  '/workspace/shares/',
+  '/workspace/studio',
+  '/workspace/studio/',
+]);
 
-const WorkspaceEditorVNext = lazy(async () => ({
-  default: (await import('./editor/WorkspaceEditorVNext.js')).WorkspaceEditorVNext,
-}));
-
-const WorkspaceStudioVNext = lazy(async () => ({
-  default: (await import('./studio/WorkspaceStudioVNext.js')).WorkspaceStudioVNext,
-}));
-
-const WorkspaceShareView = lazy(async () => ({
-  default: (await import('./share/WorkspaceShareView.js')).WorkspaceShareView,
-}));
-
-function isWorkspaceVNextPath(pathname: string): boolean {
-  if (pathname === '/workspace') return true;
-  if (pathname === '/workspace/new') return true;
-  if (pathname.startsWith('/workspace/studio')) return true;
-  // /workspace/:draftId and /workspace/:draftId/run — but NOT /workspace/studio
-  if (pathname.startsWith('/workspace/')) {
-    const rest = pathname.slice('/workspace/'.length);
-    // Exclude 'studio' (handled above) and any sub-paths
-    if (rest === 'studio' || rest.startsWith('studio/')) return true; // already handled
-    // It's a draftId — could be /workspace/:draftId or /workspace/:draftId/run
-    return true;
-  }
-  // Public share — unauthenticated, no shell
-  if (pathname.startsWith('/share/')) return true;
-  return false;
+function normalizePath(pathname: string): string {
+  if (!pathname.startsWith('/')) return `/${pathname}`;
+  return pathname;
 }
 
 export function isWorkspaceVNextRoute(pathname: string): boolean {
-  return isWorkspaceVNextPath(pathname);
+  const path = normalizePath(pathname);
+  return (
+    STATIC_VNEXT_ROUTES.has(path) ||
+    DRAFT_ROUTE.test(path) ||
+    RUN_ROUTE.test(path) ||
+    STUDIO_EDITOR_ROUTE.test(path)
+  );
 }
 
-export function WorkspaceVNextRoutes() {
+function WorkspaceApiBoundary({ children }: { children: ReactNode }) {
+  const client = useApi();
+  useLayoutEffect(
+    () => installWorkspaceTransportBridge(client),
+    [client],
+  );
+  return children;
+}
+
+function WorkspaceLoading() {
+  return (
+    <div className="ws-vnext" role="status" aria-busy="true">
+      <div className="ws-vnext-empty">
+        <div className="ws-vnext-skeleton-row" style={{ width: '45%' }} />
+        <div className="ws-vnext-skeleton-row" style={{ width: '75%' }} />
+        <div className="ws-vnext-skeleton-row" style={{ width: '62%' }} />
+      </div>
+    </div>
+  );
+}
+
+function SharesIndex() {
+  return (
+    <div className="ws-vnext-library">
+      <header className="ws-vnext-library__header">
+        <div className="ws-vnext-library__title-block">
+          <h1>Client shares</h1>
+          <p>
+            Share management is available from a document after delivery
+            preflight.
+          </p>
+        </div>
+      </header>
+      <div className="ws-vnext-attention-card">
+        <div className="ws-vnext-attention-card__label">
+          Open a document to manage its client links
+        </div>
+        <div className="ws-vnext-attention-card__desc">
+          Workspace does not yet expose a tenant-wide share-link listing route.
+          Existing links remain revocable from the document that created them.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
+  const path = normalizePath(pathname);
+
+  if (path === '/workspace' || path === '/workspace/') {
+    return <WorkspaceLibraryVNext />;
+  }
+  if (path === '/workspace/new' || path === '/workspace/new/') {
+    return <WorkspaceCreationVNext />;
+  }
+  if (path === '/workspace/shares' || path === '/workspace/shares/') {
+    return <SharesIndex />;
+  }
+  if (path === '/workspace/studio' || path === '/workspace/studio/') {
+    return <WorkspaceStudioVNext />;
+  }
+
+  const studioMatch = STUDIO_EDITOR_ROUTE.exec(path);
+  if (studioMatch?.[1] && studioMatch[2]) {
+    return (
+      <WorkspaceStudioVNext
+        blueprintId={studioMatch[1]}
+        versionId={studioMatch[2]}
+      />
+    );
+  }
+
+  const runMatch = RUN_ROUTE.exec(path);
+  if (runMatch?.[1]) {
+    return <WorkspaceEditorVNext draftId={runMatch[1]} isRunView />;
+  }
+
+  const draftMatch = DRAFT_ROUTE.exec(path);
+  if (draftMatch?.[1]) {
+    return <WorkspaceEditorVNext draftId={draftMatch[1]} />;
+  }
+
+  return null;
+}
+
+export function WorkspaceVNextRoutes({ pathname }: { pathname?: string } = {}) {
   const location = useLocation();
-  const { pathname } = location;
-
-  // Public share route — separate bundle, no shell
-  if (pathname.startsWith('/share/')) {
-    const token = pathname.slice('/share/'.length);
-    return (
-      <Suspense fallback={<div style={{ minHeight: '100vh', background: '#f9fafb' }} />}>
-        <WorkspaceShareView token={token} />
+  return (
+    <WorkspaceApiBoundary>
+      <Suspense fallback={<WorkspaceLoading />}>
+        <RoutedWorkspaceContent pathname={pathname ?? location.pathname} />
       </Suspense>
-    );
-  }
-
-  if (pathname === '/workspace') {
-    return (
-      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
-        <WorkspaceLibraryVNext />
-      </Suspense>
-    );
-  }
-
-  if (pathname === '/workspace/new') {
-    return (
-      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
-        <WorkspaceCreationVNext />
-      </Suspense>
-    );
-  }
-
-  if (pathname.startsWith('/workspace/studio')) {
-    return (
-      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
-        <WorkspaceStudioVNext />
-      </Suspense>
-    );
-  }
-
-  // /workspace/:draftId or /workspace/:draftId/run
-  if (pathname.startsWith('/workspace/') && pathname !== '/workspace') {
-    const rest = pathname.slice('/workspace/'.length);
-    const draftId = rest.split('/')[0] || '';
-    const isRun = rest.includes('/run');
-
-    return (
-      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
-        <WorkspaceEditorVNext draftId={draftId} isRunView={isRun} />
-      </Suspense>
-    );
-  }
-
-  return <Outlet />;
+    </WorkspaceApiBoundary>
+  );
 }

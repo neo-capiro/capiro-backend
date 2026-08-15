@@ -1,21 +1,95 @@
 /**
- * Public Share View — unauthenticated, shell-less document view at /share/:token.
+ * Public Workspace share.
  *
- * This is a SEPARATE entry: no app shell, no tenant context, no Agent state,
- * no internal comments, no context packets, no model/provider info. It renders
- * a frozen read-only paper plus a guest comment box on a plain background.
- *
- * Security note: expired, revoked and unknown tokens render the EXACT SAME
- * unavailable state. The UI never reveals which condition applied.
+ * This component is mounted by `main.tsx` before Clerk and the authenticated
+ * application. Keep imports deliberately narrow: no app shell, tenant context,
+ * Agent state, internal navigation or authenticated API client.
  */
-
-import { useEffect, useState, useCallback, FormEvent } from 'react';
-
-import { api } from '../api/client.js';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+} from 'react';
 import type { PublicShareDocument } from '../types/agent.js';
 import '../styles/workspace.css';
+import '../styles/workspace-audit.css';
 
-const MAX_COMMENT_CHARS = 2000;
+const MAX_COMMENT_CHARS = 2_000;
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizePublicDocument(value: unknown): PublicShareDocument {
+  const row = record(value);
+  const sections = Array.isArray(row.sections)
+    ? row.sections.map((rawSection) => {
+        const section = record(rawSection);
+        return {
+          title: typeof section.title === 'string' ? section.title : '',
+          body:
+            typeof section.content === 'string'
+              ? section.content
+              : typeof section.body === 'string'
+                ? section.body
+                : '',
+        };
+      })
+    : [];
+
+  return {
+    docTitle:
+      typeof row.docTitle === 'string' ? row.docTitle : 'Shared document',
+    body: sections.map((section) => section.body).join('\n\n'),
+    documentType:
+      typeof row.documentType === 'string' ? row.documentType : undefined,
+    expiresAt:
+      typeof row.expiresAt === 'string' ? row.expiresAt : undefined,
+    sections,
+    theme:
+      row.theme && typeof row.theme === 'object'
+        ? (row.theme as PublicShareDocument['theme'])
+        : undefined,
+  };
+}
+
+async function publicRequest<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const response = await fetch(`/workspace-api${path}`, {
+    method,
+    headers:
+      body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw Object.assign(new Error('Public Workspace request failed'), {
+      statusCode: response.status,
+    });
+  }
+  return response.json() as Promise<T>;
+}
+
+const publicWorkspaceApi = {
+  getShare: async (token: string) =>
+    normalizePublicDocument(
+      await publicRequest<unknown>(
+        'GET',
+        `/public/workspace-share/${encodeURIComponent(token)}`,
+      ),
+    ),
+  addComment: (token: string, text: string) =>
+    publicRequest<unknown>(
+      'POST',
+      `/public/workspace-share/${encodeURIComponent(token)}/comments`,
+      { text },
+    ),
+};
 
 export interface WorkspaceShareViewProps {
   token: string;
@@ -25,57 +99,44 @@ type LoadState = 'loading' | 'ready' | 'unavailable';
 
 function formatExpiry(iso: string | undefined): string {
   if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return '';
-  }
+  const value = new Date(iso);
+  if (Number.isNaN(value.getTime())) return '';
+  return value.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
-function renderBody(body: string) {
-  // Render the document body as paragraphs, splitting on blank lines. Text is
-  // inserted as React text nodes so it is escaped by default — no
-  // dangerouslySetInnerHTML. The server is responsible for sanitization; this
-  // view only displays what it received.
-  const paragraphs = body
+function paragraphs(body: string) {
+  return body
     .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (paragraphs.length === 0) return [];
-  return paragraphs.map((p, i) => <p key={i}>{p}</p>);
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part, index) => <p key={index}>{part}</p>);
 }
 
 export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [doc, setDoc] = useState<PublicShareDocument | null>(null);
-
+  const [document, setDocument] = useState<PublicShareDocument | null>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
-  const [commentOk, setCommentOk] = useState(false);
+  const [commentSent, setCommentSent] = useState(false);
 
-  // Fetch the public document. ANY failure — expired, revoked, unknown token,
-  // network error — collapses to the same `unavailable` state. We deliberately
-  // do not inspect the status code or error body here.
   useEffect(() => {
     let cancelled = false;
     setLoadState('loading');
-    api
-      .getPublicShare(token)
-      .then((d) => {
+    publicWorkspaceApi
+      .getShare(token)
+      .then((result) => {
         if (cancelled) return;
-        setDoc(d);
+        setDocument(result);
         setLoadState('ready');
       })
       .catch(() => {
         if (cancelled) return;
-        setDoc(null);
+        setDocument(null);
         setLoadState('unavailable');
       });
     return () => {
@@ -83,28 +144,27 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
     };
   }, [token]);
 
-  const handleSubmitComment = useCallback(
-    async (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+  const submitComment = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
       const text = comment.trim();
       if (!text || submitting) return;
+
       setSubmitting(true);
       setCommentError(null);
-      setCommentOk(false);
+      setCommentSent(false);
       try {
-        await api.addGuestComment(token, text);
+        await publicWorkspaceApi.addComment(token, text);
         setComment('');
-        setCommentOk(true);
-      } catch (err: unknown) {
+        setCommentSent(true);
+      } catch (error) {
         const status =
-          (err as { statusCode?: number } | null)?.statusCode ?? 0;
-        if (status === 429) {
-          setCommentError('Too many comments. Please try again in 5 minutes.');
-        } else {
-          // Non-rate-limit failures are also collapsed to a generic message;
-          // we never reveal whether the token is still valid from this path.
-          setCommentError('Could not submit your comment. Please try again.');
-        }
+          (error as { statusCode?: number } | null)?.statusCode ?? 0;
+        setCommentError(
+          status === 429
+            ? 'Too many comments. Please try again in 5 minutes.'
+            : 'Could not submit your comment. Please try again.',
+        );
       } finally {
         setSubmitting(false);
       }
@@ -112,7 +172,6 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
     [comment, submitting, token],
   );
 
-  // ── Loading ──────────────────────────────────────────────────────────────
   if (loadState === 'loading') {
     return (
       <div className="ws-vnext-share" role="status" aria-busy="true">
@@ -121,14 +180,13 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
           <div className="ws-vnext-skeleton-row" style={{ width: '100%' }} />
           <div className="ws-vnext-skeleton-row" style={{ width: '90%' }} />
           <div className="ws-vnext-skeleton-row" style={{ width: '75%' }} />
-          <div className="ws-vnext-skeleton-row" style={{ width: '95%' }} />
         </div>
       </div>
     );
   }
 
-  // ── Unavailable (expired / revoked / unknown — identical UI) ─────────────
-  if (loadState === 'unavailable' || !doc) {
+  // Invalid, expired and revoked links intentionally share one response.
+  if (loadState === 'unavailable' || !document) {
     return (
       <div className="ws-vnext-share">
         <div className="ws-vnext-share__unavailable">
@@ -136,67 +194,71 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
             This document is no longer available
           </div>
           <div className="ws-vnext-share__unavailable-desc">
-            The share link may have expired or been revoked by its owner. Please
-            contact the person who shared it with you if you believe this is a
-            mistake.
+            The share link may have expired or been revoked by its owner.
+            Contact the person who shared it if you believe this is a mistake.
           </div>
           <div className="ws-vnext-share__sanitization-note">
-            Public shares are read-only and content is sanitized before
-            display.
+            Public shares are read-only and content is sanitized before display.
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Ready ───────────────────────────────────────────────────────────────
-  const expiry = formatExpiry(doc.expiresAt);
-  const remaining = MAX_COMMENT_CHARS - comment.length;
+  const expiry = formatExpiry(document.expiresAt);
 
   return (
     <div className="ws-vnext-share">
-      {/* Minimal header — logo, read-only label, expiry. Nothing else. */}
       <header className="ws-vnext-share__header">
         <span
           className="ws-vnext-share__label"
-          style={{ fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ws-ink)' }}
+          style={{
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            color: 'var(--ws-ink)',
+          }}
         >
           Capiro
         </span>
-        <span className="ws-vnext-share__label">SHARED DOCUMENT · READ ONLY</span>
-        {expiry && <span className="ws-vnext-share__expiry">Expires {expiry}</span>}
+        <span className="ws-vnext-share__label">
+          SHARED DOCUMENT · READ ONLY
+        </span>
+        {expiry ? (
+          <span className="ws-vnext-share__expiry">Expires {expiry}</span>
+        ) : null}
       </header>
 
-      {/* Frozen paper — same styling as the editor canvas. */}
       <main className="ws-vnext-share__paper">
         <article className="ws-vnext-paper">
-          {doc.documentType ? (
-            <div className="ws-vnext-paper__eyebrow">{doc.documentType}</div>
+          {document.documentType ? (
+            <div className="ws-vnext-paper__eyebrow">
+              {document.documentType}
+            </div>
           ) : null}
-          <h1>{doc.docTitle}</h1>
+          <h1>{document.docTitle}</h1>
           <hr className="ws-vnext-paper__rule" />
-
-          {doc.sections && doc.sections.length > 0
-            ? doc.sections.map((s, i) => (
-                <section key={i}>
-                  <h2>{s.title}</h2>
-                  {renderBody(s.body)}
+          {document.sections?.length
+            ? document.sections.map((section, index) => (
+                <section key={`${section.title}-${index}`}>
+                  <h2>{section.title}</h2>
+                  {paragraphs(section.body)}
                 </section>
               ))
-            : renderBody(doc.body)}
+            : paragraphs(document.body)}
         </article>
       </main>
 
-      {/* Guest comment box — plain text, max 2000 chars. */}
       <section className="ws-vnext-share__guest-comment">
-        <form className="ws-vnext-share__comment-box" onSubmit={handleSubmitComment}>
+        <form
+          className="ws-vnext-share__comment-box"
+          onSubmit={submitComment}
+        >
           <textarea
             value={comment}
-            onChange={(e) => {
-              const v = e.target.value.slice(0, MAX_COMMENT_CHARS);
-              setComment(v);
-              if (commentOk) setCommentOk(false);
-              if (commentError) setCommentError(null);
+            onChange={(event) => {
+              setComment(event.target.value.slice(0, MAX_COMMENT_CHARS));
+              setCommentError(null);
+              setCommentSent(false);
             }}
             maxLength={MAX_COMMENT_CHARS}
             placeholder="Leave a comment for the document owner…"
@@ -206,52 +268,34 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
           <div className="ws-vnext-share__comment-meta">
             <span className="ws-vnext-share__char-count">
               {comment.length}/{MAX_COMMENT_CHARS}
-              {remaining <= 0 ? ' — limit reached' : ''}
+              {comment.length >= MAX_COMMENT_CHARS
+                ? ' — limit reached'
+                : ''}
             </span>
             <button
               type="submit"
               disabled={submitting || comment.trim().length === 0}
-              style={{
-                fontFamily: 'var(--capiro-type-family-sans)',
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: '1px solid var(--ws-control-ring)',
-                background: 'var(--ws-ink)',
-                color: 'var(--ws-paper)',
-                cursor: submitting || comment.trim().length === 0 ? 'not-allowed' : 'pointer',
-                opacity: submitting || comment.trim().length === 0 ? 0.5 : 1,
-              }}
+              className="ws-vnext-btn ws-vnext-btn--primary ws-vnext-btn--sm"
             >
               {submitting ? 'Sending…' : 'Send comment'}
             </button>
           </div>
-
           {commentError ? (
-            <div
-              className="ws-vnext-share__char-count"
-              style={{ color: 'var(--ws-muted)', marginTop: 8 }}
-              role="alert"
-            >
+            <div role="alert" className="ws-vnext-share__comment-error">
               {commentError}
             </div>
           ) : null}
-          {commentOk ? (
-            <div
-              className="ws-vnext-share__char-count"
-              style={{ color: 'var(--ws-muted)', marginTop: 8 }}
-              role="status"
-            >
-              Comment sent. Thank you.
+          {commentSent ? (
+            <div role="status" className="ws-vnext-share__comment-success">
+              Comment sent. The document team can now review it.
             </div>
           ) : null}
         </form>
       </section>
 
       <footer className="ws-vnext-share__sanitization-note">
-        Public shares are read-only and content is sanitized before display.
-        Comments are reviewed by the document owner before being published.
+        Plain text only · 2,000 characters · ten comments per five minutes.
+        Public content is sanitized before display.
       </footer>
     </div>
   );

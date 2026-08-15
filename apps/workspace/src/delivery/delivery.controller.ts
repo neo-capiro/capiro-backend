@@ -81,6 +81,18 @@ export class DeliveryController {
   ) {
     return this.shareLink.revoke(ctx.tenantId, draftId, shareLinkId);
   }
+
+  /**
+   * GET /workspace-api/drafts/:draftId/delivery/guest-comments — internal-facing
+   * visibility into feedback guests left on this draft's public share links.
+   */
+  @Get('guest-comments')
+  listGuestComments(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.shareLink.listGuestComments(ctx.tenantId, draftId, ctx.clerkUserId);
+  }
 }
 
 /**
@@ -100,12 +112,7 @@ export class PublicShareController {
     @Param('token') token: string,
     @Body() dto: GuestCommentDto,
   ) {
-    const tokenHash = this.shareLink.hashToken(token);
-    if (!this.shareLink.checkRateLimit(tokenHash)) {
-      return { error: 'Rate limit exceeded. Please try again later.' };
-    }
-    const sanitized = this.shareLink.sanitize(dto.text);
-    return { ok: true, text: sanitized };
+    return this.shareLink.addGuestComment(token, dto.text, dto.name);
   }
 }
 

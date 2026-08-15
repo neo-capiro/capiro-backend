@@ -368,6 +368,13 @@ export class AgentContextItemController {
     @Param('itemId') itemId: string,
     @Body() dto: PatchContextItemDto,
   ) {
-    return this.agent.patchContextItem(ctx.tenantId, draftId, itemId, dto.payload);
+    return this.agent.patchContextItem(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      itemId,
+      dto.payload,
+      dto.expectedRevision,
+    );
   }
 }

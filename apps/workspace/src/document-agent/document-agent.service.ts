@@ -24,6 +24,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead, canReview, type ResolvedRole } from '../collaborators/role-policy.js';
 import { GenerationService } from '../generation/generation.service.js';
+import type { GenerationRunSummary } from '../generation/generation-run.js';
 import { WorkspaceReasoningGateway } from '../workspace-reasoning/workspace-reasoning.gateway.js';
 import {
   recommendDocumentSetupPrompt,
@@ -206,6 +207,7 @@ export class DocumentAgentService {
       blueprintPin?: Record<string, unknown>;
       theme?: Record<string, unknown>;
       goal?: Record<string, unknown>;
+      generation?: { mode?: 'quick' | 'standard' | 'max' };
       phase?: string;
       status?: string;
     },
@@ -215,6 +217,7 @@ export class DocumentAgentService {
       if (patch.blueprintPin) state.blueprintPin = patch.blueprintPin as unknown as DocumentAgentState['blueprintPin'];
       if (patch.theme) state.theme = patch.theme as unknown as DocumentAgentState['theme'];
       if (patch.goal) state.goal = patch.goal as unknown as DocumentAgentState['goal'];
+      if (patch.generation?.mode) state.generation.mode = patch.generation.mode;
       if (patch.phase) {
         const toPhase = patch.phase as DocumentAgentPhase;
         if (!canTransition(state.phase, toPhase)) {
@@ -631,9 +634,18 @@ export class DocumentAgentService {
   async patchContextItem(
     tenantId: string,
     draftId: string,
+    actorId: string,
     itemId: string,
     payloadPatch: Record<string, unknown>,
+    expectedRevision?: number,
   ): Promise<{ item: unknown }> {
+    const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
+    if (expectedRevision !== undefined) {
+      const state = readAgentState(draft.config);
+      if (state.revision !== expectedRevision) {
+        throw new ConflictException(REVISION_CONFLICT_CODE);
+      }
+    }
     const item = await this.prisma.wsContextItem.findFirst({
       where: { id: itemId, tenantId, draftId },
     });
@@ -932,16 +944,16 @@ export class DocumentAgentService {
       s.status = 'generating';
     });
 
-    // Delegate to the existing GenerationService (request-scoped).
+    // Delegate to the existing GenerationService (request-scoped). Quick/Standard/Max
+    // currently share one underlying pipeline — `mode` labels the run only, it does
+    // not select a different code path (see docs/handoff/GAPS.md).
     try {
-      if (mode === 'max') {
-        // Max mode: full pipeline via generateAllSections.
-        await this.generation.generateAllSections(tenantId, draftId, actorId, {});
-      } else {
-        // Quick/standard: also via existing generation.
-        await this.generation.generateAllSections(tenantId, draftId, actorId, {});
-      }
-      // Mark complete.
+      const result = await this.generation.generateAllSections(tenantId, draftId, actorId, {});
+      const engineRun = (result as { generationRun?: GenerationRunSummary | null }).generationRun ?? null;
+
+      // Mark complete using the REAL run status/section results returned by the
+      // generation engine — never hardcode 'complete', a run can legitimately come
+      // back 'partial' or 'complete_with_warnings' without throwing.
       const finalState = await this.getAgentState(tenantId, draftId, actorId);
       const completed = await this.withMutationLock(
         tenantId,
@@ -951,14 +963,24 @@ export class DocumentAgentService {
         finalState.state.revision,
         (s) => {
           if (s.generation.lastRun) {
-            s.generation.lastRun.status = 'complete';
-            s.generation.lastRun.completedAt = new Date().toISOString();
+            s.generation.lastRun.status = engineRun?.status ?? 'complete';
+            s.generation.lastRun.completedAt = engineRun?.completedAt ?? new Date().toISOString();
+            s.generation.lastRun.sectionResults = engineRun
+              ? Object.fromEntries(
+                  engineRun.sectionResults.map((r) => [
+                    r.section,
+                    r.status === 'succeeded'
+                      ? { status: 'succeeded' as const }
+                      : { status: 'failed' as const, error: r.message },
+                  ]),
+                )
+              : undefined;
           }
-          s.status = 'complete';
+          s.status = engineRun?.status === 'failed' ? 'failed' : engineRun?.status === 'partial' ? 'partial' : 'complete';
           s.phase = 'draft';
         },
       );
-      return { state: completed.state, run: runSummary };
+      return { state: completed.state, run: completed.state.generation.lastRun ?? runSummary };
     } catch (err) {
       // Mark failed; preserve prior content.
       const finalState = await this.getAgentState(tenantId, draftId, actorId);
@@ -1005,10 +1027,44 @@ export class DocumentAgentService {
     sectionIds?: string[],
   ): Promise<{ state: DocumentAgentState }> {
     await this.loadDraft(tenantId, draftId, actorId, canEdit);
-    // Delegate to existing retry-failed-sections.
-    await this.generation.retryFailedSections(tenantId, draftId, actorId);
-    const state = await this.getAgentState(tenantId, draftId, actorId);
-    return state;
+    // Delegate to existing retry-failed-sections. Note: the engine recomputes the
+    // failed-section set itself from the persisted run and ignores `sectionIds`
+    // (see docs/handoff/GAPS.md) — ask-for-specific-sections is not yet supported.
+    const result = await this.generation.retryFailedSections(tenantId, draftId, actorId);
+    const engineRun = (result as { generationRun?: GenerationRunSummary | null }).generationRun ?? null;
+    if (engineRun) {
+      const finalState = await this.getAgentState(tenantId, draftId, actorId);
+      return this.withMutationLock(
+        tenantId,
+        draftId,
+        actorId,
+        canEdit,
+        finalState.state.revision,
+        (s) => {
+          // Construct a complete summary from the engine's real result even if no
+          // prior lastRun existed — a real retry result must never be dropped.
+          const prior = s.generation.lastRun;
+          s.generation.lastRun = {
+            runId: prior?.runId ?? engineRun.id,
+            mode: prior?.mode ?? s.generation.mode,
+            startedAt: prior?.startedAt ?? engineRun.startedAt,
+            stages: prior?.stages ?? [],
+            status: engineRun.status,
+            completedAt: engineRun.completedAt,
+            sectionResults: Object.fromEntries(
+              engineRun.sectionResults.map((r) => [
+                r.section,
+                r.status === 'succeeded'
+                  ? { status: 'succeeded' as const }
+                  : { status: 'failed' as const, error: r.message },
+              ]),
+            ),
+          };
+          s.status = engineRun.status === 'failed' ? 'failed' : engineRun.status === 'partial' ? 'partial' : 'complete';
+        },
+      );
+    }
+    return this.getAgentState(tenantId, draftId, actorId);
   }
 
   /**

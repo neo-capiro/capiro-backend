@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GenerationService } from '../generation/generation.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
@@ -151,12 +151,33 @@ export class CommentsService {
     tenantId: string,
     documentId: string,
     commentId: string,
+    actorId: string,
   ): Promise<{ deleted: boolean }> {
-    await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId);
     const existing = await this.prisma.wsComment.findFirst({
       where: { id: commentId, tenantId, documentId },
     });
     if (!existing) throw new NotFoundException('Comment not found');
+    // Deleting is a review action (same bar as resolving), except an author may
+    // always remove their own comment. Previously this endpoint had no role
+    // check at all — any tenant member could delete any comment on any draft.
+    if (existing.authorId !== actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        doc.draftId,
+        actorId,
+        canReview,
+        'Only owners, editors and reviewers can delete another person’s comment',
+      );
+    } else {
+      await this.collaborators.assertCan(
+        tenantId,
+        doc.draftId,
+        actorId,
+        canComment,
+        'You do not have permission to access this document',
+      );
+    }
     await this.prisma.wsComment.delete({ where: { id: commentId } });
     return { deleted: true };
   }
