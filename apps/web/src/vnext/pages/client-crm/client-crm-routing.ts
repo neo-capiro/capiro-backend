@@ -17,11 +17,11 @@
  * the URL always describes the view that is actually on screen.
  */
 
-export const CRM_TABS = ['overview', 'relationships', 'work', 'intelligence', 'files'] as const;
+export const CRM_TABS = ['overview', 'capabilities', 'relationships', 'work', 'intelligence', 'files'] as const;
 export type CrmTab = (typeof CRM_TABS)[number];
 
-/** `capabilities` is reachable and preserved, but is not a primary tab (§13). */
-export type CrmSurface = CrmTab | 'capabilities';
+/** `capabilities` IS a primary tab in the Portfolio prototype (§5.3, §16). */
+export type CrmSurface = CrmTab;
 
 export const RELATIONSHIP_VIEWS = ['organization', 'government', 'history'] as const;
 export type RelationshipView = (typeof RELATIONSHIP_VIEWS)[number];
@@ -145,6 +145,7 @@ export function defaultViewFor(tab: CrmSurface): CrmView | null {
 
 export const CRM_TAB_LABELS: Array<{ key: CrmTab; label: string }> = [
   { key: 'overview', label: 'Overview' },
+  { key: 'capabilities', label: 'Capabilities' },
   { key: 'relationships', label: 'Relationships' },
   { key: 'work', label: 'Work' },
   { key: 'intelligence', label: 'Intelligence' },

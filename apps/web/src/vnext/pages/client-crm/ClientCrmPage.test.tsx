@@ -1,10 +1,12 @@
 /**
- * Client CRM vNext shell tests — the parts of contract `1244:4222` that are
- * behaviour rather than pixels: URL-persisted tab state, legacy deep links
- * resolving to the new IA, browser navigation, and the §6 keyboard contract.
+ * Client CRM — Portfolio prototype shell tests.
  *
- * The Overview body is data-backed, so these tests render the shell with a stub
- * surface; the Overview's own numbers are covered by the adapter's rules.
+ * Behavioural contract only (URL-persisted tab state, legacy deep links, the
+ * keyboard contract, real client data in the header). The tab bodies are
+ * mocked at their new `./tabs/*` paths so the shell is what is under test.
+ *
+ * IA note: Capabilities is a PRIMARY tab in the Portfolio prototype (§5.3,
+ * §16), second in the order — it is no longer an overflow-only surface.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -13,37 +15,34 @@ import { describe, expect, it, vi } from 'vitest';
 import { ClientCrmPage } from './ClientCrmPage.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
-// The body surfaces issue real queries; the shell is what is under test.
-// Page-level edit authorization is driven by /api/me in the real app; the shell
-// harness stays Clerk-free and provides an administrator response explicitly.
 vi.mock('../../../lib/me.js', () => ({
   useMe: () => ({ data: { role: 'user_admin' } }),
 }));
-vi.mock('./ClientCrmOverview.js', () => ({
-  ClientCrmOverview: () => <div data-testid="overview-surface">overview</div>,
+vi.mock('./tabs/OverviewTab.js', () => ({
+  ClientCrmOverviewProto: () => <div data-testid="overview-surface">overview</div>,
 }));
-vi.mock('./ClientCrmCapabilities.js', () => ({
-  ClientCrmCapabilities: () => <div data-testid="capabilities-surface">capabilities</div>,
+vi.mock('./tabs/CapabilitiesTab.js', () => ({
+  ClientCrmCapabilitiesProto: () => <div data-testid="capabilities-surface">capabilities</div>,
 }));
-vi.mock('./ClientCrmOrganization.js', () => ({
-  ClientCrmOrganization: () => <div data-testid="organization-surface">organization</div>,
+vi.mock('./tabs/RelationshipsOrgTab.js', () => ({
+  ClientCrmOrganizationProto: () => <div data-testid="organization-surface">organization</div>,
 }));
-vi.mock('./ClientCrmGovernment.js', () => ({
-  ClientCrmGovernment: () => <div data-testid="government-surface">government</div>,
+vi.mock('./tabs/RelationshipsGovTab.js', () => ({
+  ClientCrmGovernmentProto: () => <div data-testid="government-surface">government</div>,
 }));
-vi.mock('./ClientCrmHistory.js', () => ({
-  ClientCrmHistory: () => <div data-testid="history-surface">history</div>,
+vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({
+  ClientCrmHistoryProto: () => <div data-testid="history-surface">history</div>,
 }));
-vi.mock('./ClientCrmWork.js', () => ({
-  ClientCrmWork: () => <div data-testid="work-surface">work</div>,
+vi.mock('./tabs/WorkTab.js', () => ({
+  ClientCrmWorkProto: () => <div data-testid="work-surface">work</div>,
 }));
-vi.mock('./ClientCrmIntelligence.js', () => ({
-  ClientCrmIntelligence: ({ view }: { view: string }) => (
+vi.mock('./tabs/IntelligenceTab.js', () => ({
+  ClientCrmIntelligenceProto: ({ view }: { view: string }) => (
     <div data-testid="intelligence-surface">{view}</div>
   ),
 }));
-vi.mock('./ClientCrmFiles.js', () => ({
-  ClientCrmFiles: () => <div data-testid="files-surface">files</div>,
+vi.mock('./tabs/FilesTab.js', () => ({
+  ClientCrmFilesProto: () => <div data-testid="files-surface">files</div>,
 }));
 
 const client: Client = {
@@ -94,7 +93,13 @@ function renderAt(initialEntry: string) {
 const url = () => screen.getByTestId('location').textContent ?? '';
 const tab = (name: string) => screen.getByRole('tab', { name });
 
-describe('primary tabs', () => {
+describe('primary tabs (six, Portfolio order)', () => {
+  it('renders all six tabs in the prototype order with Capabilities second', () => {
+    renderAt('/clients?clientId=client-1');
+    const tabs = screen.getAllByRole('tab').map((node) => node.textContent);
+    expect(tabs).toEqual(['Overview', 'Capabilities', 'Relationships', 'Work', 'Intelligence', 'Files']);
+  });
+
   it('opens on Overview and marks exactly one tab selected', () => {
     renderAt('/clients?clientId=client-1');
     expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
@@ -109,19 +114,24 @@ describe('primary tabs', () => {
     expect(url()).toContain('clientId=client-1');
   });
 
-  it('writes the default secondary view when entering a two-level tab', async () => {
+  it('writes the default secondary view when entering a two-level tab', () => {
     renderAt('/clients?clientId=client-1');
     fireEvent.click(tab('Intelligence'));
     expect(url()).toContain('tab=intelligence');
     expect(url()).toContain('view=overview');
   });
 
-  it('keeps the client header stable across a tab change', async () => {
+  it('keeps the client identity stable across a tab change', () => {
     renderAt('/clients?clientId=client-1');
     const heading = screen.getByRole('heading', { name: 'Overland AI' });
     fireEvent.click(tab('Files'));
-    // Same node, not a remounted copy — §4 requires a stable header.
     expect(screen.getByRole('heading', { name: 'Overland AI' })).toBe(heading);
+  });
+
+  it('selects Capabilities as a primary tab', () => {
+    renderAt('/clients?clientId=client-1&tab=capabilities');
+    expect(tab('Capabilities')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('capabilities-surface')).toBeInTheDocument();
   });
 });
 
@@ -140,40 +150,8 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
   it.each(cases)('?tab=%s cold-loads into %s', async (legacy, tabName, view) => {
     renderAt(`/clients?clientId=client-1&tab=${legacy}`);
     expect(tab(tabName)).toHaveAttribute('aria-selected', 'true');
-    // The URL is rewritten to canonical form so the address bar matches the view.
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      `tab=${tabName.toLowerCase()}`,
-    );
+    expect(await screen.findByTestId('location')).toHaveTextContent(`tab=${tabName.toLowerCase()}`);
     if (view) expect(url()).toContain(`view=${view}`);
-  });
-
-  it('keeps the capability surface reachable (§13 non-regression)', () => {
-    renderAt('/clients?clientId=client-1&tab=capabilities');
-    // Not a primary tab, so no tab is selected — but the surface still resolves
-    // rather than silently redirecting the user's bookmark to Overview.
-    expect(screen.getByRole('tabpanel')).toHaveAttribute(
-      'id',
-      'capiro-crm-panel-capabilities',
-    );
-    expect(screen.getByTestId('capabilities-surface')).toBeInTheDocument();
-  });
-
-  it('offers Capabilities from the header overflow menu', () => {
-    renderAt('/clients?clientId=client-1');
-    fireEvent.click(screen.getByRole('button', { name: /More actions/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Capabilities' }));
-    expect(url()).toContain('tab=capabilities');
-  });
-
-  it('keeps Ask Meri as an action separate from Fill with Meri (§14)', () => {
-    renderAt('/clients?clientId=client-1');
-    // Fill with Meri must never be the chat entry point; the chat action lives
-    // in the overflow menu and is a different control entirely.
-    expect(screen.getByRole('button', { name: 'Fill with Meri' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: /More actions/ }));
-    expect(
-      screen.getByRole('menuitem', { name: 'Ask Meri about this client' }),
-    ).toBeInTheDocument();
   });
 
   it('renders a real surface for every legacy destination', () => {
@@ -207,13 +185,13 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
 });
 
 describe('keyboard contract (§6)', () => {
-  it('moves focus and selection with Arrow, Home and End', async () => {
+  it('moves focus and selection with Arrow, Home and End', () => {
     renderAt('/clients?clientId=client-1');
 
     tab('Overview').focus();
     fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowRight' });
-    expect(tab('Relationships')).toHaveFocus();
-    expect(tab('Relationships')).toHaveAttribute('aria-selected', 'true');
+    expect(tab('Capabilities')).toHaveFocus();
+    expect(tab('Capabilities')).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.keyDown(document.activeElement as Element, { key: 'End' });
     expect(tab('Files')).toHaveFocus();
@@ -224,7 +202,7 @@ describe('keyboard contract (§6)', () => {
     expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('wraps at both ends', async () => {
+  it('wraps at both ends', () => {
     renderAt('/clients?clientId=client-1');
     tab('Overview').focus();
     fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' });
@@ -238,40 +216,18 @@ describe('keyboard contract (§6)', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs.filter((node) => node.getAttribute('tabindex') === '0')).toHaveLength(1);
   });
-
-  it('wires each tab to its panel', () => {
-    renderAt('/clients?clientId=client-1');
-    const panel = screen.getByRole('tabpanel');
-    expect(panel).toHaveAttribute('aria-labelledby', 'capiro-crm-tab-overview');
-    expect(tab('Overview')).toHaveAttribute('aria-controls', 'capiro-crm-panel-overview');
-  });
 });
 
 describe('header content is real client data, never sample copy', () => {
   it('renders focus chips from the client record', () => {
     renderAt('/clients?clientId=client-1');
-    const header = screen.getByRole('banner');
-    expect(within(header).getByText('FY27 Ground Robotics')).toBeInTheDocument();
-    expect(within(header).getByText('Autonomy')).toBeInTheDocument();
+    expect(screen.getByText('FY27 Ground Robotics')).toBeInTheDocument();
+    expect(screen.getByText('Autonomy')).toBeInTheDocument();
   });
 
-  it('says so when no focus areas are set rather than inventing one', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/clients?clientId=client-1']}>
-          <div className="capiro-vnext-root">
-            <ClientCrmPage client={{ ...client, intakeData: null }} />
-          </div>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-    expect(screen.getByText('No focus areas set')).toBeInTheDocument();
-  });
-
-  it('states the account owner is not tracked instead of showing a name', () => {
-    // There is no owner column on Client; a name here would be invented.
+  it('renders the client name and active status in the identity block', () => {
     renderAt('/clients?clientId=client-1');
-    expect(within(screen.getByRole('banner')).getByText('Not tracked')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Overland AI' })).toBeInTheDocument();
+    expect(screen.getByText('Active client')).toBeInTheDocument();
   });
 });

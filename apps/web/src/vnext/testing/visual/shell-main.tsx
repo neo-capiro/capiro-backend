@@ -21,9 +21,13 @@ const screen: VNextVisualScreen = SCREENS.includes(requested as VNextVisualScree
   ? (requested as VNextVisualScreen)
   : 'empty';
 const attnState = params.get('attnState') ?? undefined;
+const crmTab = params.get('crmTab') ?? undefined;
+const intelView = params.get('intelView') ?? undefined;
+const relView = params.get('relView') ?? undefined;
+const crmOverlay = params.get('crmOverlay') ?? undefined;
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <VNextShellVisual collapsed={collapsed} screen={screen} attnState={attnState as never} />
+    <VNextShellVisual collapsed={collapsed} screen={screen} crmTab={crmTab as never} intelView={intelView as never} relView={relView as never} crmOverlay={crmOverlay as never} attnState={attnState as never} />
   </React.StrictMode>,
 );

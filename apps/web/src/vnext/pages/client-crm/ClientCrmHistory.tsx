@@ -27,12 +27,12 @@ const KINDS = [
   'decision',
   'commitment',
 ] as const;
-type Kind = (typeof KINDS)[number];
+export type Kind = (typeof KINDS)[number];
 
 /** Kinds a user can log by hand; the rest are written by their own feature. */
 const RECORDABLE: Kind[] = ['note', 'call', 'email', 'request', 'decision', 'commitment'];
 
-interface ActivityItem {
+export interface ActivityItem {
   id: string;
   kind: Kind;
   occurredAt: string;
@@ -288,18 +288,21 @@ export function ClientCrmHistory({ client }: { client: Client }) {
   );
 }
 
-function LogActivityModal({
+export function LogActivityModal({
   onClose,
   onSubmit,
   pending,
   error,
+  initialKind,
 }: {
   onClose: () => void;
   onSubmit: (values: Record<string, unknown>) => void;
   pending: boolean;
   error: unknown;
+  /** Preselected kind — the prototype quick-add rows open the modal pre-set. */
+  initialKind?: Kind;
 }) {
-  const [kind, setKind] = useState<Kind>('note');
+  const [kind, setKind] = useState<Kind>(initialKind ?? 'note');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [dueAt, setDueAt] = useState('');

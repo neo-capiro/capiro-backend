@@ -310,3 +310,32 @@ DataIssueModal field wiring (DTO confirmed compatible), the five tab components'
 internal queries (all consume the verified profile hook), gap §13 #7
 (promotion-blocked signal to memo/brief artifacts), §15 open questions
 (materiality constant scope, snapshot activator, QA-states dev flag).
+
+---
+
+## Client-profile fidelity (Portfolio prototype, branch `ui/portfolio-client-profile-prototype`)
+
+The client profile (`/clients?clientId=<id>`) was rebuilt to the Portfolio
+prototype (`PORTFOLIO-UI-BUILD-SPEC.md`). These are the sections the prototype
+designs around data no per-client endpoint currently returns. Each renders the
+designed UI from the extracted fixtures (`portfolio-fixtures.ts`) rather than
+blocking the surface, per the standing rule (build the UI, flag the gap, never
+fabricate a live number). None are blocking for the UI ship; all are candidates
+for a follow-up backend milestone.
+
+| id | surface | what the design shows | what exists | what's missing | blocking |
+| --- | --- | --- | --- | --- | --- |
+| CP1 | Overview → Federal footprint | lobbying/awards/PAC/registrant figures + sparkline + footer | LDA filings endpoint (real, used on Intelligence → Footprint) | a single per-client footprint aggregate (lobbying TTM $, awards TTM $, PAC $, registrant count, YoY delta) in one payload | No |
+| CP2 | Overview → Advocacy history | per-record outcome pill + evidence-tier chip + milestone lifecycle rail | `/api/clients/:id/activity` (generic feed) | a structured advocacy-record model (vehicle, activity, outcome, evidence class, ordered lifecycle steps with per-step state) | No |
+| CP3 | Identity block + Account card → Account owner | a named owner ("Sarah Martinez") | no owner column on `Client` (existing code correctly renders "Not tracked" in the Account card) | an `accountOwnerId`/owner field on the client record | No |
+| CP4 | Capabilities → area "matches" + evidence tier | "N opportunities · M bills" + Public/Client-verified/Inferred chip | `/api/clients/:id/capabilities` (real areas, TRL/PE/tags) | per-capability match counts + a claim-provenance tier | No |
+| CP5 | Capabilities → Registrations/codes + Where-capabilities-create-fit + Past performance | UEI/CAGE/NAICS/PSC/set-asides/clearance rows, fit ramp, award history | partial (intake fields) | a normalised registrations block + a capability-fit scorer + an awards history feed | No |
+| CP6 | Relationships → Government targets + network | target mini-cards (disposition, next touch, linked strategy, current ask) + access-path network | canonical `TargetsTab` (targets domain) + strategies | the card-level disposition/next-touch/next-action projection and the network path model | No |
+| CP7 | Work → featured-strategy band figures | 5 portfolio figures + per-node readiness % | strategies + node queries (real, used) | a node completion/readiness signal (`NodeStatus` has none → readiness renders `—`) | No |
+| CP8 | Intelligence → domain records | bills board w/ fit, recommendations, regulatory lifecycle rails, funding opportunities/PB-Auth-Approp programs, footprint 3-card, district tiles | tracker/opportunities/LDA/facilities aggregates (real) | the per-record curated fields (fit %, why, lifecycle rail state, deadline-urgency) | No |
+| CP9 | Files → folder tree + smart-link provenance | nested folder tree, per-file smart-link badge + provenance, storage meter | attachments endpoint (real file list) | a client folder model + smart-link target references + a storage aggregate | No |
+
+**Honest-rendering invariant preserved.** Every fixture-backed metric that has no
+backend renders from the design fixtures (flagged above); every live aggregate
+still renders `—` when its endpoint is unavailable rather than a fabricated `0`.
+The two are visually distinguished in the shipped report, not conflated on screen.

@@ -1,0 +1,362 @@
+/*
+ * Portfolio prototype design system (PORTFOLIO-UI-BUILD-SPEC §1 Foundations).
+ *
+ * Scoped under `.cap-pf` so the shared vNext tokens (navy accent, Hanken
+ * Grotesk, IBM Plex Mono) are untouched for every other surface. The prototype
+ * is Inter-only with NO monospace anywhere in the module; every metric that the
+ * old client-crm drew with --capiro-type-family-mono is Inter here.
+ *
+ * Breakpoints (§1.6): narrow = w<1200, tight = w<1024, collapsed = w<1440.
+ * These are exposed as data attributes on the root (set by JS matchMedia) so
+ * column templates can flip declaratively; the rail collapse lives in the
+ * shared shell, which reads its own `collapsed` state.
+ */
+
+.cap-pf {
+  /* Palette — Untitled UI Gray + the prototype's three-stop dark gradient. */
+  --pf-bg: #F9FAFB;
+  --pf-surface: #ffffff;
+  --pf-surface-2: #FCFCFD;
+  --pf-track: #F2F4F7;
+  --pf-line: #EAECF0;
+  --pf-line-strong: #D0D5DD;
+  --pf-faint: #98A2B3;
+  --pf-muted: #667085;
+  --pf-body-2: #475467;
+  --pf-body-strong: #344054;
+  --pf-ink: #101828;
+  --pf-ink-hover: #0E141C;
+  --pf-grad: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --pf-grad-hover: linear-gradient(180deg, #4A5462 0%, #252F3C 46%, #161D26 100%);
+  --pf-scrim: rgba(12, 17, 29, .55);
+
+  /* Card shadow (§1.5). */
+  --pf-shadow-card: 0 0 0 1px #EAECF0, 0px 1px 3px rgba(16, 24, 40, .1), 0px 1px 2px rgba(16, 24, 40, .06);
+  --pf-shadow-control: inset 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
+  --pf-shadow-popover: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, .08);
+  --pf-shadow-drawer: -8px 0 24px -4px rgba(16, 24, 40, .14);
+  --pf-shadow-modal: 0px 20px 24px -4px rgba(16, 24, 40, .14), 0px 8px 8px -4px rgba(16, 24, 40, .04);
+
+  background: var(--pf-bg);
+  color: var(--pf-ink);
+  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
+  min-height: 100%;
+}
+
+.cap-pf,
+.cap-pf * {
+  box-sizing: border-box;
+}
+
+.cap-pf a {
+  color: var(--pf-ink);
+  text-decoration: none;
+}
+.cap-pf a:hover {
+  color: var(--pf-ink-hover);
+}
+.cap-pf button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+.cap-pf input {
+  font: inherit;
+}
+.cap-pf ::placeholder {
+  color: var(--pf-muted);
+  opacity: 1;
+}
+.cap-pf :focus-visible {
+  outline: 2px solid #344054;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.cap-pf h1,
+.cap-pf h2,
+.cap-pf h3,
+.cap-pf h4,
+.cap-pf p {
+  margin: 0;
+}
+
+/* Multi-line prose and wrapping labels. */
+.cap-pf .cap-pf-pretty {
+  text-wrap: pretty;
+}
+
+/* ── Keyframes (§1.7) — the only motion in the module. ───────────────────── */
+@keyframes capPfFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes capPfRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes capPfSlideIn {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes capPfPop {
+  from { opacity: 0; transform: translateY(8px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes capPfPulse {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
+@keyframes capPfSpin {
+  to { transform: rotate(360deg); }
+}
+
+.cap-pf-anim-fade { animation: capPfFade .16s ease; }
+.cap-pf-anim-rise { animation: capPfRise .18s ease; }
+.cap-pf-anim-slide { animation: capPfSlideIn .2s ease; }
+.cap-pf-anim-pop { animation: capPfPop .18s ease; }
+.cap-pf-anim-pulse { animation: capPfPulse 1.6s ease-in-out infinite; }
+.cap-pf-anim-spin { animation: capPfSpin .8s linear infinite; }
+
+/* ── Card / section (§2.1) ───────────────────────────────────────────────── */
+.cap-pf-card {
+  background: var(--pf-surface);
+  border-radius: 12px;
+  box-shadow: var(--pf-shadow-card);
+  overflow: hidden;
+}
+.cap-pf-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--pf-line);
+}
+.cap-pf-card-head--desc {
+  padding: 20px 24px 16px;
+  border-bottom: 0;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.cap-pf-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--pf-ink);
+}
+.cap-pf-card-desc {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--pf-body-2);
+  text-wrap: pretty;
+}
+.cap-pf-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-top: 1px solid var(--pf-line);
+  background: var(--pf-surface-2);
+  flex-wrap: wrap;
+}
+
+/* ── Page header (each tab panel opens with this) ────────────────────────── */
+.cap-pf-page-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cap-pf-page-head-left {
+  flex: 1;
+  min-width: 260px;
+}
+.cap-pf-page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--pf-ink);
+}
+.cap-pf-page-sub {
+  margin: 4px 0 0;
+  font-size: 16px;
+  color: var(--pf-body-2);
+  text-wrap: pretty;
+}
+
+/* ── Stat figures (deep band + light cells) ──────────────────────────────── */
+.cap-pf-stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--pf-ink);
+  line-height: 1.2;
+}
+.cap-pf-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--pf-muted);
+}
+
+/* ── Progress bar (§2.11) ────────────────────────────────────────────────── */
+.cap-pf-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pf-track);
+  overflow: hidden;
+}
+.cap-pf-track-fill {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pf-grad);
+}
+
+/* ── Responsive helpers driven by data attributes on the root. ───────────── */
+/* The root sets data-pf-narrow / data-pf-tight / data-pf-collapsed = "1". */
+
+/* Two-up grids collapse to one column when narrow. */
+.cap-pf-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-2,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Three-up grids (e.g. Relationships > Government current targets) collapse
+   to one column when narrow. Distinct from .cap-pf-grid-3 (gap 24). */
+.cap-pf-grid-targets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-targets,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-targets {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* §6.1 profile+account — 1.05fr/1fr, collapses to one column when narrow. */
+.cap-pf-grid-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-profile,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-profile {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Custom two-up ratios used across tabs — all collapse to one column when narrow. */
+.cap-pf-grid-intel {           /* §10 two-column domain layout: 1.5fr / 1fr */
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf-grid-dist {            /* §10.6 selected/facilities: 1fr / 1.3fr */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf-grid-side-380 {        /* §8.2/§8.3 main + 380px rail */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf-grid-side-340 {        /* §8.1 org canvas + 340px settings */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf-grid-featured {        /* §9.2 featured + secondary: 1.55fr / 1fr */
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf-grid-files {           /* §11 300px tree + table */
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-intel,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-intel,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-dist,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-dist,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-side-380,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-side-380,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-side-340,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-side-340,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-featured,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-featured,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-files,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-files {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Three-up row (Federal Footprint cards). */
+.cap-pf-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-3,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* District Nexus map + rail (§10.6): map minmax(0,1fr) + 320px rail. */
+.cap-pf-map-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  padding: 0 20px 20px;
+  align-items: stretch;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-map-cols,
+.cap-pf[data-pf-tight='1'] .cap-pf-map-cols {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cap-pf-map-frame {
+  min-width: 0;
+  height: 460px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px #EAECF0;
+  overflow: hidden;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-map-frame,
+.cap-pf[data-pf-tight='1'] .cap-pf-map-frame {
+  height: 360px;
+}
+
+/* §7.1 capability areas — 2-up with gap 16 (prototype `capCols`), same collapse. */
+.cap-pf-grid-cap-areas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-cap-areas,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-cap-areas {
+  grid-template-columns: minmax(0, 1fr);
+}
