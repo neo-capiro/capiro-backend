@@ -87,8 +87,7 @@ export interface ResolveEntityInput {
   maxCandidates?: number;
 }
 
-export interface EntityResolutionResult {
-  resolutionId: string;
+export interface EntityResolutionPreview {
   status: 'resolved' | 'ambiguous' | 'unresolved';
   entity: CanonicalEntityRecord | null;
   confidence: number;
@@ -96,6 +95,10 @@ export interface EntityResolutionResult {
   candidates: EntityResolutionCandidate[];
   provenance: EntityResolutionProvenance[];
   requiresUserConfirmation: boolean;
+}
+
+export interface EntityResolutionResult extends EntityResolutionPreview {
+  resolutionId: string;
 }
 
 export interface RegisterTenantPrivateEntityInput {

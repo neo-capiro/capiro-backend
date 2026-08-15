@@ -27,7 +27,7 @@ export function normalizeEntityIdentifier(type: string, value: string): string {
 
   switch (normalizedType) {
     case 'email':
-      return trimmed.toLocaleLowerCase('en-US');
+      return normalizeEmail(trimmed);
     case 'domain':
     case 'official_domain':
       return normalizeDomain(trimmed);
@@ -60,6 +60,19 @@ export function normalizeEntityIdentifier(type: string, value: string): string {
     default:
       return trimmed.toLocaleLowerCase('en-US');
   }
+}
+
+function normalizeEmail(value: string): string {
+  const normalized = value.toLocaleLowerCase('en-US');
+  const at = normalized.lastIndexOf('@');
+  if (at <= 0 || at !== normalized.indexOf('@') || at === normalized.length - 1) {
+    throw new Error(`Invalid entity email: ${value}`);
+  }
+  const localPart = normalized.slice(0, at);
+  if (/\s/.test(localPart)) {
+    throw new Error(`Invalid entity email: ${value}`);
+  }
+  return `${localPart}@${normalizeDomain(normalized.slice(at + 1))}`;
 }
 
 export function normalizeDomain(value: string): string {

@@ -18,6 +18,7 @@ import type {
   CanonicalEntityRecord,
   CorrectEntityResolutionInput,
   EntityResolutionCandidate,
+  EntityResolutionPreview,
   EntityResolutionProvenance,
   EntityResolutionResult,
   NormalizedResolveEntityInput,
@@ -40,28 +41,33 @@ const UNIQUE_EXACT_MATCH_THRESHOLD = 0.9;
 export class UniversalEntityResolutionService {
   constructor(private readonly repository: CanonicalEntityRepository) {}
 
-  async resolve(tenantId: string, input: ResolveEntityInput): Promise<EntityResolutionResult> {
-    const normalized = normalizeResolveInput(input);
-    const candidates = await this.repository.findExactCandidates(tenantId, normalized);
-    const decision = decideResolution(candidates);
+  /**
+   * Read-only resolution evaluation used by dry-run/backfill diagnostics.
+   * It deliberately does not append EntityResolution history.
+   */
+  async preview(
+    tenantId: string,
+    input: ResolveEntityInput,
+  ): Promise<EntityResolutionPreview> {
+    const evaluation = await this.evaluate(tenantId, input);
+    return previewFromEvaluation(evaluation);
+  }
 
-    const provenance = dedupeProvenance(
-      candidates.flatMap((candidate) => candidate.provenance),
-    );
+  async resolve(tenantId: string, input: ResolveEntityInput): Promise<EntityResolutionResult> {
+    const evaluation = await this.evaluate(tenantId, input);
     const resolution = await this.repository.appendResolution(
       tenantId,
-      buildAppendInput(normalized, candidates, decision, provenance),
+      buildAppendInput(
+        evaluation.normalized,
+        evaluation.candidates,
+        evaluation.decision,
+        evaluation.provenance,
+      ),
     );
 
     return {
       resolutionId: resolution.id,
-      status: decision.status,
-      entity: decision.entity,
-      confidence: decision.confidence,
-      resolutionMethod: decision.resolutionMethod,
-      candidates,
-      provenance,
-      requiresUserConfirmation: decision.status === 'ambiguous',
+      ...previewFromEvaluation(evaluation),
     };
   }
 
@@ -177,6 +183,19 @@ export class UniversalEntityResolutionService {
       requiresUserConfirmation: false,
     };
   }
+
+  private async evaluate(
+    tenantId: string,
+    input: ResolveEntityInput,
+  ): Promise<ResolutionEvaluation> {
+    const normalized = normalizeResolveInput(input);
+    const candidates = await this.repository.findExactCandidates(tenantId, normalized);
+    const decision = decideResolution(candidates);
+    const provenance = dedupeProvenance(
+      candidates.flatMap((candidate) => candidate.provenance),
+    );
+    return { normalized, candidates, decision, provenance };
+  }
 }
 
 interface ResolutionDecision {
@@ -184,6 +203,27 @@ interface ResolutionDecision {
   entity: CanonicalEntityRecord | null;
   confidence: number;
   resolutionMethod: string;
+}
+
+interface ResolutionEvaluation {
+  normalized: NormalizedResolveEntityInput;
+  candidates: EntityResolutionCandidate[];
+  decision: ResolutionDecision;
+  provenance: EntityResolutionProvenance[];
+}
+
+function previewFromEvaluation(
+  evaluation: ResolutionEvaluation,
+): EntityResolutionPreview {
+  return {
+    status: evaluation.decision.status,
+    entity: evaluation.decision.entity,
+    confidence: evaluation.decision.confidence,
+    resolutionMethod: evaluation.decision.resolutionMethod,
+    candidates: evaluation.candidates,
+    provenance: evaluation.provenance,
+    requiresUserConfirmation: evaluation.decision.status === 'ambiguous',
+  };
 }
 
 function normalizeResolveInput(input: ResolveEntityInput): NormalizedResolveEntityInput {

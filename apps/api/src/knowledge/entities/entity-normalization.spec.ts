@@ -39,6 +39,9 @@ describe('entity normalization', () => {
       'Invalid entity identifier type',
     );
     expect(() => normalizeDomain('not-a-domain')).toThrow('Invalid entity domain');
+    expect(() => normalizeEntityIdentifier('email', 'not-an-email')).toThrow(
+      'Invalid entity email',
+    );
     expect(() => normalizeEntityIdentifier('cik', 'not-a-cik')).toThrow(
       'Invalid SEC CIK',
     );

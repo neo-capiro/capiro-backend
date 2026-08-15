@@ -7,6 +7,7 @@ import { KnowledgeAssertionService } from './assertions/knowledge-assertion.serv
 import { CanonicalEntityRegistrationRepository } from './entities/canonical-entity-registration.repository.js';
 import { CanonicalEntityRegistrationService } from './entities/canonical-entity-registration.service.js';
 import { CanonicalEntityRepository } from './entities/canonical-entity.repository.js';
+import { CanonicalSourceAdapterService } from './entities/canonical-source-adapter.service.js';
 import { UniversalEntityResolutionService } from './entities/universal-entity-resolution.service.js';
 import { KnowledgeEvidenceRepository } from './evidence/knowledge-evidence.repository.js';
 import { KnowledgeEvidenceValidatorService } from './evidence/knowledge-evidence-validator.service.js';
@@ -37,6 +38,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     UniversalEntityResolutionService,
     CanonicalEntityRegistrationRepository,
     CanonicalEntityRegistrationService,
+    CanonicalSourceAdapterService,
     MailboxKnowledgeFlagsService,
     MailboxKnowledgeRepository,
     MailboxNormalizerService,
@@ -52,6 +54,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     AssertionConsolidationService,
     UniversalEntityResolutionService,
     CanonicalEntityRegistrationService,
+    CanonicalSourceAdapterService,
     MailboxNormalizerService,
     MailboxRelevanceService,
     MailboxThreadService,
