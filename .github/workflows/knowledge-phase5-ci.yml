@@ -1,0 +1,92 @@
+name: Knowledge Plane Phase 5 CI
+
+on:
+  push:
+    branches:
+      - feat/phase-5-universal-entity-resolution
+    paths:
+      - 'apps/api/src/knowledge/entities/**'
+      - 'apps/api/src/knowledge/knowledge.module.ts'
+      - 'apps/api/prisma/migrations/20261120100000_universal_entity_resolution/**'
+      - 'apps/api/prisma/migrations/20261120110000_universal_entity_resolution_hardening/**'
+      - 'scripts/verify-entity-resolution-migration.sh'
+      - '.github/workflows/knowledge-phase5-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/knowledge/entities/**'
+      - 'apps/api/src/knowledge/knowledge.module.ts'
+      - 'apps/api/prisma/migrations/20261120100000_universal_entity_resolution/**'
+      - 'apps/api/prisma/migrations/20261120110000_universal_entity_resolution_hardening/**'
+      - 'scripts/verify-entity-resolution-migration.sh'
+      - '.github/workflows/knowledge-phase5-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check patch hygiene
+        run: git diff --check HEAD^
+
+      - name: Rehearse Phase 5 entity-resolution migrations
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          bash scripts/verify-entity-resolution-migration.sh
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Test entity-resolution foundation
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge/entities
+
+      - name: Reject Phase 5 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/knowledge/entities/|src/knowledge/knowledge\.module\.ts' /tmp/api-tsc.log; then
+            echo "Phase 5 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (known unrelated baseline errors are tracked separately)."
