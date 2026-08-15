@@ -18,10 +18,11 @@ import { StrategyAssistantService } from './strategy/strategy-assistant.service.
 import { StrategyContextPackService } from './strategy/strategy-context-pack.service.js';
 import { StewardController } from './steward/steward.controller.js';
 import { StewardExtractService } from './steward/steward-extract.service.js';
+import { MeriRetrievalCoordinator } from './retrieval/meri-retrieval-coordinator.js';
 import { MeriV3Controller } from './meriv3/meriv3.controller.js';
 import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3/meriv3-assistant.service.js';
-import { MeriV3ManagedMcpAssistantService } from './meriv3/meriv3-managed-mcp-assistant.service.js';
+import { MeriV3RetrievalAssistantService } from './meriv3/meriv3-retrieval-assistant.service.js';
 import { ApiManagedMcpRepo } from './meriv3/api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './meriv3/api-visual-analysis.repo.js';
 import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
@@ -53,6 +54,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     ApiActionProposalRepo,
     ApiComplianceAuditRepo,
     MeriRegistryService,
+    MeriRetrievalCoordinator,
     InEditorAssistantService,
     ChatAssistantService,
     MeriV3AccessService,
@@ -61,7 +63,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     ApiVisualAnalysisRepo,
     {
       provide: MeriV3AssistantService,
-      useClass: MeriV3ManagedMcpAssistantService,
+      useClass: MeriV3RetrievalAssistantService,
     },
     WorkspaceGenClient,
     StrategyAssistantService,

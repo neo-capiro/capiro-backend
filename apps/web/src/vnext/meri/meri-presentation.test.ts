@@ -3,6 +3,7 @@ import {
   displayThreadTitle,
   isPlaceholderThreadTitle,
   threadKindIcon,
+  threadScopeLabel,
   threadScopeSubline,
   visibleMarkdown,
 } from './meri-presentation.js';
@@ -57,8 +58,53 @@ describe('meri presentation helpers', () => {
   });
 
   test('renders the thread sub-line in Inter sentence case', () => {
-    expect(threadScopeSubline('LEGISTORM')).toBe('Scoped · Legistorm');
+    expect(threadScopeSubline('LEGISTORM')).toBe('Client context · Legistorm');
     expect(threadScopeSubline(null)).toBe('Portfolio · All clients');
+  });
+
+  test('threadScopeLabel reflects the backend retrieval subjectScope', () => {
+    // client → CLIENT · <name>, using the client name from the selector
+    expect(threadScopeLabel('Legistorm', { subjectScope: 'client' })).toBe('CLIENT · Legistorm');
+    // Falls back to targetHint when no client name is available
+    expect(threadScopeLabel(null, { subjectScope: 'client', targetHint: 'Legistorm' })).toBe(
+      'CLIENT · Legistorm',
+    );
+    // Falls back to a placeholder when neither is available
+    expect(threadScopeLabel(null, { subjectScope: 'client' })).toBe('CLIENT · Unknown Client');
+
+    // portfolio → PORTFOLIO · ALL CLIENTS (ignores client name)
+    expect(threadScopeLabel('Legistorm', { subjectScope: 'portfolio' })).toBe(
+      'PORTFOLIO · ALL CLIENTS',
+    );
+    expect(threadScopeLabel(null, { subjectScope: 'portfolio' })).toBe('PORTFOLIO · ALL CLIENTS');
+
+    // external_entity → EXTERNAL RESEARCH · <targetHint or entity>
+    expect(
+      threadScopeLabel(null, { subjectScope: 'external_entity', targetHint: 'CRS REPORT R45678' }),
+    ).toBe('EXTERNAL RESEARCH · Crs Report R45678');
+    // No targetHint → generic external-source label
+    expect(threadScopeLabel(null, { subjectScope: 'external_entity' })).toBe(
+      'EXTERNAL RESEARCH · External Source',
+    );
+    // Client name is ignored for external research scope
+    expect(
+      threadScopeLabel('Legistorm', { subjectScope: 'external_entity', targetHint: 'CRS' }),
+    ).toBe('EXTERNAL RESEARCH · Crs');
+
+    // general → null (no misleading client-scope badge)
+    expect(threadScopeLabel('Legistorm', { subjectScope: 'general' })).toBeNull();
+    expect(threadScopeLabel(null, { subjectScope: 'general' })).toBeNull();
+  });
+
+  test('threadScopeLabel falls back to the legacy sub-line when no retrieval metadata is sent', () => {
+    // No retrieval at all — backward-compat path
+    expect(threadScopeLabel('LEGISTORM', undefined)).toBe('Client context · Legistorm');
+    expect(threadScopeLabel('LEGISTORM', null)).toBe('Client context · Legistorm');
+    expect(threadScopeLabel(null, undefined)).toBe('Portfolio · All clients');
+    // Unknown subjectScope value — defensive fall-back, not a wrong badge
+    expect(threadScopeLabel('Legistorm', { subjectScope: 'mystery_scope' })).toBe(
+      'Client context · Legistorm',
+    );
   });
 
   test('maps thread kind to a real UIcon, never a bare dot', () => {

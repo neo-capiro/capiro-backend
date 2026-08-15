@@ -5,6 +5,42 @@ import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
 export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
 
+export interface MeriV3RetrievalStreamSummary {
+  plan: {
+    version: 1;
+    queryClass: string;
+    subjectScope: string;
+    targetHint: string | null;
+    recipeTool: string | null;
+    requireCompleteCoverage: boolean;
+    requiredDomains: string[];
+    timeWindow: { expression: string; withinDays: number } | null;
+  };
+  coverage: {
+    version: 1;
+    complete: boolean;
+    requestedDomains: string[];
+    searchedDomains: string[];
+    missingDomains: string[];
+    partialDomains: string[];
+    requestedEntityCount: number | null;
+    searchedEntityCount: number | null;
+    recordsEvaluated: number;
+    recordsReturned: number;
+    paginationComplete: boolean;
+    truncated: boolean;
+    sourceHealth: Array<{
+      source: string;
+      status: 'complete' | 'partial' | 'error' | 'unavailable';
+      lastSyncAt?: string;
+      detail?: string;
+    }>;
+    unavailableSources: Array<{ source: string; reason: string }>;
+    toolsInvoked: string[];
+    stopReason: 'complete' | 'partial' | 'no-retrieval-required';
+  };
+}
+
 export type MeriV3ChatStreamEvent =
   | { type: 'start'; runtime?: 'meriv3'; reasoningMode?: MeriV3ReasoningMode }
   | {
@@ -112,6 +148,7 @@ export type MeriV3ChatStreamEvent =
         status: string;
       }>;
       contextPacket?: MeriContextPacketSummary;
+      retrieval?: MeriV3RetrievalStreamSummary;
       aborted?: boolean;
     }
   | { type: 'error'; message: string };

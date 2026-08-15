@@ -28,8 +28,72 @@ export function titleCaseWords(value: string): string {
     .replace(/\b([a-z])/g, (char) => char.toUpperCase());
 }
 
+/**
+ * Retrieval plan metadata forwarded by the backend in the SSE `done` frame.
+ * Only the fields the scope label needs are required here — the full frame
+ * (coverage, domains, timeWindow, …) is typed on the SseEvent side and stays
+ * optional end-to-end so legacy turns without retrieval still render.
+ */
+export interface RetrievalScopeMeta {
+  subjectScope: 'client' | 'portfolio' | 'external_entity' | 'general' | string;
+  targetHint?: string | null;
+  recipeTool?: string | null;
+}
+
+/**
+ * Truthful scope badge for a finished assistant turn.
+ *
+ * The backend retrieval plan already classifies a turn as `client`,
+ * `portfolio`, `external_entity`, or `general`. The old `threadScopeSubline`
+ * always printed "Scoped · <client>" regardless, which misrepresents a
+ * portfolio/external/general turn as client-scoped. This function uses the
+ * backend's own classification when available and only falls back to the
+ * client-name sub-line when no retrieval metadata was sent.
+ *
+ * Returns `null` for `general` scope so the caller can omit the badge
+ * entirely instead of printing a misleading client-scope label.
+ */
+export function threadScopeLabel(
+  clientName: string | null | undefined,
+  retrieval?: RetrievalScopeMeta | null,
+): string | null {
+  if (!retrieval) {
+    // Legacy path: no retrieval metadata — keep the old sub-line semantics.
+    return threadScopeSubline(clientName);
+  }
+  switch (retrieval.subjectScope) {
+    case 'client': {
+      const name = clientName?.trim() || retrieval.targetHint?.trim() || 'Unknown client';
+      return `CLIENT · ${titleCaseWords(name)}`;
+    }
+    case 'portfolio':
+      return 'PORTFOLIO · ALL CLIENTS';
+    case 'external_entity': {
+      const hint = retrieval.targetHint?.trim() || 'External source';
+      return `EXTERNAL RESEARCH · ${titleCaseWords(hint)}`;
+    }
+    case 'general':
+      // No misleading client-scope badge for a general-knowledge turn.
+      return null;
+    default:
+      // Unknown subjectScope value — fall back to the legacy sub-line rather
+      // than printing a wrong badge.
+      return threadScopeSubline(clientName);
+  }
+}
+
+/**
+ * Legacy sub-line kept for backward compatibility. New callers should prefer
+ * {@link threadScopeLabel}, which delegates here when no retrieval metadata
+ * is available.
+ *
+ * The wording is "Client context · <name>" (not "Scoped · <name>") so the
+ * label describes what the client selector represents — the conversation's
+ * client context — without implying the backend retrieval plan was
+ * client-scoped when it may not have been.
+ */
 export function threadScopeSubline(clientName: string | null | undefined): string {
-  if (clientName?.trim()) return `Scoped · ${titleCaseWords(clientName)}`;
+  if (clientName?.trim()) return `Client context · ${titleCaseWords(clientName)}`;
   return 'Portfolio · All clients';
 }
 

@@ -24,6 +24,7 @@ import {
   appendChatMessage,
   clearChatSession,
   MeriSourceAttribution,
+  type ChatMessageRetrieval,
   type MeriCitation,
   type MeriVerification,
   getActiveDraft,
@@ -34,6 +35,7 @@ import {
   setChatOpen,
   setChatSession,
   setChatMessageCitations,
+  setChatMessageRetrieval,
   setChatMessageVerification,
   setChatMessageGroundingCaveat,
   setChatMessageSuggestions,
@@ -117,7 +119,34 @@ type SseEvent =
       };
       preview: MeriActionPreview;
     }
-  | { type: 'done' }
+  // Retrieval plan forwarded by the orchestrator's `done` frame. Absent on
+  // legacy turns (and on turns that don't run the retrieval assistant), so
+  // `retrieval` stays optional and older clients keep working. The shape
+  // mirrors the backend's RetrievalFrame (version: 1).
+  | {
+      type: 'done';
+      retrieval?: {
+        plan: {
+          subjectScope: string;
+          targetHint: string | null;
+          recipeTool: string | null;
+          queryClass: string;
+          requireCompleteCoverage: boolean;
+          requiredDomains: string[];
+          timeWindow: { expression: string; withinDays: number } | null;
+          version: 1;
+        };
+        coverage: {
+          complete: boolean;
+          stopReason: string;
+          searchedDomains: string[];
+          missingDomains: string[];
+          partialDomains: string[];
+          toolsInvoked: string[];
+          version: 1;
+        };
+      };
+    }
   | { type: 'error'; message: string }
   | {
       type: 'draft_updated';
@@ -400,6 +429,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const [researchOffers, setResearchOffers] = useState<
     Record<string, { topic: string; reason?: string }>
   >({});
+  // The last finished assistant turn's retrieval plan, forwarded by the
+  // orchestrator's `done` frame. Drives the truthful thread scope label
+  // (CLIENT / PORTFOLIO / EXTERNAL RESEARCH / general) instead of the legacy
+  // "Scoped · <client>" placeholder. Reset to null when a new turn starts.
+  const [lastRetrieval, setLastRetrieval] = useState<ChatMessageRetrieval | null>(null);
   const [learnedMemories, setLearnedMemories] = useState<MeriLearnedMemory[]>([]);
   const [forgottenMemories, setForgottenMemories] = useState<MeriLearnedMemory[]>([]);
   const forgetTimersRef = useRef(new Map<string, number>());
@@ -1427,6 +1461,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 [assistantId]: { topic: event.topic, reason: event.reason },
               }));
             } else if (event.type === 'done') {
+              // Capture the backend retrieval plan (subjectScope, coverage)
+              // so the thread scope label reflects the actual retrieval scope
+              // instead of always printing "Client context · <client>".
+              if (event.retrieval) {
+                setChatMessageRetrieval(assistantId, event.retrieval);
+                setLastRetrieval(event.retrieval);
+              }
               break outer;
             } else if (event.type === 'error') {
               updateChatMessage(assistantId, `Error: ${event.message}`);
@@ -1580,6 +1621,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     setPendingApprovals([]);
     setApprovingProposalId(null);
     setResearchOffers({});
+    setLastRetrieval(null);
   }, [invalidateRouteStream]);
 
   const handleStop = useCallback(() => {
@@ -1751,6 +1793,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   useEffect(() => {
     setPendingApprovals([]);
     setResearchOffers({});
+    setLastRetrieval(null);
     executedThisRoundRef.current = [];
   }, [sessionId]);
 
@@ -2032,6 +2075,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     researchReports,
     researchOffers,
     handleRunResearchOffer,
+    lastRetrieval,
     lastUserMessageId,
     editingMessageId,
     setEditingMessageId,

@@ -1,5 +1,12 @@
 import type { ProviderUsage } from '@capiro/shared';
 import type { ChatInput, ChatResult, ChatStreamEvent } from '../chat/chat-prompt.js';
+import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.js';
+import type {
+  MeriRetrievalDomain,
+  MeriRetrievalRecipeTool,
+  MeriRetrievalTimeWindow,
+} from '../retrieval/meri-retrieval-plan.js';
+import type { MeriQueryClass, MeriSubjectScope } from '../retrieval/meri-retrieval-intent.js';
 
 /** Stable product labels. Provider model ids remain server configuration. */
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
@@ -23,11 +30,26 @@ export interface MeriV3ChatInput extends ChatInput {
   reasoningMode?: MeriV3ReasoningMode;
 }
 
+export interface MeriV3RetrievalSummary {
+  plan: {
+    version: 1;
+    queryClass: MeriQueryClass;
+    subjectScope: MeriSubjectScope;
+    targetHint: string | null;
+    recipeTool: MeriRetrievalRecipeTool | null;
+    requireCompleteCoverage: boolean;
+    requiredDomains: MeriRetrievalDomain[];
+    timeWindow: MeriRetrievalTimeWindow | null;
+  };
+  coverage: MeriCoverageManifest;
+}
+
 export interface MeriV3ChatResult extends ChatResult {
   runtime: 'meriv3';
   model: string;
   reasoningMode: MeriV3ReasoningMode;
   reasoningEffort: MeriV3ReasoningEffort;
+  retrieval?: MeriV3RetrievalSummary;
 }
 
 export type MeriV3ChatStreamEvent =

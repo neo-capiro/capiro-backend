@@ -3,7 +3,7 @@ import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { config } from '../../env.js';
 import { MeriIcon } from './meri-icons.js';
-import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeSubline } from './meri-presentation.js';
+import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
@@ -98,7 +98,17 @@ export function VNextMeriConversation({
   const threadTitle = hasThread
     ? controller.sessionTitle.trim() || 'Untitled thread'
     : 'New thread';
-  const threadSub = threadScopeSubline(selectedClient?.name ?? null);
+  // Truthful scope badge: when the backend's retrieval plan is available
+  // (from the last finished assistant turn), use its subjectScope to label
+  // the thread. Falls back to the legacy client-context sub-line for turns
+  // that didn't forward retrieval metadata. Returns null for general scope,
+  // in which case we omit the badge entirely.
+  const retrieval = controller.lastRetrieval;
+  const threadSub =
+    threadScopeLabel(
+      selectedClient?.name ?? null,
+      retrieval ? { subjectScope: retrieval.plan.subjectScope, targetHint: retrieval.plan.targetHint, recipeTool: retrieval.plan.recipeTool } : null,
+    ) ?? '';
   const researching = Boolean(controller.isStreaming || controller.researchAwaitingAnswers);
   const approval = controller.pendingApprovals.length > 0 && !controller.isStreaming;
   const modeLabel = approval

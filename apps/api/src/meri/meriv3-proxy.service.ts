@@ -362,6 +362,9 @@ export class MeriV3ProxyService {
           ...(frame?.contextPacket
             ? { contextPacket: frame.contextPacket as unknown as Prisma.InputJsonValue }
             : {}),
+          ...(frame?.retrieval
+            ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
+            : {}),
           finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
           trace: steps as unknown as Prisma.InputJsonValue,
           actions: steps
@@ -394,10 +397,14 @@ export class MeriV3ProxyService {
     if (errorMessage && !aborted) {
       emit({ type: 'error', message: errorMessage });
     }
-    emit({ type: 'done' });
+    emit({
+      type: 'done',
+      ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
+    });
     this.logger.log(
       `MeriV3 proxy turn tenant=${ctx.tenantId} conversation=${conversationId} mode=${reasoningMode} ` +
-        `model=${runtimeModel} tools=${steps.length} aborted=${aborted} sourceMessage=${sourceMessageId}`,
+        `model=${runtimeModel} tools=${steps.length} coverage=${frame?.retrieval?.coverage.complete ?? 'n/a'} ` +
+        `aborted=${aborted} sourceMessage=${sourceMessageId}`,
     );
   }
 
