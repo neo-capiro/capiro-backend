@@ -45,62 +45,29 @@ interface GovernanceEventRow {
 export class EntityIdentityGovernanceRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async recordResolutionConfirmation(
+  async findResolutionConfirmationEvent(
     tenantId: string,
     originalResolutionId: string,
     correctedResolutionId: string,
-    selectedEntityId: string,
-    actorUserId: string,
-    reason: string | null,
-    idempotencyKey: string,
   ): Promise<string> {
     return this.prisma.withTenant(tenantId, async (tx) => {
-      const inserted = await tx.$queryRaw<GovernanceEventIdRow[]>`
-        INSERT INTO entity_identity_governance_events (
-          tenant_id,
-          idempotency_key,
-          action_type,
-          subject_type,
-          subject_id,
-          entity_id,
-          actor_user_id,
-          reason_code,
-          reason,
-          metadata
-        )
-        VALUES (
-          ${tenantId}::uuid,
-          ${idempotencyKey},
-          'resolution_confirmed',
-          'resolution',
-          ${originalResolutionId}::uuid,
-          ${selectedEntityId}::uuid,
-          ${actorUserId}::uuid,
-          'user_confirmed',
-          ${reason?.trim() || null},
-          jsonb_build_object('correctedResolutionId', ${correctedResolutionId})
-        )
-        ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
-        RETURNING id AS event_id
+      const rows = await tx.$queryRaw<GovernanceEventIdRow[]>`
+        SELECT id AS event_id
+        FROM entity_identity_governance_events
+        WHERE tenant_id = ${tenantId}::uuid
+          AND action_type = 'resolution_confirmed'
+          AND subject_type = 'resolution'
+          AND subject_id = ${originalResolutionId}::uuid
+          AND metadata ->> 'correctedResolutionId' = ${correctedResolutionId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
       `;
-
-      const eventId =
-        inserted[0]?.event_id ??
-        (
-          await tx.$queryRaw<GovernanceEventIdRow[]>`
-            SELECT id AS event_id
-            FROM entity_identity_governance_events
-            WHERE tenant_id = ${tenantId}::uuid
-              AND idempotency_key = ${idempotencyKey}
-            LIMIT 1
-          `
-        )[0]?.event_id;
-      if (!eventId) {
+      if (!rows[0]?.event_id) {
         throw new InternalServerErrorException(
-          'Resolution confirmation event did not return a row.',
+          'Atomic resolution confirmation event was not projected.',
         );
       }
-      return eventId;
+      return rows[0].event_id;
     });
   }
 
