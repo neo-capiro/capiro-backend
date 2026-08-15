@@ -4,6 +4,7 @@ import { AssertionConflictService } from './assertions/assertion-conflict.servic
 import { AssertionConsolidationService } from './assertions/assertion-consolidation.service.js';
 import { KnowledgeAssertionRepository } from './assertions/knowledge-assertion.repository.js';
 import { KnowledgeAssertionService } from './assertions/knowledge-assertion.service.js';
+import { AuthoritativeFirstUniversalEntityResolutionOrchestratorService } from './entities/authoritative-first-entity-resolution-orchestrator.service.js';
 import { CanonicalEntityRegistrationRepository } from './entities/canonical-entity-registration.repository.js';
 import { CanonicalEntityRegistrationService } from './entities/canonical-entity-registration.service.js';
 import { CanonicalEntityRepository } from './entities/canonical-entity.repository.js';
@@ -77,7 +78,11 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
         SecCikEntityResolutionProvider,
       ],
     },
-    UniversalEntityResolutionOrchestratorService,
+    AuthoritativeFirstUniversalEntityResolutionOrchestratorService,
+    {
+      provide: UniversalEntityResolutionOrchestratorService,
+      useExisting: AuthoritativeFirstUniversalEntityResolutionOrchestratorService,
+    },
     CanonicalSourceAdapterService,
     CanonicalSourceBackfillRepository,
     CanonicalSourceBackfillService,
