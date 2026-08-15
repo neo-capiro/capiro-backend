@@ -39,6 +39,29 @@ export interface MeriV3RetrievalStreamSummary {
     toolsInvoked: string[];
     stopReason: 'complete' | 'partial' | 'no-retrieval-required';
   };
+  /** Optional during rolling deploys where API and orchestrator revisions overlap. */
+  trace?: {
+    version: 1;
+    startedAt: string;
+    durationMs: number;
+    modelTools: string[];
+    recipeFirst: boolean | null;
+    outOfPlanModelTools: string[];
+    observedToolCalls: number;
+    uniqueTools: string[];
+    /** Sum of observed tool/recipe wall times; nested calls may overlap. */
+    cumulativeToolMs: number;
+    partialToolCount: number;
+    errorToolCount: number;
+    paginationDebt: string[];
+    tools: Array<{
+      tool: string;
+      durationMs: number;
+      returned: number;
+      status: 'complete' | 'partial' | 'error' | 'unavailable';
+      hasMore: boolean;
+    }>;
+  };
 }
 
 export type MeriV3ChatStreamEvent =

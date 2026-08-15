@@ -11,9 +11,38 @@ import {
   type MeriRetrievalPlan,
 } from './meri-retrieval-plan.js';
 
+export interface MeriRetrievalToolTrace {
+  tool: string;
+  durationMs: number;
+  returned: number;
+  status: MeriToolCoverageObservation['status'];
+  hasMore: boolean;
+}
+
+export interface MeriRetrievalTrace {
+  version: 1;
+  startedAt: string;
+  durationMs: number;
+  modelTools: string[];
+  recipeFirst: boolean | null;
+  outOfPlanModelTools: string[];
+  observedToolCalls: number;
+  uniqueTools: string[];
+  /** Sum of observed tool/recipe wall times. Nested recipe calls can overlap/double-count. */
+  cumulativeToolMs: number;
+  partialToolCount: number;
+  errorToolCount: number;
+  paginationDebt: string[];
+  tools: MeriRetrievalToolTrace[];
+}
+
 interface MeriRetrievalRunState {
   plan: MeriRetrievalPlan;
   observations: MeriToolCoverageObservation[];
+  startedAtMs: number;
+  startedAtIso: string;
+  modelTools: string[];
+  toolTraces: MeriRetrievalToolTrace[];
 }
 
 const RECIPE_TOOLS = new Set<string>(MERI_RETRIEVAL_RECIPE_TOOLS);
@@ -85,22 +114,40 @@ export class MeriRetrievalCoordinator {
   private readonly storage = new AsyncLocalStorage<MeriRetrievalRunState>();
 
   run<T>(plan: MeriRetrievalPlan, execute: () => Promise<T>): Promise<T> {
-    return this.storage.run({ plan, observations: [] }, execute);
+    const startedAtMs = Date.now();
+    return this.storage.run(
+      {
+        plan,
+        observations: [],
+        startedAtMs,
+        startedAtIso: new Date(startedAtMs).toISOString(),
+        modelTools: [],
+        toolTraces: [],
+      },
+      execute,
+    );
   }
 
   currentPlan(): MeriRetrievalPlan | null {
     return this.storage.getStore()?.plan ?? null;
   }
 
-  observe(tool: string, input: Record<string, unknown>, result: unknown): void {
+  recordModelTool(tool: string): void {
+    const state = this.storage.getStore();
+    if (!state) return;
+    state.modelTools.push(tool);
+  }
+
+  observe(
+    tool: string,
+    input: Record<string, unknown>,
+    result: unknown,
+    durationMs = 0,
+  ): void {
     const state = this.storage.getStore();
     if (!state) return;
     const observation = observeMeriToolCoverage(tool, input, result);
-    if (
-      BOUNDED_WITHOUT_COMPLETENESS.has(tool) &&
-      observation.status === 'complete' &&
-      !hasExplicitCompleteness(result)
-    ) {
+    if (BOUNDED_WITHOUT_COMPLETENESS.has(tool) && !hasExplicitCompleteness(result)) {
       observation.status = 'partial';
       observation.detail =
         observation.detail ?? 'Bounded result without a cursor/total completeness contract.';
@@ -113,6 +160,13 @@ export class MeriRetrievalCoordinator {
       }
     }
     state.observations.push(observation);
+    state.toolTraces.push({
+      tool,
+      durationMs: Math.max(0, Math.round(durationMs)),
+      returned: observation.returned,
+      status: observation.status,
+      hasMore: observation.hasMore,
+    });
   }
 
   observations(): readonly MeriToolCoverageObservation[] {
@@ -125,10 +179,6 @@ export class MeriRetrievalCoordinator {
       throw new Error('Meri retrieval coverage requested outside an active retrieval run');
     }
     const manifest = buildMeriCoverageManifest(state.plan, state.observations);
-    // A composite recipe reports the overall fan-out, but it must never wash
-    // out a partial source underneath it. For example, a relationship recipe
-    // can succeed while search_research_sources remains top-k or Google mail is
-    // unavailable. Preserve every such required-domain limitation.
     const underlyingPartial = state.plan.requiredDomains.filter((domain) =>
       state.observations.some(
         (observation) =>
@@ -143,6 +193,44 @@ export class MeriRetrievalCoordinator {
       complete: false,
       partialDomains: [...new Set([...manifest.partialDomains, ...underlyingPartial])],
       stopReason: 'partial',
+    };
+  }
+
+  trace(now = Date.now()): MeriRetrievalTrace {
+    const state = this.storage.getStore();
+    if (!state) throw new Error('Meri retrieval trace requested outside an active retrieval run');
+    const allowed = new Set([
+      ...state.plan.recommendedTools,
+      ...(state.plan.recipeTool ? [state.plan.recipeTool] : []),
+    ]);
+    const outOfPlanModelTools = [...new Set(state.modelTools.filter((tool) => !allowed.has(tool)))];
+    const paginationDebt = [
+      ...new Set(
+        state.observations
+          .filter((observation) =>
+            /cursor\/total completeness contract|bounded result/i.test(observation.detail ?? ''),
+          )
+          .map((observation) => observation.tool),
+      ),
+    ];
+    return {
+      version: 1,
+      startedAt: state.startedAtIso,
+      durationMs: Math.max(0, now - state.startedAtMs),
+      modelTools: [...state.modelTools],
+      recipeFirst: state.plan.recipeTool
+        ? state.modelTools.length > 0 && state.modelTools[0] === state.plan.recipeTool
+        : null,
+      outOfPlanModelTools,
+      observedToolCalls: state.toolTraces.length,
+      uniqueTools: [...new Set(state.toolTraces.map((trace) => trace.tool))],
+      cumulativeToolMs: state.toolTraces.reduce((sum, trace) => sum + trace.durationMs, 0),
+      partialToolCount: state.toolTraces.filter((trace) => trace.status === 'partial').length,
+      errorToolCount: state.toolTraces.filter(
+        (trace) => trace.status === 'error' || trace.status === 'unavailable',
+      ).length,
+      paginationDebt,
+      tools: [...state.toolTraces],
     };
   }
 }
