@@ -14,6 +14,8 @@ import { CanonicalSourceBackfillRepository } from './entities/canonical-source-b
 import { CanonicalSourceBackfillService } from './entities/canonical-source-backfill.service.js';
 import { EntityIdentityGovernanceRepository } from './entities/entity-identity-governance.repository.js';
 import { EntityIdentityGovernanceService } from './entities/entity-identity-governance.service.js';
+import { ENTITY_RESOLUTION_FALLBACK_PROVIDERS } from './entities/universal-entity-resolution-orchestrator.types.js';
+import { UniversalEntityResolutionOrchestratorService } from './entities/universal-entity-resolution-orchestrator.service.js';
 import { UniversalEntityResolutionService } from './entities/universal-entity-resolution.service.js';
 import { KnowledgeEvidenceRepository } from './evidence/knowledge-evidence.repository.js';
 import { KnowledgeEvidenceValidatorService } from './evidence/knowledge-evidence-validator.service.js';
@@ -44,6 +46,11 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     UniversalEntityResolutionService,
     CanonicalEntityRegistrationRepository,
     CanonicalEntityRegistrationService,
+    {
+      provide: ENTITY_RESOLUTION_FALLBACK_PROVIDERS,
+      useValue: [],
+    },
+    UniversalEntityResolutionOrchestratorService,
     CanonicalSourceAdapterService,
     CanonicalSourceBackfillRepository,
     CanonicalSourceBackfillService,
@@ -65,6 +72,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     AssertionConflictService,
     AssertionConsolidationService,
     UniversalEntityResolutionService,
+    UniversalEntityResolutionOrchestratorService,
     CanonicalEntityRegistrationService,
     CanonicalSourceAdapterService,
     CanonicalSourceBackfillService,
