@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,6 +31,14 @@ import {
 } from '../../components/chat/useMeriChatController.js';
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
 import { VNextMeriShell } from './VNextMeriShell.js';
+import {
+  mayApplyRecordFreeCreation,
+  mayDispatchPendingRecordFreeSend,
+  mayCommitRouteHydration,
+  shouldDiscardStagedAttachmentsForScopeChange,
+  ownsFirstSend,
+  type FirstSendToken,
+} from '../../components/chat/meri-route-guards.js';
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
@@ -97,8 +106,73 @@ export function VNextMeriWorkspace() {
   const [historyEpoch, setHistoryEpoch] = useState(0);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const pendingSendRef = useRef<SendArgs | null>(null);
+  const pendingSendEpochRef = useRef<number | null>(null);
+  const pendingSendSessionIdRef = useRef<string | null>(null);
+  // Incremented on every real route transition. First-send creation has no
+  // abortable client request, so its completion must prove it still belongs to
+  // the same `/meri/new` intent before it can select a session or dispatch text.
+  const firstSendEpochRef = useRef(0);
+  // Unique immutable ownership token per first-send intent. When A→B→C occurs,
+  // A's stale continuation/finally cleanup can still execute against shared
+  // refs (pendingSendRef, isCreatingThread, etc.). A numeric epoch alone cannot
+  // distinguish A's stale continuation from C's active one — the token id does.
+  const activeFirstSendTokenRef = useRef<FirstSendToken | null>(null);
   const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
+  const previousRoutePathRef = useRef<string | null>(null);
+
+  // This runs at the route boundary, before the asynchronous client/history
+  // bootstrap begins. Waiting for that bootstrap left a window where an old SSE
+  // stream or approval completion could still mutate a newly selected thread.
+  // Integrations is a transient detour: retain the current thread/draft's staged
+  // turn state when returning to that SAME context, but never retain it when the
+  // destination is a different durable thread or a fresh draft.
+  useLayoutEffect(() => {
+    const previousPath = previousRoutePathRef.current;
+    previousRoutePathRef.current = location.pathname;
+    bootSequenceRef.current += 1;
+    firstSendEpochRef.current += 1;
+
+    // A deferred record-free send is only valid for the route that initiated
+    // creation. Once the URL changes, clear its payload before any destination
+    // hydration can publish a session id.
+    if (previousPath !== null && previousPath !== location.pathname) {
+      pendingSendRef.current = null;
+      pendingSendEpochRef.current = null;
+      pendingSendSessionIdRef.current = null;
+      setIsCreatingThread(false);
+      // Clear the active first-send token: the new route's first-send flow
+      // (if any) will mint its own. A stale continuation from the prior
+      // route checks this ref and returns without touching shared state.
+      activeFirstSendTokenRef.current = null;
+    }
+
+    const snapshot = getChatStateSnapshot();
+    const nextThreadId = threadIdFromPath(location.pathname);
+    const returningFromIntegrations = previousPath === '/meri/integrations';
+    const returnsToSameThread =
+      Boolean(nextThreadId) && snapshot.activeConversationId === nextThreadId;
+    const returnsToSameDraft = isNewRoute && snapshot.activeConversationId === null;
+
+    // First Send creates the row under `/meri/new`, then the pending turn moves
+    // the URL to that exact session. The same rule covers `/meri` resolving to
+    // its newest thread. Those are URL canonicalizations of the CURRENT session,
+    // not ownership transitions: aborting here would cancel the turn that just
+    // started or clear the freshly hydrated transcript.
+    if (returnsToSameThread) return;
+
+    if (isIntegrationsRoute || (returningFromIntegrations && returnsToSameDraft)) {
+      controller.invalidateRouteStream();
+    } else {
+      controller.discardRouteState();
+    }
+  }, [
+    controller.discardRouteState,
+    controller.invalidateRouteStream,
+    isIntegrationsRoute,
+    isNewRoute,
+    location.pathname,
+  ]);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const token = await getToken({ template: 'capiro' });
@@ -145,11 +219,20 @@ export function VNextMeriWorkspace() {
    * cannot replace a good active thread with a broken id.
    */
   const hydrateConversation = useCallback(
-    async (conversationId: string): Promise<void> => {
-      // A route transition is a hard boundary for transient turn state. Stop
-      // the old stream and discard its attachments/proposals before fetching the
-      // destination so no late event or staged file can cross into this thread.
-      controller.discardRouteState();
+    async (conversationId: string, sequence: number): Promise<boolean> => {
+      // The layout-effect route boundary already invalidated the prior session
+      // synchronously. Do not discard here: an older B bootstrap that reaches
+      // this function after C was selected must be a no-op, not a second
+      // invalidation that could disturb C.
+      if (
+        !mayCommitRouteHydration(
+          { sequence, threadId: conversationId },
+          bootSequenceRef.current,
+          threadIdFromPath(window.location.pathname),
+        )
+      ) {
+        return false;
+      }
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/messages`,
         { headers: await authHeaders() },
@@ -163,6 +246,20 @@ export function VNextMeriWorkspace() {
       }
       const hydrated = body.map(historyMessage).filter((item): item is ChatMessage => Boolean(item));
 
+      // The request may complete after a newer Back/Forward or rail navigation.
+      // Validate immediately before the shared-store commit: cancelling the
+      // effect after this function returns is too late to protect the visible
+      // transcript or the session Send will target.
+      if (
+        !mayCommitRouteHydration(
+          { sequence, threadId: conversationId },
+          bootSequenceRef.current,
+          threadIdFromPath(window.location.pathname),
+        )
+      ) {
+        return false;
+      }
+
       // Atomic: clear messages AND set sessionId in one store update so there
       // is never a render where sessionId is null while isOpen is true (which
       // would trigger the controller's auto-create-session effect and race
@@ -171,8 +268,9 @@ export function VNextMeriWorkspace() {
       setActiveConversation(conversationId);
       for (const message of hydrated) appendChatMessage(message);
       setMeriSurfaceMode('undocked');
+      return true;
     },
-    [authHeaders, controller.discardRouteState],
+    [authHeaders],
   );
 
   /**
@@ -183,7 +281,8 @@ export function VNextMeriWorkspace() {
    * as the controller while leaving the controller's staged payload intact for
    * its subsequent `sendMessage` call.
    */
-  const createRecordFreeSession = useCallback(async (): Promise<string> => {
+  const createRecordFreeSession = useCallback(async (token: FirstSendToken): Promise<string | null> => {
+    const firstSendEpoch = firstSendEpochRef.current;
     const response = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
       method: 'POST',
       headers: await authHeaders(),
@@ -206,6 +305,22 @@ export function VNextMeriWorkspace() {
       throw new Error('Conversation creation returned an unexpected response.');
     }
 
+    // Creation can complete after the user has selected another thread or
+    // backed out of `/meri/new`. The server row may exist, but this stale UI
+    // action must not select it, redirect to it, or send its pending prompt.
+    // Check BOTH the route epoch and the first-send token id: the token
+    // distinguishes A's stale continuation from C's active one even when
+    // both captured the same epoch value at different times.
+    if (
+      !mayApplyRecordFreeCreation(
+        firstSendEpoch,
+        firstSendEpochRef.current,
+        window.location.pathname,
+      ) || !ownsFirstSend(token, activeFirstSendTokenRef.current)
+    ) {
+      return null;
+    }
+
     const createdClientId = typeof data.clientId === 'string' ? data.clientId : null;
     const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
     const createdClient = createdClientId
@@ -221,6 +336,7 @@ export function VNextMeriWorkspace() {
       updatedAt:
         typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
     });
+    pendingSendSessionIdRef.current = data.id;
     setChatSession(data.id);
     setActiveConversation(data.id);
     return data.id;
@@ -229,9 +345,14 @@ export function VNextMeriWorkspace() {
   const prepareRecordFreeNewThread = useCallback(
     async (replace = false) => {
       pendingSendRef.current = null;
+      pendingSendEpochRef.current = null;
+      pendingSendSessionIdRef.current = null;
       setIsCreatingThread(false);
       setRouteReady(false);
-      controller.handleStop();
+      // New Chat is a real session ownership transition. Unlike integrations,
+      // invalidate non-abortable approval completions as well as the stream
+      // before clearing the old draft/thread state.
+      controller.discardRouteState();
       // A deliberate New Chat must not carry staged files or mode state from the
       // previous thread. Integrations navigation does not call this reset, so a
       // user can still configure an app and return to an in-progress new turn.
@@ -255,7 +376,7 @@ export function VNextMeriWorkspace() {
       else setRouteReady(true);
     },
     [
-      controller.handleStop,
+      controller.discardRouteState,
       controller.removeStagedAttachment,
       controller.researchSessionRef,
       controller.setActiveArtifact,
@@ -343,7 +464,8 @@ export function VNextMeriWorkspace() {
             snapshot.activeConversationId !== requestedThreadId ||
             snapshot.sessionId !== requestedThreadId
           ) {
-            await hydrateConversation(requestedThreadId);
+            const committed = await hydrateConversation(requestedThreadId, sequence);
+            if (!committed || cancelled || sequence !== bootSequenceRef.current) return;
           } else {
             setMeriSurfaceMode('undocked');
           }
@@ -357,8 +479,8 @@ export function VNextMeriWorkspace() {
             navigate('/meri/new', { replace: true });
             return;
           }
-          await hydrateConversation(recent.id);
-          if (cancelled || sequence !== bootSequenceRef.current) return;
+          const committed = await hydrateConversation(recent.id, sequence);
+          if (!committed || cancelled || sequence !== bootSequenceRef.current) return;
           navigate(`/meri/t/${encodeURIComponent(recent.id)}`, { replace: true });
           return;
         }
@@ -403,21 +525,61 @@ export function VNextMeriWorkspace() {
         throw new Error('Meri is still creating this thread. Your message was not duplicated.');
       }
 
+      // Mint a unique immutable ownership token for this first-send intent.
+      // Every async continuation from this flow captures `token`. Before ANY
+      // mutation of pendingSendRef, isCreatingThread, or related state, the
+      // continuation checks ownsFirstSend(token, activeFirstSendTokenRef.current).
+      // If false, it returns without touching shared first-send state.
+      const token: FirstSendToken = {
+        id: crypto.randomUUID(),
+        routeEpoch: firstSendEpochRef.current,
+      };
+      activeFirstSendTokenRef.current = token;
+
       pendingSendRef.current = args;
+      pendingSendEpochRef.current = firstSendEpochRef.current;
+      pendingSendSessionIdRef.current = null;
       setIsCreatingThread(true);
       setRouteError(null);
       try {
-        await createRecordFreeSession();
+        const createdSessionId = await createRecordFreeSession(token);
+        // TOKEN CHECK: if A's stale creation resolves after C has already
+        // minted a new token, A must be a complete no-op. Do not clear C's
+        // pending send, epoch, or busy state.
+        if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
+          return;
+        }
+        if (!createdSessionId) {
+          pendingSendRef.current = null;
+          pendingSendEpochRef.current = null;
+          pendingSendSessionIdRef.current = null;
+          setIsCreatingThread(false);
+          return;
+        }
       } catch (error) {
+        // TOKEN CHECK: a stale A error must not clear C's refs or set C's
+        // route error. Only the current token owner may mutate shared state.
+        if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
+          return;
+        }
         pendingSendRef.current = null;
+        pendingSendEpochRef.current = null;
+        pendingSendSessionIdRef.current = null;
         setIsCreatingThread(false);
         const message = errorMessage(error, 'Meri could not create the thread. Nothing was sent.');
         setRouteError(message);
         throw new Error(message);
       }
 
+      // TOKEN CHECK: a stale A success must not proceed against C's state.
+      if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
+        return;
+      }
+
       if (!getChatStateSnapshot().sessionId) {
         pendingSendRef.current = null;
+        pendingSendEpochRef.current = null;
+        pendingSendSessionIdRef.current = null;
         setIsCreatingThread(false);
         const message = 'Meri could not create the thread. Nothing was sent.';
         setRouteError(message);
@@ -429,8 +591,28 @@ export function VNextMeriWorkspace() {
 
   useEffect(() => {
     const pending = pendingSendRef.current;
-    if (!pending || !controller.sessionId) return;
+    const pendingEpoch = pendingSendEpochRef.current;
+    const pendingSessionId = pendingSendSessionIdRef.current;
+    if (!pending || pendingEpoch === null || !pendingSessionId || !controller.sessionId) return;
+
+    if (
+      !mayDispatchPendingRecordFreeSend(
+        pendingEpoch,
+        firstSendEpochRef.current,
+        pendingSessionId,
+        controller.sessionId,
+      )
+    ) {
+      pendingSendRef.current = null;
+      pendingSendEpochRef.current = null;
+      pendingSendSessionIdRef.current = null;
+      setIsCreatingThread(false);
+      return;
+    }
+
     pendingSendRef.current = null;
+    pendingSendEpochRef.current = null;
+    pendingSendSessionIdRef.current = null;
     setMeriSurfaceMode('undocked');
     const target = `/meri/t/${encodeURIComponent(controller.sessionId)}`;
     if (location.pathname !== target) navigate(target, { replace: true });
@@ -578,13 +760,41 @@ export function VNextMeriWorkspace() {
 
   const changeSessionClient = useCallback(
     async (clientId: string) => {
+      const currentConversation = activeConversationId
+        ? conversations.find((conversation) => conversation.id === activeConversationId) ?? null
+        : null;
+      const currentClientId = activeConversationId
+        ? controller.selectedClientValue || currentConversation?.clientId || null
+        : selectedClientId || null;
+      const nextClientId = clientId || null;
+      if (
+        shouldDiscardStagedAttachmentsForScopeChange(
+          currentClientId,
+          nextClientId,
+          controller.stagedAttachments.length,
+        )
+      ) {
+        for (const attachment of controller.stagedAttachments) {
+          controller.removeStagedAttachment(attachment.localId);
+        }
+        setRouteError('Attachments were removed because the client scope changed.');
+      }
       if (!getChatStateSnapshot().activeConversationId) {
-        setSelectedClientId(clientId || null);
+        setSelectedClientId(nextClientId);
         return;
       }
       await controller.changeSessionClient(clientId);
     },
-    [controller.changeSessionClient, setSelectedClientId],
+    [
+      activeConversationId,
+      controller.changeSessionClient,
+      conversations,
+      controller.removeStagedAttachment,
+      controller.selectedClientValue,
+      controller.stagedAttachments,
+      selectedClientId,
+      setSelectedClientId,
+    ],
   );
 
   const activeConversation =
@@ -605,6 +815,7 @@ export function VNextMeriWorkspace() {
         handleNewSession,
         archiveConversation,
         changeSessionClient,
+        scopePersistStatus: controller.scopePersistStatus,
       }) as MeriChatController,
     [
       archiveConversation,

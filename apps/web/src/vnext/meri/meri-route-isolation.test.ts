@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   getChatStateSnapshot,
   resetChatStoreForTests,
@@ -35,6 +35,10 @@ describe('Meri route isolation', () => {
     setChatSession('thread-a');
     setActiveConversation('thread-a');
     mocks.api.post.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   test('route transition clears staged attachments before another thread can send', async () => {
@@ -122,6 +126,91 @@ describe('Meri route isolation', () => {
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/research/research-a/'))).toBe(false),
     );
     expect(getChatStateSnapshot().isStreaming).toBe(false);
+  });
+
+  test('late approval result cannot restore an old thread card after route invalidation', async () => {
+    let resolveApproval: ((value: unknown) => void) | null = null;
+    const heldProposal = {
+      type: 'pending_approval',
+      proposalId: 'proposal-a',
+      status: 'proposed',
+      tool: 'create_client',
+      preview: {
+        label: 'Create client',
+        riskTier: null,
+        leavesFirm: false,
+        reversible: true,
+        fields: {},
+        counts: {},
+        reason: 'test',
+      },
+      expiresAt: '2030-01-01T00:00:00.000Z',
+      reason: 'test',
+      riskTier: null,
+      policyCode: null,
+      ruleId: null,
+      policy: {
+        source: 'test',
+        mode: 'enforce',
+        packKey: 'test',
+        packVersion: '1',
+        binding: 'test',
+        decisionHash: 'test',
+        contextHash: 'test',
+        decision: 'hold',
+        jurisdiction: 'test',
+        channel: 'test',
+        recipientType: null,
+      },
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: ${JSON.stringify(heldProposal)}\n\ndata: ${JSON.stringify({ type: 'done' })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/stream')) {
+        return Promise.resolve({ ok: true, body: stream, text: async () => '' });
+      }
+      if (url.includes('/action-proposals/proposal-a/approve')) {
+        return new Promise((resolve) => {
+          resolveApproval = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    await act(async () => {
+      await result.current.sendMessage('create a client');
+    });
+    await waitFor(() => expect(result.current.pendingApprovals).toHaveLength(1));
+
+    await act(async () => {
+      void result.current.handleApprovePending('proposal-a');
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(resolveApproval).not.toBeNull());
+
+    await act(async () => {
+      result.current.discardRouteState();
+      setChatSession('thread-b');
+      setActiveConversation('thread-b');
+      await Promise.resolve();
+      resolveApproval!({
+        ok: true,
+        json: async () => ({ ...heldProposal, status: 'succeeded', resultSummary: 'created' }),
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.pendingApprovals).toEqual([]));
   });
 
   test('route transition aborts an in-flight stream and rejects its late SSE event', async () => {

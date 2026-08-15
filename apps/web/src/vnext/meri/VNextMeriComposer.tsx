@@ -11,6 +11,7 @@ import {
   type StagedAttachment,
 } from '../../components/chat/ChatInput.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { maySend } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
 
@@ -57,11 +58,16 @@ export function VNextMeriComposer({
     removeStagedAttachment,
     sendMessage,
     handleStop,
+    scopePersistStatus,
   } = controller;
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
   const busy = isStreaming || submitting;
-  const canSend = !busy && !uploadsInFlight;
+  // Unified send gate: route/session ownership and first-send ownership are
+  // enforced inside the send path. This predicate covers the remaining
+  // durable-transition gate (scope persistence). Both the Send button and
+  // the keyboard path (Enter / Cmd+Enter) use this same predicate.
+  const canSend = maySend(busy, scopePersistStatus) && !uploadsInFlight;
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
   const contextLabel = selectedClient
     ? `${selectedClient.name.toUpperCase()} · CAPIRO CONTEXT`
@@ -90,7 +96,8 @@ export function VNextMeriComposer({
   const submit = useCallback(
     async (forced?: string) => {
       const content = (forced ?? draft).trim();
-      if (busy || uploadsInFlight) return;
+      // Unified send gate: same predicate as the Send button and keyboard path.
+      if (!maySend(busy, scopePersistStatus) || uploadsInFlight) return;
       if (!content) {
         toast.success('Write a message, then press Send.');
         return;
@@ -111,7 +118,7 @@ export function VNextMeriComposer({
         setSubmitting(false);
       }
     },
-    [busy, draft, sendMessage, toast, uploadsInFlight],
+    [busy, draft, sendMessage, toast, uploadsInFlight, scopePersistStatus],
   );
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -339,7 +346,15 @@ export function VNextMeriComposer({
           </span>
 
           <span className="vnext-meri__composer-send-hint">
-            {isStreaming ? 'STOP' : submitting ? 'STARTING…' : 'SEND'}
+            {isStreaming
+              ? 'STOP'
+              : scopePersistStatus === 'saving'
+                ? 'SAVING CLIENT SCOPE…'
+                : scopePersistStatus === 'error'
+                  ? 'SCOPE ERROR'
+                  : submitting
+                    ? 'STARTING…'
+                    : 'SEND'}
           </span>
 
           {isStreaming ? (
