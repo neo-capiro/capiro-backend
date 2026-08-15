@@ -35,6 +35,11 @@ describe('canonical source backfill contract', () => {
     expect(repository).toContain("mapping.review_status = 'confirmed'");
     expect(repository).toContain('federal_contractor_id');
     expect(repository).toContain('lda_client_id');
+    expect(repository).toContain('contractor.id IS NOT NULL');
+    expect(repository).toContain('lda.id IS NOT NULL');
+    expect(repository).toContain(
+      "COALESCE(upper(client.profile_status), 'ACTIVE') <> 'DELETED'",
+    );
     expect(repository).not.toMatch(/\bsimilarity\s*\(/i);
   });
 

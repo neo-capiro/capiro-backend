@@ -105,11 +105,16 @@ export class CanonicalSourceBackfillRepository {
   ): Promise<ClientPersonIdentitySource[]> {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const rows = await tx.$queryRaw<ClientPersonRow[]>`
-        SELECT id, tenant_id, client_id, name, email::text AS email, title
-        FROM client_people
-        WHERE tenant_id = ${tenantId}::uuid
-          AND (${afterId}::uuid IS NULL OR id > ${afterId}::uuid)
-        ORDER BY id
+        SELECT person.id, person.tenant_id, person.client_id, person.name,
+               person.email::text AS email, person.title
+        FROM client_people AS person
+        JOIN clients AS client
+          ON client.id = person.client_id
+         AND client.tenant_id = person.tenant_id
+        WHERE person.tenant_id = ${tenantId}::uuid
+          AND (${afterId}::uuid IS NULL OR person.id > ${afterId}::uuid)
+          AND COALESCE(upper(client.profile_status), 'ACTIVE') <> 'DELETED'
+        ORDER BY person.id
         LIMIT ${limit}
       `;
       return rows.map((row) => ({
@@ -131,19 +136,26 @@ export class CanonicalSourceBackfillRepository {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const rows = await tx.$queryRaw<EngagementContactRow[]>`
         SELECT
-          id,
-          tenant_id,
-          client_id,
-          full_name,
-          email::text AS email,
-          organization,
-          title,
-          directory_entry_id,
-          acquisition_personnel_id
-        FROM engagement_contacts
-        WHERE tenant_id = ${tenantId}::uuid
-          AND (${afterId}::uuid IS NULL OR id > ${afterId}::uuid)
-        ORDER BY id
+          contact.id,
+          contact.tenant_id,
+          contact.client_id,
+          contact.full_name,
+          contact.email::text AS email,
+          contact.organization,
+          contact.title,
+          contact.directory_entry_id,
+          contact.acquisition_personnel_id
+        FROM engagement_contacts AS contact
+        LEFT JOIN clients AS client
+          ON client.id = contact.client_id
+         AND client.tenant_id = contact.tenant_id
+        WHERE contact.tenant_id = ${tenantId}::uuid
+          AND (${afterId}::uuid IS NULL OR contact.id > ${afterId}::uuid)
+          AND (
+            contact.client_id IS NULL
+            OR COALESCE(upper(client.profile_status), 'ACTIVE') <> 'DELETED'
+          )
+        ORDER BY contact.id
         LIMIT ${limit}
       `;
       return rows.map((row) => ({
@@ -202,6 +214,10 @@ export class CanonicalSourceBackfillRepository {
           AND mapping.confirmed = true
           AND mapping.review_status = 'confirmed'
           AND COALESCE(upper(client.profile_status), 'ACTIVE') <> 'DELETED'
+          AND (
+            (mapping.source = 'contracting' AND contractor.id IS NOT NULL)
+            OR (mapping.source = 'lda' AND lda.id IS NOT NULL)
+          )
         ORDER BY mapping.id
         LIMIT ${limit}
       `;

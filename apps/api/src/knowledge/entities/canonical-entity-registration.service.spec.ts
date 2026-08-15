@@ -127,6 +127,20 @@ describe('CanonicalEntityRegistrationService', () => {
     await expect(
       service.registerGlobalPublicEntity({
         ...input(),
+        resolutionMethod: 'crm_client',
+        identifiers: [
+          {
+            type: 'uei',
+            value: 'ABCDEF123456',
+            sourceType: 'crm_client',
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await expect(
+      service.registerGlobalPublicEntity({
+        ...input(),
         identifiers: [
           {
             type: 'email',
@@ -160,6 +174,19 @@ describe('CanonicalEntityRegistrationService', () => {
       }),
     ).resolves.toEqual(ENTITY);
     expect(mergeTenantPrivateEntity).toHaveBeenCalledTimes(1);
+  });
+
+  test('rejects an unreviewed merge reason code', async () => {
+    const { service, mergeTenantPrivateEntity } = harness();
+
+    await expect(
+      service.mergeTenantPrivateEntity('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
+        sourceEntityId: '22222222-2222-4222-8222-222222222222',
+        targetEntityId: ENTITY.id,
+        reasonCode: 'model_suggested',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(mergeTenantPrivateEntity).not.toHaveBeenCalled();
   });
 
   test('links tenant-private source identity to an existing visible entity', async () => {

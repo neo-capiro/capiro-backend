@@ -10,23 +10,14 @@ import {
 } from './entity-normalization.js';
 import type { CanonicalEntityRecord } from './entity-resolution.types.js';
 import {
+  CANONICAL_ENTITY_MERGE_REASON_CODES,
   GLOBAL_AUTHORITATIVE_IDENTIFIER_TYPES,
+  GLOBAL_AUTHORITATIVE_SOURCE_TYPES,
   type LinkTenantIdentityInput,
   type MergeTenantPrivateEntityInput,
   type RegisterGlobalPublicEntityInput,
 } from './canonical-entity-registration.types.js';
 import { CanonicalEntityRegistrationRepository } from './canonical-entity-registration.repository.js';
-
-const DISALLOWED_GLOBAL_SOURCE_TYPES = new Set([
-  'assistant',
-  'assistant_answer',
-  'generated',
-  'generated_summary',
-  'model',
-  'model_answer',
-  'model_output',
-  'retrieval_output',
-]);
 
 /**
  * Internal registration boundary for trusted global identity and tenant-local
@@ -113,8 +104,20 @@ export class CanonicalEntityRegistrationService {
     if (input.sourceEntityId === input.targetEntityId) {
       throw new BadRequestException('Canonical merge source and target must differ.');
     }
-    assertAuthoritativeSource(input.reasonCode);
-    return this.repository.mergeTenantPrivateEntity(tenantId, input);
+    const reasonCode = normalizeIdentifierType(input.reasonCode);
+    if (
+      !(CANONICAL_ENTITY_MERGE_REASON_CODES as readonly string[]).includes(
+        reasonCode,
+      )
+    ) {
+      throw new BadRequestException(
+        `Unsupported canonical merge reason: ${reasonCode}.`,
+      );
+    }
+    return this.repository.mergeTenantPrivateEntity(tenantId, {
+      ...input,
+      reasonCode,
+    });
   }
 
   async linkTenantIdentity(
@@ -139,9 +142,13 @@ export class CanonicalEntityRegistrationService {
 
 function assertAuthoritativeSource(sourceType: string): void {
   const normalized = normalizeIdentifierType(sourceType);
-  if (DISALLOWED_GLOBAL_SOURCE_TYPES.has(normalized)) {
+  if (
+    !(GLOBAL_AUTHORITATIVE_SOURCE_TYPES as readonly string[]).includes(
+      normalized,
+    )
+  ) {
     throw new BadRequestException(
-      'Model or generated output cannot establish globally reusable identity.',
+      `Source type ${normalized} cannot establish globally reusable identity.`,
     );
   }
 }

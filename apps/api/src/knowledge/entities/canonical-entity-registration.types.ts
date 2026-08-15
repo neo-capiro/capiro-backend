@@ -6,6 +6,30 @@ import type {
   EntityResolutionCandidate,
 } from './entity-resolution.types.js';
 
+export const GLOBAL_AUTHORITATIVE_SOURCE_TYPES = [
+  'sam_entity',
+  'federal_contractor',
+  'federal_award',
+  'federal_assistance_award',
+  'sec_filing',
+  'lda_client',
+  'lda_registrant',
+  'congress_member',
+  'congress_committee',
+  'state_legislator',
+  'capiro_directory',
+  'official_directory',
+  'federal_agency',
+  'tango_entity',
+  'reviewed_manual',
+] as const;
+
+export const CANONICAL_ENTITY_MERGE_REASON_CODES = [
+  'confirmed_public_mapping',
+  'authoritative_identifier',
+  'user_confirmed_duplicate',
+] as const;
+
 export const GLOBAL_AUTHORITATIVE_IDENTIFIER_TYPES = [
   'uei',
   'cage',
