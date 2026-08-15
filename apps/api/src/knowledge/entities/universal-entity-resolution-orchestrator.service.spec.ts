@@ -101,11 +101,16 @@ function setup(input?: {
   providers?: EntityResolutionFallbackProvider[];
   registeredEntity?: CanonicalEntityRecord;
 }) {
+  const previewImplementation = input?.preview ?? (async () => unresolved());
+  const resolveImplementation =
+    input?.resolve ?? (async () => persisted(unresolved()));
   const preview = jest.fn(
-    input?.preview ?? (async () => unresolved()),
+    async (_tenantId: string, value: ResolveEntityInput) =>
+      previewImplementation(value),
   );
   const resolve = jest.fn(
-    input?.resolve ?? (async () => persisted(unresolved())),
+    async (_tenantId: string, value: ResolveEntityInput) =>
+      resolveImplementation(value),
   );
   const registerGlobalPublicEntity = jest.fn(async () =>
     input?.registeredEntity ?? entity(),
