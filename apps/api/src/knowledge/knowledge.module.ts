@@ -9,6 +9,14 @@ import { CanonicalEntityRegistrationService } from './entities/canonical-entity-
 import { CanonicalEntityRepository } from './entities/canonical-entity.repository.js';
 import { CanonicalPublicReferenceBackfillRepository } from './entities/canonical-public-reference-backfill.repository.js';
 import { CanonicalPublicReferenceBackfillService } from './entities/canonical-public-reference-backfill.service.js';
+import {
+  DirectoryGovernmentEntityResolutionProvider,
+  LdaEntityResolutionProvider,
+  SamUeiEntityResolutionProvider,
+  SecCikEntityResolutionProvider,
+  UsaSpendingEntityResolutionProvider,
+} from './entities/canonical-structured-public-fallback.providers.js';
+import { CanonicalStructuredPublicLookupRepository } from './entities/canonical-structured-public-lookup.repository.js';
 import { CanonicalSourceAdapterService } from './entities/canonical-source-adapter.service.js';
 import { CanonicalSourceBackfillRepository } from './entities/canonical-source-backfill.repository.js';
 import { CanonicalSourceBackfillService } from './entities/canonical-source-backfill.service.js';
@@ -46,9 +54,28 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     UniversalEntityResolutionService,
     CanonicalEntityRegistrationRepository,
     CanonicalEntityRegistrationService,
+    CanonicalStructuredPublicLookupRepository,
+    DirectoryGovernmentEntityResolutionProvider,
+    SamUeiEntityResolutionProvider,
+    UsaSpendingEntityResolutionProvider,
+    LdaEntityResolutionProvider,
+    SecCikEntityResolutionProvider,
     {
       provide: ENTITY_RESOLUTION_FALLBACK_PROVIDERS,
-      useValue: [],
+      useFactory: (
+        directory: DirectoryGovernmentEntityResolutionProvider,
+        samUei: SamUeiEntityResolutionProvider,
+        usaSpending: UsaSpendingEntityResolutionProvider,
+        lda: LdaEntityResolutionProvider,
+        sec: SecCikEntityResolutionProvider,
+      ) => [directory, samUei, usaSpending, lda, sec],
+      inject: [
+        DirectoryGovernmentEntityResolutionProvider,
+        SamUeiEntityResolutionProvider,
+        UsaSpendingEntityResolutionProvider,
+        LdaEntityResolutionProvider,
+        SecCikEntityResolutionProvider,
+      ],
     },
     UniversalEntityResolutionOrchestratorService,
     CanonicalSourceAdapterService,
