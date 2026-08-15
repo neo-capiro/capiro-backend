@@ -8,10 +8,10 @@ import {
   extractMeriClientOverlapSignals,
   scoreMeriPortfolioOverlap,
 } from '../retrieval/meri-portfolio-overlap.js';
+import { executeMeriExternalCompanyDiscovery } from './meriv3-external-company-discovery.js';
 import {
   actualClientId,
   evidenceRows,
-  executeMeriExternalEntityResolution,
   isRecord,
   parallelMapLimit,
   recipeCoverage,
@@ -31,19 +31,43 @@ export async function executeMeriExternalCompanyResearch(
 ) {
   const target = stringValue(input.entity) ?? ctx.plan.targetHint;
   if (!target) return { error: 'entity is required', results: [] };
-  const resolution = await executeMeriExternalEntityResolution(target, ctx.invoke);
-  const canonical = resolution.resolvedEntity?.canonicalName ?? target;
-  const sources: SourceResult[] = [{ tool: 'resolve_entity', result: resolution }];
 
-  const domain = resolution.resolvedEntity?.domains[0];
+  // External-company research is a discovery workflow, not an exact-name
+  // lookup. The skill normalizes malformed inputs, runs typo-tolerant public
+  // discovery, reconciles likely legal names/domains against registries, and
+  // verifies a likely official site before deciding identity is unavailable.
+  const discovery = await executeMeriExternalCompanyDiscovery(target, ctx.invoke);
+  const resolution = discovery.resolution;
+  const canonical = discovery.researchName;
+  const sources: SourceResult[] = [
+    {
+      tool: 'resolve_entity',
+      result: {
+        ...resolution,
+        identityStatus: discovery.identityStatus,
+        researchName: canonical,
+        correctionApplied: discovery.correctionApplied,
+        candidates: discovery.candidates.slice(0, 5),
+      },
+    },
+    ...discovery.sources,
+  ];
+
+  const domain =
+    resolution.resolvedEntity?.domains[0] ??
+    discovery.selectedCandidate?.domains[0];
   sources.push(
     ...(await Promise.all([
       safeInvoke(ctx.invoke, 'search_public_web', {
-        query: `"${canonical}" official company capabilities products services`,
+        query: `${canonical} official company capabilities products services`,
         limit: 10,
       }),
       safeInvoke(ctx.invoke, 'search_public_web', {
-        query: `"${canonical}" government contracts federal customers awards`,
+        query: `${canonical} government contracts federal customers awards`,
+        limit: 10,
+      }),
+      safeInvoke(ctx.invoke, 'search_public_web', {
+        query: `"${canonical}" company`,
         limit: 10,
       }),
       safePagedLda(ctx.invoke, { clientName: canonical, limit: 50, page: 1 }, 4),
@@ -54,31 +78,31 @@ export async function executeMeriExternalCompanyResearch(
         query: `internal relationships, capabilities, programs, customers, and prior work involving ${canonical}`,
         k: 15,
       }),
-      ...(domain
+      ...(domain && !discovery.officialSite
         ? [safeInvoke(ctx.invoke, 'scrape_web_page', { url: `https://${domain}` })]
         : []),
     ])),
   );
 
   const initialSignals = extractMeriFederalMarketSignals(sources);
-  const searchTerms = meriFederalMarketSearchTerms(initialSignals).slice(0, 4);
+  const searchTerms = meriFederalMarketSearchTerms(initialSignals).slice(0, 6);
   const discoveryWave: Array<Promise<SourceResult>> = [];
-  for (const term of searchTerms.slice(0, 3)) {
+  for (const term of searchTerms.slice(0, 4)) {
     discoveryWave.push(
       safeInvoke(ctx.invoke, 'search_sam_opportunities', { query: term, limit: 15 }),
     );
   }
-  for (const naics of initialSignals.naicsCodes.slice(0, 2)) {
+  for (const naics of initialSignals.naicsCodes.slice(0, 3)) {
     discoveryWave.push(
       safeInvoke(ctx.invoke, 'search_sam_opportunities', { naics, limit: 20 }),
     );
   }
-  for (const term of searchTerms.slice(0, 2)) {
+  for (const term of searchTerms.slice(0, 3)) {
     discoveryWave.push(
       safeInvoke(ctx.invoke, 'search_federal_grants', { query: term, limit: 15 }),
     );
   }
-  for (const term of searchTerms.slice(0, 3)) {
+  for (const term of searchTerms.slice(0, 4)) {
     discoveryWave.push(
       safeInvoke(ctx.invoke, 'search_program_elements', { query: term, limit: 20 }),
     );
@@ -87,7 +111,7 @@ export async function executeMeriExternalCompanyResearch(
 
   const discoveredSignals = extractMeriFederalMarketSignals(sources);
   const peValidation = await Promise.all(
-    discoveredSignals.peCodes.slice(0, 3).map(async (peCode) => {
+    discoveredSignals.peCodes.slice(0, 5).map(async (peCode) => {
       const [detail, budgetTimeline, reportLanguage] = await Promise.all([
         safeInvoke(ctx.invoke, 'get_program_element', { peCode }),
         safeInvoke(ctx.invoke, 'get_pe_budget_timeline', { peCode }),
@@ -108,7 +132,7 @@ export async function executeMeriExternalCompanyResearch(
 
   const signals = extractMeriFederalMarketSignals(sources);
   const evidence = uniqueEvidence(
-    sources.flatMap((source) => evidenceRows(source.tool, source.result, 15)),
+    sources.flatMap((source) => evidenceRows(source.tool, source.result, 20)),
   );
   const historicalAwardCount = sourceCount(sources, 'search_federal_awards');
   const qualificationGaps = meriFederalMarketQualificationGaps({
@@ -117,39 +141,81 @@ export async function executeMeriExternalCompanyResearch(
     signals,
     historicalAwardCount,
   });
+  if (discovery.identityStatus === 'provisional') {
+    qualificationGaps.unshift(
+      'Company identity is a high-confidence provisional web/official-domain match and should be confirmed before an external submission or binding pursuit decision.',
+    );
+  }
+  if (discovery.identityStatus === 'ambiguous' && discovery.ambiguityReason) {
+    qualificationGaps.unshift(discovery.ambiguityReason);
+  }
+
   const byTool = (tool: string, max: number) =>
     evidence.filter((row) => row.sourceTool === tool).slice(0, max);
+  const identityUsable =
+    discovery.identityStatus === 'resolved' ||
+    discovery.identityStatus === 'provisional';
   const manifest = recipeCoverage(
     ['identity', 'public_web', 'registries', 'awards', 'opportunities'],
     sources,
     1,
-    resolution.resolutionStatus === 'not_found' ? 0 : 1,
+    identityUsable ? 1 : 0,
   );
+  const researchEntity = resolution.resolvedEntity ??
+    (discovery.selectedCandidate
+      ? {
+          canonicalName: discovery.selectedCandidate.canonicalName,
+          domains: discovery.selectedCandidate.domains,
+          identifiers: {},
+          confidence: discovery.selectedCandidate.score,
+          provenance: ['public_web', 'official_site'],
+        }
+      : null);
+
   return {
     tool: 'research_external_company',
     subject: target,
+    researchSubject: canonical,
+    researchEntity,
     resolvedEntity: resolution.resolvedEntity,
     resolutionStatus: resolution.resolutionStatus,
+    identityDiscovery: {
+      status: discovery.identityStatus,
+      normalizedInput: discovery.normalizedInput,
+      researchName: canonical,
+      correctionApplied: discovery.correctionApplied,
+      queryVariants: discovery.queryVariants,
+      selectedCandidate: discovery.selectedCandidate,
+      candidates: discovery.candidates.slice(0, 5),
+      officialSiteVerified: Boolean(
+        discovery.officialSite && !resultHasError(discovery.officialSite.result),
+      ),
+      ambiguityReason: discovery.ambiguityReason,
+    },
     federalMarketSignals: signals,
     searchTermsUsed: searchTerms,
     qualificationGaps,
     publicCapabilities: [
-      ...byTool('scrape_web_page', 5),
-      ...byTool('search_public_web', 10),
-    ].slice(0, 12),
-    historicalAwards: byTool('search_federal_awards', 20),
-    candidateOpportunities: byTool('search_sam_opportunities', 25),
-    candidateGrants: byTool('search_federal_grants', 15),
-    candidateProgramElements: byTool('search_program_elements', 25),
+      ...byTool('scrape_web_page', 8),
+      ...byTool('search_public_web', 16),
+    ].slice(0, 20),
+    historicalAwards: byTool('search_federal_awards', 25),
+    candidateOpportunities: byTool('search_sam_opportunities', 35),
+    candidateGrants: byTool('search_federal_grants', 20),
+    candidateProgramElements: byTool('search_program_elements', 35),
     validatedProgramElements: peValidation,
-    results: evidence.slice(0, 80),
+    results: evidence.slice(0, 100),
     coverage: manifest,
+    answerDirective:
+      identityUsable
+        ? 'Produce the full company and federal-market report now. Do not ask the user to provide the legal name, website, UEI, CAGE, or capabilities when this result already contains a resolved or high-confidence provisional identity and retrieved official/public evidence. Clearly label provisional identity, verified facts, inferred fit, qualification gaps, and candidate opportunities.'
+        : 'Do not stop merely because the literal input did not resolve. Use the discovered candidates and evidence to explain the ambiguity, provide any useful conditional findings that are safe, and ask for clarification only when two materially plausible companies remain after the full discovery workflow.',
     nextRecommendedTools: [
       'specialist opportunity tools before treating a SAM/NOFO search match as a pursue recommendation',
       'government-directory/acquisition-personnel tools when a validated PE needs a stakeholder engagement plan',
     ],
     note:
-      'Verified company facts, candidate federal-market matches, and strategic inference are separate layers. Capability-driven SAM/grant/PE searches are discovery, not proof of eligibility, customer demand, appropriability, or program alignment. Up to three discovered PE codes are checked against canonical PE detail/budget/report-language readers; qualification gaps identify what was not verified rather than asserting that the company lacks it.',
+      'External-company research is discovery-first and typo-tolerant. A failed literal lookup is not a stopping condition. Verified company facts, high-confidence provisional identity, candidate federal-market matches, and strategic inference are separate layers. Capability-driven SAM/grant/PE searches are discovery, not proof of eligibility, customer demand, appropriability, or program alignment. Up to five discovered PE codes are checked against canonical PE detail, budget, and report-language readers. Ask the user for identity information only after broad unquoted discovery, candidate reconciliation, registry follow-up, and official-site verification still leave material ambiguity.',
   };
 }
 
