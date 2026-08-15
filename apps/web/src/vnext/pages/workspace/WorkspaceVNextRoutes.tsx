@@ -8,12 +8,15 @@
 import {
   lazy,
   Suspense,
+  useEffect,
   useLayoutEffect,
+  useState,
   type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
+import { getTwoStepDraftCapability } from './creation/intake-client.js';
 import './styles/workspace.css';
 import './styles/workspace-audit.css';
 import './styles/workspace-editor-audit.css';
@@ -23,7 +26,14 @@ const WorkspaceLibraryVNext = lazy(() =>
     default: module.WorkspaceLibraryVNext,
   })),
 );
-const WorkspaceCreationVNext = lazy(() =>
+// The new two-step Max draft intake — only shown when the tenant capability is ON.
+const WorkspaceQuickDraftIntake = lazy(() =>
+  import('./creation/WorkspaceQuickDraftCreation.js').then((module) => ({
+    default: module.WorkspaceQuickDraftCreation,
+  })),
+);
+// The stable creation flow — shown when the tenant capability is OFF (default).
+const WorkspaceCreationStabilized = lazy(() =>
   import('./creation/WorkspaceCreationStabilized.js').then((module) => ({
     default: module.WorkspaceCreationStabilized,
   })),
@@ -119,6 +129,30 @@ function SharesIndex() {
   );
 }
 
+function CreationRoute() {
+  const [capability, setCapability] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getTwoStepDraftCapability()
+      .then((cap) => {
+        if (!cancelled) setCapability(cap.enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setCapability(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (capability === null) {
+    return <WorkspaceLoading />;
+  }
+  if (capability) {
+    return <WorkspaceQuickDraftIntake />;
+  }
+  return <WorkspaceCreationStabilized />;
+}
+
 function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
   const path = normalizePath(pathname);
 
@@ -126,7 +160,7 @@ function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
     return <WorkspaceLibraryVNext />;
   }
   if (path === '/workspace/new' || path === '/workspace/new/') {
-    return <WorkspaceCreationVNext />;
+    return <CreationRoute />;
   }
   if (path === '/workspace/shares' || path === '/workspace/shares/') {
     return <SharesIndex />;

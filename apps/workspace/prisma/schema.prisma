@@ -94,6 +94,10 @@ model WsDraft {
   @@index([tenantId])
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])
+
+  // Two-step Max draft flow (PR #964).
+  intakes         WsIntake[]
+  generationRuns  WsGenerationRun[]
   @@map("ws_draft")
 }
 
@@ -522,4 +526,85 @@ model WsContextItem {
   @@index([tenantId])
   @@index([draftId])
   @@map("ws_context_item")
+}
+
+// ── Two-Step Max Draft Flow (PR #964) ──────────────────────────────────────
+// Durable intake + generation run. The intake is the aggregate, idempotent
+// start contract; the run is the durable worker record that survives
+// browser reloads, ECS restarts, and worker retries.
+
+// One row per intake request. The idempotency key (tenant + user + key) is
+// unique so a replay returns the same draftId/runId without new provider work.
+model WsIntake {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  // Clerk user id of the requester.
+  actorId         String   @map("actor_id")
+  // Caller-generated idempotency key (UUID recommended).
+  idempotencyKey  String   @map("idempotency_key")
+  // The draft created by this intake.
+  draftId         String   @map("draft_id") @db.Uuid
+  // The durable generation run created by this intake. @unique: each run is
+  // created by at most one intake (1-1).
+  runId           String   @unique @map("run_id") @db.Uuid
+  // The blueprint version pinned at intake time.
+  blueprintVersionId String @map("blueprint_version_id") @db.Uuid
+  // Immutable intake snapshot: goal, clientId, source IDs, context selections.
+  intakeSnapshot   Json    @map("intake_snapshot")
+  status          String  @default("accepted") // accepted | superseded
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  draft           WsDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  run             WsGenerationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, actorId, idempotencyKey])
+  @@index([draftId])
+  @@index([runId])
+  @@map("ws_intake")
+}
+
+// Durable generation run. The worker claims a lease, executes stages, and
+// updates per-section status. Survives browser reloads, ECS restarts, and
+// worker retries.
+model WsGenerationRun {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  draftId         String   @map("draft_id") @db.Uuid
+  // Clerk user id of the user who initiated the run.
+  actorId         String   @map("actor_id")
+  // Run status: queued | active | complete | partial | failed | cancelled
+  status          String   @default("queued")
+  // Current stage: queued | preflight | evidence_plan | narrative_plan |
+  //   drafting | editorial_pass | assurance | snapshot | complete
+  stage           String   @default("queued")
+  // Agent revision at run start (for optimistic concurrency on completion).
+  agentRevision   Int      @default(0) @map("agent_revision")
+  // Lease holder (worker id) and lease expiry. Atomic claim: a worker
+  // updates leaseHolder + leaseExpiresAt only if status is 'queued' or the
+  // lease has expired.
+  leaseHolder     String?  @map("lease_holder")
+  leaseExpiresAt  DateTime? @map("lease_expires_at")
+  attemptCount    Int      @default(0) @map("attempt_count")
+  // Provider telemetry (filled on completion).
+  provider        String?
+  model           String?
+  reasoningLevel  String?  @map("reasoning_level")
+  // Per-section status: { sectionId: { status, error, contentHash, citations } }
+  sectionStates   Json     @default("{}") @map("section_states")
+  // Stage history: [{ name, status, startedAt, completedAt, detail }]
+  stages          Json     @default("[]")
+  // Run-level error message (for failed runs).
+  errorMessage    String?  @map("error_message")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  draft           WsDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  intake          WsIntake?
+
+  @@index([tenantId, status])
+  @@index([draftId])
+  @@index([status, leaseExpiresAt])
+  @@map("ws_generation_run")
 }

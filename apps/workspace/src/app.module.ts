@@ -21,6 +21,7 @@ import { TemplateStudioModule } from './template-studio/template-studio.module.j
 import { WorkspaceReasoningModule } from './workspace-reasoning/workspace-reasoning.module.js';
 import { DocumentAgentModule } from './document-agent/document-agent.module.js';
 import { DeliveryModule } from './delivery/delivery.module.js';
+import { QuickDraftModule } from './quick-draft/quick-draft.module.js';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DeliveryModule } from './delivery/delivery.module.js';
     // so existing routes remain unaffected when the flag is off.
     WorkspaceReasoningModule,
     DocumentAgentModule,
+    QuickDraftModule,
     TemplateStudioModule,
     DeliveryModule,
   ],
