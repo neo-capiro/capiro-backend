@@ -13,7 +13,7 @@ const LINK_ID = '66666666-6666-4666-8666-666666666666';
 
 function setup() {
   const repository = {
-    recordResolutionConfirmation: jest.fn(async () => 'event-confirm'),
+    findResolutionConfirmationEvent: jest.fn(async () => 'event-confirm'),
     rejectResolution: jest.fn(async () => ({
       resolutionId: 'rejected-resolution',
       status: 'rejected' as const,
@@ -60,7 +60,7 @@ function setup() {
 }
 
 describe('EntityIdentityGovernanceService', () => {
-  test('confirms an ambiguous resolution through append-only correction and audit event', async () => {
+  test('confirms an ambiguous resolution through append-only correction and atomic audit projection', async () => {
     const { service, resolver, repository } = setup();
 
     const result = await service.confirmResolution(TENANT_ID, {
@@ -76,14 +76,10 @@ describe('EntityIdentityGovernanceService', () => {
       actorUserId: ACTOR_ID,
       reason: 'Confirmed against the client record.',
     });
-    expect(repository.recordResolutionConfirmation).toHaveBeenCalledWith(
+    expect(repository.findResolutionConfirmationEvent).toHaveBeenCalledWith(
       TENANT_ID,
       RESOLUTION_ID,
       CORRECTED_ID,
-      ENTITY_ID,
-      ACTOR_ID,
-      'Confirmed against the client record.',
-      expect.stringMatching(/^[0-9a-f]{64}$/),
     );
     expect(result.governanceEventId).toBe('event-confirm');
   });
