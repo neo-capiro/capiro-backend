@@ -56,6 +56,7 @@ describe('structured public entity fallback providers', () => {
     );
 
     expect(result.stage).toBe('sam_uei_cage');
+    expect(result.sourceStatus).toBe('complete');
     expect(result.conflictingIdentifiers).toBe(false);
     expect(result.candidates).toEqual([
       expect.objectContaining({
@@ -101,6 +102,38 @@ describe('structured public entity fallback providers', () => {
 
     expect(result.conflictingIdentifiers).toBe(true);
     expect(result.candidates).toHaveLength(2);
+  });
+
+  test('reports unavailable instead of complete for a recognized unsupported CAGE source', async () => {
+    const repo = repository();
+    const findSamUei = jest.spyOn(repo, 'findSamUei');
+
+    const result = await new SamUeiEntityResolutionProvider(repo).lookup(
+      lookupInput([{ type: 'cage', normalizedValue: '1AB23' }]),
+    );
+
+    expect(findSamUei).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        stage: 'sam_uei_cage',
+        sourceStatus: 'unavailable',
+        candidates: [],
+        stopReason: 'identifier_source_not_available',
+      }),
+    );
+  });
+
+  test('reports partial coverage when a stage mixes supported and unsupported identifiers', async () => {
+    const repo = repository();
+    const result = await new LdaEntityResolutionProvider(repo).lookup(
+      lookupInput([
+        { type: 'lda_client_id', normalizedValue: '123' },
+        { type: 'lda_registrant_id', normalizedValue: '456' },
+      ]),
+    );
+
+    expect(result.sourceStatus).toBe('partial');
+    expect(result.stopReason).toBe('some_identifier_sources_not_available');
   });
 
   test('exposes the required structured stages without fuzzy lookup behavior', () => {
