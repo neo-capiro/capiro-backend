@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { KnowledgeJsonObject } from '../knowledge.types.js';
 import { CanonicalEntityRegistrationService } from './canonical-entity-registration.service.js';
 import { CanonicalPublicReferenceBackfillRepository } from './canonical-public-reference-backfill.repository.js';
 import {
@@ -7,6 +6,7 @@ import {
   type CanonicalPublicReferenceBackfillInput,
   type CanonicalPublicReferenceBackfillResult,
   type CanonicalPublicReferenceRecord,
+  type CanonicalPublicReferenceSource,
 } from './canonical-public-reference-backfill.types.js';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -65,9 +65,10 @@ export class CanonicalPublicReferenceBackfillService {
       }
 
       try {
-        const registrationResult = await invokeRegistration(this.registration, row);
-        const entityId = readEntityId(registrationResult);
-        if (entityId) result.entityIds.push(entityId);
+        const entity = await this.registration.registerGlobalPublicEntity(
+          registrationInput(row),
+        );
+        result.entityIds.push(entity.id);
         result.processed += 1;
         result.nextCursor = row.cursorKey;
       } catch (error) {
@@ -86,6 +87,58 @@ export class CanonicalPublicReferenceBackfillService {
   }
 }
 
+function registrationInput(row: CanonicalPublicReferenceRecord) {
+  const sourceType = authoritativeSourceType(row.source);
+  return {
+    entityType: row.entityType,
+    canonicalName: row.canonicalName,
+    resolutionMethod: sourceType,
+    resolutionConfidence: 1,
+    identifiers: row.identifiers.map((identifier) => ({
+      type: identifier.type,
+      value: identifier.value,
+      sourceType,
+      sourceId: row.sourceId,
+      confidence: 1,
+      verifiedAt: row.observedAt,
+    })),
+    aliases: row.aliases.map((value) => ({
+      value,
+      sourceType,
+      sourceId: row.sourceId,
+      confidence: 1,
+      verifiedAt: row.observedAt,
+    })),
+    metadata: {
+      ...row.metadata,
+      authoritativeSource: row.source,
+      authoritativeSourceId: row.sourceId,
+      observedAt: row.observedAt.toISOString(),
+    },
+  };
+}
+
+export function authoritativeSourceType(
+  source: CanonicalPublicReferenceSource,
+): string {
+  switch (source) {
+    case 'federal_contractors':
+      return 'federal_contractor';
+    case 'congress_members':
+      return 'congress_member';
+    case 'congress_committees':
+      return 'congress_committee';
+    case 'acquisition_personnel':
+      return 'capiro_directory';
+    case 'program_elements':
+      return 'program_element';
+    case 'lda_clients':
+      return 'lda_client';
+    case 'sec_companies':
+      return 'sec_filing';
+  }
+}
+
 function normalizeCursor(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -100,72 +153,6 @@ function isEligible(row: CanonicalPublicReferenceRecord): boolean {
         identifier.type.trim().length > 0 && identifier.value.trim().length > 0,
     )
   );
-}
-
-/**
- * Compatibility shim around the shared registration boundary. Phase 5 evolved
- * the DTO name from `identifiers` to `authoritativeIdentifiers`; sending both
- * keeps this backfill compatible across the rolling branch while the
- * registration service ignores the unused extra field. There is still one
- * writer and one policy decision point.
- */
-async function invokeRegistration(
-  service: CanonicalEntityRegistrationService,
-  row: CanonicalPublicReferenceRecord,
-): Promise<unknown> {
-  const identifiers = row.identifiers.map((identifier) => ({
-    identifierType: identifier.type,
-    identifierValue: identifier.value,
-    type: identifier.type,
-    value: identifier.value,
-    sourceType: row.source,
-    sourceId: row.sourceId,
-    confidence: 1,
-    verifiedAt: row.observedAt,
-  }));
-  const aliases = row.aliases.map((alias) => ({
-    alias,
-    sourceType: row.source,
-    sourceId: row.sourceId,
-    confidence: 1,
-    verifiedAt: row.observedAt,
-  }));
-
-  const command: Record<string, unknown> = {
-    entityType: row.entityType,
-    canonicalName: row.canonicalName,
-    identityScope: 'global_public',
-    resolutionMethod: `authoritative_${row.source}`,
-    resolutionConfidence: 1,
-    sourceType: row.source,
-    sourceId: row.sourceId,
-    observedAt: row.observedAt,
-    identifiers,
-    authoritativeIdentifiers: identifiers,
-    aliases,
-    metadata: {
-      ...(row.metadata as KnowledgeJsonObject),
-      authoritativeSource: row.source,
-      authoritativeSourceId: row.sourceId,
-      observedAt: row.observedAt.toISOString(),
-    },
-  };
-
-  const boundary = service as unknown as {
-    registerGlobalPublicEntity: (input: Record<string, unknown>) => Promise<unknown>;
-  };
-  return boundary.registerGlobalPublicEntity(command);
-}
-
-function readEntityId(value: unknown): string | null {
-  if (!value || typeof value !== 'object') return null;
-  const record = value as Record<string, unknown>;
-  if (typeof record.id === 'string') return record.id;
-  if (record.entity && typeof record.entity === 'object') {
-    const entity = record.entity as Record<string, unknown>;
-    if (typeof entity.id === 'string') return entity.id;
-  }
-  return null;
 }
 
 function sanitizeError(error: unknown): string {

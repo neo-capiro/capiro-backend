@@ -20,6 +20,7 @@ export const GLOBAL_AUTHORITATIVE_SOURCE_TYPES = [
   'capiro_directory',
   'official_directory',
   'federal_agency',
+  'program_element',
   'tango_entity',
   'reviewed_manual',
 ] as const;
@@ -44,6 +45,8 @@ export const GLOBAL_AUTHORITATIVE_IDENTIFIER_TYPES = [
   'lda_client_id',
   'lda_registrant_id',
   'federal_contractor_id',
+  'directory_person_id',
+  'program_element_code',
   'official_domain',
 ] as const;
 
