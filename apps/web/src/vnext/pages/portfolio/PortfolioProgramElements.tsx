@@ -17,8 +17,8 @@ import { CapiroButton } from '../../components/actions/index.js';
  * The cross-client attribution and net-portfolio delta the design shows have no
  * portfolio-scoped endpoint (the watch list is per-PE, not joined to clients) —
  * logged as GAP G2. The cards render the real per-PE budget figures and link to
- * the program-element detail; the attribution footer is omitted rather than
- * faked.
+ * the program-element detail; the attribution footer is explicitly marked
+ * unavailable rather than faked.
  */
 
 const CURRENCY = new Intl.NumberFormat('en-US', {
@@ -64,17 +64,13 @@ function PeCard({ pe }: { pe: ProgramElementListItem }) {
       </div>
       <div className="capiro-portfolio-pe__progression">
         {stage(pe.latestRequest, 'PB')}
-        <span className="capiro-portfolio-pe__arrow" aria-hidden>
-          →
-        </span>
+        <span className="capiro-portfolio-pe__arrow" aria-hidden>—</span>
         {stage(pe.latestCurrent ?? pe.latestEnacted, 'Auth')}
-        <span className="capiro-portfolio-pe__arrow" aria-hidden>
-          →
-        </span>
+        <span className="capiro-portfolio-pe__arrow" aria-hidden>—</span>
         {stage(pe.latestEnacted, 'Approp')}
       </div>
       <div className="capiro-portfolio-pe__foot">
-        <span className="capiro-portfolio-pe__service">{pe.service ?? 'Service unrecorded'}</span>
+        <span className="capiro-portfolio-pe__service">Client attribution unavailable</span>
         {hasDelta ? (
           <span
             className={`capiro-portfolio-pe__delta ${
@@ -103,7 +99,7 @@ export function PortfolioProgramElements() {
 
   return (
     <section
-      className="capiro-portfolio-pe"
+      className="capiro-portfolio-pe capiro-portfolio__surface"
       aria-labelledby="capiro-portfolio-pe-title"
       id="portfolio-program-elements"
     >
@@ -112,12 +108,13 @@ export function PortfolioProgramElements() {
           <h2 className="capiro-portfolio-pe__title" id="capiro-portfolio-pe-title">
             Program elements
           </h2>
-          <span className="capiro-portfolio-pe__count">{total.toLocaleString()}</span>
+          <span className="capiro-portfolio-pe__count">{total.toLocaleString()} tracked</span>
         </div>
         <p className="capiro-portfolio-pe__sub">
           Defense budget lines funding client programs, across the portfolio.
         </p>
         <span className="capiro-portfolio-pe__header-spacer" />
+        <span className="capiro-portfolio-pe__net">— net</span>
         <CapiroButton variant="quiet" size="compact" onClick={() => navigate('/program-elements')}>
           Open budget
         </CapiroButton>

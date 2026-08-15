@@ -65,6 +65,8 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
         if (overrides.summaryError) throw new Error('summary boom');
         return { data: summary };
       }
+      if (path === '/strategy-api/strategies') return { data: [] };
+      if (path === '/api/engagement/meetings') return { data: [] };
       if (path === '/api/firm/registrant') {
         return { data: { ldaRegistrantId: null, ldaRegistrantName: null } };
       }
@@ -130,6 +132,10 @@ describe('PortfolioIndexPage', () => {
     // Pulse figures from the summary endpoint.
     expect(screen.getByText('Tracked bills')).toBeInTheDocument();
     expect(screen.getByText('Need attention')).toBeInTheDocument();
+    expect(screen.getByText('Portfolio pulse')).toBeInTheDocument();
+    expect(screen.getByText('Active strategies')).toBeInTheDocument();
+    expect(screen.getByText('Meetings this week')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3 clients/)).toBeInTheDocument();
   });
 
   it('classifies status: MONITORING is At risk, PROSPECT is Prospect', async () => {

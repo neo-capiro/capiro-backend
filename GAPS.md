@@ -13,13 +13,13 @@ below are the surfaces where the design asks for data no endpoint yet provides.
 
 | id | module | surface | blocking | backend surface | owner |
 | --- | --- | --- | --- | --- | --- |
-| G2 | Portfolio index | Program elements — cross-client aggregation + net portfolio delta | No (per-PE figures render; attribution + net delta omitted) | 1 aggregate endpoint joining watched PEs to clients | unassigned |
-| G3 | Portfolio index | Per-row attention / readiness / next-touch without N+1 | No (columns omitted per §7.1 "must not") | 1 portfolio-scoped aggregate | unassigned |
-| G1 | Portfolio index | Pulse band `meetingsThisWeek` + `activeStrategies` | No (band shows clients / need-attention / bills / regulations) | extend `intelligence/portfolio-summary` | unassigned |
+| G2 | Portfolio index | Program elements — cross-client aggregation + net portfolio delta | No (per-PE figures render; attribution + net delta show unavailable) | 1 aggregate endpoint joining watched PEs to clients | unassigned |
+| G3 | Portfolio index | Per-row attention / readiness / next-touch without N+1 | No (columns render `—` rather than per-client fan-out) | 1 portfolio-scoped aggregate | unassigned |
+| G1 | Portfolio index | Pulse band `meetingsThisWeek` + `activeStrategies` in the summary response | No (UI composes both from existing tenant-wide endpoints) | extend `intelligence/portfolio-summary` | unassigned |
 
 ---
 
-### G1 — Pulse band is missing two of the five designed figures
+### G1 — Pulse band aggregate fields are composed from existing endpoints
 
 - **Module / surface:** Portfolio index → Portfolio pulse band (§7.1 band 2).
 - **What the UI needs:** clients · need attention · active strategies · meetings
@@ -28,15 +28,18 @@ below are the surfaces where the design asks for data no endpoint yet provides.
   `{ activeClients, needAttention, ldaSpendQtd, billsTracked, activeRegulations }`
   (`intelligence.controller.ts:362`, `intelligence.service.ts:6677
   getPortfolioSummary`). It covers clients, need-attention and tracked bills.
-- **What's missing:** `activeStrategies` (lives in `api-strategy`, tenant-scoped
-  but not aggregated into the summary) and `meetingsThisWeek` (lives in
-  `engagement/meetings`, not aggregated portfolio-wide into the summary).
+- **What's missing from the summary endpoint:** `activeStrategies` (lives in
+  `api-strategy`, tenant-scoped but not included in the summary) and
+  `meetingsThisWeek` (lives in `engagement/meetings`, not included in the
+  portfolio summary).
 - **Evidence of absence:** read `getPortfolioSummary` end to end — it queries
   `client`, `clientIntelMapping`, `lda_filing`, `congress_bill`,
   `federalRegisterDocument` only; no strategy or meeting table is touched.
-- **Shipped instead:** the pulse band renders the four figures the summary does
-  provide (Clients, Need attention, Tracked bills, Active regulations). The two
-  missing figures are omitted, not fabricated.
+- **Shipped instead:** the pulse band reads the authoritative tenant-wide
+  `GET /strategy-api/strategies` list and the current-week
+  `GET /api/engagement/meetings` window to fill those two slots. No per-client
+  fan-out is used. A single aggregate endpoint remains desirable for one
+  consistent refresh boundary, but the prototype's five slots now render.
 - **Blocking?** No.
 - **Estimated backend surface:** extend `getPortfolioSummary` with two counts
   (join `api-strategy` strategies by tenant; count `engagement/meetings` in the
@@ -63,8 +66,9 @@ below are the surfaces where the design asks for data no endpoint yet provides.
   cross-client aggregate. Greped `apps/api/src` for a portfolio-level PE
   aggregate — none.
 - **Shipped instead:** the cards render the real per-PE PB → Auth → Approp
-  progression and delta chip. The client-attribution footer and net-portfolio
-  delta chip are omitted (a missing figure renders `—`, never `$0`, per §7.1.2).
+  progression and delta chip. The footer explicitly says client attribution is
+  unavailable, and the header renders `— net`; neither value is invented (a
+  missing figure renders `—`, never `$0`, per §7.1.2).
 - **Blocking?** No.
 - **Estimated backend surface:** 1 endpoint joining watched PEs to clients
   through the existing relevance mapping, plus a summed delta.
@@ -89,10 +93,10 @@ below are the surfaces where the design asks for data no endpoint yet provides.
   routes; no `…/portfolio` or tenant-wide variant. Verified in
   `intelligence.controller.ts`, `funding-opportunities.controller.ts`,
   `engagement.controller.ts`, `api-strategy/strategy.controller.ts`.
-- **Shipped instead:** the table renders Client, Status, Focus and Owner (all
-  available from the existing `/api/clients` list). The Work / Intelligence /
-  Attention / Next-touch columns are omitted, and the Attention sort falls back
-  to name so the control never lies.
+- **Shipped instead:** the table preserves the prototype's Work / Intelligence /
+  Attention / Next-touch columns, but renders `—` in those cells because no
+  portfolio rollup exists. It does not fire per-client requests. The Attention
+  sort falls back to name so the control never lies.
 - **Blocking?** No.
 - **Estimated backend surface:** 1 aggregate endpoint (e.g.
   `GET /api/intelligence/portfolio/client-rollup`) returning the four columns

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
+import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
+import type { StrategyListItem } from '../../../pages/strategy/types.js';
 import type { PortfolioRoute, PortfolioStatus, PortfolioSort } from './portfolio-routing.js';
 
 /**
@@ -10,10 +12,10 @@ import type { PortfolioRoute, PortfolioStatus, PortfolioSort } from './portfolio
  * Every figure is read from an endpoint the app already calls — nothing is
  * recomputed client-side that a service owns, and a missing value is never
  * rendered as `0` (§1.4). Where the design needs a portfolio-scoped aggregate
- * no single endpoint provides (active strategies, meetings this week,
- * cross-client program-element delta), the column/figure is omitted and the
- * gap is logged in `GAPS.md` rather than assembled with N+1 per-client calls
- * (§7.1 "Must not").
+ * no single endpoint provides (cross-client program-element delta and the
+ * per-row rollup), the affected figure is rendered as `—` or an explicit
+ * unavailable state and the gap is logged in `GAPS.md` rather than assembled
+ * with N+1 per-client calls (§7.1 "Must not").
  */
 
 export interface PortfolioSummary {
@@ -22,6 +24,17 @@ export interface PortfolioSummary {
   ldaSpendQtd: number;
   billsTracked: number;
   activeRegulations: number;
+}
+
+function weekBounds(now: Date): { from: string; to: string } {
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { from: monday.toISOString(), to: sunday.toISOString() };
 }
 
 export interface PortfolioRow {
@@ -75,6 +88,23 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
       (await api.get<PortfolioSummary>('/api/intelligence/portfolio-summary')).data,
   });
 
+  // Reuse the authoritative Strategies library and Meetings endpoint for the
+  // two pulse figures that are not included in portfolio-summary. These are
+  // portfolio-wide reads, not per-client fan-out.
+  const strategies = useQuery<StrategyListItem[]>({
+    queryKey: ['strategy', 'strategies'],
+    queryFn: async () => (await api.get<StrategyListItem[]>('/strategy-api/strategies')).data,
+    staleTime: 30_000,
+  });
+
+  const week = useMemo(() => weekBounds(new Date()), []);
+  const meetings = useQuery<Meeting[]>({
+    queryKey: ['engagement-meetings-week', week.from, week.to],
+    queryFn: async () =>
+      (await api.get<Meeting[]>('/api/engagement/meetings', { params: week })).data,
+    staleTime: 60_000,
+  });
+
   const rows = useMemo<PortfolioRow[]>(() => {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
     return all.map((client) => ({
@@ -122,5 +152,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, summary, rows, counts, visible };
+  return { clients, summary, strategies, meetings, rows, counts, visible };
 }
