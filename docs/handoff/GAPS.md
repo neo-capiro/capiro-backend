@@ -1,10 +1,14 @@
 # Workspace vNext — Backend Gaps
 
 > Every item below is UI functionality the design requires and the vNext backend
-> contract (PR #922) does not cover. Each was verified against the backend branch
-> `agent/workspace-document-agent-backend-vnext` at SHA
-> `b1bb241b39e577afa82887f6cec43e3704e222b7` (rebased on main `178628386`)
-> on 2026-08-12. Items marked CLOSED were resolved by source inspection.
+> contract does not cover. Items dated 2026-08-12 were verified against the
+> backend branch `agent/workspace-document-agent-backend-vnext` at SHA
+> `b1bb241b39e577afa82887f6cec43e3704e222b7`. Items dated **2026-08-15** were
+> re-verified (or newly found) directly against `apps/workspace/src` on
+> `agent/workspace-vnext-audit-fixes` (rebased onto current `origin/main`,
+> head `aff50f990`) during the full stabilization audit. Items marked CLOSED
+> were resolved by source inspection or fixed this session; both are noted
+> explicitly.
 
 ## §1. Theme / design changes after initialize — **no route** (CLOSED: read-only)
 
@@ -114,16 +118,22 @@ Save is disabled with explanation.
 - **Estimated backend surface:** 1 optional list field
 - **Owner:** unassigned
 
-## §2. Generation-mode persistence — **unconfirmed**
+## §2. Generation-mode persistence — **CLOSED: fixed 2026-08-15**
 
-The `PatchAgentDto` accepts `documentType`, `blueprintPin`, `theme`, `goal`,
-`phase`, `status` — but does NOT explicitly include `generation`. The mode
-chip writes `generation.mode`, but it is unclear if the backend persists this
-field through the generic `PATCH /agent` route.
+`PatchAgentDto` already declared `generation?: { mode }`, but
+`DocumentAgentService.patchAgentState` never read `patch.generation` — the
+field validated and was silently dropped. This was a LIVE bug: the routed
+editor's mode chip (`WorkspaceEditorStabilized.tsx` `cycleMode`) sends this
+PATCH on every click, so the toggle appeared to do nothing (the optimistic
+local state would revert once the cache re-read the unchanged server value).
 
-**UI action**: Mode chip updates local state optimistically. If `PATCH /agent`
-with `generation: { mode }` is rejected, mode falls back to client-only state.
-No silent failure — the chip reflects what the server returns.
+**Fix**: `document-agent.service.ts` `patchAgentState` now applies
+`patch.generation.mode` to `state.generation.mode` under the same
+optimistic-revision lock as every other field. Regression test:
+`document-agent.service.spec.ts` → "persists generation.mode instead of
+silently dropping it".
+
+**UI action**: No longer needed — the mode chip now round-trips for real.
 
 ## §3. Assumption confirm / reject — **no semantic route**
 
@@ -134,12 +144,23 @@ provenance of who confirmed.
 **UI action**: Assumption confirm/reject uses `PUT /brief` with the full
 `assumptions[]` array. This is the only available path. Noted as a limitation.
 
-## §4. Conflict resolution — **no semantic route**
+## §4. Conflict resolution — **no semantic route (re-confirmed 2026-08-15, harder evidence)**
 
 `ContextConflict.resolved` and `.resolution` exist in state, `context/analyze`
 produces conflicts, and `context/approve` requires them resolved — but nothing
 writes a resolution semantically. The only path is `PATCH /drafts/:d/agent`
 against the whole `contextPlan`, which is a blunt write.
+
+**2026-08-15 re-verification**: `ResolveContextConflictDto` (expectedRevision,
+resolution, keptItemId?, excludedItemIds?) is fully defined in
+`document-agent.dto.ts` but has **zero references anywhere else** — no
+controller route, no service method calls it. `ContextConflict.resolved`/
+`.resolution` are only ever *read* (in `document-agent-quality.service.ts`,
+filtering `!c.resolved` for the `agent:source_conflicts` check), **never
+written to `true`/set anywhere in the codebase**. A conflict, once created,
+can never be marked resolved by any current code path — not a UI gap, a
+genuine missing backend route. The DTO shape above is exactly what the route
+should accept if/when it's added — no guessing required for that follow-up.
 
 **UI action**: Conflict resolution UI is present but the resolve action is
 **disabled** with an explanation: "Conflict resolution endpoint not
@@ -182,12 +203,25 @@ available — review only."
 
 **UI action**: Packet tabs render in server order. No drag-to-reorder.
 
-## §9. Share-link options — **confirmed**
+## §9. Share-link options — **confirmed; frozen-snapshot bug found and fixed 2026-08-15**
 
 `POST …/share-links` accepts `{ label?, expiresInDays?, versionId?,
 idempotencyKey? }`. Expiry length is supported. Guest comments are enabled
 by default (rate limited server-side). The overlay offers expiry selection
 only.
+
+**2026-08-15 finding, fixed**: `versionId` was accepted and stored on the
+share link, and returned back from `getByToken` — but `getByToken` never
+actually *read* `WsDocVersion.snapshot`. It always served the live,
+possibly-since-edited `draft.config`, silently defeating the entire point of
+pinning a version before sharing (editing the draft after sharing changed
+what an already-distributed public link showed). The frontend's share
+creation flow already did the correct thing (creates a version snapshot,
+then passes its id as `versionId`) — this was purely a backend bug. **Fixed**:
+`ShareLinkService.getByToken` now loads and serves the frozen
+`WsDocVersion.snapshot` whenever `link.versionId` is set. Regression test:
+`delivery.spec.ts` → "serves the frozen version snapshot, not the live
+draft, when versionId is pinned".
 
 ## §10. Proposal payload shape — **unspecified**
 
@@ -220,23 +254,36 @@ failures. On failure (422), the body is `{ message, errors }`.
 titles, target word ranges) and `intake` (resolved answers). On 422, display
 the error list. No generic "Test passed/failed" fallback needed.
 
-## §13. Guest comments in the internal thread — **CLOSED: not persisted**
+## §13. Guest comments in the internal thread — **CLOSED: fixed 2026-08-15**
 
-Guest comments from the public share are NOT persisted to the database. The
-`POST /public/workspace-share/:token/comments` endpoint sanitizes the text and
-returns `{ ok: true, text: sanitized }`, but never writes to `wsComment` or
-any other table. Rate limiting is in-memory (token-hash keyed map with 2000-char
-sanitize).
+Previously guest comments from the public share were NOT persisted. The
+`POST /public/workspace-share/:token/comments` endpoint sanitized the text and
+returned `{ ok: true, text: sanitized }`, but never wrote to any table. Rate
+limiting was in-memory but rejection returned HTTP 200 with an `{error}`
+field rather than a real 429. `GuestCommentDto.text` had no `@MaxLength` —
+the 2000-char cap was silent truncation, not validation.
 
-**Evidence**: `delivery.controller.ts` `addGuestComment()` (line 99) calls
-`shareLink.checkRateLimit()` and `shareLink.sanitize()` but no `prisma.create()`.
-`share-link.service.ts` `checkRateLimit()` (line 139) and `sanitize()` (line 155)
-are pure functions — no persistence.
+**Fix (2026-08-15)**:
+- Added `WsGuestComment` Prisma model (migration
+  `20260815000000_ws_guest_comment`): `id, tenantId, draftId, shareLinkId,
+  body, guestName?, createdAt`. Guests carry no identity — no Clerk user, no
+  tenant membership — so this is the durable "guest marker" record, never
+  returned by the public endpoint itself.
+- `ShareLinkService.addGuestComment` persists the sanitized body + optional
+  sanitized guest-supplied display name (not a verified identity).
+- Rate-limit rejection now throws a real `HttpException(429,
+  HttpStatus.TOO_MANY_REQUESTS)` instead of returning 200 with an error field.
+- `GuestCommentDto` now validates `@MaxLength(2000)` on `text` and
+  `@MaxLength(200)` on `name` (previously accepted-but-silently-capped).
+- Added `GET /drafts/:draftId/delivery/guest-comments` (authenticated,
+  `canRead`-gated) so the internal team can actually retrieve guest feedback.
 
-**UI action**: Guest comments from the public share do NOT appear in the internal
-comments drawer. The guest comment form shows "Comment submitted" but the comment
-is transient — it is not stored and cannot be retrieved later. This is a backend
-limitation: guest comments need a persistence layer.
+**Remaining gap (not closed)**: no frontend panel renders the new
+`guest-comments` endpoint yet — the Delivery overlay does not yet show a
+"Guest feedback" list. The backend half of "persist somewhere the internal
+team can actually see" is done (an authenticated, real endpoint exists); the
+UI half was out of this session's scope. Follow-up: add a simple read-only
+list in the Delivery inspector tab, query-keyed `['ws','guest-comments',draftId]`.
 
 ## §14. Notification deep links — **CLOSED: draftId present**
 
@@ -318,3 +365,199 @@ When `WORKSPACE_DOCUMENT_AGENT_VNEXT_ENABLED=false` or a draft has no
 - No crash, no blank pane.
 
 This is not a gap — it is implemented as §9.9 of the handoff.
+
+## §28. Live verification against currently-deployed main (2026-08-15) — confirms this PR fixes real, currently-live defects
+
+Tested the live os.capiro.ai (task-def running exactly `origin/main` HEAD
+`7793c638d` — confirmed via `window.__CAPIRO_CONFIG__.releaseSha` in the
+browser, i.e. NOT stale, and does NOT include this audit branch's unmerged
+commits) as an authenticated user (Neo Martinez). Three real, reproducible
+defects observed, all matching exactly what this audit branch's
+already-existing commits are designed to fix:
+
+1. **No Clerk-aware transport on main.** `GET /workspace-api/drafts?scope=all`
+   and `GET /workspace-api/template-studio/blueprints` both return real `401
+   {"message":"Missing or malformed Authorization header"}` on every load —
+   confirmed `window.fetch` remains the native, unpatched function on the
+   `/workspace` page (main has no `transport-bridge.ts`; it's a new file only
+   on this audit branch). The Library UI **silently renders "NO DOCUMENTS
+   YET"** instead of surfacing the auth failure — a 401 looks identical to an
+   empty library today. This is precisely the defect the audit branch's
+   `api/transport-bridge.ts` + `WorkspaceApiBoundary` commit fixes.
+2. **Public share is not isolated on main.** Navigating to
+   `/share/nonexistent-token` renders the "This document is no longer
+   available" message correctly, but wrapped inside the **full authenticated
+   app shell** (top bar, left rail, Neo's profile) — main has no
+   `main.tsx`-level bypass. This is precisely what the audit branch's `main.tsx`
+   commit ("mount public shares outside Clerk") fixes. (Not verified
+   logged-out in this session — would need a separate unauthenticated
+   session; the structural shell-wrapping itself is visible regardless of
+   login state.)
+3. **Legacy route `/workspace/library` is swallowed by generic vNext
+   matching on main.** Instead of falling through to the canonical
+   `LibraryPage`, it renders "Document Agent not initialized" — main is
+   literally treating the literal path segment `"library"` as a draft ID.
+   The offered "Open in standard editor" fallback button does not recover
+   (same broken page after clicking). This is precisely what the audit
+   branch's UUID-aware `DRAFT_ROUTE` regex (`WorkspaceVNextRoutes.tsx`) fixes
+   — main lacks that guard entirely.
+
+**Conclusion**: these are not hypothetical, PR-description-only claims — this
+audit branch's routing/transport/public-share commits fix real, currently-
+live breakage on the deployed vNext workspace surface. Did not exhaustively
+re-test every screen live (network access to a real dev draft's full
+brief→context→outline→generation flow was not exercised this session to
+avoid creating test artifacts in a user-facing environment); the three
+findings above were chosen because they concretely validate the PR's
+highest-severity claimed fixes.
+
+## §19. Comment delete had no ACL check — **CLOSED: fixed 2026-08-15**
+
+`CommentsService.remove()` scoped only by tenantId — no
+`collaborators.assertCan` call at all, unlike every other mutation in this
+module. Any authenticated tenant member (not just a collaborator with access
+to the specific draft) could delete any comment on any document in the
+tenant, including drafts they had zero role on.
+
+**Fix**: deleting another person's comment now requires `canReview`
+(owner/editor/reviewer — the same bar as resolving). An author may always
+delete their own comment (still gated on `canComment`, i.e. must have access
+at all). Regression tests: `src/comments/comments.service.spec.ts`.
+
+## §20. Context-item PATCH had no ACL check and ignored expectedRevision — **CLOSED: fixed 2026-08-15**
+
+`AgentContextItemController.patchContextItem` (`PATCH
+/drafts/:draftId/context/:itemId`) performed no collaborator ACL check (only
+tenant+draft scoping), and `PatchContextItemDto.expectedRevision` was
+declared but never read by the service — validated, then silently ignored.
+
+**Fix**: now requires `canEdit` via `loadDraft(...)` and enforces
+`expectedRevision` against the draft's current agent-state revision when
+supplied (409 `DOCUMENT_AGENT_REVISION_CONFLICT` on mismatch). Regression
+tests: `document-agent.service.spec.ts` → `patchContextItem` describe block.
+Note: this route currently has zero live callers (only the unreachable
+`WorkspaceEditorVNext.tsx` prototype calls it — see §23) — fixed anyway since
+it's part of the documented contract and the DTO already implied the
+guarantee.
+
+## §21. Generation status/sectionResults were fabricated on the happy path — **CLOSED: fixed 2026-08-15**
+
+`generate()` and `retryGeneration()` discarded the real `GenerationRunSummary`
+returned by `GenerationService` (which carries genuine `status:
+'complete'|'complete_with_warnings'|'partial'|'failed'` and per-section
+`sectionResults`) and hardcoded `lastRun.status = 'complete'` on any
+non-throwing path — including a run where individual sections failed (which
+does not throw). This directly violated the "render server truth, never
+fabricate" governance principle.
+
+**Fix**: both methods now read the engine's real result and populate
+`lastRun.status`/`completedAt`/`sectionResults` from it; `state.status` maps
+`complete_with_warnings→complete` (the coarser agent-status enum has no
+separate value) and `partial`/`failed` pass through unchanged. Regression
+tests: `document-agent.service.spec.ts` → "generation mode routing" describe
+block (3 new tests, including a back-compat case where the engine returns no
+run summary at all).
+
+## §22. Generation stage progress (`stages[]`) has no backing data — **OPEN, not fixed**
+
+`DocumentAgentRunSummary.stages: GenerationStage[]` (the `preflight /
+evidence_plan / narrative_plan / drafting / editorial_pass / assurance /
+snapshot / complete` vocabulary the UI spec describes) is hardcoded to `[]`
+at run creation and never updated anywhere in `document-agent.service.ts`.
+`GenerationService` has no internal stage-level instrumentation to surface —
+this isn't a wiring gap, the granularity doesn't exist in the generation
+engine at all today.
+
+**UI action (already correct, no change needed)**: the frontend's
+`normalizeGenerationStages` already filters to server-emitted stages only
+("Never manufacture status or progress") — it just never receives any. The
+generation panel shows section-level results (which ARE real, see §21) but
+no stage-by-stage progress. Building real stage instrumentation into
+`GenerationService` is a backend feature, not a frontend fix — out of scope
+for this audit.
+
+## §23. Two prototype files are unreachable dead code with a non-canonical, buggy contract — **OPEN, recommend deletion, not done this session**
+
+`apps/web/src/vnext/pages/workspace/editor/WorkspaceEditorVNext.tsx` (and its
+private `api/client.ts` DTOs / `types/agent.ts` types it alone uses) are not
+reachable from routing — `WorkspaceVNextRoutes.tsx` lazy-imports a binding
+*named* `WorkspaceEditorVNext` but the loader actually resolves
+`WorkspaceEditorStabilized`'s export, shadowing the real file. This orphaned
+prototype reinvents a **wrong** contract: `WorkspaceComment.text` (canonical
+is `body`), a `Collaborator` role union missing `commenter`, and an
+`EditLock.heldBy === 'me'` sentinel-string comparison (canonical is the
+server-computed `heldByMe` boolean — no client-side ID comparison anywhere
+in real code). None of this affects the live app today, but it is exactly
+the kind of surface a future "quick fix" could resurrect incorrectly, since
+the naming makes it look like the real component.
+
+**Recommendation**: delete `WorkspaceEditorVNext.tsx` and the client.ts
+functions/types that only it calls (confirmed zero other callers by grep:
+`getDraft`, `getComments`/`addComment`/`patchComment`/`deleteComment`,
+`getCollaborators`/`addCollaborator`/`updateCollaborator`/
+`removeCollaborator`, `getVersions`/`createVersion`/`restoreVersion`,
+`detectAnonymize`, `promoteToMemory`, `getPublicShare`, `addGuestComment`,
+plus `getDocuments`/`getLock`/`heartbeat`/`releaseLock`/`requestLock`/
+`patchDocument`/`createDocument`/`exportDocx`/`exportPdf`/`cancelGeneration`,
+called only by the dead prototype). Not done this session — deleting ~half
+of `client.ts` plus a 2000+-line component is a meaningfully-sized, separate
+cleanup change; flagging rather than rushing it in alongside correctness
+fixes.
+
+## §24. Proposal fields: no diff data, and outline-revision proposals are a no-op — **OPEN, confirmed via source**
+
+`WsAgentProposal` has no `affectedSections`/`lockedSectionsTouched` field —
+the frontend's optimistic rendering of those from `payload.*` (GAPS.md §10
+originally) will never receive them; only the generic fallback message will
+ever render for outline/content proposals. Separately, and more seriously:
+`reviseOutline` creates a proposal whose payload is `{ instruction,
+outlineSnapshot: state.outline.sections }` where `outlineSnapshot` is the
+**pre-revision** section list — the reasoning gateway's `reviseArtifact`
+method exists but `reviseOutline` never calls it or anything else that
+actually rewrites the outline. Accepting an `outline_revision` proposal
+today just re-applies the identical sections that already existed — a
+functional no-op. Also: staleness detection (`PROPOSAL_STALE`, 409) is only
+implemented for `outline_revision` and `content_revision` — `quality_fix:*`
+proposals have no staleness check at all, and accepting one applies nothing
+(no apply-payload branch exists for that type).
+
+**UI action**: no frontend change needed — the routed `ProposalReview`
+already refuses to fake a diff when `payload.after` is absent. This is
+purely a backend gap in the outline-revision generation logic; logged, not
+fixed (implementing a real outline-rewrite call is a reasoning-gateway
+change, out of scope for a stabilization audit).
+
+## §25. Edit-lock role-gate asymmetry — **OPEN, low severity**
+
+`acquire`/`takeOver` correctly require `canEdit`. `status`, `heartbeat`,
+`release`, and `request` have no collaborator role gate beyond tenant scope
+— in particular, `request()` lets any tenant member (not necessarily a
+collaborator with any role on this specific draft) register a lock-access
+request against the current holder. Not fixed this session — no live UI path
+was found that depends on tightening it, and the blast radius is limited to
+a notification/request record, not a content mutation. Logged for a future
+pass.
+
+## §26. Quick/Standard/Max share one generation pipeline — **OPEN, confirmed, matches known limitation**
+
+`document-agent.service.ts`'s `generate()` has an `if (mode === 'max') {…}
+else {…}` branch that calls the identical `GenerationService
+.generateAllSections(...)` with identical arguments in both branches —
+vestigial. `GenerationService.generateAllSections` takes no mode parameter
+at all; `mode` is stored/labeled on the agent state only. Frontend already
+avoids overclaiming (the mode chip is a plain label with no marketing copy
+about a distinct pipeline). No fix — this is a real product feature gap
+(building genuinely different pipelines per mode), not a stabilization bug.
+
+## §27. Generation cancel is not cooperative — **OPEN, confirmed, frontend already handles it correctly**
+
+`cancelGeneration` only flips agent-state JSON (`activeRunId = undefined`,
+`status = 'partial'`) — no call into `GenerationService`, no
+`AbortController` reachable from the caller. `generate()` `await`s the
+generation call synchronously within the same request, so a concurrent
+cancel cannot interrupt in-flight provider calls. **No fix needed on the
+frontend**: the routed `GenerationPanel` renders no Cancel button at all,
+with a static note explaining cancellation is unavailable once generation
+has started. Logged as a backend limitation (real cooperative cancellation
+would need an `AbortController` threaded through `GenerationService`'s
+per-section loop) — out of scope for this audit.

@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, MaxLength, MinLength } from 'class-validator';
 
 export class CreateApprovalRequestDto {
   @IsOptional() @IsString() versionId?: string;
@@ -19,6 +19,6 @@ export class CreateShareLinkDto {
 }
 
 export class GuestCommentDto {
-  @IsString() @MinLength(1) text!: string;
-  @IsOptional() @IsString() name?: string;
+  @IsString() @MinLength(1) @MaxLength(2000) text!: string;
+  @IsOptional() @IsString() @MaxLength(200) name?: string;
 }

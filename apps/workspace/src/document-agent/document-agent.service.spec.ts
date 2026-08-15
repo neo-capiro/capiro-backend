@@ -379,5 +379,109 @@ describe('DocumentAgentService', () => {
       expect(gen.generateAllSections).toHaveBeenCalled();
       expect(result.state.generation.mode).toBe('quick');
     });
+
+    function setupApprovedDraft() {
+      const state = createInitialAgentState();
+      state.revision = 1;
+      state.brief.approvedAt = new Date().toISOString();
+      state.contextPlan.approvedAt = new Date().toISOString();
+      state.outline.approvedAt = new Date().toISOString();
+      prisma._drafts.set('draft-1', {
+        id: 'draft-1',
+        tenantId: 'tenant-1',
+        ownerId: 'user-1',
+        config: { documentAgent: state },
+      });
+    }
+
+    it('renders the REAL engine run status/sectionResults instead of hardcoding complete', async () => {
+      setupApprovedDraft();
+      const gen = makeMockGeneration();
+      (gen.generateAllSections as jest.Mock).mockResolvedValue({
+        generationRun: {
+          status: 'partial',
+          completedAt: '2026-08-15T00:00:00.000Z',
+          sectionResults: [
+            { section: 'Overview', status: 'succeeded', contentChars: 500 },
+            { section: 'Budget Impact', status: 'failed', errorCode: 'provider_timeout', message: 'timed out' },
+          ],
+        },
+      } as never);
+      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
+
+      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard');
+
+      expect(result.state.status).toBe('partial'); // NOT hardcoded 'complete'
+      expect(result.state.generation.lastRun?.status).toBe('partial');
+      expect(result.state.generation.lastRun?.sectionResults).toEqual({
+        Overview: { status: 'succeeded' },
+        'Budget Impact': { status: 'failed', error: 'timed out' },
+      });
+    });
+
+    it('falls back to complete when the engine returns no run summary (back-compat)', async () => {
+      setupApprovedDraft();
+      const gen = makeMockGeneration(); // resolves { ok: true }, no generationRun
+      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
+
+      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard');
+
+      expect(result.state.status).toBe('complete');
+      expect(result.state.generation.lastRun?.status).toBe('complete');
+    });
+
+    it('propagates the real run status on retry, not a stale cached summary', async () => {
+      setupApprovedDraft();
+      const gen = makeMockGeneration();
+      (gen.retryFailedSections as jest.Mock).mockResolvedValue({
+        generationRun: {
+          status: 'complete_with_warnings',
+          completedAt: '2026-08-15T00:00:00.000Z',
+          sectionResults: [{ section: 'Overview', status: 'succeeded', contentChars: 500 }],
+        },
+      } as never);
+      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
+
+      const result = await svc.retryGeneration('tenant-1', 'draft-1', 'user-1', 1);
+
+      expect(result.state.generation.lastRun?.status).toBe('complete_with_warnings');
+      expect(result.state.status).toBe('complete'); // coarser enum has no 'complete_with_warnings'
+    });
+  });
+
+  describe('patchAgentState generation mode', () => {
+    it('persists generation.mode instead of silently dropping it', async () => {
+      setupDraft(prisma);
+      const result = await service.patchAgentState('tenant-1', 'draft-1', 'user-1', 1, {
+        generation: { mode: 'max' },
+      });
+      expect(result.state.generation.mode).toBe('max');
+    });
+  });
+
+  describe('patchContextItem', () => {
+    it('enforces expectedRevision when provided', async () => {
+      setupDraft(prisma);
+      prisma._contextItems.set('item-1', {
+        id: 'item-1', tenantId: 'tenant-1', draftId: 'draft-1', payload: { text: 'original' },
+      });
+      await expect(
+        service.patchContextItem('tenant-1', 'draft-1', 'user-1', 'item-1', { text: 'edited' }, 99),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('merges the payload when expectedRevision matches (or is omitted)', async () => {
+      setupDraft(prisma);
+      prisma._contextItems.set('item-1', {
+        id: 'item-1', tenantId: 'tenant-1', draftId: 'draft-1', payload: { text: 'original', keep: true },
+      });
+      const result = await service.patchContextItem(
+        'tenant-1', 'draft-1', 'user-1', 'item-1', { text: 'edited' }, 1,
+      );
+      expect((result.item as { payload: Record<string, unknown> }).payload).toEqual({
+        text: 'edited',
+        keep: true,
+      });
+    });
   });
 });

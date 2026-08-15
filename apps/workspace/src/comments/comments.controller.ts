@@ -55,6 +55,6 @@ export class CommentsController {
     @Param('documentId') documentId: string,
     @Param('commentId') commentId: string,
   ) {
-    return this.comments.remove(ctx.tenantId, documentId, commentId);
+    return this.comments.remove(ctx.tenantId, documentId, commentId, ctx.clerkUserId);
   }
 }

@@ -30,7 +30,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import '../styles/workspace.css';
 import { api } from '../api/client.js';
 import type {
@@ -1639,14 +1639,19 @@ function PaperMiniature({ color }: { color?: string }) {
 
 // ── Root component ──────────────────────────────────────────────────────────
 
-export function WorkspaceStudioVNext() {
-  const params = useParams<{ blueprintId?: string; versionId?: string }>();
+export function WorkspaceStudioVNext({
+  blueprintId,
+  versionId,
+}: { blueprintId?: string; versionId?: string } = {}) {
   const [searchParams] = useSearchParams();
   const view = searchParams.get('view');
 
-  // Editor route takes precedence: /workspace/studio/:blueprintId/:versionId
-  if (params.blueprintId && params.versionId) {
-    return <BlueprintEditor blueprintId={params.blueprintId} versionId={params.versionId} />;
+  // Editor route takes precedence: /workspace/studio/:blueprintId/:versionId.
+  // WorkspaceVNextRoutes does manual regex-based path matching (no nested
+  // react-router <Route> elements exist here), so ids arrive as props from
+  // the caller, not via useParams() — useParams() would always return {}.
+  if (blueprintId && versionId) {
+    return <BlueprintEditor blueprintId={blueprintId} versionId={versionId} />;
   }
 
   if (view === 'themes') return <DocumentThemes />;

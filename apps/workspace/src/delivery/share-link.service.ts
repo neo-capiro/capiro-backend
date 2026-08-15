@@ -3,11 +3,16 @@
 // Share links have expiration and revocation.
 
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canRead } from '../collaborators/role-policy.js';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import type { WsShareLink } from '../../generated/prisma-client/index.js';
 
 @Injectable()
 export class ShareLinkService {
@@ -16,7 +21,38 @@ export class ShareLinkService {
   private readonly RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
   private readonly RATE_LIMIT_MAX = 10;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
+
+  /**
+   * Look up a live (non-revoked, non-expired) share link by token via a
+   * timing-safe comparison. Shared by the public read path and the guest-
+   * comment write path so both enforce the same revocation/expiry rules.
+   */
+  private async findLiveLinkByToken(token: string): Promise<WsShareLink> {
+    const tokenHash = this.hashToken(token);
+    const links = await this.prisma.wsShareLink.findMany({ where: { tokenHash } });
+
+    let link: WsShareLink | undefined;
+    for (const l of links) {
+      if (l.tokenHash.length === tokenHash.length) {
+        const a = Buffer.from(l.tokenHash, 'hex');
+        const b = Buffer.from(tokenHash, 'hex');
+        if (timingSafeEqual(a, b)) {
+          link = l;
+          break;
+        }
+      }
+    }
+    if (!link) throw new NotFoundException('Share link not found');
+    if (link.revokedAt) throw new NotFoundException('Share link has been revoked');
+    if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
+      throw new NotFoundException('Share link has expired');
+    }
+    return link;
+  }
 
   /**
    * Create a share link. Returns the token ONCE; only the hash is stored.
@@ -84,31 +120,7 @@ export class ShareLinkService {
     docTitle: string;
     sections: Array<{ id: string; title: string; content: string }>;
   }> {
-    const tokenHash = this.hashToken(token);
-    const links = await this.prisma.wsShareLink.findMany({
-      where: { tokenHash },
-    });
-
-    // Timing-safe comparison.
-    let link: typeof links[0] | undefined;
-    for (const l of links) {
-      if (l.tokenHash.length === tokenHash.length) {
-        const a = Buffer.from(l.tokenHash, 'hex');
-        const b = Buffer.from(tokenHash, 'hex');
-        if (timingSafeEqual(a, b)) {
-          link = l;
-          break;
-        }
-      }
-    }
-    if (!link) throw new NotFoundException('Share link not found');
-
-    // Check revocation.
-    if (link.revokedAt) throw new NotFoundException('Share link has been revoked');
-    // Check expiration.
-    if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
-      throw new NotFoundException('Share link has expired');
-    }
+    const link = await this.findLiveLinkByToken(token);
 
     // Load the draft and sanitize the payload.
     const draft = await this.prisma.wsDraft.findFirst({
@@ -116,7 +128,23 @@ export class ShareLinkService {
     });
     if (!draft) throw new NotFoundException('Document not found');
 
-    const config = (draft.config as Record<string, unknown>) ?? {};
+    // A share link pinned to a version must ALWAYS serve that frozen snapshot,
+    // never the live (possibly since-edited) draft — otherwise editing the draft
+    // after sharing silently changes what a client already viewing the link sees.
+    let config: Record<string, unknown>;
+    let docTitle: string;
+    if (link.versionId) {
+      const version = await this.prisma.wsDocVersion.findFirst({
+        where: { id: link.versionId, tenantId: link.tenantId, draftId: link.draftId },
+      });
+      if (!version) throw new NotFoundException('Share link is pinned to a version that no longer exists');
+      const snapshot = (version.snapshot as { docTitle?: string; config?: unknown }) ?? {};
+      config = (snapshot.config as Record<string, unknown>) ?? {};
+      docTitle = snapshot.docTitle ?? draft.docTitle;
+    } else {
+      config = (draft.config as Record<string, unknown>) ?? {};
+      docTitle = draft.docTitle;
+    }
     const sections = (config.sections as string[]) ?? [];
     const sectionContent = (config.sectionContent as Record<string, string>) ?? {};
 
@@ -124,7 +152,7 @@ export class ShareLinkService {
     return {
       draftId: '', // no tenantId leak
       versionId: link.versionId,
-      docTitle: draft.docTitle,
+      docTitle,
       sections: sections.map((id) => ({
         id,
         title: id,
@@ -147,6 +175,56 @@ export class ShareLinkService {
     recent.push(now);
     this.rateLimitMap.set(tokenHash, recent);
     return true;
+  }
+
+  /**
+   * Persist a guest comment left on a public share link. Previously this was a
+   * pure echo — `{ ok: true, text }` with no durable write — invisible to the
+   * internal team. Real 429 (not a 200 with an `error` field) when rate-limited.
+   */
+  async addGuestComment(
+    token: string,
+    text: string,
+    name?: string,
+  ): Promise<{ ok: true }> {
+    const link = await this.findLiveLinkByToken(token);
+    const tokenHash = this.hashToken(token);
+    if (!this.checkRateLimit(tokenHash)) {
+      throw new HttpException(
+        'Rate limit exceeded. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const body = this.sanitize(text);
+    const guestName = name ? this.sanitize(name) : null;
+    await this.prisma.wsGuestComment.create({
+      data: {
+        tenantId: link.tenantId,
+        draftId: link.draftId,
+        shareLinkId: link.id,
+        body,
+        guestName,
+      },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * List guest comments for the internal team (authenticated, tenant + role
+   * scoped) — the whole point of persisting them durably.
+   */
+  async listGuestComments(tenantId: string, draftId: string, actorId: string) {
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canRead,
+      'You do not have permission to access this document',
+    );
+    return this.prisma.wsGuestComment.findMany({
+      where: { tenantId, draftId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   /**

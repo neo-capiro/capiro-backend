@@ -89,6 +89,7 @@ model WsDraft {
   proposals     WsAgentProposal[]
   approvalRequests WsApprovalRequest[]
   shareLinks    WsShareLink[]
+  guestComments WsGuestComment[]
 
   @@index([tenantId])
   @@index([tenantId, ownerId])
@@ -250,10 +251,35 @@ model WsShareLink {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  guestComments WsGuestComment[]
 
   @@index([tenantId, draftId])
   @@index([tokenHash])
   @@map("ws_share_link")
+}
+
+// A comment left by an unauthenticated guest viewing a public /share/:token link.
+// Guests carry no identity (no Clerk user, no tenant membership) — the record
+// exists so the internal team can actually see client-facing feedback; it is
+// never returned by the public share endpoint itself.
+model WsGuestComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  draftId     String   @map("draft_id") @db.Uuid
+  shareLinkId String   @map("share_link_id") @db.Uuid
+  // Sanitized (HTML-stripped, length-capped) plain text — never raw guest input.
+  body        String
+  // Self-reported display label only (e.g. "Jane, Acme Corp") — NOT a verified
+  // identity. Sanitized the same way as body.
+  guestName   String?  @map("guest_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  draft     WsDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  shareLink WsShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId])
+  @@index([shareLinkId])
+  @@map("ws_guest_comment")
 }
 
 // Collaboration status on a WsCollaborator row.
