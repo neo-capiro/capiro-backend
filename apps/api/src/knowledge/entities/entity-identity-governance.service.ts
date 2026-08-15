@@ -30,28 +30,20 @@ export class EntityIdentityGovernanceService {
     input: ConfirmResolutionGovernanceInput,
   ): Promise<ConfirmedEntityResolutionGovernanceResult> {
     requireActor(input.actorUserId);
+    // correctResolution appends the corrected decision. A DB trigger projects
+    // the governance event in that same transaction, eliminating a crash window.
     const result = await this.resolver.correctResolution(tenantId, {
       resolutionId: input.resolutionId,
       selectedEntityId: input.selectedEntityId,
       actorUserId: input.actorUserId,
       reason: input.reason ?? null,
     });
-    const governanceEventId = await this.repository.recordResolutionConfirmation(
-      tenantId,
-      input.resolutionId,
-      result.resolutionId,
-      input.selectedEntityId,
-      input.actorUserId,
-      input.reason?.trim() || null,
-      governanceIdempotencyKey({
-        action: 'resolution_confirmed',
+    const governanceEventId =
+      await this.repository.findResolutionConfirmationEvent(
         tenantId,
-        originalResolutionId: input.resolutionId,
-        correctedResolutionId: result.resolutionId,
-        selectedEntityId: input.selectedEntityId,
-        actorUserId: input.actorUserId,
-      }),
-    );
+        input.resolutionId,
+        result.resolutionId,
+      );
     return { ...result, governanceEventId };
   }
 
